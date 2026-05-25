@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+// ១. យើងបំបែកកូដដែលមានប្រើ useSearchParams() ទៅជា Component ថ្មីមួយ (LoginContent)
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -59,7 +60,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen font-sans">
-
       {/* ── Left panel — dark brand side ── */}
       <div className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-[#0a1629] p-12 lg:flex">
         {/* Decorative circles */}
@@ -122,7 +122,6 @@ export default function LoginPage() {
         </div>
 
         <div className="w-full max-w-[420px]">
-
           {/* Heading */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900">Welcome back</h1>
@@ -145,11 +144,7 @@ export default function LoginPage() {
             disabled={googleLoading || loading}
             className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md disabled:opacity-60"
           >
-            {googleLoading ? (
-              <SpinnerIcon />
-            ) : (
-              <GoogleIcon />
-            )}
+            {googleLoading ? <SpinnerIcon /> : <GoogleIcon />}
             {googleLoading ? "Redirecting…" : "Continue with Google"}
           </button>
 
@@ -231,10 +226,24 @@ export default function LoginPage() {
               Create one free
             </Link>
           </p>
-
         </div>
       </div>
     </div>
+  );
+}
+
+// ២. យើងបង្កើត Component ចម្បង (LoginPage) ហើយរុំ LoginContent ជាមួយ Suspense
+export default function LoginPage() {
+  return (
+    <Suspense 
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500 font-sans">
+          <SpinnerIcon /> <span className="ml-2">កំពុងផ្ទុក...</span>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
 
