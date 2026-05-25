@@ -83,12 +83,38 @@ export async function saveBookRecord(formData: FormData) {
     .single();
   if (authorError) throw new Error(`Author error: ${authorError.message}`);
 
-  const { data: categoryRow, error: catError } = await supabase
-    .from("categories")
-    .upsert({ name: category, slug: slugify(category) }, { onConflict: "slug" })
-    .select("id")
-    .single();
-  if (catError) throw new Error(`Category error: ${catError.message}`);
+  // Look up existing category first; only insert if not found
+  let categoryId: string;
+  const providedCategoryId = formData.get("categoryId")?.toString().trim();
+
+  if (providedCategoryId) {
+    categoryId = providedCategoryId;
+  } else {
+    const { data: existingCat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("name", category)
+      .maybeSingle();
+
+    if (existingCat) {
+      categoryId = existingCat.id;
+    } else {
+      const { data: newCat, error: catInsertErr } = await supabase
+        .from("categories")
+        .insert({ name: category, slug: slugify(category) })
+        .select("id")
+        .single();
+      if (catInsertErr) {
+        // Race condition — retry select
+        const { data: retryCat } = await supabase
+          .from("categories").select("id").eq("name", category).single();
+        if (!retryCat) throw new Error(`Category error: ${catInsertErr.message}`);
+        categoryId = retryCat.id;
+      } else {
+        categoryId = newCat.id;
+      }
+    }
+  }
 
   const { data: book, error: bookError } = await supabase
     .from("books")
@@ -97,7 +123,7 @@ export async function saveBookRecord(formData: FormData) {
       slug,
       description:  summary,
       author_id:    authorRow.id,
-      category_id:  categoryRow.id,
+      category_id:  categoryId,
       language,
       published_at: `${year}-01-01`,
       is_published: true,
@@ -234,12 +260,37 @@ export async function updateBook(bookId: string, formData: FormData) {
     .single();
   if (authorError) throw new Error(`Author error: ${authorError.message}`);
 
-  const { data: categoryRow, error: catError } = await supabase
-    .from("categories")
-    .upsert({ name: category, slug: slugify(category) }, { onConflict: "slug" })
-    .select("id")
-    .single();
-  if (catError) throw new Error(`Category error: ${catError.message}`);
+  // Look up existing category first; only insert if not found
+  let categoryId: string;
+  const providedCategoryId = formData.get("categoryId")?.toString().trim();
+
+  if (providedCategoryId) {
+    categoryId = providedCategoryId;
+  } else {
+    const { data: existingCat } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("name", category)
+      .maybeSingle();
+
+    if (existingCat) {
+      categoryId = existingCat.id;
+    } else {
+      const { data: newCat, error: catInsertErr } = await supabase
+        .from("categories")
+        .insert({ name: category, slug: slugify(category) })
+        .select("id")
+        .single();
+      if (catInsertErr) {
+        const { data: retryCat } = await supabase
+          .from("categories").select("id").eq("name", category).single();
+        if (!retryCat) throw new Error(`Category error: ${catInsertErr.message}`);
+        categoryId = retryCat.id;
+      } else {
+        categoryId = newCat.id;
+      }
+    }
+  }
 
   const { data: book, error: bookError } = await supabase
     .from("books")
@@ -247,7 +298,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       title,
       description:  summary,
       author_id:    authorRow.id,
-      category_id:  categoryRow.id,
+      category_id:  categoryId,
       language,
       published_at: `${year}-01-01`,
       department,
@@ -266,4 +317,51 @@ export async function updateBook(bookId: string, formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/manage");
   redirect(`/books/${book.slug}`);
+}
+
+// ── addCategory — create a new category (admin only, bypasses RLS) ──
+export async function addCategory(name: string): Promise<{ id: string; name: string } | null> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") throw new Error("Admin access required");
+
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Category name is required");
+
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id, name")
+    .eq("name", trimmed)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  // Insert new
+  const { data: newCat, error: insertErr } = await supabase
+    .from("categories")
+    .insert({ name: trimmed, slug: slugify(trimmed) })
+    .select("id, name")
+    .single();
+
+  if (insertErr) {
+    // Race condition — retry select
+    const { data: retryCat } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("name", trimmed)
+      .single();
+    if (retryCat) return retryCat;
+    throw new Error(`Failed to add category: ${insertErr.message}`);
+  }
+
+  return newCat;
 }

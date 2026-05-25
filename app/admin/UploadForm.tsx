@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveBookRecord } from "@/app/admin/actions";
-import { departments, slugify } from "@/lib/book-utils";
+import { saveBookRecord, addCategory } from "@/app/admin/actions";
+import { departments as defaultDepartments, slugify } from "@/lib/book-utils";
 import Icon from "@/components/ui/Icon";
+
+const LANGUAGES = ["Khmer", "English"] as const;
 
 const TEXT_FIELDS = [
   { name: "title",    label: "Title",    placeholder: "Book title",            required: true  },
   { name: "author",   label: "Author",   placeholder: "Author or institution", required: true  },
-  { name: "category", label: "Category", placeholder: "Research, Journal...",   required: true  },
-  { name: "language", label: "Language", placeholder: "",                      required: true, defaultValue: "English" },
   { name: "isbn",     label: "ISBN",     placeholder: "Optional",              required: false },
 ] as const;
 
@@ -24,6 +24,102 @@ export default function UploadForm() {
   const [phase, setPhase]       = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError]       = useState<string | null>(null);
+
+  // Cover preview
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  // Dynamic departments
+  const [deptList, setDeptList] = useState<string[]>(defaultDepartments);
+  const [showNewDept, setShowNewDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const newDeptInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic categories
+  const [catList, setCatList] = useState<string[]>([]);
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const newCatInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch departments (from books.department) & categories on mount
+  useEffect(() => {
+    (async () => {
+      const [deptRes, catRes] = await Promise.all([
+        // departments is a text column on books — get distinct values
+        supabase.from("books").select("department").not("department", "is", null),
+        supabase.from("categories").select("name").order("name", { ascending: true }),
+      ]);
+
+      if (deptRes.data && deptRes.data.length > 0) {
+        const unique = [...new Set(
+          deptRes.data
+            .map((b: { department: string | null }) => b.department)
+            .filter(Boolean) as string[]
+        )].sort();
+        if (unique.length > 0) setDeptList(unique);
+      }
+
+      if (catRes.data && catRes.data.length > 0) {
+        setCatList(catRes.data.map((c: { name: string }) => c.name));
+      }
+    })();
+  }, []);
+
+  // Focus new-dept / new-cat input when shown
+  useEffect(() => {
+    if (showNewDept) newDeptInputRef.current?.focus();
+  }, [showNewDept]);
+  useEffect(() => {
+    if (showNewCat) newCatInputRef.current?.focus();
+  }, [showNewCat]);
+
+  function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCoverPreview(url);
+    } else {
+      setCoverPreview(null);
+    }
+  }
+
+  async function handleAddDepartment() {
+    const name = newDeptName.trim();
+    if (!name) return;
+    // Case-insensitive duplicate check
+    if (deptList.some((d) => d.toLowerCase() === name.toLowerCase())) {
+      setShowNewDept(false);
+      setNewDeptName("");
+      return;
+    }
+    // department is a plain text column on books — no separate table needed
+    // Just add to local list; it gets saved with the book record
+    setDeptList((prev) => [...prev, name].sort());
+    setNewDeptName("");
+    setShowNewDept(false);
+  }
+
+  async function handleAddCategory() {
+    const name = newCatName.trim();
+    if (!name) return;
+    // Case-insensitive duplicate check
+    if (catList.some((c) => c.toLowerCase() === name.toLowerCase())) {
+      setShowNewCat(false);
+      setNewCatName("");
+      return;
+    }
+    try {
+      // Use server action (bypasses RLS)
+      const result = await addCategory(name);
+      if (result && !catList.includes(result.name)) {
+        setCatList((prev) => [...prev, result.name].sort());
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add category");
+      return;
+    }
+    setNewCatName("");
+    setShowNewCat(false);
+  }
 
   const busy = phase !== "idle";
 
@@ -179,11 +275,31 @@ export default function UploadForm() {
           type="file"
           accept="image/jpeg,image/png,image/webp,image/avif"
           disabled={busy}
+          onChange={handleCoverChange}
           className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600 transition hover:border-[#007c91] file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:font-semibold file:text-slate-700 disabled:opacity-50"
         />
-        <p className="mt-1.5 text-xs text-slate-400">
-          If left empty, a colored placeholder is used automatically.
-        </p>
+        {coverPreview ? (
+          <div className="mt-3 flex items-start gap-3">
+            <div className="relative h-[140px] w-[100px] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
+              <img
+                src={coverPreview}
+                alt="Cover preview"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setCoverPreview(null)}
+              className="mt-1 text-xs font-semibold text-red-500 hover:text-red-700 transition"
+            >
+              Remove preview
+            </button>
+          </div>
+        ) : (
+          <p className="mt-1.5 text-xs text-slate-400">
+            If left empty, a colored placeholder is used automatically.
+          </p>
+        )}
       </label>
 
       {/* Text fields */}
@@ -196,13 +312,83 @@ export default function UploadForm() {
           <input
             name={f.name}
             required={f.required}
-            defaultValue={"defaultValue" in f ? f.defaultValue : undefined}
             placeholder={f.placeholder}
             disabled={busy}
             className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
           />
         </label>
       ))}
+
+      {/* Category */}
+      <label>
+        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+          Category <span className="text-red-500">*</span>
+        </span>
+        <select
+          name="category"
+          required
+          defaultValue={catList[0] ?? ""}
+          disabled={busy}
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+        >
+          {catList.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        {!showNewCat ? (
+          <button
+            type="button"
+            onClick={() => setShowNewCat(true)}
+            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+          >
+            <span className="text-base leading-none">+</span> Add new category
+          </button>
+        ) : (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              ref={newCatInputRef}
+              type="text"
+              value={newCatName}
+              onChange={(e) => setNewCatName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
+              placeholder="New category name"
+              className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+            />
+            <button
+              type="button"
+              onClick={handleAddCategory}
+              className="h-9 rounded-lg bg-[#007c91] px-3 text-xs font-semibold text-white transition hover:bg-[#005f6b]"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowNewCat(false); setNewCatName(""); }}
+              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </label>
+
+      {/* Language */}
+      <label>
+        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+          Language <span className="text-red-500">*</span>
+        </span>
+        <select
+          name="language"
+          required
+          defaultValue="Khmer"
+          disabled={busy}
+          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+        >
+          {LANGUAGES.map((lang) => (
+            <option key={lang} value={lang}>{lang}</option>
+          ))}
+        </select>
+      </label>
 
       {/* Department */}
       <label>
@@ -212,14 +398,49 @@ export default function UploadForm() {
         <select
           name="department"
           required
-          defaultValue="Research"
+          defaultValue={deptList[0] ?? ""}
           disabled={busy}
           className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
         >
-          {departments.map((d) => (
+          {deptList.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
+        {!showNewDept ? (
+          <button
+            type="button"
+            onClick={() => setShowNewDept(true)}
+            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+          >
+            <span className="text-base leading-none">+</span> Add new department
+          </button>
+        ) : (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              ref={newDeptInputRef}
+              type="text"
+              value={newDeptName}
+              onChange={(e) => setNewDeptName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddDepartment(); } }}
+              placeholder="New department name"
+              className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+            />
+            <button
+              type="button"
+              onClick={handleAddDepartment}
+              className="h-9 rounded-lg bg-[#007c91] px-3 text-xs font-semibold text-white transition hover:bg-[#005f6b]"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowNewDept(false); setNewDeptName(""); }}
+              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
       </label>
 
       {/* Year */}
