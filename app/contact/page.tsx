@@ -26,7 +26,7 @@ export default function ContactPage() {
     setErrorMsg("");
 
     try {
-      const res = await fetch("/.netlify/functions/contact", {
+      const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, message }),
@@ -35,11 +35,9 @@ export default function ContactPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        // Rate-limit: show countdown
         if (res.status === 429 && data.secondsLeft) {
           setCooldownSeconds(data.secondsLeft);
 
-          // Countdown timer
           const interval = setInterval(() => {
             setCooldownSeconds((prev) => {
               if (prev <= 1) {
@@ -50,17 +48,13 @@ export default function ContactPage() {
               return prev - 1;
             });
           }, 1000);
-        } else {
-          setStatus("error");
         }
 
         setErrorMsg(data.error || "Something went wrong. Please try again.");
-        if (res.status !== 429) setStatus("error");
-        else setStatus("error"); // show rate-limit message too
+        setStatus("error");
         return;
       }
 
-      // Success
       setStatus("success");
       setName("");
       setEmail("");
@@ -76,7 +70,6 @@ export default function ContactPage() {
   return (
     <section className="bg-slate-50 px-6 py-10 md:px-12">
       <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[.9fr_1.1fr]">
-        {/* Left info panel */}
         <div className="rounded-lg bg-[#0a1629] p-8 text-white">
           <h1 className="text-3xl font-bold">Contact the library</h1>
           <div className="mt-8 space-y-5">
@@ -89,7 +82,6 @@ export default function ContactPage() {
           </div>
         </div>
 
-        {/* Right form panel */}
         <form
           onSubmit={handleSubmit}
           className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
@@ -124,14 +116,12 @@ export default function ContactPage() {
             />
           </div>
 
-          {/* Success message */}
           {status === "success" && (
             <p className="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
               ✅ Your message was sent successfully!
             </p>
           )}
 
-          {/* Error / rate-limit message */}
           {status === "error" && errorMsg && (
             <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
               ⚠️ {errorMsg}
