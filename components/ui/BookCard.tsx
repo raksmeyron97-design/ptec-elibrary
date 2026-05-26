@@ -20,20 +20,21 @@ type BookCardProps = {
 };
 
 export default function BookCard({ book }: BookCardProps) {
-  const router    = useRouter();
-  const readable  = !!book.pdfUrl;
-  const progress  = book.progressPct  ?? 0;
+  const router = useRouter();
+  const readable = !!book.pdfUrl;
+  const progress = book.progressPct ?? 0;
   const downloads = book.downloadCount ?? 0;
-  const views     = book.viewCount     ?? 0;
+  const views = book.viewCount ?? 0;
 
   const formatCount = (n: number) =>
-    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
-    : n >= 1_000   ? `${(n / 1_000).toFixed(1)}K`
-    : String(n);
+    n >= 1_000_000
+      ? `${(n / 1_000_000).toFixed(1)}M`
+      : n >= 1_000
+        ? `${(n / 1_000).toFixed(1)}K`
+        : String(n);
 
   async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
-    // Fire-and-forget: increment without blocking navigation
     if (book.dbId) {
       incrementViewCount(book.dbId).catch(() => {});
     }
@@ -41,116 +42,119 @@ export default function BookCard({ book }: BookCardProps) {
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[16px] border border-slate-100 bg-white transition-all duration-300 ease-out hover:-translate-y-1 hover:border-slate-200 hover:shadow-[0_16px_40px_-12px_rgba(11,42,48,0.22)]">
-      <a href={`/books/${book.slug}`} onClick={handleClick} className="flex h-full flex-col">
-
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_8px_30px_-8px_rgba(12,124,138,0.15)]">
+      <a
+        href={`/books/${book.slug}`}
+        onClick={handleClick}
+        className="flex h-full flex-col"
+      >
         {/* ── Cover ── */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-[16px]">
-          {book.coverUrl ? (
-            <Image
-              src={book.coverUrl}
-              alt={`Cover of ${book.title}`}
-              fill
-              sizes="(max-width:768px) 50vw, 25vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <BookCover
-              title={book.title}
-              label={book.category || book.department}
-              author={book.author}
-              variant="card"
-            />
-          )}
+        <div className="relative mx-3 mt-3 overflow-hidden rounded-xl sm:mx-3.5 sm:mt-3.5">
+          <div className="relative aspect-[3/4] w-full">
+            {book.coverUrl ? (
+              <Image
+                src={book.coverUrl}
+                alt={`Cover of ${book.title}`}
+                fill
+                sizes="(max-width:768px) 50vw, 25vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              />
+            ) : (
+              <BookCover
+                title={book.title}
+                label={book.category || book.department}
+                author={book.author}
+                variant="card"
+              />
+            )}
 
-          {/* Top-left: Department + Category — Top-right: PDF badge */}
-          <div className="absolute left-2 top-2 z-[4] flex flex-col items-start gap-1">
-            <span className="rounded-md bg-black/50 px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm line-clamp-1 max-w-[110px]">
-              {book.department}
+            {/* Format badge — top right, subtle */}
+            <span className="absolute right-2 top-2 z-[4] rounded-md bg-white/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-sm">
+              {book.format || "PDF"}
             </span>
-            {book.category && book.category !== book.department && (
-              <span className="rounded-md bg-black/40 px-2 py-0.5 text-[9px] font-semibold text-white/90 backdrop-blur-sm line-clamp-1 max-w-[110px]">
-                {book.category}
-              </span>
+
+            {/* Reading progress bar */}
+            {progress > 0 && (
+              <div className="absolute inset-x-0 bottom-0 z-[5] h-[3px] bg-black/10 rounded-b-xl overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[#0C7C8A] transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             )}
           </div>
-          <span className="absolute right-2 top-2 z-[4] rounded-lg bg-white/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.18)]">
-            {book.format || "PDF"}
-          </span>
-
-          {/* Bottom overlay: Title + Author */}
-          <div className="absolute inset-x-0 bottom-0 z-[4] bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pb-3 pt-8">
-            <h3
-              className="text-[13px] font-bold leading-snug text-white line-clamp-2 sm:text-[14px]"
-              style={{ fontFamily: "'Hanuman', serif" }}
-            >
-              {book.title}
-            </h3>
-            <p className="mt-0.5 flex items-center gap-1 text-[10px] text-white/75 sm:text-[11px]">
-              <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              <span className="line-clamp-1">{book.author}</span>
-            </p>
-          </div>
-
-          {/* reading-progress strip */}
-          {progress > 0 && (
-            <div className="absolute inset-x-0 bottom-0 z-[5] h-1 bg-black/25">
-              <div className="h-full bg-[#19A6B6] shadow-[0_0_8px_#19A6B6]" style={{ width: `${progress}%` }} />
-            </div>
-          )}
         </div>
 
         {/* ── Body ── */}
-        <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-[14px]">
+        <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4 sm:pt-3.5">
+          {/* Department pill */}
+          <span className="mb-1.5 inline-flex self-start rounded-full bg-[#F0F7F8] px-2.5 py-[3px] text-[9px] font-semibold uppercase tracking-wide text-[#0C7C8A]">
+            {book.department}
+          </span>
 
-          {/* Readable / progress status badge */}
-          <div>
-            {progress > 0 ? (
-              <span className="rounded-md bg-[#E4F4F5] px-2 py-0.5 text-[10px] font-semibold text-[#075863]">
-                {progress}% read
-              </span>
-            ) : (
-              <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${readable ? "bg-[#E4F4F5] text-[#075863]" : "bg-amber-50 text-amber-700"}`}>
-                {readable ? "Readable" : "PDF needed"}
-              </span>
-            )}
-          </div>
+          {/* Title */}
+          <h3
+            className="text-[13px] font-bold leading-snug text-slate-800 line-clamp-2 sm:text-[14px]"
+            style={{ fontFamily: "'Hanuman', serif" }}
+          >
+            {book.title}
+          </h3>
 
-          {/* Summary — hidden on mobile, 2 lines on sm+ */}
-          <p className="hidden line-clamp-2 text-[12px] leading-5 text-slate-400 sm:block">
+          {/* Author */}
+          <p className="mt-1 text-[11px] text-slate-400 line-clamp-1 sm:text-[12px]">
+            {book.author}
+          </p>
+
+          {/* Summary — hidden on mobile */}
+          <p className="mt-1.5 hidden text-[11px] leading-[1.6] text-slate-400 line-clamp-2 sm:block">
             {book.summary}
           </p>
 
-          {/* Footer: 2-row layout */}
-          <div className="mt-auto flex flex-col gap-1 border-t border-slate-100 pt-2">
-
-            {/* Row 1: Stars + review count */}
+          {/* ── Footer ── */}
+          <div className="mt-auto pt-3">
+            {/* Stars + rating number */}
             <div className="flex items-center gap-1.5">
               <RatingStars rating={book.rating} compact />
-              {book.reviewCount ? (
-                <span className="text-[10px] text-slate-400">({book.reviewCount})</span>
-              ) : null}
+              <span className="text-[11px] font-medium text-slate-500">
+                {book.rating?.toFixed(1)}
+              </span>
             </div>
 
-            {/* Row 2: Downloads + Views (left) | View/Continue (right) */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
+            {/* Meta row */}
+            <div className="mt-2 flex items-center justify-between">
+              <div className="flex items-center gap-3">
                 {/* Downloads */}
                 {downloads > 0 && (
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
-                    <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M12 3v13m0 0-4-4m4 4 4-4" /><path d="M4 20h16" />
+                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M12 3v13m0 0-4-4m4 4 4-4" />
+                      <path d="M4 20h16" />
                     </svg>
                     {formatCount(downloads)}
                   </span>
                 )}
 
-                {/* View count — always shown */}
-                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
-                  <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                {/* Views */}
+                <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
@@ -158,14 +162,21 @@ export default function BookCard({ book }: BookCardProps) {
                 </span>
               </div>
 
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#0C7C8A]">
+              {/* CTA */}
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-[#F0F7F8] px-2.5 py-1 text-[10px] font-semibold text-[#0C7C8A] transition-colors group-hover:bg-[#0C7C8A] group-hover:text-white">
                 {progress > 0 ? "Continue" : "View"}
-                <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                <svg
+                  className="h-3 w-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                >
                   <path d="m9 18 6-6-6-6" />
                 </svg>
               </span>
             </div>
-
           </div>
         </div>
       </a>

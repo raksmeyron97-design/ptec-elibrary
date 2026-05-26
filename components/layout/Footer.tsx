@@ -254,7 +254,7 @@ export default async function Footer() {
                   />
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#00a8c6]/70 mb-0.5">វិទ្យាស្ថានបណ្ណាល័យ</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#00a8c6]/70 mb-0.5">បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ</p>
                   <h2 className="text-white font-bold text-xl tracking-wide">PTEC <span className="text-[#00a8c6]">e-Library</span></h2>
                 </div>
               </div>

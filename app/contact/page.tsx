@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Icon, { type IconName } from "@/components/ui/Icon";
 
 const contactItems: [IconName, string][] = [
@@ -7,10 +10,73 @@ const contactItems: [IconName, string][] = [
   ["map-pin", "St.271, Khan Toul Kork, Phnom Penh"],
 ];
 
+type Status = "idle" | "loading" | "success" | "error";
+
 export default function ContactPage() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("loading");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/.netlify/functions/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Rate-limit: show countdown
+        if (res.status === 429 && data.secondsLeft) {
+          setCooldownSeconds(data.secondsLeft);
+
+          // Countdown timer
+          const interval = setInterval(() => {
+            setCooldownSeconds((prev) => {
+              if (prev <= 1) {
+                clearInterval(interval);
+                setStatus("idle");
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        } else {
+          setStatus("error");
+        }
+
+        setErrorMsg(data.error || "Something went wrong. Please try again.");
+        if (res.status !== 429) setStatus("error");
+        else setStatus("error"); // show rate-limit message too
+        return;
+      }
+
+      // Success
+      setStatus("success");
+      setName("");
+      setEmail("");
+      setMessage("");
+    } catch {
+      setStatus("error");
+      setErrorMsg("Network error. Please check your connection and try again.");
+    }
+  }
+
+  const isDisabled = status === "loading" || status === "success";
+
   return (
     <section className="bg-slate-50 px-6 py-10 md:px-12">
       <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[.9fr_1.1fr]">
+        {/* Left info panel */}
         <div className="rounded-lg bg-[#0a1629] p-8 text-white">
           <h1 className="text-3xl font-bold">Contact the library</h1>
           <div className="mt-8 space-y-5">
@@ -22,15 +88,65 @@ export default function ContactPage() {
             ))}
           </div>
         </div>
-        <form className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+
+        {/* Right form panel */}
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
+        >
           <h2 className="text-2xl font-bold text-slate-950">Send a request</h2>
+
           <div className="mt-6 grid gap-4">
-            <input className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91]" placeholder="Full name" />
-            <input className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91]" placeholder="Email address" />
-            <textarea className="min-h-36 rounded-md border border-slate-200 p-4 outline-none focus:border-[#007c91]" placeholder="How can the library help?" />
+            <input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isDisabled}
+              className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              placeholder="Full name"
+            />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isDisabled}
+              className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              placeholder="Email address"
+            />
+            <textarea
+              required
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              disabled={isDisabled}
+              className="min-h-36 rounded-md border border-slate-200 p-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              placeholder="How can the library help?"
+            />
           </div>
-          <button className="mt-5 rounded-md bg-[#0a1629] px-5 py-3 font-semibold text-white transition hover:bg-[#007c91]">
-            Submit message
+
+          {/* Success message */}
+          {status === "success" && (
+            <p className="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+              ✅ Your message was sent successfully!
+            </p>
+          )}
+
+          {/* Error / rate-limit message */}
+          {status === "error" && errorMsg && (
+            <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+              ⚠️ {errorMsg}
+              {cooldownSeconds > 0 && (
+                <span className="ml-1 font-bold">({cooldownSeconds}s)</span>
+              )}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={isDisabled}
+            className="mt-5 rounded-md bg-[#0a1629] px-5 py-3 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {status === "loading" ? "Sending…" : "Submit message"}
           </button>
         </form>
       </div>
