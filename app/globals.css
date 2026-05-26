@@ -12,7 +12,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  /* Battambang covers Khmer + Latin; Arial as last-resort fallback */
+  --font-sans: var(--font-battambang), Arial, Helvetica, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -26,7 +27,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* ✅ Remove Arial override — layout.tsx sets font-body (Battambang) which
+     supports both Khmer and Latin. Arial was overriding that and breaking
+     Khmer rendering since Arial has no Khmer glyphs. */
+  font-family: var(--font-battambang), var(--font-angkor), Arial, sans-serif;
 }
 
 .line-clamp-2 {

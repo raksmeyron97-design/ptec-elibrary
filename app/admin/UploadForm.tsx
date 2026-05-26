@@ -167,8 +167,15 @@ export default function UploadForm() {
       setPhase("uploading-pdf");
       setProgress(0);
 
-      const pdfFileName = `${Date.now()}-${slug}.pdf`;
-      const pdfPath = `pdfs/${pdfFileName}`;
+      // ── Build category-based storage path ──────────────────
+      // Format: {category-slug}/pdfs/{book-slug}-{short-id}.pdf
+      // e.g.  finance/pdfs/accounting-basics-a3f1.pdf
+      const categoryName = (formData.get("category") as string)?.trim() || "uncategorized";
+      const categorySlug = slugify(categoryName);
+      const uid = Date.now().toString(36).slice(-4); // short 4-char unique id
+
+      const pdfFileName = `${slug}-${uid}.pdf`;
+      const pdfPath = `${categorySlug}/pdfs/${pdfFileName}`;
 
       const { error: pdfErr } = await supabase.storage
         .from("book-files")
@@ -188,7 +195,7 @@ export default function UploadForm() {
         setPhase("uploading-cover");
         const coverFile = cover as File;
         const ext = coverFile.name.split(".").pop() ?? "jpg";
-        const coverPath = `covers/${Date.now()}-${slug}.${ext}`;
+        const coverPath = `${categorySlug}/covers/${slug}-${uid}.${ext}`;
 
         const { error: coverErr } = await supabase.storage
           .from("book-files")

@@ -3,6 +3,8 @@ import "./globals.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { angkor, battambang } from "@/app/fonts";
+// Geist and Noto_Sans_Khmer removed — Battambang (loaded in @/app/fonts)
+// already covers both Khmer and Latin scripts site-wide.
 
 export const metadata: Metadata = {
   title: "PTEC e-Library | Phnom Penh Teacher Education College",

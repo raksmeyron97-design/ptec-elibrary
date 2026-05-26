@@ -47,6 +47,22 @@ export default async function AdminPage() {
             Manage all books
           </Link>
           <Link
+            href="/admin/catalogs"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/20 px-5 font-semibold text-white transition hover:bg-white/10"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 10 12 3 21 10" />
+              <line x1="6"  y1="10" x2="6"  y2="19" />
+              <line x1="10" y1="10" x2="10" y2="19" />
+              <line x1="14" y1="10" x2="14" y2="19" />
+              <line x1="18" y1="10" x2="18" y2="19" />
+              <line x1="2" y1="19" x2="22" y2="19" />
+              <line x1="1" y1="22" x2="23" y2="22" />
+            </svg>
+            Manage Library
+          </Link>
+          <Link
             href="/books"
             className="inline-flex h-11 items-center justify-center rounded-lg bg-white px-5 font-semibold text-slate-900 transition hover:bg-cyan-50"
           >

@@ -9,7 +9,6 @@ type SearchBarProps = {
   compact?: boolean;
 };
 
-// Icon per suggestion type
 const TYPE_ICON: Record<Suggestion["type"], string> = {
   book:     "menu-book",
   author:   "person",
@@ -28,6 +27,12 @@ const TYPE_COLOR: Record<Suggestion["type"], string> = {
   category: "text-amber-500",
 };
 
+const TYPE_BG: Record<Suggestion["type"], string> = {
+  book:     "bg-[#007c91]/10",
+  author:   "bg-violet-500/10",
+  category: "bg-amber-500/10",
+};
+
 export default function SearchBar({ compact = false }: SearchBarProps) {
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -38,17 +43,13 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
   const [loading,     setLoading]     = useState(false);
   const [activeIdx,   setActiveIdx]   = useState(-1);
 
-  const inputRef     = useRef<HTMLInputElement>(null);
-  const dropdownRef  = useRef<HTMLDivElement>(null);
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef    = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Fetch suggestions (debounced 300 ms) ───────────────────────────────────
   const fetchSuggestions = useCallback(async (q: string) => {
-    if (q.length < 2) {
-      setSuggestions([]);
-      setOpen(false);
-      return;
-    }
+    if (q.length < 2) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
     try {
       const res  = await fetch(`/api/books/suggestions?q=${encodeURIComponent(q)}`);
@@ -75,45 +76,31 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
       if (
         !inputRef.current?.contains(e.target as Node) &&
         !dropdownRef.current?.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
+      ) setOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // ── Navigate to search results ─────────────────────────────────────────────
+  // ── Navigate ───────────────────────────────────────────────────────────────
   function navigate(q: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (q.trim()) {
-      params.set("q", q.trim());
-    } else {
-      params.delete("q");
-    }
+    if (q.trim()) params.set("q", q.trim()); else params.delete("q");
     params.delete("page");
     setOpen(false);
     router.push(`/books?${params.toString()}`);
   }
 
-  // ── Pick a suggestion ──────────────────────────────────────────────────────
   function pickSuggestion(s: Suggestion) {
-    if (s.type === "book") {
-      setOpen(false);
-      router.push(`/books/${s.slug}`);
-    } else {
-      setQuery(s.label);
-      navigate(s.label);
-    }
+    if (s.type === "book") { setOpen(false); router.push(`/books/${s.slug}`); }
+    else { setQuery(s.label); navigate(s.label); }
   }
 
-  // ── Form submit ────────────────────────────────────────────────────────────
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     navigate(query);
   }
 
-  // ── Keyboard navigation ────────────────────────────────────────────────────
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!open) return;
     if (e.key === "ArrowDown") {
@@ -131,7 +118,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
     }
   }
 
-  // ── Highlight matched portion ──────────────────────────────────────────────
+  // ── Highlight matched text ─────────────────────────────────────────────────
   function highlight(text: string, q: string) {
     if (!q) return <>{text}</>;
     const idx = text.toLowerCase().indexOf(q.toLowerCase());
@@ -147,7 +134,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
     );
   }
 
-  // ── Group suggestions by type ──────────────────────────────────────────────
+  // ── Group suggestions ──────────────────────────────────────────────────────
   const grouped = suggestions.reduce<Record<string, Suggestion[]>>((acc, s) => {
     (acc[s.type] ??= []).push(s);
     return acc;
@@ -156,24 +143,47 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
   const groupOrder: Suggestion["type"][] = ["book", "author", "category"];
 
   return (
-    <div className={`relative w-full ${compact ? "" : ""}`}>
+    <div className="relative w-full">
       <form
         onSubmit={handleSubmit}
-        className={`flex w-full gap-3 ${compact ? "items-center" : "flex-col sm:flex-row"}`}
+        className={`flex w-full gap-2.5 ${
+          compact
+            ? "flex-row items-center"
+            : "flex-row items-center"
+        }`}
       >
-        {/* ── Input ───────────────────────────────────────────────────────── */}
+        {/* ── Input wrapper ────────────────────────────────────────────────── */}
         <label className="relative min-w-0 flex-1">
+          {/* Search icon (desktop only, left side) */}
           <Icon
             name="search"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none z-10"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none z-10 transition-colors duration-200 peer-focus:text-[#007c91] hidden sm:block"
           />
+
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
             onKeyDown={handleKeyDown}
-            className="h-12 w-full rounded-md border border-slate-200 bg-white py-3 pl-12 pr-10 text-slate-900 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+            /* glassmorphism input */
+            className="
+              peer h-13 w-full rounded-2xl
+              border border-white/60
+              bg-white/70 backdrop-blur-xl
+              py-3 pl-4 pr-12
+              sm:pl-12 sm:pr-10
+              text-slate-900 placeholder:text-slate-400
+              text-[16px] sm:text-sm
+              outline-none
+              shadow-[0_2px_16px_rgba(0,124,145,0.07)]
+              ring-1 ring-slate-200/80
+              transition-all duration-200
+              focus:border-[#007c91]/60
+              focus:bg-white/90
+              focus:ring-2 focus:ring-[#007c91]/20
+              focus:shadow-[0_4px_24px_rgba(0,124,145,0.14)]
+            "
             placeholder="Search title, author, ISBN, or topic"
             type="search"
             autoComplete="off"
@@ -181,36 +191,80 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             aria-expanded={open}
             aria-haspopup="listbox"
           />
+
           {/* Loading spinner */}
           {loading && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2">
-              <svg className="h-4 w-4 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none">
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
+              <svg className="h-4 w-4 animate-spin text-[#007c91]" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
             </span>
           )}
-          {/* Clear button */}
+
+          {/* Clear button (when text exists, desktop only) */}
           {query && !loading && (
             <button
               type="button"
-              onClick={() => { setQuery(""); setSuggestions([]); setOpen(false); inputRef.current?.focus(); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              onClick={() => {
+                setQuery(""); setSuggestions([]); setOpen(false);
+                inputRef.current?.focus();
+              }}
+              className="
+                absolute right-3.5 top-1/2 -translate-y-1/2
+                flex h-5 w-5 items-center justify-center
+                rounded-full bg-slate-200/80 text-slate-500
+                transition hover:bg-slate-300 hover:text-slate-700
+                active:scale-95
+                hidden sm:flex
+              "
               aria-label="Clear search"
             >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                 <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
               </svg>
             </button>
           )}
+
+          {/* Mobile: search submit button inside input (right side) */}
+          {!loading && (
+            <button
+              type="submit"
+              className="
+                absolute right-2 top-1/2 -translate-y-1/2
+                flex h-9 w-9 items-center justify-center
+                rounded-xl
+                bg-gradient-to-br from-[#0a1629] to-[#007c91]
+                text-white shadow-[0_2px_8px_rgba(0,124,145,0.35)]
+                transition-all duration-200
+                active:scale-95
+                sm:hidden
+              "
+              aria-label="Search"
+            >
+              <Icon name="search" className="text-[18px]" />
+            </button>
+          )}
         </label>
 
-        {/* ── Submit button ────────────────────────────────────────────────── */}
+        {/* ── Submit button (desktop only) ─────────────────────────────────── */}
         <button
           type="submit"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-[#0a1629] px-5 font-semibold text-white transition hover:bg-[#007c91]"
+          className="
+            hidden sm:inline-flex
+            h-13 items-center justify-center gap-2
+            rounded-2xl
+            bg-gradient-to-br from-[#0a1629] to-[#007c91]
+            px-6 font-semibold text-white
+            text-sm
+            shadow-[0_4px_16px_rgba(0,124,145,0.35)]
+            transition-all duration-200
+            hover:shadow-[0_6px_24px_rgba(0,124,145,0.5)]
+            hover:scale-[1.02]
+            active:scale-[0.98]
+          "
         >
-          <Icon name="search" className="text-[20px]" />
+          <Icon name="search" className="text-[18px]" />
           Search
         </button>
       </form>
@@ -220,22 +274,32 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
         <div
           ref={dropdownRef}
           role="listbox"
-          className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-slate-900/5"
-          style={{ maxWidth: "calc(100% - 0px)" }}
+          className="
+            absolute left-0 right-0 top-[calc(100%+8px)] z-50
+            overflow-hidden
+            rounded-2xl
+            border border-white/60
+            bg-white/80 backdrop-blur-2xl
+            shadow-[0_16px_48px_rgba(10,22,41,0.18)]
+            ring-1 ring-slate-900/5
+            animate-in fade-in slide-in-from-top-1 duration-150
+          "
         >
-          {/* Group sections */}
           {groupOrder.map((type) => {
             const items = grouped[type];
             if (!items?.length) return null;
             return (
               <div key={type}>
                 {/* Group header */}
-                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2">
-                  <Icon name={TYPE_ICON[type] as any} className={`text-base ${TYPE_COLOR[type]}`} />
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="flex items-center gap-2 border-b border-slate-100/80 bg-slate-50/60 px-4 py-2">
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-md ${TYPE_BG[type]}`}>
+                    <Icon name={TYPE_ICON[type] as any} className={`text-[13px] ${TYPE_COLOR[type]}`} />
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     {TYPE_LABEL[type]}s
                   </span>
                 </div>
+
                 {/* Items */}
                 {items.map((s, localIdx) => {
                   const globalIdx = suggestions.indexOf(s);
@@ -247,33 +311,44 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
                       aria-selected={isActive}
                       onMouseEnter={() => setActiveIdx(globalIdx)}
                       onMouseDown={(e) => { e.preventDefault(); pickSuggestion(s); }}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition ${
-                        isActive ? "bg-[#007c91]/8" : "hover:bg-slate-50"
-                      }`}
+                      className={`
+                        flex w-full items-center gap-3 px-4 py-3 text-left
+                        transition-colors duration-100
+                        /* comfortable tap target on mobile */
+                        min-h-[52px]
+                        ${isActive
+                          ? "bg-[#007c91]/8"
+                          : "hover:bg-slate-50/80"
+                        }
+                      `}
                     >
-                      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                        type === "book"     ? "bg-cyan-50"   :
-                        type === "author"   ? "bg-violet-50" :
-                                              "bg-amber-50"
-                      }`}>
+                      {/* Icon badge */}
+                      <span className={`
+                        flex h-9 w-9 shrink-0 items-center justify-center
+                        rounded-xl ${TYPE_BG[type]}
+                        ring-1 ring-white/80
+                      `}>
                         <Icon name={TYPE_ICON[type] as any} className={`text-base ${TYPE_COLOR[type]}`} />
                       </span>
+
+                      {/* Text */}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium text-slate-800">
                           {highlight(s.label, query)}
                         </span>
                         {s.type === "book" && (
-                          <span className="block truncate text-xs text-slate-400">{s.sub}</span>
+                          <span className="block truncate text-xs text-slate-400 mt-0.5">{s.sub}</span>
                         )}
                         {s.type !== "book" && (
-                          <span className="block text-xs text-slate-400">
+                          <span className="block text-xs text-slate-400 mt-0.5">
                             Search by {TYPE_LABEL[type].toLowerCase()}
                           </span>
                         )}
                       </span>
-                      {/* Arrow hint */}
+
+                      {/* Chevron */}
                       <svg
-                        className={`h-4 w-4 shrink-0 text-slate-300 transition ${isActive ? "text-[#007c91]" : ""}`}
+                        className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-[#007c91]" : "text-slate-200"}`}
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                       >
                         <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -285,14 +360,16 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             );
           })}
 
-          {/* Footer hint */}
-          <div className="flex items-center gap-3 border-t border-slate-100 bg-slate-50 px-4 py-2">
-            <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-400 shadow-sm">↑↓</kbd>
-            <span className="text-xs text-slate-400">Navigate</span>
-            <kbd className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-400 shadow-sm">↵</kbd>
-            <span className="text-xs text-slate-400">Select</span>
-            <kbd className="ml-2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-xs text-slate-400 shadow-sm">Esc</kbd>
-            <span className="text-xs text-slate-400">Close</span>
+          {/* ── Footer keyboard hint (hidden on mobile, shown on sm+) ──────── */}
+          <div className="hidden sm:flex items-center gap-3 border-t border-slate-100/80 bg-slate-50/60 px-4 py-2">
+            {[["↑↓", "Navigate"], ["↵", "Select"], ["Esc", "Close"]].map(([key, label]) => (
+              <span key={key} className="flex items-center gap-1.5">
+                <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-400 shadow-sm">
+                  {key}
+                </kbd>
+                <span className="text-[11px] text-slate-400">{label}</span>
+              </span>
+            ))}
           </div>
         </div>
       )}
