@@ -96,6 +96,18 @@ export default async function CatalogBookPage({
                 </div>
               )}
             </div>
+
+            {/* Contact link */}
+            <Link
+              href="/contact"
+              className="flex w-full max-w-[280px] items-center justify-center gap-2 rounded-xl bg-[#0a1629] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+            >
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              Contact Us
+            </Link>
           </div>
 
           {/* ── Details ── */}

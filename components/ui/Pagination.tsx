@@ -1,6 +1,5 @@
 // components/ui/Pagination.tsx
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
 
 type PaginationProps = {
   currentPage: number;
@@ -8,12 +7,14 @@ type PaginationProps = {
   totalItems: number;
   pageSize: number;
   searchParams: Record<string, string | undefined>;
+  basePath?: string; // e.g. "/books" or "/catalogs" — defaults to "/books"
 };
 
-/** Build a /books href preserving existing filters, overriding the page param. */
+/** Build a href preserving existing filters, overriding the page param. */
 function pageHref(
   searchParams: Record<string, string | undefined>,
-  page: number
+  page: number,
+  basePath: string
 ): string {
   const p = new URLSearchParams();
   Object.entries(searchParams).forEach(([k, v]) => {
@@ -21,7 +22,7 @@ function pageHref(
   });
   if (page > 1) p.set("page", String(page));
   const qs = p.toString();
-  return `/books${qs ? `?${qs}` : ""}`;
+  return `${basePath}${qs ? `?${qs}` : ""}`;
 }
 
 /** Compute the list of page numbers to render, inserting "…" gaps. */
@@ -42,12 +43,27 @@ function pageRange(current: number, total: number): (number | "ellipsis")[] {
   return pages;
 }
 
+const ArrowLeftIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 12H5m0 0 7 7m-7-7 7-7" />
+  </svg>
+);
+
+const ChevronRightIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+
 export default function Pagination({
   currentPage,
   totalPages,
   totalItems,
   pageSize,
   searchParams,
+  basePath = "/books",
 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
@@ -77,18 +93,18 @@ export default function Pagination({
         {/* Prev */}
         {hasPrev ? (
           <Link
-            href={pageHref(searchParams, currentPage - 1)}
+            href={pageHref(searchParams, currentPage - 1, basePath)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-200 text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
             aria-label="Previous page"
           >
-            <Icon name="arrow-left" className="text-[18px]" />
+            <ArrowLeftIcon />
           </Link>
         ) : (
           <span
             aria-disabled
             className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-100 text-slate-300"
           >
-            <Icon name="arrow-left" className="text-[18px]" />
+            <ArrowLeftIcon />
           </span>
         )}
 
@@ -112,7 +128,7 @@ export default function Pagination({
           ) : (
             <Link
               key={p}
-              href={pageHref(searchParams, p)}
+              href={pageHref(searchParams, p, basePath)}
               className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] border border-slate-200 px-3 text-[13.5px] font-medium text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
             >
               {p}
@@ -123,18 +139,18 @@ export default function Pagination({
         {/* Next */}
         {hasNext ? (
           <Link
-            href={pageHref(searchParams, currentPage + 1)}
+            href={pageHref(searchParams, currentPage + 1, basePath)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-200 text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
             aria-label="Next page"
           >
-            <Icon name="chevron-right" className="text-[18px]" />
+            <ChevronRightIcon />
           </Link>
         ) : (
           <span
             aria-disabled
             className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-100 text-slate-300"
           >
-            <Icon name="chevron-right" className="text-[18px]" />
+            <ChevronRightIcon />
           </span>
         )}
       </div>

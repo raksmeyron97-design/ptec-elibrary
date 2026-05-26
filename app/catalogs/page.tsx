@@ -18,7 +18,7 @@ type SearchParams = {
   sort?:        string;
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 18;
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 async function fetchCatalogBooks(params: SearchParams) {
@@ -244,6 +244,7 @@ export default async function CatalogsPage({
               totalItems={total}
               pageSize={PAGE_SIZE}
               searchParams={params as Record<string, string | undefined>}
+              basePath="/catalogs"
             />
           </>
         )}

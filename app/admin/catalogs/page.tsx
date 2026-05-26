@@ -11,10 +11,15 @@ import {
 } from "@/lib/catalog";
 import CatalogAdminActions from "./CatalogAdminActions";
 import CsvImportModal from "./CsvImportModal";
+import AdminCatalogSearchBar from "./AdminCatalogSearchBar";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminCatalogsPage() {
+export default async function AdminCatalogsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
   // Auth
   const auth = await createClient();
   const { data: { user } } = await auth.auth.getUser();
@@ -31,9 +36,28 @@ export default async function AdminCatalogsPage() {
     .order("created_at", { ascending: false });
 
   const allBooks = (books ?? []) as CatalogBook[];
-  const activeBooks = allBooks.filter((b) => b.is_active);
-  const totalCopies = activeBooks.reduce((s, b) => s + b.copies_total, 0);
-  const availCopies = activeBooks.reduce((s, b) => s + b.copies_available, 0);
+
+  // ── Search / filter ──────────────────────────────────────────────────────────
+  const { q } = (await searchParams) ?? {};
+  const rawQuery = q?.trim() ?? "";
+  const filteredBooks = rawQuery
+    ? allBooks.filter((b) => {
+        const q = rawQuery.toLowerCase();
+        return (
+          b.title.toLowerCase().includes(q) ||
+          b.author.toLowerCase().includes(q) ||
+          (b.isbn ?? "").toLowerCase().includes(q) ||
+          (b.category ?? "").toLowerCase().includes(q) ||
+          (b.department ?? "").toLowerCase().includes(q) ||
+          (b.shelf_location ?? "").toLowerCase().includes(q) ||
+          (b.accession_number ?? "").toLowerCase().includes(q)
+        );
+      })
+    : allBooks;
+
+  const activeBooks   = allBooks.filter((b) => b.is_active);
+  const totalCopies   = activeBooks.reduce((s, b) => s + b.copies_total, 0);
+  const availCopies   = activeBooks.reduce((s, b) => s + b.copies_available, 0);
 
   return (
     <section className="min-h-screen bg-slate-50 px-4 py-8 md:px-12">
@@ -78,14 +102,27 @@ export default async function AdminCatalogsPage() {
           {[
             { label: "Total Books",      value: activeBooks.length },
             { label: "Total Copies",     value: totalCopies },
-            { label: "Available Copies", value: availCopies,                         color: "text-emerald-600" },
-            { label: "Checked Out",      value: totalCopies - availCopies,            color: "text-amber-500" },
+            { label: "Available Copies", value: availCopies,              color: "text-emerald-600" },
+            { label: "Checked Out",      value: totalCopies - availCopies, color: "text-amber-500" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
               <p className="text-xs text-slate-400 font-medium">{label}</p>
               <p className={`text-2xl font-bold mt-1 ${color ?? "text-slate-800"}`}>{value}</p>
             </div>
           ))}
+        </div>
+
+        {/* ── Search bar ── */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <AdminCatalogSearchBar />
+          </div>
+          {rawQuery && (
+            <p className="shrink-0 text-sm text-slate-500">
+              <span className="font-semibold text-slate-700">{filteredBooks.length}</span> result{filteredBooks.length !== 1 ? "s" : ""} for{" "}
+              <span className="font-semibold text-[#007c91]">&ldquo;{rawQuery}&rdquo;</span>
+            </p>
+          )}
         </div>
 
         {/* ── Table ── */}
@@ -102,16 +139,18 @@ export default async function AdminCatalogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {allBooks.length === 0 ? (
+                {filteredBooks.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
-                      No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.
+                      {rawQuery
+                        ? <>No books matched <span className="font-semibold text-slate-500">&ldquo;{rawQuery}&rdquo;</span>. Try a different search.</>
+                        : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
                     </td>
                   </tr>
-                ) : allBooks.map((book) => {
-                  const status  = getAvailability(book);
-                  const txtCls  = AVAILABILITY_COLOR[status];
-                  const dotCls  = AVAILABILITY_DOT[status];
+                ) : filteredBooks.map((book) => {
+                  const status = getAvailability(book);
+                  const txtCls = AVAILABILITY_COLOR[status];
+                  const dotCls = AVAILABILITY_DOT[status];
                   return (
                     <tr key={book.id} className={`hover:bg-slate-50/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
                       {/* Title */}
