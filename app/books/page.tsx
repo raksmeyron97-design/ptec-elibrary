@@ -58,11 +58,12 @@ async function fetchBooks(params: SearchParams) {
   let query = supabase
     .from("books")
     .select(
-      `id, title, slug, description, cover_color, cover_url, language,
-       published_at, department, pages, isbn, rating, download_count,
-       authors(name), categories(name), book_files(format, file_url, file_size_kb)`,
-      { count: "exact" }
-    )
+              `id, title, slug, description, cover_color, cover_url, language,
+              published_at, department, pages, isbn, rating, download_count,
+              view_count,
+              authors(name), categories(name), book_files(format, file_url, file_size_kb)`,
+              { count: "exact" }
+            )
     .eq("is_published", true)
     .order(sortCol, sortOpts)
     .range(from, to);

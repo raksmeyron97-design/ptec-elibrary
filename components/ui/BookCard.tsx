@@ -1,27 +1,48 @@
 // components/ui/BookCard.tsx
-import Link from "next/link";
+"use client";
+
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { Book } from "@/lib/books";
 import BookCover from "@/components/ui/BookCover";
 import RatingStars from "@/components/ui/RatingStars";
+import { incrementViewCount } from "@/app/actions/view-count";
 
 type BookCardProps = {
-  book: Book & { coverUrl?: string | null; reviewCount?: number; progressPct?: number; downloadCount?: number };
+  book: Book & {
+    coverUrl?: string | null;
+    reviewCount?: number;
+    progressPct?: number;
+    downloadCount?: number;
+    viewCount?: number;
+    dbId?: string | null;
+  };
 };
 
 export default function BookCard({ book }: BookCardProps) {
+  const router    = useRouter();
   const readable  = !!book.pdfUrl;
   const progress  = book.progressPct  ?? 0;
   const downloads = book.downloadCount ?? 0;
+  const views     = book.viewCount     ?? 0;
 
-  const downloadLabel =
-    downloads >= 1_000_000 ? `${(downloads / 1_000_000).toFixed(1)}M`
-    : downloads >= 1_000   ? `${(downloads / 1_000).toFixed(1)}K`
-    : String(downloads);
+  const formatCount = (n: number) =>
+    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000   ? `${(n / 1_000).toFixed(1)}K`
+    : String(n);
+
+  async function handleClick(e: React.MouseEvent) {
+    e.preventDefault();
+    // Fire-and-forget: increment without blocking navigation
+    if (book.dbId) {
+      incrementViewCount(book.dbId).catch(() => {});
+    }
+    router.push(`/books/${book.slug}`);
+  }
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-[16px] border border-slate-100 bg-white transition-all duration-300 ease-out hover:-translate-y-1 hover:border-slate-200 hover:shadow-[0_16px_40px_-12px_rgba(11,42,48,0.22)]">
-      <Link href={`/books/${book.slug}`} className="flex h-full flex-col">
+      <a href={`/books/${book.slug}`} onClick={handleClick} className="flex h-full flex-col">
 
         {/* ── Cover ── */}
         <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-[16px]">
@@ -103,7 +124,7 @@ export default function BookCard({ book }: BookCardProps) {
             {book.summary}
           </p>
 
-          {/* Footer: 2-row layout — no overlap on mobile */}
+          {/* Footer: 2-row layout */}
           <div className="mt-auto flex flex-col gap-1 border-t border-slate-100 pt-2">
 
             {/* Row 1: Stars + review count */}
@@ -114,18 +135,29 @@ export default function BookCard({ book }: BookCardProps) {
               ) : null}
             </div>
 
-            {/* Row 2: Downloads (left) + View/Continue (right) */}
+            {/* Row 2: Downloads + Views (left) | View/Continue (right) */}
             <div className="flex items-center justify-between">
-              {downloads > 0 ? (
+              <div className="flex items-center gap-2.5">
+                {/* Downloads */}
+                {downloads > 0 && (
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
+                    <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M12 3v13m0 0-4-4m4 4 4-4" /><path d="M4 20h16" />
+                    </svg>
+                    {formatCount(downloads)}
+                  </span>
+                )}
+
+                {/* View count — always shown */}
                 <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-slate-400">
                   <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M12 3v13m0 0-4-4m4 4 4-4" /><path d="M4 20h16" />
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </svg>
-                  {downloadLabel}
+                  {formatCount(views)}
                 </span>
-              ) : (
-                <span />
-              )}
+              </div>
+
               <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-[#0C7C8A]">
                 {progress > 0 ? "Continue" : "View"}
                 <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
@@ -136,7 +168,7 @@ export default function BookCard({ book }: BookCardProps) {
 
           </div>
         </div>
-      </Link>
+      </a>
     </article>
   );
 }

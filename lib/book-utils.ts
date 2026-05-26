@@ -24,7 +24,9 @@ export type Book = {
   uploadedAt?: string;
   tags: string[];
   coverUrl?: string | null;
-  downloadCount?: number; // ← NEW: from books.download_count column
+  downloadCount?: number;
+  viewCount?: number;
+  dbId?: string | null;
 };
 
 // ── Shared Supabase row → Book mapper ─────────────────────────
@@ -55,6 +57,8 @@ export function mapRowToBook(row: any): Book {
     pdfUrl:        pdfFile?.file_url     ?? null,
     uploadedAt:    row.published_at      ?? undefined,
     downloadCount: row.download_count    ?? 0,
+    viewCount:     row.view_count        ?? 0,
+    dbId:          row.id                ?? null,
     tags:          Array.isArray(row.tags)
                      ? row.tags
                      : [row.department, row.categories?.name, row.language, row.authors?.name]
