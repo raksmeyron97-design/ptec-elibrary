@@ -5,7 +5,13 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
-import { departments, slugify } from "@/lib/book-utils";
+import {
+  departments,
+  makeUid,
+  bookFolder,
+  bookCoverPath,
+  bookFolderFromCoverUrl,
+} from "@/lib/book-utils";
 import { createClient } from "@/lib/supabase/client";
 import Icon from "@/components/ui/Icon";
 
@@ -85,9 +91,13 @@ export default function EditForm({ initial }: { initial: Initial }) {
 
       if (coverFile) {
         setPhase("uploading-cover");
-        const slug = slugify(title);
-        const ext  = coverFile.name.split(".").pop() ?? "jpg";
-        const path = `covers/${Date.now()}-${slug}.${ext}`;
+        // Keep the new cover inside the book's existing folder when the old
+        // cover already follows the per-book layout; otherwise start a fresh
+        // folder so assets stay grouped (books/{category}/{slug}-{uid}/).
+        const folder =
+          bookFolderFromCoverUrl(initial.coverUrl) ??
+          bookFolder(initial.category, title, makeUid());
+        const path = bookCoverPath(folder, coverFile.name);
 
         const { presignedUrl, publicUrl } = await getPresignedUrl(path, coverFile.type);
 

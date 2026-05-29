@@ -5,6 +5,7 @@ import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
+import { makeUid, postFolder, postCoverPath } from "@/lib/book-utils";
 import Icon from "@/components/ui/Icon";
 
 const CATEGORIES = ["Research", "Announcement", "Event", "Journal", "Other"] as const;
@@ -144,8 +145,6 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
     if (!categoryVal) { setError("Category is required"); return; }
     if (!contentVal)  { setError("Content is required");  return; }
 
-    const slug = slugify(titleVal);
-
     try {
       // ── 1. Upload new images to Cloudflare R2 via Presigned URLs ───────────────
       const newPreviews = previews.filter((p): p is Extract<PreviewItem, { kind: "new" }> =>
@@ -155,11 +154,12 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       const uploadedUrls: string[] = [];
       if (newPreviews.length > 0) {
         setPhase("uploading");
+        // All images for this post live in one folder: posts/{slug}-{uid}/
+        const folder = postFolder(titleVal, makeUid());
         for (let i = 0; i < newPreviews.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${newPreviews.length}…`);
           const { file } = newPreviews[i];
-          const ext = file.name.split(".").pop() ?? "jpg";
-          const path = `covers/${Date.now()}-${slug}-${i}.${ext}`;
+          const path = postCoverPath(folder, i, file.name);
 
           try {
             const { presignedUrl, publicUrl } = await getPresignedUrl(path, file.type);
