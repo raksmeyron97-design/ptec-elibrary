@@ -18,8 +18,8 @@ import { useState } from "react";
 import Image from "next/image";
 
 const navLinks = [
-  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { name: "Upload Book", href: "/admin", icon: Upload }, // Update if split later
+  { name: "Dashboard", href: "/admin/", icon: LayoutDashboard },
+  { name: "Upload Book", href: "/admin/upload", icon: Upload }, // Update if split later
   { name: "Manage Books", href: "/admin/manage", icon: BookOpen },
   { name: "Catalog", href: "/admin/catalogs", icon: Library },
   { name: "Posts", href: "/admin/posts", icon: FileText },
