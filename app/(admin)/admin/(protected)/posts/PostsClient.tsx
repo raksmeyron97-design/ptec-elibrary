@@ -110,26 +110,40 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
   return (
     <div className="space-y-4">
 
-      {/* ── Search bar ── */}
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search by title, author, category…"
-          className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
-        />
-        {query && (
-          <button onClick={() => handleSearch("")} className="text-slate-400 hover:text-slate-600">
-            ✕
-          </button>
-        )}
-        <span className="text-xs text-slate-400">
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-        </span>
+      {/* ── Top Action Bar ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        {/* Search bar */}
+        <div className="flex flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search by title, author, category…"
+            className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
+          />
+          {query && (
+            <button onClick={() => handleSearch("")} className="text-slate-400 hover:text-slate-600">
+              ✕
+            </button>
+          )}
+          <span className="text-xs text-slate-400">
+            {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {/* Create Post Button */}
+        <Link
+          href="/admin/posts/new"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#007c91] px-6 text-sm font-bold text-white shadow-sm transition hover:bg-[#00687a]"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+            <path d="M12 5v14m-7-7h14"/>
+          </svg>
+          Create Post
+        </Link>
       </div>
 
       {/* ── Category filter ── */}

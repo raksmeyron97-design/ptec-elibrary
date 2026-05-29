@@ -1,26 +1,12 @@
 // app/posts/page.tsx
 import Link from "next/link";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
 
 export const revalidate = 60;
 
 export default async function PostsPage() {
-  // Auth check (createClient) — used only to reveal an admin shortcut bar
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-
   const supabase = createServiceClient();
-
-  let isAdmin = false;
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    isAdmin = profile?.role === "admin";
-  }
 
   // Only published posts on the public page
   const { data: posts } = await supabase
@@ -64,15 +50,6 @@ export default async function PostsPage() {
               Research updates, announcements, events, and journals from across the library.
             </p>
           </div>
-
-          {isAdmin && (
-            <Link
-              href="/admin/posts"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
-            >
-              Manage posts
-            </Link>
-          )}
         </div>
 
         <PostsListClient posts={cards} />

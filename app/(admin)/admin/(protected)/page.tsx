@@ -14,6 +14,21 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-8">
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Library Posts</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Create, edit, and manage announcements or research updates.
+          </p>
+        </div>
+        <Link
+          href="/admin/posts"
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover"
+        >
+          Manage posts
+        </Link>
+      </div>
+
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         {/* ── Upload Form (client component, direct-to-Supabase) ── */}
         <UploadForm />

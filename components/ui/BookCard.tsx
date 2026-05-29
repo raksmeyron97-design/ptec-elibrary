@@ -120,9 +120,6 @@ export default function BookCard({ book }: BookCardProps) {
             {/* Stars + rating number */}
             <div className="flex items-center gap-1.5">
               <RatingStars rating={book.rating} compact />
-              <span className="text-[11px] font-medium text-text-muted">
-                {book.rating?.toFixed(1)}
-              </span>
             </div>
 
             {/* Meta row */}

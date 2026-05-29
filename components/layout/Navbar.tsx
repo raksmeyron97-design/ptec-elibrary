@@ -141,7 +141,7 @@ export default async function Navbar() {
             <span className="opacity-30">|</span>
             <a href="https://maps.app.goo.gl/ZUFqo4sBHDTRW1V1A" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-gold-400 transition-colors">
               <Icon name="map-pin" className="text-[14px] text-accent" />
-              <span>Phnom Penh, Cambodia</span>
+              <span>Sangkat Teuk Laork3, Khan Toul Kork, Phnom Penh, Cambodia</span>
             </a>
           </div>
 
