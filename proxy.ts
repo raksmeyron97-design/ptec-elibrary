@@ -56,11 +56,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Main Domain Logic ─────────────────────────────────────────
-  // 1. Block /admin access on main domain
-  if (url.pathname.startsWith("/admin")) {
-    const res = NextResponse.redirect(new URL("/", request.url));
-    return copyCookies(res);
-  }
+  // 1. TEMPORARILY ALLOW /admin access on main domain for Vercel testing
+  // if (url.pathname.startsWith("/admin")) {
+  //   const res = NextResponse.redirect(new URL("/", request.url));
+  //   return copyCookies(res);
+  // }
 
   // 2. Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {
