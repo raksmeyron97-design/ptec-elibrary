@@ -32,33 +32,40 @@ export async function proxy(request: NextRequest) {
   // Refresh session — must run before any route check
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { nextUrl: url } = request;
+  const host = request.headers.get("host") ?? "";
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+  const isAdminHost = host === `admin.${rootDomain}` || host.startsWith("admin.");
 
-  // ── Protect /admin ────────────────────────────────────────────
-  if (pathname.startsWith("/admin")) {
-    if (!user) {
-      // Not logged in → redirect to login
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
+  // Helper to copy cookies from the refreshed response to a new response
+  const copyCookies = (newRes: NextResponse) => {
+    response.cookies.getAll().forEach((c) => {
+      newRes.cookies.set(c);
+    });
+    return newRes;
+  };
+
+  // ── Admin Subdomain Logic ────────────────────────────────────
+  if (isAdminHost) {
+    if (!url.pathname.startsWith("/admin")) {
+      const rewriteUrl = new URL(`/admin${url.pathname}`, request.url);
+      const res = NextResponse.rewrite(rewriteUrl);
+      return copyCookies(res);
     }
-
-    // Logged in → check if role is admin
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "admin") {
-      // Reader trying to access admin → redirect to books
-      return NextResponse.redirect(new URL("/books", request.url));
-    }
+    return response;
   }
 
-  // ── Redirect logged-in users away from login page ─────────────
-  if (pathname === "/auth/login" && user) {
-    return NextResponse.redirect(new URL("/books", request.url));
+  // ── Main Domain Logic ─────────────────────────────────────────
+  // 1. Block /admin access on main domain
+  if (url.pathname.startsWith("/admin")) {
+    const res = NextResponse.redirect(new URL("/", request.url));
+    return copyCookies(res);
+  }
+
+  // 2. Redirect logged-in users away from login page
+  if (url.pathname === "/auth/login" && user) {
+    const res = NextResponse.redirect(new URL("/books", request.url));
+    return copyCookies(res);
   }
 
   return response;

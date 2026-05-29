@@ -167,26 +167,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             Saved Books
           </Link>
          
-          {user.role === "admin" && (
-            <Link
-              href="/admin"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-amber-700 transition-colors hover:bg-amber-50"
-            >
-              <Icon name="school" className="text-[18px] text-amber-400" />
-              Admin Panel
-            </Link>
-          )}
-          {user.role === "admin" && (
-            <Link
-              href="/admin/users"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-sm text-amber-700 transition-colors hover:bg-amber-50"
-            >
-              <Icon name="account" className="text-[18px] text-amber-400" />
-              Manage Users
-            </Link>
-          )}
+
         </div>
 
         {/* Sign out */}

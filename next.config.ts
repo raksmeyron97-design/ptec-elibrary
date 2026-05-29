@@ -29,12 +29,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images-na.ssl-images-amazon.com",
       },
+      // Cloudflare R2 bucket
+      {
+        protocol: "https",
+        hostname: "pub-a07b6a3e6c63466392999efa42558aed.r2.dev",
+      },
     ],
   },
-  
-
-    
-  };
+};
 
 
 
