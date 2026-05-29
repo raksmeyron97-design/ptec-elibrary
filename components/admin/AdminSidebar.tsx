@@ -18,7 +18,7 @@ import { useState } from "react";
 import Image from "next/image";
 
 const navLinks = [
-  { name: "Dashboard", href: "/admin/", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Upload Book", href: "/admin/upload", icon: Upload }, // Update if split later
   { name: "Manage Books", href: "/admin/manage", icon: BookOpen },
   { name: "Catalog", href: "/admin/catalogs", icon: Library },
@@ -43,9 +43,8 @@ export default function AdminSidebar({
     <>
       <div className="p-6">
         <div className="flex items-center gap-3">
-          {/* Logo placeholder, user provides public/logo-ptec.png */}
-          <div className="w-10 h-10 bg-white rounded flex items-center justify-center shrink-0">
-            <span className="text-[#1E3A8A] font-bold text-xs">PTEC</span>
+          <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 p-1">
+            <Image src="/logo_footer.png" alt="PTEC Logo" width={40} height={40} className="object-contain" />
           </div>
           <span className="font-bold text-xl tracking-tight">Library Admin</span>
         </div>
@@ -107,7 +106,7 @@ export default function AdminSidebar({
   );
 
   return (
-    <div className="flex min-h-screen bg-[#F3F4F6] text-slate-900 font-body">
+    <div className="flex h-screen overflow-hidden bg-[#F3F4F6] text-slate-900 font-body">
       {/* Mobile Topbar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#1E3A8A] text-white flex items-center px-4 justify-between z-20">
         <div className="flex items-center gap-2">
@@ -136,7 +135,7 @@ export default function AdminSidebar({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen pt-16 lg:pt-0">
+      <div className="flex-1 flex flex-col min-h-0 pt-16 lg:pt-0">
         {/* Topbar Desktop Breadcrumb / Title Area */}
         <div className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center px-8 shrink-0">
           <h1 className="text-xl font-semibold capitalize">

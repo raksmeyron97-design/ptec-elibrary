@@ -169,8 +169,8 @@ export default async function HomePage() {
         <div aria-hidden className="pointer-events-none absolute -right-44 -top-48 h-[680px] w-[680px] rounded-full border border-white/[0.06]" />
         <div aria-hidden className="pointer-events-none absolute -left-40 -bottom-56 h-[420px] w-[420px] rounded-full border border-gold-500/10" />
 
-        <div className="relative mx-auto max-w-[1200px] px-4 py-20 md:px-12 md:py-24">
-          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1fr] lg:gap-14">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-20 md:px-12 md:py-24">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
 
             {/* Left */}
             <div className="max-w-2xl">
@@ -219,8 +219,8 @@ export default async function HomePage() {
             </div>
 
             {/* Right: Book stack (like old code) */}
-            <div className="hidden lg:flex lg:items-center lg:justify-center relative z-10">
-              <div className="scale-[1.25] xl:scale-[1.4] drop-shadow-2xl">
+            <div className="hidden lg:flex lg:items-center lg:justify-end relative z-10 xl:pr-12">
+              <div className="scale-[1.25] xl:scale-[1.4] drop-shadow-2xl translate-x-8 xl:translate-x-16">
                 <HeroBookStack
                   books={featuredBooks.map((b) => ({
                     slug: b.slug,
@@ -240,7 +240,7 @@ export default async function HomePage() {
 
       {/* ════════ FEATURED COLLECTIONS ════════ */}
       {deptPills.length > 0 && (
-        <section className="mx-auto max-w-[1200px] px-4 py-20 md:px-12">
+        <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
           <div className="mb-9 flex items-end justify-between gap-5">
             <SectionTitle as="h2" className="!mb-0">Featured Collections</SectionTitle>
             <Link href="/books" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
@@ -264,7 +264,7 @@ export default async function HomePage() {
 
       {/* ════════ NEW IN THE LIBRARY ════════ */}
       <section className="border-y border-divider bg-bg-surface">
-        <div className="mx-auto max-w-[1200px] px-4 py-20 md:px-12">
+        <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
           <div className="mb-9 flex items-end justify-between gap-5">
             <SectionTitle as="h2" className="!mb-0">New in the Library</SectionTitle>
             <Link href="/books?sort=downloads" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
@@ -285,7 +285,7 @@ export default async function HomePage() {
 
       {/* ════════ FROM THE LIBRARY (posts) ════════ */}
       {recentPosts.length > 0 && (
-        <section className="mx-auto max-w-[1200px] px-4 py-20 md:px-12">
+        <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
           <div className="mb-9 flex items-end justify-between gap-5">
             <SectionTitle as="h2" className="!mb-0">From the Library</SectionTitle>
             <Link href="/posts" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
@@ -348,7 +348,7 @@ export default async function HomePage() {
       <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-900 to-blue-950">
         <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-        <div className="relative mx-auto max-w-[1200px] px-4 py-20 text-center md:px-12">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-20 text-center md:px-12">
           <h2 className="font-serif text-[clamp(24px,4vw,40px)] font-bold leading-tight text-white">
             Ready to explore the catalogue?
           </h2>
