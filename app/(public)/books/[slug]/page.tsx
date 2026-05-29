@@ -9,6 +9,7 @@ import ReviewForm from "@/components/ui/ReviewForm";
 import ReviewList from "@/components/ui/ReviewList";
 import SaveButton from "@/components/ui/SaveButton";
 import DownloadCount from "@/components/ui/DownloadCount";
+import { Badge } from "@/components/ui/Badge";
 import { getBookBySlug, type Book } from "@/lib/books";
 import { mapRowToBook } from "@/lib/book-utils"; // ← shared mapper
 import { createServiceClient } from "@/lib/supabase/server";
@@ -87,11 +88,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const resuming = !!(savedProgress && savedProgress.progressPct > 0);
 
   return (
-    <section className="bg-gradient-to-b from-[#F6F6F4] to-[#FBFBFD] px-6 py-10 md:px-12">
+    <section className="bg-bg-body px-6 py-10 md:px-12 min-h-screen">
       <div className="mx-auto max-w-[1200px]">
         <Link
           href="/books"
-          className="mb-6 inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#0C7C8A] transition-colors hover:text-[#075863]"
+          className="mb-6 inline-flex items-center gap-2 text-[14.5px] font-semibold text-brand transition-colors hover:text-brand-hover"
         >
           <Icon name="arrow-left" className="text-[20px]" />
           Back to catalogue
@@ -111,7 +112,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         )}
 
         {/* ── Hero card ── */}
-        <div className="grid gap-10 rounded-[28px] border border-slate-200 bg-white p-6 shadow-[0_4px_14px_rgba(20,22,27,0.06)] md:p-9 lg:grid-cols-[300px_1fr]">
+        <div className="grid gap-10 rounded-[28px] border border-divider bg-bg-surface p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr]">
 
           {/* Cover */}
           <div>
@@ -124,8 +125,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 author={book.author}
               />
             ) : (
-              <div className="overflow-hidden rounded-2xl shadow-[0_24px_60px_-18px_rgba(11,42,48,0.28)]">
-                <div className="aspect-[3/4] w-full">
+              <div className="overflow-hidden rounded-2xl shadow-lg shadow-brand/10 border border-divider/50">
+                <div className="aspect-[3/4] w-full bg-paper">
                   <BookCover title={book.title} label={book.department} author={book.author} variant="detail" />
                 </div>
               </div>
@@ -134,56 +135,50 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
           {/* Details */}
           <div>
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-[#E4F4F5] px-[13px] py-1.5 text-[12.5px] font-semibold text-[#075863]">
-                {book.department}
-              </span>
-              <span className="rounded-full bg-[#F6F6F4] px-[13px] py-1.5 text-[12.5px] font-semibold text-slate-600">
-                {book.category}
-              </span>
-              <span className="rounded-full bg-[#E7F6EC] px-[13px] py-1.5 text-[12.5px] font-semibold text-[#1B7A3E]">
-                ● {book.availability}
-              </span>
+            <div className="flex flex-wrap gap-2 items-center">
+              <Badge variant="brand">{book.department}</Badge>
+              <Badge variant="neutral">{book.category}</Badge>
+              <Badge variant="success">● {book.availability}</Badge>
               <DownloadCount count={downloadCount} />
             </div>
 
-            <h1 className="serif mt-5 text-[clamp(28px,4vw,38px)] font-medium leading-[1.1] text-slate-950">
+            <h1 className="font-khmer-serif mt-5 text-[clamp(28px,4vw,38px)] font-bold leading-[1.2] text-text-heading">
               {book.title}
             </h1>
-            <p className="mt-2 text-[17px] text-slate-500">by {book.author}</p>
+            <p className="mt-2 text-[17px] font-medium text-text-muted">by {book.author}</p>
             <div className="mt-4">
               <RatingStars rating={book.rating} />
             </div>
 
             {resuming && (
-              <div className="mt-6 flex items-center gap-4 rounded-[14px] border border-[#cdebec] bg-[#E4F4F5] px-4 py-3.5">
+              <div className="mt-6 flex items-center gap-4 rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13.5px] font-bold text-[#075863]">
+                  <p className="text-[13.5px] font-bold text-brand">
                     Continue reading — {savedProgress!.progressPct}% complete
                   </p>
-                  <p className="mt-0.5 text-[12px] text-[#0C7C8A]">
+                  <p className="mt-0.5 text-[12px] text-brand/70 font-medium">
                     Last read{" "}
                     {savedProgress!.lastReadAt
                       ? new Date(savedProgress!.lastReadAt).toLocaleDateString()
                       : "recently"}
                   </p>
                 </div>
-                <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-[#cfe9ea] sm:block">
+                <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-blue-200 sm:block border border-blue-300">
                   <div
-                    className="h-full rounded-full bg-[#0C7C8A]"
+                    className="h-full rounded-full bg-brand"
                     style={{ width: `${savedProgress!.progressPct}%` }}
                   />
                 </div>
                 <a
                   href="#reader"
-                  className="shrink-0 rounded-[10px] bg-[#0C7C8A] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#075863]"
+                  className="shrink-0 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
                 >
                   Resume
                 </a>
               </div>
             )}
 
-            <p className="mt-6 text-[15.5px] leading-8 text-slate-600">{book.summary}</p>
+            <p className="mt-6 font-sans text-[15.5px] leading-8 text-text-body">{book.summary}</p>
 
             <dl className="mt-7 grid gap-3 sm:grid-cols-2">
               {[
@@ -192,9 +187,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 ["Publication year", String(book.year)],
                 ["Pages",            String(book.pages)],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-[13px] bg-[#F6F6F4] px-4 py-3.5">
-                  <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-slate-400">{label}</dt>
-                  <dd className="mt-1 text-[15px] font-semibold text-slate-900">{value}</dd>
+                <div key={label} className="rounded-[13px] bg-paper border border-divider px-4 py-3.5">
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
+                  <dd className="mt-1 text-[15px] font-semibold text-text-heading">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -203,13 +198,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               {book.pdfUrl ? (
                 <a
                   href="#reader"
-                  className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-[#14161B] px-6 py-3.5 text-[15px] font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-[#0C7C8A] hover:shadow-[0_12px_28px_-10px_rgba(12,124,138,0.6)]"
+                  className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
                 >
                   <Icon name="pdf" className="text-[20px]" />
                   {resuming ? "Continue reading" : "Read online"}
                 </a>
               ) : (
-                <span className="inline-flex items-center gap-2 rounded-[14px] bg-slate-100 px-6 py-3.5 text-sm font-semibold text-slate-500">
+                <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
                   PDF not available
                 </span>
               )}
@@ -229,19 +224,19 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         {book.dbId && (
           <div id="reviews" className="mt-12 scroll-mt-24">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="serif text-[28px] font-medium text-slate-950">
+              <h2 className="font-serif text-[28px] font-bold text-text-heading">
                 Reader Reviews
                 {reviews.length > 0 && (
-                  <span className="ml-2.5 text-base font-semibold text-slate-400">({reviews.length})</span>
+                  <span className="ml-2.5 text-base font-semibold text-text-muted">({reviews.length})</span>
                 )}
               </h2>
               {reviews.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-amber-400 stroke-amber-400" strokeWidth={1}>
+                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-accent stroke-accent" strokeWidth={1}>
                     <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
                   </svg>
-                  <span className="text-sm font-bold text-slate-700">{avgRating.toFixed(1)}</span>
-                  <span className="text-sm text-slate-400">average</span>
+                  <span className="text-sm font-bold text-text-heading">{avgRating.toFixed(1)}</span>
+                  <span className="text-sm text-text-muted">average</span>
                 </div>
               )}
             </div>
@@ -257,15 +252,15 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                     existingContent={userReview?.content}
                   />
                 ) : (
-                  <div className="rounded-[20px] border border-slate-200 bg-white p-6 text-center shadow-[0_1px_2px_rgba(20,22,27,0.04)]">
-                    <Icon name="star" className="mb-3 text-4xl text-amber-300" />
-                    <h3 className="text-base font-bold text-slate-900">Leave a review</h3>
-                    <p className="mt-2 text-sm text-slate-500">
+                  <div className="rounded-[20px] border border-divider bg-bg-surface p-6 text-center shadow-sm">
+                    <Icon name="star" className="mb-3 text-4xl text-accent" />
+                    <h3 className="text-base font-bold text-text-heading">Leave a review</h3>
+                    <p className="mt-2 text-sm text-text-muted font-sans">
                       Sign in to rate this resource and share your experience with other readers.
                     </p>
                     <Link
                       href={`/auth/login?callbackUrl=/books/${book.slug}#reviews`}
-                      className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-[#14161B] text-sm font-semibold text-white transition hover:bg-[#0C7C8A]"
+                      className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
                     >
                       <Icon name="account" className="text-base" />
                       Sign in to review

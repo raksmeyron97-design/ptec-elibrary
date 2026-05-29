@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { angkor, battambang } from "@/app/fonts";
+import { angkor, battambang, libreBaskerville, publicSans, notoSerifKhmer } from "@/app/fonts";
 
 export const metadata: Metadata = {
   title: "PTEC e-Library | Phnom Penh Teacher Education College",
@@ -12,10 +12,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="km" className={`${angkor.variable} ${battambang.variable}`}>
+    <html lang="km" className={`${angkor.variable} ${battambang.variable} ${libreBaskerville.variable} ${publicSans.variable} ${notoSerifKhmer.variable}`}>
       <body
         suppressHydrationWarning
-        className="bg-slate-50 font-body text-slate-900 antialiased"
+        className="bg-bg-app font-sans text-text-body antialiased"
       >
         {children}
       </body>

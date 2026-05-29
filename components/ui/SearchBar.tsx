@@ -21,16 +21,17 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   category: "Category",
 };
 
+// ── Brand-harmonized (was teal / violet / amber) ──────────────────────────────
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
-  book:     "text-[#007c91]",
-  author:   "text-violet-500",
-  category: "text-amber-500",
+  book:     "text-brand",
+  author:   "text-gold-700",
+  category: "text-blue-700",
 };
 
 const TYPE_BG: Record<Suggestion["type"], string> = {
-  book:     "bg-[#007c91]/10",
-  author:   "bg-violet-500/10",
-  category: "bg-amber-500/10",
+  book:     "bg-blue-50",
+  author:   "bg-gold-50",
+  category: "bg-blue-100",
 };
 
 export default function SearchBar({ compact = false }: SearchBarProps) {
@@ -118,7 +119,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
     }
   }
 
-  // ── Highlight matched text ─────────────────────────────────────────────────
+  // ── Highlight matched text (gold highlighter) ───────────────────────────────
   function highlight(text: string, q: string) {
     if (!q) return <>{text}</>;
     const idx = text.toLowerCase().indexOf(q.toLowerCase());
@@ -126,7 +127,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
     return (
       <>
         {text.slice(0, idx)}
-        <mark className="bg-[#007c91]/15 text-[#007c91] rounded-sm font-semibold not-italic">
+        <mark className="bg-gold-100 text-text-heading rounded-sm font-semibold not-italic">
           {text.slice(idx, idx + q.length)}
         </mark>
         {text.slice(idx + q.length)}
@@ -146,18 +147,14 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
     <div className="relative w-full">
       <form
         onSubmit={handleSubmit}
-        className={`flex w-full gap-2.5 ${
-          compact
-            ? "flex-row items-center"
-            : "flex-row items-center"
-        }`}
+        className="flex w-full flex-row items-center gap-2.5"
       >
         {/* ── Input wrapper ────────────────────────────────────────────────── */}
         <label className="relative min-w-0 flex-1">
           {/* Search icon (desktop only, left side) */}
           <Icon
             name="search"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-slate-400 pointer-events-none z-10 transition-colors duration-200 peer-focus:text-[#007c91] hidden sm:block"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-text-muted pointer-events-none z-10 transition-colors duration-200 peer-focus:text-brand hidden sm:block"
           />
 
           <input
@@ -166,23 +163,19 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => suggestions.length > 0 && setOpen(true)}
             onKeyDown={handleKeyDown}
-            /* glassmorphism input */
             className="
-              peer h-13 w-full rounded-2xl
-              border border-white/60
-              bg-white/70 backdrop-blur-xl
+              peer h-13 w-full rounded-xl
+              border border-divider
+              bg-white
               py-3 pl-4 pr-12
               sm:pl-12 sm:pr-10
-              text-slate-900 placeholder:text-slate-400
+              text-text-heading placeholder:text-text-muted caret-brand
               text-[16px] sm:text-sm
-              outline-none
-              shadow-[0_2px_16px_rgba(0,124,145,0.07)]
-              ring-1 ring-slate-200/80
+              outline-none shadow-sm
               transition-all duration-200
-              focus:border-[#007c91]/60
-              focus:bg-white/90
-              focus:ring-2 focus:ring-[#007c91]/20
-              focus:shadow-[0_4px_24px_rgba(0,124,145,0.14)]
+              focus:border-brand
+              focus:ring-2 focus:ring-focus-ring/30
+              focus:shadow-md
             "
             placeholder="Search title, author, ISBN, or topic"
             type="search"
@@ -195,14 +188,14 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
           {/* Loading spinner */}
           {loading && (
             <span className="absolute right-3.5 top-1/2 -translate-y-1/2">
-              <svg className="h-4 w-4 animate-spin text-[#007c91]" viewBox="0 0 24 24" fill="none">
+              <svg className="h-4 w-4 animate-spin text-brand" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
               </svg>
             </span>
           )}
 
-          {/* Clear button (when text exists, desktop only) */}
+          {/* Clear button */}
           {query && !loading && (
             <button
               type="button"
@@ -213,8 +206,8 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
               className="
                 absolute right-3.5 top-1/2 -translate-y-1/2
                 flex h-5 w-5 items-center justify-center
-                rounded-full bg-slate-200/80 text-slate-500
-                transition hover:bg-slate-300 hover:text-slate-700
+                rounded-full bg-paper text-text-muted
+                transition hover:bg-blue-50 hover:text-brand
                 active:scale-95
                 hidden sm:flex
               "
@@ -226,17 +219,16 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             </button>
           )}
 
-          {/* Mobile: search submit button inside input (right side) */}
+          {/* Mobile submit button inside input */}
           {!loading && (
             <button
               type="submit"
               className="
                 absolute right-2 top-1/2 -translate-y-1/2
                 flex h-9 w-9 items-center justify-center
-                rounded-xl
-                bg-gradient-to-br from-[#0a1629] to-[#007c91]
-                text-white shadow-[0_2px_8px_rgba(0,124,145,0.35)]
-                transition-all duration-200
+                rounded-lg
+                bg-brand text-brand-contrast
+                shadow-sm transition-all duration-200
                 active:scale-95
                 sm:hidden
               "
@@ -253,14 +245,12 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
           className="
             hidden sm:inline-flex
             h-13 items-center justify-center gap-2
-            rounded-2xl
-            bg-gradient-to-br from-[#0a1629] to-[#007c91]
-            px-6 font-semibold text-white
-            text-sm
-            shadow-[0_4px_16px_rgba(0,124,145,0.35)]
+            rounded-xl
+            bg-brand px-6 font-semibold text-brand-contrast
+            text-sm shadow-sm
             transition-all duration-200
-            hover:shadow-[0_6px_24px_rgba(0,124,145,0.5)]
-            hover:scale-[1.02]
+            hover:bg-brand-hover
+            focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-2
             active:scale-[0.98]
           "
         >
@@ -276,12 +266,9 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
           role="listbox"
           className="
             absolute left-0 right-0 top-[calc(100%+8px)] z-50
-            overflow-hidden
-            rounded-2xl
-            border border-white/60
-            bg-white/80 backdrop-blur-2xl
-            shadow-[0_16px_48px_rgba(10,22,41,0.18)]
-            ring-1 ring-slate-900/5
+            overflow-hidden rounded-xl
+            border border-divider bg-bg-surface
+            shadow-lg ring-1 ring-black/5
             animate-in fade-in slide-in-from-top-1 duration-150
           "
         >
@@ -291,11 +278,11 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             return (
               <div key={type}>
                 {/* Group header */}
-                <div className="flex items-center gap-2 border-b border-slate-100/80 bg-slate-50/60 px-4 py-2">
+                <div className="flex items-center gap-2 border-b border-divider bg-paper px-4 py-2">
                   <span className={`flex h-5 w-5 items-center justify-center rounded-md ${TYPE_BG[type]}`}>
                     <Icon name={TYPE_ICON[type] as any} className={`text-[13px] ${TYPE_COLOR[type]}`} />
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
                     {TYPE_LABEL[type]}s
                   </span>
                 </div>
@@ -314,18 +301,14 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
                       className={`
                         flex w-full items-center gap-3 px-4 py-3 text-left
                         transition-colors duration-100
-                        /* comfortable tap target on mobile */
                         min-h-[52px]
-                        ${isActive
-                          ? "bg-[#007c91]/8"
-                          : "hover:bg-slate-50/80"
-                        }
+                        ${isActive ? "bg-blue-50" : "hover:bg-paper"}
                       `}
                     >
                       {/* Icon badge */}
                       <span className={`
                         flex h-9 w-9 shrink-0 items-center justify-center
-                        rounded-xl ${TYPE_BG[type]}
+                        rounded-lg ${TYPE_BG[type]}
                         ring-1 ring-white/80
                       `}>
                         <Icon name={TYPE_ICON[type] as any} className={`text-base ${TYPE_COLOR[type]}`} />
@@ -333,14 +316,14 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
 
                       {/* Text */}
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-slate-800">
+                        <span className="block truncate text-sm font-medium text-text-heading">
                           {highlight(s.label, query)}
                         </span>
                         {s.type === "book" && (
-                          <span className="block truncate text-xs text-slate-400 mt-0.5">{s.sub}</span>
+                          <span className="block truncate text-xs text-text-muted mt-0.5">{s.sub}</span>
                         )}
                         {s.type !== "book" && (
-                          <span className="block text-xs text-slate-400 mt-0.5">
+                          <span className="block text-xs text-text-muted mt-0.5">
                             Search by {TYPE_LABEL[type].toLowerCase()}
                           </span>
                         )}
@@ -348,7 +331,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
 
                       {/* Chevron */}
                       <svg
-                        className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-[#007c91]" : "text-slate-200"}`}
+                        className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-brand" : "text-slate-200"}`}
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                       >
                         <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -360,14 +343,14 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             );
           })}
 
-          {/* ── Footer keyboard hint (hidden on mobile, shown on sm+) ──────── */}
-          <div className="hidden sm:flex items-center gap-3 border-t border-slate-100/80 bg-slate-50/60 px-4 py-2">
+          {/* ── Footer keyboard hint ──────────────────────────────────────── */}
+          <div className="hidden sm:flex items-center gap-3 border-t border-divider bg-paper px-4 py-2">
             {[["↑↓", "Navigate"], ["↵", "Select"], ["Esc", "Close"]].map(([key, label]) => (
               <span key={key} className="flex items-center gap-1.5">
-                <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-slate-400 shadow-sm">
+                <kbd className="rounded-md border border-divider bg-white px-1.5 py-0.5 font-mono text-[11px] text-text-muted shadow-sm">
                   {key}
                 </kbd>
-                <span className="text-[11px] text-slate-400">{label}</span>
+                <span className="text-[11px] text-text-muted">{label}</span>
               </span>
             ))}
           </div>

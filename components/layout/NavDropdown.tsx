@@ -46,11 +46,11 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`relative flex items-center gap-2 text-[15px] font-medium py-6 transition-colors select-none ${
-          isActive ? "text-[#007c91]" : "text-slate-600 hover:text-[#0a1629]"
+        className={`relative flex items-center gap-2 text-[15px] font-serif py-6 transition-colors select-none ${
+          isActive ? "text-brand font-semibold" : "text-slate-600 font-medium hover:text-text-heading"
         }`}
       >
-        <span className={`text-[18px] ${isActive ? "text-[#007c91]" : "text-slate-400"}`}>
+        <span className={`text-[18px] ${isActive ? "text-brand" : "text-slate-400"}`}>
           {icon}
         </span>
         {label}
@@ -64,20 +64,20 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
 
         {/* Active underline */}
         {isActive && (
-          <span className="absolute bottom-0 left-0 w-full h-[3px] bg-[#007c91] rounded-t-md" />
+          <span className="absolute bottom-0 left-0 w-full h-[3px] bg-accent rounded-t-md" />
         )}
       </button>
 
       {/* Dropdown panel */}
       <div
-        className={`absolute left-0 top-[calc(100%-2px)] w-52 origin-top-left rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5 transition-all duration-200 z-50 ${
+        className={`absolute left-0 top-[calc(100%-2px)] w-52 origin-top-left rounded-xl border border-divider bg-bg-surface shadow-md ring-1 ring-black/5 transition-all duration-200 z-50 ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"
         }`}
       >
         {/* Top accent bar */}
-        <div className="h-[3px] w-full bg-[#007c91] rounded-t-xl" />
+        <div className="h-[3px] w-full bg-accent rounded-t-xl" />
 
         <div className="py-2">
           {subLinks.map((sub) => {
@@ -89,13 +89,13 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
                 onClick={() => setOpen(false)}
                 className={`flex items-center justify-between px-4 py-2.5 text-[14px] font-medium transition-colors ${
                   subActive
-                    ? "text-[#007c91] bg-[#007c91]/6"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-[#007c91]"
+                    ? "text-brand bg-blue-50"
+                    : "text-text-body hover:bg-slate-50 hover:text-brand"
                 }`}
               >
                 {sub.label}
                 {subActive && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#007c91]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand" />
                 )}
               </Link>
             );

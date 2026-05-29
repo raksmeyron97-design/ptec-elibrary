@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Book } from "@/lib/books";
 import BookCover from "@/components/ui/BookCover";
 import RatingStars from "@/components/ui/RatingStars";
+import { Badge } from "@/components/ui/Badge";
 import { incrementViewCount } from "@/app/actions/view-count";
 
 type BookCardProps = {
@@ -42,15 +43,20 @@ export default function BookCard({ book }: BookCardProps) {
   }
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_8px_30px_-8px_rgba(12,124,138,0.15)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-brand/20">
+      {/* Gold top-rule accent on hover (brand signature) */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
+      />
       <a
         href={`/books/${book.slug}`}
         onClick={handleClick}
         className="flex h-full flex-col"
       >
         {/* ── Cover ── */}
-        <div className="relative mx-3 mt-3 overflow-hidden rounded-xl sm:mx-3.5 sm:mt-3.5">
-          <div className="relative aspect-[3/4] w-full">
+        <div className="relative mx-3 mt-3 overflow-hidden rounded-lg sm:mx-3.5 sm:mt-3.5 border border-divider/50">
+          <div className="relative aspect-[3/4] w-full bg-paper">
             {book.coverUrl ? (
               <Image
                 src={book.coverUrl}
@@ -68,16 +74,16 @@ export default function BookCard({ book }: BookCardProps) {
               />
             )}
 
-            {/* Format badge — top right, subtle */}
-            <span className="absolute right-2 top-2 z-[4] rounded-md bg-white/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-slate-600 shadow-sm backdrop-blur-sm">
+            {/* Format badge — top right */}
+            <span className="absolute right-2 top-2 z-[4] rounded-md bg-bg-surface/90 px-2 py-[3px] text-[9px] font-bold uppercase tracking-wider text-text-muted shadow-sm backdrop-blur-sm border border-divider/50">
               {book.format || "PDF"}
             </span>
 
             {/* Reading progress bar */}
             {progress > 0 && (
-              <div className="absolute inset-x-0 bottom-0 z-[5] h-[3px] bg-black/10 rounded-b-xl overflow-hidden">
+              <div className="absolute inset-x-0 bottom-0 z-[5] h-[3px] bg-black/10 rounded-b-lg overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-[#0C7C8A] transition-all"
+                  className="h-full rounded-full bg-brand transition-all"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -86,27 +92,26 @@ export default function BookCard({ book }: BookCardProps) {
         </div>
 
         {/* ── Body ── */}
-        <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4 sm:pt-3.5">
+        <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-4 sm:px-4 sm:pb-4">
           {/* Department pill */}
-          <span className="mb-1.5 inline-flex self-start rounded-full bg-[#F0F7F8] px-2.5 py-[3px] text-[9px] font-semibold uppercase tracking-wide text-[#0C7C8A]">
-            {book.department}
-          </span>
+          {book.department && (
+            <Badge variant="brand" className="mb-2 self-start !text-[9px] !px-2 !py-0.5 uppercase tracking-wide">
+              {book.department}
+            </Badge>
+          )}
 
           {/* Title */}
-          <h3
-            className="text-[13px] font-bold leading-snug text-slate-800 line-clamp-2 sm:text-[14px]"
-            style={{ fontFamily: "'Hanuman', serif" }}
-          >
+          <h3 className="text-[13px] font-khmer-serif font-bold leading-snug text-text-heading line-clamp-2 sm:text-[14px]">
             {book.title}
           </h3>
 
           {/* Author */}
-          <p className="mt-1 text-[11px] text-slate-400 line-clamp-1 sm:text-[12px]">
+          <p className="mt-1 text-[11px] text-text-muted line-clamp-1 sm:text-[12px] font-medium">
             {book.author}
           </p>
 
           {/* Summary — hidden on mobile */}
-          <p className="mt-1.5 hidden text-[11px] leading-[1.6] text-slate-400 line-clamp-2 sm:block">
+          <p className="mt-1.5 hidden text-[11px] leading-[1.6] text-text-body line-clamp-2 sm:block">
             {book.summary}
           </p>
 
@@ -115,17 +120,17 @@ export default function BookCard({ book }: BookCardProps) {
             {/* Stars + rating number */}
             <div className="flex items-center gap-1.5">
               <RatingStars rating={book.rating} compact />
-              <span className="text-[11px] font-medium text-slate-500">
+              <span className="text-[11px] font-medium text-text-muted">
                 {book.rating?.toFixed(1)}
               </span>
             </div>
 
             {/* Meta row */}
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Downloads */}
                 {downloads > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
                     <svg
                       className="h-3 w-3"
                       viewBox="0 0 24 24"
@@ -144,7 +149,7 @@ export default function BookCard({ book }: BookCardProps) {
                 )}
 
                 {/* Views */}
-                <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
                   <svg
                     className="h-3 w-3"
                     viewBox="0 0 24 24"
@@ -163,7 +168,7 @@ export default function BookCard({ book }: BookCardProps) {
               </div>
 
               {/* CTA */}
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-[#F0F7F8] px-2.5 py-1 text-[10px] font-semibold text-[#0C7C8A] transition-colors group-hover:bg-[#0C7C8A] group-hover:text-white">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
                 {progress > 0 ? "Continue" : "View"}
                 <svg
                   className="h-3 w-3"

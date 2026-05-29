@@ -50,17 +50,17 @@ export default async function PostsPage() {
   }));
 
   return (
-    <section className="min-h-screen bg-slate-50 px-6 pb-16 pt-24 md:px-12">
+    <section className="min-h-screen bg-bg-body px-6 pb-16 pt-24 md:px-12">
       <div className="mx-auto max-w-[1200px] space-y-8">
 
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#007c91]">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-accent">
               PTEC Library
             </p>
-            <h1 className="font-[family-name:var(--font-angkor)] text-3xl text-[#0a1629] md:text-4xl">Posts</h1>
-            <p className="mt-2 max-w-2xl font-[family-name:var(--font-battambang)] text-sm text-slate-500">
+            <h1 className="font-serif text-3xl font-bold text-text-heading md:text-4xl">From the Library</h1>
+            <p className="mt-2 max-w-2xl font-sans text-sm text-text-muted">
               Research updates, announcements, events, and journals from across the library.
             </p>
           </div>
@@ -68,7 +68,7 @@ export default async function PostsPage() {
           {isAdmin && (
             <Link
               href="/admin/posts"
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0a1629] px-5 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
             >
               Manage posts
             </Link>

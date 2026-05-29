@@ -134,9 +134,9 @@ export default async function BooksPage({
   const categoryPills = ["All", ...departments];
 
   return (
-    <div className="min-h-screen bg-[#F7F8FB]">
+    <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
-      <div className="border-b border-slate-100 bg-white px-4 py-5 md:px-12 md:py-7">
+      <div className="border-b border-divider bg-bg-surface px-4 py-5 md:px-12 md:py-7">
         <div className="mx-auto max-w-[1400px]">
           {/* Search bar */}
           <div className="mb-5">
@@ -161,10 +161,10 @@ export default async function BooksPage({
                   <a
                     key={cat}
                     href={href}
-                    className={`shrink-0 rounded-full px-4 py-[7px] text-[12px] font-medium whitespace-nowrap transition-all sm:text-[13px] ${
+                    className={`shrink-0 rounded-full px-4 py-[7px] text-[12px] font-medium whitespace-nowrap transition-all border sm:text-[13px] ${
                       isActive
-                        ? "bg-[#0C7C8A] text-white shadow-sm shadow-[#0C7C8A]/20"
-                        : "bg-slate-50 text-slate-500 hover:bg-[#E8F5F6] hover:text-[#0C7C8A]"
+                        ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
+                        : "bg-paper text-text-muted border-divider hover:bg-blue-50 hover:text-brand hover:border-brand/30"
                     }`}
                   >
                     {cat}
@@ -291,10 +291,10 @@ function sortPillClass(
   isDefault: boolean
 ): string {
   const active = current === value || (isDefault && !current);
-  return `rounded-full px-3 py-[5px] text-[11px] font-medium whitespace-nowrap transition-all sm:text-[12px] ${
+  return `rounded-full border px-3 py-[5px] text-[11px] font-medium whitespace-nowrap transition-all sm:text-[12px] ${
     active
-      ? "bg-[#0C7C8A] text-white shadow-sm shadow-[#0C7C8A]/20"
-      : "bg-slate-50 text-slate-500 hover:bg-[#E8F5F6] hover:text-[#0C7C8A]"
+      ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
+      : "bg-paper text-text-muted border-divider hover:bg-blue-50 hover:text-brand hover:border-brand/30"
   }`;
 }
 
@@ -313,12 +313,12 @@ function ActiveChip({
         [paramKey]: undefined,
         page: undefined,
       })}
-      className="inline-flex items-center gap-2 rounded-full bg-[#E8F5F6] py-1.5 pl-3.5 pr-2.5 text-[12px] font-medium text-[#0C7C8A] transition hover:bg-[#d3edee]"
+      className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-blue-50 py-1.5 pl-3.5 pr-2.5 text-[12px] font-medium text-brand transition hover:bg-blue-100"
     >
       {label}
       <span
         aria-hidden
-        className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0C7C8A]/10 text-[11px] leading-none text-[#0C7C8A]"
+        className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/10 text-[11px] leading-none text-brand"
       >
         ×
       </span>
@@ -347,7 +347,7 @@ function EmptyState({
       {hasFilters && (
         <a
           href="/books"
-          className="mt-5 inline-flex h-10 items-center rounded-full bg-[#0C7C8A] px-6 text-sm font-semibold text-white transition hover:bg-[#0a6b77]"
+          className="mt-5 inline-flex h-10 items-center rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
         >
           Clear all filters
         </a>

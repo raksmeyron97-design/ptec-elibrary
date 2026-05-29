@@ -2,35 +2,91 @@
 
 @import "tailwindcss";
 
-
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  /* Battambang covers Khmer + Latin; Arial as last-resort fallback */
-  --font-sans: var(--font-battambang), Arial, Helvetica, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-}
+  /* Color — PTEC Blue (primary) */
+  --color-blue-50: #EEF2FB;
+  --color-blue-100: #D9E2F7;
+  --color-blue-200: #B3C5EF;
+  --color-blue-300: #8AA4E4;
+  --color-blue-400: #5B7FD6;
+  --color-blue-500: #3A5FC4;
+  --color-blue-600: #2A47A6;
+  --color-blue-700: #1E3A8A;
+  --color-blue-800: #182E6E;
+  --color-blue-900: #122251;
+  --color-blue-950: #0B1530;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Color — PTEC Gold (accent) */
+  --color-gold-50: #FDF8E7;
+  --color-gold-100: #FAEFC4;
+  --color-gold-200: #F4DE8A;
+  --color-gold-300: #EDCB55;
+  --color-gold-400: #E4BB30;
+  --color-gold-500: #DDB022;
+  --color-gold-600: #BE9412;
+  --color-gold-700: #806211;
+  --color-gold-800: #5A4410;
+
+  /* Neutrals */
+  --color-white: #FFFFFF;
+  --color-paper: #F3F4F6;
+  --color-parchment: #FAF8F2;
+  --color-border: #E5E7EB;
+  --color-border-strong: #D6DAE0;
+  --color-slate-500: #64748B;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+
+  /* Semantic roles */
+  --color-bg-app: #F3F4F6;
+  --color-bg-surface: #FFFFFF;
+  --color-text-heading: #0B1530;
+  --color-text-body: #475569;
+  --color-text-muted: #64748B;
+  --color-brand: #1E3A8A;
+  --color-brand-hover: #182E6E;
+  --color-brand-contrast: #FFFFFF;
+  --color-accent: #DDB022;
+  --color-accent-text: #806211;
+  --color-accent-line: #DDB022;
+  --color-focus-ring: #3A5FC4;
+  --color-divider: #E5E7EB;
+  --color-success: #15803D;
+  --color-warning: #806211;
+  --color-danger: #B91C1C;
+  --color-info: #2A47A6;
+
+  /* Fonts */
+  --font-serif: var(--font-var-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-var-sans), Arial, Helvetica, sans-serif;
+  --font-khmer-serif: var(--font-var-khmer-serif), serif;
+  --font-title: var(--font-var-angkor);
+  --font-body: var(--font-var-battambang);
+  
+  /* Shape, elevation */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --shadow-sm: 0 1px 2px rgba(11,21,48,.06);
+  --shadow-md: 0 4px 14px rgba(11,21,48,.08);
+  --shadow-lg: 0 12px 32px rgba(11,21,48,.10);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  /* ✅ Remove Arial override — layout.tsx sets font-body (Battambang) which
-     supports both Khmer and Latin. Arial was overriding that and breaking
-     Khmer rendering since Arial has no Khmer glyphs. */
-  font-family: var(--font-battambang), var(--font-angkor), Arial, sans-serif;
+  background-color: var(--color-bg-app);
+  color: var(--color-text-body);
+}
+
+.khmer {
+  font-family: var(--font-body);
+  line-height: 1.8;
+}
+
+h1.khmer, h2.khmer, h3.khmer, h4.khmer {
+  font-family: var(--font-khmer-serif);
+  line-height: 1.4;
 }
 
 .line-clamp-2 {
@@ -45,9 +101,4 @@ body {
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-@theme {
-  --font-title: var(--font-angkor);
-  --font-body:  var(--font-battambang);
 }

@@ -1,25 +1,46 @@
 // app/fonts.ts
 // ──────────────────────────────────────────────────────────────────
-// Khmer web fonts (self-hosted via next/font/google — no layout shift,
-// no external network request at runtime).
+// Web fonts (self-hosted via next/font/google)
 //
-//   Angkor      → titles / headings   (decorative Khmer display face)
-//   Battambang  → body / running text (readable Khmer + Latin face)
-//
-// Both support Khmer + Latin, so they work for mixed-script content.
+//   Libre Baskerville → Latin serif headings
+//   Public Sans       → Latin sans body
+//   Noto Serif Khmer  → Khmer serif headings
+//   Angkor            → Khmer display face
+//   Battambang        → Khmer + Latin body (fallback/running text)
 // ──────────────────────────────────────────────────────────────────
-import { Angkor, Battambang } from "next/font/google";
+import { Angkor, Battambang, Libre_Baskerville, Public_Sans, Noto_Serif_Khmer } from "next/font/google";
 
 export const angkor = Angkor({
-  weight: "400",                       // Angkor ships a single weight
+  weight: "400",
   subsets: ["khmer", "latin"],
   display: "swap",
-  variable: "--font-angkor",
+  variable: "--font-var-angkor",
 });
 
 export const battambang = Battambang({
-  weight: ["400", "700"],              // regular + bold for body text
+  weight: ["400", "700"],
   subsets: ["khmer", "latin"],
   display: "swap",
-  variable: "--font-battambang",
+  variable: "--font-var-battambang",
+});
+
+export const libreBaskerville = Libre_Baskerville({
+  weight: ["400", "700"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-var-serif",
+});
+
+export const publicSans = Public_Sans({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-var-sans",
+});
+
+export const notoSerifKhmer = Noto_Serif_Khmer({
+  weight: ["400", "700"],
+  subsets: ["khmer"],
+  display: "swap",
+  variable: "--font-var-khmer-serif",
 });

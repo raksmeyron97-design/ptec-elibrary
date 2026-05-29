@@ -48,7 +48,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
     return (
       <Link
         href="/auth/login"
-        className="rounded-lg bg-[#0a1629] px-6 py-2.5 text-[14px] font-semibold text-white transition-all hover:bg-[#007c91] hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+        className="rounded-lg bg-brand px-6 py-2.5 text-[14px] font-semibold text-brand-contrast transition-all hover:bg-brand-hover hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
       >
         Login
       </Link>
@@ -64,7 +64,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
       {/* Avatar button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-full border border-slate-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm transition-all hover:border-[#007c91]/40 hover:shadow-md"
+        className="flex items-center gap-2.5 rounded-full border border-divider bg-bg-surface py-1.5 pl-1.5 pr-3 shadow-sm transition-all hover:border-brand/40 hover:shadow-md"
         aria-label="User menu"
         aria-expanded={open}
       >
@@ -79,12 +79,12 @@ export default function NavbarClient({ user }: NavbarClientProps) {
               className="rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#007c91] text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-contrast">
               {initials}
             </div>
           )}
           {/* Online dot */}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-400" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-success" />
         </div>
 
         {/* Name — hidden on small screens */}
@@ -108,14 +108,14 @@ export default function NavbarClient({ user }: NavbarClientProps) {
 
       {/* ── Dropdown ── */}
       <div
-        className={`absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-black/5 transition-all duration-200 ${
+        className={`absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right rounded-xl border border-divider bg-bg-surface shadow-xl ring-1 ring-black/5 transition-all duration-200 ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"
         }`}
       >
         {/* Profile header */}
-        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
+        <div className="flex items-center gap-3 border-b border-divider px-4 py-4">
           <div className="relative h-11 w-11 shrink-0">
             {user.avatar_url ? (
               <Image
@@ -126,7 +126,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
                 className="rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#007c91] text-sm font-bold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-sm font-bold text-brand-contrast">
                 {initials}
               </div>
             )}
@@ -135,12 +135,12 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             <p className="truncate text-sm font-bold text-slate-900">
               {displayName}
             </p>
-            <p className="truncate text-xs text-slate-500">{user.email}</p>
+            <p className="truncate text-xs text-text-muted">{user.email}</p>
             <span
               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 user.role === "admin"
-                  ? "bg-amber-100 text-amber-700"
-                  : "bg-cyan-50 text-cyan-700"
+                  ? "bg-gold-50 text-warning"
+                  : "bg-blue-50 text-brand"
               }`}
             >
               {user.role}
@@ -153,7 +153,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
           <Link
             href="/dashboard"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#007c91]"
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-slate-50 hover:text-brand"
           >
             <Icon name="account" className="text-[18px] text-slate-400" />
             My Dashboard
@@ -161,7 +161,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
           <Link
             href="/books"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#007c91]"
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-slate-50 hover:text-brand"
           >
             <Icon name="bookmark" className="text-[18px] text-slate-400" />
             Saved Books
@@ -171,11 +171,11 @@ export default function NavbarClient({ user }: NavbarClientProps) {
         </div>
 
         {/* Sign out */}
-        <div className="border-t border-slate-100 px-3 py-3">
+        <div className="border-t border-divider px-3 py-3">
           <form action="/auth/signout" method="POST">
             <button
               type="submit"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-text-body transition-colors hover:bg-red-50 hover:text-danger"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
