@@ -10,6 +10,7 @@ import ReviewList from "@/components/ui/ReviewList";
 import SaveButton from "@/components/ui/SaveButton";
 import DownloadCount from "@/components/ui/DownloadCount";
 import { Badge } from "@/components/ui/Badge";
+import PhysicalCopiesList from "@/components/ui/PhysicalCopiesList";
 import { getBookBySlug, type Book } from "@/lib/books";
 import { mapRowToBook } from "@/lib/book-utils"; // ← shared mapper
 import { createServiceClient } from "@/lib/supabase/server";
@@ -71,12 +72,20 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
-  const [savedProgress, reviews, userReview, isSaved, downloadCount] = await Promise.all([
+  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies] = await Promise.all([
     book.dbId ? getReadingProgress(book.dbId) : Promise.resolve(null),
     book.dbId ? getReviews(book.dbId) : Promise.resolve([]),
     book.dbId && user ? getUserReview(book.dbId) : Promise.resolve(null),
     book.dbId ? isBookSaved(book.dbId) : Promise.resolve(false),
     book.dbId ? getDownloadCount(book.dbId) : Promise.resolve(0),
+    book.dbId
+      ? createServiceClient()
+          .from("catalog_copies")
+          .select("*")
+          .eq("catalog_book_id", book.dbId)
+          .order("created_at", { ascending: true })
+          .then((res) => res.data || [])
+      : Promise.resolve([]),
   ]);
 
   const avgRating =
@@ -151,8 +160,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </div>
 
             {resuming && (
-              <div className="mt-6 flex items-center gap-4 rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3.5">
-                <div className="min-w-0 flex-1">
+              <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3.5">
+                <div className="min-w-0 flex-1 w-full">
                   <p className="text-[13.5px] font-bold text-brand">
                     Continue reading — {savedProgress!.progressPct}% complete
                   </p>
@@ -171,7 +180,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 </div>
                 <a
                   href="#reader"
-                  className="shrink-0 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
+                  className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2.5 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
                 >
                   Resume
                 </a>
@@ -187,9 +196,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 ["Publication year", String(book.year)],
                 ["Pages",            String(book.pages)],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-[13px] bg-paper border border-divider px-4 py-3.5">
+                <div key={label} className="rounded-[13px] bg-paper border border-divider px-4 py-3.5 min-w-0">
                   <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
-                  <dd className="mt-1 text-[15px] font-semibold text-text-heading">{value}</dd>
+                  <dd className="mt-1 text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -219,6 +228,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </div>
           </div>
         </div>
+
+        {/* Physical Copies */}
+        <PhysicalCopiesList copies={copies as any} />
 
         {/* Reviews */}
         {book.dbId && (

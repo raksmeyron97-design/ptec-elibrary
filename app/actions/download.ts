@@ -108,7 +108,7 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
       .eq("id", bookId);
   }
 
-  // 2. Record per-user history (best-effort — don't block on failure)
+  // 2. Record per-user history + analytics log (best-effort — don't block on failure)
   try {
     const authClient = await createClient();
     const {
@@ -116,18 +116,14 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
     } = await authClient.auth.getUser();
 
     if (user) {
-      await supabase.from("user_download_history").upsert(
-        {
-          user_id:     user.id,
-          book_id:     bookId,
-          downloaded_at: new Date().toISOString(),
-        },
-        {
-          // Update timestamp on repeated downloads so "most recent" is correct
-          onConflict: "user_id,book_id",
-          ignoreDuplicates: false,
-        }
-      );
+      const now = new Date().toISOString();
+      await Promise.all([
+        supabase.from("user_download_history").upsert(
+          { user_id: user.id, book_id: bookId, downloaded_at: now },
+          { onConflict: "user_id,book_id", ignoreDuplicates: false }
+        ),
+        supabase.from("download_logs").insert({ user_id: user.id, book_id: bookId, downloaded_at: now }),
+      ]);
     }
   } catch (err) {
     console.error("[incrementDownloadCount] history insert failed:", err);

@@ -138,7 +138,7 @@ export default async function AdminDashboardPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString()),
     supabase.from("catalog_books").select("copies_total, copies_available").eq("is_active", true),
-    supabase.from("download_logs").select("downloaded_at").gte("downloaded_at", thirtyDaysAgo.toISOString()),
+    supabase.from("user_download_history").select("downloaded_at").gte("downloaded_at", thirtyDaysAgo.toISOString()),
     supabase.from("books").select("id, title, slug, download_count, authors(name)").order("download_count", { ascending: false }).limit(5),
     supabase.from("books").select("id, title, slug, view_count, authors(name)").order("view_count", { ascending: false }).limit(5),
     supabase.from("catalog_books").select("id, title, slug, author, copies_available, copies_total").eq("is_active", true).lte("copies_available", 1).order("copies_available", { ascending: true }).limit(8),
@@ -171,14 +171,14 @@ export default async function AdminDashboardPage() {
   const topDownloaded: TopItem[] = (topDownloadedRes.data ?? [])
     .filter((b: any) => (b.download_count || 0) > 0)
     .map((b: any) => ({
-      id: b.id, title: b.title, href: `/books/${b.slug}`,
+      id: b.id, title: b.title, href: `/admin/edit/${b.id}`,
       meta: (b.authors as any)?.name, value: nf(b.download_count || 0),
     }));
 
   const topViewed: TopItem[] = (topViewedRes.data ?? [])
     .filter((b: any) => (b.view_count || 0) > 0)
     .map((b: any) => ({
-      id: b.id, title: b.title, href: `/books/${b.slug}`,
+      id: b.id, title: b.title, href: `/admin/edit/${b.id}`,
       meta: (b.authors as any)?.name, value: nf(b.view_count || 0),
     }));
 

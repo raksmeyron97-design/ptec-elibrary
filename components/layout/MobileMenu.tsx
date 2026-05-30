@@ -65,7 +65,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#007c91]"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand"
       >
         <svg
           className="h-6 w-6"
@@ -156,7 +156,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
                   className="rounded-full object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#007c91] text-sm font-bold text-white">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-brand-contrast">
                   {getInitials(user.full_name, user.email)}
                 </div>
               )}
@@ -195,12 +195,12 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
                 onClick={() => setOpen(false)}
                 className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
                   isActive
-                    ? "bg-[#007c91]/10 text-[#007c91]"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-[#0a1629]"
+                    ? "bg-brand/10 text-brand"
+                    : "text-slate-700 hover:bg-slate-50 hover:text-brand-hover"
                 }`}
               >
                 {link.label}
-                {isActive && <span className="h-2 w-2 rounded-full bg-[#007c91]" />}
+                {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
               </Link>
             );
           })}
@@ -226,7 +226,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             <Link
               href="/auth/login"
               onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-center rounded-lg bg-[#0a1629] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#007c91]"
+              className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
             >
               Login
             </Link>

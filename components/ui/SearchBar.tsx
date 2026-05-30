@@ -151,12 +151,6 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
       >
         {/* ── Input wrapper ────────────────────────────────────────────────── */}
         <label className="relative min-w-0 flex-1">
-          {/* Search icon (desktop only, left side) */}
-          <Icon
-            name="search"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl text-text-muted pointer-events-none z-10 transition-colors duration-200 peer-focus:text-brand hidden sm:block"
-          />
-
           <input
             ref={inputRef}
             value={query}
@@ -176,14 +170,25 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
               focus:border-brand
               focus:ring-2 focus:ring-focus-ring/30
               focus:shadow-md
+              [&::-webkit-search-decoration]:hidden
+              [&::-webkit-search-cancel-button]:hidden
+              [&::-webkit-search-results-button]:hidden
+              [&::-webkit-search-results-decoration]:hidden
             "
             placeholder="Search title, author, ISBN, or topic"
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={open}
             aria-haspopup="listbox"
           />
+
+          {/* Search icon (desktop only, left side) */}
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10 hidden sm:flex items-center pointer-events-none text-text-muted peer-focus:text-brand transition-colors duration-200">
+            <Icon name="search" className="text-xl" />
+          </div>
 
           {/* Loading spinner */}
           {loading && (

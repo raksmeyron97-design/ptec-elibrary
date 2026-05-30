@@ -130,10 +130,10 @@ export default async function HomePage() {
   ]);
 
   const heroStats = [
-    { label: "Resources",   value: formatStat(stats.books) },
-    { label: "Downloads",   value: formatStat(stats.downloads) },
-    { label: "Departments", value: String(deptPills.length || 8) },
-    { label: "Educators",   value: formatStat(stats.users) },
+    { label: "Resources", value: formatStat(stats.books) },
+    { label: "Views",     value: formatStat(stats.views) },
+    { label: "Downloads", value: formatStat(stats.downloads) },
+    { label: "Educators", value: formatStat(stats.users) },
   ];
 
   return (

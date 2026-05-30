@@ -83,13 +83,17 @@ export default function AdminSidebar({
           </div>
         )}
         <div className="space-y-1">
-          <Link
-            href="/"
+          <a
+            href={
+              process.env.NEXT_PUBLIC_ROOT_DOMAIN
+                ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+                : "http://localhost:3000"
+            }
             className="flex items-center gap-3 px-3 py-2 text-sm text-white/80 hover:text-white transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             View public site &rarr;
-          </Link>
+          </a>
 
           <form action="/auth/signout" method="POST">
             <button

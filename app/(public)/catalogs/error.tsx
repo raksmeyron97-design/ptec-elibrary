@@ -21,7 +21,7 @@ export default function CatalogsError({
         <div className="mx-auto max-w-[1400px]">
           <h1 className="text-2xl font-bold text-[#0a1629]">Books In Library</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Find physical books available at RULE Library
+            Find physical books available at PTEC Library
           </p>
         </div>
       </div>

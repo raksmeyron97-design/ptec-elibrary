@@ -11,8 +11,42 @@ import {
   AVAILABILITY_BG,
   AVAILABILITY_DOT,
 } from "@/lib/catalog";
+import type { CatalogCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-actions";
 
 export const dynamic = "force-dynamic";
+
+// ── Copy status display maps ───────────────────────────────────────────────────
+const COPY_STATUS_LABEL: Record<string, string> = {
+  available:   "Available",
+  checked_out: "Checked Out",
+  lost:        "Lost",
+  damaged:     "Damaged",
+  on_order:    "On Order",
+};
+
+const COPY_STATUS_COLOR: Record<string, string> = {
+  available:   "text-emerald-700",
+  checked_out: "text-amber-600",
+  lost:        "text-red-500",
+  damaged:     "text-orange-500",
+  on_order:    "text-blue-500",
+};
+
+const COPY_STATUS_BADGE: Record<string, string> = {
+  available:   "bg-emerald-50 border-emerald-200 text-emerald-700",
+  checked_out: "bg-amber-50 border-amber-200 text-amber-700",
+  lost:        "bg-red-50 border-red-200 text-red-600",
+  damaged:     "bg-orange-50 border-orange-200 text-orange-600",
+  on_order:    "bg-blue-50 border-blue-200 text-blue-600",
+};
+
+const COPY_STATUS_DOT: Record<string, string> = {
+  available:   "bg-emerald-500",
+  checked_out: "bg-amber-400",
+  lost:        "bg-red-400",
+  damaged:     "bg-orange-400",
+  on_order:    "bg-blue-400",
+};
 
 export default async function CatalogBookPage({
   params,
@@ -22,6 +56,7 @@ export default async function CatalogBookPage({
   const { slug } = await params;
   const supabase = createServiceClient();
 
+  // Fetch book first
   const { data: book, error } = await supabase
     .from("catalog_books")
     .select("*")
@@ -32,10 +67,30 @@ export default async function CatalogBookPage({
   if (!book || error) notFound();
 
   const b = book as CatalogBook;
+
+  // Fetch individual copies for this book
+  const { data: copiesRaw } = await supabase
+    .from("catalog_copies")
+    .select("*")
+    .eq("catalog_book_id", b.id)
+    .order("created_at", { ascending: true });
+
+  const copies = (copiesRaw ?? []) as CatalogCopy[];
+
   const status    = getAvailability(b);
   const statusBg  = AVAILABILITY_BG[status];
   const statusTxt = AVAILABILITY_COLOR[status];
   const statusDot = AVAILABILITY_DOT[status];
+
+  // Available first, then the rest
+  const sortedCopies = [
+    ...copies.filter((c) => c.status === "available"),
+    ...copies.filter((c) => c.status !== "available"),
+  ];
+
+  const stockPct = b.copies_total > 0
+    ? Math.round((b.copies_available / b.copies_total) * 100)
+    : 0;
 
   return (
     <div className="min-h-screen bg-paper">
@@ -55,8 +110,10 @@ export default async function CatalogBookPage({
       <div className="mx-auto max-w-[1100px] px-4 py-10 md:px-12">
         <div className="grid gap-8 md:grid-cols-[280px_1fr]">
 
-          {/* ── Cover + status ── */}
+          {/* ── Left column: Cover + status ── */}
           <div className="flex flex-col items-center gap-4">
+
+            {/* Cover */}
             <div className="relative aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-divider/50 shadow-lg shadow-brand/10">
               {b.cover_url ? (
                 <Image src={b.cover_url} alt={b.title} fill className="object-cover" />
@@ -71,7 +128,7 @@ export default async function CatalogBookPage({
               )}
             </div>
 
-            {/* Availability card (gold top-rule) */}
+            {/* Availability summary card */}
             <div className={`w-full max-w-[280px] rounded-xl border border-t-[3px] border-t-accent p-4 ${statusBg}`}>
               <div className="mb-2 flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${statusDot}`} />
@@ -106,7 +163,7 @@ export default async function CatalogBookPage({
             </Link>
           </div>
 
-          {/* ── Details ── */}
+          {/* ── Right column: Details ── */}
           <div className="space-y-6">
 
             {/* Title / Author */}
@@ -150,6 +207,95 @@ export default async function CatalogBookPage({
                   ) : null
                 )}
               </dl>
+            </div>
+
+            {/* ── Physical Copies ── */}
+            <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-gold-700">
+                  Physical Copies
+                  {copies.length > 0 && (
+                    <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand">
+                      {copies.length}
+                    </span>
+                  )}
+                </h2>
+                {copies.length > 0 && (
+                  <span className={`flex items-center gap-1.5 text-xs font-semibold ${COPY_STATUS_COLOR["available"]}`}>
+                    <span className={`h-2 w-2 rounded-full ${COPY_STATUS_DOT["available"]}`} />
+                    {b.copies_available} available
+                  </span>
+                )}
+              </div>
+
+              {copies.length === 0 ? (
+                <p className="text-sm text-text-muted">No individual copy records available.</p>
+              ) : (
+                <>
+                  {/* Stock health bar */}
+                  <div className="mb-5">
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span className="text-xs text-text-muted">Stock Health</span>
+                      <span className="text-xs font-semibold text-text-body">{stockPct}%</span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-brand transition-all duration-500"
+                        style={{ width: `${stockPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Copy cards */}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {sortedCopies.map((copy) => (
+                      <div
+                        key={copy.id}
+                        className={`relative rounded-xl border p-4 ${COPY_STATUS_BADGE[copy.status]?.split(" ").slice(0, 2).join(" ") ?? "bg-slate-50 border-slate-200"}`}
+                      >
+                        {/* Status badge */}
+                        <span className={`absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${COPY_STATUS_BADGE[copy.status] ?? "bg-slate-50 border-slate-200 text-slate-500"}`}>
+                          {COPY_STATUS_LABEL[copy.status] ?? copy.status}
+                        </span>
+
+                        <div className="space-y-2.5 pr-24">
+                          {/* Barcode */}
+                          <div>
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Barcode</p>
+                            <p className={`mt-0.5 font-mono text-sm font-bold ${COPY_STATUS_COLOR[copy.status] ?? "text-text-heading"}`}>
+                              {copy.barcode ?? <span className="font-normal text-text-muted">—</span>}
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {/* Holding Library */}
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Holding Library</p>
+                              <p className="mt-0.5 text-xs font-semibold text-text-heading">{copy.holding_library}</p>
+                            </div>
+
+                            {/* Shelf Location — per-copy if set, else fall back to book */}
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Shelf Location</p>
+                              <p className="mt-0.5 font-mono text-xs font-semibold text-text-heading">
+                                {copy.shelf_location ?? b.shelf_location ?? "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Call Number */}
+                          {copy.call_number && (
+                            <div>
+                              <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">Call Number</p>
+                              <p className="mt-0.5 font-mono text-xs font-semibold text-text-body">{copy.call_number}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Back link */}
