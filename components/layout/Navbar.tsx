@@ -111,10 +111,13 @@ export default async function Navbar() {
       .eq("id", user.id)
       .single();
 
+    const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+    const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+
     userInfo = {
       email:      user.email ?? "",
-      full_name:  profile?.full_name  ?? null,
-      avatar_url: profile?.avatar_url ?? null,
+      full_name:  profile?.full_name  ?? googleName ?? null,
+      avatar_url: profile?.avatar_url ?? googleAvatar ?? null,
       role:       (profile?.role ?? "reader") as "reader" | "admin",
     };
   }
@@ -131,7 +134,7 @@ export default async function Navbar() {
           <div className="flex items-center gap-8 xl:gap-12">
             <div className="flex items-center gap-2">
               <Icon name="phone" className="text-[14px] text-accent" />
-              <span className="tracking-wide">(+855)-88 889072070</span>
+              <span className="tracking-wide">(+855)- 889072070</span>
             </div>
             <span className="opacity-30">|</span>
             <div className="flex items-center gap-2">

@@ -2,11 +2,13 @@
 // app/admin/catalogs/CsvImportModal.tsx
 
 import { useState, useTransition, useRef } from "react";
+import Papa from "papaparse";
 import { importCatalogCsv } from "@/app/(admin)/admin/(protected)/catalogs/actions";
 
-const CSV_TEMPLATE = `title,author,isbn,year,language,category,department,shelf_location,copies_total,description,accession_number,cover_url
-Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,3,A comprehensive intro to law.,ACC-001,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing
-ច្បាប់រដ្ឋប្បវេណី,ក សុខា,,2019,km,Law,Civil Law,B-2-05,2,ច្បាប់រដ្ឋប្បវេណីខ្មែរ,ACC-002,`;
+const CSV_TEMPLATE = `title,author,isbn,year,language,category,department,shelf_location,copies_total,description,accession_number,barcode,cover_url
+Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33697,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing
+Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33698,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing
+ច្បាប់រដ្ឋប្បវេណី,ក សុខា,,2019,km,Law,Civil Law,B-2-05,1,ច្បាប់រដ្ឋប្បវេណីខ្មែរ,ACC-002,33699,`;
 
 // ─── Google Drive link converter ─────────────────────────────────────────────
 function convertGoogleDriveUrl(url: string): string {
@@ -18,99 +20,38 @@ function convertGoogleDriveUrl(url: string): string {
   return url;
 }
 
-// ─── Delimiter auto-detection ─────────────────────────────────────────────────
-function detectDelimiter(csv: string): "," | ";" | "\t" {
-  const firstLine = csv.split(/\r?\n/)[0] ?? "";
-  const counts = {
-    ",": (firstLine.match(/,/g) ?? []).length,
-    ";": (firstLine.match(/;/g) ?? []).length,
-    "\t": (firstLine.match(/\t/g) ?? []).length,
-  };
-  return (Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0] as "," | ";" | "\t");
-}
+// ─── CSV Processing ──────────────────────────────────────────────────────────
+function processCsv(csv: string): { processedCsv: string; removed: number; convertedLinks: number; error: string | null } {
+  try {
+    const parsed = Papa.parse<Record<string, string>>(csv.trim(), {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
+    });
 
-// ─── Normalize: any delimiter → comma, strip \r ───────────────────────────────
-function normalizeCsv(csv: string): string {
-  const delimiter = detectDelimiter(csv);
-  const clean = csv.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  if (delimiter === ",") return clean;
-  return clean
-    .split("\n")
-    .map((line) => {
-      if (!line.trim()) return line;
-      const result: string[] = [];
-      let inQuotes = false;
-      let cell = "";
-      
-      // ✅ FIX: Use 'for...of' loop for safe iteration over complex Unicode (Khmer)
-      for (const ch of line) {
-        if (ch === '"') { inQuotes = !inQuotes; cell += ch; }
-        else if (!inQuotes && ch === delimiter) { result.push(cell); cell = ""; }
-        else { cell += ch; }
+    if (parsed.errors.length > 0 && parsed.data.length === 0) {
+      return { processedCsv: "", removed: 0, convertedLinks: 0, error: parsed.errors[0].message };
+    }
+
+    let convertedLinks = 0;
+    let data = parsed.data;
+
+    // Transform Cover URLs
+    data = data.map((row) => {
+      if (row.cover_url) {
+        const converted = convertGoogleDriveUrl(row.cover_url.trim());
+        if (converted !== row.cover_url.trim()) convertedLinks++;
+        row.cover_url = converted;
       }
-      
-      result.push(cell);
-      return result.join(",");
-    })
-    .join("\n");
-}
+      return row;
+    });
 
-// ─── Convert Drive URLs in cover_url column ───────────────────────────────────
-function transformCoverUrls(csv: string): string {
-  const normalized = normalizeCsv(csv);
-  const lines = normalized.split(/\r?\n/);
-  if (lines.length === 0) return normalized;
-  const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const coverIdx = header.indexOf("cover_url");
-  if (coverIdx === -1) return normalized;
-  return lines
-    .map((line, i) => {
-      if (i === 0 || !line.trim()) return line;
-      const cols = line.split(",");
-      if (cols[coverIdx] !== undefined) {
-        cols[coverIdx] = convertGoogleDriveUrl(cols[coverIdx].trim());
-      }
-      return cols.join(",");
-    })
-    .join("\n");
-}
+    const processedCsv = Papa.unparse(data);
 
-// ─── Deduplicate rows by accession_number / isbn ──────────────────────────────
-// Prevents Postgres "ON CONFLICT DO UPDATE command cannot affect row a second
-// time" error when the same conflict-key appears more than once in a batch.
-// Last occurrence wins (most recent data is kept).
-function deduplicateCsv(csv: string): { csv: string; removed: number } {
-  const lines = csv.split(/\r?\n/);
-  if (lines.length <= 1) return { csv, removed: 0 };
-
-  const header  = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const accIdx  = header.indexOf("accession_number");
-  const isbnIdx = header.indexOf("isbn");
-
-  const dataLines = lines.slice(1).filter((l) => l.trim());
-
-  // Map conflict-key → last seen row index
-  const seen = new Map<string, number>();
-  dataLines.forEach((line, i) => {
-    const cols = line.split(",");
-    const acc  = accIdx  !== -1 ? cols[accIdx]?.trim()  : "";
-    const isbn = isbnIdx !== -1 ? cols[isbnIdx]?.trim() : "";
-    if (acc)  seen.set(`acc:${acc}`,   i);
-    if (isbn) seen.set(`isbn:${isbn}`, i);
-  });
-
-  const keepIdx = new Set(seen.values());
-  // Keep rows with no conflict key (no isbn, no accession_number) — safe to insert
-  dataLines.forEach((line, i) => {
-    const cols = line.split(",");
-    const acc  = accIdx  !== -1 ? cols[accIdx]?.trim()  : "";
-    const isbn = isbnIdx !== -1 ? cols[isbnIdx]?.trim() : "";
-    if (!acc && !isbn) keepIdx.add(i);
-  });
-
-  const kept    = dataLines.filter((_, i) => keepIdx.has(i));
-  const removed = dataLines.length - kept.length;
-  return { csv: [lines[0], ...kept].join("\n"), removed };
+    return { processedCsv, removed: 0, convertedLinks, error: null };
+  } catch (err: any) {
+    return { processedCsv: "", removed: 0, convertedLinks: 0, error: err.message };
+  }
 }
 
 export default function CsvImportModal() {
@@ -128,12 +69,8 @@ export default function CsvImportModal() {
     const reader = new FileReader();
     reader.onload = (ev) => setCsvText(ev.target?.result as string ?? "");
     
-    // ✅ FIX: Force UTF-8 reading so Khmer characters display correctly
+    // Force UTF-8 reading so Khmer characters display correctly
     reader.readAsText(file, "UTF-8");
-  }
-
-  function countDriveLinks(csv: string): number {
-    return (csv.match(/drive\.google\.com\/(file\/d\/|open\?|uc\?)/g) ?? []).length;
   }
 
   function handleImport() {
@@ -141,17 +78,17 @@ export default function CsvImportModal() {
     setResult(null);
     startTransition(async () => {
       try {
-        const transformed               = transformCoverUrls(csvText);
-        const { csv: deduped, removed } = deduplicateCsv(transformed);
-        const count                     = countDriveLinks(csvText);
-        setConvertedCount(count);
+        const { processedCsv: deduped, removed, convertedLinks, error: processErr } = processCsv(csvText);
+        if (processErr) throw new Error(processErr);
+        
+        setConvertedCount(convertedLinks);
 
         const fd = new FormData();
         fd.set("csv_text", deduped);
         const res = await importCatalogCsv(fd);
         setResult(
           `✅ Imported ${res.imported} book${res.imported !== 1 ? "s" : ""} successfully!` +
-          (count   > 0 ? ` · ${count} Drive link${count !== 1 ? "s" : ""} converted`      : "") +
+          (convertedLinks > 0 ? ` · ${convertedLinks} Drive link${convertedLinks !== 1 ? "s" : ""} converted` : "") +
           (removed > 0 ? ` · ${removed} duplicate row${removed !== 1 ? "s" : ""} skipped` : "")
         );
         setCsvText("");
@@ -161,14 +98,19 @@ export default function CsvImportModal() {
     });
   }
 
-  const driveLinks = countDriveLinks(csvText);
-  const delimiter  = csvText.trim() ? detectDelimiter(csvText) : ",";
+  const driveLinks = (csvText.match(/drive\.google\.com\/(file\/d\/|open\?|uc\?)/g) ?? []).length;
+  
+  let delimiter = ",";
+  if (csvText.trim()) {
+    const parsedMeta = Papa.parse(csvText.trim(), { preview: 1 });
+    if (parsedMeta.meta.delimiter) delimiter = parsedMeta.meta.delimiter;
+  }
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/20 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -200,7 +142,7 @@ export default function CsvImportModal() {
                   CSV Format <span className="font-normal text-slate-500">(required: title, author)</span>
                 </p>
                 <pre className="text-[10px] text-slate-600 overflow-x-auto leading-relaxed whitespace-pre">
-                  {`title, author, isbn, year, language, category,\ndepartment, shelf_location, copies_total,\ndescription, accession_number, cover_url`}
+                  {`title, author, isbn, year, language, category,\ndepartment, shelf_location, copies_total,\ndescription, accession_number, barcode, cover_url`}
                 </pre>
 
                 {/* Google Drive note */}
@@ -270,7 +212,7 @@ export default function CsvImportModal() {
                         <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                           <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        {delimiter === ";" ? "Semicolon" : "Tab"} — will auto-convert
+                        {delimiter === ";" ? "Semicolon" : delimiter === "\t" ? "Tab" : delimiter} — auto-detected
                       </span>
                     )}
 

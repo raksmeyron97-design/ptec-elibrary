@@ -78,8 +78,8 @@ function buildHref(sp: SearchParams, overrides: Partial<SearchParams>) {
 function pillClass(active: boolean) {
   return `shrink-0 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all ${
     active
-      ? "bg-[#0a1629] border-[#0a1629] text-white shadow-sm"
-      : "border-slate-200 bg-white text-slate-600 hover:border-[#0a1629] hover:text-[#0a1629]"
+      ? "bg-brand border-brand text-brand-contrast shadow-sm"
+      : "border-divider bg-bg-surface text-text-body hover:border-brand hover:text-brand"
   }`;
 }
 
@@ -101,28 +101,28 @@ export default async function CatalogsPage({
   const availOnlyCount = books.filter((b) => getAvailability(b) === "available").length;
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-paper">
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-slate-100 px-4 py-6 md:px-12">
+      <div className="border-b border-divider bg-bg-surface px-4 py-6 md:px-12">
         <div className="mx-auto max-w-[1400px] space-y-4">
 
           {/* Title row */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-[#0a1629]">Books In Library</h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Find physical books available at RULE Library
+              <h1 className="font-serif text-2xl font-bold text-text-heading">Books In Library</h1>
+              <p className="mt-0.5 text-sm text-text-muted">
+                Find physical books available at PTEC Library
               </p>
             </div>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-text-muted">
               {total} book{total !== 1 ? "s" : ""}
               {params.q && <> for &ldquo;{params.q}&rdquo;</>}
             </p>
           </div>
 
           {/* Search bar */}
-          <Suspense fallback={<div className="h-11 w-full rounded-xl bg-slate-100 animate-pulse" />}>
+          <Suspense fallback={<div className="h-11 w-full rounded-xl bg-paper animate-pulse" />}>
             <CatalogSearchBar />
           </Suspense>
 
@@ -144,7 +144,7 @@ export default async function CatalogsPage({
 
             {/* Right: availability toggle + sort */}
             <div className="flex shrink-0 items-center gap-3">
-              {/* Available only */}
+              {/* Available only (green = semantic availability) */}
               <a
                 href={
                   params.availability === "available"
@@ -155,7 +155,7 @@ export default async function CatalogsPage({
                   flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12px] font-semibold whitespace-nowrap transition-all
                   ${params.availability === "available"
                     ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700"}
+                    : "border-divider bg-bg-surface text-text-body hover:border-emerald-300 hover:text-emerald-700"}
                 `}
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -163,7 +163,7 @@ export default async function CatalogsPage({
               </a>
 
               {/* Sort */}
-              <span className="text-[12px] text-slate-400 font-medium hidden sm:inline">Sort</span>
+              <span className="hidden text-[12px] font-medium text-text-muted sm:inline">Sort</span>
               {[
                 { key: "newest",    label: "Newest" },
                 { key: "title_asc", label: "A–Z" },
@@ -171,10 +171,10 @@ export default async function CatalogsPage({
                 <a
                   key={key}
                   href={buildHref(params, { sort: key, page: undefined })}
-                  className={`hidden sm:block rounded-full border px-3 py-1 text-[11px] font-semibold transition-all ${
+                  className={`hidden rounded-full border px-3 py-1 text-[11px] font-semibold transition-all sm:block ${
                     (params.sort ?? "newest") === key
-                      ? "bg-[#0a1629] border-[#0a1629] text-white"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-[#0a1629] hover:text-[#0a1629]"
+                      ? "bg-brand border-brand text-brand-contrast"
+                      : "border-divider bg-bg-surface text-text-muted hover:border-brand hover:text-brand"
                   }`}
                 >
                   {label}
@@ -188,21 +188,21 @@ export default async function CatalogsPage({
             <div className="flex flex-wrap items-center gap-2">
               {params.q && (
                 <a href={buildHref(params, { q: undefined, page: undefined })}
-                   className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F4F5] py-1 pl-3 pr-2 text-[12px] font-semibold text-[#075863] hover:bg-[#d3edee] transition">
+                   className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-blue-100">
                   &ldquo;{params.q}&rdquo;
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#075863]/15 text-[11px]">×</span>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
                 </a>
               )}
               {params.category && (
                 <a href={buildHref(params, { category: undefined, page: undefined })}
-                   className="inline-flex items-center gap-1.5 rounded-full bg-[#E4F4F5] py-1 pl-3 pr-2 text-[12px] font-semibold text-[#075863] hover:bg-[#d3edee] transition">
+                   className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-blue-100">
                   {params.category}
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#075863]/15 text-[11px]">×</span>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
                 </a>
               )}
               {params.availability && (
                 <a href={buildHref(params, { availability: undefined, page: undefined })}
-                   className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100 transition">
+                   className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
                   Available only
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-200 text-[11px]">×</span>
                 </a>
@@ -215,16 +215,16 @@ export default async function CatalogsPage({
       {/* ── Grid ── */}
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-12">
         {books.length === 0 ? (
-          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-            <svg className="mb-4 h-12 w-12 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-10 text-center">
+            <svg className="mb-4 h-12 w-12 text-text-muted/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
-            <h2 className="text-xl font-bold text-slate-800">No books found</h2>
-            <p className="mt-2 max-w-sm text-sm text-slate-500">
+            <h2 className="font-serif text-xl font-bold text-text-heading">No books found</h2>
+            <p className="mt-2 max-w-sm text-sm text-text-muted">
               {params.q ? `No books match "${params.q}".` : hasFilters ? "Try adjusting your filters." : "No books in catalogue yet."}
             </p>
             {hasFilters && (
-              <a href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-[#0a1629] px-6 text-sm font-semibold text-white transition hover:bg-[#007c91]">
+              <a href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
                 Clear all filters
               </a>
             )}

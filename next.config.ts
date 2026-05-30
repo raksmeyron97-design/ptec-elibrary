@@ -19,6 +19,21 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
       },
+      // Google avatars
+      {
+        protocol: "https",
+        hostname: "avatars.googleusercontent.com",
+      },
+      // Google Drive domains
+      {
+        protocol: "https",
+        hostname: "drive.google.com",
+      },
+      // GitHub avatars
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
       // Open Library covers
       {
         protocol: "https",

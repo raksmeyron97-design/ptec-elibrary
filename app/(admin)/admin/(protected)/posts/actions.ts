@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { deleteR2File } from "@/app/actions/upload";
+import { logAdminAction } from "@/app/actions/audit";
 
 function requiredText(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -90,7 +91,7 @@ export async function createPost(formData: FormData) {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -118,6 +119,8 @@ export async function createPost(formData: FormData) {
     .single();
   if (postError) throw new Error(`Post error: ${postError.message}`);
 
+  await logAdminAction(user.id, "createPost", "posts", post.id, { title });
+
   revalidatePath("/posts");
   revalidatePath(`/posts/${post.slug}`);
   revalidatePath("/admin/posts");
@@ -132,7 +135,7 @@ export async function updatePost(postId: string, formData: FormData) {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -176,6 +179,8 @@ export async function updatePost(postId: string, formData: FormData) {
     .single();
   if (postError) throw new Error(`Post update failed: ${postError.message}`);
 
+  await logAdminAction(user.id, "updatePost", "posts", post.id, { title });
+
   revalidatePath("/posts");
   revalidatePath(`/posts/${post.slug}`);
   revalidatePath("/admin/posts");
@@ -190,7 +195,7 @@ export async function deletePost(postId: string) {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const { data: postData } = await supabase
     .from("posts")
@@ -209,6 +214,8 @@ export async function deletePost(postId: string) {
     if (p) await deleteR2File(p);
   }
 
+  await logAdminAction(user.id, "deletePost", "posts", postId);
+
   revalidatePath("/posts");
   revalidatePath("/admin/posts");
 }
@@ -221,7 +228,7 @@ export async function togglePublish(postId: string, nextState: boolean) {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const { data: post, error } = await supabase
     .from("posts")
@@ -230,6 +237,8 @@ export async function togglePublish(postId: string, nextState: boolean) {
     .select("slug")
     .single();
   if (error) throw new Error(`Toggle failed: ${error.message}`);
+
+  await logAdminAction(user.id, "togglePublishPost", "posts", postId, { is_published: nextState });
 
   revalidatePath("/posts");
   revalidatePath(`/posts/${post.slug}`);

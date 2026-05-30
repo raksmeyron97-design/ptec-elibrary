@@ -71,7 +71,7 @@ export default function PDFViewer({
   if (!pdfUrl) {
     return (
       <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-        <Icon name="pdf" className="mb-3 text-5xl text-[#007c91]" />
+        <Icon name="pdf" className="mb-3 text-5xl text-brand" />
         <h2 className="text-xl font-bold text-slate-950">{title}</h2>
         <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
           មិនទាន់មានឯកសារ PDF នៅឡើយទេ។
@@ -567,7 +567,7 @@ export default function PDFViewer({
           onLoadSuccess={onDocumentLoadSuccess}
           loading={
             <div className="flex flex-col items-center justify-center gap-3 p-10">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-[#007c91]" />
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-brand" />
               <p className="text-sm text-slate-500">កំពុងទាញយកសៀវភៅ...</p>
             </div>
           }

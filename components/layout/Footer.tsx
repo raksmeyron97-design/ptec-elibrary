@@ -17,12 +17,16 @@ export default async function Footer() {
         .select("full_name, avatar_url, role")
         .eq("id", authUser.id)
         .single()
-        .then(({ data }) => ({
-          email: authUser.email ?? "",
-          full_name: data?.full_name ?? null,
-          avatar_url: data?.avatar_url ?? null,
-          role: (data?.role ?? "reader") as "reader" | "admin",
-        }))
+        .then(({ data }) => {
+          const googleAvatar = authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture;
+          const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
+          return {
+            email: authUser.email ?? "",
+            full_name: data?.full_name ?? googleName ?? null,
+            avatar_url: data?.avatar_url ?? googleAvatar ?? null,
+            role: (data?.role ?? "reader") as "reader" | "admin",
+          };
+        })
     : null;
   return (
     <footer className="relative w-full mt-auto font-sans overflow-hidden bg-blue-950 border-t-2 border-accent">
@@ -162,11 +166,11 @@ export default async function Footer() {
               <p className="text-[13px] text-blue-100 mb-5 leading-relaxed">
                 Subscribe for updates on new books, research papers, and library resources.
               </p>
-              <div className="flex items-stretch rounded-xl overflow-hidden border border-white/10 bg-white/5 focus-within:border-gold-400/50 transition-all">
+              <div className="flex items-stretch rounded-xl overflow-hidden border border-white/10 bg-white/5 focus-within:border-gold-400/50 transition-all min-w-0 w-full">
                 <input
                   type="email"
                   placeholder="Your email address"
-                  className="bg-transparent px-4 py-3 text-[13px] w-full outline-none text-white placeholder-blue-200"
+                  className="bg-transparent px-4 py-3 text-[13px] w-full min-w-0 outline-none text-white placeholder-blue-200"
                 />
                 <button className="bg-brand hover:bg-brand-hover border-l border-white/10 transition-colors px-4 flex items-center justify-center shrink-0">
                   <Icon name="send" className="text-[16px] text-white" />

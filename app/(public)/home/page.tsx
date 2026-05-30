@@ -130,10 +130,10 @@ export default async function HomePage() {
   ]);
 
   const heroStats = [
-    { label: "Resources",   value: formatStat(stats.books) },
-    { label: "Downloads",   value: formatStat(stats.downloads) },
-    { label: "Departments", value: String(deptPills.length || 8) },
-    { label: "Educators",   value: formatStat(stats.users) },
+    { label: "Resources", value: formatStat(stats.books) },
+    { label: "Views",     value: formatStat(stats.views) },
+    { label: "Downloads", value: formatStat(stats.downloads) },
+    { label: "Educators", value: formatStat(stats.users) },
   ];
 
   return (
@@ -219,8 +219,8 @@ export default async function HomePage() {
             </div>
 
             {/* Right: Book stack (like old code) */}
-            <div className="hidden lg:flex lg:items-center lg:justify-center relative z-10">
-              <div className="scale-[1.25] xl:scale-[1.4] drop-shadow-2xl">
+            <div className="hidden lg:flex lg:items-center lg:justify-end relative z-10 xl:pr-20">
+              <div className="scale-[1.25] xl:scale-[1.65] drop-shadow-2xl translate-x-0 xl:translate-x-1">
                 <HeroBookStack
                   books={featuredBooks.map((b) => ({
                     slug: b.slug,

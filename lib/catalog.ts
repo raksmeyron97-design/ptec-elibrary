@@ -1,4 +1,5 @@
 // lib/catalog.ts
+import Papa from "papaparse";
 // ── Types & helpers for the physical-book catalogue ──────────────────────────
 
 export type CatalogBook = {
@@ -111,17 +112,16 @@ export type CsvCatalogRow = {
   copies_total?:     string;
   description?:      string;
   accession_number?: string;
+  barcode?:          string;
   cover_url?:        string;  // ✅ fix: was typed as literal `null`; now optional string
 };
 
 export function parseCatalogCsv(text: string): CsvCatalogRow[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
-  return lines.slice(1).map((line) => {
-    const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
-    return row as CsvCatalogRow;
-  }).filter((r) => r.title && r.author);
+  const parsed = Papa.parse<Record<string, string>>(text.trim(), {
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
+    transform: (v) => v.trim()
+  });
+  return parsed.data.filter((r) => r.title && r.author) as CsvCatalogRow[];
 }

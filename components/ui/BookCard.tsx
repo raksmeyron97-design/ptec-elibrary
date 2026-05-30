@@ -92,7 +92,7 @@ export default function BookCard({ book }: BookCardProps) {
         </div>
 
         {/* ── Body ── */}
-        <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-4 sm:px-4 sm:pb-4">
+        <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-4 sm:px-4 sm:pb-4 min-w-0">
           {/* Department pill */}
           {book.department && (
             <Badge variant="brand" className="mb-2 self-start !text-[9px] !px-2 !py-0.5 uppercase tracking-wide">
@@ -165,7 +165,7 @@ export default function BookCard({ book }: BookCardProps) {
               </div>
 
               {/* CTA */}
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
                 {progress > 0 ? "Continue" : "View"}
                 <svg
                   className="h-3 w-3"

@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveBookRecord, addCategory } from "@/app/(admin)/admin/(protected)/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
-import { departments as defaultDepartments, slugify } from "@/lib/book-utils";
+import {
+  departments as defaultDepartments,
+  makeUid,
+  bookFolder,
+  bookPdfPath,
+  bookCoverPath,
+} from "@/lib/book-utils";
 import Icon from "@/components/ui/Icon";
 
 const LANGUAGES = ["Khmer", "English"] as const;
@@ -161,21 +167,20 @@ export default function UploadForm() {
       setError("Title is required");
       return;
     }
-    const slug = slugify(title);
 
     try {
       // ── 1. Upload PDF directly to Cloudflare R2 via Presigned URL
       setPhase("uploading-pdf");
       setProgress(0);
 
-      // ── Build category-based storage path ──────────────────
-      // Format: {category-slug}/pdfs/{book-slug}-{short-id}.pdf
+      // ── Build per-book storage folder ──────────────────────
+      // Layout: books/{category}/{book-slug}-{uid}/{book.pdf|cover.ext}
+      // All assets for a single book live together in one folder.
       const categoryName = (formData.get("category") as string)?.trim() || "uncategorized";
-      const categorySlug = slugify(categoryName);
-      const uid = Date.now().toString(36).slice(-4); // short 4-char unique id
+      const uid = makeUid();
+      const folder = bookFolder(categoryName, title, uid);
 
-      const pdfFileName = `${slug}-${uid}.pdf`;
-      const pdfPath = `${categorySlug}/pdfs/${pdfFileName}`;
+      const pdfPath = bookPdfPath(folder);
 
       // Get presigned URL for PDF
       const { presignedUrl: pdfPresignedUrl, publicUrl: pdfPublicUrl } = await getPresignedUrl(pdfPath, "application/pdf");
@@ -198,8 +203,7 @@ export default function UploadForm() {
       if (hasCover) {
         setPhase("uploading-cover");
         const coverFile = cover as File;
-        const ext = coverFile.name.split(".").pop() ?? "jpg";
-        const coverPath = `${categorySlug}/covers/${slug}-${uid}.${ext}`;
+        const coverPath = bookCoverPath(folder, coverFile.name);
 
         try {
           const { presignedUrl: coverPresignedUrl, publicUrl: coverPublicUrl } = await getPresignedUrl(coverPath, coverFile.type);

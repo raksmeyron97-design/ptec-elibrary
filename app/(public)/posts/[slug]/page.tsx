@@ -132,14 +132,14 @@ export default async function PostDetailPage({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
                 {/* Title pinned to bottom */}
                 <div className="absolute inset-x-0 bottom-0 px-6 pb-6">
-                  <h1 className="font-khmer-serif font-bold text-3xl leading-tight text-white drop-shadow-lg md:text-4xl">
+                  <h1 className="font-khmer-serif font-bold text-3xl leading-[1.4] text-white drop-shadow-lg md:text-4xl">
                     {post.title}
                   </h1>
                 </div>
               </div>
             ) : (
               <div className={`flex h-44 items-end rounded-2xl shadow-sm border border-divider bg-gradient-to-br ${pickBanner(post.title)} px-6 pb-6`}>
-                <h1 className="font-khmer-serif font-bold text-3xl leading-tight text-white md:text-4xl">
+                <h1 className="font-khmer-serif font-bold text-3xl leading-[1.4] text-white md:text-4xl">
                   {post.title}
                 </h1>
               </div>
@@ -188,7 +188,7 @@ export default async function PostDetailPage({
 
             {/* Excerpt */}
             {post.excerpt && (
-              <p className="mb-6 border-l-2 border-brand/40 pl-4 font-sans text-lg leading-relaxed text-text-muted">
+              <p className="mb-6 border-l-2 border-brand/40 pl-4 font-sans text-lg leading-[1.8] text-text-muted">
                 {post.excerpt}
               </p>
             )}
@@ -196,7 +196,7 @@ export default async function PostDetailPage({
             <hr className="my-6 border-divider" />
 
             {/* Markdown content */}
-            <div className="prose-content font-sans">
+            <div className="prose-content font-sans khmer">
               <Markdown content={post.content} />
             </div>
 

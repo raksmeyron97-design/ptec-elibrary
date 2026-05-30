@@ -1,6 +1,6 @@
 // app/posts/page.tsx
 import Link from "next/link";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
 
 export const revalidate = 60;

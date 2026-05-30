@@ -23,8 +23,14 @@ export default function CatalogCard({ book }: Props) {
   return (
     <Link
       href={`/catalogs/${book.slug}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="group relative flex flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
+      {/* Gold top-rule on hover (brand signature) */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
+      />
+
       {/* Cover */}
       <div className="relative aspect-[3/4] w-full overflow-hidden">
         {book.cover_url ? (
@@ -42,7 +48,7 @@ export default function CatalogCard({ book }: Props) {
               <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 leading-none">
                 {book.category ?? "Book"}
               </p>
-              <p className="text-sm font-bold text-white leading-snug line-clamp-3">
+              <p className="font-khmer-serif text-sm font-bold text-white leading-snug line-clamp-3">
                 {book.title}
               </p>
               <p className="text-[11px] text-white/70 leading-none">{book.author}</p>
@@ -69,10 +75,10 @@ export default function CatalogCard({ book }: Props) {
 
       {/* Info */}
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="line-clamp-2 text-sm font-semibold text-slate-800 leading-snug">
+        <p className="font-khmer-serif line-clamp-2 text-sm font-bold text-text-heading leading-snug">
           {book.title}
         </p>
-        <p className="text-xs text-slate-500 truncate">{book.author}</p>
+        <p className="text-xs text-text-muted truncate">{book.author}</p>
 
         {/* Copies + shelf */}
         <div className="mt-auto pt-2 flex items-center justify-between">
@@ -80,7 +86,7 @@ export default function CatalogCard({ book }: Props) {
             {book.copies_available}/{book.copies_total} copies
           </span>
           {book.shelf_location && (
-            <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
+            <span className="text-[10px] font-mono text-text-muted bg-paper px-1.5 py-0.5 rounded-md">
               {book.shelf_location}
             </span>
           )}

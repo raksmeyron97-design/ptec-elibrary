@@ -52,8 +52,12 @@ export default async function DashboardPage() {
   const profile  = profileResult.data;
   const progress = progressResult.data ?? [];
 
-  const displayName = profile?.full_name || profile?.email || user.email || "Reader";
-  const initials    = getInitials(profile?.full_name ?? null, profile?.email ?? user.email ?? "");
+  const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+  const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+
+  const avatarUrl   = profile?.avatar_url ?? googleAvatar ?? null;
+  const displayName = profile?.full_name || googleName || profile?.email || user.email || "Reader";
+  const initials    = getInitials(profile?.full_name ?? googleName ?? null, profile?.email ?? user.email ?? "");
   const isAdmin     = profile?.role === "admin";
 
   const inProgress = progress.filter(p => p.progress_pct < 100);
@@ -83,7 +87,7 @@ export default async function DashboardPage() {
         format: "PDF" as const, availability: "Digital" as const,
         rating: Number(b.rating) || 0, pages: b.pages ?? 1,
         summary: b.description ?? "",
-        cover: b.cover_color ?? "bg-[#0a1629]",
+        cover: b.cover_color ?? "bg-blue-950",
         coverUrl: b.cover_url ?? null,
         pdfUrl: pdfFile?.file_url ?? null,
         tags: [], progressPct: prog?.progress_pct ?? 0,
@@ -114,7 +118,7 @@ export default async function DashboardPage() {
         format: "PDF" as const, availability: "Digital" as const,
         rating: Number(b.rating) || 0, pages: b.pages ?? 1,
         summary: b.description ?? "",
-        cover: b.cover_color ?? "bg-[#0a1629]",
+        cover: b.cover_color ?? "bg-blue-950",
         coverUrl: b.cover_url ?? null,
         pdfUrl: pdfFile?.file_url ?? null,
         tags: [], progressPct: 100,
@@ -123,45 +127,45 @@ export default async function DashboardPage() {
   }
 
   const stats: { label: string; value: number; icon: IconName; href: string; color: string }[] = [
-    { label: "Saved Resources",   value: savedBooks.length,  icon: "bookmark",   href: "#saved",       color: "text-[#007c91]" },
-    { label: "Books in Progress", value: inProgress.length,  icon: "file-check", href: "#in-progress", color: "text-amber-500" },
-    { label: "Completed Books",   value: completed.length,   icon: "calendar",   href: "#completed",   color: "text-emerald-600" },
+    { label: "Saved Resources",   value: savedBooks.length,  icon: "bookmark",   href: "#saved",       color: "text-brand"        },
+    { label: "Books in Progress", value: inProgress.length,  icon: "file-check", href: "#in-progress", color: "text-gold-700"     },
+    { label: "Completed Books",   value: completed.length,   icon: "calendar",   href: "#completed",   color: "text-emerald-600"  },
   ];
 
   return (
-    <section className="min-h-screen bg-slate-50 px-6 py-10 md:px-12">
+    <section className="min-h-screen bg-paper px-6 py-10 md:px-12">
       <div className="mx-auto max-w-[1200px] space-y-8">
 
         {/* ── Profile Hero Card ── */}
-        <div className="relative overflow-hidden rounded-2xl bg-[#0a1629] p-8 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[#007c91]/20 blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl border-t-4 border-t-accent bg-gradient-to-br from-blue-900 to-blue-950 p-8 text-white shadow-lg">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gold-500/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-10 left-1/3 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-5">
               <div className="relative shrink-0">
-                {profile?.avatar_url ? (
+                {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.avatar_url} alt={displayName}
+                  <img src={avatarUrl} alt={displayName}
                     className="h-20 w-20 rounded-full object-cover ring-4 ring-white/20" />
                 ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#007c91] ring-4 ring-white/20">
-                    <span className="text-2xl font-bold tracking-wide">{initials}</span>
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand ring-4 ring-gold-500/30">
+                    <span className="font-serif text-2xl font-bold tracking-wide">{initials}</span>
                   </div>
                 )}
-                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-[#0a1629] bg-emerald-400" />
+                <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-blue-950 bg-emerald-400" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold">{displayName}</h1>
+                  <h1 className="font-serif text-2xl font-bold">{displayName}</h1>
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    isAdmin ? "bg-amber-400/20 text-amber-300" : "bg-cyan-400/20 text-cyan-300"
+                    isAdmin ? "bg-gold-400/20 text-gold-200" : "bg-blue-400/20 text-blue-100"
                   }`}>
                     {isAdmin ? "Admin" : "Reader"}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-slate-400">{profile?.email ?? user.email}</p>
+                <p className="mt-1 text-sm text-blue-200">{profile?.email ?? user.email}</p>
                 {profile?.created_at && (
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-blue-300">
                     <Icon name="calendar" className="text-sm" />
                     Member since {formatDate(profile.created_at)}
                   </p>
@@ -169,14 +173,13 @@ export default async function DashboardPage() {
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-
               <Link href="/books"
                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20">
                 <Icon name="library" className="text-base" />Browse Catalogue
               </Link>
               <form action="/auth/signout" method="POST">
                 <button type="submit"
-                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/20 px-4 text-sm font-semibold text-slate-300 transition hover:border-white/40 hover:text-white">
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/20 px-4 text-sm font-semibold text-blue-200 transition hover:border-white/40 hover:text-white">
                   Sign out
                 </button>
               </form>
@@ -190,11 +193,12 @@ export default async function DashboardPage() {
             <a
               key={label}
               href={href}
-              className="group rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-[#007c91]/40 hover:shadow-md"
+              className="group relative overflow-hidden rounded-xl border border-divider bg-bg-surface p-6 shadow-sm transition hover:border-brand/40 hover:shadow-md"
             >
+              <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
               <div className="flex items-center justify-between">
                 <Icon name={icon} className={`text-3xl ${color}`} />
-                <span className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-400 transition group-hover:text-[#007c91]">
+                <span className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-text-muted transition group-hover:text-brand">
                   View
                   <svg className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -202,8 +206,8 @@ export default async function DashboardPage() {
                   </svg>
                 </span>
               </div>
-              <div className="mt-4 text-4xl font-bold text-slate-950">{value}</div>
-              <div className="mt-1 text-sm text-slate-500">{label}</div>
+              <div className="mt-4 font-serif text-4xl font-bold text-text-heading">{value}</div>
+              <div className="mt-1 text-sm text-text-muted">{label}</div>
             </a>
           ))}
         </div>
@@ -211,24 +215,19 @@ export default async function DashboardPage() {
         {/* ── In Progress ── */}
         <div id="in-progress" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-950">
+            <h2 className="font-serif text-xl font-bold text-text-heading">
               Continue Reading
               {inProgressBooks.length > 0 && (
-                <span className="ml-2 text-base font-normal text-slate-400">({inProgressBooks.length})</span>
+                <span className="ml-2 text-base font-normal text-text-muted">({inProgressBooks.length})</span>
               )}
             </h2>
           </div>
           {inProgressBooks.length === 0 ? (
-            <EmptySection
-              icon="file-check"
-              title="No books in progress"
-              description="Start reading a book and your progress will appear here."
-            />
+            <EmptySection icon="file-check" title="No books in progress"
+              description="Start reading a book and your progress will appear here." />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {inProgressBooks.map((book) => (
-                <BookCard key={book.slug} book={book} />
-              ))}
+              {inProgressBooks.map((book) => (<BookCard key={book.slug} book={book} />))}
             </div>
           )}
         </div>
@@ -236,24 +235,19 @@ export default async function DashboardPage() {
         {/* ── Completed ── */}
         <div id="completed" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-950">
+            <h2 className="font-serif text-xl font-bold text-text-heading">
               Completed Books
               {completedBooks.length > 0 && (
-                <span className="ml-2 text-base font-normal text-slate-400">({completedBooks.length})</span>
+                <span className="ml-2 text-base font-normal text-text-muted">({completedBooks.length})</span>
               )}
             </h2>
           </div>
           {completedBooks.length === 0 ? (
-            <EmptySection
-              icon="calendar"
-              title="No completed books yet"
-              description="Books you finish reading (100%) will show up here."
-            />
+            <EmptySection icon="calendar" title="No completed books yet"
+              description="Books you finish reading (100%) will show up here." />
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {completedBooks.map((book) => (
-                <BookCard key={book.slug} book={book} />
-              ))}
+              {completedBooks.map((book) => (<BookCard key={book.slug} book={book} />))}
             </div>
           )}
         </div>
@@ -261,25 +255,25 @@ export default async function DashboardPage() {
         {/* ── Saved books ── */}
         <div id="saved" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-950">
+            <h2 className="font-serif text-xl font-bold text-text-heading">
               Saved Resources
               {savedBooks.length > 0 && (
-                <span className="ml-2 text-base font-normal text-slate-400">({savedBooks.length})</span>
+                <span className="ml-2 text-base font-normal text-text-muted">({savedBooks.length})</span>
               )}
             </h2>
             {savedBooks.length > 0 && (
-              <Link href="/books" className="text-sm font-semibold text-[#0C7C8A] hover:underline">
+              <Link href="/books" className="text-sm font-semibold text-brand hover:text-brand-hover hover:underline">
                 Browse more →
               </Link>
             )}
           </div>
           {savedBooks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
-              <Icon name="bookmark" className="mb-3 text-5xl text-slate-300" />
-              <h3 className="text-base font-semibold text-slate-700">No saved resources yet</h3>
-              <p className="mt-1 text-sm text-slate-400">Browse the catalogue and save books you want to read.</p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-16 text-center">
+              <Icon name="bookmark" className="mb-3 text-5xl text-text-muted/40" />
+              <h3 className="text-base font-semibold text-text-heading">No saved resources yet</h3>
+              <p className="mt-1 text-sm text-text-muted">Browse the catalogue and save books you want to read.</p>
               <Link href="/books"
-                className="mt-5 inline-flex h-10 items-center rounded-lg bg-[#0a1629] px-5 text-sm font-semibold text-white transition hover:bg-[#007c91]">
+                className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
                 Browse Catalogue
               </Link>
             </div>
@@ -293,8 +287,8 @@ export default async function DashboardPage() {
         </div>
 
         {/* ── Account info ── */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-bold text-slate-950">Account Information</h2>
+        <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+          <h2 className="mb-4 font-serif text-lg font-bold text-text-heading">Account Information</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { label: "Full Name",    value: profile?.full_name || "—" },
@@ -304,9 +298,9 @@ export default async function DashboardPage() {
               { label: "User ID",      value: user.id.slice(0, 8) + "…" },
               { label: "Status",       value: "Active" },
             ].map(({ label, value }) => (
-              <div key={label} className="rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-                <p className="mt-1 truncate text-sm font-semibold text-slate-800">{value}</p>
+              <div key={label} className="rounded-lg bg-paper border border-divider px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+                <p className="mt-1 truncate text-sm font-semibold text-text-heading">{value}</p>
               </div>
             ))}
           </div>
@@ -325,10 +319,10 @@ function EmptySection({
   description: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-      <Icon name={icon} className="mb-3 text-4xl text-slate-300" />
-      <h3 className="text-sm font-semibold text-slate-600">{title}</h3>
-      <p className="mt-1 max-w-xs text-xs text-slate-400">{description}</p>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-12 text-center">
+      <Icon name={icon} className="mb-3 text-4xl text-text-muted/40" />
+      <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
+      <p className="mt-1 max-w-xs text-xs text-text-muted">{description}</p>
     </div>
   );
 }

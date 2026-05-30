@@ -22,6 +22,68 @@ export async function getDownloadCount(bookId: string): Promise<number> {
   return data?.download_count ?? 0;
 }
 
+export async function downloadBook(bookFileId: string) {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = createServiceClient();
+
+  // Insert into download_logs
+  const { error: logError } = await supabase.from("download_logs").insert({
+    user_id: user.id,
+    book_file_id: bookFileId,
+  });
+
+  if (logError) {
+    console.error("[downloadBook] log error:", logError);
+  }
+
+  // Find book_id from book_file_id to increment book download_count
+  const { data: fileData } = await supabase
+    .from("book_files")
+    .select("book_id")
+    .eq("id", bookFileId)
+    .single();
+
+  if (fileData?.book_id) {
+    const { error: rpcError } = await supabase.rpc("increment_download_count", {
+      book_id: fileData.book_id,
+    });
+
+    if (rpcError) {
+      const { data: book } = await supabase
+        .from("books")
+        .select("download_count")
+        .eq("id", fileData.book_id)
+        .single();
+
+      if (book) {
+        await supabase
+          .from("books")
+          .update({ download_count: (book.download_count ?? 0) + 1 })
+          .eq("id", fileData.book_id);
+      }
+    }
+    
+    // Also increment book_files download_count
+    const { data: bFile } = await supabase
+      .from("book_files")
+      .select("download_count")
+      .eq("id", bookFileId)
+      .single();
+      
+    if (bFile) {
+      await supabase
+        .from("book_files")
+        .update({ download_count: (bFile.download_count ?? 0) + 1 })
+        .eq("id", bookFileId);
+    }
+  }
+}
+
 // ── Increment download count + record per-user history ───────
 // Called from PDFViewer whenever a user clicks Download.
 export async function incrementDownloadCount(bookId: string): Promise<void> {
@@ -46,7 +108,7 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
       .eq("id", bookId);
   }
 
-  // 2. Record per-user history (best-effort — don't block on failure)
+  // 2. Record per-user history + analytics log (best-effort — don't block on failure)
   try {
     const authClient = await createClient();
     const {
@@ -54,18 +116,14 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
     } = await authClient.auth.getUser();
 
     if (user) {
-      await supabase.from("user_download_history").upsert(
-        {
-          user_id:     user.id,
-          book_id:     bookId,
-          downloaded_at: new Date().toISOString(),
-        },
-        {
-          // Update timestamp on repeated downloads so "most recent" is correct
-          onConflict: "user_id,book_id",
-          ignoreDuplicates: false,
-        }
-      );
+      const now = new Date().toISOString();
+      await Promise.all([
+        supabase.from("user_download_history").upsert(
+          { user_id: user.id, book_id: bookId, downloaded_at: now },
+          { onConflict: "user_id,book_id", ignoreDuplicates: false }
+        ),
+        supabase.from("download_logs").insert({ user_id: user.id, book_id: bookId, downloaded_at: now }),
+      ]);
     }
   } catch (err) {
     console.error("[incrementDownloadCount] history insert failed:", err);

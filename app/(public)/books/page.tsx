@@ -148,9 +148,9 @@ export default async function BooksPage({
           </div>
 
           {/* Filters row */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0 w-full">
             {/* Category pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none sm:gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none sm:gap-2 min-w-0 flex-1 w-full">
               {categoryPills.map((cat) => {
                 const isAll = cat === "All";
                 const isActive = isAll ? !params.dept : params.dept === cat;
@@ -315,7 +315,9 @@ function ActiveChip({
       })}
       className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-blue-50 py-1.5 pl-3.5 pr-2.5 text-[12px] font-medium text-brand transition hover:bg-blue-100"
     >
-      {label}
+      <span className="truncate break-words min-w-0 max-w-[200px] sm:max-w-[300px]">
+        {label}
+      </span>
       <span
         aria-hidden
         className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/10 text-[11px] leading-none text-brand"

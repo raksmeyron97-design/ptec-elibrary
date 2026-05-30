@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function AdminLoginPage() {
   const supabase = createClient();
@@ -41,8 +42,8 @@ export default function AdminLoginPage() {
         <div className="w-full max-w-md overflow-hidden rounded-2xl shadow-xl bg-white border border-gray-100">
           
           <div className="flex flex-col items-center justify-center bg-[#1E3A8A] p-8 text-white">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-white text-[#1E3A8A] font-bold">
-              PTEC
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+              <Image src="/logo_footer.png" alt="PTEC Logo" width={56} height={56} className="object-contain" />
             </div>
             <h2 className="text-2xl font-bold leading-tight">Admin Sign In</h2>
             <p className="mt-2 text-sm text-white/80">

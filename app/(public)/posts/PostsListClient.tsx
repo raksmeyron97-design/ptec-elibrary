@@ -149,7 +149,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                   />
                 ) : (
                   <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-6`}>
-                    <span className="line-clamp-3 text-center font-khmer-serif font-bold text-lg leading-snug text-white/90">
+                    <span className="line-clamp-3 text-center font-khmer-serif font-bold text-lg leading-[1.4] text-white/90">
                       {post.title}
                     </span>
                   </div>
@@ -170,7 +170,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                     {post.category}
                   </span>
                 </div>
-                <h3 className="mb-2 line-clamp-2 font-khmer-serif font-bold text-[15px] leading-snug text-text-heading transition group-hover:text-brand">
+                <h3 className="mb-2 line-clamp-2 font-khmer-serif font-bold text-[15px] leading-[1.4] text-text-heading transition group-hover:text-brand">
                   {post.title}
                 </h3>
                 {post.excerpt && (

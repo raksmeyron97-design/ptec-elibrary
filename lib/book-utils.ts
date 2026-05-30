@@ -97,3 +97,75 @@ export function slugify(value: string) {
 
   return slug || `book-${Date.now()}`;
 }
+
+// ──────────────────────────────────────────────────────────────
+// R2 storage path helpers
+// ──────────────────────────────────────────────────────────────
+// Goal: a clean, predictable folder layout in Cloudflare R2 so every
+// asset is easy to locate, group, and delete. One folder == one book.
+//
+//   books/{category-slug}/{book-slug}-{uid}/book.pdf
+//   books/{category-slug}/{book-slug}-{uid}/cover.{ext}
+//   posts/{post-slug}-{uid}/cover-{NN}.{ext}
+//
+// Because the {uid} lives on the *folder*, the file names inside can
+// stay fixed ("book.pdf", "cover.jpg") — editing a cover overwrites the
+// same key instead of leaving orphaned files scattered around.
+// ──────────────────────────────────────────────────────────────
+
+/** Short, URL-safe unique id (time-based, 6 chars). */
+export function makeUid() {
+  return Date.now().toString(36).slice(-6);
+}
+
+/** Lower-cased file extension (no dot). Falls back to a sensible default. */
+function fileExt(name: string, fallback = "bin") {
+  const ext = name.split(".").pop()?.toLowerCase();
+  return ext && ext !== name.toLowerCase() ? ext : fallback;
+}
+
+/** Per-book folder: `books/{category}/{title}-{uid}` (no trailing slash). */
+export function bookFolder(category: string | null | undefined, title: string, uid: string) {
+  const cat = slugify((category ?? "").trim() || "uncategorized");
+  return `books/${cat}/${slugify(title)}-${uid}`;
+}
+
+/** The book's PDF key inside its folder. */
+export function bookPdfPath(folder: string) {
+  return `${folder}/book.pdf`;
+}
+
+/** The book's cover key inside its folder. */
+export function bookCoverPath(folder: string, coverFileName: string) {
+  return `${folder}/cover.${fileExt(coverFileName, "jpg")}`;
+}
+
+/** Per-post folder: `posts/{title}-{uid}` (no trailing slash). */
+export function postFolder(title: string, uid: string) {
+  return `posts/${slugify(title)}-${uid}`;
+}
+
+/** A numbered cover key inside a post folder, e.g. `.../cover-01.jpg`. */
+export function postCoverPath(folder: string, index: number, coverFileName: string) {
+  const seq = String(index + 1).padStart(2, "0");
+  return `${folder}/cover-${seq}.${fileExt(coverFileName, "jpg")}`;
+}
+
+/**
+ * Given a public cover URL, recover the per-book folder if it follows the
+ * `books/{category}/{slug}-{uid}/...` layout. Returns `null` for legacy/flat
+ * URLs so callers can fall back to creating a fresh folder.
+ */
+export function bookFolderFromCoverUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const fromKey = (key: string) => {
+    const m = key.replace(/^\/+/, "").match(/^(books\/[^/]+\/[^/]+)\//);
+    return m ? m[1] : null;
+  };
+  try {
+    return fromKey(new URL(url).pathname);
+  } catch {
+    // Not an absolute URL — try treating the value itself as a key.
+    return fromKey(url);
+  }
+}

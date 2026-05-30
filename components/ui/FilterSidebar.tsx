@@ -21,7 +21,7 @@ export default function FilterSidebar({
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-base font-bold text-slate-900">Filters</h2>
-        <Link href="/books" className="text-[12.5px] font-semibold text-[#0C7C8A] hover:underline">
+        <Link href="/books" className="text-[12.5px] font-semibold text-brand hover:underline">
           Reset
         </Link>
       </div>
@@ -37,7 +37,7 @@ export default function FilterSidebar({
               href={active ? "/books" : `/books?dept=${encodeURIComponent(dept.toLowerCase())}`}
               className={`flex items-center justify-between rounded-[11px] px-3 py-[9px] text-sm transition-all duration-150 ${
                 active
-                  ? "bg-[#0C7C8A] font-semibold text-white"
+                  ? "bg-brand font-semibold text-brand-contrast"
                   : "font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
@@ -63,8 +63,8 @@ export default function FilterSidebar({
                 href={active ? "/books" : `/books?format=${fmt.toLowerCase()}`}
                 className={`rounded-[11px] border px-3 py-2.5 text-center text-[13px] font-semibold transition-all duration-150 ${
                   active
-                    ? "border-[#0C7C8A] bg-[#0C7C8A] text-white"
-                    : "border-slate-200 text-slate-600 hover:border-[#0C7C8A]/50 hover:text-[#0C7C8A]"
+                    ? "border-brand bg-brand text-brand-contrast"
+                    : "border-slate-200 text-slate-600 hover:border-brand/50 hover:text-brand"
                 }`}
               >
                 {fmt}
@@ -85,7 +85,7 @@ export default function FilterSidebar({
               href={active ? "/books" : `/books?language=${encodeURIComponent(lang.toLowerCase())}`}
               className={`flex items-center justify-between rounded-[11px] px-3 py-[9px] text-sm transition-all duration-150 ${
                 active
-                  ? "bg-[#0C7C8A] font-semibold text-white"
+                  ? "bg-brand font-semibold text-brand-contrast"
                   : "font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >

@@ -1,0 +1,398 @@
+"use client";
+// app/admin/catalogs/add-copies/[bookId]/AddCopiesClient.tsx
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { addCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-actions";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+type CopyStatus = "available" | "checked_out" | "lost" | "damaged" | "on_order";
+
+interface CopyRow {
+  id: string;               // client-only key
+  barcode: string;
+  call_number: string;
+  shelf_location: string;
+  holding_library: string;
+  status: CopyStatus;
+  notes: string;
+  saved: boolean;
+  saving: boolean;
+  error: string | null;
+}
+
+const STATUS_OPTS: { value: CopyStatus; label: string }[] = [
+  { value: "available",   label: "Available"   },
+  { value: "checked_out", label: "Checked Out" },
+  { value: "lost",        label: "Lost"        },
+  { value: "damaged",     label: "Damaged"     },
+  { value: "on_order",    label: "On Order"    },
+];
+
+const STATUS_DOT: Record<CopyStatus, string> = {
+  available:   "bg-emerald-500",
+  checked_out: "bg-amber-400",
+  lost:        "bg-red-400",
+  damaged:     "bg-orange-400",
+  on_order:    "bg-blue-400",
+};
+
+function makeRow(defaults: Partial<CopyRow> = {}): CopyRow {
+  return {
+    id: crypto.randomUUID(),
+    barcode: "",
+    call_number: "",
+    shelf_location: "",
+    holding_library: "PTEC Library",
+    status: "available",
+    notes: "",
+    saved: false,
+    saving: false,
+    error: null,
+    ...defaults,
+  };
+}
+
+const inputCls = `
+  w-full rounded-lg border border-slate-200 bg-white px-3 py-2
+  text-sm text-slate-800 placeholder:text-slate-400
+  outline-none transition
+  focus:border-[#007c91]/60 focus:ring-2 focus:ring-[#007c91]/12
+  disabled:bg-slate-50 disabled:text-slate-400
+`;
+
+// ── Component ──────────────────────────────────────────────────────────────────
+export default function AddCopiesClient({
+  bookId,
+  bookSlug,
+  defaultShelfLocation,
+  defaultAccession,
+}: {
+  bookId: string;
+  bookSlug: string;
+  defaultShelfLocation: string;
+  defaultAccession: string;
+}) {
+  const router = useRouter();
+  const [rows, setRows] = useState<CopyRow[]>([makeRow({ shelf_location: defaultShelfLocation })]);
+  const [, startTransition] = useTransition();
+
+  // ── Row helpers ──────────────────────────────────────────────────────────────
+  function updateRow(id: string, patch: Partial<CopyRow>) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  function addRow() {
+    // Pre-fill shelf_location from the last row
+    const last = rows[rows.length - 1];
+    setRows((prev) => [
+      ...prev,
+      makeRow({
+        shelf_location:  last?.shelf_location  || defaultShelfLocation,
+        holding_library: last?.holding_library || "PTEC Library",
+      }),
+    ]);
+  }
+
+  function addManyRows(n: number) {
+    const last = rows[rows.length - 1];
+    const newRows = Array.from({ length: n }, () =>
+      makeRow({
+        shelf_location:  last?.shelf_location  || defaultShelfLocation,
+        holding_library: last?.holding_library || "PTEC Library",
+      })
+    );
+    setRows((prev) => [...prev, ...newRows]);
+  }
+
+  function removeRow(id: string) {
+    setRows((prev) => {
+      if (prev.length === 1) return prev; // keep at least one
+      return prev.filter((r) => r.id !== id);
+    });
+  }
+
+  // ── Save a single row ────────────────────────────────────────────────────────
+  async function saveRow(row: CopyRow) {
+    if (row.saved || row.saving) return;
+    updateRow(row.id, { saving: true, error: null });
+
+    try {
+      const fd = new FormData();
+      fd.set("barcode",         row.barcode);
+      fd.set("call_number",     row.call_number);
+      fd.set("shelf_location",  row.shelf_location);
+      fd.set("holding_library", row.holding_library);
+      fd.set("status",          row.status);
+      fd.set("notes",           row.notes);
+      await addCopy(bookId, fd);
+      updateRow(row.id, { saved: true, saving: false });
+    } catch (e: any) {
+      updateRow(row.id, { saving: false, error: e.message ?? "Failed to save" });
+    }
+  }
+
+  // ── Save all unsaved rows ────────────────────────────────────────────────────
+  async function saveAll() {
+    const unsaved = rows.filter((r) => !r.saved);
+    for (const row of unsaved) {
+      await saveRow(row);
+    }
+  }
+
+  // ── Save all then navigate ───────────────────────────────────────────────────
+  function handleFinish() {
+    startTransition(async () => {
+      await saveAll();
+      router.push(`/admin/catalogs`);
+    });
+  }
+
+  function handleGoToAdmin() {
+    startTransition(async () => {
+      await saveAll();
+      router.push("/admin/catalogs");
+    });
+  }
+
+  // ── Counts ───────────────────────────────────────────────────────────────────
+  const savedCount   = rows.filter((r) => r.saved).length;
+  const unsavedCount = rows.filter((r) => !r.saved).length;
+  const hasErrors    = rows.some((r) => r.error);
+
+  return (
+    <div className="space-y-4">
+
+      {/* Summary bar */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-5 py-3 shadow-sm">
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-slate-500">
+            <span className="font-bold text-slate-800">{rows.length}</span> cop{rows.length !== 1 ? "ies" : "y"} total
+          </span>
+          {savedCount > 0 && (
+            <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {savedCount} saved
+            </span>
+          )}
+          {unsavedCount > 0 && (
+            <span className="flex items-center gap-1.5 text-slate-400">
+              <span className="h-2 w-2 rounded-full bg-slate-300" />
+              {unsavedCount} pending
+            </span>
+          )}
+        </div>
+
+        {/* Quick-add buttons */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">Quick add:</span>
+          {[1, 3, 5, 10].map((n) => (
+            <button
+              key={n}
+              onClick={() => addManyRows(n)}
+              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#007c91] hover:text-[#007c91]"
+            >
+              +{n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Copy rows */}
+      <div className="space-y-3">
+        {rows.map((row, idx) => (
+          <div
+            key={row.id}
+            className={`rounded-2xl border bg-white shadow-sm transition-all ${
+              row.saved
+                ? "border-emerald-200 bg-emerald-50/40"
+                : row.error
+                ? "border-red-200"
+                : "border-slate-100"
+            }`}
+          >
+            {/* Row header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
+                  {idx + 1}
+                </span>
+                {row.saved ? (
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                      <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Saved
+                  </span>
+                ) : row.barcode ? (
+                  <span className="font-mono text-xs font-semibold text-slate-500">{row.barcode}</span>
+                ) : (
+                  <span className="text-xs text-slate-400">Copy {idx + 1}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Save this row */}
+                {!row.saved && (
+                  <button
+                    onClick={() => saveRow(row)}
+                    disabled={row.saving}
+                    className="rounded-lg border border-[#007c91]/30 px-3 py-1 text-xs font-semibold text-[#007c91] transition hover:bg-[#007c91]/5 disabled:opacity-50"
+                  >
+                    {row.saving ? "Saving…" : "Save"}
+                  </button>
+                )}
+                {/* Remove row (only if not saved) */}
+                {!row.saved && rows.length > 1 && (
+                  <button
+                    onClick={() => removeRow(row.id)}
+                    className="rounded-lg p-1.5 text-slate-300 transition hover:text-red-400"
+                    aria-label="Remove row"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div className={`grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3 ${row.saved ? "opacity-60 pointer-events-none" : ""}`}>
+
+              {/* Barcode */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Barcode
+                </label>
+                <input
+                  value={row.barcode}
+                  onChange={(e) => updateRow(row.id, { barcode: e.target.value })}
+                  disabled={row.saved}
+                  className={inputCls}
+                  placeholder="e.g. 001234"
+                />
+              </div>
+
+              {/* Call Number */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Call Number
+                </label>
+                <input
+                  value={row.call_number}
+                  onChange={(e) => updateRow(row.id, { call_number: e.target.value })}
+                  disabled={row.saved}
+                  className={inputCls}
+                  placeholder={`323 SOY 2023 Co${idx + 1}/${rows.length}`}
+                />
+              </div>
+
+              {/* Shelf Location */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Shelf Location
+                </label>
+                <input
+                  value={row.shelf_location}
+                  onChange={(e) => updateRow(row.id, { shelf_location: e.target.value })}
+                  disabled={row.saved}
+                  className={inputCls}
+                  placeholder={defaultShelfLocation || "A-1-01"}
+                />
+              </div>
+
+              {/* Holding Library */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Holding Library
+                </label>
+                <input
+                  value={row.holding_library}
+                  onChange={(e) => updateRow(row.id, { holding_library: e.target.value })}
+                  disabled={row.saved}
+                  className={inputCls}
+                />
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Status
+                </label>
+                <div className="relative">
+                  <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full ${STATUS_DOT[row.status]}`} />
+                  <select
+                    value={row.status}
+                    onChange={(e) => updateRow(row.id, { status: e.target.value as CopyStatus })}
+                    disabled={row.saved}
+                    className={inputCls + " pl-7"}
+                  >
+                    {STATUS_OPTS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                  Notes <span className="font-normal normal-case text-slate-300">(optional)</span>
+                </label>
+                <input
+                  value={row.notes}
+                  onChange={(e) => updateRow(row.id, { notes: e.target.value })}
+                  disabled={row.saved}
+                  className={inputCls}
+                  placeholder="e.g. Donated, damaged spine…"
+                />
+              </div>
+            </div>
+
+            {/* Error */}
+            {row.error && (
+              <p className="border-t border-red-100 px-5 py-2 text-xs font-semibold text-red-500">
+                ⚠ {row.error}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Add another row button */}
+      <button
+        onClick={addRow}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-semibold text-slate-400 transition hover:border-[#007c91]/40 hover:text-[#007c91]"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+        </svg>
+        Add another copy
+      </button>
+
+      {/* Error summary */}
+      {hasErrors && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          Some copies failed to save. Fix the errors above and try again.
+        </div>
+      )}
+
+      {/* Footer actions */}
+      <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-6 py-4 shadow-sm">
+        <button
+          onClick={handleGoToAdmin}
+          className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+        >
+          Save &amp; go to admin
+        </button>
+
+        <button
+          onClick={handleFinish}
+          className="rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
+        >
+          Save &amp; Finish →
+        </button>
+      </div>
+    </div>
+  );
+}

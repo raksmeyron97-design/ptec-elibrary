@@ -53,7 +53,7 @@ export default async function AdminCatalogsPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap justify-end gap-3 mb-6">
         <CsvImportModal />
         <Link
           href="/admin/catalogs/add"
