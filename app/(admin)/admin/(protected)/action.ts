@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/books";
+import { logAdminAction } from "@/app/actions/audit";
 
 function requiredText(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -26,7 +27,7 @@ export async function uploadBook(formData: FormData) {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   // ── 2. Validate PDF file ──────────────────────────────────────
   const file = formData.get("pdf");
@@ -123,6 +124,8 @@ export async function uploadBook(formData: FormData) {
 
   if (fileError) throw new Error(`File record error: ${fileError.message}`);
 
+  await logAdminAction(user.id, "uploadBook", "books", book.id, { title });
+
   // ── 9. Revalidate + redirect ──────────────────────────────────
   revalidatePath("/");
   revalidatePath("/books");
@@ -144,7 +147,7 @@ export async function deleteBook(bookId: string) {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   // Delete book_files first (FK constraint)
   await supabase.from("book_files").delete().eq("book_id", bookId);
@@ -152,6 +155,8 @@ export async function deleteBook(bookId: string) {
   // Delete book
   const { error } = await supabase.from("books").delete().eq("id", bookId);
   if (error) throw new Error(`Delete failed: ${error.message}`);
+
+  await logAdminAction(user.id, "deleteBook", "books", bookId);
 
   revalidatePath("/books");
   revalidatePath("/admin");

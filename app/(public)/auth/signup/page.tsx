@@ -51,6 +51,15 @@ export default function SignupPage() {
       return;
     }
 
+    // After successful signUp, verify the domain is not reserved for admin
+    const { verifySignup } = await import("@/app/actions/auth");
+    const verification = await verifySignup();
+    if (!verification.success) {
+      setError(verification.error || "Signup rejected.");
+      setLoading(false);
+      return;
+    }
+
     setSuccess(true);
     setLoading(false);
   }

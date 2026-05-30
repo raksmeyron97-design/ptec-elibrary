@@ -38,69 +38,65 @@ export default async function CatalogBookPage({
   const statusDot = AVAILABILITY_DOT[status];
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-paper">
 
       {/* Breadcrumb */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 md:px-12">
-        <div className="mx-auto max-w-[1100px] flex items-center gap-2 text-sm text-slate-500">
-          <Link href="/home" className="hover:text-[#007c91] transition">Home</Link>
-          <span>›</span>
-          <Link href="/catalogs" className="hover:text-[#007c91] transition">Books In Library</Link>
-          <span>›</span>
-          <span className="text-slate-800 font-medium truncate max-w-[200px]">{b.title}</span>
+      <div className="border-b border-divider bg-bg-surface px-4 py-3 md:px-12">
+        <div className="mx-auto flex max-w-[1100px] items-center gap-2 text-sm text-text-muted">
+          <Link href="/home" className="transition hover:text-brand">Home</Link>
+          <span className="text-divider">›</span>
+          <Link href="/catalogs" className="transition hover:text-brand">Books In Library</Link>
+          <span className="text-divider">›</span>
+          <span className="max-w-[200px] truncate font-medium text-text-heading">{b.title}</span>
         </div>
       </div>
 
       {/* Main */}
-      <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-12">
+      <div className="mx-auto max-w-[1100px] px-4 py-10 md:px-12">
         <div className="grid gap-8 md:grid-cols-[280px_1fr]">
 
-          {/* ── Cover ── */}
+          {/* ── Cover + status ── */}
           <div className="flex flex-col items-center gap-4">
-            <div className="relative w-full max-w-[280px] aspect-[3/4] overflow-hidden rounded-2xl shadow-lg">
+            <div className="relative aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-divider/50 shadow-lg shadow-brand/10">
               {b.cover_url ? (
                 <Image src={b.cover_url} alt={b.title} fill className="object-cover" />
               ) : (
                 <div className={`absolute inset-0 ${b.cover_color} flex items-end p-5`}>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">{b.category}</p>
-                    <p className="text-lg font-bold text-white leading-tight">{b.title}</p>
-                    <p className="text-sm text-white/70 mt-1">{b.author}</p>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-widest text-white/60">{b.category}</p>
+                    <p className="font-khmer-serif text-lg font-bold leading-tight text-white">{b.title}</p>
+                    <p className="mt-1 text-sm text-white/70">{b.author}</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Availability badge */}
-            <div className={`w-full max-w-[280px] rounded-xl border p-4 ${statusBg}`}>
-              <div className="flex items-center gap-2 mb-2">
+            {/* Availability card (gold top-rule) */}
+            <div className={`w-full max-w-[280px] rounded-xl border border-t-[3px] border-t-accent p-4 ${statusBg}`}>
+              <div className="mb-2 flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${statusDot}`} />
-                <span className={`text-sm font-bold ${statusTxt}`}>
-                  {AVAILABILITY_LABEL[status]}
-                </span>
+                <span className={`text-sm font-bold ${statusTxt}`}>{AVAILABILITY_LABEL[status]}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">Available</span>
-                <span className={`font-bold ${statusTxt}`}>
-                  {b.copies_available} / {b.copies_total} copies
-                </span>
+                <span className="text-text-muted">Available</span>
+                <span className={`font-bold ${statusTxt}`}>{b.copies_available} / {b.copies_total} copies</span>
               </div>
               {b.shelf_location && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/60 px-3 py-2">
-                  <svg className="h-4 w-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/70 px-3 py-2">
+                  <svg className="h-4 w-4 shrink-0 text-gold-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
                   </svg>
-                  <span className="text-xs text-slate-600">
-                    Shelf: <span className="font-mono font-bold text-slate-800">{b.shelf_location}</span>
+                  <span className="text-xs text-text-body">
+                    Shelf: <span className="font-mono font-bold text-text-heading">{b.shelf_location}</span>
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Contact link */}
+            {/* Contact CTA */}
             <Link
               href="/contact"
-              className="flex w-full max-w-[280px] items-center justify-center gap-2 rounded-xl bg-[#0a1629] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+              className="flex w-full max-w-[280px] items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover"
             >
               <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -116,40 +112,40 @@ export default async function CatalogBookPage({
             {/* Title / Author */}
             <div>
               {b.category && (
-                <span className="inline-block rounded-full bg-[#0a1629]/8 px-3 py-1 text-xs font-bold text-[#0a1629] uppercase tracking-wider mb-3">
+                <span className="mb-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
                   {b.category}
                 </span>
               )}
-              <h1 className="text-2xl md:text-3xl font-bold text-[#0a1629] leading-tight">{b.title}</h1>
-              <p className="mt-1.5 text-base text-slate-500">{b.author}</p>
+              <h1 className="font-khmer-serif text-2xl font-bold leading-tight text-text-heading md:text-3xl">{b.title}</h1>
+              <p className="mt-1.5 text-base font-medium text-text-muted">{b.author}</p>
             </div>
 
             {/* Description */}
             {b.description && (
-              <div className="rounded-xl bg-white border border-slate-100 p-5 shadow-sm">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Description</h2>
-                <p className="text-sm text-slate-700 leading-relaxed">{b.description}</p>
+              <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+                <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-gold-700">Description</h2>
+                <p className="text-sm leading-relaxed text-text-body">{b.description}</p>
               </div>
             )}
 
             {/* Metadata grid */}
-            <div className="rounded-xl bg-white border border-slate-100 p-5 shadow-sm">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Book Details</h2>
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+            <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+              <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-gold-700">Book Details</h2>
+              <dl className="grid grid-cols-2 gap-x-8 gap-y-3.5 text-sm">
                 {[
-                  { label: "Author",             value: b.author },
-                  { label: "Language",           value: b.language === "km" ? "Khmer" : b.language === "en" ? "English" : b.language },
-                  { label: "Year",               value: b.year },
-                  { label: "ISBN",               value: b.isbn },
-                  { label: "Department",         value: b.department },
-                  { label: "Accession No.",      value: b.accession_number },
-                  { label: "Shelf Location",     value: b.shelf_location },
-                  { label: "Total Copies",       value: b.copies_total },
+                  { label: "Author",         value: b.author },
+                  { label: "Language",       value: b.language === "km" ? "Khmer" : b.language === "en" ? "English" : b.language },
+                  { label: "Year",           value: b.year },
+                  { label: "ISBN",           value: b.isbn },
+                  { label: "Department",     value: b.department },
+                  { label: "Accession No.",  value: b.accession_number },
+                  { label: "Shelf Location", value: b.shelf_location },
+                  { label: "Total Copies",   value: b.copies_total },
                 ].map(({ label, value }) =>
                   value ? (
                     <div key={label}>
-                      <dt className="text-xs text-slate-400 font-medium">{label}</dt>
-                      <dd className="text-slate-800 font-semibold mt-0.5">{value}</dd>
+                      <dt className="text-xs font-medium text-text-muted">{label}</dt>
+                      <dd className="mt-0.5 font-semibold text-text-heading">{value}</dd>
                     </div>
                   ) : null
                 )}
@@ -157,10 +153,7 @@ export default async function CatalogBookPage({
             </div>
 
             {/* Back link */}
-            <Link
-              href="/catalogs"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-[#007c91] hover:underline"
-            >
+            <Link href="/catalogs" className="inline-flex items-center gap-2 text-sm font-semibold text-brand transition hover:text-brand-hover">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M19 12H5m0 0 7 7m-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
               </svg>

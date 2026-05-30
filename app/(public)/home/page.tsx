@@ -219,8 +219,8 @@ export default async function HomePage() {
             </div>
 
             {/* Right: Book stack (like old code) */}
-            <div className="hidden lg:flex lg:items-center lg:justify-end relative z-10 xl:pr-12">
-              <div className="scale-[1.25] xl:scale-[1.4] drop-shadow-2xl translate-x-8 xl:translate-x-16">
+            <div className="hidden lg:flex lg:items-center lg:justify-end relative z-10 xl:pr-20">
+              <div className="scale-[1.25] xl:scale-[1.65] drop-shadow-2xl translate-x-0 xl:translate-x-1">
                 <HeroBookStack
                   books={featuredBooks.map((b) => ({
                     slug: b.slug,

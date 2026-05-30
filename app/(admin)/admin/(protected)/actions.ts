@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/books";
 import { deleteR2File } from "@/app/actions/upload";
+import { logAdminAction } from "@/app/actions/audit";
 
 function requiredText(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -66,7 +67,7 @@ export async function saveBookRecord(formData: FormData) {
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const title      = requiredText(formData, "title");
   const author     = requiredText(formData, "author");
@@ -155,6 +156,8 @@ export async function saveBookRecord(formData: FormData) {
   });
   if (fileError) throw new Error(`File error: ${fileError.message}`);
 
+  await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title });
+
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);
@@ -173,7 +176,7 @@ export async function deleteBook(bookId: string) {
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   // ── 1. Fetch book_files + cover_url before deleting ──────────
   const { data: bookFiles } = await supabase
@@ -214,6 +217,8 @@ export async function deleteBook(bookId: string) {
     }
   }
 
+  await logAdminAction(user.id, "deleteBook", "books", bookId);
+
   revalidatePath("/books");
   revalidatePath("/admin");
   revalidatePath("/admin/manage");
@@ -232,7 +237,7 @@ export async function updateBook(bookId: string, formData: FormData) {
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const title      = requiredText(formData, "title");
   const author     = requiredText(formData, "author");
@@ -316,6 +321,8 @@ export async function updateBook(bookId: string, formData: FormData) {
     .single();
   if (bookError) throw new Error(`Book update failed: ${bookError.message}`);
 
+  await logAdminAction(user.id, "updateBook", "books", bookId, { title });
+
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);
@@ -336,7 +343,7 @@ export async function addCategory(name: string): Promise<{ id: string; name: str
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Category name is required");
@@ -367,6 +374,8 @@ export async function addCategory(name: string): Promise<{ id: string; name: str
     if (retryCat) return retryCat;
     throw new Error(`Failed to add category: ${insertErr.message}`);
   }
+
+  await logAdminAction(user.id, "addCategory", "categories", newCat.id, { name: newCat.name });
 
   return newCat;
 }

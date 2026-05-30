@@ -23,7 +23,7 @@ export async function toggleUserRole(
     .select("role")
     .eq("id", user.id)
     .single();
-  if (callerProfile?.role !== "admin") throw new Error("Admin access required");
+  if (callerProfile?.role !== "admin") throw new Error("Forbidden");
 
   const newRole = currentRole === "admin" ? "reader" : "admin";
 

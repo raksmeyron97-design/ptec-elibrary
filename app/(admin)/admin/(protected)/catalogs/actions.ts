@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { catalogSlugify, pickCatalogColor, parseCatalogCsv } from "@/lib/catalog";
+import { logAdminAction } from "@/app/actions/audit";
 
 // ── Auth guard ─────────────────────────────────────────────────────────────────
 async function requireAdmin() {
@@ -14,7 +15,7 @@ async function requireAdmin() {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Admin access required");
+  if (profile?.role !== "admin") throw new Error("Forbidden");
 
   return { supabase, userId: user.id };
 }
@@ -68,6 +69,8 @@ export async function addCatalogBook(formData: FormData) {
     throw new Error(`Failed to add book: ${error.message}`);
   }
 
+  await logAdminAction(userId, "addCatalogBook", "catalog_books", book.id, { title });
+
   revalidatePath("/catalogs");
   revalidatePath("/admin/catalogs");
   redirect(`/catalogs/${book.slug}`);
@@ -75,7 +78,7 @@ export async function addCatalogBook(formData: FormData) {
 
 // ── updateCatalogBook ──────────────────────────────────────────────────────────
 export async function updateCatalogBook(bookId: string, formData: FormData) {
-  const { supabase } = await requireAdmin();
+  const { supabase, userId } = await requireAdmin();
 
   const title     = req(formData, "title");
   const author    = req(formData, "author");
@@ -110,6 +113,8 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
 
   if (error) throw new Error(`Update failed: ${error.message}`);
 
+  await logAdminAction(userId, "updateCatalogBook", "catalog_books", book.id, { title });
+
   revalidatePath("/catalogs");
   revalidatePath(`/catalogs/${book.slug}`);
   revalidatePath("/admin/catalogs");
@@ -118,7 +123,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
 
 // ── deleteCatalogBook ──────────────────────────────────────────────────────────
 export async function deleteCatalogBook(bookId: string) {
-  const { supabase } = await requireAdmin();
+  const { supabase, userId } = await requireAdmin();
 
   // Soft-delete (keeps history) — or use hard delete if preferred
   const { error } = await supabase
@@ -128,15 +133,20 @@ export async function deleteCatalogBook(bookId: string) {
 
   if (error) throw new Error(`Delete failed: ${error.message}`);
 
+  await logAdminAction(userId, "deleteCatalogBook", "catalog_books", bookId);
+
   revalidatePath("/catalogs");
   revalidatePath("/admin/catalogs");
 }
 
 // Hard delete variant (used from manage table)
 export async function hardDeleteCatalogBook(bookId: string) {
-  const { supabase } = await requireAdmin();
+  const { supabase, userId } = await requireAdmin();
   const { error } = await supabase.from("catalog_books").delete().eq("id", bookId);
   if (error) throw new Error(`Hard delete failed: ${error.message}`);
+  
+  await logAdminAction(userId, "hardDeleteCatalogBook", "catalog_books", bookId);
+  
   revalidatePath("/catalogs");
   revalidatePath("/admin/catalogs");
 }
@@ -241,6 +251,8 @@ export async function importCatalogCsv(formData: FormData) {
     .select("id");
 
   if (error) throw new Error(`CSV import failed: ${error.message}`);
+
+  await logAdminAction(userId, "importCatalogCsv", "catalog_books", undefined, { count: data?.length ?? 0 });
 
   revalidatePath("/catalogs");
   revalidatePath("/admin/catalogs");

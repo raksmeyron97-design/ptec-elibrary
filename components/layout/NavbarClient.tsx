@@ -64,46 +64,25 @@ export default function NavbarClient({ user }: NavbarClientProps) {
       {/* Avatar button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2.5 rounded-full border border-divider bg-bg-surface py-1.5 pl-1.5 pr-3 shadow-sm transition-all hover:border-brand/40 hover:shadow-md"
+        className="relative h-9 w-9 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand/20"
         aria-label="User menu"
         aria-expanded={open}
       >
-        {/* Avatar */}
-        <div className="relative h-8 w-8 shrink-0">
-          {user.avatar_url ? (
-            <Image
-              src={user.avatar_url}
-              alt={displayName}
-              fill
-              sizes="32px"
-              className="rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-contrast">
-              {initials}
-            </div>
-          )}
-          {/* Online dot */}
-          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-success" />
-        </div>
-
-        {/* Name — hidden on small screens */}
-        <span className="hidden max-w-[100px] truncate text-[13px] font-semibold text-slate-700 sm:block">
-          {user.full_name?.split(" ")[0] ?? user.email.split("@")[0]}
-        </span>
-
-        {/* Chevron */}
-        <svg
-          className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        {user.avatar_url ? (
+          <Image
+            src={user.avatar_url}
+            alt={displayName}
+            fill
+            sizes="36px"
+            className="rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-contrast">
+            {initials}
+          </div>
+        )}
+        {/* Online dot */}
+        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-success" />
       </button>
 
       {/* ── Dropdown ── */}

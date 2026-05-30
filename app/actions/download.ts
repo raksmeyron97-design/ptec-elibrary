@@ -22,6 +22,68 @@ export async function getDownloadCount(bookId: string): Promise<number> {
   return data?.download_count ?? 0;
 }
 
+export async function downloadBook(bookFileId: string) {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = createServiceClient();
+
+  // Insert into download_logs
+  const { error: logError } = await supabase.from("download_logs").insert({
+    user_id: user.id,
+    book_file_id: bookFileId,
+  });
+
+  if (logError) {
+    console.error("[downloadBook] log error:", logError);
+  }
+
+  // Find book_id from book_file_id to increment book download_count
+  const { data: fileData } = await supabase
+    .from("book_files")
+    .select("book_id")
+    .eq("id", bookFileId)
+    .single();
+
+  if (fileData?.book_id) {
+    const { error: rpcError } = await supabase.rpc("increment_download_count", {
+      book_id: fileData.book_id,
+    });
+
+    if (rpcError) {
+      const { data: book } = await supabase
+        .from("books")
+        .select("download_count")
+        .eq("id", fileData.book_id)
+        .single();
+
+      if (book) {
+        await supabase
+          .from("books")
+          .update({ download_count: (book.download_count ?? 0) + 1 })
+          .eq("id", fileData.book_id);
+      }
+    }
+    
+    // Also increment book_files download_count
+    const { data: bFile } = await supabase
+      .from("book_files")
+      .select("download_count")
+      .eq("id", bookFileId)
+      .single();
+      
+    if (bFile) {
+      await supabase
+        .from("book_files")
+        .update({ download_count: (bFile.download_count ?? 0) + 1 })
+        .eq("id", bookFileId);
+    }
+  }
+}
+
 // ── Increment download count + record per-user history ───────
 // Called from PDFViewer whenever a user clicks Download.
 export async function incrementDownloadCount(bookId: string): Promise<void> {

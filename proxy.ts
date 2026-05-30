@@ -47,6 +47,19 @@ export async function proxy(request: NextRequest) {
 
   // ── Admin Subdomain Logic ────────────────────────────────────
   if (isAdminHost) {
+    // Determine the actual path (after potential rewrite)
+    const effectivePath = url.pathname.startsWith("/admin") ? url.pathname : `/admin${url.pathname}`;
+    
+    // Auth Check for Admin
+    if (effectivePath.startsWith("/admin")) {
+      if (effectivePath !== "/admin/login" && effectivePath !== "/admin/auth/signout") {
+        if (!user) {
+          const res = NextResponse.redirect(new URL("/login", request.url));
+          return copyCookies(res);
+        }
+      }
+    }
+
     if (!url.pathname.startsWith("/admin")) {
       const rewriteUrl = new URL(`/admin${url.pathname}`, request.url);
       const res = NextResponse.rewrite(rewriteUrl);
@@ -65,6 +78,19 @@ export async function proxy(request: NextRequest) {
   // 2. Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {
     const res = NextResponse.redirect(new URL("/books", request.url));
+    return copyCookies(res);
+  }
+
+  // 3. Protect /dashboard/*
+  if (url.pathname.startsWith("/dashboard") && !user) {
+    const res = NextResponse.redirect(new URL("/auth/login", request.url));
+    return copyCookies(res);
+  }
+
+  // 4. Protect /books/[slug]/download
+  const bookDownloadRegex = /^\/books\/[^/]+\/download$/;
+  if (bookDownloadRegex.test(url.pathname) && !user) {
+    const res = NextResponse.redirect(new URL("/auth/login", request.url));
     return copyCookies(res);
   }
 
