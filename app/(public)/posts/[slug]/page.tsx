@@ -3,8 +3,11 @@ import Link from "next/link";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
 import Markdown from "./Markdown";
 import ViewTracker from "./ViewTracker";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 import ImageGallery from "./ImageGallery";
 import RelatedPosts from "./RelatedPosts";
 
@@ -47,14 +50,47 @@ export async function generateMetadata({
   const supabase = createServiceClient();
   const { data: post } = await supabase
     .from("posts")
-    .select("title, excerpt")
+    .select("title, excerpt, cover_url, created_at, author:profiles(full_name, email)")
     .eq("slug", slug)
     .single();
 
-  if (!post) return { title: "Post not found · PTEC Library" };
+  if (!post) {
+    return { title: "Post not found" };
+  }
+
+  const desc = post.excerpt
+    ? (post.excerpt.length > 157 ? post.excerpt.substring(0, 157) + "..." : post.excerpt)
+    : "Read this article on PTEC Library.";
+
+  const authorName = (post.author as any)?.full_name ?? (post.author as any)?.email ?? "PTEC Library";
+
   return {
-    title: `${post.title} · PTEC Library`,
-    description: post.excerpt ?? undefined,
+    title: post.title,
+    description: desc,
+    alternates: {
+      canonical: `/posts/${slug}`,
+    },
+    openGraph: {
+      title: post.title,
+      description: desc,
+      type: "article",
+      url: `/posts/${slug}`,
+      publishedTime: post.created_at ?? undefined,
+      authors: [authorName],
+      images: post.cover_url
+        ? [
+            {
+              url: post.cover_url,
+              width: 1200,
+              height: 630,
+              alt: post.title,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+    },
   };
 }
 
@@ -108,8 +144,26 @@ export default async function PostDetailPage({
     .order("created_at", { ascending: false })
     .limit(4);
 
+  const postSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    image: coverUrls,
+    datePublished: post.created_at || undefined,
+    dateModified: post.updated_at || post.created_at || undefined,
+    author: {
+      "@type": "Person",
+      name: author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Phnom Penh Teacher Education College",
+    },
+  };
+
   return (
     <article className="min-h-screen bg-bg-body pb-20 pt-[72px]">
+      <JsonLd data={postSchema} />
       <ViewTracker postId={post.id} />
 
       {/* ── Main grid: 70% content | 30% sidebar ── */}

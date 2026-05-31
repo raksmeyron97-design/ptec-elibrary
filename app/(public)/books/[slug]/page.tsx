@@ -20,12 +20,69 @@ import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
+import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: BookDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = createServiceClient();
+  const { data: book } = await supabase
+    .from("books")
+    .select("title, description, cover_url, language, published_at, authors(name)")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (!book) {
+    return { title: "Book not found" };
+  }
+
+  const desc = book.description
+    ? (book.description.length > 157 ? book.description.substring(0, 157) + "..." : book.description)
+    : "Read this book on PTEC Library.";
+
+  const authorName = Array.isArray(book.authors) 
+    ? book.authors.map((a: any) => a.name).join(", ")
+    : (book.authors as any)?.name ?? "Unknown Author";
+
+  return {
+    title: book.title,
+    description: desc,
+    alternates: {
+      canonical: `/books/${slug}`,
+    },
+    openGraph: {
+      title: book.title,
+      description: desc,
+      type: "book",
+      url: `/books/${slug}`,
+      authors: [authorName],
+      images: book.cover_url
+        ? [
+            {
+              url: book.cover_url,
+              width: 800,
+              height: 1200,
+              alt: book.title,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+    },
+  };
+}
 
 type BookWithSource = Book & { fromSupabase: boolean; dbId: string | null };
 
@@ -97,8 +154,36 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const showPdfCover = book.fromSupabase && !!book.pdfUrl;
   const resuming = !!(savedProgress && savedProgress.progressPct > 0);
 
+  const bookSchema = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    name: book.title,
+    author: {
+      "@type": "Person",
+      name: book.author,
+    },
+    inLanguage: book.language,
+    description: book.summary,
+    image: book.coverUrl,
+    url: `${SITE_URL}/books/${slug}`,
+    bookFormat: "https://schema.org/EBook",
+    publisher: {
+      "@type": "Organization",
+      name: "Phnom Penh Teacher Education College",
+    },
+    datePublished: (book as any).publishedAt || undefined,
+    ...(avgRating > 0 ? {
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: avgRating.toFixed(1),
+        reviewCount: reviews.length,
+      }
+    } : {}),
+  };
+
   return (
     <section className="bg-bg-body px-6 py-10 md:px-12 min-h-screen">
+      <JsonLd data={bookSchema} />
       <div className="mx-auto max-w-[1200px]">
         <Link
           href="/books"
@@ -220,7 +305,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               )}
               {book.pdfUrl && (
                 <OfflineSaveButton 
-                  bookId={book.dbId || book.id} 
+                  bookId={book.dbId || book.slug} 
                   bookSlug={book.slug}
                   title={book.title}
                   author={book.author}

@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-
 // ១. យើងបំបែកកូដដែលមានប្រើ useSearchParams() ទៅជា Component ថ្មីមួយ (LoginContent)
 function LoginContent() {
   const router = useRouter();
@@ -18,6 +17,8 @@ function LoginContent() {
   const [loading, setLoading]   = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  
+  
 
   const supabase = createClient();
 
@@ -246,6 +247,7 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function GoogleIcon() {
