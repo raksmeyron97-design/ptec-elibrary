@@ -158,23 +158,25 @@ export default async function Footer() {
               </ul>
             </div>
 
-            {/* Newsletter */}
-            <div>
+            {/* Find PTEC */}
+            <div className="flex flex-col h-full">
               <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
-                Newsletter
+                Find PTEC
               </h3>
-              <p className="text-[13px] text-blue-100 mb-5 leading-relaxed">
-                Subscribe for updates on new books, research papers, and library resources.
-              </p>
-              <div className="flex items-stretch rounded-xl overflow-hidden border border-white/10 bg-bg-surface/5 focus-within:border-gold-400/50 transition-all min-w-0 w-full">
-                <input
-                  type="email"
-                  placeholder="Your email address"
-                  className="bg-transparent px-4 py-3 text-[13px] w-full min-w-0 outline-none text-white placeholder-blue-200"
-                />
-                <button className="bg-brand hover:bg-brand-hover border-l border-white/10 transition-colors px-4 flex items-center justify-center shrink-0">
-                  <Icon name="send" className="text-[16px] text-white" />
-                </button>
+              <div className="relative w-full flex-1 min-h-[160px] rounded-xl overflow-hidden border border-white/10 group">
+                <Link href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3!4m6!3m5!1s0x310951a618265c67:0x159b1d2bb350bbae!8m2!3d11.5568858!4d104.8872782!16s%2Fg%2F1q665w1lh?entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noreferrer" className="block w-full h-full relative">
+                  <iframe 
+                    src="https://maps.google.com/maps?q=Phnom%20Penh%20Teacher%20Education%20College&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                    width="100%" 
+                    height="100%" 
+                    style={{ border: 0, pointerEvents: 'none' }} 
+                    allowFullScreen={false} 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="PTEC Location Map"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </Link>
               </div>
             </div>
 

@@ -163,7 +163,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold text-text-heading">
-                {user.full_name || user.email}
+                {user.full_name || "Welcome User"}
               </p>
               <p className="truncate text-xs text-text-muted">{user.email}</p>
             </div>

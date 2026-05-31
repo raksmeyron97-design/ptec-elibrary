@@ -21,7 +21,8 @@ export type IconName =
   | "search-off"
   | "send"
   | "star"
-  | "bell";
+  | "bell"
+  | "external-link";
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -150,6 +151,13 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
       <path d="M10 21h4" />
+    </>
+  ),
+  "external-link": (
+    <>
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
     </>
   ),
 };

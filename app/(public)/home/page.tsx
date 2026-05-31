@@ -49,7 +49,7 @@ async function getRecentPosts() {
        author:profiles(full_name, email)`)
     .eq("is_published", true)
     .order("created_at", { ascending: false })
-    .limit(3);
+    .limit(4);
   return (data ?? []).map((p: any) => ({
     id: p.id as string,
     title: p.title as string,
@@ -315,62 +315,86 @@ export default async function HomePage() {
 
       {/* ════════ LATEST POSTS ════════ */}
       {recentPosts.length > 0 && (
-        <section className="border-t border-divider bg-bg-surface">
-          <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-            <div className="mb-9 flex items-end justify-between gap-5">
-              <SectionTitle as="h2" className="!mb-0">Latest Posts</SectionTitle>
-              <Link href="/posts" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
-                All posts →
-              </Link>
+        <section className="bg-bg-surface py-20">
+          <div className="mx-auto max-w-[1400px] px-4 md:px-12">
+            <div className="mb-10 flex flex-col items-center text-center">
+              <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-brand mb-3">Stay Updated</span>
+              <SectionTitle as="h2" className="!mb-4">Latest Insights & Announcements</SectionTitle>
+              <p className="max-w-2xl text-[15px] leading-relaxed text-text-muted">
+                Discover the latest research insights, library announcements, and educational resources from our community.
+              </p>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {recentPosts.map((post) => {
+            
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              {recentPosts.map((post, i) => {
                 const style = categoryStyles[post.category] ?? categoryStyles.Other;
                 return (
                   <Link key={post.id} href={`/posts/${post.slug}`}
-                    className="group flex flex-col overflow-hidden rounded-lg border border-divider bg-bg-surface shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
-                    <div className="relative h-44 w-full overflow-hidden">
+                    className={`group flex flex-col overflow-hidden rounded-2xl border border-divider/50 bg-paper shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-brand/5 ${i === 0 ? "sm:col-span-2 sm:row-span-2" : ""}`}>
+                    <div className={`relative w-full overflow-hidden ${i === 0 ? "h-64 sm:h-80" : "h-48"}`}>
                       {post.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.coverUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        <img src={post.coverUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
                       ) : (
-                        <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-6`}>
-                          <span className="line-clamp-3 text-center font-khmer-serif text-lg font-bold leading-snug text-white/90">
+                        <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-6 transition-transform duration-700 group-hover:scale-105`}>
+                          <span className={`line-clamp-3 text-center font-khmer-serif font-bold leading-snug text-white/90 ${i === 0 ? "text-2xl" : "text-lg"}`}>
                             {post.title}
                           </span>
                         </div>
                       )}
-                      <div className="absolute left-3 top-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full ${style.bg} px-2.5 py-1 text-[11px] font-bold ${style.text}`}>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                      <div className="absolute left-4 top-4">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full ${style.bg} px-3 py-1.5 text-[11px] font-bold ${style.text} shadow-sm backdrop-blur-md bg-white/90`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />{post.category}
                         </span>
                       </div>
-                      <div className="absolute right-3 top-3">
-                        <span className="rounded-full bg-black/40 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">{timeAgo(post.createdAt)}</span>
-                      </div>
                     </div>
-                    <div className="flex flex-1 flex-col p-5">
-                      <h3 className="mb-2 line-clamp-2 font-khmer-serif text-[16px] font-bold leading-snug text-text-heading transition group-hover:text-brand">
+                    
+                    <div className={`flex flex-1 flex-col p-6 ${i === 0 ? "sm:p-8" : ""}`}>
+                      <div className="mb-3 flex items-center gap-3 text-[12px] font-medium text-text-muted">
+                        <span className="flex items-center gap-1.5">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          {formatDate(post.createdAt)}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1.5">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          {timeAgo(post.createdAt)}
+                        </span>
+                      </div>
+                      
+                      <h3 className={`mb-3 line-clamp-2 font-khmer-serif font-bold leading-snug text-text-heading transition-colors group-hover:text-brand ${i === 0 ? "text-xl sm:text-2xl" : "text-[16px]"}`}>
                         {post.title}
                       </h3>
+                      
                       {post.excerpt && (
-                        <p className="mb-4 line-clamp-2 text-[13px] leading-relaxed text-text-muted">
+                        <p className={`mb-6 line-clamp-2 leading-relaxed text-text-muted ${i === 0 ? "text-[15px]" : "text-[13px]"}`}>
                           {post.excerpt}
                         </p>
                       )}
-                      <div className="mt-auto flex items-center justify-between border-t border-divider pt-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/5 text-[10px] font-bold text-brand">
+                      
+                      <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand to-blue-700 text-[11px] font-bold text-white shadow-sm">
                             {post.author.charAt(0).toUpperCase()}
                           </div>
-                          <span className="max-w-[120px] truncate text-[12px] font-medium text-text-muted">{post.author}</span>
+                          <span className="max-w-[140px] truncate text-[13px] font-semibold text-text-heading">{post.author}</span>
                         </div>
-                        <span className="text-[11px] tabular-nums text-text-muted">{formatDate(post.createdAt)}</span>
+                        <span className="flex items-center gap-1 text-[12px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
+                          Read more <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                        </span>
                       </div>
                     </div>
                   </Link>
                 );
               })}
+            </div>
+            
+            <div className="mt-12 text-center">
+              <Link href="/posts" className="inline-flex items-center gap-2 rounded-full border border-divider/50 bg-paper px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md">
+                View all posts
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+              </Link>
             </div>
           </div>
         </section>

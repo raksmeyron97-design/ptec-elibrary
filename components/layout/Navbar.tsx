@@ -175,12 +175,14 @@ export default async function Navbar() {
             <div className="flex items-center gap-10">
               <Link
                 href="/"
-                className="flex items-center gap-3 group"
+                className="flex items-center gap-2 sm:gap-3 group shrink-0"
               >
-                <Seal size={48} />
-                <div className="hidden sm:flex flex-col text-text-heading group-hover:opacity-90 transition-opacity">
-                  <span className="font-khmer-serif font-bold text-[15px] leading-tight">បណ្ណាល័យ វ.គ.រ.ភ</span>
-                  <span className="font-khmer-serif font-bold text-sm tracking-wide mt-0.5">PTEC Library</span>
+                <div className="shrink-0 scale-90 sm:scale-100 origin-left">
+                  <Seal size={48} />
+                </div>
+                <div className="flex flex-col text-[#1000C0] group-hover:opacity-90 transition-opacity whitespace-nowrap overflow-hidden">
+                  <span className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.រ.ភ</span>
+                  <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
                 </div>
               </Link>
 
