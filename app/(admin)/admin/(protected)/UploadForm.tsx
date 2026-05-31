@@ -263,15 +263,15 @@ export default function UploadForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8"
+      className="grid gap-5 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:grid-cols-2 md:p-8"
     >
-      <h2 className="text-lg font-bold text-slate-800 md:col-span-2">
+      <h2 className="text-lg font-bold text-text-heading md:col-span-2">
         Add new book
       </h2>
 
       {/* PDF file */}
       <label className="md:col-span-2">
-        <span className="mb-2 block text-sm font-semibold text-slate-700">
+        <span className="mb-2 block text-sm font-semibold text-text-body">
           PDF file <span className="text-red-500">*</span>
         </span>
         <input
@@ -280,15 +280,15 @@ export default function UploadForm() {
           accept="application/pdf"
           required
           disabled={busy}
-          className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600 transition hover:border-[#007c91] file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-[#007c91] file:px-4 file:py-2 file:font-semibold file:text-white disabled:opacity-50"
+          className="block w-full rounded-lg border border-dashed border-divider bg-paper px-4 py-4 text-sm text-text-body transition hover:border-brand file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-brand file:px-4 file:py-2 file:font-semibold file:text-white disabled:opacity-50"
         />
       </label>
 
       {/* Cover image */}
       <label className="md:col-span-2">
-        <span className="mb-1 block text-sm font-semibold text-slate-700">
+        <span className="mb-1 block text-sm font-semibold text-text-body">
           Cover image{" "}
-          <span className="font-normal text-slate-400">(optional — JPEG, PNG, WebP · max 5 MB)</span>
+          <span className="font-normal text-text-muted">(optional — JPEG, PNG, WebP · max 5 MB)</span>
         </span>
         <input
           name="cover"
@@ -296,11 +296,11 @@ export default function UploadForm() {
           accept="image/jpeg,image/png,image/webp,image/avif"
           disabled={busy}
           onChange={handleCoverChange}
-          className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600 transition hover:border-[#007c91] file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:font-semibold file:text-slate-700 disabled:opacity-50"
+          className="block w-full rounded-lg border border-dashed border-divider bg-paper px-4 py-4 text-sm text-text-body transition hover:border-brand file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-paper file:px-4 file:py-2 file:font-semibold file:text-text-body disabled:opacity-50"
         />
         {coverPreview ? (
           <div className="mt-3 flex items-start gap-3">
-            <div className="relative h-[140px] w-[100px] shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 shadow-sm">
+            <div className="relative h-[140px] w-[100px] shrink-0 overflow-hidden rounded-lg border border-divider bg-paper shadow-sm">
               <img
                 src={coverPreview}
                 alt="Cover preview"
@@ -316,7 +316,7 @@ export default function UploadForm() {
             </button>
           </div>
         ) : (
-          <p className="mt-1.5 text-xs text-slate-400">
+          <p className="mt-1.5 text-xs text-text-muted">
             If left empty, a colored placeholder is used automatically.
           </p>
         )}
@@ -325,7 +325,7 @@ export default function UploadForm() {
       {/* Text fields */}
       {TEXT_FIELDS.map((f) => (
         <label key={f.name}>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
             {f.label}{" "}
             {f.required && <span className="text-red-500">*</span>}
           </span>
@@ -334,7 +334,7 @@ export default function UploadForm() {
             required={f.required}
             placeholder={f.placeholder}
             disabled={busy}
-            className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+            className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
           />
         </label>
       ))}
@@ -342,14 +342,14 @@ export default function UploadForm() {
       {/* Category */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="block text-sm font-semibold text-slate-700">
+          <span className="block text-sm font-semibold text-text-body">
             Category <span className="text-red-500">*</span>
           </span>
           {!showNewCat && (
             <button
               type="button"
               onClick={() => setShowNewCat(true)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition"
             >
               <span className="text-base leading-none">+</span> Add new category
             </button>
@@ -370,19 +370,19 @@ export default function UploadForm() {
               onChange={(e) => setNewCatName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
               placeholder="New category name"
-              className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+              className="h-9 flex-1 rounded-lg border border-divider px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
             />
             <button
               type="button"
               onClick={handleAddCategory}
-              className="h-9 rounded-lg bg-[#007c91] px-3 text-xs font-semibold text-white transition hover:bg-[#005f6b]"
+              className="h-9 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover"
             >
               Add
             </button>
             <button
               type="button"
               onClick={() => { setShowNewCat(false); setNewCatName(""); }}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+              className="h-9 rounded-lg border border-divider px-3 text-xs font-semibold text-text-muted transition hover:bg-paper"
             >
               Cancel
             </button>
@@ -392,7 +392,7 @@ export default function UploadForm() {
 
       {/* Language */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Language <span className="text-red-500">*</span>
         </span>
         <select
@@ -400,7 +400,7 @@ export default function UploadForm() {
           required
           defaultValue="Khmer"
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         >
           {LANGUAGES.map((lang) => (
             <option key={lang} value={lang}>{lang}</option>
@@ -411,14 +411,14 @@ export default function UploadForm() {
       {/* Department */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="block text-sm font-semibold text-slate-700">
+          <span className="block text-sm font-semibold text-text-body">
             Department <span className="text-red-500">*</span>
           </span>
           {!showNewDept && (
             <button
               type="button"
               onClick={() => setShowNewDept(true)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition"
             >
               <span className="text-base leading-none">+</span> Add new department
             </button>
@@ -439,19 +439,19 @@ export default function UploadForm() {
               onChange={(e) => setNewDeptName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddDepartment(); } }}
               placeholder="New department name"
-              className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+              className="h-9 flex-1 rounded-lg border border-divider px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
             />
             <button
               type="button"
               onClick={handleAddDepartment}
-              className="h-9 rounded-lg bg-[#007c91] px-3 text-xs font-semibold text-white transition hover:bg-[#005f6b]"
+              className="h-9 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover"
             >
               Add
             </button>
             <button
               type="button"
               onClick={() => { setShowNewDept(false); setNewDeptName(""); }}
-              className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
+              className="h-9 rounded-lg border border-divider px-3 text-xs font-semibold text-text-muted transition hover:bg-paper"
             >
               Cancel
             </button>
@@ -461,7 +461,7 @@ export default function UploadForm() {
 
       {/* Year */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Year</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Year</span>
         <input
           name="year"
           type="number"
@@ -469,26 +469,26 @@ export default function UploadForm() {
           max="2099"
           defaultValue={new Date().getFullYear()}
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Pages */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pages</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Pages</span>
         <input
           name="pages"
           type="number"
           min="1"
           defaultValue="1"
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Summary */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Summary <span className="text-red-500">*</span>
         </span>
         <textarea
@@ -497,7 +497,7 @@ export default function UploadForm() {
           rows={4}
           disabled={busy}
           placeholder="Short description for readers..."
-          className="w-full resize-none rounded-lg border border-slate-200 p-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+          className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
         />
       </label>
 
@@ -520,7 +520,7 @@ export default function UploadForm() {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#0a1629] px-6 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="pdf" className="text-lg" />
           {phaseLabel[phase]}

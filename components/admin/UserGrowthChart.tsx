@@ -129,7 +129,7 @@ export default function UserGrowthChart({ data }: { data: GrowthPoint[] }) {
         <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs text-white shadow-lg"
           style={{ left: points[hover].x, top: points[hover].y - 10 }}>
           <div className="font-semibold">{points[hover].count} total users</div>
-          <div className="text-[10px] text-slate-300">
+          <div className="text-[10px] text-text-muted">
             {points[hover].added > 0 ? `+${points[hover].added} new · ` : ""}{fmt(points[hover].date)}
           </div>
         </div>

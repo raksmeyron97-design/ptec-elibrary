@@ -15,12 +15,12 @@ export default function CatalogsError({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-bg-app">
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 py-6 md:px-12">
+      <div className="bg-bg-surface border-b border-divider px-4 py-6 md:px-12">
         <div className="mx-auto max-w-[1400px]">
-          <h1 className="text-2xl font-bold text-[#0a1629]">Books In Library</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-2xl font-bold text-text-heading">Books In Library</h1>
+          <p className="text-sm text-text-muted mt-0.5">
             Find physical books available at PTEC Library
           </p>
         </div>
@@ -28,7 +28,7 @@ export default function CatalogsError({
 
       {/* Error state */}
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-12">
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-red-200 bg-white p-10 text-center">
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-red-200 bg-bg-surface p-10 text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <svg
               className="h-7 w-7 text-red-400"
@@ -44,22 +44,22 @@ export default function CatalogsError({
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-slate-800">
+          <h2 className="text-xl font-bold text-text-heading">
             Something went wrong
           </h2>
-          <p className="mt-2 max-w-md text-sm text-slate-500">
+          <p className="mt-2 max-w-md text-sm text-text-muted">
             We couldn&apos;t load the book catalogue. This might be a temporary
             issue &mdash; please try again.
           </p>
           {error.digest && (
-            <p className="mt-2 text-xs text-slate-400 font-mono">
+            <p className="mt-2 text-xs text-text-muted font-mono">
               Error ref: {error.digest}
             </p>
           )}
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={reset}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0a1629] px-6 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-950 px-6 text-sm font-semibold text-white transition hover:bg-brand"
             >
               <svg
                 className="h-4 w-4"
@@ -77,7 +77,7 @@ export default function CatalogsError({
             </button>
             <a
               href="/home"
-              className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+              className="inline-flex h-10 items-center rounded-xl border border-divider bg-bg-surface px-6 text-sm font-semibold text-text-body transition hover:border-divider hover:text-text-heading"
             >
               Go home
             </a>

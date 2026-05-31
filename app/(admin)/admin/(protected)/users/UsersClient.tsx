@@ -75,8 +75,8 @@ export default function UsersClient({
     <div className="space-y-4">
 
       {/* Search */}
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <div className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm">
+        <svg className="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input
@@ -84,12 +84,12 @@ export default function UsersClient({
           value={query}
           onChange={(e) => { setQuery(e.target.value); }}
           placeholder="Search by name or email…"
-          className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
+          className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
         />
         {query && (
-          <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">✕</button>
+          <button onClick={() => setQuery("")} className="text-text-muted hover:text-text-body">✕</button>
         )}
-        <span className="text-xs text-slate-400">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-text-muted">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
       </div>
 
       {error && (
@@ -97,11 +97,11 @@ export default function UsersClient({
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3 hidden md:table-cell">Email</th>
@@ -113,7 +113,7 @@ export default function UsersClient({
             <tbody className="divide-y divide-slate-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-text-muted">
                     No users found{query ? ` for "${query}"` : ""}.
                   </td>
                 </tr>
@@ -123,15 +123,15 @@ export default function UsersClient({
                   const isToggling = togglingId === u.id;
 
                   return (
-                    <tr key={u.id} className={`transition-colors hover:bg-slate-50/80 ${isToggling ? "opacity-50" : ""}`}>
+                    <tr key={u.id} className={`transition-colors hover:bg-paper/80 ${isToggling ? "opacity-50" : ""}`}>
                       {/* # */}
-                      <td className="px-4 py-3 text-xs text-slate-400 tabular-nums">{idx + 1}</td>
+                      <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{idx + 1}</td>
 
                       {/* User */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           {/* Avatar */}
-                          <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-[#007c91] text-xs font-bold text-white">
+                          <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-brand text-xs font-bold text-white">
                             {u.avatarUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={u.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -140,23 +140,23 @@ export default function UsersClient({
                             )}
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-800 leading-tight">
-                              {u.fullName ?? <span className="text-slate-400 italic">No name</span>}
+                            <p className="font-semibold text-text-heading leading-tight">
+                              {u.fullName ?? <span className="text-text-muted italic">No name</span>}
                               {isMe && (
                                 <span className="ml-2 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700">You</span>
                               )}
                             </p>
                             {/* Email on mobile */}
-                            <p className="text-xs text-slate-400 md:hidden">{u.email}</p>
+                            <p className="text-xs text-text-muted md:hidden">{u.email}</p>
                           </div>
                         </div>
                       </td>
 
                       {/* Email */}
-                      <td className="px-4 py-3 hidden md:table-cell text-slate-500 text-xs">{u.email}</td>
+                      <td className="px-4 py-3 hidden md:table-cell text-text-muted text-xs">{u.email}</td>
 
                       {/* Joined */}
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-400 text-xs tabular-nums">
+                      <td className="px-4 py-3 hidden lg:table-cell text-text-muted text-xs tabular-nums">
                         {new Date(u.createdAt).toLocaleDateString("en-GB", {
                           day: "2-digit", month: "short", year: "numeric",
                         })}
@@ -167,7 +167,7 @@ export default function UsersClient({
                         <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
                           u.role === "admin"
                             ? "bg-amber-50 text-amber-700"
-                            : "bg-slate-100 text-slate-500"
+                            : "bg-paper text-text-muted"
                         }`}>
                           {u.role}
                         </span>
@@ -176,14 +176,14 @@ export default function UsersClient({
                       {/* Action */}
                       <td className="px-4 py-3 text-right">
                         {isMe ? (
-                          <span className="text-xs text-slate-300 italic">—</span>
+                          <span className="text-xs text-text-muted italic">—</span>
                         ) : (
                           <button
                             onClick={() => handleToggle(u)}
                             disabled={isToggling || !!togglingId}
                             className={`rounded px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                               u.role === "admin"
-                                ? "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                                ? "border border-divider bg-paper text-text-body hover:bg-red-50 hover:text-red-600 hover:border-red-200"
                                 : "border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
                             }`}
                           >

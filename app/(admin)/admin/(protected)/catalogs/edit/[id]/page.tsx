@@ -36,7 +36,7 @@ export default async function EditCatalogBookPage({
   const categories = [...new Set((catRows ?? []).map((r: any) => r.category).filter(Boolean))].sort();
 
   return (
-    <section className="min-h-screen bg-slate-50 px-4 py-8 md:px-12">
+    <section className="min-h-screen bg-paper px-4 py-8 md:px-12">
       <div className="mx-auto max-w-[760px]">
         <EditBookWizard book={b} categories={categories} />
       </div>

@@ -57,11 +57,11 @@
   --color-info: #2A47A6;
 
   /* Fonts */
-  --font-serif: var(--font-var-serif), ui-serif, Georgia, serif;
+  --font-khmer-serif: var(--font-var-serif), ui-serif, Georgia, serif;
   --font-sans: var(--font-var-sans), Arial, Helvetica, sans-serif;
   --font-khmer-serif: var(--font-var-khmer-serif), serif;
   --font-title: var(--font-var-angkor);
-  --font-body: var(--font-var-battambang);
+  --font-body: var(--font-var-kantumruy-pro);
   
   /* Shape, elevation */
   --radius-sm: 4px;

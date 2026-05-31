@@ -54,11 +54,11 @@ function makeRow(defaults: Partial<CopyRow> = {}): CopyRow {
 }
 
 const inputCls = `
-  w-full rounded-lg border border-slate-200 bg-white px-3 py-2
-  text-sm text-slate-800 placeholder:text-slate-400
+  w-full rounded-lg border border-divider bg-bg-surface px-3 py-2
+  text-sm text-text-heading placeholder:text-text-muted
   outline-none transition
-  focus:border-[#007c91]/60 focus:ring-2 focus:ring-[#007c91]/12
-  disabled:bg-slate-50 disabled:text-slate-400
+  focus:border-brand/60 focus:ring-2 focus:ring-focus-ring/12
+  disabled:bg-paper disabled:text-text-muted
 `;
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -164,10 +164,10 @@ export default function AddCopiesClient({
     <div className="space-y-4">
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-5 py-3 shadow-sm">
+      <div className="flex items-center justify-between rounded-xl border border-divider bg-bg-surface px-5 py-3 shadow-sm">
         <div className="flex items-center gap-4 text-sm">
-          <span className="text-slate-500">
-            <span className="font-bold text-slate-800">{rows.length}</span> cop{rows.length !== 1 ? "ies" : "y"} total
+          <span className="text-text-muted">
+            <span className="font-bold text-text-heading">{rows.length}</span> cop{rows.length !== 1 ? "ies" : "y"} total
           </span>
           {savedCount > 0 && (
             <span className="flex items-center gap-1.5 font-semibold text-emerald-600">
@@ -176,8 +176,8 @@ export default function AddCopiesClient({
             </span>
           )}
           {unsavedCount > 0 && (
-            <span className="flex items-center gap-1.5 text-slate-400">
-              <span className="h-2 w-2 rounded-full bg-slate-300" />
+            <span className="flex items-center gap-1.5 text-text-muted">
+              <span className="h-2 w-2 rounded-full bg-paper" />
               {unsavedCount} pending
             </span>
           )}
@@ -185,12 +185,12 @@ export default function AddCopiesClient({
 
         {/* Quick-add buttons */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">Quick add:</span>
+          <span className="text-xs text-text-muted">Quick add:</span>
           {[1, 3, 5, 10].map((n) => (
             <button
               key={n}
               onClick={() => addManyRows(n)}
-              className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#007c91] hover:text-[#007c91]"
+              className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
             >
               +{n}
             </button>
@@ -203,18 +203,18 @@ export default function AddCopiesClient({
         {rows.map((row, idx) => (
           <div
             key={row.id}
-            className={`rounded-2xl border bg-white shadow-sm transition-all ${
+            className={`rounded-2xl border bg-bg-surface shadow-sm transition-all ${
               row.saved
                 ? "border-emerald-200 bg-emerald-50/40"
                 : row.error
                 ? "border-red-200"
-                : "border-slate-100"
+                : "border-divider"
             }`}
           >
             {/* Row header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+            <div className="flex items-center justify-between border-b border-divider px-5 py-3">
               <div className="flex items-center gap-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-paper text-[11px] font-bold text-text-muted">
                   {idx + 1}
                 </span>
                 {row.saved ? (
@@ -225,9 +225,9 @@ export default function AddCopiesClient({
                     Saved
                   </span>
                 ) : row.barcode ? (
-                  <span className="font-mono text-xs font-semibold text-slate-500">{row.barcode}</span>
+                  <span className="font-mono text-xs font-semibold text-text-muted">{row.barcode}</span>
                 ) : (
-                  <span className="text-xs text-slate-400">Copy {idx + 1}</span>
+                  <span className="text-xs text-text-muted">Copy {idx + 1}</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ export default function AddCopiesClient({
                   <button
                     onClick={() => saveRow(row)}
                     disabled={row.saving}
-                    className="rounded-lg border border-[#007c91]/30 px-3 py-1 text-xs font-semibold text-[#007c91] transition hover:bg-[#007c91]/5 disabled:opacity-50"
+                    className="rounded-lg border border-brand/30 px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand/5 disabled:opacity-50"
                   >
                     {row.saving ? "Saving…" : "Save"}
                   </button>
@@ -245,7 +245,7 @@ export default function AddCopiesClient({
                 {!row.saved && rows.length > 1 && (
                   <button
                     onClick={() => removeRow(row.id)}
-                    className="rounded-lg p-1.5 text-slate-300 transition hover:text-red-400"
+                    className="rounded-lg p-1.5 text-text-muted transition hover:text-red-400"
                     aria-label="Remove row"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -261,7 +261,7 @@ export default function AddCopiesClient({
 
               {/* Barcode */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
                   Barcode
                 </label>
                 <input
@@ -275,7 +275,7 @@ export default function AddCopiesClient({
 
               {/* Call Number */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
                   Call Number
                 </label>
                 <input
@@ -289,7 +289,7 @@ export default function AddCopiesClient({
 
               {/* Shelf Location */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
                   Shelf Location
                 </label>
                 <input
@@ -303,7 +303,7 @@ export default function AddCopiesClient({
 
               {/* Holding Library */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
                   Holding Library
                 </label>
                 <input
@@ -316,7 +316,7 @@ export default function AddCopiesClient({
 
               {/* Status */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
                   Status
                 </label>
                 <div className="relative">
@@ -336,8 +336,8 @@ export default function AddCopiesClient({
 
               {/* Notes */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Notes <span className="font-normal normal-case text-slate-300">(optional)</span>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
+                  Notes <span className="font-normal normal-case text-text-muted">(optional)</span>
                 </label>
                 <input
                   value={row.notes}
@@ -362,7 +362,7 @@ export default function AddCopiesClient({
       {/* Add another row button */}
       <button
         onClick={addRow}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-semibold text-slate-400 transition hover:border-[#007c91]/40 hover:text-[#007c91]"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-divider py-4 text-sm font-semibold text-text-muted transition hover:border-brand/40 hover:text-brand"
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -378,17 +378,17 @@ export default function AddCopiesClient({
       )}
 
       {/* Footer actions */}
-      <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-6 py-4 shadow-sm">
+      <div className="flex items-center justify-between rounded-2xl border border-divider bg-bg-surface px-6 py-4 shadow-sm">
         <button
           onClick={handleGoToAdmin}
-          className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body transition hover:bg-paper"
         >
           Save &amp; go to admin
         </button>
 
         <button
           onClick={handleFinish}
-          className="rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
+          className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
         >
           Save &amp; Finish →
         </button>

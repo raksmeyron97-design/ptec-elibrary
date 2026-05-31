@@ -6,7 +6,7 @@ interface SectionTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
 }
 
 export function SectionTitle({ children, as: Component = 'h2', className = '', ...props }: SectionTitleProps) {
-  const baseStyles = 'font-serif text-text-heading relative pb-3 mb-6';
+  const baseStyles = 'font-khmer-serif text-text-heading relative pb-3 mb-6';
   const sizes = {
     h1: 'text-3xl md:text-4xl',
     h2: 'text-2xl md:text-3xl',

@@ -135,7 +135,7 @@ export default async function AdminCatalogsPage({
         <CsvImportModal />
         <Link
           href="/admin/catalogs/add"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#1E3A8A] px-5 text-sm font-semibold text-white transition hover:bg-[#152a66]"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
             <path d="M12 5v14M5 12h14" strokeLinecap="round" />
@@ -152,9 +152,9 @@ export default async function AdminCatalogsPage({
           { label: "Available Copies", value: availCopies,               color: "text-emerald-600" },
           { label: "Checked Out",      value: totalCopies - availCopies, color: "text-amber-500" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
-            <p className="text-xs text-slate-400 font-medium">{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${color ?? "text-slate-800"}`}>{value}</p>
+          <div key={label} className="rounded-xl bg-bg-surface border border-divider p-4 shadow-sm">
+            <p className="text-xs text-text-muted font-medium">{label}</p>
+            <p className={`text-2xl font-bold mt-1 ${color ?? "text-text-heading"}`}>{value}</p>
           </div>
         ))}
       </div>
@@ -168,13 +168,13 @@ export default async function AdminCatalogsPage({
       />
 
       {/* ── Table ── */}
-      <div className="rounded-xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+      <div className="rounded-xl bg-bg-surface border border-divider shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
+              <tr className="border-b border-divider bg-paper/60 text-left">
                 {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
                     {h}
                   </th>
                 ))}
@@ -183,9 +183,9 @@ export default async function AdminCatalogsPage({
             <tbody className="divide-y divide-slate-50">
               {pageBooks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-16 text-center text-text-muted">
                     {q
-                      ? <>No books matched <span className="font-semibold text-slate-500">&ldquo;{q}&rdquo;</span>. Try a different search.</>
+                      ? <>No books matched <span className="font-semibold text-text-muted">&ldquo;{q}&rdquo;</span>. Try a different search.</>
                       : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
                   </td>
                 </tr>
@@ -194,25 +194,25 @@ export default async function AdminCatalogsPage({
                 const txtCls = AVAILABILITY_COLOR[statusKey];
                 const dotCls = AVAILABILITY_DOT[statusKey];
                 return (
-                  <tr key={book.id} className={`hover:bg-slate-50/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
+                  <tr key={book.id} className={`hover:bg-paper/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
                     {/* Title */}
                     <td className="px-4 py-3 max-w-[240px]">
-                      <p className="font-semibold text-slate-800 truncate">{book.title}</p>
-                      <p className="text-xs text-slate-400 truncate">{book.author}</p>
-                      {book.isbn && <p className="text-[10px] text-slate-300 font-mono">{book.isbn}</p>}
+                      <p className="font-semibold text-text-heading truncate">{book.title}</p>
+                      <p className="text-xs text-text-muted truncate">{book.author}</p>
+                      {book.isbn && <p className="text-[10px] text-text-muted font-mono">{book.isbn}</p>}
                       {!book.is_active && (
                         <span className="text-[10px] font-bold text-red-400">DELETED</span>
                       )}
                     </td>
                     {/* Category */}
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                      {book.category ?? <span className="text-slate-300">—</span>}
+                    <td className="px-4 py-3 text-text-muted whitespace-nowrap">
+                      {book.category ?? <span className="text-text-muted">—</span>}
                     </td>
                     {/* Shelf */}
                     <td className="px-4 py-3">
                       {book.shelf_location
-                        ? <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-md text-slate-600">{book.shelf_location}</span>
-                        : <span className="text-slate-300">—</span>}
+                        ? <span className="font-mono text-xs bg-paper px-2 py-0.5 rounded-md text-text-body">{book.shelf_location}</span>
+                        : <span className="text-text-muted">—</span>}
                     </td>
                     {/* Availability */}
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -224,7 +224,7 @@ export default async function AdminCatalogsPage({
                     {/* Copies */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`font-bold ${txtCls}`}>{book.copies_available}</span>
-                      <span className="text-slate-400">/{book.copies_total}</span>
+                      <span className="text-text-muted">/{book.copies_total}</span>
                     </td>
                     {/* Actions */}
                     <td className="px-4 py-3">

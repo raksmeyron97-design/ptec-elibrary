@@ -110,7 +110,7 @@ export default function CsvImportModal() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        className="inline-flex h-10 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-5 text-sm font-semibold text-text-body transition hover:bg-paper"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -122,12 +122,12 @@ export default function CsvImportModal() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+          <div className="w-full max-w-2xl rounded-2xl bg-bg-surface shadow-2xl overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
-              <h2 className="font-bold text-slate-800">Import Books from CSV</h2>
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 transition">
+            <div className="flex items-center justify-between border-b border-divider bg-paper px-6 py-4">
+              <h2 className="font-bold text-text-heading">Import Books from CSV</h2>
+              <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
                 </svg>
@@ -137,23 +137,23 @@ export default function CsvImportModal() {
             <div className="p-6 space-y-4">
 
               {/* Format hint */}
-              <div className="rounded-xl bg-[#007c91]/8 border border-[#007c91]/20 p-4">
-                <p className="text-xs font-semibold text-[#007c91] mb-2">
-                  CSV Format <span className="font-normal text-slate-500">(required: title, author)</span>
+              <div className="rounded-xl bg-brand/8 border border-brand/20 p-4">
+                <p className="text-xs font-semibold text-brand mb-2">
+                  CSV Format <span className="font-normal text-text-muted">(required: title, author)</span>
                 </p>
-                <pre className="text-[10px] text-slate-600 overflow-x-auto leading-relaxed whitespace-pre">
+                <pre className="text-[10px] text-text-body overflow-x-auto leading-relaxed whitespace-pre">
                   {`title, author, isbn, year, language, category,\ndepartment, shelf_location, copies_total,\ndescription, accession_number, barcode, cover_url`}
                 </pre>
 
                 {/* Google Drive note */}
-                <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-brand/5 border border-blue-100 px-3 py-2">
                   <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M4.433 22l4-6.928H22l-4 6.928H4.433zm-.866-1.5L2 17.072 9.567 4h3.464L5.433 17.072 3.567 20.5zm15.3-3.428H8.3l-1.732-3H17.3l1.733 3z" />
                   </svg>
-                  <p className="text-[10px] leading-relaxed text-blue-700">
+                  <p className="text-[10px] leading-relaxed text-brand">
                     <span className="font-bold">Google Drive links auto-converted.</span>{" "}
                     Paste share links directly in{" "}
-                    <code className="font-mono bg-blue-100 px-1 rounded">cover_url</code>{" "}
+                    <code className="font-mono bg-brand/10 px-1 rounded">cover_url</code>{" "}
                     — converted to direct image URLs on import.
                     Semicolon / tab delimiters also supported.
                   </p>
@@ -167,7 +167,7 @@ export default function CsvImportModal() {
                     a.download = "catalog_import_template.csv";
                     a.click();
                   }}
-                  className="mt-2 text-xs font-semibold text-[#007c91] hover:underline"
+                  className="mt-2 text-xs font-semibold text-brand hover:underline"
                 >
                   ↓ Download template CSV
                 </button>
@@ -175,25 +175,25 @@ export default function CsvImportModal() {
 
               {/* File upload */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Upload CSV File</label>
+                <label className="block text-xs font-semibold text-text-muted mb-1.5">Upload CSV File</label>
                 <input
                   ref={fileRef}
                   type="file"
                   accept=".csv,text/csv"
                   onChange={handleFile}
-                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-200 transition"
+                  className="block w-full text-sm text-text-body file:mr-3 file:rounded-lg file:border-0 file:bg-paper file:px-4 file:py-1.5 file:text-xs file:font-semibold file:text-text-body hover:file:bg-paper transition"
                 />
               </div>
 
               {/* Manual paste */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Or paste CSV text</label>
+                <label className="block text-xs font-semibold text-text-muted mb-1.5">Or paste CSV text</label>
                 <textarea
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
                   rows={6}
                   placeholder={CSV_TEMPLATE}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-mono text-slate-700 outline-none focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 resize-none"
+                  className="w-full rounded-xl border border-divider bg-paper px-3 py-2.5 text-xs font-mono text-text-body outline-none focus:border-brand focus:ring-2 focus:ring-focus-ring/15 resize-none"
                 />
               </div>
 
@@ -202,7 +202,7 @@ export default function CsvImportModal() {
                 const lines = csvText.trim().split(/\r?\n/).slice(1).filter(Boolean);
                 return (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-text-muted">
                       {lines.length} row{lines.length !== 1 ? "s" : ""} detected
                     </p>
 
@@ -218,7 +218,7 @@ export default function CsvImportModal() {
 
                     {/* Drive links badge */}
                     {driveLinks > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[10px] font-semibold text-blue-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand/5 border border-blue-200 px-2.5 py-0.5 text-[10px] font-semibold text-brand">
                         <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M4.433 22l4-6.928H22l-4 6.928H4.433zm-.866-1.5L2 17.072 9.567 4h3.464L5.433 17.072 3.567 20.5zm15.3-3.428H8.3l-1.732-3H17.3l1.733 3z" />
                         </svg>
@@ -245,14 +245,14 @@ export default function CsvImportModal() {
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setOpen(false)}
-                  className="rounded-xl border border-slate-200 px-5 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  className="rounded-xl border border-divider px-5 py-2 text-sm font-semibold text-text-body transition hover:bg-paper"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleImport}
                   disabled={!csvText.trim() || isPending}
-                  className="rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] px-6 py-2 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50"
+                  className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-6 py-2 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50"
                 >
                   {isPending ? "Importing…" : "Import"}
                 </button>

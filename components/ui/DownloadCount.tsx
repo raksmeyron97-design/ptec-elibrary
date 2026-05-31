@@ -17,10 +17,10 @@ export default function DownloadCount({ count }: Props) {
       : String(count);
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F6F6F4] px-3 py-1.5 text-[13px] font-semibold text-slate-600">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1.5 text-[13px] font-semibold text-text-body">
       {/* download arrow icon */}
       <svg
-        className="h-3.5 w-3.5 text-slate-400"
+        className="h-3.5 w-3.5 text-text-muted"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"

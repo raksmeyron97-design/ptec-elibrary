@@ -17,12 +17,12 @@ export default function NavLinkActive({ href, label, icon }: NavLinkActiveProps)
   return (
     <Link
       href={href}
-      className={`relative flex items-center gap-2 text-[15px] font-serif py-6 transition-colors ${
-        isActive ? "text-brand font-semibold" : "text-slate-600 font-medium hover:text-text-heading"
+      className={`relative flex items-center gap-2 text-[15px] font-khmer-serif py-6 transition-colors ${
+        isActive ? "text-brand font-semibold" : "text-text-body font-medium hover:text-text-heading"
       }`}
     >
       {icon && (
-        <span className={`text-[18px] ${isActive ? "text-brand" : "text-slate-400"}`}>
+        <span className={`text-[18px] ${isActive ? "text-brand" : "text-text-muted"}`}>
           {icon}
         </span>
       )}

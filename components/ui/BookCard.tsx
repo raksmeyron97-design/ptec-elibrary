@@ -165,7 +165,7 @@ export default function BookCard({ book }: BookCardProps) {
               </div>
 
               {/* CTA */}
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand/5 px-3 py-1.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
                 {progress > 0 ? "Continue" : "View"}
                 <svg
                   className="h-3 w-3"

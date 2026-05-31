@@ -10,17 +10,17 @@ function StarBar({ rating, count, total }: { rating: number; count: number; tota
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2 text-xs">
-      <span className="w-3 text-right font-semibold text-slate-600">{rating}</span>
+      <span className="w-3 text-right font-semibold text-text-body">{rating}</span>
       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-amber-400 stroke-amber-400" strokeWidth={1}>
         <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
       </svg>
-      <div className="h-2 w-28 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-2 w-28 overflow-hidden rounded-full bg-paper">
         <div
           className="h-full rounded-full bg-amber-400 transition-all duration-500"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-6 text-slate-400">{count}</span>
+      <span className="w-6 text-text-muted">{count}</span>
     </div>
   );
 }
@@ -43,7 +43,7 @@ function Avatar({ name, email, avatarUrl }: { name: string | null; email: string
 
   // Deterministic color from initials
   const colors = [
-    "bg-[#007c91]", "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]",
+    "bg-brand", "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]",
     "bg-[#db2777]", "bg-[#16a34a]", "bg-[#ca8a04]", "bg-[#ea580c]",
   ];
   const colorIdx =
@@ -68,7 +68,7 @@ function ReviewCard({ review }: { review: Review }) {
   });
 
   return (
-    <article className="border-b border-slate-100 py-5 last:border-0 last:pb-0">
+    <article className="border-b border-divider py-5 last:border-0 last:pb-0">
       <div className="flex items-start gap-3">
         <Avatar
           name={profile?.full_name ?? null}
@@ -77,8 +77,8 @@ function ReviewCard({ review }: { review: Review }) {
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900">{displayName}</span>
-            <span className="text-xs text-slate-400">{date}</span>
+            <span className="text-sm font-semibold text-text-heading">{displayName}</span>
+            <span className="text-xs text-text-muted">{date}</span>
           </div>
 
           {/* Stars */}
@@ -100,7 +100,7 @@ function ReviewCard({ review }: { review: Review }) {
           </div>
 
           {review.content && (
-            <p className="mt-2 text-sm leading-6 text-slate-600">{review.content}</p>
+            <p className="mt-2 text-sm leading-6 text-text-body">{review.content}</p>
           )}
         </div>
       </div>
@@ -116,12 +116,12 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
   }));
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="rounded-xl border border-divider bg-bg-surface shadow-sm">
       {/* Header */}
-      <div className="flex flex-col gap-6 border-b border-slate-100 p-6 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-6 border-b border-divider p-6 sm:flex-row sm:items-center">
         {/* Big average */}
-        <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-slate-50 px-8 py-5">
-          <span className="text-5xl font-bold text-slate-900">
+        <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-paper px-8 py-5">
+          <span className="text-5xl font-bold text-text-heading">
             {totalCount > 0 ? avgRating.toFixed(1) : "—"}
           </span>
           <div className="mt-1.5 flex gap-0.5">
@@ -140,7 +140,7 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
               </svg>
             ))}
           </div>
-          <span className="mt-1 text-xs text-slate-500">
+          <span className="mt-1 text-xs text-text-muted">
             {totalCount} {totalCount === 1 ? "review" : "reviews"}
           </span>
         </div>
@@ -156,7 +156,7 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
       {/* Review list */}
       <div className="px-6 pb-2">
         {reviews.length === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-400">
+          <p className="py-8 text-center text-sm text-text-muted">
             No reviews yet — be the first to share your thoughts.
           </p>
         ) : (

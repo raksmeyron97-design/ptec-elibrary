@@ -37,7 +37,7 @@ export default function CatalogSearchBar() {
           placeholder="Search title, author, or ISBN…"
           className="
             h-11 w-full rounded-xl
-            border border-divider bg-white
+            border border-divider bg-bg-surface
             pl-10 pr-4 text-sm text-text-heading
             placeholder:text-text-muted caret-brand
             outline-none ring-0

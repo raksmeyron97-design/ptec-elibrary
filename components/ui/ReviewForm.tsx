@@ -50,11 +50,11 @@ export default function ReviewForm({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h3 className="mb-1 text-base font-bold text-slate-900">
+    <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+      <h3 className="mb-1 text-base font-bold text-text-heading">
         {isEdit ? "Update your review" : "Write a review"}
       </h3>
-      <p className="mb-5 text-sm text-slate-500">
+      <p className="mb-5 text-sm text-text-muted">
         {isEdit
           ? "Edit your rating or comment below."
           : "Share your thoughts to help other readers."}
@@ -63,7 +63,7 @@ export default function ReviewForm({
       <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
         {/* Star picker */}
         <div>
-          <p className="mb-2 text-sm font-semibold text-slate-700">
+          <p className="mb-2 text-sm font-semibold text-text-body">
             Your rating <span className="text-red-500">*</span>
           </p>
           <div className="flex items-center gap-1">
@@ -109,10 +109,10 @@ export default function ReviewForm({
         <div>
           <label
             htmlFor="review-content"
-            className="mb-1.5 block text-sm font-semibold text-slate-700"
+            className="mb-1.5 block text-sm font-semibold text-text-body"
           >
             Comment{" "}
-            <span className="font-normal text-slate-400">(optional)</span>
+            <span className="font-normal text-text-muted">(optional)</span>
           </label>
           <textarea
             id="review-content"
@@ -120,7 +120,7 @@ export default function ReviewForm({
             rows={4}
             defaultValue={existingContent ?? ""}
             placeholder="What did you find most useful about this resource?"
-            className="w-full resize-none rounded-lg border border-slate-200 p-4 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+            className="w-full resize-none rounded-lg border border-divider p-4 text-sm text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
           />
         </div>
 
@@ -154,7 +154,7 @@ export default function ReviewForm({
         <button
           type="submit"
           disabled={isPending || selected === 0}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0a1629] px-5 text-sm font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-950 px-5 text-sm font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? (
             <>

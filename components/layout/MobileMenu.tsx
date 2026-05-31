@@ -65,7 +65,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand"
       >
         <svg
           className="h-6 w-6"
@@ -122,7 +122,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
         }}
       >
         {/* Drawer header */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-divider px-5 py-4">
           <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
             <Image
               src="/logo_top.png"
@@ -135,7 +135,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
           <button
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -145,7 +145,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
 
         {/* Profile block (logged in) */}
         {user && (
-          <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+          <div className="flex items-center gap-3 border-b border-divider px-5 py-4">
             <div className="relative h-10 w-10 shrink-0">
               {user.avatar_url ? (
                 <Image
@@ -162,10 +162,10 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
               )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900">
+              <p className="truncate text-sm font-bold text-text-heading">
                 {user.full_name || user.email}
               </p>
-              <p className="truncate text-xs text-slate-500">{user.email}</p>
+              <p className="truncate text-xs text-text-muted">{user.email}</p>
             </div>
           </div>
         )}
@@ -175,9 +175,9 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
           <Link
             href="/books"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100"
+            className="flex items-center gap-3 rounded-lg border border-divider bg-paper px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-paper"
           >
-            <Icon name="search" className="text-[18px] text-slate-400" />
+            <Icon name="search" className="text-[18px] text-text-muted" />
             Search e-Library...
           </Link>
         </div>
@@ -196,7 +196,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
                 className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
                   isActive
                     ? "bg-brand/10 text-brand"
-                    : "text-slate-700 hover:bg-slate-50 hover:text-brand-hover"
+                    : "text-text-body hover:bg-paper hover:text-brand-hover"
                 }`}
               >
                 {link.label}
@@ -207,12 +207,12 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
         </nav>
 
         {/* Footer action: login or sign out */}
-        <div className="mt-auto border-t border-slate-100 px-5 py-4">
+        <div className="mt-auto border-t border-divider px-5 py-4">
           {user ? (
             <form action="/auth/signout" method="POST">
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-red-50 hover:text-red-600"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-divider px-4 py-2.5 text-sm font-medium text-text-body transition-colors hover:bg-red-50 hover:text-red-600"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

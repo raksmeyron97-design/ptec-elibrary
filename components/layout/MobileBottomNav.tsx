@@ -146,7 +146,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       <Link
         href={href}
         className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors group ${
-          isActive ? "text-brand" : "text-slate-400 hover:text-brand"
+          isActive ? "text-brand" : "text-text-muted hover:text-brand"
         }`}
       >
         {isActive && <span className="absolute inset-0 bg-brand/10 rounded-xl" />}
@@ -166,7 +166,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   return (
     <>
       {/* ── Bottom nav bar ─────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface/95 backdrop-blur-md border-t border-divider/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
         <div className="flex items-center justify-around h-16 px-2">
 
           {/* Left items */}
@@ -180,7 +180,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             aria-label="Open profile menu"
             className="relative flex items-center justify-center px-3 py-2 transition-transform active:scale-95 group"
           >
-            <div className="relative flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-[1.5px] ring-divider transition-all group-hover:ring-brand/50">
+            <div className="relative flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-[1.5px] ring-divider transition-all group-hover:ring-focus-ring/50">
               {user?.avatar_url ? (
                 <Image
                   src={user.avatar_url}
@@ -193,7 +193,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                   {getInitials(user.full_name, user.email)}
                 </div>
               ) : (
-                <div className="flex items-center justify-center w-full h-full bg-slate-100 text-slate-400">
+                <div className="flex items-center justify-center w-full h-full bg-paper text-text-muted">
                   <PersonIcon />
                 </div>
               )}
@@ -248,12 +248,12 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       >
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-9 h-1 rounded-full bg-slate-300" />
+          <div className="w-9 h-1 rounded-full bg-paper" />
         </div>
 
         {/* Profile header */}
         {user ? (
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-divider">
             <div className="relative w-12 h-12 shrink-0">
               {user.avatar_url ? (
                 <Image
@@ -270,10 +270,10 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
               )}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-bold text-slate-900">
+              <p className="truncate text-[15px] font-bold text-text-heading">
                 {user.full_name || "Welcome User"}
               </p>
-              <p className="truncate text-xs text-slate-400">{user.email}</p>
+              <p className="truncate text-xs text-text-muted">{user.email}</p>
               {user.role === "admin" && (
                 <span className="inline-flex items-center mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand/10 text-brand">
                   Admin
@@ -282,8 +282,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             </div>
           </div>
         ) : (
-          <div className="px-5 py-4 border-b border-slate-100">
-            <p className="text-sm text-slate-500">Sign in to access your library account.</p>
+          <div className="px-5 py-4 border-b border-divider">
+            <p className="text-sm text-text-muted">Sign in to access your library account.</p>
           </div>
         )}
 
@@ -294,16 +294,16 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
               key={item.href}
               href={item.href}
               onClick={() => setSheetOpen(false)}
-              className="flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors"
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-text-body hover:bg-paper active:bg-paper transition-colors"
             >
-              <span className="text-slate-400">{item.icon}</span>
+              <span className="text-text-muted">{item.icon}</span>
               {item.label}
             </Link>
           ))}
         </nav>
 
         {/* Footer: login or sign out */}
-        <div className="px-5 pb-4 pt-2 border-t border-slate-100">
+        <div className="px-5 pb-4 pt-2 border-t border-divider">
           {user ? (
             <form action="/auth/signout" method="POST">
               <button

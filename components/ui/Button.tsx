@@ -13,8 +13,8 @@ export function Button({ variant = 'primary', size = 'md', className = '', child
   
   const variants = {
     primary: 'bg-brand text-brand-contrast hover:bg-brand-hover shadow-sm',
-    secondary: 'bg-white text-brand border border-brand hover:bg-blue-50',
-    ghost: 'text-brand hover:bg-blue-50',
+    secondary: 'bg-bg-surface text-brand border border-brand hover:bg-brand/5',
+    ghost: 'text-brand hover:bg-brand/5',
     gold: 'bg-accent text-text-heading hover:bg-gold-400 shadow-sm font-semibold',
   };
   

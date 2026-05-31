@@ -23,7 +23,7 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
       {/* Edit */}
       <Link
         href={`/admin/catalogs/edit/${book.id}`}
-        className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#007c91] hover:text-[#007c91]"
+        className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
       >
         Edit
       </Link>
@@ -41,7 +41,7 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
         <button
           onClick={() => setShowConfirmDelete(true)}
           disabled={!book.is_active || isPending}
-          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-400 transition hover:border-red-300 hover:text-red-500 disabled:opacity-50"
+          className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-muted transition hover:border-red-300 hover:text-red-500 disabled:opacity-50"
         >
           Delete
         </button>
@@ -56,7 +56,7 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
           </button>
           <button
             onClick={() => setShowConfirmDelete(false)}
-            className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-50"
+            className="rounded-lg border border-divider px-2 py-1 text-xs text-text-muted transition hover:bg-paper"
           >
             Cancel
           </button>

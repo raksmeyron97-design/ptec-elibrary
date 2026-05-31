@@ -27,7 +27,7 @@ const STATUS_COLOR: Record<CopyStatus, string> = {
   checked_out: "text-amber-700 bg-amber-50 border-amber-200",
   lost:        "text-red-600 bg-red-50 border-red-200",
   damaged:     "text-orange-600 bg-orange-50 border-orange-200",
-  on_order:    "text-blue-600 bg-blue-50 border-blue-200",
+  on_order:    "text-brand bg-brand/5 border-blue-200",
 };
 
 const STATUS_DOT: Record<CopyStatus, string> = {
@@ -39,9 +39,9 @@ const STATUS_DOT: Record<CopyStatus, string> = {
 };
 
 const inputCls = `
-  w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5
-  text-xs text-slate-800 placeholder:text-slate-400
-  outline-none focus:border-[#007c91] focus:ring-1 focus:ring-[#007c91]/20
+  w-full rounded-lg border border-divider bg-paper px-2.5 py-1.5
+  text-xs text-text-heading placeholder:text-text-muted
+  outline-none focus:border-brand focus:ring-1 focus:ring-focus-ring/20
 `;
 
 // ── CopiesManager ──────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ export default function CopiesManager({
       {/* Trigger button */}
       <button
         onClick={handleOpen}
-        className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:border-[#007c91] hover:text-[#007c91]"
+        className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
       >
         Copies {copies.length > 0 && !open ? `(${copies.length})` : ""}
       </button>
@@ -197,17 +197,17 @@ export default function CopiesManager({
       {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-16 overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden">
+          <div className="w-full max-w-2xl rounded-2xl bg-bg-surface shadow-2xl overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-divider bg-paper px-6 py-4">
               <div>
-                <h2 className="font-bold text-slate-800">Manage Physical Copies</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <h2 className="font-bold text-text-heading">Manage Physical Copies</h2>
+                <p className="text-xs text-text-muted mt-0.5">
                   {copies.length} cop{copies.length !== 1 ? "ies" : "y"} · {availableCount} available
                 </p>
               </div>
-              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 transition">
+              <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
                 </svg>
@@ -215,15 +215,15 @@ export default function CopiesManager({
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-slate-100 px-6">
+            <div className="flex border-b border-divider px-6">
               {(["list", "add", "bulk"] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={`py-3 px-3 text-xs font-semibold border-b-2 transition -mb-px ${
                     tab === t
-                      ? "border-[#007c91] text-[#007c91]"
-                      : "border-transparent text-slate-400 hover:text-slate-600"
+                      ? "border-brand text-brand"
+                      : "border-transparent text-text-muted hover:text-text-body"
                   }`}
                 >
                   {t === "list" ? "All Copies" : t === "add" ? "+ Add Copy" : "+ Bulk Add"}
@@ -242,12 +242,12 @@ export default function CopiesManager({
                 <>
                   {loading ? (
                     <div className="flex items-center justify-center py-10">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#007c91] border-t-transparent" />
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                     </div>
                   ) : copies.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-200 py-10 text-center">
-                      <p className="text-sm font-semibold text-slate-400">No copies yet</p>
-                      <p className="text-xs text-slate-300 mt-1">Add individual copies using the tabs above.</p>
+                    <div className="rounded-xl border border-dashed border-divider py-10 text-center">
+                      <p className="text-sm font-semibold text-text-muted">No copies yet</p>
+                      <p className="text-xs text-text-muted mt-1">Add individual copies using the tabs above.</p>
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
@@ -258,37 +258,37 @@ export default function CopiesManager({
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Barcode</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Barcode</label>
                                   <input value={editForm.barcode} onChange={(e) => setEditForm({...editForm, barcode: e.target.value})} className={inputCls} placeholder="001234" />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Status</label>
                                   <select value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value as CopyStatus})} className={inputCls}>
                                     {STATUS_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Call Number</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Call Number</label>
                                   <input value={editForm.call_number} onChange={(e) => setEditForm({...editForm, call_number: e.target.value})} className={inputCls} placeholder="323 SOY 2023 Co1/5" />
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Shelf Location</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Shelf Location</label>
                                   <input value={editForm.shelf_location} onChange={(e) => setEditForm({...editForm, shelf_location: e.target.value})} className={inputCls} placeholder={bookShelfLocation ?? "A-1-01"} />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Holding Library</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Holding Library</label>
                                   <input value={editForm.holding_library} onChange={(e) => setEditForm({...editForm, holding_library: e.target.value})} className={inputCls} />
                                 </div>
                                 <div className="col-span-2">
-                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Notes</label>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">Notes</label>
                                   <input value={editForm.notes} onChange={(e) => setEditForm({...editForm, notes: e.target.value})} className={inputCls} placeholder="Optional note" />
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={() => handleSaveEdit(copy.id)} disabled={isPending} className="flex-1 rounded-lg bg-[#007c91] py-1.5 text-xs font-bold text-white transition hover:bg-[#006478] disabled:opacity-50">
+                                <button onClick={() => handleSaveEdit(copy.id)} disabled={isPending} className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover disabled:opacity-50">
                                   {isPending ? "Saving…" : "Save"}
                                 </button>
-                                <button onClick={() => setEditingId(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-50">
+                                <button onClick={() => setEditingId(null)} className="rounded-lg border border-divider px-3 py-1.5 text-xs text-text-muted hover:bg-paper">
                                   Cancel
                                 </button>
                               </div>
@@ -299,18 +299,18 @@ export default function CopiesManager({
                               <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_DOT[copy.status]}`} />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono text-sm font-bold text-slate-800">
-                                    {copy.barcode ?? <span className="text-slate-400 font-normal text-xs">No barcode</span>}
+                                  <span className="font-mono text-sm font-bold text-text-heading">
+                                    {copy.barcode ?? <span className="text-text-muted font-normal text-xs">No barcode</span>}
                                   </span>
                                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${STATUS_COLOR[copy.status]}`}>
                                     {STATUS_OPTS.find((o) => o.value === copy.status)?.label}
                                   </span>
                                 </div>
-                                <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-slate-500">
-                                  <span><span className="text-slate-400">Library:</span> {copy.holding_library}</span>
-                                  <span><span className="text-slate-400">Shelf:</span> {copy.shelf_location ?? bookShelfLocation ?? "—"}</span>
-                                  {copy.call_number && <span className="col-span-2"><span className="text-slate-400">Call No.:</span> <span className="font-mono">{copy.call_number}</span></span>}
-                                  {copy.notes && <span className="col-span-2 italic text-slate-400">{copy.notes}</span>}
+                                <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] text-text-muted">
+                                  <span><span className="text-text-muted">Library:</span> {copy.holding_library}</span>
+                                  <span><span className="text-text-muted">Shelf:</span> {copy.shelf_location ?? bookShelfLocation ?? "—"}</span>
+                                  {copy.call_number && <span className="col-span-2"><span className="text-text-muted">Call No.:</span> <span className="font-mono">{copy.call_number}</span></span>}
+                                  {copy.notes && <span className="col-span-2 italic text-text-muted">{copy.notes}</span>}
                                 </div>
                               </div>
                               {/* Quick status select */}
@@ -318,14 +318,14 @@ export default function CopiesManager({
                                 value={copy.status}
                                 onChange={(e) => handleStatusChange(copy.id, e.target.value as CopyStatus)}
                                 disabled={isPending}
-                                className="shrink-0 rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-[10px] font-semibold text-slate-600 outline-none focus:border-[#007c91] disabled:opacity-50"
+                                className="shrink-0 rounded-lg border border-divider bg-bg-surface px-1.5 py-1 text-[10px] font-semibold text-text-body outline-none focus:border-brand disabled:opacity-50"
                               >
                                 {STATUS_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                               </select>
-                              <button onClick={() => startEdit(copy)} className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-500 hover:border-[#007c91] hover:text-[#007c91] transition">
+                              <button onClick={() => startEdit(copy)} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-brand hover:text-brand transition">
                                 Edit
                               </button>
-                              <button onClick={() => handleDelete(copy.id)} disabled={isPending} className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-400 hover:border-red-300 hover:text-red-500 transition disabled:opacity-50">
+                              <button onClick={() => handleDelete(copy.id)} disabled={isPending} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-red-300 hover:text-red-500 transition disabled:opacity-50">
                                 ×
                               </button>
                             </div>
@@ -342,33 +342,33 @@ export default function CopiesManager({
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Barcode</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Barcode</label>
                       <input value={addForm.barcode} onChange={(e) => setAddForm({...addForm, barcode: e.target.value})} className={inputCls} placeholder="001234" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Status</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Status</label>
                       <select value={addForm.status} onChange={(e) => setAddForm({...addForm, status: e.target.value as CopyStatus})} className={inputCls}>
                         {STATUS_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Call Number</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Call Number</label>
                       <input value={addForm.call_number} onChange={(e) => setAddForm({...addForm, call_number: e.target.value})} className={inputCls} placeholder="323 SOY 2023 Co1/5" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Shelf Location</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Shelf Location</label>
                       <input value={addForm.shelf_location} onChange={(e) => setAddForm({...addForm, shelf_location: e.target.value})} className={inputCls} placeholder={bookShelfLocation ?? "A-1-01"} />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Holding Library</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Holding Library</label>
                       <input value={addForm.holding_library} onChange={(e) => setAddForm({...addForm, holding_library: e.target.value})} className={inputCls} />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Notes (optional)</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Notes (optional)</label>
                       <input value={addForm.notes} onChange={(e) => setAddForm({...addForm, notes: e.target.value})} className={inputCls} placeholder="e.g. Damaged spine" />
                     </div>
                   </div>
-                  <button onClick={handleAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
+                  <button onClick={handleAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-blue-950 to-brand py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
                     {isPending ? "Adding…" : "Add Copy"}
                   </button>
                 </div>
@@ -377,34 +377,34 @@ export default function CopiesManager({
               {/* ── BULK ADD TAB ── */}
               {tab === "bulk" && (
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
-                    <p className="text-xs text-blue-700 font-semibold mb-1">Bulk Add</p>
-                    <p className="text-[11px] text-blue-600">Enter one barcode per line (or comma-separated). All copies will be created as <strong>Available</strong> and share the same call number and shelf location.</p>
+                  <div className="rounded-xl bg-brand/5 border border-blue-100 p-4">
+                    <p className="text-xs text-brand font-semibold mb-1">Bulk Add</p>
+                    <p className="text-[11px] text-brand">Enter one barcode per line (or comma-separated). All copies will be created as <strong>Available</strong> and share the same call number and shelf location.</p>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Barcodes</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Barcodes</label>
                     <textarea
                       value={bulkBarcodes}
                       onChange={(e) => setBulkBarcodes(e.target.value)}
                       rows={5}
                       placeholder={"001234\n001235\n001236"}
-                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#007c91] focus:ring-1 focus:ring-[#007c91]/20 resize-none"
+                      className="w-full rounded-lg border border-divider bg-paper px-3 py-2 font-mono text-xs text-text-heading placeholder:text-text-muted outline-none focus:border-brand focus:ring-1 focus:ring-focus-ring/20 resize-none"
                     />
-                    <p className="mt-1 text-[10px] text-slate-400">
+                    <p className="mt-1 text-[10px] text-text-muted">
                       {bulkBarcodes.split(/[\n,]+/).filter((b) => b.trim()).length} barcode(s) detected
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Call Number (shared)</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Call Number (shared)</label>
                       <input value={bulkCallNumber} onChange={(e) => setBulkCallNumber(e.target.value)} className={inputCls} placeholder="323 SOY 2023 Co1/5" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Shelf Location (shared)</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">Shelf Location (shared)</label>
                       <input value={bulkShelf} onChange={(e) => setBulkShelf(e.target.value)} className={inputCls} placeholder={bookShelfLocation ?? "A-1-01"} />
                     </div>
                   </div>
-                  <button onClick={handleBulkAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
+                  <button onClick={handleBulkAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-blue-950 to-brand py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
                     {isPending ? "Adding…" : "Bulk Add Copies"}
                   </button>
                 </div>

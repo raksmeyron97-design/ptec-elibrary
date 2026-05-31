@@ -70,7 +70,7 @@ export default async function Footer() {
                 <Seal size={72} />
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-200 mb-0.5">បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ</p>
-                  <h2 className="text-white font-serif font-bold text-xl tracking-wide">PTEC <span className="text-gold-400">Library</span></h2>
+                  <h2 className="text-white font-khmer-serif font-bold text-xl tracking-wide">PTEC <span className="text-gold-400">Library</span></h2>
                 </div>
               </div>
               <p className="text-blue-100 text-[13px] leading-relaxed">
@@ -79,15 +79,15 @@ export default async function Footer() {
               {/* Social icons */}
               <div className="flex gap-2.5 mt-1">
                 <a href="https://web.facebook.com/ptec.edu" target="_blank" rel="noreferrer"
-                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#1877F2] hover:border-[#1877F2] transition-all text-blue-100 hover:text-white">
+                  className="w-9 h-9 rounded-xl bg-bg-surface/5 border border-white/10 flex items-center justify-center hover:bg-[#1877F2] hover:border-[#1877F2] transition-all text-blue-100 hover:text-white">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
                 <a href="https://www.youtube.com/@phnompenhteachereducationc3430" target="_blank" rel="noreferrer"
-                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#FF0000] hover:border-[#FF0000] transition-all text-blue-100 hover:text-white">
+                  className="w-9 h-9 rounded-xl bg-bg-surface/5 border border-white/10 flex items-center justify-center hover:bg-[#FF0000] hover:border-[#FF0000] transition-all text-blue-100 hover:text-white">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>
                 </a>
                 <a href="https://www.ptec.edu.kh/" target="_blank" rel="noreferrer"
-                  className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 transition-all text-blue-100 hover:text-white">
+                  className="w-9 h-9 rounded-xl bg-bg-surface/5 border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 transition-all text-blue-100 hover:text-white">
                   <Icon name="globe" className="text-[16px]" />
                 </a>
               </div>
@@ -95,12 +95,12 @@ export default async function Footer() {
 
             {/* Information */}
             <div>
-              <h3 className="text-white font-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-white/10">
+              <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
                 Information
               </h3>
               <ul className="flex flex-col gap-5">
                 <li className="flex items-start gap-3 group">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="w-8 h-8 rounded-lg bg-bg-surface/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
                     <Icon name="map-pin" className="text-[14px]" />
                   </div>
                   <div>
@@ -111,7 +111,7 @@ export default async function Footer() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3 group">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-gold-300">
+                  <div className="w-8 h-8 rounded-lg bg-bg-surface/5 border border-white/10 flex items-center justify-center shrink-0 text-gold-300">
                     <Icon name="phone" className="text-[14px]" />
                   </div>
                   <div>
@@ -120,7 +120,7 @@ export default async function Footer() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3 group">
-                  <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-gold-300">
+                  <div className="w-8 h-8 rounded-lg bg-bg-surface/5 border border-white/10 flex items-center justify-center shrink-0 text-gold-300">
                     <Icon name="clock" className="text-[14px]" />
                   </div>
                   <div>
@@ -136,7 +136,7 @@ export default async function Footer() {
 
             {/* Quick Links */}
             <div>
-              <h3 className="text-white font-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-white/10">
+              <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
                 Quick Links
               </h3>
               <ul className="flex flex-col gap-3">
@@ -160,13 +160,13 @@ export default async function Footer() {
 
             {/* Newsletter */}
             <div>
-              <h3 className="text-white font-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-white/10">
+              <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
                 Newsletter
               </h3>
               <p className="text-[13px] text-blue-100 mb-5 leading-relaxed">
                 Subscribe for updates on new books, research papers, and library resources.
               </p>
-              <div className="flex items-stretch rounded-xl overflow-hidden border border-white/10 bg-white/5 focus-within:border-gold-400/50 transition-all min-w-0 w-full">
+              <div className="flex items-stretch rounded-xl overflow-hidden border border-white/10 bg-bg-surface/5 focus-within:border-gold-400/50 transition-all min-w-0 w-full">
                 <input
                   type="email"
                   placeholder="Your email address"

@@ -141,7 +141,7 @@ export default async function BooksPage({
           {/* Search bar */}
           <div className="mb-5">
             <Suspense
-              fallback={<div className="h-11 rounded-xl bg-slate-50" />}
+              fallback={<div className="h-11 rounded-xl bg-paper" />}
             >
               <SearchBar />
             </Suspense>
@@ -164,7 +164,7 @@ export default async function BooksPage({
                     className={`shrink-0 rounded-full px-4 py-[7px] text-[12px] font-medium whitespace-nowrap transition-all border sm:text-[13px] ${
                       isActive
                         ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
-                        : "bg-paper text-text-muted border-divider hover:bg-blue-50 hover:text-brand hover:border-brand/30"
+                        : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
                     }`}
                   >
                     {cat}
@@ -175,7 +175,7 @@ export default async function BooksPage({
 
             {/* Sort */}
             <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
-              <span className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mr-1">
+              <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider mr-1">
                 Sort
               </span>
               <a
@@ -204,7 +204,7 @@ export default async function BooksPage({
           </div>
 
           {/* Result count */}
-          <p className="mt-4 text-[12px] text-slate-400 sm:text-[13px]">
+          <p className="mt-4 text-[12px] text-text-muted sm:text-[13px]">
             {total > 0
               ? `${total} resource${total !== 1 ? "s" : ""}`
               : "No resources found"}
@@ -294,7 +294,7 @@ function sortPillClass(
   return `rounded-full border px-3 py-[5px] text-[11px] font-medium whitespace-nowrap transition-all sm:text-[12px] ${
     active
       ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
-      : "bg-paper text-text-muted border-divider hover:bg-blue-50 hover:text-brand hover:border-brand/30"
+      : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
   }`;
 }
 
@@ -313,7 +313,7 @@ function ActiveChip({
         [paramKey]: undefined,
         page: undefined,
       })}
-      className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-blue-50 py-1.5 pl-3.5 pr-2.5 text-[12px] font-medium text-brand transition hover:bg-blue-100"
+      className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/5 py-1.5 pl-3.5 pr-2.5 text-[12px] font-medium text-brand transition hover:bg-brand/10"
     >
       <span className="truncate break-words min-w-0 max-w-[200px] sm:max-w-[300px]">
         {label}
@@ -336,10 +336,10 @@ function EmptyState({
   query?: string;
 }) {
   return (
-    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
-      <Icon name="search-off" className="mb-4 text-5xl text-slate-300" />
-      <h2 className="text-xl font-bold text-slate-700">No resources found</h2>
-      <p className="mt-2 max-w-sm text-sm leading-6 text-slate-400">
+    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-10 text-center">
+      <Icon name="search-off" className="mb-4 text-5xl text-text-muted" />
+      <h2 className="text-xl font-bold text-text-body">No resources found</h2>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-text-muted">
         {query
           ? `No books match "${query}".`
           : hasFilters

@@ -230,15 +230,15 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8"
+      className="grid gap-5 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:grid-cols-2 md:p-8"
     >
-      <h2 className="text-lg font-bold text-slate-800 md:col-span-2">
+      <h2 className="text-lg font-bold text-text-heading md:col-span-2">
         {isEdit ? "Edit post" : "New post"}
       </h2>
 
       {/* Title */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Title <span className="text-red-500">*</span>
         </span>
         <input
@@ -248,18 +248,18 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Post title"
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
         />
         {title.trim() && (
-          <p className="mt-1.5 text-xs text-slate-400">
-            Slug: <span className="font-mono text-slate-500">/posts/{slugify(title) || "…"}</span>
+          <p className="mt-1.5 text-xs text-text-muted">
+            Slug: <span className="font-mono text-text-muted">/posts/{slugify(title) || "…"}</span>
           </p>
         )}
       </label>
 
       {/* Category */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Category <span className="text-red-500">*</span>
         </span>
         <select
@@ -267,7 +267,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           required
           defaultValue={initial?.category ?? "Research"}
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         >
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>{c}</option>
@@ -277,29 +277,29 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
 
       {/* Publish toggle */}
       <label className="flex items-end pb-1">
-        <span className="flex items-center gap-3 rounded-lg border border-slate-200 px-4 py-2.5 w-full h-11">
+        <span className="flex items-center gap-3 rounded-lg border border-divider px-4 py-2.5 w-full h-11">
           <input
             name="isPublished"
             type="checkbox"
             defaultChecked={initial?.isPublished ?? false}
             disabled={busy}
-            className="h-4 w-4 rounded border-slate-300 text-[#007c91] focus:ring-[#007c91]/30 disabled:opacity-60"
+            className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30 disabled:opacity-60"
           />
-          <span className="text-sm font-semibold text-slate-700">Publish immediately</span>
+          <span className="text-sm font-semibold text-text-body">Publish immediately</span>
         </span>
       </label>
 
       {/* ── Cover images (multi) ─────────────────────────────── */}
       <div className="md:col-span-2">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-semibold text-slate-700">
+          <span className="text-sm font-semibold text-text-body">
             Cover images{" "}
-            <span className="font-normal text-slate-400">
+            <span className="font-normal text-text-muted">
               (optional · up to {MAX_IMAGES} · JPEG, PNG, WebP · max 5 MB each)
             </span>
           </span>
           {activeCount > 0 && (
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+            <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs font-semibold text-text-body">
               {activeCount} / {MAX_IMAGES}
             </span>
           )}
@@ -321,7 +321,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
                   className={`group relative cursor-grab overflow-hidden rounded-lg border-2 transition ${
                     removed
                       ? "border-red-300 opacity-40"
-                      : "border-slate-200 hover:border-[#007c91]"
+                      : "border-divider hover:border-brand"
                   }`}
                   style={{ aspectRatio: "4/3" }}
                 >
@@ -391,7 +391,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           type="button"
           disabled={busy || activeCount >= MAX_IMAGES}
           onClick={() => fileInputRef.current?.click()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 py-4 text-sm font-semibold text-slate-600 transition hover:border-[#007c91] hover:bg-cyan-50/40 hover:text-[#007c91] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-divider bg-paper py-4 text-sm font-semibold text-text-body transition hover:border-brand hover:bg-cyan-50/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -399,16 +399,16 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           </svg>
           {activeCount === 0 ? "Choose images" : "Add more images"}
         </button>
-        <p className="mt-1.5 text-xs text-slate-400">
+        <p className="mt-1.5 text-xs text-text-muted">
           Drag thumbnails above to reorder. First image shown as hero cover.
         </p>
       </div>
 
       {/* Excerpt */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Excerpt{" "}
-          <span className="font-normal text-slate-400">(optional — auto-generated from content if empty)</span>
+          <span className="font-normal text-text-muted">(optional — auto-generated from content if empty)</span>
         </span>
         <textarea
           name="excerpt"
@@ -416,15 +416,15 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           defaultValue={initial?.excerpt ?? ""}
           disabled={busy}
           placeholder="Short summary shown on cards (~150 characters)…"
-          className="w-full resize-none rounded-lg border border-slate-200 p-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+          className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
         />
       </label>
 
       {/* Content */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Content <span className="text-red-500">*</span>{" "}
-          <span className="font-normal text-slate-400">(Markdown supported)</span>
+          <span className="font-normal text-text-muted">(Markdown supported)</span>
         </span>
         <textarea
           name="content"
@@ -433,7 +433,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           defaultValue={initial?.content ?? ""}
           disabled={busy}
           placeholder={"Write your post in Markdown…\n\n## A heading\n\nSome **bold** text and a [link](https://example.com)."}
-          className="w-full resize-y rounded-lg border border-slate-200 p-4 text-sm font-mono leading-relaxed outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+          className="w-full resize-y rounded-lg border border-divider p-4 text-sm font-mono leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
         />
       </label>
 
@@ -456,7 +456,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#0a1629] px-6 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="pdf" className="text-lg" />
           {busy ? uploadProgress : isEdit ? "Save changes" : "Create post"}

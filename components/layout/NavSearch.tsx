@@ -40,10 +40,10 @@ export default function NavSearch() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="relative hidden items-center rounded-full bg-slate-100/60 py-2.5 pl-11 pr-5 text-[14px] font-medium text-slate-500 transition-all hover:bg-slate-200/60 md:flex border border-slate-200/50"
+          className="relative hidden items-center rounded-full bg-paper/60 py-2.5 pl-11 pr-5 text-[14px] font-medium text-text-muted transition-all hover:bg-paper/60 md:flex border border-divider/50"
           aria-label="Open search"
         >
-          <Icon name="search" className="absolute left-3.5 text-[18px] text-slate-400" />
+          <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted" />
           Search e-Library...
         </button>
       )}
@@ -54,20 +54,20 @@ export default function NavSearch() {
           onSubmit={handleSubmit}
           className="relative hidden md:flex items-center"
         >
-          <Icon name="search" className="absolute left-3.5 text-[18px] text-slate-400 pointer-events-none" />
+          <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted pointer-events-none" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search e-Library..."
-            className="w-[280px] rounded-full border border-[#007c91]/40 bg-white py-2.5 pl-11 pr-10 text-[14px] text-slate-800 outline-none ring-2 ring-[#007c91]/20 placeholder-slate-400"
+            className="w-[280px] rounded-full border border-brand/40 bg-bg-surface py-2.5 pl-11 pr-10 text-[14px] text-text-heading outline-none ring-2 ring-focus-ring/20 placeholder-text-muted"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="absolute right-8 text-slate-400 hover:text-slate-600"
+              className="absolute right-8 text-text-muted hover:text-text-body"
             >
               ✕
             </button>
@@ -75,7 +75,7 @@ export default function NavSearch() {
           <button
             type="button"
             onClick={() => { setOpen(false); setQuery(""); }}
-            className="absolute right-3 text-slate-400 hover:text-slate-600 text-xs"
+            className="absolute right-3 text-text-muted hover:text-text-body text-xs"
             title="Close"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

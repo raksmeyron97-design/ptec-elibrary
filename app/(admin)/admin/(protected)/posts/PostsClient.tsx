@@ -24,8 +24,8 @@ const categoryStyles: Record<string, string> = {
   Research:     "bg-cyan-50 text-cyan-700",
   Announcement: "bg-violet-50 text-violet-700",
   Event:        "bg-orange-50 text-orange-700",
-  Journal:      "bg-blue-50 text-blue-700",
-  Other:        "bg-slate-100 text-slate-600",
+  Journal:      "bg-brand/5 text-brand",
+  Other:        "bg-paper text-text-body",
 };
 
 function formatDate(iso: string | null): string {
@@ -113,8 +113,8 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
       {/* ── Top Action Bar ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         {/* Search bar */}
-        <div className="flex flex-1 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-          <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <div className="flex flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm">
+          <svg className="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input
@@ -122,14 +122,14 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search by title, author, category…"
-            className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
+            className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
           />
           {query && (
-            <button onClick={() => handleSearch("")} className="text-slate-400 hover:text-slate-600">
+            <button onClick={() => handleSearch("")} className="text-text-muted hover:text-text-body">
               ✕
             </button>
           )}
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-text-muted">
             {filtered.length} result{filtered.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -137,7 +137,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
         {/* Create Post Button */}
         <Link
           href="/admin/posts/new"
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#007c91] px-6 text-sm font-bold text-white shadow-sm transition hover:bg-[#00687a]"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
             <path d="M12 5v14m-7-7h14"/>
@@ -154,8 +154,8 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
             onClick={() => handleCategory(c)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               activeCat === c
-                ? "bg-[#007c91] text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-brand text-white"
+                : "border border-divider bg-bg-surface text-text-body hover:bg-paper"
             }`}
           >
             {c}
@@ -171,11 +171,11 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
       )}
 
       {/* ── Table ── */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
                 <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3 hidden md:table-cell">Category</th>
@@ -189,7 +189,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
             <tbody className="divide-y divide-slate-50">
               {slice.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-slate-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-text-muted">
                     No posts found{query ? ` for "${query}"` : ""}.
                   </td>
                 </tr>
@@ -203,21 +203,21 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                   return (
                     <tr
                       key={post.id}
-                      className={`transition-colors hover:bg-slate-50/80 ${isDeleting ? "opacity-40" : ""}`}
+                      className={`transition-colors hover:bg-paper/80 ${isDeleting ? "opacity-40" : ""}`}
                     >
                       {/* # */}
-                      <td className="px-4 py-3 text-xs text-slate-400 tabular-nums">{rowNum}</td>
+                      <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{rowNum}</td>
 
                       {/* Title */}
                       <td className="px-4 py-3 max-w-[260px]">
                         <Link
                           href={`/posts/${post.slug}`}
-                          className="font-semibold text-slate-800 hover:text-[#007c91] line-clamp-2 leading-snug"
+                          className="font-semibold text-text-heading hover:text-brand line-clamp-2 leading-snug"
                           target="_blank"
                         >
                           {post.title}
                         </Link>
-                        <p className="mt-0.5 text-xs text-slate-400 md:hidden">{post.category}</p>
+                        <p className="mt-0.5 text-xs text-text-muted md:hidden">{post.category}</p>
                       </td>
 
                       {/* Category */}
@@ -228,7 +228,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                       </td>
 
                       {/* Author */}
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-600 max-w-[160px] truncate">
+                      <td className="px-4 py-3 hidden lg:table-cell text-text-body max-w-[160px] truncate">
                         {post.author}
                       </td>
 
@@ -251,8 +251,8 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                       {/* Views */}
                       <td className="px-4 py-3 hidden xl:table-cell text-right tabular-nums">
                         {post.views > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
-                            <svg className="h-3 w-3 text-slate-400" viewBox="0 0 24 24" fill="none"
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-text-body">
+                            <svg className="h-3 w-3 text-text-muted" viewBox="0 0 24 24" fill="none"
                               stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                             </svg>
@@ -261,12 +261,12 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                               : post.views}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-300">—</span>
+                          <span className="text-xs text-text-muted">—</span>
                         )}
                       </td>
 
                       {/* Created */}
-                      <td className="px-4 py-3 hidden lg:table-cell text-slate-500 text-xs tabular-nums">
+                      <td className="px-4 py-3 hidden lg:table-cell text-text-muted text-xs tabular-nums">
                         {formatDate(post.createdAt)}
                       </td>
 
@@ -274,7 +274,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                       <td className="px-4 py-3 text-right">
                         {isConfirming ? (
                           <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-slate-500">Delete?</span>
+                            <span className="text-xs text-text-muted">Delete?</span>
                             <button
                               onClick={() => handleDelete(post.id)}
                               disabled={isDeleting}
@@ -284,7 +284,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                             </button>
                             <button
                               onClick={() => setConfirmId(null)}
-                              className="rounded bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                              className="rounded bg-paper px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper"
                             >
                               No
                             </button>
@@ -293,7 +293,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                           <div className="flex items-center justify-end gap-2">
                             <Link
                               href={`/admin/posts/edit/${post.id}`}
-                              className="rounded bg-[#0a1629] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#007c91]"
+                              className="rounded bg-blue-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand"
                             >
                               Edit
                             </Link>
@@ -318,17 +318,17 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
 
       {/* ── Pagination ── */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
-          <p className="text-xs text-slate-500">
+        <div className="flex items-center justify-between rounded-xl border border-divider bg-bg-surface px-5 py-3 shadow-sm">
+          <p className="text-xs text-text-muted">
             Page <strong>{safePage}</strong> of <strong>{totalPages}</strong>
             {" · "}
             showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
           </p>
           <div className="flex gap-1.5">
             <button onClick={() => setPage(1)} disabled={safePage === 1}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">«</button>
+              className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">«</button>
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">‹</button>
+              className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">‹</button>
 
             {Array.from({ length: totalPages }, (_, i) => i + 1)
               .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
@@ -339,19 +339,19 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
               }, [])
               .map((p, i) =>
                 p === "…" ? (
-                  <span key={`ellipsis-${i}`} className="flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
+                  <span key={`ellipsis-${i}`} className="flex h-8 w-8 items-center justify-center text-xs text-text-muted">…</span>
                 ) : (
                   <button key={p} onClick={() => setPage(p as number)}
                     className={`h-8 min-w-[2rem] rounded-lg border px-2 text-xs font-bold transition ${
-                      safePage === p ? "border-[#007c91] bg-[#007c91] text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                      safePage === p ? "border-brand bg-brand text-white" : "border-divider text-text-body hover:bg-paper"
                     }`}>{p}</button>
                 )
               )}
 
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">›</button>
+              className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">›</button>
             <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">»</button>
+              className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">»</button>
           </div>
         </div>
       )}

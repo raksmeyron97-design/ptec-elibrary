@@ -37,12 +37,12 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F3F4F6]">
+    <div className="flex min-h-screen flex-col bg-bg-app">
       <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md overflow-hidden rounded-2xl shadow-xl bg-white border border-gray-100">
+        <div className="w-full max-w-md overflow-hidden rounded-2xl shadow-xl bg-bg-surface border border-divider">
           
-          <div className="flex flex-col items-center justify-center bg-[#1E3A8A] p-8 text-white">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
+          <div className="flex flex-col items-center justify-center bg-brand p-8 text-white">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-bg-surface p-1.5 shadow-sm">
               <Image src="/logo_footer.png" alt="PTEC Logo" width={56} height={56} className="object-contain" />
             </div>
             <h2 className="text-2xl font-bold leading-tight">Admin Sign In</h2>
@@ -60,33 +60,33 @@ export default function AdminLoginPage() {
 
             <form onSubmit={handleLogin} className="flex flex-col gap-5">
               <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-slate-700">Admin Email</span>
+                <span className="text-sm font-semibold text-text-body">Admin Email</span>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@ptec.edu.kh"
-                  className="h-12 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-[#DDB022] focus:bg-white focus:ring-2 focus:ring-[#DDB022]/20 transition-all"
+                  className="h-12 rounded-lg border border-divider bg-paper px-4 text-sm outline-none focus:border-accent focus:bg-bg-surface focus:ring-2 focus:ring-accent/20 transition-all"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-slate-700">Password</span>
+                <span className="text-sm font-semibold text-text-body">Password</span>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-[#DDB022] focus:bg-white focus:ring-2 focus:ring-[#DDB022]/20 transition-all"
+                  className="h-12 rounded-lg border border-divider bg-paper px-4 text-sm outline-none focus:border-accent focus:bg-bg-surface focus:ring-2 focus:ring-accent/20 transition-all"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 h-12 rounded-lg bg-[#1E3A8A] font-semibold text-white transition hover:bg-[#152a66] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 h-12 rounded-lg bg-brand font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Signing in..." : "Continue"}
               </button>

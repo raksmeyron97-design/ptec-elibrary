@@ -57,6 +57,16 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
+// ── Shared control styles ─────────────────────────────────────────────────
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2";
+
+const interactive =
+  `border border-divider bg-bg-surface text-text-body transition-colors hover:border-brand hover:bg-brand/5 hover:text-brand ${focusRing}`;
+
+const disabled =
+  "border border-divider text-text-muted opacity-60 cursor-not-allowed";
+
 export default function Pagination({
   currentPage,
   totalPages,
@@ -77,14 +87,14 @@ export default function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-7 sm:flex-row"
+      className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-divider pt-7 sm:flex-row"
     >
       {/* Results summary */}
-      <p className="text-[13.5px] text-slate-500">
+      <p className="text-[13.5px] text-text-muted">
         Showing{" "}
-        <span className="font-semibold text-slate-700">{from}</span>–
-        <span className="font-semibold text-slate-700">{to}</span> of{" "}
-        <span className="font-semibold text-slate-700">{totalItems}</span>{" "}
+        <span className="font-semibold text-text-body">{from}</span>–
+        <span className="font-semibold text-text-body">{to}</span> of{" "}
+        <span className="font-semibold text-text-body">{totalItems}</span>{" "}
         result{totalItems !== 1 ? "s" : ""}
       </p>
 
@@ -94,7 +104,7 @@ export default function Pagination({
         {hasPrev ? (
           <Link
             href={pageHref(searchParams, currentPage - 1, basePath)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-200 text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${interactive}`}
             aria-label="Previous page"
           >
             <ArrowLeftIcon />
@@ -102,7 +112,7 @@ export default function Pagination({
         ) : (
           <span
             aria-disabled
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-100 text-slate-300"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${disabled}`}
           >
             <ArrowLeftIcon />
           </span>
@@ -113,7 +123,7 @@ export default function Pagination({
           p === "ellipsis" ? (
             <span
               key={`ellipsis-${i}`}
-              className="inline-flex h-9 w-9 items-center justify-center text-slate-400"
+              className="inline-flex h-9 w-9 items-center justify-center text-text-muted"
             >
               …
             </span>
@@ -121,7 +131,7 @@ export default function Pagination({
             <span
               key={p}
               aria-current="page"
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] bg-[#14161B] px-3 text-[13.5px] font-semibold text-white"
+              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] bg-brand px-3 text-[13.5px] font-semibold text-brand-contrast shadow-sm shadow-brand/25"
             >
               {p}
             </span>
@@ -129,7 +139,7 @@ export default function Pagination({
             <Link
               key={p}
               href={pageHref(searchParams, p, basePath)}
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] border border-slate-200 px-3 text-[13.5px] font-medium text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
+              className={`inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-[13.5px] font-medium ${interactive}`}
             >
               {p}
             </Link>
@@ -140,7 +150,7 @@ export default function Pagination({
         {hasNext ? (
           <Link
             href={pageHref(searchParams, currentPage + 1, basePath)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-200 text-slate-600 transition hover:border-[#0C7C8A] hover:text-[#0C7C8A]"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${interactive}`}
             aria-label="Next page"
           >
             <ChevronRightIcon />
@@ -148,7 +158,7 @@ export default function Pagination({
         ) : (
           <span
             aria-disabled
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-slate-100 text-slate-300"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${disabled}`}
           >
             <ChevronRightIcon />
           </span>

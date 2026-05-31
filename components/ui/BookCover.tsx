@@ -64,7 +64,7 @@ export default function BookCover({
       {/* bottom: title + author */}
       <div className="relative z-[3]">
         <div className={`serif font-medium leading-[1.12] ${s.title}`}>{title}</div>
-        <div className={`h-[2px] bg-white/60 ${s.rule}`} />
+        <div className={`h-[2px] bg-bg-surface/60 ${s.rule}`} />
         {author && <div className={`mt-2 font-medium text-white/80 ${s.author}`}>{author}</div>}
       </div>
     </div>

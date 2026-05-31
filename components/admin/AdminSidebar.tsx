@@ -43,7 +43,7 @@ export default function AdminSidebar({
     <>
       <div className="p-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 p-1">
+          <div className="w-12 h-12 bg-bg-surface rounded-lg flex items-center justify-center shrink-0 p-1">
             <Image src="/logo_footer.png" alt="PTEC Logo" width={40} height={40} className="object-contain" />
           </div>
           <span className="font-bold text-xl tracking-tight">Library Admin</span>
@@ -65,8 +65,8 @@ export default function AdminSidebar({
               onClick={handleNavClick}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                 isActive
-                  ? "bg-[#DDB022] text-[#1E3A8A] font-medium"
-                  : "text-white hover:bg-white/10"
+                  ? "bg-accent text-brand font-medium"
+                  : "text-white hover:bg-bg-surface/10"
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -98,7 +98,7 @@ export default function AdminSidebar({
           <form action="/auth/signout" method="POST">
             <button
               type="submit"
-              className="flex w-full items-center gap-3 px-3 py-2 text-sm text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="flex w-full items-center gap-3 px-3 py-2 text-sm text-white/80 hover:text-white hover:bg-bg-surface/10 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Log out
@@ -110,9 +110,9 @@ export default function AdminSidebar({
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F3F4F6] text-slate-900 font-body">
+    <div className="flex h-screen overflow-hidden bg-bg-app text-text-heading font-body">
       {/* Mobile Topbar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#1E3A8A] text-white flex items-center px-4 justify-between z-20">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-brand text-white flex items-center px-4 justify-between z-20">
         <div className="flex items-center gap-2">
           <span className="font-bold">Library Admin</span>
         </div>
@@ -131,7 +131,7 @@ export default function AdminSidebar({
 
       {/* Sidebar Desktop + Mobile Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#1E3A8A] text-white flex flex-col transform transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-brand text-white flex flex-col transform transition-transform duration-300 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:shrink-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -141,7 +141,7 @@ export default function AdminSidebar({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 pt-16 lg:pt-0">
         {/* Topbar Desktop Breadcrumb / Title Area */}
-        <div className="hidden lg:flex h-16 bg-white border-b border-gray-200 items-center px-8 shrink-0">
+        <div className="hidden lg:flex h-16 bg-bg-surface border-b border-divider items-center px-8 shrink-0">
           <h1 className="text-xl font-semibold capitalize">
             {pathname === "/admin" ? "Dashboard" : pathname.split("/").pop()}
           </h1>

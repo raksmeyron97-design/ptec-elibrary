@@ -61,27 +61,27 @@ function LoginContent() {
   return (
     <div className="flex min-h-screen font-sans">
       {/* ── Left panel — dark brand side ── */}
-      <div className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-[#0a1629] p-12 lg:flex">
+      <div className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-blue-950 p-12 lg:flex">
         {/* Decorative circles */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#007c91]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-[#007c91]/15 blur-3xl" />
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.03]" />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-brand/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-brand/15 blur-3xl" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-bg-surface/[0.03]" />
 
         {/* Logo */}
         <div className="relative flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/10">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-bg-surface/10 backdrop-blur-md border border-white/10">
             <Image src="/logo_footer.png" alt="PTEC" width={40} height={40} className="object-contain" />
           </div>
           <div>
-            <span className="block text-xl font-bold text-white tracking-wide">PTEC <span className="text-[#00a8c6]">e-Library</span></span>
-            <span className="text-xs text-slate-400 tracking-widest uppercase">Digital Learning Hub</span>
+            <span className="block text-xl font-bold text-white tracking-wide">PTEC <span className="text-brand">e-Library</span></span>
+            <span className="text-xs text-text-muted tracking-widest uppercase">Digital Learning Hub</span>
           </div>
         </div>
 
         {/* Center quote */}
         <div className="relative space-y-6">
           {/* Decorative book stack SVG */}
-          <svg className="mb-6 h-16 w-16 text-[#007c91]/60" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <svg className="mb-6 h-16 w-16 text-brand/60" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth={1.5}>
             <rect x="8" y="44" width="48" height="8" rx="2" />
             <rect x="12" y="32" width="40" height="10" rx="2" />
             <rect x="16" y="20" width="32" height="10" rx="2" />
@@ -89,9 +89,9 @@ function LoginContent() {
           </svg>
           <blockquote className="text-2xl font-light leading-relaxed text-white/90">
             "Lead students to good ways of life with{" "}
-            <span className="font-semibold text-[#00a8c6]">no discrimination</span>."
+            <span className="font-semibold text-brand">no discrimination</span>."
           </blockquote>
-          <p className="text-sm text-slate-400">— PTEC Mission Statement</p>
+          <p className="text-sm text-text-muted">— PTEC Mission Statement</p>
 
           {/* Stats row */}
           <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-8">
@@ -102,20 +102,20 @@ function LoginContent() {
             ].map(([num, label]) => (
               <div key={label}>
                 <div className="text-2xl font-bold text-white">{num}</div>
-                <div className="text-xs text-slate-400 mt-0.5">{label}</div>
+                <div className="text-xs text-text-muted mt-0.5">{label}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Bottom link */}
-        <div className="relative text-xs text-slate-500">
+        <div className="relative text-xs text-text-muted">
           © {new Date().getFullYear()} Phnom Penh Teacher Education College
         </div>
       </div>
 
       {/* ── Right panel — form ── */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-12 sm:px-12">
+      <div className="flex flex-1 flex-col items-center justify-center bg-paper px-6 py-12 sm:px-12">
         {/* Mobile logo */}
         <div className="mb-8 flex items-center gap-3 lg:hidden">
           <Image src="/logo_top.png" alt="PTEC" width={120} height={40} className="h-9 w-auto object-contain" />
@@ -124,8 +124,8 @@ function LoginContent() {
         <div className="w-full max-w-[420px]">
           {/* Heading */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Welcome back</h1>
-            <p className="mt-2 text-slate-500">Sign in to access the PTEC digital library.</p>
+            <h1 className="text-3xl font-bold text-text-heading">Welcome back</h1>
+            <p className="mt-2 text-text-muted">Sign in to access the PTEC digital library.</p>
           </div>
 
           {/* Error banner */}
@@ -142,7 +142,7 @@ function LoginContent() {
           <button
             onClick={handleGoogle}
             disabled={googleLoading || loading}
-            className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md disabled:opacity-60"
+            className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-divider bg-bg-surface px-5 py-3.5 text-sm font-semibold text-text-body shadow-sm transition hover:border-divider hover:bg-paper hover:shadow-md disabled:opacity-60"
           >
             {googleLoading ? <SpinnerIcon /> : <GoogleIcon />}
             {googleLoading ? "Redirecting…" : "Continue with Google"}
@@ -150,16 +150,16 @@ function LoginContent() {
 
           {/* Divider */}
           <div className="mb-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-medium text-slate-400">or sign in with email</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-paper" />
+            <span className="text-xs font-medium text-text-muted">or sign in with email</span>
+            <div className="h-px flex-1 bg-paper" />
           </div>
 
           {/* Email / password form */}
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Email */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+              <label className="mb-1.5 block text-sm font-semibold text-text-body">
                 Email address
               </label>
               <input
@@ -169,15 +169,15 @@ function LoginContent() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+                className="h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm text-text-heading placeholder-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
               />
             </div>
 
             {/* Password */}
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700">Password</label>
-                <Link href="/auth/forgot-password" className="text-xs font-medium text-[#007c91] hover:underline">
+                <label className="text-sm font-semibold text-text-body">Password</label>
+                <Link href="/auth/forgot-password" className="text-xs font-medium text-brand hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -189,12 +189,12 @@ function LoginContent() {
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+                  className="h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 pr-12 text-sm text-text-heading placeholder-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-body"
                   aria-label={showPw ? "Hide password" : "Show password"}
                 >
                   {showPw ? <EyeOffIcon /> : <EyeIcon />}
@@ -206,7 +206,7 @@ function LoginContent() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0a1629] text-sm font-semibold text-white shadow-sm transition hover:bg-[#007c91] hover:shadow-md disabled:opacity-60"
+              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-950 text-sm font-semibold text-white shadow-sm transition hover:bg-brand hover:shadow-md disabled:opacity-60"
             >
               {loading ? (
                 <>
@@ -220,9 +220,9 @@ function LoginContent() {
           </form>
 
           {/* Sign up link */}
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-text-muted">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="font-semibold text-[#007c91] hover:underline">
+            <Link href="/auth/signup" className="font-semibold text-brand hover:underline">
               Create one free
             </Link>
           </p>
@@ -237,7 +237,7 @@ export default function LoginPage() {
   return (
     <Suspense 
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500 font-sans">
+        <div className="flex min-h-screen items-center justify-center bg-paper text-text-muted font-sans">
           <SpinnerIcon /> <span className="ml-2">កំពុងផ្ទុក...</span>
         </div>
       }

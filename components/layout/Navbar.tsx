@@ -124,7 +124,7 @@ export default async function Navbar() {
   }
 
   return (
-    <header className="w-full font-sans">
+    <header className="w-full font-sans border-t-[3px] border-accent">
       {/* Top utility strip */}
         <div className="hidden lg:block bg-blue-950 text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5">
           <div className="flex items-center justify-between px-6 md:px-12 py-2 max-w-[1400px] mx-auto w-full">
@@ -180,7 +180,7 @@ export default async function Navbar() {
                 <Seal size={48} />
                 <div className="hidden sm:flex flex-col text-text-heading group-hover:opacity-90 transition-opacity">
                   <span className="font-khmer-serif font-bold text-[15px] leading-tight">បណ្ណាល័យ វ.គ.រ.ភ</span>
-                  <span className="font-serif font-bold text-sm tracking-wide mt-0.5">PTEC Library</span>
+                  <span className="font-khmer-serif font-bold text-sm tracking-wide mt-0.5">PTEC Library</span>
                 </div>
               </Link>
 

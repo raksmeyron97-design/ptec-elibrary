@@ -16,25 +16,25 @@ export default function CatalogBookError({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-bg-app">
       {/* Breadcrumb */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3 md:px-12">
-        <div className="mx-auto max-w-[1100px] flex items-center gap-2 text-sm text-slate-500">
-          <Link href="/home" className="hover:text-[#007c91] transition">
+      <div className="bg-bg-surface border-b border-divider px-4 py-3 md:px-12">
+        <div className="mx-auto max-w-[1100px] flex items-center gap-2 text-sm text-text-muted">
+          <Link href="/home" className="hover:text-brand transition">
             Home
           </Link>
           <span>›</span>
-          <Link href="/catalogs" className="hover:text-[#007c91] transition">
+          <Link href="/catalogs" className="hover:text-brand transition">
             Books In Library
           </Link>
           <span>›</span>
-          <span className="text-slate-400">Error</span>
+          <span className="text-text-muted">Error</span>
         </div>
       </div>
 
       {/* Error state */}
       <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-12">
-        <div className="flex min-h-[450px] flex-col items-center justify-center rounded-2xl border border-dashed border-red-200 bg-white p-10 text-center">
+        <div className="flex min-h-[450px] flex-col items-center justify-center rounded-2xl border border-dashed border-red-200 bg-bg-surface p-10 text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <svg
               className="h-7 w-7 text-red-400"
@@ -51,22 +51,22 @@ export default function CatalogBookError({
               <line x1="5" y1="9" x2="9" y2="13" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-slate-800">
+          <h2 className="text-xl font-bold text-text-heading">
             Couldn&apos;t load this book
           </h2>
-          <p className="mt-2 max-w-md text-sm text-slate-500">
+          <p className="mt-2 max-w-md text-sm text-text-muted">
             Something went wrong while loading the book details. This might be a
             temporary issue &mdash; please try again.
           </p>
           {error.digest && (
-            <p className="mt-2 text-xs text-slate-400 font-mono">
+            <p className="mt-2 text-xs text-text-muted font-mono">
               Error ref: {error.digest}
             </p>
           )}
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={reset}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0a1629] px-6 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-950 px-6 text-sm font-semibold text-white transition hover:bg-brand"
             >
               <svg
                 className="h-4 w-4"
@@ -84,7 +84,7 @@ export default function CatalogBookError({
             </button>
             <Link
               href="/catalogs"
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-800"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-6 text-sm font-semibold text-text-body transition hover:border-divider hover:text-text-heading"
             >
               <svg
                 className="h-4 w-4"

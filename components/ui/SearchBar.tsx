@@ -25,13 +25,13 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
   book:     "text-brand",
   author:   "text-gold-700",
-  category: "text-blue-700",
+  category: "text-brand",
 };
 
 const TYPE_BG: Record<Suggestion["type"], string> = {
-  book:     "bg-blue-50",
+  book:     "bg-brand/5",
   author:   "bg-gold-50",
-  category: "bg-blue-100",
+  category: "bg-brand/10",
 };
 
 export default function SearchBar({ compact = false }: SearchBarProps) {
@@ -160,7 +160,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
             className="
               peer h-13 w-full rounded-xl
               border border-divider
-              bg-white
+              bg-bg-surface
               py-3 pl-4 pr-12
               sm:pl-12 sm:pr-10
               text-text-heading placeholder:text-text-muted caret-brand
@@ -212,7 +212,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
                 absolute right-3.5 top-1/2 -translate-y-1/2
                 flex h-5 w-5 items-center justify-center
                 rounded-full bg-paper text-text-muted
-                transition hover:bg-blue-50 hover:text-brand
+                transition hover:bg-brand/5 hover:text-brand
                 active:scale-95
                 hidden sm:flex
               "
@@ -307,7 +307,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
                         flex w-full items-center gap-3 px-4 py-3 text-left
                         transition-colors duration-100
                         min-h-[52px]
-                        ${isActive ? "bg-blue-50" : "hover:bg-paper"}
+                        ${isActive ? "bg-brand/5" : "hover:bg-paper"}
                       `}
                     >
                       {/* Icon badge */}
@@ -336,7 +336,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
 
                       {/* Chevron */}
                       <svg
-                        className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-brand" : "text-slate-200"}`}
+                        className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-brand" : "text-text-muted"}`}
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                       >
                         <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -352,7 +352,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
           <div className="hidden sm:flex items-center gap-3 border-t border-divider bg-paper px-4 py-2">
             {[["↑↓", "Navigate"], ["↵", "Select"], ["Esc", "Close"]].map(([key, label]) => (
               <span key={key} className="flex items-center gap-1.5">
-                <kbd className="rounded-md border border-divider bg-white px-1.5 py-0.5 font-mono text-[11px] text-text-muted shadow-sm">
+                <kbd className="rounded-md border border-divider bg-bg-surface px-1.5 py-0.5 font-mono text-[11px] text-text-muted shadow-sm">
                   {key}
                 </kbd>
                 <span className="text-[11px] text-text-muted">{label}</span>

@@ -145,23 +145,23 @@ export default function EditForm({ initial }: { initial: Initial }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8"
+      className="grid gap-5 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:grid-cols-2 md:p-8"
     >
-      <p className="md:col-span-2 rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
+      <p className="md:col-span-2 rounded-lg bg-paper px-4 py-3 text-xs text-text-muted">
         Editing metadata and cover image. The PDF file is not changed here.
       </p>
 
       {/* ── Cover image section ── */}
       <div className="md:col-span-2">
-        <span className="mb-2 block text-sm font-semibold text-slate-700">
+        <span className="mb-2 block text-sm font-semibold text-text-body">
           Cover image{" "}
-          <span className="font-normal text-slate-400">(optional — JPEG, PNG, WebP · max 5 MB)</span>
+          <span className="font-normal text-text-muted">(optional — JPEG, PNG, WebP · max 5 MB)</span>
         </span>
 
         <div className="flex items-start gap-4">
           {/* Preview */}
           {preview ? (
-            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 shadow-sm">
+            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg border border-divider shadow-sm">
               <Image
                 src={preview}
                 alt="Cover preview"
@@ -180,7 +180,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
               </button>
             </div>
           ) : (
-            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-xs text-text-muted">
               No cover
             </div>
           )}
@@ -193,9 +193,9 @@ export default function EditForm({ initial }: { initial: Initial }) {
               accept="image/jpeg,image/png,image/webp,image/avif"
               disabled={saving}
               onChange={handleCoverChange}
-              className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600 transition hover:border-[#007c91] file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 disabled:opacity-50"
+              className="block w-full rounded-lg border border-dashed border-divider bg-paper px-4 py-3 text-sm text-text-body transition hover:border-brand file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-text-body disabled:opacity-50"
             />
-            <p className="mt-1.5 text-xs text-slate-400">
+            <p className="mt-1.5 text-xs text-text-muted">
               {preview
                 ? coverFile
                   ? `New cover selected: ${coverFile.name}`
@@ -209,7 +209,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
       {/* ── Text fields ── */}
       {TEXT_FIELDS.map((f) => (
         <label key={f.name}>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
             {f.label} {f.required && <span className="text-red-500">*</span>}
           </span>
           <input
@@ -218,14 +218,14 @@ export default function EditForm({ initial }: { initial: Initial }) {
             defaultValue={initial[f.name as keyof Initial] as string}
             placeholder={f.placeholder}
             disabled={saving}
-            className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+            className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
           />
         </label>
       ))}
 
       {/* Department */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Department <span className="text-red-500">*</span>
         </span>
         <select
@@ -233,7 +233,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
           required
           defaultValue={initial.department}
           disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         >
           {departments.map((d) => (
             <option key={d} value={d}>{d}</option>
@@ -243,33 +243,33 @@ export default function EditForm({ initial }: { initial: Initial }) {
 
       {/* Year */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Year</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Year</span>
         <input
           name="year" type="number" min="1900" max="2099"
           defaultValue={initial.year} disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Pages */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pages</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Pages</span>
         <input
           name="pages" type="number" min="1"
           defaultValue={initial.pages} disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Summary */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Summary <span className="text-red-500">*</span>
         </span>
         <textarea
           name="summary" required rows={4}
           defaultValue={initial.summary} disabled={saving}
-          className="w-full resize-none rounded-lg border border-slate-200 p-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
@@ -289,7 +289,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
       <div className="md:col-span-2 flex gap-3">
         <button
           type="submit" disabled={saving}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#0a1629] px-6 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="pdf" className="text-lg" />
           {phaseLabel[phase]}

@@ -93,7 +93,7 @@ export async function getSavedBooks() {
       department: b.department ?? "General",
       language:   b.language ?? "English",
       summary:    b.description ?? "",
-      cover:      b.cover_color ?? "bg-[#0a1629]",
+      cover:      b.cover_color ?? "bg-blue-950",
       coverUrl:   b.cover_url ?? null,
       rating:     Number(b.rating) || 0,
       pages:      b.pages ?? 1,

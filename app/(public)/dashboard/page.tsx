@@ -139,7 +139,7 @@ export default async function DashboardPage() {
         {/* ── Profile Hero Card ── */}
         <div className="relative overflow-hidden rounded-2xl border-t-4 border-t-accent bg-gradient-to-br from-blue-900 to-blue-950 p-8 text-white shadow-lg">
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gold-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-10 left-1/3 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-10 left-1/3 h-48 w-48 rounded-full bg-bg-surface/5 blur-2xl" />
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-5">
               <div className="relative shrink-0">
@@ -149,14 +149,14 @@ export default async function DashboardPage() {
                     className="h-20 w-20 rounded-full object-cover ring-4 ring-white/20" />
                 ) : (
                   <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand ring-4 ring-gold-500/30">
-                    <span className="font-serif text-2xl font-bold tracking-wide">{initials}</span>
+                    <span className="font-khmer-serif text-2xl font-bold tracking-wide">{initials}</span>
                   </div>
                 )}
                 <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-blue-950 bg-emerald-400" />
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="font-serif text-2xl font-bold">{displayName}</h1>
+                  <h1 className="font-khmer-serif text-2xl font-bold">{displayName}</h1>
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                     isAdmin ? "bg-gold-400/20 text-gold-200" : "bg-blue-400/20 text-blue-100"
                   }`}>
@@ -174,7 +174,7 @@ export default async function DashboardPage() {
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/books"
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-semibold text-white transition hover:bg-white/20">
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-bg-surface/10 px-4 text-sm font-semibold text-white transition hover:bg-bg-surface/20">
                 <Icon name="library" className="text-base" />Browse Catalogue
               </Link>
               <form action="/auth/signout" method="POST">
@@ -206,7 +206,7 @@ export default async function DashboardPage() {
                   </svg>
                 </span>
               </div>
-              <div className="mt-4 font-serif text-4xl font-bold text-text-heading">{value}</div>
+              <div className="mt-4 font-khmer-serif text-4xl font-bold text-text-heading">{value}</div>
               <div className="mt-1 text-sm text-text-muted">{label}</div>
             </a>
           ))}
@@ -215,7 +215,7 @@ export default async function DashboardPage() {
         {/* ── In Progress ── */}
         <div id="in-progress" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-serif text-xl font-bold text-text-heading">
+            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">
               Continue Reading
               {inProgressBooks.length > 0 && (
                 <span className="ml-2 text-base font-normal text-text-muted">({inProgressBooks.length})</span>
@@ -235,7 +235,7 @@ export default async function DashboardPage() {
         {/* ── Completed ── */}
         <div id="completed" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-serif text-xl font-bold text-text-heading">
+            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">
               Completed Books
               {completedBooks.length > 0 && (
                 <span className="ml-2 text-base font-normal text-text-muted">({completedBooks.length})</span>
@@ -255,7 +255,7 @@ export default async function DashboardPage() {
         {/* ── Saved books ── */}
         <div id="saved" className="scroll-mt-6">
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-serif text-xl font-bold text-text-heading">
+            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">
               Saved Resources
               {savedBooks.length > 0 && (
                 <span className="ml-2 text-base font-normal text-text-muted">({savedBooks.length})</span>
@@ -288,7 +288,7 @@ export default async function DashboardPage() {
 
         {/* ── Account info ── */}
         <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-          <h2 className="mb-4 font-serif text-lg font-bold text-text-heading">Account Information</h2>
+          <h2 className="mb-4 font-khmer-serif text-lg font-bold text-text-heading">Account Information</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { label: "Full Name",    value: profile?.full_name || "—" },

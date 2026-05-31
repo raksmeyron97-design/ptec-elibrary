@@ -36,8 +36,8 @@ export default async function AdminPostsPage() {
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Manage Posts</h1>
-          <p className="text-sm text-slate-500">Create, edit, and publish your library posts.</p>
+          <h1 className="text-2xl font-bold text-text-heading">Manage Posts</h1>
+          <p className="text-sm text-text-muted">Create, edit, and publish your library posts.</p>
         </div>
 
       </div>

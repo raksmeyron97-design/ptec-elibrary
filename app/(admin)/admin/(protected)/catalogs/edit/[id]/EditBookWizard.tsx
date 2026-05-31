@@ -59,12 +59,12 @@ export default function EditBookWizard({
     }
   }
 
-  const labelCls = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5";
+  const labelCls = "block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5";
   const inputCls = `
-    w-full rounded-xl border border-slate-200 bg-slate-50/50
-    px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400
+    w-full rounded-xl border border-divider bg-paper/50
+    px-3.5 py-2.5 text-sm text-text-heading placeholder:text-text-muted
     outline-none transition
-    focus:border-[#007c91]/50 focus:bg-white focus:ring-2 focus:ring-[#007c91]/15
+    focus:border-brand/50 focus:bg-bg-surface focus:ring-2 focus:ring-focus-ring/15
   `;
 
   if (step === 2) {
@@ -73,7 +73,7 @@ export default function EditBookWizard({
         <div>
           <Link
             href="/admin/catalogs"
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#007c91] transition mb-3"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition mb-3"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M19 12H5m0 0 7 7m-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
@@ -88,29 +88,29 @@ export default function EditBookWizard({
               className="flex items-center gap-2 hover:opacity-80 transition"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white">✓</span>
-              <span className="text-sm font-semibold text-slate-400">Book Info</span>
+              <span className="text-sm font-semibold text-text-muted">Book Info</span>
             </button>
-            <div className="h-px w-8 bg-slate-200" />
+            <div className="h-px w-8 bg-paper" />
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007c91] text-[11px] font-bold text-white">2</span>
-              <span className="text-sm font-bold text-slate-700">Physical Copies</span>
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-white">2</span>
+              <span className="text-sm font-bold text-text-body">Physical Copies</span>
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-[#0a1629]">Manage Physical Copies</h1>
+          <h1 className="text-2xl font-bold text-text-heading">Manage Physical Copies</h1>
 
           {/* Book summary pill */}
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <svg className="h-3.5 w-3.5 text-[#007c91]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-divider bg-bg-surface px-3 py-1.5 shadow-sm">
+            <svg className="h-3.5 w-3.5 text-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
             </svg>
-            <span className="text-xs font-semibold text-slate-700">{currentBook.title}</span>
-            <span className="text-xs text-slate-400">· {currentBook.author}</span>
+            <span className="text-xs font-semibold text-text-body">{currentBook.title}</span>
+            <span className="text-xs text-text-muted">· {currentBook.author}</span>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600 mb-4">
+        <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-sm">
+          <p className="text-sm text-text-body mb-4">
             Click the button below to manage all physical copies associated with this book. You can add new copies, change their status, or delete existing ones.
           </p>
           <CopiesManager bookId={currentBook.id} bookShelfLocation={currentBook.shelf_location} />
@@ -119,7 +119,7 @@ export default function EditBookWizard({
         <div className="flex items-center justify-end gap-3 pt-4">
           <Link
             href="/admin/catalogs"
-            className="rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
+            className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
           >
             Finish Editing
           </Link>
@@ -131,14 +131,14 @@ export default function EditBookWizard({
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/admin/catalogs" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#007c91] transition mb-3">
+        <Link href="/admin/catalogs" className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-brand transition mb-3">
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M19 12H5m0 0 7 7m-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           Back to catalogue admin
         </Link>
-        <h1 className="text-2xl font-bold text-[#0a1629]">Edit Book</h1>
-        <p className="text-sm text-slate-500 mt-1 truncate">{book.title}</p>
+        <h1 className="text-2xl font-bold text-text-heading">Edit Book</h1>
+        <p className="text-sm text-text-muted mt-1 truncate">{book.title}</p>
       </div>
 
       {/* Error banner */}
@@ -148,7 +148,7 @@ export default function EditBookWizard({
         </div>
       )}
 
-      <form action={handleUpdateBook} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-6 space-y-5">
+      <form action={handleUpdateBook} className="rounded-2xl bg-bg-surface border border-divider shadow-sm p-6 space-y-5">
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -196,8 +196,8 @@ export default function EditBookWizard({
           </div>
         </div>
 
-        <hr className="border-slate-100" />
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Library Details</h2>
+        <hr className="border-divider" />
+        <h2 className="text-xs font-bold text-text-muted uppercase tracking-wider">Library Details</h2>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
@@ -220,8 +220,8 @@ export default function EditBookWizard({
           {book.cover_url && (
             <div className="mb-2 flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={book.cover_url} alt="" className="h-16 w-12 object-cover rounded-lg border border-slate-200" />
-              <span className="text-xs text-slate-500 truncate max-w-[200px]">{book.cover_url}</span>
+              <img src={book.cover_url} alt="" className="h-16 w-12 object-cover rounded-lg border border-divider" />
+              <span className="text-xs text-text-muted truncate max-w-[200px]">{book.cover_url}</span>
             </div>
           )}
           <input 
@@ -246,13 +246,13 @@ export default function EditBookWizard({
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <Link href="/admin/catalogs" className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+          <Link href="/admin/catalogs" className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body hover:bg-paper transition">
             Cancel
           </Link>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-xl bg-gradient-to-br from-[#0a1629] to-[#007c91] px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98] disabled:opacity-70"
+            className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98] disabled:opacity-70"
           >
             {loading ? "Saving..." : "Save Changes & Manage Copies"}
           </button>

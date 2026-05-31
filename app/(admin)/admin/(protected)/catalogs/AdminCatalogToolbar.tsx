@@ -68,7 +68,7 @@ export default function AdminCatalogToolbar({
   }
 
   const selectCls =
-    "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#007c91]/50 focus:ring-2 focus:ring-[#007c91]/15 shadow-sm";
+    "h-10 rounded-xl border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none transition focus:border-brand/50 focus:ring-2 focus:ring-focus-ring/15 shadow-sm";
 
   return (
     <div className={`space-y-2 ${isPending ? "opacity-70" : ""}`}>
@@ -76,7 +76,7 @@ export default function AdminCatalogToolbar({
         {/* Search */}
         <label className="relative flex-1">
           <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+            className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
           >
             <circle cx="11" cy="11" r="8" />
@@ -88,13 +88,13 @@ export default function AdminCatalogToolbar({
             type="search"
             autoComplete="off"
             placeholder="Search title, author, ISBN, category, shelf…"
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#007c91]/50 focus:ring-2 focus:ring-[#007c91]/15 shadow-sm"
+            className="h-10 w-full rounded-xl border border-divider bg-bg-surface pl-10 pr-10 text-sm text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand/50 focus:ring-2 focus:ring-focus-ring/15 shadow-sm"
           />
           {queryText && (
             <button
               type="button"
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-muted transition"
               aria-label="Clear search"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -155,7 +155,7 @@ export default function AdminCatalogToolbar({
           {anyFilterActive && (
             <button
               onClick={resetAll}
-              className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              className="h-10 rounded-xl border border-divider px-3 text-xs font-semibold text-text-body transition hover:bg-paper"
             >
               Reset
             </button>
@@ -163,11 +163,11 @@ export default function AdminCatalogToolbar({
         </div>
       </div>
 
-      <p className="px-1 text-sm text-slate-500">
-        <span className="font-semibold text-slate-700">{totalItems}</span>{" "}
+      <p className="px-1 text-sm text-text-muted">
+        <span className="font-semibold text-text-body">{totalItems}</span>{" "}
         result{totalItems !== 1 ? "s" : ""}
         {filters.q && (
-          <> for <span className="font-semibold text-[#007c91]">&ldquo;{filters.q}&rdquo;</span></>
+          <> for <span className="font-semibold text-brand">&ldquo;{filters.q}&rdquo;</span></>
         )}
       </p>
     </div>

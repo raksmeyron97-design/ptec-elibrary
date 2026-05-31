@@ -64,7 +64,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
       {/* Avatar button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative h-9 w-9 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand/20"
+        className="relative h-9 w-9 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus-ring/20"
         aria-label="User menu"
         aria-expanded={open}
       >
@@ -111,7 +111,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-900">
+            <p className="truncate text-sm font-bold text-text-heading">
               {displayName}
             </p>
             <p className="truncate text-xs text-text-muted">{user.email}</p>
@@ -119,7 +119,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
               className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 user.role === "admin"
                   ? "bg-gold-50 text-warning"
-                  : "bg-blue-50 text-brand"
+                  : "bg-brand/5 text-brand"
               }`}
             >
               {user.role}
@@ -132,17 +132,17 @@ export default function NavbarClient({ user }: NavbarClientProps) {
           <Link
             href="/dashboard"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-slate-50 hover:text-brand"
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
           >
-            <Icon name="account" className="text-[18px] text-slate-400" />
+            <Icon name="account" className="text-[18px] text-text-muted" />
             My Dashboard
           </Link>
           <Link
             href="/books"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-slate-50 hover:text-brand"
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
           >
-            <Icon name="bookmark" className="text-[18px] text-slate-400" />
+            <Icon name="bookmark" className="text-[18px] text-text-muted" />
             Saved Books
           </Link>
          

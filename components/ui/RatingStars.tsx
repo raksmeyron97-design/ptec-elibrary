@@ -17,11 +17,11 @@ export default function RatingStars({ rating, compact = false }: RatingStarsProp
           <Icon
             key={index}
             name="star"
-            className={`${size} ${index < rounded ? "text-amber-400" : "text-slate-200"}`}
+            className={`${size} ${index < rounded ? "text-amber-400" : "text-text-muted"}`}
           />
         ))}
       </div>
-      <span className={`ml-1 font-semibold text-slate-600 ${compact ? "text-[13px]" : "text-sm"}`}>
+      <span className={`ml-1 font-semibold text-text-body ${compact ? "text-[13px]" : "text-sm"}`}>
         {Number(rating).toFixed(1)}
       </span>
     </div>

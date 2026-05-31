@@ -59,7 +59,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Back cards (static, showing adjacent book colors) ── */}
       {backCards.map((style, i) => {
         const bk = backBooks[i] ?? books[0];
-        const bgColor = bk.coverColor ?? "bg-[#0a1629]";
+        const bgColor = bk.coverColor ?? "bg-blue-950";
         // Extract hex from Tailwind class for gradient
         const hexMatch = bgColor.match(/#[0-9a-fA-F]{6}/);
         const hex = hexMatch ? hexMatch[0] : "#0a1629";
@@ -77,9 +77,9 @@ export default function HeroBookStack({ books }: Props) {
             <div className="absolute inset-0 rounded-2xl border border-white/[0.08]" />
             {/* Subtle placeholder lines */}
             <div className="absolute bottom-6 left-5 right-5">
-              <div className="mb-2 h-1.5 w-10 rounded-full bg-white/15" />
-              <div className="h-2.5 w-24 rounded-full bg-white/20" />
-              <div className="mt-1.5 h-1.5 w-16 rounded-full bg-white/10" />
+              <div className="mb-2 h-1.5 w-10 rounded-full bg-bg-surface/15" />
+              <div className="h-2.5 w-24 rounded-full bg-bg-surface/20" />
+              <div className="mt-1.5 h-1.5 w-16 rounded-full bg-bg-surface/10" />
             </div>
           </div>
         );
@@ -154,9 +154,9 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Book icon → Browse resources ── */}
       <Link
         href="/books"
-        className="absolute -right-2 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-white/[0.12] hover:scale-110"
+        className="absolute -right-2 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
-        <svg className="h-5 w-5 text-[#4dd0e1]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <svg className="h-5 w-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </svg>
@@ -165,7 +165,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Download icon → Most downloaded ── */}
       <Link
         href="/books?sort=downloads"
-        className="absolute -left-3 bottom-12 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-white/[0.12] hover:scale-110"
+        className="absolute -left-3 bottom-12 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
         <svg className="h-4 w-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v13m0 0-4-4m4 4 4-4" />
@@ -181,8 +181,8 @@ export default function HeroBookStack({ books }: Props) {
               key={i}
               className={`h-1.5 rounded-full transition-all duration-300 ${
                 i === activeIndex
-                  ? "w-5 bg-[#4dd0e1]"
-                  : "w-1.5 bg-white/20"
+                  ? "w-5 bg-accent"
+                  : "w-1.5 bg-bg-surface/20"
               }`}
             />
           ))}

@@ -70,10 +70,10 @@ export default function PDFViewer({
   // ── No PDF fallback ────────────────────────────────────────────
   if (!pdfUrl) {
     return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed border-divider bg-paper p-8 text-center">
         <Icon name="pdf" className="mb-3 text-5xl text-brand" />
-        <h2 className="text-xl font-bold text-slate-950">{title}</h2>
-        <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
+        <h2 className="text-xl font-bold text-text-heading">{title}</h2>
+        <p className="mt-2 max-w-md text-sm leading-6 text-text-body">
           មិនទាន់មានឯកសារ PDF នៅឡើយទេ។
         </p>
       </div>
@@ -227,12 +227,12 @@ export default function PDFViewer({
     <div className="flex shrink-0 flex-col gap-2.5 border-white/10 bg-slate-950 px-3 py-2.5 text-white sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:px-4 sm:py-3">
       {/* Title row */}
       <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/10 sm:h-10 sm:w-10">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-surface/10 sm:h-10 sm:w-10">
           <Icon name="pdf" className="text-xl text-cyan-100" />
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[15px] font-bold sm:text-base">{title}</h2>
-          <p className="text-[11px] text-slate-400 sm:text-xs">Read online</p>
+          <p className="text-[11px] text-text-muted sm:text-xs">Read online</p>
         </div>
 
         {/* Mobile: fullscreen + view-mode toggles */}
@@ -242,7 +242,7 @@ export default function PDFViewer({
             href={pdfUrl ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-white/10"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-bg-surface/10"
             title="Open PDF in new tab"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -257,7 +257,7 @@ export default function PDFViewer({
             <button
               onClick={() => setIsFullscreen(true)}
               aria-label="Fullscreen"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-white/10"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-bg-surface/10"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
@@ -267,7 +267,7 @@ export default function PDFViewer({
             <button
               onClick={() => setIsFullscreen(false)}
               aria-label="Exit fullscreen"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-white/10"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/20 text-white transition hover:bg-bg-surface/10"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
@@ -285,7 +285,7 @@ export default function PDFViewer({
             href={pdfUrl ?? "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-md p-1.5 text-text-muted transition hover:bg-bg-surface/10 hover:text-white"
             title="Open PDF in new tab (native scroll & search)"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -302,20 +302,20 @@ export default function PDFViewer({
           <button
             onClick={handleZoomOut}
             disabled={scale <= 0.5}
-            className="rounded-md p-1.5 text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-30"
+            className="rounded-md p-1.5 text-text-muted hover:bg-bg-surface/10 hover:text-white disabled:opacity-30"
             title="Zoom out (−)"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
             </svg>
           </button>
-          <span className="w-10 text-center text-xs font-semibold text-slate-300">
+          <span className="w-10 text-center text-xs font-semibold text-text-muted">
             {Math.round(scale * 100)}%
           </span>
           <button
             onClick={handleZoomIn}
             disabled={scale >= 3}
-            className="rounded-md p-1.5 text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-30"
+            className="rounded-md p-1.5 text-text-muted hover:bg-bg-surface/10 hover:text-white disabled:opacity-30"
             title="Zoom in (+)"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
@@ -329,7 +329,7 @@ export default function PDFViewer({
             className={`ml-1 rounded-md p-1.5 transition ${
               fitMode === "width"
                 ? "bg-cyan-500/20 text-cyan-300"
-                : "text-slate-400 hover:bg-white/10 hover:text-white"
+                : "text-text-muted hover:bg-bg-surface/10 hover:text-white"
             }`}
             title={fitMode === "width" ? "Fit to width (click for fit to page)" : "Fit to page (click for fit to width)"}
           >
@@ -351,19 +351,19 @@ export default function PDFViewer({
           <button
             onClick={handleZoomOut}
             disabled={scale <= 0.5}
-            className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-white/10 disabled:opacity-30"
+            className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-surface/10 disabled:opacity-30"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
             </svg>
           </button>
-          <span className="w-8 text-center text-[11px] font-semibold text-slate-400">
+          <span className="w-8 text-center text-[11px] font-semibold text-text-muted">
             {Math.round(scale * 100)}%
           </span>
           <button
             onClick={handleZoomIn}
             disabled={scale >= 3}
-            className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-white/10 disabled:opacity-30"
+            className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-surface/10 disabled:opacity-30"
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -373,17 +373,17 @@ export default function PDFViewer({
 
         {/* Pagination Controls */}
         {numPages > 0 && (
-          <div className="flex items-center gap-1 rounded-md bg-white/10 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1.5">
+          <div className="flex items-center gap-1 rounded-md bg-bg-surface/10 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1.5">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50"
+              className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-surface/10 hover:text-white disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="text-[11px] text-slate-400 hidden sm:inline">Page</span>
+            <span className="text-[11px] text-text-muted hidden sm:inline">Page</span>
             <input
               type="number"
               min={1}
@@ -404,11 +404,11 @@ export default function PDFViewer({
               }}
               className="w-10 bg-transparent text-center text-sm font-semibold text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
-            <span className="text-[11px] text-slate-400 sm:text-xs">/ {numPages}</span>
+            <span className="text-[11px] text-text-muted sm:text-xs">/ {numPages}</span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage >= numPages}
-              className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-white/10 hover:text-white disabled:opacity-50"
+              className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-surface/10 hover:text-white disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -420,7 +420,7 @@ export default function PDFViewer({
         {/* Progress bar — desktop */}
         {numPages > 0 && (
           <div className="hidden items-center gap-2 lg:flex">
-            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/20">
+            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-bg-surface/20">
               <div
                 className="h-full rounded-full bg-cyan-400 transition-all duration-300"
                 style={{ width: `${progressPct}%` }}
@@ -483,7 +483,7 @@ export default function PDFViewer({
         {!inModal ? (
           <button
             onClick={() => setIsFullscreen(true)}
-            className="hidden h-8 items-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-semibold text-white transition hover:bg-white/10 sm:inline-flex"
+            className="hidden h-8 items-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-semibold text-white transition hover:bg-bg-surface/10 sm:inline-flex"
             title="Fullscreen (F)"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -494,7 +494,7 @@ export default function PDFViewer({
         ) : (
           <button
             onClick={() => setIsFullscreen(false)}
-            className="hidden h-8 items-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-semibold text-white transition hover:bg-white/10 sm:inline-flex"
+            className="hidden h-8 items-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-semibold text-white transition hover:bg-bg-surface/10 sm:inline-flex"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
@@ -507,7 +507,7 @@ export default function PDFViewer({
       {/* Mobile progress bar */}
       {numPages > 0 && (
         <div className="flex items-center gap-2 sm:hidden">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-bg-surface/20">
             <div
               className="h-full rounded-full bg-cyan-400 transition-all duration-300"
               style={{ width: `${progressPct}%` }}
@@ -527,7 +527,7 @@ export default function PDFViewer({
   const DocumentArea = ({ fullscreen = false }: { fullscreen?: boolean }) => (
     <div
       ref={wrapperRef}
-      className="group relative w-full overflow-hidden bg-slate-100"
+      className="group relative w-full overflow-hidden bg-paper"
       style={
         fullscreen
           ? { height: `calc(100vh - ${TOOLBAR_H}px)` }
@@ -567,8 +567,8 @@ export default function PDFViewer({
           onLoadSuccess={onDocumentLoadSuccess}
           loading={
             <div className="flex flex-col items-center justify-center gap-3 p-10">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-brand" />
-              <p className="text-sm text-slate-500">កំពុងទាញយកសៀវភៅ...</p>
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-divider border-t-brand" />
+              <p className="text-sm text-text-muted">កំពុងទាញយកសៀវភៅ...</p>
             </div>
           }
           error={
@@ -590,7 +590,7 @@ export default function PDFViewer({
       </div>
 
       {/* Keyboard shortcut hint */}
-      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-md bg-slate-900/70 px-3 py-1.5 text-[10px] text-slate-400 opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 sm:text-xs">
+      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-md bg-slate-900/70 px-3 py-1.5 text-[10px] text-text-muted opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 sm:text-xs">
         ← → Arrow keys · +/− Zoom · F Fullscreen
       </div>
     </div>
@@ -601,7 +601,7 @@ export default function PDFViewer({
   ───────────────────────────────────────────────────────────────── */
   return (
     <>
-      <div className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col overflow-hidden rounded-lg border border-divider bg-bg-surface shadow-sm">
         <div className="order-2 sm:order-1">
           <Toolbar />
         </div>

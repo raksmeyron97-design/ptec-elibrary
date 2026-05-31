@@ -48,15 +48,15 @@ export default function EditForm({ initial }: { initial: Initial }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8"
+      className="grid gap-5 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:grid-cols-2 md:p-8"
     >
-      <p className="md:col-span-2 rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
+      <p className="md:col-span-2 rounded-lg bg-paper px-4 py-3 text-xs text-text-muted">
         Editing metadata only. The PDF and cover image are not changed here.
       </p>
 
       {TEXT_FIELDS.map((f) => (
         <label key={f.name}>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
             {f.label} {f.required && <span className="text-red-500">*</span>}
           </span>
           <input
@@ -65,14 +65,14 @@ export default function EditForm({ initial }: { initial: Initial }) {
             defaultValue={initial[f.name as keyof Initial] as string}
             placeholder={f.placeholder}
             disabled={saving}
-            className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+            className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
           />
         </label>
       ))}
 
       {/* Department */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Department <span className="text-red-500">*</span>
         </span>
         <select
@@ -80,7 +80,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
           required
           defaultValue={initial.department}
           disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         >
           {departments.map((d) => (
             <option key={d} value={d}>{d}</option>
@@ -90,7 +90,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
 
       {/* Year */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Year</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Year</span>
         <input
           name="year"
           type="number"
@@ -98,26 +98,26 @@ export default function EditForm({ initial }: { initial: Initial }) {
           max="2099"
           defaultValue={initial.year}
           disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Pages */}
       <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pages</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">Pages</span>
         <input
           name="pages"
           type="number"
           min="1"
           defaultValue={initial.pages}
           disabled={saving}
-          className="h-11 w-full rounded-lg border border-slate-200 px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
       {/* Summary */}
       <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
           Summary <span className="text-red-500">*</span>
         </span>
         <textarea
@@ -126,7 +126,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
           rows={4}
           defaultValue={initial.summary}
           disabled={saving}
-          className="w-full resize-none rounded-lg border border-slate-200 p-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
+          className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
         />
       </label>
 
@@ -140,7 +140,7 @@ export default function EditForm({ initial }: { initial: Initial }) {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#0a1629] px-6 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Icon name="pdf" className="text-lg" />
           {saving ? "Saving…" : "Save changes"}

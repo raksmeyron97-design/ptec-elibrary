@@ -12,7 +12,7 @@ interface RelatedPost {
 }
 
 const categoryStyles: Record<string, string> = {
-  Research:     "bg-blue-50 text-brand border border-blue-100",
+  Research:     "bg-brand/5 text-brand border border-blue-100",
   Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
   Event:        "bg-orange-50 text-orange-700 border border-orange-100",
   Journal:      "bg-teal-50 text-teal-700 border border-teal-100",

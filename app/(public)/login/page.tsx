@@ -57,11 +57,11 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <main className="flex flex-1 items-center justify-center bg-slate-100 px-4 py-12">
+      <main className="flex flex-1 items-center justify-center bg-paper px-4 py-12">
         <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl shadow-lg md:grid-cols-2">
 
           {/* Left panel — branding */}
-          <div className="flex flex-col justify-center bg-[#0a1629] p-10 text-white">
+          <div className="flex flex-col justify-center bg-blue-950 p-10 text-white">
             <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-cyan-500/20">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="1.5">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -69,11 +69,11 @@ export default function LoginPage() {
               </svg>
             </div>
             <h2 className="text-2xl font-bold leading-tight">Library account access</h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-300">
+            <p className="mt-3 text-sm leading-relaxed text-text-muted">
               Sign in to save resources, request borrowing, view due dates, and
               receive new-material alerts from the PTEC library team.
             </p>
-            <div className="mt-8 rounded-xl bg-white/5 p-4 text-xs text-slate-400">
+            <div className="mt-8 rounded-xl bg-bg-surface/5 p-4 text-xs text-text-muted">
               Need access?{" "}
               <a href="/contact" className="text-cyan-400 underline underline-offset-2">
                 Contact the library desk
@@ -83,8 +83,8 @@ export default function LoginPage() {
           </div>
 
           {/* Right panel — form */}
-          <div className="flex flex-col justify-center bg-white p-10">
-            <h1 className="mb-6 text-2xl font-bold text-slate-900">Sign in</h1>
+          <div className="flex flex-col justify-center bg-bg-surface p-10">
+            <h1 className="mb-6 text-2xl font-bold text-text-heading">Sign in</h1>
 
             {error && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -94,33 +94,33 @@ export default function LoginPage() {
 
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-slate-700">Email</span>
+                <span className="text-sm font-semibold text-text-body">Email</span>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@ptec.edu.kh"
-                  className="h-12 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-[#007c91] focus:bg-white focus:ring-2 focus:ring-[#007c91]/15"
+                  className="h-12 rounded-lg border border-divider bg-paper px-4 text-sm outline-none focus:border-brand focus:bg-bg-surface focus:ring-2 focus:ring-focus-ring/15"
                 />
               </label>
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-semibold text-slate-700">Password</span>
+                <span className="text-sm font-semibold text-text-body">Password</span>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 rounded-lg border border-slate-200 bg-slate-50 px-4 text-sm outline-none focus:border-[#007c91] focus:bg-white focus:ring-2 focus:ring-[#007c91]/15"
+                  className="h-12 rounded-lg border border-divider bg-paper px-4 text-sm outline-none focus:border-brand focus:bg-bg-surface focus:ring-2 focus:ring-focus-ring/15"
                 />
               </label>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 h-12 rounded-lg bg-[#0a1629] font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-1 h-12 rounded-lg bg-blue-950 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Signing in..." : "Continue"}
               </button>
@@ -128,9 +128,9 @@ export default function LoginPage() {
 
             {/* Divider */}
             <div className="my-5 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs text-slate-400">or</span>
-              <div className="h-px flex-1 bg-slate-200" />
+              <div className="h-px flex-1 bg-paper" />
+              <span className="text-xs text-text-muted">or</span>
+              <div className="h-px flex-1 bg-paper" />
             </div>
 
             {/* Google button */}
@@ -138,7 +138,7 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogle}
               disabled={googleLoading}
-              className="flex h-12 items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="flex h-12 items-center justify-center gap-3 rounded-lg border border-divider bg-bg-surface font-semibold text-text-body transition hover:bg-paper disabled:opacity-60"
             >
               {/* Google icon SVG */}
               <svg width="18" height="18" viewBox="0 0 18 18">

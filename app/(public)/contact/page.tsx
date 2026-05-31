@@ -68,9 +68,9 @@ export default function ContactPage() {
   const isDisabled = status === "loading" || status === "success";
 
   return (
-    <section className="bg-slate-50 px-6 py-10 md:px-12">
+    <section className="bg-paper px-6 py-10 md:px-12">
       <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[.9fr_1.1fr]">
-        <div className="rounded-lg bg-[#0a1629] p-8 text-white">
+        <div className="rounded-lg bg-blue-950 p-8 text-white">
           <h1 className="text-3xl font-bold">Contact the library</h1>
           <div className="mt-8 space-y-5">
             {contactItems.map(([icon, text]) => (
@@ -84,9 +84,9 @@ export default function ContactPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
+          className="rounded-lg border border-divider bg-bg-surface p-8 shadow-sm"
         >
-          <h2 className="text-2xl font-bold text-slate-950">Send a request</h2>
+          <h2 className="text-2xl font-bold text-text-heading">Send a request</h2>
 
           <div className="mt-6 grid gap-4">
             <input
@@ -94,7 +94,7 @@ export default function ContactPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isDisabled}
-              className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              className="h-12 rounded-md border border-divider px-4 outline-none focus:border-brand disabled:opacity-50"
               placeholder="Full name"
             />
             <input
@@ -103,7 +103,7 @@ export default function ContactPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isDisabled}
-              className="h-12 rounded-md border border-slate-200 px-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              className="h-12 rounded-md border border-divider px-4 outline-none focus:border-brand disabled:opacity-50"
               placeholder="Email address"
             />
             <textarea
@@ -111,7 +111,7 @@ export default function ContactPage() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               disabled={isDisabled}
-              className="min-h-36 rounded-md border border-slate-200 p-4 outline-none focus:border-[#007c91] disabled:opacity-50"
+              className="min-h-36 rounded-md border border-divider p-4 outline-none focus:border-brand disabled:opacity-50"
               placeholder="How can the library help?"
             />
           </div>
@@ -134,7 +134,7 @@ export default function ContactPage() {
           <button
             type="submit"
             disabled={isDisabled}
-            className="mt-5 rounded-md bg-[#0a1629] px-5 py-3 font-semibold text-white transition hover:bg-[#007c91] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 rounded-md bg-blue-950 px-5 py-3 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "loading" ? "Sending…" : "Submit message"}
           </button>

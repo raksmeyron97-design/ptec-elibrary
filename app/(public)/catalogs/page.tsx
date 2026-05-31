@@ -110,7 +110,7 @@ export default async function CatalogsPage({
           {/* Title row */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-serif text-2xl font-bold text-text-heading">Books In Library</h1>
+              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">Books In Library</h1>
               <p className="mt-0.5 text-sm text-text-muted">
                 Find physical books available at PTEC Library
               </p>
@@ -188,14 +188,14 @@ export default async function CatalogsPage({
             <div className="flex flex-wrap items-center gap-2">
               {params.q && (
                 <a href={buildHref(params, { q: undefined, page: undefined })}
-                   className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-blue-100">
+                   className="inline-flex items-center gap-1.5 rounded-full bg-brand/5 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-brand/10">
                   &ldquo;{params.q}&rdquo;
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
                 </a>
               )}
               {params.category && (
                 <a href={buildHref(params, { category: undefined, page: undefined })}
-                   className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-blue-100">
+                   className="inline-flex items-center gap-1.5 rounded-full bg-brand/5 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-brand/10">
                   {params.category}
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
                 </a>
@@ -219,7 +219,7 @@ export default async function CatalogsPage({
             <svg className="mb-4 h-12 w-12 text-text-muted/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
-            <h2 className="font-serif text-xl font-bold text-text-heading">No books found</h2>
+            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">No books found</h2>
             <p className="mt-2 max-w-sm text-sm text-text-muted">
               {params.q ? `No books match "${params.q}".` : hasFilters ? "Try adjusting your filters." : "No books in catalogue yet."}
             </p>

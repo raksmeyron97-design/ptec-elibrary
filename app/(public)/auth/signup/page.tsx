@@ -84,8 +84,8 @@ export default function SignupPage() {
   // ── Success state ─────────────────────────────────────────────
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-10 shadow-lg text-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-6">
+        <div className="w-full max-w-md rounded-2xl border border-divider bg-bg-surface p-10 shadow-lg text-center">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
             <svg className="h-8 w-8 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9"/>
@@ -93,15 +93,15 @@ export default function SignupPage() {
               <path d="m16 19 2 2 4-4"/>
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">Check your email</h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
+          <h2 className="text-2xl font-bold text-text-heading">Check your email</h2>
+          <p className="mt-3 text-sm leading-relaxed text-text-muted">
             We sent a confirmation link to{" "}
-            <span className="font-semibold text-slate-700">{email}</span>.
+            <span className="font-semibold text-text-body">{email}</span>.
             Click the link to activate your account.
           </p>
           <Link
             href="/auth/login"
-            className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#0a1629] px-6 text-sm font-semibold text-white transition hover:bg-[#007c91]"
+            className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-blue-950 px-6 text-sm font-semibold text-white transition hover:bg-brand"
           >
             Back to Login
           </Link>
@@ -114,18 +114,18 @@ export default function SignupPage() {
     <div className="flex min-h-screen font-sans">
 
       {/* ── Left dark panel ── */}
-      <div className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-[#0a1629] p-12 lg:flex">
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#007c91]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-[#007c91]/15 blur-3xl" />
+      <div className="relative hidden w-[45%] flex-col justify-between overflow-hidden bg-blue-950 p-12 lg:flex">
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-brand/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-brand/15 blur-3xl" />
 
         {/* Logo */}
         <div className="relative flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 border border-white/10">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-bg-surface/10 border border-white/10">
             <Image src="/logo_footer.png" alt="PTEC" width={40} height={40} className="object-contain" />
           </div>
           <div>
-            <span className="block text-xl font-bold text-white tracking-wide">PTEC <span className="text-[#00a8c6]">e-Library</span></span>
-            <span className="text-xs text-slate-400 tracking-widest uppercase">Digital Learning Hub</span>
+            <span className="block text-xl font-bold text-white tracking-wide">PTEC <span className="text-brand">e-Library</span></span>
+            <span className="text-xs text-text-muted tracking-widest uppercase">Digital Learning Hub</span>
           </div>
         </div>
 
@@ -138,21 +138,21 @@ export default function SignupPage() {
               ["🎓", "Exclusive pedagogy & research papers"],
               ["📱", "Read on any device, anytime"],
             ].map(([icon, text]) => (
-              <div key={text} className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 backdrop-blur-sm">
+              <div key={text} className="flex items-center gap-4 rounded-xl border border-white/10 bg-bg-surface/5 px-4 py-3.5 backdrop-blur-sm">
                 <span className="text-xl">{icon}</span>
-                <span className="text-sm font-medium text-slate-300">{text}</span>
+                <span className="text-sm font-medium text-text-muted">{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative text-xs text-slate-500">
+        <div className="relative text-xs text-text-muted">
           © {new Date().getFullYear()} Phnom Penh Teacher Education College
         </div>
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-6 py-12 sm:px-12">
+      <div className="flex flex-1 flex-col items-center justify-center bg-paper px-6 py-12 sm:px-12">
         {/* Mobile logo */}
         <div className="mb-8 flex items-center gap-3 lg:hidden">
           <Image src="/logo_top.png" alt="PTEC" width={120} height={40} className="h-9 w-auto object-contain" />
@@ -161,8 +161,8 @@ export default function SignupPage() {
         <div className="w-full max-w-[420px]">
 
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Create account</h1>
-            <p className="mt-2 text-slate-500">Join the PTEC digital library today.</p>
+            <h1 className="text-3xl font-bold text-text-heading">Create account</h1>
+            <p className="mt-2 text-text-muted">Join the PTEC digital library today.</p>
           </div>
 
           {/* Error banner */}
@@ -179,22 +179,22 @@ export default function SignupPage() {
           <button
             onClick={handleGoogle}
             disabled={googleLoading || loading}
-            className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md disabled:opacity-60"
+            className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-divider bg-bg-surface px-5 py-3.5 text-sm font-semibold text-text-body shadow-sm transition hover:border-divider hover:bg-paper hover:shadow-md disabled:opacity-60"
           >
             {googleLoading ? <SpinnerIcon /> : <GoogleIcon />}
             {googleLoading ? "Redirecting…" : "Sign up with Google"}
           </button>
 
           <div className="mb-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-xs font-medium text-slate-400">or sign up with email</span>
-            <div className="h-px flex-1 bg-slate-200" />
+            <div className="h-px flex-1 bg-paper" />
+            <span className="text-xs font-medium text-text-muted">or sign up with email</span>
+            <div className="h-px flex-1 bg-paper" />
           </div>
 
           <form onSubmit={handleSignup} className="space-y-4">
             {/* Full name */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Full name</label>
+              <label className="mb-1.5 block text-sm font-semibold text-text-body">Full name</label>
               <input
                 type="text"
                 value={fullName}
@@ -202,13 +202,13 @@ export default function SignupPage() {
                 required
                 autoComplete="name"
                 placeholder="Sokha Chan"
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+                className="h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm text-text-heading placeholder-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email address</label>
+              <label className="mb-1.5 block text-sm font-semibold text-text-body">Email address</label>
               <input
                 type="email"
                 value={email}
@@ -216,13 +216,13 @@ export default function SignupPage() {
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+                className="h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm text-text-heading placeholder-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Password</label>
+              <label className="mb-1.5 block text-sm font-semibold text-text-body">Password</label>
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
@@ -231,9 +231,9 @@ export default function SignupPage() {
                   required
                   autoComplete="new-password"
                   placeholder="Min. 8 characters"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 pr-12 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+                  className="h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 pr-12 text-sm text-text-heading placeholder-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
                 />
-                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-body">
                   {showPw ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
@@ -246,11 +246,11 @@ export default function SignupPage() {
                       className={`h-1 flex-1 rounded-full transition-colors ${
                         password.length >= threshold
                           ? i === 0 ? "bg-red-400" : i === 1 ? "bg-amber-400" : "bg-emerald-400"
-                          : "bg-slate-200"
+                          : "bg-paper"
                       }`}
                     />
                   ))}
-                  <span className="ml-2 text-[11px] text-slate-400">
+                  <span className="ml-2 text-[11px] text-text-muted">
                     {password.length < 8 ? "Too short" : password.length < 12 ? "Weak" : password.length < 16 ? "Good" : "Strong"}
                   </span>
                 </div>
@@ -259,7 +259,7 @@ export default function SignupPage() {
 
             {/* Confirm password */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirm password</label>
+              <label className="mb-1.5 block text-sm font-semibold text-text-body">Confirm password</label>
               <input
                 type={showPw ? "text" : "password"}
                 value={confirm}
@@ -267,12 +267,12 @@ export default function SignupPage() {
                 required
                 autoComplete="new-password"
                 placeholder="Re-enter password"
-                className={`h-12 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:ring-2 ${
+                className={`h-12 w-full rounded-xl border bg-bg-surface px-4 text-sm text-text-heading placeholder-text-muted outline-none transition focus:ring-2 ${
                   confirm && confirm !== password
                     ? "border-red-300 focus:border-red-400 focus:ring-red-200/40"
                     : confirm && confirm === password
                     ? "border-emerald-300 focus:border-emerald-400 focus:ring-emerald-200/40"
-                    : "border-slate-200 focus:border-[#007c91] focus:ring-[#007c91]/15"
+                    : "border-divider focus:border-brand focus:ring-focus-ring/15"
                 }`}
               />
               {confirm && confirm !== password && (
@@ -283,15 +283,15 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0a1629] text-sm font-semibold text-white shadow-sm transition hover:bg-[#007c91] hover:shadow-md disabled:opacity-60"
+              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-950 text-sm font-semibold text-white shadow-sm transition hover:bg-brand hover:shadow-md disabled:opacity-60"
             >
               {loading ? <><SpinnerIcon /> Creating account…</> : "Create account"}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-text-muted">
             Already have an account?{" "}
-            <Link href="/auth/login" className="font-semibold text-[#007c91] hover:underline">
+            <Link href="/auth/login" className="font-semibold text-brand hover:underline">
               Sign in
             </Link>
           </p>

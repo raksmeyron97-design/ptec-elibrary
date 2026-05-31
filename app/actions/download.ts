@@ -193,7 +193,7 @@ export async function getMyDownloadHistory(): Promise<DownloadHistoryItem[]> {
         title:        book.title,
         author:       book.authors?.name ?? "Unknown",
         coverUrl:     book.cover_url   ?? null,
-        cover:        book.cover_color ?? "bg-[#0a1629]",
+        cover:        book.cover_color ?? "bg-blue-950",
         downloadedAt: row.downloaded_at,
       });
     }

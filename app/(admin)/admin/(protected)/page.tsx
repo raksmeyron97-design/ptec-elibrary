@@ -73,15 +73,15 @@ function StatCard({
   icon: LucideIcon; label: string; value: string; sub?: string; accent: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</span>
         <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent}`}>
           <Icon className="h-5 w-5" />
         </span>
       </div>
-      <div className="mt-3 text-2xl font-bold text-slate-800">{value}</div>
-      {sub && <div className="mt-1 text-xs text-slate-400">{sub}</div>}
+      <div className="mt-3 text-2xl font-bold text-text-heading">{value}</div>
+      {sub && <div className="mt-1 text-xs text-text-muted">{sub}</div>}
     </div>
   );
 }
@@ -94,31 +94,31 @@ function TopListCard({
   title: string; subtitle: string; items: TopItem[];
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-sm font-bold text-slate-800">{title}</h2>
-      <p className="text-xs text-slate-400">{subtitle}</p>
+    <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+      <h2 className="text-sm font-bold text-text-heading">{title}</h2>
+      <p className="text-xs text-text-muted">{subtitle}</p>
       {items.length > 0 ? (
         <ol className="mt-4 space-y-3">
           {items.map((it, i) => (
             <li key={it.id} className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#1E3A8A]/10 text-xs font-bold text-[#1E3A8A]">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand/10 text-xs font-bold text-brand">
                 {i + 1}
               </span>
               <div className="min-w-0 flex-1">
                 <Link
                   href={it.href}
-                  className="block truncate text-sm font-medium text-slate-700 transition hover:text-[#DDB022]"
+                  className="block truncate text-sm font-medium text-text-body transition hover:text-accent"
                 >
                   {it.title}
                 </Link>
-                {it.meta && <p className="truncate text-xs text-slate-400">{it.meta}</p>}
+                {it.meta && <p className="truncate text-xs text-text-muted">{it.meta}</p>}
               </div>
-              <span className="shrink-0 text-sm font-bold text-slate-800">{it.value}</span>
+              <span className="shrink-0 text-sm font-bold text-text-heading">{it.value}</span>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="mt-4 text-sm text-slate-400">No data yet.</p>
+        <p className="mt-4 text-sm text-text-muted">No data yet.</p>
       )}
     </div>
   );
@@ -204,7 +204,7 @@ export default async function AdminDashboardPage() {
       {/* ── KPI cards ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard icon={BookOpen} label="Digital books" value={nf(totalBooks)}
-          sub={`${publishedBooks} published · ${draftBooks} drafts`} accent="bg-[#1E3A8A]/10 text-[#1E3A8A]" />
+          sub={`${publishedBooks} published · ${draftBooks} drafts`} accent="bg-brand/10 text-brand" />
         <StatCard icon={Download} label="Downloads" value={nf(totalDownloads)}
           sub="all time" accent="bg-amber-100 text-amber-600" />
         <StatCard icon={Eye} label="Views" value={nf(totalViews)}
@@ -216,32 +216,32 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* ── Downloads chart ── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-800">Downloads</h2>
-            <p className="text-xs text-slate-400">Last 30 days</p>
+            <h2 className="text-sm font-bold text-text-heading">Downloads</h2>
+            <p className="text-xs text-text-muted">Last 30 days</p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-[#1E3A8A]">{nf(periodDownloads)}</div>
-            <div className="text-xs text-slate-400">in this period</div>
+            <div className="text-2xl font-bold text-brand">{nf(periodDownloads)}</div>
+            <div className="text-xs text-text-muted">in this period</div>
           </div>
         </div>
         <DownloadsChart data={daily} />
       </div>
 
       {/* ── User growth chart (Phase 3) ── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-text-heading">
               <UserPlus className="h-4 w-4 text-violet-500" /> User growth
             </h2>
-            <p className="text-xs text-slate-400">Cumulative · last 90 days</p>
+            <p className="text-xs text-text-muted">Cumulative · last 90 days</p>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-violet-600">+{nf(newUsers90)}</div>
-            <div className="text-xs text-slate-400">new in this period</div>
+            <div className="text-xs text-text-muted">new in this period</div>
           </div>
         </div>
         <UserGrowthChart data={growth} />
@@ -254,31 +254,31 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* ── Alerts ── */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-slate-800">Needs attention</h2>
+          <h2 className="text-sm font-bold text-text-heading">Needs attention</h2>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Link href="/admin/manage"
-            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 transition hover:border-[#DDB022]/50 hover:bg-amber-50">
-            <span className="flex items-center gap-2 text-sm text-slate-600">
-              <BookOpen className="h-4 w-4 text-slate-400" /> Unpublished book drafts
+            className="flex items-center justify-between rounded-lg border border-divider bg-paper px-4 py-3 transition hover:border-accent/50 hover:bg-amber-50">
+            <span className="flex items-center gap-2 text-sm text-text-body">
+              <BookOpen className="h-4 w-4 text-text-muted" /> Unpublished book drafts
             </span>
-            <span className="rounded-md bg-[#1E3A8A]/10 px-2 py-0.5 text-sm font-bold text-[#1E3A8A]">{nf(draftBooks)}</span>
+            <span className="rounded-md bg-brand/10 px-2 py-0.5 text-sm font-bold text-brand">{nf(draftBooks)}</span>
           </Link>
           <Link href="/admin/posts"
-            className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 transition hover:border-[#DDB022]/50 hover:bg-amber-50">
-            <span className="flex items-center gap-2 text-sm text-slate-600">
-              <FileText className="h-4 w-4 text-slate-400" /> Unpublished post drafts
+            className="flex items-center justify-between rounded-lg border border-divider bg-paper px-4 py-3 transition hover:border-accent/50 hover:bg-amber-50">
+            <span className="flex items-center gap-2 text-sm text-text-body">
+              <FileText className="h-4 w-4 text-text-muted" /> Unpublished post drafts
             </span>
-            <span className="rounded-md bg-[#1E3A8A]/10 px-2 py-0.5 text-sm font-bold text-[#1E3A8A]">{nf(draftPosts)}</span>
+            <span className="rounded-md bg-brand/10 px-2 py-0.5 text-sm font-bold text-brand">{nf(draftPosts)}</span>
           </Link>
         </div>
 
         <div className="mt-5">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
             Catalog low on copies ({lowStock.length})
           </p>
           {lowStock.length > 0 ? (
@@ -286,8 +286,8 @@ export default async function AdminDashboardPage() {
               {lowStock.map((c: any) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-700">{c.title}</p>
-                    <p className="truncate text-xs text-slate-400">{c.author}</p>
+                    <p className="truncate text-sm font-medium text-text-body">{c.title}</p>
+                    <p className="truncate text-xs text-text-muted">{c.author}</p>
                   </div>
                   <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${
                     (c.copies_available ?? 0) === 0
@@ -300,7 +300,7 @@ export default async function AdminDashboardPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">All catalog items have enough copies. ✓</p>
+            <p className="text-sm text-text-muted">All catalog items have enough copies. ✓</p>
           )}
         </div>
       </div>

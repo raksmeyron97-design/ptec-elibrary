@@ -24,37 +24,37 @@ export default async function DownloadHistory() {
   return (
     <div id="downloads" className="scroll-mt-6">
       <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-slate-950">
+        <h2 className="text-xl font-bold text-text-heading">
           Download History
           {history.length > 0 && (
-            <span className="ml-2 text-base font-normal text-slate-400">({history.length})</span>
+            <span className="ml-2 text-base font-normal text-text-muted">({history.length})</span>
           )}
         </h2>
       </div>
 
       {history.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center">
-          <svg className="mb-3 h-10 w-10 text-slate-300" viewBox="0 0 24 24" fill="none"
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-12 text-center">
+          <svg className="mb-3 h-10 w-10 text-text-muted" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 3v13m0 0-4-4m4 4 4-4" /><path d="M4 20h16" />
           </svg>
-          <h3 className="text-sm font-semibold text-slate-600">No downloads yet</h3>
-          <p className="mt-1 text-xs text-slate-400">
+          <h3 className="text-sm font-semibold text-text-body">No downloads yet</h3>
+          <p className="mt-1 text-xs text-text-muted">
             Books you download will appear here.
           </p>
           <Link href="/books"
-            className="mt-5 inline-flex h-10 items-center rounded-lg bg-[#0a1629] px-5 text-sm font-semibold text-white transition hover:bg-[#007c91]">
+            className="mt-5 inline-flex h-10 items-center rounded-lg bg-blue-950 px-5 text-sm font-semibold text-white transition hover:bg-brand">
             Browse Catalogue
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
           <ul className="divide-y divide-slate-50">
             {history.map((item) => (
               <li key={item.bookId}>
                 <Link
                   href={`/books/${item.slug}`}
-                  className="flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50"
+                  className="flex items-center gap-4 px-5 py-4 transition hover:bg-paper"
                 >
                   {/* Cover thumbnail */}
                   <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-md shadow-sm">
@@ -77,15 +77,15 @@ export default async function DownloadHistory() {
 
                   {/* Info */}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-800">{item.title}</p>
-                    <p className="text-xs text-slate-400">{item.author}</p>
+                    <p className="truncate text-sm font-semibold text-text-heading">{item.title}</p>
+                    <p className="text-xs text-text-muted">{item.author}</p>
                   </div>
 
                   {/* Time */}
-                  <span className="shrink-0 text-xs text-slate-400">{timeAgo(item.downloadedAt)}</span>
+                  <span className="shrink-0 text-xs text-text-muted">{timeAgo(item.downloadedAt)}</span>
 
                   {/* Arrow */}
-                  <svg className="h-4 w-4 shrink-0 text-slate-300" viewBox="0 0 24 24" fill="none"
+                  <svg className="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
                     <path d="m9 18 6-6-6-6" />
                   </svg>

@@ -2,11 +2,11 @@ import type { CatalogCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-
 import Icon from "./Icon";
 
 const STATUS_CONFIG: Record<string, { label: string; colorClass: string }> = {
-  available: { label: "Available", colorClass: "text-emerald-500 border-emerald-200 bg-white" },
-  checked_out: { label: "Checked Out", colorClass: "text-amber-500 border-amber-200 bg-white" },
-  lost: { label: "Lost", colorClass: "text-red-500 border-red-200 bg-white" },
-  damaged: { label: "Damaged", colorClass: "text-orange-500 border-orange-200 bg-white" },
-  on_order: { label: "On Order", colorClass: "text-blue-500 border-blue-200 bg-white" },
+  available: { label: "Available", colorClass: "text-emerald-500 border-emerald-200 bg-bg-surface" },
+  checked_out: { label: "Checked Out", colorClass: "text-amber-500 border-amber-200 bg-bg-surface" },
+  lost: { label: "Lost", colorClass: "text-red-500 border-red-200 bg-bg-surface" },
+  damaged: { label: "Damaged", colorClass: "text-orange-500 border-orange-200 bg-bg-surface" },
+  on_order: { label: "On Order", colorClass: "text-blue-500 border-blue-200 bg-bg-surface" },
 };
 
 export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }) {
@@ -15,10 +15,10 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
   return (
     <div className="mt-12 scroll-mt-24">
       <div className="flex items-center gap-4 mb-8">
-        <h2 className="font-serif text-[24px] font-bold text-brand whitespace-nowrap">
+        <h2 className="font-khmer-serif text-[24px] font-bold text-brand whitespace-nowrap">
           Physical Copies ({copies.length})
         </h2>
-        <div className="h-[1px] w-full bg-slate-200" />
+        <div className="h-[1px] w-full bg-paper" />
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -26,7 +26,7 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
           const status = STATUS_CONFIG[copy.status] || STATUS_CONFIG.available;
 
           return (
-            <div key={copy.id} className="relative rounded-sm border border-divider bg-white p-6 shadow-sm">
+            <div key={copy.id} className="relative rounded-sm border border-divider bg-bg-surface p-6 shadow-sm">
               {/* Status Badge Overhang */}
               <div className="absolute top-0 right-4 -translate-y-1/2">
                 <span className={`inline-flex items-center px-3 py-1 text-[11px] font-bold tracking-wider border ${status.colorClass}`}>

@@ -37,7 +37,7 @@ const COPY_STATUS_BADGE: Record<string, string> = {
   checked_out: "bg-amber-50 border-amber-200 text-amber-700",
   lost:        "bg-red-50 border-red-200 text-red-600",
   damaged:     "bg-orange-50 border-orange-200 text-orange-600",
-  on_order:    "bg-blue-50 border-blue-200 text-blue-600",
+  on_order:    "bg-brand/5 border-blue-200 text-brand",
 };
 
 const COPY_STATUS_DOT: Record<string, string> = {
@@ -139,7 +139,7 @@ export default async function CatalogBookPage({
                 <span className={`font-bold ${statusTxt}`}>{b.copies_available} / {b.copies_total} copies</span>
               </div>
               {b.shelf_location && (
-                <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/70 px-3 py-2">
+                <div className="mt-3 flex items-center gap-2 rounded-lg bg-bg-surface/70 px-3 py-2">
                   <svg className="h-4 w-4 shrink-0 text-gold-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
                   </svg>
@@ -169,7 +169,7 @@ export default async function CatalogBookPage({
             {/* Title / Author */}
             <div>
               {b.category && (
-                <span className="mb-3 inline-block rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
+                <span className="mb-3 inline-block rounded-full bg-brand/5 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand">
                   {b.category}
                 </span>
               )}
@@ -238,7 +238,7 @@ export default async function CatalogBookPage({
                       <span className="text-xs text-text-muted">Stock Health</span>
                       <span className="text-xs font-semibold text-text-body">{stockPct}%</span>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-paper">
                       <div
                         className="h-full rounded-full bg-brand transition-all duration-500"
                         style={{ width: `${stockPct}%` }}
@@ -251,10 +251,10 @@ export default async function CatalogBookPage({
                     {sortedCopies.map((copy) => (
                       <div
                         key={copy.id}
-                        className={`relative rounded-xl border p-4 ${COPY_STATUS_BADGE[copy.status]?.split(" ").slice(0, 2).join(" ") ?? "bg-slate-50 border-slate-200"}`}
+                        className={`relative rounded-xl border p-4 ${COPY_STATUS_BADGE[copy.status]?.split(" ").slice(0, 2).join(" ") ?? "bg-paper border-divider"}`}
                       >
                         {/* Status badge */}
-                        <span className={`absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${COPY_STATUS_BADGE[copy.status] ?? "bg-slate-50 border-slate-200 text-slate-500"}`}>
+                        <span className={`absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${COPY_STATUS_BADGE[copy.status] ?? "bg-paper border-divider text-text-muted"}`}>
                           {COPY_STATUS_LABEL[copy.status] ?? copy.status}
                         </span>
 

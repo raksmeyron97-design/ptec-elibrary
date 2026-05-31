@@ -45,7 +45,7 @@ export default async function PostsPage() {
             <p className="mb-2 text-xs font-bold uppercase tracking-widest text-accent">
               PTEC Library
             </p>
-            <h1 className="font-serif text-3xl font-bold text-text-heading md:text-4xl">From the Library</h1>
+            <h1 className="font-khmer-serif text-3xl font-bold text-text-heading md:text-4xl">From the Library</h1>
             <p className="mt-2 max-w-2xl font-sans text-sm text-text-muted">
               Research updates, announcements, events, and journals from across the library.
             </p>

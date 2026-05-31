@@ -18,7 +18,7 @@ type PostCard = {
 const FILTERS = ["All", "Research", "Announcement", "Event", "Journal"] as const;
 
 const categoryStyles: Record<string, string> = {
-  Research:     "bg-blue-50 text-brand border border-blue-100",
+  Research:     "bg-brand/5 text-brand border border-blue-100",
   Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
   Event:        "bg-orange-50 text-orange-700 border border-orange-100",
   Journal:      "bg-teal-50 text-teal-700 border border-teal-100",
@@ -76,7 +76,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
     <div className="space-y-6">
 
       {/* ── Search ── */}
-      <div className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm focus-within:border-brand/50 focus-within:ring-1 focus-within:ring-brand/50 transition-all">
+      <div className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm focus-within:border-brand/50 focus-within:ring-1 focus-within:ring-focus-ring/50 transition-all">
         <svg className="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
@@ -123,7 +123,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
               <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <h3 className="font-serif font-bold text-lg text-text-heading">No posts found</h3>
+          <h3 className="font-khmer-serif font-bold text-lg text-text-heading">No posts found</h3>
           <p className="mt-1 max-w-sm font-sans text-sm text-text-muted">
             {query || activeCat !== "All"
               ? "Try adjusting your search or filters."
@@ -180,7 +180,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                 )}
                 <div className="mt-auto flex items-center justify-between border-t border-divider pt-3 text-[12px]">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-brand">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/5 text-[10px] font-bold text-brand">
                       {post.author.charAt(0).toUpperCase()}
                     </div>
                     <span className="truncate font-medium text-text-body max-w-[120px]">{post.author}</span>

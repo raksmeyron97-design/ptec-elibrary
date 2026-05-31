@@ -160,7 +160,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </div>
 
             {resuming && (
-              <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3.5">
+              <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-[14px] border border-blue-200 bg-brand/5 px-4 py-3.5">
                 <div className="min-w-0 flex-1 w-full">
                   <p className="text-[13.5px] font-bold text-brand">
                     Continue reading — {savedProgress!.progressPct}% complete
@@ -236,7 +236,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         {book.dbId && (
           <div id="reviews" className="mt-12 scroll-mt-24">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="font-serif text-[28px] font-bold text-text-heading">
+              <h2 className="font-khmer-serif text-[28px] font-bold text-text-heading">
                 Reader Reviews
                 {reviews.length > 0 && (
                   <span className="ml-2.5 text-base font-semibold text-text-muted">({reviews.length})</span>

@@ -30,7 +30,8 @@ export default function SearchableSelect({
     }
   }, [options, selected]);
 
-  // Close on outside click
+  // Close on outside click  (FIX: previous code re-added the listener on cleanup
+  // instead of removing it — leaked a listener on every mount)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
@@ -39,7 +40,7 @@ export default function SearchableSelect({
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -52,34 +53,34 @@ export default function SearchableSelect({
       {/* Hidden input for form submission */}
       <input type="hidden" name={name} value={selected} required={required} />
 
-      {/* Select Trigger */}
+      {/* Select Trigger — brand focus ring (was hardcoded teal #007c91) */}
       <button
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex h-11 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:bg-slate-50 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-between rounded-lg border border-divider bg-bg-surface px-4 text-sm text-text-heading outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30 disabled:bg-paper disabled:opacity-60"
       >
-        <span className={selected ? "text-slate-900" : "text-slate-400"}>
+        <span className={selected ? "text-text-heading" : "text-text-muted"}>
           {selected || placeholder}
         </span>
         <Icon
           name="chevron-right"
-          className={`text-slate-400 transition-transform ${isOpen ? "rotate-90" : "rotate-0"}`}
+          className={`text-text-muted transition-transform ${isOpen ? "rotate-90" : "rotate-0"}`}
         />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+        <div className="absolute z-10 mt-1 w-full rounded-lg border border-divider bg-bg-surface p-2 shadow-lg">
           {/* Search Input */}
           <div className="relative mb-2">
-            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search.."
-              className="h-10 w-full rounded-md border border-slate-200 pl-9 pr-3 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15"
+              className="h-10 w-full rounded-md border border-divider pl-9 pr-3 text-sm text-text-heading outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
               autoFocus
             />
           </div>
@@ -95,17 +96,17 @@ export default function SearchableSelect({
                     setIsOpen(false);
                     setSearch("");
                   }}
-                  className={`cursor-pointer rounded-md px-3 py-2 text-sm transition hover:bg-slate-50 ${
+                  className={`cursor-pointer rounded-md px-3 py-2 text-sm transition hover:bg-paper ${
                     selected === option
-                      ? "bg-slate-50 font-semibold text-[#007c91]"
-                      : "text-slate-700"
+                      ? "bg-brand/5 font-semibold text-brand"
+                      : "text-text-body"
                   }`}
                 >
                   {option}
                 </li>
               ))
             ) : (
-              <li className="px-3 py-4 text-center text-sm text-slate-500">
+              <li className="px-3 py-4 text-center text-sm text-text-muted">
                 No results found.
               </li>
             )}

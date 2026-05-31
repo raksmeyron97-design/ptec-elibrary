@@ -63,7 +63,7 @@ export default function CatalogCard({ book }: Props) {
             inline-flex items-center gap-1.5
             rounded-full border px-2 py-0.5
             text-[10px] font-bold backdrop-blur-sm
-            bg-white/90
+            bg-bg-surface/90
             ${textColor}
             border-current/20
           `}
