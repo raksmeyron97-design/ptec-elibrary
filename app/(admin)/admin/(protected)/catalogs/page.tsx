@@ -10,46 +10,124 @@ import {
 } from "@/lib/catalog";
 import CatalogAdminActions from "./CatalogAdminActions";
 import CsvImportModal from "./CsvImportModal";
-import AdminCatalogSearchBar from "./AdminCatalogSearchBar";
+import AdminCatalogToolbar from "./AdminCatalogToolbar";
+import Pagination from "@/components/ui/Pagination";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 20;
+
+type SP = {
+  q?: string;
+  page?: string;
+  sort?: string;   // newest | oldest | title | author | category | available
+  cat?: string;
+  dept?: string;
+  status?: string; // active | deleted | ""
+};
 
 export default async function AdminCatalogsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string }>;
+  searchParams?: Promise<SP>;
 }) {
+  const sp = (await searchParams) ?? {};
   const supabase = createServiceClient();
 
-  // Fetch all (including inactive for admin)
-  const { data: books } = await supabase
+  const page   = Math.max(1, Number(sp.page ?? "1") || 1);
+  const q      = (sp.q ?? "").trim();
+  const cat    = sp.cat ?? "";
+  const dept   = sp.dept ?? "";
+  const status = sp.status ?? "";
+  const sort   = sp.sort ?? "newest";
+
+  const from = (page - 1) * PAGE_SIZE;
+  const to   = from + PAGE_SIZE - 1;
+
+  // ── Page query (search / filter / sort / paginate — all in DB) ──
+  let query = supabase
     .from("catalog_books")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*", { count: "exact" });
 
-  const allBooks = (books ?? []) as CatalogBook[];
+  if (q) {
+    // `.or()` is comma-separated, so strip chars that would break the filter string.
+    const safe = q.replace(/[,()]/g, " ").trim();
+    query = query.or(
+      [
+        `title.ilike.%${safe}%`,
+        `author.ilike.%${safe}%`,
+        `isbn.ilike.%${safe}%`,
+        `category.ilike.%${safe}%`,
+        `department.ilike.%${safe}%`,
+        `shelf_location.ilike.%${safe}%`,
+        `accession_number.ilike.%${safe}%`,
+      ].join(",")
+    );
+  }
+  if (cat)  query = query.eq("category", cat);
+  if (dept) query = query.eq("department", dept);
+  if (status === "active")  query = query.eq("is_active", true);
+  if (status === "deleted") query = query.eq("is_active", false);
 
-  // ── Search / filter ──────────────────────────────────────────────────────────
-  const { q } = (await searchParams) ?? {};
-  const rawQuery = q?.trim() ?? "";
-  const filteredBooks = rawQuery
-    ? allBooks.filter((b) => {
-        const q = rawQuery.toLowerCase();
-        return (
-          b.title.toLowerCase().includes(q) ||
-          b.author.toLowerCase().includes(q) ||
-          (b.isbn ?? "").toLowerCase().includes(q) ||
-          (b.category ?? "").toLowerCase().includes(q) ||
-          (b.department ?? "").toLowerCase().includes(q) ||
-          (b.shelf_location ?? "").toLowerCase().includes(q) ||
-          (b.accession_number ?? "").toLowerCase().includes(q)
-        );
-      })
-    : allBooks;
+  switch (sort) {
+    case "oldest":
+      query = query.order("created_at", { ascending: true });
+      break;
+    case "title":
+      query = query.order("title", { ascending: true });
+      break;
+    case "author":
+      query = query.order("author", { ascending: true });
+      break;
+    case "category":
+      query = query
+        .order("category", { ascending: true, nullsFirst: false })
+        .order("title", { ascending: true });
+      break;
+    case "available":
+      query = query.order("copies_available", { ascending: false });
+      break;
+    case "newest":
+    default:
+      query = query.order("created_at", { ascending: false });
+      break;
+  }
 
-  const activeBooks   = allBooks.filter((b) => b.is_active);
-  const totalCopies   = activeBooks.reduce((s, b) => s + b.copies_total, 0);
-  const availCopies   = activeBooks.reduce((s, b) => s + b.copies_available, 0);
+  // Stable tie-breaker, then paginate.
+  query = query.order("id", { ascending: true }).range(from, to);
+
+  const { data: books, count } = await query;
+  const pageBooks = (books ?? []) as CatalogBook[];
+
+  // ── Meta query: stats + filter options in ONE small read ──
+  // Reads only 5 light columns. At very large scale, move this to a Postgres
+  // RPC / materialized view (see notes).
+  const { data: metaRows } = await supabase
+    .from("catalog_books")
+    .select("category, department, copies_total, copies_available, is_active");
+
+  const meta = (metaRows ?? []) as Array<{
+    category: string | null;
+    department: string | null;
+    copies_total: number;
+    copies_available: number;
+    is_active: boolean;
+  }>;
+
+  const categories = Array.from(
+    new Set(meta.map((m) => m.category).filter(Boolean) as string[])
+  ).sort();
+  const departments = Array.from(
+    new Set(meta.map((m) => m.department).filter(Boolean) as string[])
+  ).sort();
+
+  const activeMeta  = meta.filter((m) => m.is_active);
+  const activeBooks = activeMeta.length;
+  const totalCopies = activeMeta.reduce((s, b) => s + (b.copies_total ?? 0), 0);
+  const availCopies = activeMeta.reduce((s, b) => s + (b.copies_available ?? 0), 0);
+
+  const totalItems = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
@@ -66,105 +144,109 @@ export default async function AdminCatalogsPage({
         </Link>
       </div>
 
-        {/* ── Stats row ── */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[
-            { label: "Total Books",      value: activeBooks.length },
-            { label: "Total Copies",     value: totalCopies },
-            { label: "Available Copies", value: availCopies,              color: "text-emerald-600" },
-            { label: "Checked Out",      value: totalCopies - availCopies, color: "text-amber-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
-              <p className="text-xs text-slate-400 font-medium">{label}</p>
-              <p className={`text-2xl font-bold mt-1 ${color ?? "text-slate-800"}`}>{value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Search bar ── */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <AdminCatalogSearchBar />
+      {/* ── Stats row (always reflects ALL active books) ── */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          { label: "Total Books",      value: activeBooks },
+          { label: "Total Copies",     value: totalCopies },
+          { label: "Available Copies", value: availCopies,               color: "text-emerald-600" },
+          { label: "Checked Out",      value: totalCopies - availCopies, color: "text-amber-500" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="rounded-xl bg-white border border-slate-100 p-4 shadow-sm">
+            <p className="text-xs text-slate-400 font-medium">{label}</p>
+            <p className={`text-2xl font-bold mt-1 ${color ?? "text-slate-800"}`}>{value}</p>
           </div>
-          {rawQuery && (
-            <p className="shrink-0 text-sm text-slate-500">
-              <span className="font-semibold text-slate-700">{filteredBooks.length}</span> result{filteredBooks.length !== 1 ? "s" : ""} for{" "}
-              <span className="font-semibold text-[#007c91]">&ldquo;{rawQuery}&rdquo;</span>
-            </p>
-          )}
-        </div>
+        ))}
+      </div>
 
-        {/* ── Table ── */}
-        <div className="rounded-xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
-                  {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      {h}
-                    </th>
-                  ))}
+      {/* ── Toolbar: search + sort + filters ── */}
+      <AdminCatalogToolbar
+        categories={categories}
+        departments={departments}
+        filters={{ q, cat, dept, status, sort }}
+        totalItems={totalItems}
+      />
+
+      {/* ── Table ── */}
+      <div className="rounded-xl bg-white border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/60 text-left">
+                {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {pageBooks.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
+                    {q
+                      ? <>No books matched <span className="font-semibold text-slate-500">&ldquo;{q}&rdquo;</span>. Try a different search.</>
+                      : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredBooks.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center text-slate-400">
-                      {rawQuery
-                        ? <>No books matched <span className="font-semibold text-slate-500">&ldquo;{rawQuery}&rdquo;</span>. Try a different search.</>
-                        : <>No books yet. Click &ldquo;Add Book&rdquo; or import CSV to get started.</>}
+              ) : pageBooks.map((book) => {
+                const statusKey = getAvailability(book);
+                const txtCls = AVAILABILITY_COLOR[statusKey];
+                const dotCls = AVAILABILITY_DOT[statusKey];
+                return (
+                  <tr key={book.id} className={`hover:bg-slate-50/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
+                    {/* Title */}
+                    <td className="px-4 py-3 max-w-[240px]">
+                      <p className="font-semibold text-slate-800 truncate">{book.title}</p>
+                      <p className="text-xs text-slate-400 truncate">{book.author}</p>
+                      {book.isbn && <p className="text-[10px] text-slate-300 font-mono">{book.isbn}</p>}
+                      {!book.is_active && (
+                        <span className="text-[10px] font-bold text-red-400">DELETED</span>
+                      )}
+                    </td>
+                    {/* Category */}
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      {book.category ?? <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* Shelf */}
+                    <td className="px-4 py-3">
+                      {book.shelf_location
+                        ? <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-md text-slate-600">{book.shelf_location}</span>
+                        : <span className="text-slate-300">—</span>}
+                    </td>
+                    {/* Availability */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${txtCls}`}>
+                        <span className={`h-2 w-2 rounded-full ${dotCls}`} />
+                        {AVAILABILITY_LABEL[statusKey]}
+                      </span>
+                    </td>
+                    {/* Copies */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`font-bold ${txtCls}`}>{book.copies_available}</span>
+                      <span className="text-slate-400">/{book.copies_total}</span>
+                    </td>
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <CatalogAdminActions book={book} />
                     </td>
                   </tr>
-                ) : filteredBooks.map((book) => {
-                  const status = getAvailability(book);
-                  const txtCls = AVAILABILITY_COLOR[status];
-                  const dotCls = AVAILABILITY_DOT[status];
-                  return (
-                    <tr key={book.id} className={`hover:bg-slate-50/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
-                      {/* Title */}
-                      <td className="px-4 py-3 max-w-[240px]">
-                        <p className="font-semibold text-slate-800 truncate">{book.title}</p>
-                        <p className="text-xs text-slate-400 truncate">{book.author}</p>
-                        {book.isbn && <p className="text-[10px] text-slate-300 font-mono">{book.isbn}</p>}
-                        {!book.is_active && (
-                          <span className="text-[10px] font-bold text-red-400">DELETED</span>
-                        )}
-                      </td>
-                      {/* Category */}
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                        {book.category ?? <span className="text-slate-300">—</span>}
-                      </td>
-                      {/* Shelf */}
-                      <td className="px-4 py-3">
-                        {book.shelf_location
-                          ? <span className="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-md text-slate-600">{book.shelf_location}</span>
-                          : <span className="text-slate-300">—</span>}
-                      </td>
-                      {/* Availability */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${txtCls}`}>
-                          <span className={`h-2 w-2 rounded-full ${dotCls}`} />
-                          {AVAILABILITY_LABEL[status]}
-                        </span>
-                      </td>
-                      {/* Copies */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`font-bold ${txtCls}`}>{book.copies_available}</span>
-                        <span className="text-slate-400">/{book.copies_total}</span>
-                      </td>
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <CatalogAdminActions book={book} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-
       </div>
+
+      {/* ── Pagination ── */}
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={PAGE_SIZE}
+        searchParams={sp as Record<string, string | undefined>}
+        basePath="/admin/catalogs"
+      />
+    </div>
   );
 }

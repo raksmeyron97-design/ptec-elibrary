@@ -39,15 +39,7 @@ export default async function AdminPostsPage() {
           <h1 className="text-2xl font-bold text-slate-800">Manage Posts</h1>
           <p className="text-sm text-slate-500">Create, edit, and publish your library posts.</p>
         </div>
-        <Link
-          href="/admin/posts/new"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1E3A8A] px-4 text-sm font-semibold text-white transition hover:bg-[#1E3A8A]/90 shadow-sm"
-        >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Create Post
-        </Link>
+
       </div>
 
       {/* Client-side table with search + filter + pagination */}

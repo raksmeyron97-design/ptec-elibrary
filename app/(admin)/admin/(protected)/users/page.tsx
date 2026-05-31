@@ -2,13 +2,36 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import UsersClient from "./UsersClient";
 
-export default async function AdminUsersPage() {
+const PAGE_SIZE = 20;
+
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const supabase = createServiceClient();
 
-  const { data: users } = await supabase
+  const page = parseInt(searchParams.page as string || "1", 10);
+  const safePage = isNaN(page) || page < 1 ? 1 : page;
+  const q = (searchParams.q as string || "").trim();
+
+  let query = supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at, avatar_url")
-    .order("created_at", { ascending: false });
+    .select("id, full_name, email, role, created_at, avatar_url", { count: "exact" });
+
+  if (q) {
+    query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
+  }
+
+  const from = (safePage - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const { data: users, count } = await query
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  const totalItems = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   const rows = (users ?? []).map((u: any) => ({
     id:        u.id as string,
@@ -24,7 +47,14 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
-      <UsersClient users={rows} currentUserId={user?.id ?? ""} />
+      <UsersClient 
+        users={rows} 
+        currentUserId={user?.id ?? ""} 
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={safePage}
+        searchParams={searchParams as Record<string, string | undefined>}
+      />
     </div>
   );
 }

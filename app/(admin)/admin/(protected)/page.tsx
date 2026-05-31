@@ -7,22 +7,38 @@ import {
 import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
 
+// កុំ​ឲ្យ Next.js cache ទំព័រ​នេះ — query DB ឡើងវិញ​រាល់​ពេល​ផ្ទុក
+export const dynamic = "force-dynamic";
+
+// ── App timezone (ថេរ) ──────────────────────────────────────────
+// បែងចែក​ថ្ងៃ​តាម​ម៉ោង​កម្ពុជា ដើម្បី​កុំ​ឲ្យ​អាស្រ័យ​លើ timezone របស់ server
+const APP_TZ = "Asia/Phnom_Penh";
+
+// បម្លែង Date → "YYYY-MM-DD" តាម APP_TZ (en-CA ផ្តល់​ទម្រង់ YYYY-MM-DD)
+const dayKey = (d: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+
+const ONE_DAY = 86_400_000;
+
 // ── helper: downloads តាមថ្ងៃ ──
 function buildDailyBuckets(rows: { downloaded_at: string }[], days = 30) {
   const buckets = new Map<string, number>();
   const keys: string[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = Date.now();
+  // បង្កើត key ថ្ងៃ​ចុងក្រោយ N ថ្ងៃ​តាម APP_TZ (កម្ពុជា​គ្មាន DST ⇒ ដក​ 24h សុវត្ថិភាព)
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const key = dayKey(new Date(now - i * ONE_DAY));
     buckets.set(key, 0);
     keys.push(key);
   }
   for (const r of rows) {
     if (!r?.downloaded_at) continue;
-    const key = new Date(r.downloaded_at).toISOString().slice(0, 10);
+    const key = dayKey(new Date(r.downloaded_at));
     if (buckets.has(key)) buckets.set(key, (buckets.get(key) || 0) + 1);
   }
   return keys.map((k) => ({ date: k, count: buckets.get(k) || 0 }));
@@ -32,18 +48,15 @@ function buildDailyBuckets(rows: { downloaded_at: string }[], days = 30) {
 function buildUserGrowth(rows: { created_at: string }[], baseline: number, days = 90) {
   const newPerDay = new Map<string, number>();
   const keys: string[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = Date.now();
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const key = dayKey(new Date(now - i * ONE_DAY));
     newPerDay.set(key, 0);
     keys.push(key);
   }
   for (const r of rows) {
     if (!r?.created_at) continue;
-    const key = new Date(r.created_at).toISOString().slice(0, 10);
+    const key = dayKey(new Date(r.created_at));
     if (newPerDay.has(key)) newPerDay.set(key, (newPerDay.get(key) || 0) + 1);
   }
   let running = baseline;
@@ -118,13 +131,9 @@ export default async function AdminDashboardPage() {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-
-  const ninetyDaysAgo = new Date();
-  ninetyDaysAgo.setHours(0, 0, 0, 0);
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 89);
+  // ទាញ​ទិន្នន័យ​ឲ្យ​ទូលាយ​បន្តិច (ដក 1 ថ្ងៃ​បន្ថែម) ដើម្បី​កុំ​ឲ្យ​បាត់ row នៅ​ស៊ុម​ថ្ងៃ
+  const fetchFromDownloads = new Date(Date.now() - 31 * ONE_DAY).toISOString();
+  const fetchFromUsers = new Date(Date.now() - 91 * ONE_DAY).toISOString();
 
   const [
     totalBooksRes, publishedBooksRes, bookStatsRes,
@@ -138,14 +147,14 @@ export default async function AdminDashboardPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString()),
     supabase.from("catalog_books").select("copies_total, copies_available").eq("is_active", true),
-    supabase.from("user_download_history").select("downloaded_at").gte("downloaded_at", thirtyDaysAgo.toISOString()),
+    supabase.from("download_logs").select("downloaded_at").gte("downloaded_at", fetchFromDownloads),
     supabase.from("books").select("id, title, slug, download_count, authors(name)").order("download_count", { ascending: false }).limit(5),
     supabase.from("books").select("id, title, slug, view_count, authors(name)").order("view_count", { ascending: false }).limit(5),
     supabase.from("catalog_books").select("id, title, slug, author, copies_available, copies_total").eq("is_active", true).lte("copies_available", 1).order("copies_available", { ascending: true }).limit(8),
     supabase.from("posts").select("*", { count: "exact", head: true }).eq("is_published", false),
     // ── Phase 3 ──
-    supabase.from("profiles").select("*", { count: "exact", head: true }).lt("created_at", ninetyDaysAgo.toISOString()),
-    supabase.from("profiles").select("created_at").gte("created_at", ninetyDaysAgo.toISOString()),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).lt("created_at", fetchFromUsers),
+    supabase.from("profiles").select("created_at").gte("created_at", fetchFromUsers),
   ]);
 
   const totalBooks = totalBooksRes.count ?? 0;

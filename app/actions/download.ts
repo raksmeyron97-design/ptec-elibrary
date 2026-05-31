@@ -108,22 +108,27 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
       .eq("id", bookId);
   }
 
-  // 2. Record per-user history + analytics log (best-effort — don't block on failure)
+  // 2. Record analytics log (best-effort — don't block on failure)
   try {
     const authClient = await createClient();
     const {
       data: { user },
     } = await authClient.auth.getUser();
 
+    const now = new Date().toISOString();
+    const { data: fileData } = await supabase.from("book_files").select("id").eq("book_id", bookId).limit(1).single();
+    
+    const logData: any = { downloaded_at: now };
     if (user) {
-      const now = new Date().toISOString();
-      await Promise.all([
-        supabase.from("user_download_history").upsert(
-          { user_id: user.id, book_id: bookId, downloaded_at: now },
-          { onConflict: "user_id,book_id", ignoreDuplicates: false }
-        ),
-        supabase.from("download_logs").insert({ user_id: user.id, book_id: bookId, downloaded_at: now }),
-      ]);
+      logData.user_id = user.id;
+    }
+    if (fileData?.id) {
+      logData.book_file_id = fileData.id;
+    }
+    
+    const res = await supabase.from("download_logs").insert(logData);
+    if (res.error) {
+      console.error("[incrementDownloadCount] insert into download_logs failed:", res.error);
     }
   } catch (err) {
     console.error("[incrementDownloadCount] history insert failed:", err);
@@ -153,13 +158,15 @@ export async function getMyDownloadHistory(): Promise<DownloadHistoryItem[]> {
   const supabase = createServiceClient();
 
   const { data, error } = await supabase
-    .from("user_download_history")
+    .from("download_logs")
     .select(
       `
       downloaded_at,
-      books (
-        id, slug, title, cover_url, cover_color,
-        authors ( name )
+      book_files (
+        books (
+          id, slug, title, cover_url, cover_color,
+          authors ( name )
+        )
       )
       `
     )
@@ -172,13 +179,25 @@ export async function getMyDownloadHistory(): Promise<DownloadHistoryItem[]> {
     return [];
   }
 
-  return (data ?? []).map((row: any) => ({
-    bookId:       row.books.id,
-    slug:         row.books.slug,
-    title:        row.books.title,
-    author:       row.books.authors?.name ?? "Unknown",
-    coverUrl:     row.books.cover_url   ?? null,
-    cover:        row.books.cover_color ?? "bg-[#0a1629]",
-    downloadedAt: row.downloaded_at,
-  }));
+  // Deduplicate by bookId
+  const historyMap = new Map<string, DownloadHistoryItem>();
+
+  (data ?? []).forEach((row: any) => {
+    const book = row.book_files?.books;
+    if (!book) return;
+    
+    if (!historyMap.has(book.id)) {
+      historyMap.set(book.id, {
+        bookId:       book.id,
+        slug:         book.slug,
+        title:        book.title,
+        author:       book.authors?.name ?? "Unknown",
+        coverUrl:     book.cover_url   ?? null,
+        cover:        book.cover_color ?? "bg-[#0a1629]",
+        downloadedAt: row.downloaded_at,
+      });
+    }
+  });
+
+  return Array.from(historyMap.values());
 }

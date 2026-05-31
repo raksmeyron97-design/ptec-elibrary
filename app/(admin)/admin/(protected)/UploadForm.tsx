@@ -13,6 +13,7 @@ import {
   bookCoverPath,
 } from "@/lib/book-utils";
 import Icon from "@/components/ui/Icon";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 
 const LANGUAGES = ["Khmer", "English"] as const;
 
@@ -339,30 +340,28 @@ export default function UploadForm() {
       ))}
 
       {/* Category */}
-      <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
-          Category <span className="text-red-500">*</span>
-        </span>
-        <select
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="block text-sm font-semibold text-slate-700">
+            Category <span className="text-red-500">*</span>
+          </span>
+          {!showNewCat && (
+            <button
+              type="button"
+              onClick={() => setShowNewCat(true)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+            >
+              <span className="text-base leading-none">+</span> Add new category
+            </button>
+          )}
+        </div>
+        <SearchableSelect
           name="category"
           required
-          defaultValue={catList[0] ?? ""}
+          options={catList}
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
-        >
-          {catList.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        {!showNewCat ? (
-          <button
-            type="button"
-            onClick={() => setShowNewCat(true)}
-            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
-          >
-            <span className="text-base leading-none">+</span> Add new category
-          </button>
-        ) : (
+        />
+        {showNewCat && (
           <div className="mt-2 flex items-center gap-2">
             <input
               ref={newCatInputRef}
@@ -389,7 +388,7 @@ export default function UploadForm() {
             </button>
           </div>
         )}
-      </label>
+      </div>
 
       {/* Language */}
       <label>
@@ -410,30 +409,28 @@ export default function UploadForm() {
       </label>
 
       {/* Department */}
-      <label>
-        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
-          Department <span className="text-red-500">*</span>
-        </span>
-        <select
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="block text-sm font-semibold text-slate-700">
+            Department <span className="text-red-500">*</span>
+          </span>
+          {!showNewDept && (
+            <button
+              type="button"
+              onClick={() => setShowNewDept(true)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
+            >
+              <span className="text-base leading-none">+</span> Add new department
+            </button>
+          )}
+        </div>
+        <SearchableSelect
           name="department"
           required
-          defaultValue={deptList[0] ?? ""}
+          options={deptList}
           disabled={busy}
-          className="h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-[#007c91] focus:ring-2 focus:ring-[#007c91]/15 disabled:opacity-60"
-        >
-          {deptList.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-        {!showNewDept ? (
-          <button
-            type="button"
-            onClick={() => setShowNewDept(true)}
-            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#007c91] hover:text-[#005f6b] transition"
-          >
-            <span className="text-base leading-none">+</span> Add new department
-          </button>
-        ) : (
+        />
+        {showNewDept && (
           <div className="mt-2 flex items-center gap-2">
             <input
               ref={newDeptInputRef}
@@ -460,7 +457,7 @@ export default function UploadForm() {
             </button>
           </div>
         )}
-      </label>
+      </div>
 
       {/* Year */}
       <label>

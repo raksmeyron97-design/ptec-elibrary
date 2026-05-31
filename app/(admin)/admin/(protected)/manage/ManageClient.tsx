@@ -1,9 +1,9 @@
 "use client";
 
 // app/admin/manage/ManageClient.tsx
-import { useState, useMemo, useTransition } from "react";
+import { useState, useTransition, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { deleteBook } from "@/app/(admin)/admin/(protected)/actions";
 
 type BookRow = {
@@ -17,41 +17,81 @@ type BookRow = {
   year: number | null;
   isPublished: boolean;
   fileSizeKb: number | null;
-  downloadCount: number; // ← NEW
+  downloadCount: number;
 };
 
-const PAGE_SIZE = 20;
+type Filters = { q: string; dept: string; status: string; sort: string };
 
-export default function ManageClient({ books }: { books: BookRow[] }) {
-  const router = useRouter();
+const SORT_OPTIONS: { value: string; label: string }[] = [
+  { value: "newest",     label: "Just uploaded" },
+  { value: "oldest",     label: "Oldest first" },
+  { value: "title",      label: "Title (A–Z)" },
+  { value: "downloads",  label: "Most downloaded" },
+  { value: "department", label: "Department" },
+  { value: "category",   label: "Category" },
+];
+
+export default function ManageClient({
+  books,
+  departments,
+  currentPage,
+  pageSize,
+  totalItems,
+  filters,
+}: {
+  books: BookRow[];
+  departments: string[];
+  currentPage: number;
+  pageSize: number;
+  totalItems: number;
+  filters: Filters;
+}) {
+  const router    = useRouter();
+  const pathname  = usePathname();
+  const params    = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [query, setQuery]           = useState("");
-  const [page, setPage]             = useState(1);
-  const [confirmId, setConfirmId]   = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Local mirror of the search box so typing feels instant; URL updates debounced.
+  const [queryText, setQueryText] = useState(filters.q);
+
+  const [confirmId, setConfirmId]     = useState<string | null>(null);
+  const [deletingId, setDeletingId]   = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // ── Filter ────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return books;
-    return books.filter(
-      (b) =>
-        b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q) ||
-        b.category.toLowerCase().includes(q) ||
-        b.department.toLowerCase().includes(q)
-    );
-  }, [books, query]);
+  // ── URL helpers ───────────────────────────────────────────────
+  const setParams = useCallback(
+    (updates: Record<string, string | null>, resetPage = true) => {
+      const next = new URLSearchParams(params.toString());
+      Object.entries(updates).forEach(([k, v]) => {
+        if (v === null || v === "") next.delete(k);
+        else next.set(k, v);
+      });
+      if (resetPage) next.delete("page");
+      const qs = next.toString();
+      startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname));
+    },
+    [params, pathname, router]
+  );
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage   = Math.min(page, totalPages);
-  const slice      = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  // Debounced search → URL
+  const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function onSearchChange(v: string) {
+    setQueryText(v);
+    if (debRef.current) clearTimeout(debRef.current);
+    debRef.current = setTimeout(() => setParams({ q: v || null }), 350);
+  }
+  function clearSearch() {
+    setQueryText("");
+    if (debRef.current) clearTimeout(debRef.current);
+    setParams({ q: null });
+  }
 
-  function handleSearch(v: string) {
-    setQuery(v);
-    setPage(1);
+  const anyFilterActive =
+    !!filters.q || !!filters.dept || !!filters.status || filters.sort !== "newest";
+
+  function resetAll() {
+    setQueryText("");
+    startTransition(() => router.push(pathname));
   }
 
   // ── Delete ────────────────────────────────────────────────────
@@ -60,7 +100,7 @@ export default function ManageClient({ books }: { books: BookRow[] }) {
     setDeleteError(null);
     try {
       await deleteBook(id);
-      startTransition(() => router.refresh());
+      startTransition(() => router.refresh()); // stays on current page/filters
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : "Delete failed");
     } finally {
@@ -69,29 +109,86 @@ export default function ManageClient({ books }: { books: BookRow[] }) {
     }
   }
 
-  return (
-    <div className="space-y-4">
+  const selectCls =
+    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-[#007c91] focus:ring-1 focus:ring-[#007c91]";
 
-      {/* ── Search bar ── */}
-      <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => handleSearch(e.target.value)}
-          placeholder="Search by title, author, category, department…"
-          className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
-        />
-        {query && (
-          <button onClick={() => handleSearch("")} className="text-slate-400 hover:text-slate-600">
-            ✕
-          </button>
-        )}
-        <span className="text-xs text-slate-400">
-          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
-        </span>
+  return (
+    <div className={`space-y-4 ${isPending ? "opacity-70" : ""}`}>
+
+      {/* ── Toolbar: search + sort + filters ── */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+
+          {/* Search */}
+          <div className="flex flex-1 items-center gap-3 rounded-lg border border-slate-200 px-3 py-2">
+            <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              value={queryText}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search by title…"
+              className="flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none"
+            />
+            {queryText && (
+              <button onClick={clearSearch} className="text-slate-400 hover:text-slate-600">✕</button>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Sort */}
+            <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+              Sort
+              <select
+                value={filters.sort}
+                onChange={(e) => setParams({ sort: e.target.value })}
+                className={selectCls}
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+
+            {/* Department filter */}
+            <select
+              value={filters.dept}
+              onChange={(e) => setParams({ dept: e.target.value || null })}
+              className={selectCls}
+            >
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+
+            {/* Status filter */}
+            <select
+              value={filters.status}
+              onChange={(e) => setParams({ status: e.target.value || null })}
+              className={selectCls}
+            >
+              <option value="">All status</option>
+              <option value="live">Live</option>
+              <option value="draft">Draft</option>
+            </select>
+
+            {anyFilterActive && (
+              <button
+                onClick={resetAll}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-2 px-1 text-xs text-slate-400">
+          {totalItems} result{totalItems !== 1 ? "s" : ""}
+        </p>
       </div>
 
       {/* ── Delete error ── */}
@@ -113,22 +210,21 @@ export default function ManageClient({ books }: { books: BookRow[] }) {
                 <th className="px-4 py-3 hidden lg:table-cell">Department</th>
                 <th className="px-4 py-3 hidden lg:table-cell">Year</th>
                 <th className="px-4 py-3 hidden xl:table-cell">Size</th>
-                {/* ── NEW column ── */}
                 <th className="px-4 py-3 hidden xl:table-cell text-right">Downloads</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {slice.length === 0 ? (
+              {books.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-sm text-slate-400">
-                    No books found{query ? ` for "${query}"` : ""}.
+                    No books found{filters.q ? ` for "${filters.q}"` : ""}.
                   </td>
                 </tr>
               ) : (
-                slice.map((book, idx) => {
-                  const rowNum = (safePage - 1) * PAGE_SIZE + idx + 1;
+                books.map((book, idx) => {
+                  const rowNum = (currentPage - 1) * pageSize + idx + 1;
                   const isDeleting = deletingId === book.id;
                   const isConfirming = confirmId === book.id;
 
@@ -178,13 +274,13 @@ export default function ManageClient({ books }: { books: BookRow[] }) {
                           : "—"}
                       </td>
 
-                      {/* Downloads ── NEW */}
+                      {/* Downloads */}
                       <td className="px-4 py-3 hidden xl:table-cell text-right tabular-nums">
                         {book.downloadCount > 0 ? (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
                             <svg className="h-3 w-3 text-slate-400" viewBox="0 0 24 24" fill="none"
                               stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 3v13m0 0-4-4m4 4 4-4"/><path d="M4 20h16"/>
+                              <path d="M12 3v13m0 0-4-4m4 4 4-4" /><path d="M4 20h16" />
                             </svg>
                             {book.downloadCount >= 1000
                               ? `${(book.downloadCount / 1000).toFixed(1)}K`
@@ -253,46 +349,6 @@ export default function ManageClient({ books }: { books: BookRow[] }) {
           </table>
         </div>
       </div>
-
-      {/* ── Pagination ── */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-3 shadow-sm">
-          <p className="text-xs text-slate-500">
-            Page <strong>{safePage}</strong> of <strong>{totalPages}</strong>
-            {" · "}
-            showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
-          </p>
-          <div className="flex gap-1.5">
-            <button onClick={() => setPage(1)} disabled={safePage === 1}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">«</button>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">‹</button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
-              .reduce<(number | "…")[]>((acc, p, i, arr) => {
-                if (i > 0 && p - (arr[i - 1] as number) > 1) acc.push("…");
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, i) =>
-                p === "…" ? (
-                  <span key={`ellipsis-${i}`} className="flex h-8 w-8 items-center justify-center text-xs text-slate-400">…</span>
-                ) : (
-                  <button key={p} onClick={() => setPage(p as number)}
-                    className={`h-8 min-w-[2rem] rounded-lg border px-2 text-xs font-bold transition ${
-                      safePage === p ? "border-[#007c91] bg-[#007c91] text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}>{p}</button>
-                )
-              )}
-
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">›</button>
-            <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
-              className="h-8 w-8 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">»</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

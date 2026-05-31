@@ -1,9 +1,10 @@
 "use client";
 
 // app/admin/users/UsersClient.tsx
-import { useState, useMemo, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toggleUserRole } from "@/app/(admin)/admin/(protected)/users/actions";
+import Pagination from "@/components/ui/Pagination";
 
 type UserRow = {
   id: string;
@@ -22,28 +23,38 @@ function getInitials(name: string | null, email: string) {
 export default function UsersClient({
   users,
   currentUserId,
+  totalItems,
+  totalPages,
+  currentPage,
+  searchParams,
 }: {
   users: UserRow[];
   currentUserId: string;
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
+  searchParams: Record<string, string | undefined>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [query, setQuery]         = useState("");
+  const [query, setQuery] = useState(searchParams?.q || "");
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [error, setError]         = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // ── Filter ────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase().trim();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.email.toLowerCase().includes(q) ||
-        (u.fullName ?? "").toLowerCase().includes(q) ||
-        u.role.includes(q)
-    );
-  }, [users, query]);
+  useEffect(() => {
+    if (query === (searchParams?.q || "")) return;
+
+    const handler = setTimeout(() => {
+      const p = new URLSearchParams();
+      if (query) p.set("q", query);
+      router.push(`/admin/users?${p.toString()}`);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query, router, searchParams?.q]);
+
+  // Server provides already filtered and paginated users
+  const filtered = users;
 
   // ── Toggle role ───────────────────────────────────────────────
   async function handleToggle(u: UserRow) {
@@ -78,7 +89,7 @@ export default function UsersClient({
         {query && (
           <button onClick={() => setQuery("")} className="text-slate-400 hover:text-slate-600">✕</button>
         )}
-        <span className="text-xs text-slate-400">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-slate-400">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
       </div>
 
       {error && (
@@ -192,6 +203,15 @@ export default function UsersClient({
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        pageSize={20}
+        searchParams={searchParams}
+        basePath="/admin/users"
+      />
     </div>
   );
 }
