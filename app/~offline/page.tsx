@@ -1,3 +1,5 @@
+"use client";
+
 import Icon from "@/components/ui/Icon";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
@@ -25,7 +27,7 @@ export default function OfflinePage() {
 
         <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">
           <Link href="/offline-books" className="w-full sm:w-auto">
-            <Button variant="brand" className="w-full">
+            <Button variant="primary" className="w-full">
               <Icon name="bookmark" className="mr-2 text-lg" />
               Saved Books (សៀវភៅរក្សាទុក)
             </Button>

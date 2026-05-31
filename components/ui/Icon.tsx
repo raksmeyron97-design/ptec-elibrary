@@ -28,7 +28,9 @@ export type IconName =
   | "share"
   | "plus-square"
   | "check"
-  | "spinner";
+  | "spinner"
+  | "trash"
+  ;
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -199,6 +201,12 @@ const paths: Record<IconName, ReactNode> = {
   spinner: (
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    </>
+  )
 };
 
 export default function Icon({ name, className = "", ...props }: IconProps) {

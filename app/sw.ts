@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig, RuntimeCaching } from "serwist";
-import { Serwist } from "serwist";
+import { Serwist, NetworkFirst, CacheFirst, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -18,14 +18,10 @@ const customCaching: RuntimeCaching[] = [
       if (url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/auth')) return false;
       return request.mode === 'navigate';
     },
-    handler: 'NetworkFirst',
-    options: {
+    handler: new NetworkFirst({
       cacheName: 'pages-cache',
       networkTimeoutSeconds: 5,
-      fallbackOptions: {
-        fallbackURL: '/~offline',
-      },
-    },
+    }),
   },
   // Cache book cover images (Google Drive, OpenLibrary, Supabase, Amazon)
   {
@@ -38,14 +34,15 @@ const customCaching: RuntimeCaching[] = [
       ].includes(url.hostname) || url.hostname.endsWith('supabase.co');
       return isImage && isCoverDomain;
     },
-    handler: 'CacheFirst',
-    options: {
+    handler: new CacheFirst({
       cacheName: 'book-covers',
-      expiration: {
-        maxEntries: 60,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-      },
-    },
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 60,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+        }),
+      ],
+    }),
   },
   // Cache Supabase API GET requests (excluding auth/mutations)
   {
@@ -54,17 +51,19 @@ const customCaching: RuntimeCaching[] = [
              url.pathname.includes('/rest/v1/') && 
              request.method === 'GET';
     },
-    handler: 'StaleWhileRevalidate',
-    options: {
+    handler: new StaleWhileRevalidate({
       cacheName: 'supabase-api-cache',
-      expiration: {
-        maxEntries: 50,
-        maxAgeSeconds: 24 * 60 * 60, // 1 day
-      },
-    },
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 50,
+          maxAgeSeconds: 24 * 60 * 60, // 1 day
+        }),
+      ],
+    }),
   },
   ...defaultCache,
 ];
+
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
