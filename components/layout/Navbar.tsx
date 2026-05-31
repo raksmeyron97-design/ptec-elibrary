@@ -208,7 +208,7 @@ export default async function Navbar() {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 sm:gap-6">
               {/* Search */}
               <NavSearch />
 

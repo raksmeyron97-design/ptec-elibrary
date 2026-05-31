@@ -22,7 +22,11 @@ export type IconName =
   | "send"
   | "star"
   | "bell"
-  | "external-link";
+  | "download"
+  | "external-link"
+  | "x"
+  | "share"
+  | "plus-square";
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -158,6 +162,33 @@ const paths: Record<IconName, ReactNode> = {
       <path d="M15 3h6v6" />
       <path d="M10 14 21 3" />
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" x2="12" y1="15" y2="3" />
+    </>
+  ),
+  x: (
+    <>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </>
+  ),
+  share: (
+    <>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" x2="12" y1="2" y2="15" />
+    </>
+  ),
+  "plus-square": (
+    <>
+      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+      <line x1="12" x2="12" y1="8" y2="16" />
+      <line x1="8" x2="16" y1="12" y2="12" />
     </>
   ),
 };

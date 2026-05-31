@@ -8,6 +8,7 @@ import RatingStars from "@/components/ui/RatingStars";
 import ReviewForm from "@/components/ui/ReviewForm";
 import ReviewList from "@/components/ui/ReviewList";
 import SaveButton from "@/components/ui/SaveButton";
+import OfflineSaveButton from "@/components/ui/OfflineSaveButton";
 import DownloadCount from "@/components/ui/DownloadCount";
 import { Badge } from "@/components/ui/Badge";
 import PhysicalCopiesList from "@/components/ui/PhysicalCopiesList";
@@ -216,6 +217,17 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
                   PDF not available
                 </span>
+              )}
+              {book.pdfUrl && (
+                <OfflineSaveButton 
+                  bookId={book.dbId || book.id} 
+                  bookSlug={book.slug}
+                  title={book.title}
+                  author={book.author}
+                  coverUrl={book.coverUrl || null}
+                  coverColor={book.cover}
+                  pdfUrl={book.pdfUrl}
+                />
               )}
               {book.dbId && (
                 <SaveButton

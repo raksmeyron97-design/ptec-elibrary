@@ -3,20 +3,22 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
-import CatalogCard from "@/components/ui/CatalogCard";
 import SearchBar from "@/components/ui/SearchBar";
 import HeroBookStack from "@/components/ui/HeroBookStack";
 import { Button } from "@/components/ui/Button";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import type { CatalogBook } from "@/lib/catalog";
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";
-import BookShowcaseTabs from "@/components/ui/home/BookShowcaseTabs";
 import SearchSuggestions from "@/components/ui/home/SearchSuggestions";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import FeaturedCollections from "@/components/ui/home/FeaturedCollections";
-import LatestPosts from "@/components/ui/home/LatestPosts";
+import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
+import CatalogsSection from "@/components/ui/home/CatalogsSection";
+import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
+import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
+import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
+import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
 
 export const revalidate = 60;
 
@@ -51,50 +53,7 @@ async function getTrendingBooks() {
   return (data ?? []).map(mapRowToBook);
 }
 
-// #2 — Recently Added = newest by publish date
-async function getRecentlyAdded() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("books")
-    .select(BOOK_SELECT)
-    .eq("is_published", true)
-    .order("published_at", { ascending: false })
-    .limit(10);
-  return (data ?? []).map(mapRowToBook);
-}
 
-async function getRecentPosts() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("posts")
-    .select(`id, title, slug, category, excerpt, cover_url, created_at, views,
-       author:profiles(full_name, email)`)
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .limit(4);
-  return (data ?? []).map((p: any) => ({
-    id: p.id as string,
-    title: p.title as string,
-    slug: p.slug as string,
-    category: (p.category ?? "Other") as string,
-    excerpt: (p.excerpt ?? null) as string | null,
-    coverUrl: (p.cover_url ?? null) as string | null,
-    author: (p.author?.full_name ?? p.author?.email ?? "PTEC Library") as string,
-    createdAt: (p.created_at ?? null) as string | null,
-    views: (p.views ?? 0) as number,
-  }));
-}
-
-async function getRecentCatalogs() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("catalog_books")
-    .select("*")
-    .eq("is_active", true)
-    .order("created_at", { ascending: false })
-    .limit(6);
-  return (data ?? []) as CatalogBook[];
-}
 
 async function getDepartmentPills(): Promise<string[]> {
   const supabase = createServiceClient();
@@ -126,16 +85,12 @@ function formatStat(n: number): string {
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
-  const [stats, trendingBooks, recentlyAdded, recentPosts, deptPills, recentCatalogs, trendingTerms] =
-    await Promise.all([
-      getStats(),
-      getTrendingBooks(),
-      getRecentlyAdded(),
-      getRecentPosts(),
-      getDepartmentPills(),
-      getRecentCatalogs(),
-      getTrendingTerms(),
-    ]);
+  const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
+    getStats(),
+    getTrendingBooks(),
+    getDepartmentPills(),
+    getTrendingTerms(),
+  ]);
 
   const heroStats = [
     { label: "Resources", value: formatStat(stats.books) },
@@ -270,31 +225,19 @@ export default async function HomePage() {
       )}
 
       {/* ════════ BROWSE: Trending / Recently Added (#2 + #3 carousel) ════════ */}
-      <section className="border-y border-divider bg-bg-surface">
-        <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-          <BookShowcaseTabs trending={trendingBooks} recent={recentlyAdded} />
-        </div>
-      </section>
+      <Suspense fallback={<BrowseBooksSkeleton />}>
+        <BrowseBooksSection trendingBooks={trendingBooks} />
+      </Suspense>
 
       {/* ════════ FROM THE LIBRARY (catalogs) ════════ */}
-      {recentCatalogs.length > 0 && (
-        <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-          <div className="mb-9 flex items-end justify-between gap-5">
-            <SectionTitle as="h2" className="!mb-0">From the Library</SectionTitle>
-            <Link href="/catalogs" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
-              All physical books →
-            </Link>
-          </div>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-4">
-            {recentCatalogs.map((book) => (
-              <CatalogCard key={book.slug} book={book} />
-            ))}
-          </div>
-        </section>
-      )}
+      <Suspense fallback={<CatalogsSkeleton />}>
+        <CatalogsSection />
+      </Suspense>
 
       {/* ════════ LATEST POSTS (editorial: featured + list) ════════ */}
-      {recentPosts.length > 0 && <LatestPosts posts={recentPosts} />}
+      <Suspense fallback={<LatestPostsSkeleton />}>
+        <LatestPostsSection />
+      </Suspense>
 
       {/* ════════ CTA BANNER ════════ */}
       <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-900 to-blue-950">

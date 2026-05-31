@@ -4,6 +4,7 @@ import Icon from "@/components/ui/Icon";
 import MobileBottomNav from "./MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";
 import { Seal } from "@/components/ui/Seal";
+import InstallPWA from "@/components/ui/InstallPWA";
 
 export default async function Footer() {
   const supabase = await createClient();
@@ -90,6 +91,7 @@ export default async function Footer() {
                   className="w-9 h-9 rounded-xl bg-bg-surface/5 border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 transition-all text-blue-100 hover:text-white">
                   <Icon name="globe" className="text-[16px]" />
                 </a>
+                <InstallPWA />
               </div>
             </div>
 
