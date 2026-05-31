@@ -1,9 +1,8 @@
-// app/home/page.tsx
-import React, { Suspense } from "react";
+// app/(public)/home/page.tsx
+import { Suspense } from "react";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
-import BookCard from "@/components/ui/BookCard";
 import CatalogCard from "@/components/ui/CatalogCard";
 import SearchBar from "@/components/ui/SearchBar";
 import HeroBookStack from "@/components/ui/HeroBookStack";
@@ -11,9 +10,17 @@ import { Button } from "@/components/ui/Button";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import type { CatalogBook } from "@/lib/catalog";
 
+// ── Feature components (live in components/ui/home/) ────────────────────────
+import ContinueReading from "@/components/ui/home/ContinueReading";
+import BookShowcaseTabs from "@/components/ui/home/BookShowcaseTabs";
+import SearchSuggestions from "@/components/ui/home/SearchSuggestions";
+import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
+import FeaturedCollections from "@/components/ui/home/FeaturedCollections";
+import LatestPosts from "@/components/ui/home/LatestPosts";
+
 export const revalidate = 60;
 
-// ── Data fetchers (UNCHANGED) ───────────────────────────────────────────────
+// ── Data fetchers ───────────────────────────────────────────────────────────
 
 async function getStats() {
   const supabase = createServiceClient();
@@ -28,16 +35,31 @@ async function getStats() {
   return { books: booksRes.count ?? 0, downloads: totalDownloads, users: usersRes.count ?? 0, views: totalViews };
 }
 
-async function getFeaturedBooks() {
+const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
+   published_at, department, pages, isbn, rating, download_count, view_count,
+   authors(name), categories(name), book_files(format, file_url, file_size_kb)`;
+
+// #2 — Trending = most downloaded
+async function getTrendingBooks() {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("books")
-    .select(`id, title, slug, description, cover_color, cover_url, language,
-       published_at, department, pages, isbn, rating, download_count, view_count,
-       authors(name), categories(name), book_files(format, file_url, file_size_kb)`)
+    .select(BOOK_SELECT)
     .eq("is_published", true)
     .order("download_count", { ascending: false })
-    .limit(5);
+    .limit(10);
+  return (data ?? []).map(mapRowToBook);
+}
+
+// #2 — Recently Added = newest by publish date
+async function getRecentlyAdded() {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("books")
+    .select(BOOK_SELECT)
+    .eq("is_published", true)
+    .order("published_at", { ascending: false })
+    .limit(10);
   return (data ?? []).map(mapRowToBook);
 }
 
@@ -87,60 +109,33 @@ async function getDepartmentPills(): Promise<string[]> {
   return [...seen].slice(0, 8);
 }
 
-// ── Formatters (UNCHANGED) ──────────────────────────────────────────────────
+// #4 — trending search chips. Falls back to a curated list if categories are empty.
+async function getTrendingTerms(): Promise<string[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase.from("categories").select("name").limit(6);
+  const names = (data ?? []).map((c: any) => c.name).filter(Boolean) as string[];
+  return names.length ? names.slice(0, 6) : ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
+}
 
+// ── Formatter (hero stats) ───────────────────────────────────────────────────
 function formatStat(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-function timeAgo(iso: string | null): string {
-  if (!iso) return "";
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  return formatDate(iso);
-}
-
-// ── Brand-harmonized category badges ────────────────────────────────────────
-const categoryStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  Research:     { bg: "bg-brand/5",  text: "text-brand",      dot: "bg-brand"     },
-  Announcement: { bg: "bg-gold-50",  text: "text-gold-700",   dot: "bg-gold-500"  },
-  Event:        { bg: "bg-brand/5",  text: "text-brand",   dot: "bg-blue-700"  },
-  Journal:      { bg: "bg-gold-50",  text: "text-gold-700",   dot: "bg-gold-400"  },
-  Other:        { bg: "bg-paper",    text: "text-text-muted", dot: "bg-slate-400" },
-};
-
-const bannerColors = [
-  "from-blue-700 to-blue-950",
-  "from-blue-900 to-blue-950",
-  "from-gold-700 to-gold-500",
-  "from-blue-800 to-blue-700",
-  "from-blue-950 to-blue-800",
-];
-function pickBanner(title: string): string {
-  let hash = 0;
-  for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
-  return bannerColors[Math.abs(hash) % bannerColors.length];
-}
-
-const CollectionIcon = () => (
-  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-  </svg>
-);
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
-  const [stats, featuredBooks, recentPosts, deptPills, recentCatalogs] = await Promise.all([
-    getStats(), getFeaturedBooks(), getRecentPosts(), getDepartmentPills(), getRecentCatalogs(),
-  ]);
+  const [stats, trendingBooks, recentlyAdded, recentPosts, deptPills, recentCatalogs, trendingTerms] =
+    await Promise.all([
+      getStats(),
+      getTrendingBooks(),
+      getRecentlyAdded(),
+      getRecentPosts(),
+      getDepartmentPills(),
+      getRecentCatalogs(),
+      getTrendingTerms(),
+    ]);
 
   const heroStats = [
     { label: "Resources", value: formatStat(stats.books) },
@@ -149,44 +144,51 @@ export default async function HomePage() {
     { label: "Educators", value: formatStat(stats.users) },
   ];
 
+  const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
+    slug: b.slug,
+    title: b.title,
+    author: b.author,
+    coverUrl: b.coverUrl ?? null,
+    coverColor: b.cover,
+    department: b.department,
+  }));
+
   return (
     <div className="min-h-screen bg-paper">
 
-    
       {/* ════════ HERO (blue-forward, English) ════════ */}
       <section className="relative isolate overflow-hidden text-white">
-        
-        {/* 1. Background Image (បណ្ណាល័យ PTEC) */}
+        {/* 1. Background image (PTEC library) */}
         <div className="absolute inset-0 -z-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img 
-            src="/ptec-library.jpg" 
-            alt="Phnom Penh Teacher Education College Library" 
+          <img
+            src="/ptec-library.jpg"
+            alt="Phnom Penh Teacher Education College Library"
             className="h-full w-full object-cover object-center"
           />
         </div>
-        
 
-        {/* 2. Dark Blue Overlay (កែត្រង់នេះ - ពណ៌ក្រាស់ខាងឆ្វេងសម្រាប់ឲ្យអក្សរលេច និងថ្លាខាងស្តាំដើម្បីឲ្យឃើញអគារច្បាស់) */}
+        {/* 2. Dark blue overlay */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-950/95 via-blue-900/80 to-blue-900/10" />
-        
-        {/* 3. Subtle Gold Glow (បន្ថយពន្លឺមាសបន្តិច កុំឲ្យវាបាំងរូបអគារពេក) */}
+        {/* 3. Subtle gold glow */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(820px_520px_at_88%_-10%,rgba(221,176,34,0.10),transparent_58%)]" />
-        {/* subtle engraved decoration (បន្ថយ opacity មកត្រឹម 20 ដើម្បីកុំឲ្យរញ៉េរញ៉ៃជាមួយរូបអគារ) */}
-
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-10"
-
-
-          style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1px)", backgroundSize: "26px 26px",
-            maskImage: "radial-gradient(80% 80% at 20% 30%, #000, transparent 75%)" }} />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: "radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
+            maskImage: "radial-gradient(80% 80% at 20% 30%, #000, transparent 75%)",
+          }}
+        />
         <div aria-hidden className="pointer-events-none absolute -right-44 -top-48 h-[680px] w-[680px] rounded-full border border-white/[0.06]" />
         <div aria-hidden className="pointer-events-none absolute -left-40 -bottom-56 h-[420px] w-[420px] rounded-full border border-gold-500/10" />
 
         <div className="relative mx-auto max-w-[1400px] px-4 py-20 md:px-12 md:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
 
-            {/* Left */}
-            <div className="max-w-2xl">
+            {/* Left — min-w-0 prevents mobile horizontal overflow */}
+            <div className="min-w-0 w-full max-w-2xl">
               <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400 drop-shadow-md">
                 Phnom Penh Teacher Education College
               </span>
@@ -198,11 +200,12 @@ export default async function HomePage() {
                 Education College — open and free for every educator and student.
               </p>
 
-              {/* Search (existing component) */}
+              {/* Search + #4 suggestion chips */}
               <div className="mt-8 max-w-xl relative z-10">
                 <Suspense fallback={<div className="h-12 rounded-xl bg-bg-surface/10 animate-pulse" />}>
                   <SearchBar />
                 </Suspense>
+                <SearchSuggestions trending={trendingTerms} />
               </div>
 
               {/* Browse dept links */}
@@ -210,8 +213,11 @@ export default async function HomePage() {
                 <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
                   <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">Browse</span>
                   {deptPills.slice(0, 5).map((dept) => (
-                    <Link key={dept} href={`/books?dept=${encodeURIComponent(dept)}`}
-                      className="border-b border-transparent pb-px text-[14px] text-blue-100 transition-colors hover:border-gold-500 hover:text-white">
+                    <Link
+                      key={dept}
+                      href={`/books?dept=${encodeURIComponent(dept)}`}
+                      className="border-b border-transparent pb-px text-[14px] text-blue-100 transition-colors hover:border-gold-500 hover:text-white"
+                    >
                       {dept}
                     </Link>
                   ))}
@@ -229,21 +235,15 @@ export default async function HomePage() {
                   </div>
                 ))}
               </div>
+
+              {/* #5 — mobile-only featured covers strip */}
+              <MobileFeaturedStrip books={heroBooks} />
             </div>
 
-            {/* Right: Book stack (like old code) */}
+            {/* Right: animated book stack (desktop) */}
             <div className="hidden lg:flex lg:items-center lg:justify-end relative z-10 xl:pr-20">
               <div className="scale-[1.25] xl:scale-[1.65] drop-shadow-2xl translate-x-0 xl:translate-x-1">
-                <HeroBookStack
-                  books={featuredBooks.map((b) => ({
-                    slug: b.slug,
-                    title: b.title,
-                    author: b.author,
-                    coverUrl: b.coverUrl ?? null,
-                    coverColor: b.cover,
-                    department: b.department,
-                  }))}
-                />
+                <HeroBookStack books={heroBooks} />
               </div>
             </div>
           </div>
@@ -251,7 +251,12 @@ export default async function HomePage() {
         <div className="h-[2px] w-full bg-gradient-to-r from-gold-500 via-gold-400 to-transparent" />
       </section>
 
-      {/* ════════ FEATURED COLLECTIONS ════════ */}
+      {/* ════════ CONTINUE READING (personalized — renders only when logged in) ════════ */}
+      <Suspense fallback={null}>
+        <ContinueReading />
+      </Suspense>
+
+      {/* ════════ FEATURED COLLECTIONS (#6 — themed per department) ════════ */}
       {deptPills.length > 0 && (
         <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
           <div className="mb-9 flex items-end justify-between gap-5">
@@ -260,39 +265,14 @@ export default async function HomePage() {
               All departments →
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
-            {deptPills.slice(0, 4).map((dept) => (
-              <Link key={dept} href={`/books?dept=${encodeURIComponent(dept)}`}
-                className="group rounded-lg border border-divider border-t-[3px] border-t-accent bg-bg-surface p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand/5 text-brand">
-                  <CollectionIcon />
-                </div>
-                <h3 className="font-khmer-serif text-lg font-bold text-text-heading">{dept}</h3>
-                <div className="mt-4 text-[12.5px] font-semibold text-gold-700">View resources →</div>
-              </Link>
-            ))}
-          </div>
+          <FeaturedCollections departments={deptPills} limit={4} />
         </section>
       )}
 
-      {/* ════════ NEW IN THE LIBRARY ════════ */}
+      {/* ════════ BROWSE: Trending / Recently Added (#2 + #3 carousel) ════════ */}
       <section className="border-y border-divider bg-bg-surface">
         <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-          <div className="mb-9 flex items-end justify-between gap-5">
-            <SectionTitle as="h2" className="!mb-0">New in the Library</SectionTitle>
-            <Link href="/books?sort=downloads" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
-              Browse e-resources →
-            </Link>
-          </div>
-          {featuredBooks.length === 0 ? (
-            <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-sm text-text-muted">
-              No resources published yet.
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
-              {featuredBooks.map((book) => <BookCard key={book.slug} book={book} />)}
-            </div>
-          )}
+          <BookShowcaseTabs trending={trendingBooks} recent={recentlyAdded} />
         </div>
       </section>
 
@@ -313,97 +293,16 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ════════ LATEST POSTS ════════ */}
-      {recentPosts.length > 0 && (
-        <section className="bg-bg-surface py-20">
-          <div className="mx-auto max-w-[1400px] px-4 md:px-12">
-            <div className="mb-10 flex flex-col items-center text-center">
-              <span className="text-[12px] font-bold uppercase tracking-[0.2em] text-brand mb-3">Stay Updated</span>
-              <SectionTitle as="h2" className="!mb-4">Latest Insights & Announcements</SectionTitle>
-              <p className="max-w-2xl text-[15px] leading-relaxed text-text-muted">
-                Discover the latest research insights, library announcements, and educational resources from our community.
-              </p>
-            </div>
-            
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {recentPosts.map((post, i) => {
-                const style = categoryStyles[post.category] ?? categoryStyles.Other;
-                return (
-                  <Link key={post.id} href={`/posts/${post.slug}`}
-                    className={`group flex flex-col overflow-hidden rounded-2xl border border-divider/50 bg-paper shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-brand/5 ${i === 0 ? "sm:col-span-2 sm:row-span-2" : ""}`}>
-                    <div className={`relative w-full overflow-hidden ${i === 0 ? "h-64 sm:h-80" : "h-48"}`}>
-                      {post.coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.coverUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                      ) : (
-                        <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-6 transition-transform duration-700 group-hover:scale-105`}>
-                          <span className={`line-clamp-3 text-center font-khmer-serif font-bold leading-snug text-white/90 ${i === 0 ? "text-2xl" : "text-lg"}`}>
-                            {post.title}
-                          </span>
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                      <div className="absolute left-4 top-4">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full ${style.bg} px-3 py-1.5 text-[11px] font-bold ${style.text} shadow-sm backdrop-blur-md bg-white/90`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />{post.category}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className={`flex flex-1 flex-col p-6 ${i === 0 ? "sm:p-8" : ""}`}>
-                      <div className="mb-3 flex items-center gap-3 text-[12px] font-medium text-text-muted">
-                        <span className="flex items-center gap-1.5">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                          {formatDate(post.createdAt)}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1.5">
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                          {timeAgo(post.createdAt)}
-                        </span>
-                      </div>
-                      
-                      <h3 className={`mb-3 line-clamp-2 font-khmer-serif font-bold leading-snug text-text-heading transition-colors group-hover:text-brand ${i === 0 ? "text-xl sm:text-2xl" : "text-[16px]"}`}>
-                        {post.title}
-                      </h3>
-                      
-                      {post.excerpt && (
-                        <p className={`mb-6 line-clamp-2 leading-relaxed text-text-muted ${i === 0 ? "text-[15px]" : "text-[13px]"}`}>
-                          {post.excerpt}
-                        </p>
-                      )}
-                      
-                      <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-brand to-blue-700 text-[11px] font-bold text-white shadow-sm">
-                            {post.author.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="max-w-[140px] truncate text-[13px] font-semibold text-text-heading">{post.author}</span>
-                        </div>
-                        <span className="flex items-center gap-1 text-[12px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100">
-                          Read more <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-            
-            <div className="mt-12 text-center">
-              <Link href="/posts" className="inline-flex items-center gap-2 rounded-full border border-divider/50 bg-paper px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md">
-                View all posts
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ════════ LATEST POSTS (editorial: featured + list) ════════ */}
+      {recentPosts.length > 0 && <LatestPosts posts={recentPosts} />}
 
       {/* ════════ CTA BANNER ════════ */}
       <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-900 to-blue-950">
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        />
         <div className="relative mx-auto max-w-[1400px] px-4 py-20 text-center md:px-12">
           <h2 className="font-khmer-serif text-[clamp(24px,4vw,40px)] font-bold leading-tight text-white">
             Ready to explore the catalogue?
