@@ -12,8 +12,7 @@ import OfflineSaveButton from "@/components/ui/OfflineSaveButton";
 import DownloadCount from "@/components/ui/DownloadCount";
 import { Badge } from "@/components/ui/Badge";
 import PhysicalCopiesList from "@/components/ui/PhysicalCopiesList";
-import { getBookBySlug, type Book } from "@/lib/books";
-import { mapRowToBook } from "@/lib/book-utils"; // ← shared mapper
+import { getBookBySlug, type Book, mapRowToBook } from "@/lib/books";
 import { createServiceClient } from "@/lib/supabase/server";
 import { createClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
@@ -22,6 +21,9 @@ import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
+import RelatedBooks from "@/components/ui/books/RelatedBooks";
+import ShareButton from "@/components/ui/books/ShareButton";
+import BookQuickNav from "@/components/ui/books/BookQuickNav";
 
 export const dynamic = "force-dynamic";
 
@@ -181,17 +183,57 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     } : {}),
   };
 
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${SITE_URL}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Books",
+        item: `${SITE_URL}/books`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: book.department,
+        item: `${SITE_URL}/books?dept=${encodeURIComponent(book.department)}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 4,
+        name: book.title,
+        item: `${SITE_URL}/books/${slug}`,
+      },
+    ],
+  };
+
   return (
     <section className="bg-bg-body px-6 py-10 md:px-12 min-h-screen">
       <JsonLd data={bookSchema} />
+      <JsonLd data={breadcrumbSchema} />
       <div className="mx-auto max-w-[1200px]">
-        <Link
-          href="/books"
-          className="mb-6 inline-flex items-center gap-2 text-[14.5px] font-semibold text-brand transition-colors hover:text-brand-hover"
-        >
-          <Icon name="arrow-left" className="text-[20px]" />
-          Back to catalogue
-        </Link>
+        <BookQuickNav hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId} hasReviews={!!book.dbId} />
+        
+        <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-[14.5px] font-medium text-text-muted">
+          <Link href="/" className="hover:text-brand transition-colors">Home</Link>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          <Link href="/books" className="hover:text-brand transition-colors">Books</Link>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          <Link href={`/books?dept=${encodeURIComponent(book.department)}`} className="whitespace-nowrap hover:text-brand transition-colors">
+            {book.department}
+          </Link>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={book.title}>
+            {book.title}
+          </span>
+        </nav>
 
         {/* ── PDF reader (shown first) ── */}
         {book.fromSupabase && book.pdfUrl && book.dbId && (
@@ -207,7 +249,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         )}
 
         {/* ── Hero card ── */}
-        <div className="grid gap-10 rounded-[28px] border border-divider bg-bg-surface p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr]">
+        <div id="details" className="grid gap-10 rounded-[28px] border border-divider bg-bg-surface p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr] scroll-mt-24">
 
           {/* Cover */}
           <div>
@@ -322,6 +364,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   isLoggedIn={!!user}
                 />
               )}
+              <ShareButton url={`${SITE_URL}/books/${slug}`} />
             </div>
           </div>
         </div>
@@ -380,6 +423,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </div>
           </div>
         )}
+
+        {/* Related Books */}
+        <RelatedBooks 
+          currentSlug={book.slug} 
+          department={book.department} 
+          category={book.category} 
+        />
       </div>
     </section>
   );

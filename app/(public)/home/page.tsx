@@ -1,5 +1,6 @@
 // app/(public)/home/page.tsx
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
@@ -22,8 +23,11 @@ import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkele
 
 export const revalidate = 60;
 
-// ── Data fetchers ───────────────────────────────────────────────────────────
+export const metadata: Metadata = {
+  alternates: { canonical: "/home" },
+};
 
+// ── Data fetchers ───────────────────────────────────────────────────────────
 async function getStats() {
   const supabase = createServiceClient();
   const [booksRes, downloadsRes, usersRes, viewsRes] = await Promise.all([
@@ -82,6 +86,7 @@ function formatStat(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
 }
+
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {

@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticUrls: MetadataRoute.Sitemap = [
     {
-      url: `${SITE_URL}`,
+      url: `${SITE_URL}/home`,        // ← ប្តូរពី `${SITE_URL}`
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1.0,
