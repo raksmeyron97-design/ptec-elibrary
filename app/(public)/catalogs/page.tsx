@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
 import { getAvailability } from "@/lib/catalog";
-import CatalogCard from "@/components/ui/CatalogCard";
-import CatalogSearchBar from "@/components/ui/CatalogSearchBar";
-import Pagination from "@/components/ui/Pagination";
+import CatalogCard from "@/components/ui/books/CatalogCard";
+import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
+import Pagination from "@/components/ui/core/Pagination";
 
 export const dynamic = "force-dynamic";
 

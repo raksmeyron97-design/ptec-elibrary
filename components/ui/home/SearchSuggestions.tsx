@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const RECENT_KEY = "ptec.recentSearches";
+export const RECENT_KEY = "ptec.recentSearches";
 const MAX_RECENT = 5;
 
 type Props = {
@@ -13,7 +13,7 @@ type Props = {
 };
 
 /** Read recent searches saved by the search page (see helper below). */
-function readRecent(): string[] {
+export function readRecent(): string[] {
   try {
     const raw = localStorage.getItem(RECENT_KEY);
     return raw ? (JSON.parse(raw) as string[]).slice(0, MAX_RECENT) : [];

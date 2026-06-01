@@ -13,7 +13,7 @@ import {
   bookFolderFromCoverUrl,
 } from "@/lib/book-utils";
 import { createClient } from "@/lib/supabase/client";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 type Initial = {
   id: string;

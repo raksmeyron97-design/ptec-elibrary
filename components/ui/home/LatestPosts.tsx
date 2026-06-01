@@ -1,6 +1,6 @@
 // components/ui/LatestPosts.tsx
 import Link from "next/link";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import { SectionTitle } from "@/components/ui/core/SectionTitle";
 
 export type LatestPost = {
   id: string;

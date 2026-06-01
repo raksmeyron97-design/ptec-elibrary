@@ -11,7 +11,7 @@ import {
 import CatalogAdminActions from "./CatalogAdminActions";
 import CsvImportModal from "./CsvImportModal";
 import AdminCatalogToolbar from "./AdminCatalogToolbar";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/core/Pagination";
 
 export const dynamic = "force-dynamic";
 

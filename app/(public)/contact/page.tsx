@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Icon, { type IconName } from "@/components/ui/Icon";
+import Icon, { type IconName } from "@/components/ui/core/Icon";
 
 const contactItems: [IconName, string][] = [
   ["phone", "012 950 192"],

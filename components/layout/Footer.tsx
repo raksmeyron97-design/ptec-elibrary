@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 import MobileBottomNav from "./MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";
-import { Seal } from "@/components/ui/Seal";
-import InstallPWA from "@/components/ui/InstallPWA";
+import { Seal } from "@/components/ui/core/Seal";
+import InstallPWA from "@/components/ui/pwa/InstallPWA";
 
 export default async function Footer() {
   const supabase = await createClient();

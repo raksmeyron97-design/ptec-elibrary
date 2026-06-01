@@ -1,7 +1,7 @@
 // app/admin/manage/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
 import ManageClient from "./ManageClient";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/core/Pagination";
 
 const PAGE_SIZE = 20;
 

@@ -1,11 +1,13 @@
 import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { type Book, mapRowToBook } from "@/lib/books";
-import BookCard from "@/components/ui/BookCard";
-import SearchBar from "@/components/ui/SearchBar";
-import Icon from "@/components/ui/Icon";
-import Pagination from "@/components/ui/Pagination";
+import BookCard from "@/components/ui/books/BookCard";
+import SearchBar from "@/components/ui/search/SearchBar";
+import Icon from "@/components/ui/core/Icon";
+import Pagination from "@/components/ui/core/Pagination";
 import { getDepartments } from "@/app/actions/departments";
+import { getLanguages, getFormats } from "@/app/actions/filters";
+import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
@@ -27,6 +29,7 @@ async function fetchBooks(params: SearchParams) {
   const q = params.q?.trim();
   const dept = params.dept?.trim();
   const language = params.language?.trim();
+  const format = params.format?.trim();
 
   let authorBookIds: string[] | null = null;
   let categoryBookIds: string[] | null = null;
@@ -70,6 +73,7 @@ async function fetchBooks(params: SearchParams) {
     oldest: { column: "published_at", opts: { ascending: true } },
     downloads: { column: "download_count", opts: { ascending: false } },
     rating: { column: "rating", opts: { ascending: false } },
+    title_asc: { column: "title", opts: { ascending: true } },
   };
   const sortKey =
     params.sort && sortMap[params.sort] ? params.sort : "newest";
@@ -104,6 +108,18 @@ async function fetchBooks(params: SearchParams) {
   }
   if (dept) query = query.ilike("department", `%${dept}%`);
   if (language) query = query.ilike("language", `%${language}%`);
+  if (format) {
+    const { data: bf } = await supabase
+      .from("book_files")
+      .select("book_id")
+      .ilike("format", `%${format}%`);
+    const formatBookIds = bf?.map((f) => f.book_id) ?? [];
+    if (formatBookIds.length > 0) {
+      query = query.in("id", formatBookIds);
+    } else {
+      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    }
+  }
 
   const { data, error, count } = await query;
   if (error) {
@@ -119,9 +135,11 @@ export default async function BooksPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const [{ books, total, page }, departments] = await Promise.all([
+  const [{ books, total, page }, departments, languages, formats] = await Promise.all([
     fetchBooks(params),
     getDepartments(),
+    getLanguages(),
+    getFormats(),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -134,6 +152,7 @@ export default async function BooksPage({
   const categoryPills = ["All", ...departments];
 
   return (
+    <ClientNavWrapper>
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-5 md:px-12 md:py-7">
@@ -158,7 +177,7 @@ export default async function BooksPage({
                   ? buildHref(params, { dept: undefined, page: undefined })
                   : buildHref(params, { dept: cat, page: undefined });
                 return (
-                  <a
+                  <FilterLink
                     key={cat}
                     href={href}
                     className={`shrink-0 rounded-full px-4 py-[7px] text-[12px] font-medium whitespace-nowrap transition-all border sm:text-[13px] ${
@@ -168,38 +187,44 @@ export default async function BooksPage({
                     }`}
                   >
                     {cat}
-                  </a>
+                  </FilterLink>
                 );
               })}
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
-              <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider mr-1">
-                Sort
-              </span>
-              <a
-                href={buildHref(params, {
-                  sort: "newest",
-                  page: undefined,
-                })}
-                className={sortPillClass(
-                  params.sort,
-                  "newest",
-                  !params.sort
-                )}
-              >
-                Newest
-              </a>
-              <a
-                href={buildHref(params, {
-                  sort: "downloads",
-                  page: undefined,
-                })}
-                className={sortPillClass(params.sort, "downloads", false)}
-              >
-                Most Downloaded
-              </a>
+            {/* Sort & Filters */}
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0 mt-2 sm:mt-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider mr-1">
+                  Sort
+                </span>
+                <SortSelect
+                  value={params.sort || "newest"}
+                  options={[
+                    { value: "newest", label: "Newest first" },
+                    { value: "oldest", label: "Oldest first" },
+                    { value: "title_asc", label: "Title (A–Z)" },
+                    { value: "downloads", label: "Most downloaded" },
+                  ]}
+                  defaultLabel="Sort by"
+                  paramKey="sort"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 border-l border-divider pl-2 ml-1">
+                <FilterSelect
+                  value={params.language || ""}
+                  options={languages}
+                  defaultLabel="Language"
+                  paramKey="language"
+                />
+                <FilterSelect
+                  value={params.format || ""}
+                  options={formats}
+                  defaultLabel="Format"
+                  paramKey="format"
+                />
+              </div>
             </div>
           </div>
 
@@ -267,6 +292,7 @@ export default async function BooksPage({
         )}
       </div>
     </div>
+    </ClientNavWrapper>
   );
 }
 
@@ -308,7 +334,7 @@ function ActiveChip({
   searchParams: SearchParams;
 }) {
   return (
-    <a
+    <FilterLink
       href={buildHref(searchParams, {
         [paramKey]: undefined,
         page: undefined,
@@ -324,7 +350,7 @@ function ActiveChip({
       >
         ×
       </span>
-    </a>
+    </FilterLink>
   );
 }
 
@@ -347,12 +373,12 @@ function EmptyState({
             : "The catalogue is empty."}
       </p>
       {hasFilters && (
-        <a
+        <FilterLink
           href="/books"
           className="mt-5 inline-flex h-10 items-center rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
         >
           Clear all filters
-        </a>
+        </FilterLink>
       )}
     </div>
   );

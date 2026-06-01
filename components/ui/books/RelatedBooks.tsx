@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
-import BookCard from "@/components/ui/BookCard";
+import BookCard from "@/components/ui/books/BookCard";
 
 interface RelatedBooksProps {
   currentSlug: string;

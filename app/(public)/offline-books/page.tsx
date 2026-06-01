@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 import { getOfflineBooks, removeOfflineBookMeta, type OfflineBook } from "@/lib/offline";
 
 export default function OfflineBooksPage() {

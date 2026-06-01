@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
 import { departments } from "@/lib/book-utils";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 type Initial = {
   id: string;

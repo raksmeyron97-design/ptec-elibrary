@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 import { createServiceClient } from "@/lib/supabase/server";
 import UploadForm from "../UploadForm";
 

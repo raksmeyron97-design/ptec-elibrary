@@ -12,8 +12,8 @@ import {
   bookPdfPath,
   bookCoverPath,
 } from "@/lib/book-utils";
-import Icon from "@/components/ui/Icon";
-import SearchableSelect from "@/components/ui/SearchableSelect";
+import Icon from "@/components/ui/core/Icon";
+import SearchableSelect from "@/components/ui/search/SearchableSelect";
 
 const LANGUAGES = ["Khmer", "English"] as const;
 

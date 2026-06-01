@@ -1,89 +1,33 @@
 "use client";
 
-// components/ui/NavSearch.tsx
-import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Icon from "@/components/ui/Icon";
+import { useEffect, useState } from "react";
+import Icon from "@/components/ui/core/Icon";
 
 export default function NavSearch() {
-  const router = useRouter();
-  const [open, setOpen]   = useState(false);
-  const [query, setQuery] = useState("");
-  const inputRef          = useRef<HTMLInputElement>(null);
+  const [isMac, setIsMac] = useState(true);
 
-  // Focus input when opened
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") { setOpen(false); setQuery(""); }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    setIsMac(navigator.userAgent.indexOf("Mac OS X") !== -1);
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const q = query.trim();
-    if (!q) return;
-    setOpen(false);
-    setQuery("");
-    router.push(`/books?q=${encodeURIComponent(q)}`);
+  function openCommandPalette() {
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", metaKey: true })
+    );
   }
 
   return (
-    <>
-      {/* ── Collapsed: pill button ── */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="relative hidden items-center rounded-full bg-paper/60 py-2.5 pl-11 pr-5 text-[14px] font-medium text-text-muted transition-all hover:bg-paper/60 md:flex border border-divider/50"
-          aria-label="Open search"
-        >
-          <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted" />
-          Search e-Library...
-        </button>
-      )}
-
-      {/* ── Expanded: input form ── */}
-      {open && (
-        <form
-          onSubmit={handleSubmit}
-          className="relative hidden md:flex items-center"
-        >
-          <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search e-Library..."
-            className="w-[280px] rounded-full border border-brand/40 bg-bg-surface py-2.5 pl-11 pr-10 text-[14px] text-text-heading outline-none ring-2 ring-focus-ring/20 placeholder-text-muted"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-8 text-text-muted hover:text-text-body"
-            >
-              ✕
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => { setOpen(false); setQuery(""); }}
-            className="absolute right-3 text-text-muted hover:text-text-body text-xs"
-            title="Close"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </form>
-      )}
-    </>
+    <button
+      onClick={openCommandPalette}
+      className="relative hidden items-center rounded-full bg-paper/60 py-2.5 pl-11 pr-3 text-[14px] font-medium text-text-muted transition-all hover:bg-paper hover:text-text-heading md:flex border border-divider/50 group"
+      aria-label="Search e-Library"
+    >
+      <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted group-hover:text-brand transition-colors" />
+      <span className="mr-6">Search e-Library...</span>
+      
+      <kbd className="hidden sm:inline-flex items-center gap-1 rounded-md border border-divider bg-bg-surface px-1.5 py-0.5 font-sans text-[11px] font-semibold text-text-muted shadow-sm transition-colors group-hover:border-brand/30 group-hover:text-brand">
+        <span className="text-[10px]">{isMac ? "⌘" : "Ctrl"}</span>K
+      </kbd>
+    </button>
   );
 }

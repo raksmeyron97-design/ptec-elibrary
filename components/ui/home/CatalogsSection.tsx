@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
-import CatalogCard from "@/components/ui/CatalogCard";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import CatalogCard from "@/components/ui/books/CatalogCard";
+import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import Link from "next/link";
 
 async function getRecentCatalogs() {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 type UserInfo = {
   email: string;

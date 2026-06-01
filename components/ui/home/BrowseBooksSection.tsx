@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
 import BookShowcaseTabs from "./BookShowcaseTabs";
 import type { ComponentProps } from "react";
-import BookCard from "@/components/ui/BookCard";
+import BookCard from "@/components/ui/books/BookCard";
 
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 

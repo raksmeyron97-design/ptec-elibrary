@@ -3,7 +3,7 @@
 
 import { useState, type ComponentProps } from "react";
 import Link from "next/link";
-import BookCard from "@/components/ui/BookCard";
+import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
 
 // Stay in sync with BookCard's expected prop shape automatically.

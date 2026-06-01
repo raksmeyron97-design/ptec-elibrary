@@ -1,8 +1,8 @@
 "use client";
 
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/core/Button";
 
 export default function OfflinePage() {
   return (

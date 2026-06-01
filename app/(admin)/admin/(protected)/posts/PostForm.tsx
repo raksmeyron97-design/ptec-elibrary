@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
 import { makeUid, postFolder, postCoverPath } from "@/lib/book-utils";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 const CATEGORIES = ["Research", "Announcement", "Event", "Journal", "Other"] as const;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];

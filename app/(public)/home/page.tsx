@@ -4,10 +4,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
-import SearchBar from "@/components/ui/SearchBar";
-import HeroBookStack from "@/components/ui/HeroBookStack";
-import { Button } from "@/components/ui/Button";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import SearchBar from "@/components/ui/search/SearchBar";
+import HeroBookStack from "@/components/ui/home/HeroBookStack";
+import { Button } from "@/components/ui/core/Button";
+import { SectionTitle } from "@/components/ui/core/SectionTitle";
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";

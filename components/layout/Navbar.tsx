@@ -6,8 +6,8 @@ import MobileMenu from "./MobileMenu";
 import NavLinkActive from "./NavLinkActive";
 import NavDropdown from "./NavDropdown";
 import NavSearch from "@/components/layout/NavSearch";
-import { Seal } from "@/components/ui/Seal";
-import Icon from "@/components/ui/Icon";
+import { Seal } from "@/components/ui/core/Seal";
+import Icon from "@/components/ui/core/Icon";
 import NavbarStickyWrapper from "./NavbarStickyWrapper";
 
 

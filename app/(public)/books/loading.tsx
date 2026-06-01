@@ -1,45 +1,36 @@
-// app/(public)/books/loading.tsx
-// Shown by Next.js while the /books page is streaming / fetching data.
+import SearchBar from "@/components/ui/search/SearchBar";
+import BookCardSkeleton from "@/components/ui/books/BookCardSkeleton";
 
-export default function BooksLoading() {
+export default function Loading() {
   return (
-    <section className="bg-bg-body px-6 py-10 md:px-12 min-h-screen">
-      <div className="mx-auto max-w-[1400px]">
-
-        {/* Search bar skeleton */}
-        <div className="mb-8 h-12 w-full max-w-2xl mx-auto animate-pulse rounded-full bg-paper" />
-
-        <div className="flex gap-8">
-          {/* Card grid skeleton */}
-          <div className="flex-1">
-            <div className="mb-5 h-5 w-32 animate-pulse rounded bg-paper" />
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <BookCardSkeleton key={i} />
-              ))}
+    <div className="min-h-screen bg-bg-body">
+      {/* Header Skeleton */}
+      <div className="border-b border-divider bg-bg-surface px-4 py-5 md:px-12 md:py-7">
+        <div className="mx-auto max-w-[1400px]">
+          <div className="mb-5 h-11 w-full rounded-xl bg-paper animate-pulse" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0 w-full">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2 min-w-0 flex-1 w-full">
+              <div className="h-[30px] w-16 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+              <div className="h-[30px] w-24 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+              <div className="h-[30px] w-20 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+              <div className="h-[30px] w-32 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+              <div className="h-[30px] w-16 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+            </div>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0 mt-2 sm:mt-0">
+              <div className="h-[30px] w-20 rounded-full bg-paper animate-pulse sm:h-[32px]" />
+              <div className="h-[30px] w-28 rounded-full bg-paper animate-pulse sm:h-[32px]" />
             </div>
           </div>
+          <div className="mt-4 h-4 w-32 rounded bg-paper animate-pulse" />
         </div>
       </div>
-    </section>
-  );
-}
 
-function BookCardSkeleton() {
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-      {/* Cover */}
-      <div className="relative mx-3 mt-3 overflow-hidden rounded-xl sm:mx-3.5 sm:mt-3.5 border border-divider/50">
-        <div className="aspect-[3/4] w-full animate-pulse bg-paper" />
-      </div>
-      {/* Body */}
-      <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-4 sm:px-4 sm:pb-4 space-y-2.5">
-        <div className="h-3 w-16 animate-pulse rounded-full bg-paper" />
-        <div className="h-4 w-3/4 animate-pulse rounded bg-paper" />
-        <div className="h-3 w-1/2 animate-pulse rounded bg-paper" />
-        <div className="mt-auto flex justify-between pt-3">
-          <div className="h-3 w-10 animate-pulse rounded bg-paper" />
-          <div className="h-5 w-14 animate-pulse rounded-full bg-paper" />
+      {/* Grid Skeleton */}
+      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-12 md:py-8">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
+          {Array.from({ length: 15 }).map((_, i) => (
+            <BookCardSkeleton key={i} />
+          ))}
         </div>
       </div>
     </div>

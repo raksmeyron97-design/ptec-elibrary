@@ -13,7 +13,7 @@ import {
 } from "@/lib/catalog";
 import type { CatalogCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-actions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 // ── Copy status display maps ───────────────────────────────────────────────────
 const COPY_STATUS_LABEL: Record<string, string> = {

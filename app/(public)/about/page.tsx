@@ -1,4 +1,4 @@
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 export const metadata = {
   title: "About Us | PTEC e-Library",

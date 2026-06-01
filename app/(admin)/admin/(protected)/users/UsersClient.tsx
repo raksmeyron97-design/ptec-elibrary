@@ -4,7 +4,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toggleUserRole } from "@/app/(admin)/admin/(protected)/users/actions";
-import Pagination from "@/components/ui/Pagination";
+import Pagination from "@/components/ui/core/Pagination";
 
 type UserRow = {
   id: string;

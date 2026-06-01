@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import Icon from "@/components/ui/Icon";
+import Icon from "@/components/ui/core/Icon";
 
 type NavItem = { label: string; href: string };
 

@@ -1,9 +1,9 @@
 // components/ui/ContinueReading.tsx
 import Link from "next/link";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import BookCard from "@/components/ui/BookCard";
+import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import { SectionTitle } from "@/components/ui/core/SectionTitle";
 
 type ContinueBook = React.ComponentProps<typeof BookCard>["book"] & { lastReadAt?: string | null };
 

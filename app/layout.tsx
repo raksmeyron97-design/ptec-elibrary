@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
+import { Suspense } from "react";
+import CommandPalette from "@/components/ui/search/CommandPalette";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
@@ -67,6 +69,9 @@ export default function RootLayout({
         <JsonLd data={websiteSchema} />
         <JsonLd data={orgSchema} />
         {children}
+        <Suspense fallback={null}>
+          <CommandPalette />
+        </Suspense>
       </body>
     </html>
   );
