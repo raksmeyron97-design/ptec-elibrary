@@ -1,6 +1,6 @@
 // app/catalogs/page.tsx
 import { Suspense } from "react";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
 import { getAvailability } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
@@ -23,11 +23,12 @@ const PAGE_SIZE = 18;
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 async function fetchCatalogBooks(params: SearchParams) {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const page   = Math.max(1, Number(params.page) || 1);
   const from   = (page - 1) * PAGE_SIZE;
   const to     = from + PAGE_SIZE - 1;
-  const q      = params.q?.trim();
+  const rawQ = params.q?.trim();
+  const q = rawQ ? rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim() : undefined;
   const avail  = params.availability;
 
   const sortMap: Record<string, { column: string; asc: boolean }> = {
@@ -57,7 +58,7 @@ async function fetchCatalogBooks(params: SearchParams) {
 }
 
 async function fetchCategories(): Promise<string[]> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("catalog_books")
     .select("category")

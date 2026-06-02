@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { type Book, mapRowToBook } from "@/lib/books";
 import BookCard from "@/components/ui/books/BookCard";
 import SearchBar from "@/components/ui/search/SearchBar";
@@ -23,11 +23,12 @@ type SearchParams = {
 const PAGE_SIZE = 15;
 
 async function fetchBooks(params: SearchParams) {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const page = Math.max(1, Number(params.page) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const q = params.q?.trim();
+  const rawQ = params.q?.trim();
+  const q = rawQ ? rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim() : undefined;
   const dept = params.dept?.trim();
   const language = params.language?.trim();
   const format = params.format?.trim();

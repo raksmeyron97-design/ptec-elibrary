@@ -11,11 +11,6 @@ const withSerwist = withSerwistInit({
 });
 
 const nextConfig: NextConfig = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "50mb", // ដំឡើងទៅ 50MB
-    },
-  },
   turbopack: {},
   images: {
     remotePatterns: [

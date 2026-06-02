@@ -11,7 +11,6 @@ export type Review = {
   created_at: string;
   profiles: {
     full_name: string | null;
-    email: string;
     avatar_url: string | null;
   } | null;
 };
@@ -117,7 +116,7 @@ export async function getReviews(bookId: string): Promise<Review[]> {
     .from("reviews")
     .select(
       `id, rating, content, created_at,
-       profiles ( full_name, email, avatar_url )`
+       profiles ( full_name, avatar_url )`
     )
     .eq("book_id", bookId)
     .order("created_at", { ascending: false });

@@ -12,13 +12,14 @@ import OfflineSaveButton from "@/components/ui/pwa/OfflineSaveButton";
 import DownloadCount from "@/components/ui/pwa/DownloadCount";
 import { Badge } from "@/components/ui/core/Badge";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
-import { getBookBySlug, type Book, mapRowToBook } from "@/lib/books";
-import { createServiceClient } from "@/lib/supabase/server";
+import { type Book, mapRowToBook } from "@/lib/books";
+
 import { createClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
+import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
@@ -37,7 +38,7 @@ export async function generateMetadata({
   params,
 }: BookDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data: book } = await supabase
     .from("books")
     .select("title, description, cover_url, language, published_at, authors(name)")
@@ -89,7 +90,7 @@ export async function generateMetadata({
 type BookWithSource = Book & { fromSupabase: boolean; dbId: string | null };
 
 async function getBook(slug: string): Promise<BookWithSource | null> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("books")
@@ -119,12 +120,13 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
     } as BookWithSource;
   }
 
-  const localBook = getBookBySlug(slug) ?? null;
-  if (!localBook) return null;
-  return { ...localBook, fromSupabase: false, dbId: null };
+  return null;
 }
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
+  const t = await getTranslations("bookDetail");
+  const tPhys = await getTranslations("physical");
+  
   const { slug } = await params;
   const book = await getBook(slug);
   if (!book) notFound();
@@ -139,7 +141,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     book.dbId ? isBookSaved(book.dbId) : Promise.resolve(false),
     book.dbId ? getDownloadCount(book.dbId) : Promise.resolve(0),
     book.dbId
-      ? createServiceClient()
+      ? authClient
           .from("catalog_copies")
           .select("*")
           .eq("catalog_book_id", book.dbId)
@@ -291,13 +293,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5">
                 <div className="min-w-0 flex-1 w-full">
                   <p className="text-[13px] sm:text-[13.5px] font-bold text-brand">
-                    Continue reading — {savedProgress!.progressPct}% complete
+                    {t("continueReading")} — {savedProgress!.progressPct}% {t("complete")}
                   </p>
                   <p className="mt-0.5 text-[11px] sm:text-[12px] text-brand/70 font-medium">
-                    Last read{" "}
+                    {t("lastRead")} {" "}
                     {savedProgress!.lastReadAt
                       ? new Date(savedProgress!.lastReadAt).toLocaleDateString()
-                      : "recently"}
+                      : t("recently")}
                   </p>
                   {/* Progress bar — visible on all sizes */}
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-brand/10 border border-divider sm:hidden">
@@ -317,7 +319,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   href="#reader"
                   className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
                 >
-                  Resume
+                  {t("resume")}
                 </a>
               </div>
             )}
@@ -326,10 +328,10 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
             <dl className="mt-5 sm:mt-7 grid grid-cols-2 gap-2 sm:gap-3">
               {[
-                ["ISBN",             book.isbn],
-                ["Language",         book.language],
-                ["Publication year", String(book.year)],
-                ["Pages",            String(book.pages)],
+                [t("isbn"),             book.isbn],
+                [t("language"),         book.language],
+                [t("publicationYear"),  String(book.year)],
+                [t("pages"),            String(book.pages)],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[13px] bg-paper border border-divider px-3 py-2.5 sm:px-4 sm:py-3.5 min-w-0">
                   <dt className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
@@ -345,11 +347,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
                 >
                   <Icon name="pdf" className="text-[20px]" />
-                  {resuming ? "Continue reading" : "Read online"}
+                  {resuming ? t("continueReading") : t("readOnline")}
                 </a>
               ) : (
                 <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
-                  PDF not available
+                  {t("pdfNotAvailable")}
                 </span>
               )}
               {book.pdfUrl && (
@@ -384,7 +386,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <div id="reviews" className="mt-8 sm:mt-12 scroll-mt-24">
             <div className="mb-5 sm:mb-6 flex items-center justify-between">
               <h2 className="font-khmer-serif text-[22px] sm:text-[28px] font-bold text-text-heading">
-                Reader Reviews
+                {t("readerReviews")}
                 {reviews.length > 0 && (
                   <span className="ml-2 sm:ml-2.5 text-sm sm:text-base font-semibold text-text-muted">({reviews.length})</span>
                 )}
@@ -395,7 +397,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                     <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
                   </svg>
                   <span className="text-sm font-bold text-text-heading">{avgRating.toFixed(1)}</span>
-                  <span className="text-sm text-text-muted">average</span>
+                  <span className="text-sm text-text-muted">{t("average")}</span>
                 </div>
               )}
             </div>
@@ -413,9 +415,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 ) : (
                   <div className="rounded-[20px] border border-divider bg-bg-surface p-6 text-center shadow-sm">
                     <Icon name="star" className="mb-3 text-4xl text-accent" />
-                    <h3 className="text-base font-bold text-text-heading">Leave a review</h3>
+                    <h3 className="text-base font-bold text-text-heading">{t("leaveAReview")}</h3>
                     <p className="mt-2 text-sm text-text-muted font-sans">
-                      Sign in to rate this resource and share your experience with other readers.
+                      {t("signInToReview")}
                     </p>
                     <Link
                       href={`/auth/login?callbackUrl=/books/${book.slug}#reviews`}

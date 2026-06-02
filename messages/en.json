@@ -71,7 +71,22 @@
     "read": "Read",
     "details": "Details",
     "reviews": "Reviews",
-    "relatedBooks": "Related books"
+    "relatedBooks": "Related books",
+    "continueReading": "Continue reading",
+    "complete": "complete",
+    "lastRead": "Last read",
+    "recently": "recently",
+    "resume": "Resume",
+    "isbn": "ISBN",
+    "language": "Language",
+    "publicationYear": "Publication year",
+    "pages": "Pages",
+    "readOnline": "Read online",
+    "pdfNotAvailable": "PDF not available",
+    "readerReviews": "Reader Reviews",
+    "average": "average",
+    "leaveAReview": "Leave a review",
+    "signInToReview": "Sign in to rate this resource and share your experience with other readers."
   },
   "physical": {
     "available": "Available",
@@ -204,6 +219,19 @@
     "errEmailRequired": "Email address is required.",
     "errPasswordRequired": "Password is required.",
     "errPasswordMismatch": "Passwords do not match.",
-    "errAdminBlocked": "This email domain is reserved for administrators. Please contact the admin team."
+    "errAdminBlocked": "This email domain is reserved for administrators. Please contact the admin team.",
+    "resetPasswordTitle": "Reset your password",
+    "resetPasswordSubtitle": "Enter your email address and we'll send you a link to reset your password.",
+    "checkEmailForReset": "Check your email for the reset link.",
+    "sending": "Sending...",
+    "sendResetLink": "Send reset link",
+    "backToLogin": "Back to login",
+    "newPasswordTitle": "Set new password",
+    "newPasswordSubtitle": "Enter your new password below.",
+    "newPasswordLabel": "New password",
+    "newPasswordPlaceholder": "••••••••",
+    "updatePassword": "Update password",
+    "updating": "Updating...",
+    "passwordUpdated": "Password updated successfully. Redirecting to login..."
   }
 }

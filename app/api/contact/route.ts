@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const COOLDOWN_MS = 2 * 60 * 1000;
 const MAX_PER_HOUR = 3;
 const HOUR_MS = 60 * 60 * 1000;
-
-const ipHistory: Record<string, number[]> = {};
 
 function getClientIP(req: NextRequest): string {
   return (
@@ -14,34 +13,34 @@ function getClientIP(req: NextRequest): string {
   );
 }
 
-function checkLimit(ip: string) {
+async function checkLimit(ip: string, supabase: any) {
   const now = Date.now();
-  const history = (ipHistory[ip] || []).filter((t) => now - t < HOUR_MS);
-  ipHistory[ip] = history;
+  const { data } = await supabase.from("contact_rate_limit").select("history").eq("ip", ip).single();
+  let history: number[] = data ? data.history : [];
+  history = history.filter((t: number) => now - t < HOUR_MS);
 
-  if (history.length === 0) return { blocked: false };
+  if (history.length === 0) return { blocked: false, history };
 
   const last = history[history.length - 1];
   const elapsed = now - last;
   if (elapsed < COOLDOWN_MS) {
     const secondsLeft = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-    return { blocked: true, reason: "cooldown", secondsLeft };
+    return { blocked: true, reason: "cooldown", secondsLeft, history };
   }
 
   if (history.length >= MAX_PER_HOUR) {
     const oldest = Math.min(...history);
     const secondsLeft = Math.ceil((HOUR_MS - (now - oldest)) / 1000);
-    return { blocked: true, reason: "hourly", secondsLeft };
+    return { blocked: true, reason: "hourly", secondsLeft, history };
   }
 
-  return { blocked: false };
+  return { blocked: false, history };
 }
 
-function recordSend(ip: string) {
+async function recordSend(ip: string, history: number[], supabase: any) {
   const now = Date.now();
-  const history = (ipHistory[ip] || []).filter((t) => now - t < HOUR_MS);
   history.push(now);
-  ipHistory[ip] = history;
+  await supabase.from("contact_rate_limit").upsert({ ip, history });
 }
 
 export async function POST(req: NextRequest) {
@@ -69,7 +68,9 @@ export async function POST(req: NextRequest) {
 
   // Rate limit
   const ip = getClientIP(req);
-  const limit = checkLimit(ip);
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  
+  const limit = await checkLimit(ip, supabase);
 
   if (limit.blocked) {
     const msg =
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
       throw new Error("Telegram API error");
     }
 
-    recordSend(ip);
+    await recordSend(ip, limit.history, supabase);
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error(err);

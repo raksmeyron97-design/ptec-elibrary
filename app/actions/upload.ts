@@ -2,6 +2,7 @@
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createClient } from "@/lib/supabase/server";
 const s3Client = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -13,6 +14,12 @@ const s3Client = new S3Client({
 
 export async function getPresignedUrl(filePath: string, contentType: string) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin") throw new Error("Forbidden");
+
     const bucketName = process.env.R2_BUCKET_NAME;
     const publicUrlBase = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
 
@@ -41,6 +48,12 @@ export async function getPresignedUrl(filePath: string, contentType: string) {
 
 export async function deleteR2File(filePath: string) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin") throw new Error("Forbidden");
+
     const bucketName = process.env.R2_BUCKET_NAME;
     if (!bucketName) throw new Error("Missing R2 bucket name");
 

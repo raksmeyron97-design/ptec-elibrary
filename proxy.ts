@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
     if (effectivePath.startsWith("/admin")) {
       if (effectivePath !== "/admin/login" && effectivePath !== "/admin/auth/signout") {
         if (!user) {
-          const res = NextResponse.redirect(new URL("/login", request.url));
+          const res = NextResponse.redirect(new URL("/admin/login", request.url));
           return copyCookies(res);
         }
       }
@@ -69,11 +69,6 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Main Domain Logic ─────────────────────────────────────────
-  // 1. TEMPORARILY ALLOW /admin access on main domain for Vercel testing
-  // if (url.pathname.startsWith("/admin")) {
-  //   const res = NextResponse.redirect(new URL("/", request.url));
-  //   return copyCookies(res);
-  // }
 
   // 2. Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {

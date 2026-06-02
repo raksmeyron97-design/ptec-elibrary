@@ -60,7 +60,7 @@ function Avatar({ name, email, avatarUrl }: { name: string | null; email: string
 
 function ReviewCard({ review }: { review: Review }) {
   const profile = review.profiles;
-  const displayName = profile?.full_name || profile?.email?.split("@")[0] || "Reader";
+  const displayName = profile?.full_name || "Reader";
   const date = new Date(review.created_at).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -72,7 +72,7 @@ function ReviewCard({ review }: { review: Review }) {
       <div className="flex items-start gap-3">
         <Avatar
           name={profile?.full_name ?? null}
-          email={profile?.email ?? ""}
+          email={""}
           avatarUrl={profile?.avatar_url ?? null}
         />
         <div className="min-w-0 flex-1">

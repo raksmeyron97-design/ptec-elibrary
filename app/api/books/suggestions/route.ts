@@ -3,14 +3,54 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+// In-memory rate limiting
+const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
+const MAX_REQUESTS_PER_MINUTE = 60;
+const CLEANUP_THRESHOLD = 1000;
+
+function getClientIP(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 export type Suggestion =
   | { type: "book";     slug: string; label: string; sub: string }
   | { type: "author";   label: string }
   | { type: "category"; label: string };
 
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q")?.trim();
-  if (!q || q.length < 2) return NextResponse.json([]);
+  // Rate limiting check
+  const ip = getClientIP(req);
+  const now = Date.now();
+  
+  // Prevent memory leaks on long-running edge nodes
+  if (rateLimitMap.size > CLEANUP_THRESHOLD) {
+    for (const [key, data] of rateLimitMap.entries()) {
+      if (now - data.lastReset > 60000) rateLimitMap.delete(key);
+    }
+  }
+
+  const record = rateLimitMap.get(ip) ?? { count: 0, lastReset: now };
+
+  // Reset every minute
+  if (now - record.lastReset > 60000) {
+    record.count = 0;
+    record.lastReset = now;
+  }
+
+  if (record.count >= MAX_REQUESTS_PER_MINUTE) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  record.count++;
+  rateLimitMap.set(ip, record);
+
+  const rawQ = req.nextUrl.searchParams.get("q")?.trim();
+  if (!rawQ || rawQ.length < 2) return NextResponse.json([]);
+  const q = rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim();
 
   const supabase = await createClient();
   const results: Suggestion[] = [];

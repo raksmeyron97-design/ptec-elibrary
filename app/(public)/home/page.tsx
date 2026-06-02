@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
 import SearchBar from "@/components/ui/search/SearchBar";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
 // ── Data fetchers ───────────────────────────────────────────────────────────
 async function getStats() {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const [booksRes, downloadsRes, usersRes, viewsRes] = await Promise.all([
     supabase.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
     supabase.from("books").select("download_count").eq("is_published", true),
@@ -48,7 +48,7 @@ const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, langu
 
 // #2 — Trending = most downloaded
 async function getTrendingBooks() {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("books")
     .select(BOOK_SELECT)
@@ -61,7 +61,7 @@ async function getTrendingBooks() {
 
 
 async function getDepartmentPills(): Promise<string[]> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("books")
     .select("department")
@@ -75,7 +75,7 @@ async function getDepartmentPills(): Promise<string[]> {
 
 // #4 — trending search chips. Falls back to a curated list if categories are empty.
 async function getTrendingTerms(): Promise<string[]> {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("categories").select("name").limit(6);
   const names = (data ?? []).map((c: any) => c.name).filter(Boolean) as string[];
   return names.length ? names.slice(0, 6) : ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
