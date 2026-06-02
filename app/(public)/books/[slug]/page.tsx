@@ -101,6 +101,7 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
       download_count,
       authors ( name, bio ),
       categories ( name ),
+      departments ( name ),
       book_files ( id, format, file_url, file_size_kb )
     `)
     .eq("slug", slug)

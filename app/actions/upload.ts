@@ -42,7 +42,7 @@ export async function getPresignedUrl(filePath: string, contentType: string) {
     return { presignedUrl, publicUrl };
   } catch (error) {
     console.error("Error generating presigned URL:", error);
-    throw new Error("Failed to generate presigned URL");
+    return { error: error instanceof Error ? error.message : "Failed to generate presigned URL" };
   }
 }
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
-import { departments } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
 
 type Initial = {
@@ -26,7 +25,7 @@ const TEXT_FIELDS = [
   { name: "isbn",     label: "ISBN",     placeholder: "Optional",              required: false },
 ] as const;
 
-export default function EditForm({ initial }: { initial: Initial }) {
+export default function EditForm({ initial, departments }: { initial: Initial, departments: string[] }) {
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState<string | null>(null);
 

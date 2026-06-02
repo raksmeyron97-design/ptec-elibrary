@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveBookRecord, addCategory } from "@/app/(admin)/admin/(protected)/actions";
+import { saveBookRecord, addCategory, addDepartment } from "@/app/(admin)/admin/(protected)/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
 import {
   departments as defaultDepartments,
@@ -52,18 +52,12 @@ export default function UploadForm() {
   useEffect(() => {
     (async () => {
       const [deptRes, catRes] = await Promise.all([
-        // departments is a text column on books — get distinct values
-        supabase.from("books").select("department").not("department", "is", null),
+        supabase.from("departments").select("name").order("name", { ascending: true }),
         supabase.from("categories").select("name").order("name", { ascending: true }),
       ]);
 
       if (deptRes.data && deptRes.data.length > 0) {
-        const unique = [...new Set(
-          deptRes.data
-            .map((b: { department: string | null }) => b.department)
-            .filter(Boolean) as string[]
-        )].sort();
-        if (unique.length > 0) setDeptList(unique);
+        setDeptList(deptRes.data.map((d: { name: string }) => d.name));
       }
 
       if (catRes.data && catRes.data.length > 0) {
@@ -99,9 +93,19 @@ export default function UploadForm() {
       setNewDeptName("");
       return;
     }
-    // department is a plain text column on books — no separate table needed
-    // Just add to local list; it gets saved with the book record
-    setDeptList((prev) => [...prev, name].sort());
+    try {
+      // Use server action (bypasses RLS)
+      const result = await addDepartment(name);
+      if (result && result.error) {
+        throw new Error(result.error);
+      }
+      if (result && result.name && !deptList.includes(result.name)) {
+        setDeptList((prev) => [...prev, result.name as string].sort());
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add department");
+      return;
+    }
     setNewDeptName("");
     setShowNewDept(false);
   }
@@ -118,8 +122,11 @@ export default function UploadForm() {
     try {
       // Use server action (bypasses RLS)
       const result = await addCategory(name);
-      if (result && !catList.includes(result.name)) {
-        setCatList((prev) => [...prev, result.name].sort());
+      if (result && result.error) {
+        throw new Error(result.error);
+      }
+      if (result && result.name && !catList.includes(result.name)) {
+        setCatList((prev) => [...prev, result.name as string].sort());
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add category");
@@ -184,7 +191,11 @@ export default function UploadForm() {
       const pdfPath = bookPdfPath(folder);
 
       // Get presigned URL for PDF
-      const { presignedUrl: pdfPresignedUrl, publicUrl: pdfPublicUrl } = await getPresignedUrl(pdfPath, "application/pdf");
+      const pdfPresignedRes = await getPresignedUrl(pdfPath, "application/pdf");
+      if ("error" in pdfPresignedRes) {
+        throw new Error(pdfPresignedRes.error);
+      }
+      const { presignedUrl: pdfPresignedUrl, publicUrl: pdfPublicUrl } = pdfPresignedRes;
 
       // Upload PDF to R2
       const pdfUploadRes = await fetch(pdfPresignedUrl, {
@@ -207,7 +218,11 @@ export default function UploadForm() {
         const coverPath = bookCoverPath(folder, coverFile.name);
 
         try {
-          const { presignedUrl: coverPresignedUrl, publicUrl: coverPublicUrl } = await getPresignedUrl(coverPath, coverFile.type);
+          const coverPresignedRes = await getPresignedUrl(coverPath, coverFile.type);
+          if ("error" in coverPresignedRes) {
+            throw new Error(coverPresignedRes.error);
+          }
+          const { presignedUrl: coverPresignedUrl, publicUrl: coverPublicUrl } = coverPresignedRes;
           
           const coverUploadRes = await fetch(coverPresignedUrl, {
             method: "PUT",
@@ -244,8 +259,13 @@ export default function UploadForm() {
       payload.set("fileSizeKb", String(Math.round(pdf.size / 1024)));
       payload.set("coverUrl",   coverUrl ?? "");
 
-      // saveBookRecord redirects on success, so nothing runs after it
-      await saveBookRecord(payload);
+      // saveBookRecord returns success/error object now
+      const res = await saveBookRecord(payload);
+      if (res && "error" in res) {
+        throw new Error(res.error);
+      } else if (res && "success" in res) {
+        router.push(`/books/${res.slug}`);
+      }
     } catch (err) {
       setPhase("idle");
       setProgress(0);

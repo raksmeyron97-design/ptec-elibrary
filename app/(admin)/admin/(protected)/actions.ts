@@ -55,7 +55,8 @@ function storagePathFromUrl(publicUrl: string): string | null {
 }
 
 // ── saveBookRecord ────────────────────────────────────────────────
-export async function saveBookRecord(formData: FormData) {
+export async function saveBookRecord(formData: FormData): Promise<{ error: string } | { success: true; slug: string }> {
+  try {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -126,6 +127,38 @@ export async function saveBookRecord(formData: FormData) {
     }
   }
 
+  // Look up existing department first; only insert if not found
+  let departmentId: string;
+  const providedDepartmentId = formData.get("departmentId")?.toString().trim();
+
+  if (providedDepartmentId) {
+    departmentId = providedDepartmentId;
+  } else {
+    const { data: existingDept } = await supabase
+      .from("departments")
+      .select("id")
+      .eq("name", department)
+      .maybeSingle();
+
+    if (existingDept) {
+      departmentId = existingDept.id;
+    } else {
+      const { data: newDept, error: deptInsertErr } = await supabase
+        .from("departments")
+        .insert({ name: department, slug: slugify(department) })
+        .select("id")
+        .single();
+      if (deptInsertErr) {
+        const { data: retryDept } = await supabase
+          .from("departments").select("id").eq("name", department).single();
+        if (!retryDept) return { error: `Department error: ${deptInsertErr.message}` };
+        departmentId = retryDept.id;
+      } else {
+        departmentId = newDept.id;
+      }
+    }
+  }
+
   const { data: book, error: bookError } = await supabase
     .from("books")
     .insert({
@@ -134,10 +167,11 @@ export async function saveBookRecord(formData: FormData) {
       description:  summary,
       author_id:    authorRow.id,
       category_id:  categoryId,
+      department_id: departmentId,
       language,
       published_at: `${year}-01-01`,
       is_published: true,
-      department,
+      department, // keep text column for now during transition
       isbn,
       pages,
       cover_color:  coverColor,
@@ -161,7 +195,10 @@ export async function saveBookRecord(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);
-  redirect(`/books/${book.slug}`);
+  return { success: true, slug: book.slug };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 // ── deleteBook — also removes PDF + cover from Storage ───────────
@@ -302,6 +339,38 @@ export async function updateBook(bookId: string, formData: FormData) {
     }
   }
 
+  // Look up existing department first; only insert if not found
+  let departmentId: string;
+  const providedDepartmentId = formData.get("departmentId")?.toString().trim();
+
+  if (providedDepartmentId) {
+    departmentId = providedDepartmentId;
+  } else {
+    const { data: existingDept } = await supabase
+      .from("departments")
+      .select("id")
+      .eq("name", department)
+      .maybeSingle();
+
+    if (existingDept) {
+      departmentId = existingDept.id;
+    } else {
+      const { data: newDept, error: deptInsertErr } = await supabase
+        .from("departments")
+        .insert({ name: department, slug: slugify(department) })
+        .select("id")
+        .single();
+      if (deptInsertErr) {
+        const { data: retryDept } = await supabase
+          .from("departments").select("id").eq("name", department).single();
+        if (!retryDept) throw new Error(`Department error: ${deptInsertErr.message}`);
+        departmentId = retryDept.id;
+      } else {
+        departmentId = newDept.id;
+      }
+    }
+  }
+
   const { data: book, error: bookError } = await supabase
     .from("books")
     .update({
@@ -309,9 +378,10 @@ export async function updateBook(bookId: string, formData: FormData) {
       description:  summary,
       author_id:    authorRow.id,
       category_id:  categoryId,
+      department_id: departmentId,
       language,
       published_at: `${year}-01-01`,
-      department,
+      department, // keep text column for now during transition
       isbn,
       pages,
       ...coverUpdate, // only included if cover changed/removed
@@ -332,10 +402,10 @@ export async function updateBook(bookId: string, formData: FormData) {
 }
 
 // ── addCategory — create a new category (admin only, bypasses RLS) ──
-export async function addCategory(name: string): Promise<{ id: string; name: string } | null> {
+export async function addCategory(name: string): Promise<{ id?: string; name?: string; error?: string }> {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) return { error: "Not authenticated" };
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase
@@ -343,10 +413,10 @@ export async function addCategory(name: string): Promise<{ id: string; name: str
     .select("role")
     .eq("id", user.id)
     .single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  if (profile?.role !== "admin") return { error: "Forbidden" };
 
   const trimmed = name.trim();
-  if (!trimmed) throw new Error("Category name is required");
+  if (!trimmed) return { error: "Category name is required" };
 
   // Check if already exists
   const { data: existing } = await supabase
@@ -372,10 +442,58 @@ export async function addCategory(name: string): Promise<{ id: string; name: str
       .eq("name", trimmed)
       .single();
     if (retryCat) return retryCat;
-    throw new Error(`Failed to add category: ${insertErr.message}`);
+    return { error: `Failed to add category: ${insertErr.message}` };
   }
 
   await logAdminAction(user.id, "addCategory", "categories", newCat.id, { name: newCat.name });
 
   return newCat;
+}
+
+// ── addDepartment — create a new department (admin only, bypasses RLS) ──
+export async function addDepartment(name: string): Promise<{ id?: string; name?: string; error?: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") return { error: "Forbidden" };
+
+  const trimmed = name.trim();
+  if (!trimmed) return { error: "Department name is required" };
+
+  // Check if already exists
+  const { data: existing } = await supabase
+    .from("departments")
+    .select("id, name")
+    .eq("name", trimmed)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  // Insert new
+  const { data: newDept, error: insertErr } = await supabase
+    .from("departments")
+    .insert({ name: trimmed, slug: slugify(trimmed) })
+    .select("id, name")
+    .single();
+
+  if (insertErr) {
+    const { data: retryDept } = await supabase
+      .from("departments")
+      .select("id, name")
+      .eq("name", trimmed)
+      .single();
+    if (retryDept) return retryDept;
+    return { error: `Failed to add department: ${insertErr.message}` };
+  }
+
+  await logAdminAction(user.id, "addDepartment", "departments", newDept.id, { name: newDept.name });
+
+  return newDept;
 }

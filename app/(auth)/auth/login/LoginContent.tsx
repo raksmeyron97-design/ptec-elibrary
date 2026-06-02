@@ -131,7 +131,8 @@ export default function LoginContent({ stats }: Props) {
         {/* 1. Campus background photo */}
         <Image
           src="/ptec-library.jpg"
-          alt="PTEC Campus"
+          alt=""
+          aria-hidden="true"
           fill
           className="object-cover object-center"
           priority

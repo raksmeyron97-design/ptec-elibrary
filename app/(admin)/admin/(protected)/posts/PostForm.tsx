@@ -162,7 +162,11 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           const path = postCoverPath(folder, i, file.name);
 
           try {
-            const { presignedUrl, publicUrl } = await getPresignedUrl(path, file.type);
+            const presignedRes = await getPresignedUrl(path, file.type);
+            if ("error" in presignedRes) {
+              throw new Error(presignedRes.error);
+            }
+            const { presignedUrl, publicUrl } = presignedRes;
             
             const upRes = await fetch(presignedUrl, {
               method: "PUT",

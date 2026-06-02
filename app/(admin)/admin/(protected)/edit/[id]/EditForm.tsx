@@ -6,7 +6,6 @@ import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
 import { getPresignedUrl } from "@/app/actions/upload";
 import {
-  departments,
   makeUid,
   bookFolder,
   bookCoverPath,
@@ -39,7 +38,7 @@ const TEXT_FIELDS = [
 
 type Phase = "idle" | "uploading-cover" | "saving";
 
-export default function EditForm({ initial }: { initial: Initial }) {
+export default function EditForm({ initial, departments }: { initial: Initial, departments: string[] }) {
   const supabase = createClient();
 
   const [phase, setPhase]         = useState<Phase>("idle");
@@ -99,7 +98,11 @@ export default function EditForm({ initial }: { initial: Initial }) {
           bookFolder(initial.category, title, makeUid());
         const path = bookCoverPath(folder, coverFile.name);
 
-        const { presignedUrl, publicUrl } = await getPresignedUrl(path, coverFile.type);
+        const presignedRes = await getPresignedUrl(path, coverFile.type);
+        if ("error" in presignedRes) {
+          throw new Error(presignedRes.error);
+        }
+        const { presignedUrl, publicUrl } = presignedRes;
 
         const uploadRes = await fetch(presignedUrl, {
           method: "PUT",

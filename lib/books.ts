@@ -17,7 +17,7 @@ export function mapRowToBook(row: any): Book {
     title:         row.title,
     author:        row.authors?.name     ?? "Unknown",
     isbn:          row.isbn              ?? "N/A",
-    department:    row.department        ?? "General",
+    department:    row.departments?.name ?? row.department ?? "General",
     category:      row.categories?.name  ?? "General",
     language:      row.language          ?? "English",
     year:          row.published_at
@@ -37,7 +37,7 @@ export function mapRowToBook(row: any): Book {
     dbId:          row.id                ?? null,
     tags:          Array.isArray(row.tags)
                      ? row.tags
-                     : [row.department, row.categories?.name, row.language, row.authors?.name]
+                     : [row.departments?.name ?? row.department, row.categories?.name, row.language, row.authors?.name]
                          .filter(Boolean)
                          .map((t: string) => t.toLowerCase()),
   };

@@ -19,12 +19,20 @@ export default async function EditBookPage({
       id, title, slug, description, language, published_at,
       department, isbn, pages, cover_url,
       authors(name),
-      categories(name)
+      categories(name),
+      departments(name)
     `)
     .eq("id", id)
     .single();
 
   if (!book) notFound();
+
+  // Fetch all departments for the dropdown
+  const { data: deptRows } = await supabase
+    .from("departments")
+    .select("name")
+    .order("name", { ascending: true });
+  const departments = (deptRows ?? []).map((d) => d.name);
 
   // Flatten relations for the form
   const initial = {
@@ -32,7 +40,7 @@ export default async function EditBookPage({
     title:      (book.title as string) ?? "",
     author:     ((book.authors as any)?.name as string) ?? "",
     category:   ((book.categories as any)?.name as string) ?? "",
-    department: (book.department as string) ?? "Research",
+    department: ((book.departments as any)?.name as string) ?? (book.department as string) ?? "Research",
     language:   (book.language as string) ?? "English",
     isbn:       (book.isbn as string) ?? "",
     year:       book.published_at
@@ -45,7 +53,7 @@ export default async function EditBookPage({
 
   return (
     <div className="mx-auto max-w-[800px] space-y-8">
-      <EditForm initial={initial} />
+      <EditForm initial={initial} departments={departments} />
     </div>
   );
 }

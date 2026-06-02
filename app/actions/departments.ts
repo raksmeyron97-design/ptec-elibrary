@@ -13,10 +13,8 @@ export async function getDepartments(): Promise<string[]> {
 
   const { data, error } = await supabase
     .from("books")
-    .select("department")
-    .eq("is_published", true)
-    .not("department", "is", null)
-    .order("department", { ascending: true });
+    .select("departments!inner(name)")
+    .eq("is_published", true);
 
   if (error) {
     console.error("[getDepartments]", error.message);
@@ -26,7 +24,8 @@ export async function getDepartments(): Promise<string[]> {
   // Deduplicate — Supabase doesn't support SELECT DISTINCT via the JS client
   const seen = new Set<string>();
   for (const row of data ?? []) {
-    if (row.department) seen.add(row.department);
+    const deptName = (row.departments as any)?.name;
+    if (deptName) seen.add(deptName);
   }
   return [...seen].sort((a, b) => a.localeCompare(b));
 }

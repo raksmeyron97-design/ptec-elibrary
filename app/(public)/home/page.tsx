@@ -44,7 +44,7 @@ async function getStats() {
 
 const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
    published_at, department, pages, isbn, rating, download_count, view_count,
-   authors(name), categories(name), book_files(format, file_url, file_size_kb)`;
+   authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb)`;
 
 // #2 — Trending = most downloaded
 async function getTrendingBooks() {
@@ -64,13 +64,14 @@ async function getDepartmentPills(): Promise<string[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("books")
-    .select("department")
-    .eq("is_published", true)
-    .not("department", "is", null)
-    .order("department", { ascending: true });
+    .select("departments!inner(name)")
+    .eq("is_published", true);
   const seen = new Set<string>();
-  for (const row of data ?? []) if (row.department) seen.add(row.department);
-  return [...seen].slice(0, 8);
+  for (const row of data ?? []) {
+    const dept = (row.departments as any)?.name;
+    if (dept) seen.add(dept);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b)).slice(0, 8);
 }
 
 // #4 — trending search chips. Falls back to a curated list if categories are empty.
@@ -125,7 +126,8 @@ export default async function HomePage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/ptec-library.jpg"
-            alt="Phnom Penh Teacher Education College Library"
+            alt=""
+            aria-hidden="true"
             className="h-full w-full object-cover object-center"
           />
         </div>

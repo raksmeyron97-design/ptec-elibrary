@@ -71,7 +71,7 @@ export default async function DashboardPage() {
       .from("books")
       .select(`id, title, slug, description, cover_url, cover_color,
         department, language, pages, rating,
-        authors ( name ), categories ( name ), book_files ( format, file_url )`)
+        authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`)
       .in("id", inProgressIds);
 
     inProgressBooks = (booksData ?? []).map((b: any) => {
@@ -80,7 +80,7 @@ export default async function DashboardPage() {
       return {
         slug: b.slug, title: b.title,
         author: b.authors?.name ?? "Unknown",
-        isbn: "N/A", department: b.department ?? "General",
+        isbn: "N/A", department: b.departments?.name ?? b.department ?? "General",
         category: b.categories?.name ?? "General",
         language: b.language ?? "English",
         year: new Date().getFullYear(),
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
       .from("books")
       .select(`id, title, slug, description, cover_url, cover_color,
         department, language, pages, rating,
-        authors ( name ), categories ( name ), book_files ( format, file_url )`)
+        authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`)
       .in("id", completedIds);
 
     completedBooks = (booksData ?? []).map((b: any) => {
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
       return {
         slug: b.slug, title: b.title,
         author: b.authors?.name ?? "Unknown",
-        isbn: "N/A", department: b.department ?? "General",
+        isbn: "N/A", department: b.departments?.name ?? b.department ?? "General",
         category: b.categories?.name ?? "General",
         language: b.language ?? "English",
         year: new Date().getFullYear(),

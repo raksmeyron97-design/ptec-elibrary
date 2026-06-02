@@ -87,7 +87,9 @@ async function fetchBooks(params: SearchParams) {
       `id, title, slug, description, cover_color, cover_url, language,
        published_at, department, pages, isbn, rating, download_count,
        view_count,
-       authors(name), categories(name), book_files(format, file_url, file_size_kb)`,
+       authors(name), categories(name),
+       ${dept ? "departments!inner(name)" : "departments(name)"},
+       book_files(format, file_url, file_size_kb)`,
       { count: "exact" }
     )
     .eq("is_published", true)
@@ -108,7 +110,7 @@ async function fetchBooks(params: SearchParams) {
       directOr.push(`id.in.(${relatedIds.join(",")})`);
     query = query.or(directOr.join(","));
   }
-  if (dept) query = query.ilike("department", `%${dept}%`);
+  if (dept) query = query.eq("departments.name", dept);
   if (language) query = query.ilike("language", `%${language}%`);
   if (format) {
     const { data: bf } = await supabase
