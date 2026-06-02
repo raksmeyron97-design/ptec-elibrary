@@ -5,8 +5,10 @@ import MobileBottomNav from "./MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
+import { getTranslations } from 'next-intl/server';
 
 export default async function Footer() {
+  const t = await getTranslations('footer');
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -30,7 +32,7 @@ export default async function Footer() {
         })
     : null;
   return (
-    <footer className="relative w-full mt-auto font-sans overflow-hidden bg-blue-950 border-t-2 border-accent">
+    <footer className="relative w-full mt-auto font-sans overflow-hidden bg-blue-950 dark:bg-bg-surface border-t-2 border-accent">
 
       {/* ── Starfield dots (pure CSS, no JS) ── */}
       <div className="pointer-events-none absolute inset-0 z-0">
@@ -75,7 +77,7 @@ export default async function Footer() {
                 </div>
               </div>
               <p className="text-blue-100 text-[13px] leading-relaxed">
-                The Phnom Penh Teacher Education College was established to train teachers with quality education, leading students toward a better future without discrimination.
+                {t('description')}
               </p>
               {/* Social icons */}
               <div className="flex gap-2.5 mt-1">
@@ -98,7 +100,7 @@ export default async function Footer() {
             {/* Information */}
             <div>
               <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
-                Information
+                {t('information')}
               </h3>
               <ul className="flex flex-col gap-5">
                 <li className="flex items-start gap-3 group">
@@ -106,9 +108,9 @@ export default async function Footer() {
                     <Icon name="map-pin" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">Location</p>
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t('locationLabel')}</p>
                     <p className="text-blue-50 text-[13px] leading-snug">
-                      St.271, Sangkat Teu Laork 3,<br />Toul Kork, Phnom Penh.
+                      {t('locationValue')}
                     </p>
                   </div>
                 </li>
@@ -117,7 +119,7 @@ export default async function Footer() {
                     <Icon name="phone" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">Phone</p>
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t('phoneLabel')}</p>
                     <p className="text-blue-50 text-[13px]">012 950 192</p>
                   </div>
                 </li>
@@ -126,10 +128,10 @@ export default async function Footer() {
                     <Icon name="clock" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">Hours</p>
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t('hoursLabel')}</p>
                     <p className="text-blue-50 text-[13px] leading-snug">
-                      Mon–Sat: 7 AM – 5 PM<br />
-                      <span className="text-gold-400 text-[12px]">Sunday: Closed</span>
+                      {t('hoursValue')}<br />
+                      <span className="text-gold-400 text-[12px]">{t('hoursClosed')}</span>
                     </p>
                   </div>
                 </li>
@@ -139,7 +141,7 @@ export default async function Footer() {
             {/* Quick Links */}
             <div>
               <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
-                Quick Links
+                {t('quickLinks')}
               </h3>
               <ul className="flex flex-col gap-3">
                 {[
@@ -163,7 +165,7 @@ export default async function Footer() {
             {/* Find PTEC */}
             <div className="flex flex-col h-full">
               <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
-                Find PTEC
+                {t('findPtec')}
               </h3>
               <div className="relative w-full flex-1 min-h-[160px] rounded-xl overflow-hidden border border-white/10 group">
                 <Link href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3!4m6!3m5!1s0x310951a618265c67:0x159b1d2bb350bbae!8m2!3d11.5568858!4d104.8872782!16s%2Fg%2F1q665w1lh?entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noreferrer" className="block w-full h-full relative">
@@ -188,7 +190,7 @@ export default async function Footer() {
         {/* Copyright */}
         <div className="relative z-10 text-center py-5 px-6">
           <p className="text-[12px] text-blue-200/70">
-            © {new Date().getFullYear()} <span className="text-white font-semibold">PTEC Library</span>. All Rights Reserved. — Phnom Penh Teacher Education College.
+            {t('copyright', { year: new Date().getFullYear() })}
           </p>
         </div>
 

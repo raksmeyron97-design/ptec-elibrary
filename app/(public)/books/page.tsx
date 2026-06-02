@@ -8,6 +8,7 @@ import Pagination from "@/components/ui/core/Pagination";
 import { getDepartments } from "@/app/actions/departments";
 import { getLanguages, getFormats } from "@/app/actions/filters";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
+import { getTranslations } from 'next-intl/server';
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
@@ -134,6 +135,7 @@ export default async function BooksPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const t = await getTranslations('books');
   const params = await searchParams;
   const [{ books, total, page }, departments, languages, formats] = await Promise.all([
     fetchBooks(params),
@@ -196,17 +198,17 @@ export default async function BooksPage({
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">
-                  Sort
+                  {t('sortLabel')}
                 </span>
                 <SortSelect
                   value={params.sort || "newest"}
                   options={[
-                    { value: "newest", label: "Newest first" },
-                    { value: "oldest", label: "Oldest first" },
-                    { value: "title_asc", label: "Title (A–Z)" },
-                    { value: "downloads", label: "Most downloaded" },
+                    { value: "newest", label: t('sortNewest') },
+                    { value: "oldest", label: t('sortOldest') },
+                    { value: "title_asc", label: t('sortTitleAsc') },
+                    { value: "downloads", label: t('sortDownloads') },
                   ]}
-                  defaultLabel="Sort by"
+                  defaultLabel={t('sortLabel')}
                   paramKey="sort"
                 />
               </div>
@@ -214,13 +216,13 @@ export default async function BooksPage({
               <FilterSelect
                 value={params.language || ""}
                 options={languages}
-                defaultLabel="Language"
+                defaultLabel={t('filterLanguage')}
                 paramKey="language"
               />
               <FilterSelect
                 value={params.format || ""}
                 options={formats}
-                defaultLabel="Format"
+                defaultLabel={t('filterFormat')}
                 paramKey="format"
               />
             </div>
@@ -229,12 +231,12 @@ export default async function BooksPage({
           {/* Result count */}
           <p className="mt-3 text-[12px] text-text-muted sm:text-[13px]">
             {total > 0
-              ? `${total} resource${total !== 1 ? "s" : ""}`
-              : "No resources found"}
+              ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
+              : t('noResults')}
             {params.q && (
               <>
                 {" "}
-                for &ldquo;{params.q}&rdquo;
+                {t('resultsFor')} &ldquo;{params.q}&rdquo;
               </>
             )}
           </p>
@@ -248,14 +250,14 @@ export default async function BooksPage({
           <div className="mb-5 flex flex-wrap items-center gap-2">
             {params.language && (
               <ActiveChip
-                label={`Language: ${params.language}`}
+                label={t('activeFilterLanguage', { value: params.language })}
                 paramKey="language"
                 searchParams={params}
               />
             )}
             {params.format && (
               <ActiveChip
-                label={`Format: ${params.format}`}
+                label={t('activeFilterFormat', { value: params.format })}
                 paramKey="format"
                 searchParams={params}
               />
@@ -271,7 +273,7 @@ export default async function BooksPage({
         )}
 
         {books.length === 0 ? (
-          <EmptyState hasFilters={hasFilters} query={params.q} />
+          <EmptyState hasFilters={hasFilters} query={params.q} t={t} />
         ) : (
           <>
             <div className="grid gap-3 grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -355,27 +357,29 @@ function ActiveChip({
 function EmptyState({
   hasFilters,
   query,
+  t,
 }: {
   hasFilters: boolean;
   query?: string;
+  t: any;
 }) {
   return (
     <div className="flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-6 sm:p-10 text-center">
       <Icon name="search-off" className="mb-3 text-4xl sm:text-5xl text-text-muted" />
-      <h2 className="text-lg sm:text-xl font-bold text-text-body">No resources found</h2>
+      <h2 className="text-lg sm:text-xl font-bold text-text-body">{t('emptyTitle')}</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-text-muted">
         {query
-          ? `No books match "${query}".`
+          ? t('emptyHintQuery', { query })
           : hasFilters
-            ? "Try adjusting your filters."
-            : "The catalogue is empty."}
+            ? t('emptyHintFilters')
+            : t('emptyHintEmpty')}
       </p>
       {hasFilters && (
         <FilterLink
           href="/books"
           className="mt-5 inline-flex h-10 items-center rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
         >
-          Clear all filters
+          {t('clearFilters')}
         </FilterLink>
       )}
     </div>

@@ -3,6 +3,7 @@ import type { CatalogBook } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import Link from "next/link";
+import { getTranslations } from 'next-intl/server';
 
 async function getRecentCatalogs() {
   const supabase = createServiceClient();
@@ -17,15 +18,16 @@ async function getRecentCatalogs() {
 
 export default async function CatalogsSection() {
   const recentCatalogs = await getRecentCatalogs();
+  const t = await getTranslations('home');
 
   if (recentCatalogs.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
       <div className="mb-9 flex items-end justify-between gap-5">
-        <SectionTitle as="h2" className="!mb-0">From the Library</SectionTitle>
+        <SectionTitle as="h2" className="!mb-0">{t('fromTheLibrary')}</SectionTitle>
         <Link href="/catalogs" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
-          All physical books →
+          {t('allPhysicalBooks')}
         </Link>
       </div>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-4">

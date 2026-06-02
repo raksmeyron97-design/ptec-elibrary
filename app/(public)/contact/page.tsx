@@ -70,7 +70,7 @@ export default function ContactPage() {
   return (
     <section className="bg-paper px-6 py-10 md:px-12">
       <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[.9fr_1.1fr]">
-        <div className="rounded-lg bg-blue-950 p-8 text-white">
+        <div className="rounded-lg bg-brand p-8 text-brand-contrast">
           <h1 className="text-3xl font-bold">Contact the library</h1>
           <div className="mt-8 space-y-5">
             {contactItems.map(([icon, text]) => (
@@ -117,13 +117,13 @@ export default function ContactPage() {
           </div>
 
           {status === "success" && (
-            <p className="mt-4 rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+            <p className="mt-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
               ✅ Your message was sent successfully!
             </p>
           )}
 
           {status === "error" && errorMsg && (
-            <p className="mt-4 rounded-md bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+            <p className="mt-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
               ⚠️ {errorMsg}
               {cooldownSeconds > 0 && (
                 <span className="ml-1 font-bold">({cooldownSeconds}s)</span>
@@ -134,7 +134,7 @@ export default function ContactPage() {
           <button
             type="submit"
             disabled={isDisabled}
-            className="mt-5 rounded-md bg-blue-950 px-5 py-3 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 rounded-md bg-brand px-5 py-3 font-semibold text-brand-contrast transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "loading" ? "Sending…" : "Submit message"}
           </button>

@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
 import BookCard from "@/components/ui/books/BookCard";
+import { getTranslations } from 'next-intl/server';
 
 interface RelatedBooksProps {
   currentSlug: string;
@@ -13,6 +14,7 @@ export default async function RelatedBooks({
   department,
   category,
 }: RelatedBooksProps) {
+  const t = await getTranslations('bookDetail');
   const supabase = createServiceClient();
 
   const selectCols = `
@@ -63,7 +65,7 @@ export default async function RelatedBooks({
     <section className="mt-16">
       <div className="mb-8 flex items-center justify-between">
         <h2 className="font-khmer-serif text-[28px] font-bold text-text-heading">
-          Related books
+          {t('relatedBooks')}
         </h2>
       </div>
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-5">

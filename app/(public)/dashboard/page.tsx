@@ -87,7 +87,7 @@ export default async function DashboardPage() {
         format: "PDF" as const, availability: "Digital" as const,
         rating: Number(b.rating) || 0, pages: b.pages ?? 1,
         summary: b.description ?? "",
-        cover: b.cover_color ?? "bg-blue-950",
+        cover: b.cover_color ?? "bg-bg-surface",
         coverUrl: b.cover_url ?? null,
         pdfUrl: pdfFile?.file_url ?? null,
         tags: [], progressPct: prog?.progress_pct ?? 0,
@@ -128,7 +128,7 @@ export default async function DashboardPage() {
 
   const stats: { label: string; value: number; icon: IconName; href: string; color: string }[] = [
     { label: "Saved Resources",   value: savedBooks.length,  icon: "bookmark",   href: "#saved",       color: "text-brand"        },
-    { label: "Books in Progress", value: inProgress.length,  icon: "file-check", href: "#in-progress", color: "text-gold-700"     },
+    { label: "Books in Progress", value: inProgress.length,  icon: "file-check", href: "#in-progress", color: "text-accent"     },
     { label: "Completed Books",   value: completed.length,   icon: "calendar",   href: "#completed",   color: "text-emerald-600"  },
   ];
 

@@ -6,25 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslations } from 'next-intl';
 
 // ── Friendly error messages ───────────────────────────────────────────────────
-const URL_ERROR_MAP: Record<string, string> = {
-  admin_signup_blocked: "This email domain is reserved for administrators. Please contact the admin team.",
-  auth_failed: "Authentication failed. Please try again.",
-};
-
-function friendlyError(msg: string): string {
-  if (/invalid login credentials|invalid credentials/i.test(msg))
-    return "Incorrect email or password. Please try again.";
-  if (/email not confirmed/i.test(msg))
-    return "Please check your email and confirm your account before signing in.";
-  if (/too many requests|rate limit/i.test(msg))
-    return "Too many attempts. Please wait a moment and try again.";
-  if (/network/i.test(msg))
-    return "Network error. Please check your connection and try again.";
-  return msg;
-}
-
 // ── PTEC content data ────────────────────────────────────────────────────────
 const MISSIONS = [
   {
@@ -33,7 +17,6 @@ const MISSIONS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
       </svg>
     ),
-    text: "Educate student teachers with full competency",
   },
   {
     icon: (
@@ -41,7 +24,6 @@ const MISSIONS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 1-6.23-.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21a48.25 48.25 0 0 1-8.135-.687c-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
       </svg>
     ),
-    text: "Promote educational research to improve teaching",
   },
   {
     icon: (
@@ -49,7 +31,6 @@ const MISSIONS = [
         <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
       </svg>
     ),
-    text: "Provide in-service teacher development",
   },
 ];
 
@@ -79,10 +60,12 @@ type Props = {
 };
 
 export default function LoginContent({ stats }: Props) {
+  const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const urlError = searchParams.get("error");
+  const urlErrorKey = urlError === "admin_signup_blocked" ? "errAdminBlocked" : urlError === "auth_failed" ? "errDefault" : null;
 
   const [email, setEmail]           = useState("");
   const [password, setPassword]     = useState("");
@@ -90,7 +73,7 @@ export default function LoginContent({ stats }: Props) {
   const [loading, setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]           = useState<string | null>(
-    urlError ? (URL_ERROR_MAP[urlError] ?? "An error occurred. Please try again.") : null,
+    urlError ? (urlErrorKey ? t(urlErrorKey as any) : t('errDefault')) : null,
   );
   const [emailTouched, setEmailTouched] = useState(false);
   const [submitted, setSubmitted]       = useState(false);
@@ -102,10 +85,18 @@ export default function LoginContent({ stats }: Props) {
   const emailEmpty    = submitted && email === "";
   const passwordEmpty = submitted && password === "";
 
-  const emailErrMsg    = emailEmpty ? "Email address is required."
-    : emailInvalid     ? "Please enter a valid email address."
+  const emailErrMsg    = emailEmpty ? t('errEmailRequired')
+    : emailInvalid     ? t('errEmailInvalid')
     : null;
-  const passwordErrMsg = passwordEmpty ? "Password is required." : null;
+  const passwordErrMsg = passwordEmpty ? t('errPasswordRequired') : null;
+
+  function friendlyError(msg: string): string {
+    if (/invalid login credentials|invalid credentials/i.test(msg)) return t('errInvalidLogin');
+    if (/email not confirmed/i.test(msg)) return t('errEmailNotConfirmed');
+    if (/too many requests|rate limit/i.test(msg)) return t('errTooManyRequests');
+    if (/network/i.test(msg)) return t('errNetwork');
+    return t('errDefault');
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -174,7 +165,7 @@ export default function LoginContent({ stats }: Props) {
                 PTEC <span className="text-brand">e-Library</span>
               </span>
               <span className="text-[10px] text-white/50 tracking-[0.2em] uppercase">
-                Digital Learning Hub
+                {t('digitalLearningHub')}
               </span>
             </div>
           </Link>
@@ -188,25 +179,25 @@ export default function LoginContent({ stats }: Props) {
                 <path d="M8 1l1.796 3.641L14 5.528l-3 2.924.708 4.129L8 10.5l-3.708 2.081L5 8.452 2 5.528l4.204-.887L8 1z" fill="currentColor"/>
               </svg>
               <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">
-                Accredited CPD Provider · Cambodia
+                {t('accredited')}
               </span>
             </div>
 
             {/* Vision */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45 mb-2">
-                Our Vision
+                {t('ourVision')}
               </p>
               <p className="text-[15px] font-medium leading-relaxed text-white/90 drop-shadow">
-                To be a leading institution of teacher education{" "}
-                <span className="text-amber-300 font-semibold">in the 21st century</span>.
+                {t('visionText1')}{" "}
+                <span className="text-amber-300 font-semibold">{t('visionText2')}</span>.
               </p>
             </div>
 
             {/* 3 Missions */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45 mb-3">
-                Our Missions
+                {t('ourMissions')}
               </p>
               <ul className="space-y-2.5">
                 {MISSIONS.map((m, i) => (
@@ -214,7 +205,7 @@ export default function LoginContent({ stats }: Props) {
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/70">
                       {m.icon}
                     </span>
-                    <span className="text-[13px] leading-snug text-white/80">{m.text}</span>
+                    <span className="text-[13px] leading-snug text-white/80">{t(`mission${i + 1}` as any)}</span>
                   </li>
                 ))}
               </ul>
@@ -223,7 +214,7 @@ export default function LoginContent({ stats }: Props) {
             {/* RIICE Core Values */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45 mb-3">
-                Core Values — RIICE
+                {t('coreValues')}
               </p>
               <div className="flex flex-wrap gap-2">
                 {CORE_VALUES.map(({ letter, word }) => (
@@ -241,7 +232,7 @@ export default function LoginContent({ stats }: Props) {
             {/* Programs */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45 mb-3">
-                Programs
+                {t('programs')}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {PROGRAMS.map((p) => (
@@ -258,10 +249,10 @@ export default function LoginContent({ stats }: Props) {
             {/* Stats — 4 columns, server-fetched */}
             <div className="grid grid-cols-4 gap-3 border-t border-white/10 pt-6">
               {[
-                { num: stats.books,     label: "Resources" },
-                { num: stats.views,     label: "Views"     },
-                { num: stats.downloads, label: "Downloads" },
-                { num: stats.users,     label: "Educators" },
+                { num: stats.books,     label: t('statResources') },
+                { num: stats.views,     label: t('statViews')     },
+                { num: stats.downloads, label: t('statDownloads') },
+                { num: stats.users,     label: t('statEducators') },
               ].map(({ num, label }) => (
                 <div key={label}>
                   <div className="text-xl font-bold text-white drop-shadow leading-none">
@@ -278,7 +269,7 @@ export default function LoginContent({ stats }: Props) {
           {/* BOTTOM: Copyright + PTEC link */}
           <div className="flex items-center justify-between">
             <p className="text-[11px] text-white/35">
-              © {new Date().getFullYear()} Phnom Penh Teacher Education College
+              {t('copyright', { year: new Date().getFullYear() })}
             </p>
             <a
               href="https://www.ptec.edu.kh"
@@ -311,13 +302,13 @@ export default function LoginContent({ stats }: Props) {
               className="h-9 w-auto object-contain"
             />
           </Link>
-          <p className="text-xs text-text-muted tracking-wide">PTEC e-Library · Digital Learning Hub</p>
+          <p className="text-xs text-text-muted tracking-wide">PTEC e-Library · {t('digitalLearningHub')}</p>
         </div>
 
         <div className="w-full max-w-[420px]">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-text-heading">Welcome back</h1>
-            <p className="mt-2 text-text-muted">Sign in to access the PTEC digital library.</p>
+            <h1 className="text-3xl font-bold text-text-heading">{t('loginTitle')}</h1>
+            <p className="mt-2 text-text-muted">{t('loginSubtitle')}</p>
           </div>
 
           {/* Error banner */}
@@ -342,13 +333,13 @@ export default function LoginContent({ stats }: Props) {
             className="mb-5 flex w-full items-center justify-center gap-3 rounded-xl border border-divider bg-bg-surface px-5 py-3.5 text-sm font-semibold text-text-body shadow-sm transition hover:bg-paper hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
           >
             {googleLoading ? <SpinnerIcon /> : <GoogleIcon />}
-            {googleLoading ? "Redirecting…" : "Continue with Google"}
+            {googleLoading ? t('redirecting') : t('continueGoogle')}
           </button>
 
           {/* Divider */}
           <div className="mb-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-divider" />
-            <span className="text-xs font-medium text-text-muted">or sign in with email</span>
+            <span className="text-xs font-medium text-text-muted">{t('orSignInEmail')}</span>
             <div className="h-px flex-1 bg-divider" />
           </div>
 
@@ -357,7 +348,7 @@ export default function LoginContent({ stats }: Props) {
             {/* Email */}
             <div>
               <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold text-text-body">
-                Email address
+                {t('emailLabel')}
               </label>
               <input
                 id="login-email"
@@ -367,7 +358,7 @@ export default function LoginContent({ stats }: Props) {
                 onBlur={() => setEmailTouched(true)}
                 required
                 autoComplete="email"
-                placeholder="you@ptec.edu.kh"
+                placeholder={t('emailPlaceholder')}
                 aria-invalid={emailErrMsg ? true : undefined}
                 aria-describedby={emailErrMsg ? "login-email-error" : undefined}
                 className={`h-12 w-full rounded-xl border bg-bg-surface px-4 text-sm text-text-heading placeholder-text-muted outline-none transition focus:ring-2 ${
@@ -384,9 +375,9 @@ export default function LoginContent({ stats }: Props) {
             {/* Password */}
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label htmlFor="login-password" className="text-sm font-semibold text-text-body">Password</label>
+                <label htmlFor="login-password" className="text-sm font-semibold text-text-body">{t('passwordLabel')}</label>
                 <Link href="/auth/forgot-password" className="text-xs font-medium text-brand hover:underline">
-                  Forgot password?
+                  {t('forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
@@ -397,7 +388,7 @@ export default function LoginContent({ stats }: Props) {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  placeholder="••••••••"
+                  placeholder={t('passwordPlaceholder')}
                   aria-invalid={passwordErrMsg ? true : undefined}
                   aria-describedby={passwordErrMsg ? "login-password-error" : undefined}
                   className={`h-12 w-full rounded-xl border bg-bg-surface px-4 pr-12 text-sm text-text-heading placeholder-text-muted outline-none transition focus:ring-2 ${
@@ -424,16 +415,16 @@ export default function LoginContent({ stats }: Props) {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-950 text-sm font-semibold text-white shadow-sm transition hover:bg-brand hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
+              className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
             >
-              {loading ? (<><SpinnerIcon /> Signing in…</>) : "Sign in"}
+              {loading ? (<><SpinnerIcon /> {t('signingIn')}</>) : t('signIn')}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-text-muted">
-            Don&apos;t have an account?{" "}
+            {t('noAccount')}{" "}
             <Link href="/auth/signup" className="font-semibold text-brand hover:underline">
-              Create one free
+              {t('createFree')}
             </Link>
           </p>
         </div>

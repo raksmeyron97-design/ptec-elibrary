@@ -10,9 +10,10 @@ import ViewTracker from "./ViewTracker";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 import ImageGallery from "./ImageGallery";
 import RelatedPosts from "./RelatedPosts";
+import { getTranslations } from 'next-intl/server';
 
 const categoryStyles: Record<string, string> = {
-  Research:     "bg-brand/5 text-brand border border-blue-100",
+  Research:     "bg-brand/5 text-brand border border-divider",
   Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
   Event:        "bg-orange-50 text-orange-700 border border-orange-100",
   Journal:      "bg-teal-50 text-teal-700 border border-teal-100",
@@ -99,6 +100,7 @@ export default async function PostDetailPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const t = await getTranslations('posts');
   const { slug } = await params;
 
   const authClient = await createClient();
@@ -207,12 +209,12 @@ export default async function PostDetailPage({
                   strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
                 </svg>
-                Back to Posts
+                {t('backToPosts')}
               </Link>
               {isAdmin && (
                 <Link href={`/admin/posts/edit/${post.id}`}
                   className="rounded-lg bg-brand px-4 py-1.5 text-xs font-semibold text-brand-contrast transition hover:bg-brand-hover shadow-sm">
-                  Edit post
+                  {t('editPost')}
                 </Link>
               )}
             </div>
@@ -220,7 +222,7 @@ export default async function PostDetailPage({
             {/* Meta */}
             <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-text-muted">
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${categoryStyles[post.category] ?? categoryStyles.Other}`}>
-                {post.category}
+                {t(`category${post.category}` as any)}
               </span>
               <span className="font-medium text-text-body">{author}</span>
               <span aria-hidden className="hidden sm:inline text-divider">·</span>
@@ -231,11 +233,11 @@ export default async function PostDetailPage({
                   stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                 </svg>
-                {(post.views ?? 0).toLocaleString()} view{post.views === 1 ? "" : "s"}
+                {t(post.views === 1 ? 'views' : 'viewsPlural', { count: post.views ?? 0 })}
               </span>
               {!post.is_published && (
                 <span className="rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
-                  Draft preview
+                  {t('draftPreview')}
                 </span>
               )}
             </div>
@@ -269,7 +271,7 @@ export default async function PostDetailPage({
                   strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
                 </svg>
-                Back to Posts
+                {t('backToPosts')}
               </Link>
             </div>
           </div>

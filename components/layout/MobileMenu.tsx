@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
+import ThemeToggle from "@/components/ui/core/ThemeToggle";
+import { useTranslations } from 'next-intl';
 
 type NavItem = { label: string; href: string };
 
@@ -33,6 +35,7 @@ function getInitials(name: string | null, email: string) {
 }
 
 export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
+  const t = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -86,18 +89,10 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
       <div
         onClick={() => setOpen(false)}
         aria-hidden="true"
+        className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 motion-reduce:transition-none"
         style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100dvh",
-          zIndex: 60,
-          backgroundColor: "rgba(15, 23, 42, 0.45)",
-          backdropFilter: "blur(2px)",
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
-          transition: "opacity 300ms ease",
         }}
       />
 
@@ -105,20 +100,9 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
       <div
         role="dialog"
         aria-modal="true"
+        className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] transition-transform duration-300 motion-reduce:transition-none"
         style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          height: "100dvh",
-          width: "300px",
-          maxWidth: "85vw",
-          zIndex: 70,
-          backgroundColor: "#ffffff",
-          boxShadow: "-8px 0 30px rgba(0,0,0,0.18)",
-          display: "flex",
-          flexDirection: "column",
           transform: open ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 300ms ease",
         }}
       >
         {/* Drawer header */}
@@ -178,7 +162,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             className="flex items-center gap-3 rounded-lg border border-divider bg-paper px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-paper"
           >
             <Icon name="search" className="text-[18px] text-text-muted" />
-            Search e-Library...
+            {t('searchPlaceholder')}
           </Link>
         </div>
 
@@ -208,6 +192,10 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
 
         {/* Footer action: login or sign out */}
         <div className="mt-auto border-t border-divider px-5 py-4">
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-divider px-4 py-2">
+            <span className="text-sm font-medium text-text-muted">{t('appearance')}</span>
+            <ThemeToggle />
+          </div>
           {user ? (
             <form action="/auth/signout" method="POST">
               <button
@@ -219,7 +207,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
-                Sign out
+                {t('logout')}
               </button>
             </form>
           ) : (
@@ -228,7 +216,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
               onClick={() => setOpen(false)}
               className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
             >
-              Login
+              {t('login')}
             </Link>
           )}
         </div>

@@ -2,6 +2,65 @@
 
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root,
+.theme-light {
+  color-scheme: light;
+
+  --ptec-paper: #F3F4F6;
+  --ptec-parchment: #FAF8F2;
+  --ptec-border: #E5E7EB;
+  --ptec-border-strong: #D6DAE0;
+
+  --ptec-bg-app: #F3F4F6;
+  --ptec-bg-body: #F3F4F6;
+  --ptec-bg-surface: #FFFFFF;
+  --ptec-text-heading: #0B1530;
+  --ptec-text-body: #475569;
+  --ptec-text-muted: #64748B;
+  --ptec-brand: #1E3A8A;
+  --ptec-brand-hover: #182E6E;
+  --ptec-brand-contrast: #FFFFFF;
+  --ptec-accent: #DDB022;
+  --ptec-accent-text: #806211;
+  --ptec-accent-line: #DDB022;
+  --ptec-focus-ring: #3A5FC4;
+  --ptec-divider: #E5E7EB;
+  --ptec-success: #15803D;
+  --ptec-warning: #806211;
+  --ptec-danger: #B91C1C;
+  --ptec-info: #2A47A6;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --ptec-paper: #182E6E;
+  --ptec-parchment: #122251;
+  --ptec-border: #2A47A6;
+  --ptec-border-strong: #3A5FC4;
+
+  --ptec-bg-app: #0B1530;
+  --ptec-bg-body: #0B1530;
+  --ptec-bg-surface: #122251;
+  --ptec-text-heading: #EEF2FB;
+  --ptec-text-body: #D9E2F7;
+  --ptec-text-muted: #B3C5EF;
+  --ptec-brand: #8AA4E4;
+  --ptec-brand-hover: #B3C5EF;
+  --ptec-brand-contrast: #0B1530;
+  --ptec-accent: #F4DE8A;
+  --ptec-accent-text: #FAEFC4;
+  --ptec-accent-line: #F4DE8A;
+  --ptec-focus-ring: #8AA4E4;
+  --ptec-divider: #2A47A6;
+  --ptec-success: #5EE9B5;
+  --ptec-warning: #F4DE8A;
+  --ptec-danger: #FF6568;
+  --ptec-info: #8AA4E4;
+}
+
 @theme inline {
   /* Color — PTEC Blue (primary) */
   --color-blue-50: #EEF2FB;
@@ -29,32 +88,33 @@
 
   /* Neutrals */
   --color-white: #FFFFFF;
-  --color-paper: #F3F4F6;
-  --color-parchment: #FAF8F2;
-  --color-border: #E5E7EB;
-  --color-border-strong: #D6DAE0;
+  --color-paper: var(--ptec-paper);
+  --color-parchment: var(--ptec-parchment);
+  --color-border: var(--ptec-border);
+  --color-border-strong: var(--ptec-border-strong);
   --color-slate-500: #64748B;
   --color-slate-600: #475569;
   --color-slate-700: #334155;
 
   /* Semantic roles */
-  --color-bg-app: #F3F4F6;
-  --color-bg-surface: #FFFFFF;
-  --color-text-heading: #0B1530;
-  --color-text-body: #475569;
-  --color-text-muted: #64748B;
-  --color-brand: #1E3A8A;
-  --color-brand-hover: #182E6E;
-  --color-brand-contrast: #FFFFFF;
-  --color-accent: #DDB022;
-  --color-accent-text: #806211;
-  --color-accent-line: #DDB022;
-  --color-focus-ring: #3A5FC4;
-  --color-divider: #E5E7EB;
-  --color-success: #15803D;
-  --color-warning: #806211;
-  --color-danger: #B91C1C;
-  --color-info: #2A47A6;
+  --color-bg-app: var(--ptec-bg-app);
+  --color-bg-body: var(--ptec-bg-body);
+  --color-bg-surface: var(--ptec-bg-surface);
+  --color-text-heading: var(--ptec-text-heading);
+  --color-text-body: var(--ptec-text-body);
+  --color-text-muted: var(--ptec-text-muted);
+  --color-brand: var(--ptec-brand);
+  --color-brand-hover: var(--ptec-brand-hover);
+  --color-brand-contrast: var(--ptec-brand-contrast);
+  --color-accent: var(--ptec-accent);
+  --color-accent-text: var(--ptec-accent-text);
+  --color-accent-line: var(--ptec-accent-line);
+  --color-focus-ring: var(--ptec-focus-ring);
+  --color-divider: var(--ptec-divider);
+  --color-success: var(--ptec-success);
+  --color-warning: var(--ptec-warning);
+  --color-danger: var(--ptec-danger);
+  --color-info: var(--ptec-info);
 
   /* Fonts */
   --font-khmer-serif: var(--font-var-serif), ui-serif, Georgia, serif;

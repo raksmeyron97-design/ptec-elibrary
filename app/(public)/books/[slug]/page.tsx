@@ -288,7 +288,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </div>
 
             {resuming && (
-              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-blue-200 bg-brand/5 px-4 py-3 sm:py-3.5">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5">
                 <div className="min-w-0 flex-1 w-full">
                   <p className="text-[13px] sm:text-[13.5px] font-bold text-brand">
                     Continue reading — {savedProgress!.progressPct}% complete
@@ -300,14 +300,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                       : "recently"}
                   </p>
                   {/* Progress bar — visible on all sizes */}
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-200 border border-blue-300 sm:hidden">
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-brand/10 border border-divider sm:hidden">
                     <div
                       className="h-full rounded-full bg-brand"
                       style={{ width: `${savedProgress!.progressPct}%` }}
                     />
                   </div>
                 </div>
-                <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-blue-200 sm:block border border-blue-300">
+                <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-brand/10 sm:block border border-divider">
                   <div
                     className="h-full rounded-full bg-brand"
                     style={{ width: `${savedProgress!.progressPct}%` }}

@@ -43,7 +43,7 @@ export default async function DownloadHistory() {
             Books you download will appear here.
           </p>
           <Link href="/books"
-            className="mt-5 inline-flex h-10 items-center rounded-lg bg-blue-950 px-5 text-sm font-semibold text-white transition hover:bg-brand">
+            className="mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
             Browse Catalogue
           </Link>
         </div>

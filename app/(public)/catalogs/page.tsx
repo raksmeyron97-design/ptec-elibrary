@@ -6,6 +6,7 @@ import { getAvailability } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import Pagination from "@/components/ui/core/Pagination";
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = "force-dynamic";
 
@@ -89,6 +90,7 @@ export default async function CatalogsPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const t = await getTranslations('catalogs');
   const params = await searchParams;
   const [{ books, total, page }, categories] = await Promise.all([
     fetchCatalogBooks(params),
@@ -110,14 +112,14 @@ export default async function CatalogsPage({
           {/* Title row */}
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">Books In Library</h1>
+              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('title')}</h1>
               <p className="mt-0.5 text-sm text-text-muted">
-                Find physical books available at PTEC Library
+                {t('subtitle')}
               </p>
             </div>
             <p className="text-sm text-text-muted">
-              {total} book{total !== 1 ? "s" : ""}
-              {params.q && <> for &ldquo;{params.q}&rdquo;</>}
+              {t(total === 1 ? 'booksCount' : 'booksCountPlural', { count: total })}
+              {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
             </p>
           </div>
 
@@ -132,7 +134,7 @@ export default async function CatalogsPage({
             {/* Category pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               <a href={buildHref(params, { category: undefined, page: undefined })}
-                 className={pillClass(!params.category)}>All</a>
+                 className={pillClass(!params.category)}>{t('all')}</a>
               {categories.map((cat) => (
                 <a key={cat}
                    href={buildHref(params, { category: cat, page: undefined })}
@@ -159,14 +161,14 @@ export default async function CatalogsPage({
                 `}
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Available only
+                {t('availableOnly')}
               </a>
 
               {/* Sort */}
-              <span className="hidden text-[12px] font-medium text-text-muted sm:inline">Sort</span>
+              <span className="hidden text-[12px] font-medium text-text-muted sm:inline">{t('sort')}</span>
               {[
-                { key: "newest",    label: "Newest" },
-                { key: "title_asc", label: "A–Z" },
+                { key: "newest",    label: t('sortNewest') },
+                { key: "title_asc", label: t('sortTitleAsc') },
               ].map(({ key, label }) => (
                 <a
                   key={key}
@@ -203,7 +205,7 @@ export default async function CatalogsPage({
               {params.availability && (
                 <a href={buildHref(params, { availability: undefined, page: undefined })}
                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                  Available only
+                  {t('availableOnly')}
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-200 text-[11px]">×</span>
                 </a>
               )}
@@ -219,13 +221,13 @@ export default async function CatalogsPage({
             <svg className="mb-4 h-12 w-12 text-text-muted/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
-            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">No books found</h2>
+            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('noBooksFound')}</h2>
             <p className="mt-2 max-w-sm text-sm text-text-muted">
-              {params.q ? `No books match "${params.q}".` : hasFilters ? "Try adjusting your filters." : "No books in catalogue yet."}
+              {params.q ? t('emptyMatchQuery', { query: params.q }) : hasFilters ? t('emptyHintFilters') : t('emptyHintEmpty')}
             </p>
             {hasFilters && (
               <a href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
-                Clear all filters
+                {t('clearFilters')}
               </a>
             )}
           </div>

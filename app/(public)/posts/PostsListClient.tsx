@@ -3,6 +3,7 @@
 // app/posts/PostsListClient.tsx
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from 'next-intl';
 
 type PostCard = {
   id: string;
@@ -18,7 +19,7 @@ type PostCard = {
 const FILTERS = ["All", "Research", "Announcement", "Event", "Journal"] as const;
 
 const categoryStyles: Record<string, string> = {
-  Research:     "bg-brand/5 text-brand border border-blue-100",
+  Research:     "bg-brand/5 text-brand border border-divider",
   Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
   Event:        "bg-orange-50 text-orange-700 border border-orange-100",
   Journal:      "bg-teal-50 text-teal-700 border border-teal-100",
@@ -55,6 +56,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default function PostsListClient({ posts }: { posts: PostCard[] }) {
+  const t = useTranslations('posts');
   const [query, setQuery]         = useState("");
   const [activeCat, setActiveCat] = useState<(typeof FILTERS)[number]>("All");
 
@@ -84,7 +86,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search posts…"
+          placeholder={t('searchPlaceholder')}
           className="flex-1 bg-transparent text-sm text-text-body placeholder-text-muted outline-none"
         />
         {query && (
@@ -106,7 +108,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                 : "border border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:bg-paper hover:text-brand"
             }`}
           >
-            {c}
+            {t(`category${c}` as any)}
           </button>
         ))}
       </div>
@@ -123,11 +125,11 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
               <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
           </div>
-          <h3 className="font-khmer-serif font-bold text-lg text-text-heading">No posts found</h3>
+          <h3 className="font-khmer-serif font-bold text-lg text-text-heading">{t('noPostsFound')}</h3>
           <p className="mt-1 max-w-sm font-sans text-sm text-text-muted">
             {query || activeCat !== "All"
-              ? "Try adjusting your search or filters."
-              : "Check back soon — new posts are on the way."}
+              ? t('emptyHintSearch')
+              : t('emptyHintEmpty')}
           </p>
         </div>
       ) : (
@@ -167,7 +169,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
               <div className="flex flex-1 flex-col p-5">
                 <div className="mb-3">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${categoryStyles[post.category] ?? categoryStyles.Other}`}>
-                    {post.category}
+                    {t(`category${post.category}` as any)}
                   </span>
                 </div>
                 <h3 className="mb-2 line-clamp-2 font-khmer-serif font-bold text-[15px] leading-[1.4] text-text-heading transition group-hover:text-brand">

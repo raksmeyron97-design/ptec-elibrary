@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from 'next-intl';
 
 export default function BookQuickNav({
   hasPdf,
@@ -9,6 +10,7 @@ export default function BookQuickNav({
   hasPdf: boolean;
   hasReviews: boolean;
 }) {
+  const t = useTranslations('bookDetail');
   const [isSticky, setIsSticky] = useState(false);
 
   useEffect(() => {
@@ -30,21 +32,21 @@ export default function BookQuickNav({
           href="#reader"
           className="whitespace-nowrap text-sm font-bold text-text-muted transition-colors hover:text-brand"
         >
-          Read
+          {t('read')}
         </a>
       )}
       <a
         href="#details"
         className="whitespace-nowrap text-sm font-bold text-text-muted transition-colors hover:text-brand"
       >
-        Details
+        {t('details')}
       </a>
       {hasReviews && (
         <a
           href="#reviews"
           className="whitespace-nowrap text-sm font-bold text-text-muted transition-colors hover:text-brand"
         >
-          Reviews
+          {t('reviews')}
         </a>
       )}
     </div>

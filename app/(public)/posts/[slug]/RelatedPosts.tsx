@@ -1,5 +1,6 @@
 // app/posts/[slug]/RelatedPosts.tsx
 import Link from "next/link";
+import { getTranslations } from 'next-intl/server';
 
 interface RelatedPost {
   id: string;
@@ -12,7 +13,7 @@ interface RelatedPost {
 }
 
 const categoryStyles: Record<string, string> = {
-  Research:     "bg-brand/5 text-brand border border-blue-100",
+  Research:     "bg-brand/5 text-brand border border-divider",
   Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
   Event:        "bg-orange-50 text-orange-700 border border-orange-100",
   Journal:      "bg-teal-50 text-teal-700 border border-teal-100",
@@ -28,7 +29,8 @@ function formatDate(iso: string | null): string {
   });
 }
 
-export default function RelatedPosts({ posts, category }: { posts: RelatedPost[]; category: string }) {
+export default async function RelatedPosts({ posts, category }: { posts: RelatedPost[]; category: string }) {
+  const t = await getTranslations('posts');
   if (!posts || posts.length === 0) return null;
 
   return (
@@ -37,7 +39,7 @@ export default function RelatedPosts({ posts, category }: { posts: RelatedPost[]
       <div className="mb-4 flex items-center gap-2">
         <div className="h-4 w-1 rounded-full bg-accent" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">
-          Related Posts
+          {t('relatedPosts')}
         </h2>
       </div>
 
@@ -75,7 +77,7 @@ export default function RelatedPosts({ posts, category }: { posts: RelatedPost[]
                 )}
                 {/* Category badge */}
                 <span className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold ${categoryStyles[post.category] ?? categoryStyles.Other}`}>
-                  {post.category}
+                  {t(`category${post.category}` as any)}
                 </span>
               </div>
 

@@ -6,11 +6,12 @@ import MobileMenu from "./MobileMenu";
 import NavLinkActive from "./NavLinkActive";
 import NavDropdown from "./NavDropdown";
 import NavSearch from "@/components/layout/NavSearch";
+import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
 import NavbarStickyWrapper from "./NavbarStickyWrapper";
-
-
+import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
+import { getTranslations } from 'next-intl/server';
 
 // ── SVG Icons (outline style) ─────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -67,36 +68,39 @@ const AboutIcon = () => (
 
 
 // ── Nav config ────────────────────────────────────────────────────────────────
-const navLinks = [
-  { label: "Home",            href: "/home",     icon: <HomeIcon /> },
-  { label: "E-Resources",     href: "/books",    icon: <EResourcesIcon /> },
-  { label: "Books In Library",href: "/catalogs", icon: <BooksIcon /> },
-  { label: "Posts",           href: "/posts", icon: <PostsIcon /> },
-];
-
-const aboutDropdown = {
-  label: "About",
-  href: "/about",
-  icon: <AboutIcon />,
-  subLinks: [
-    { label: "About",       href: "/about" },
-    { label: "Contact",     href: "/contact" },
-    { label: "Our Journey", href: "/about/journey" },
-  ],
-};
-
-// For MobileMenu — flat list including about sub-links
-const mobileNavLinks = [
-  { label: "Home",            href: "/home" },
-  { label: "E-Resources",     href: "/books" },
-  { label: "Books In Library",href: "/catalogs" },
-  { label: "Posts",           href: "/posts" },
-  { label: "About",           href: "/about" },
-  { label: "Contact",         href: "/contact" },
-  { label: "Our Journey",     href: "/about/journey" },
-];
+// Removed config arrays to place them inside the component
 
 export default async function Navbar() {
+  const t = await getTranslations('nav');
+
+  const navLinks = [
+    { label: t('home'),            href: "/home",     icon: <HomeIcon /> },
+    { label: t('eResources'),     href: "/books",    icon: <EResourcesIcon /> },
+    { label: t('booksInLibrary'),href: "/catalogs", icon: <BooksIcon /> },
+    { label: t('posts'),           href: "/posts", icon: <PostsIcon /> },
+  ];
+
+  const aboutDropdown = {
+    label: t('about'),
+    href: "/about",
+    icon: <AboutIcon />,
+    subLinks: [
+      { label: t('about'),       href: "/about" },
+      { label: t('contact'),     href: "/contact" },
+      { label: t('ourJourney'), href: "/about/journey" },
+    ],
+  };
+
+  const mobileNavLinks = [
+    { label: t('home'),            href: "/home" },
+    { label: t('eResources'),     href: "/books" },
+    { label: t('booksInLibrary'),href: "/catalogs" },
+    { label: t('posts'),           href: "/posts" },
+    { label: t('about'),           href: "/about" },
+    { label: t('contact'),         href: "/contact" },
+    { label: t('ourJourney'),     href: "/about/journey" },
+  ];
+
   // ── Fetch user + profile server-side ─────────────────────────
   const supabase = await createClient();
   const {
@@ -126,13 +130,13 @@ export default async function Navbar() {
   return (
     <header className="w-full font-sans border-t-[3px] border-accent">
       {/* Top utility strip */}
-        <div className="hidden lg:block bg-blue-950 text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5">
+        <div className="hidden lg:block bg-blue-950 dark:bg-bg-surface text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5 dark:border-white/10">
           <div className="flex items-center justify-between px-6 md:px-12 py-2 max-w-[1400px] mx-auto w-full">
             {/* Left: Contact Info */}
             <div className="flex items-center gap-8 xl:gap-12">
               <div className="flex items-center gap-2">
                 <Icon name="phone" className="text-[14px] text-accent" />
-                <span className="tracking-wide">(+855)- 889072070</span>
+                <span className="tracking-wide">(+855)- 12 950 192</span>
               </div>
               <span className="opacity-30">|</span>
               <div className="flex items-center gap-2">
@@ -160,11 +164,7 @@ export default async function Navbar() {
                 </a>
               </div>
               <span className="opacity-30">|</span>
-              <div className="flex items-center gap-2 font-medium tracking-wide">
-                <span className="text-white border-b border-white pb-0.5 cursor-pointer">EN</span>
-                <span className="opacity-50">|</span>
-                <span className="hover:text-white transition-colors cursor-pointer">KH</span>
-              </div>
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default async function Navbar() {
                 <div className="shrink-0 scale-90 sm:scale-100 origin-left">
                   <Seal size={48} />
                 </div>
-                <div className="flex flex-col text-[#1000C0] group-hover:opacity-90 transition-opacity whitespace-nowrap overflow-hidden">
+                <div className="flex flex-col text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand whitespace-nowrap overflow-hidden">
                   <span className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.រ.ភ</span>
                   <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
                 </div>
@@ -208,7 +208,9 @@ export default async function Navbar() {
             </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
+              <ThemeToggle />
+              
               {/* Search */}
               <NavSearch />
 

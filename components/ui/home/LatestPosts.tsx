@@ -1,6 +1,7 @@
 // components/ui/LatestPosts.tsx
 import Link from "next/link";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
+import { useTranslations } from 'next-intl';
 
 export type LatestPost = {
   id: string;
@@ -21,22 +22,22 @@ function formatDate(iso: string | null): string {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
-function timeAgo(iso: string | null): string {
+function timeAgo(iso: string | null, t: any): string {
   if (!iso) return "";
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days === 0) return t('today');
+  if (days === 1) return t('yesterday');
+  if (days < 7) return t('daysAgo', { days });
+  if (days < 30) return t('weeksAgo', { weeks: Math.floor(days / 7) });
   return formatDate(iso);
 }
 
 const categoryStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  Research:     { bg: "bg-brand/5",  text: "text-brand",      dot: "bg-brand"     },
-  Announcement: { bg: "bg-gold-50",  text: "text-gold-700",   dot: "bg-gold-500"  },
-  Event:        { bg: "bg-brand/5",  text: "text-brand",      dot: "bg-blue-700"  },
-  Journal:      { bg: "bg-gold-50",  text: "text-gold-700",   dot: "bg-gold-400"  },
-  Other:        { bg: "bg-paper",    text: "text-text-muted", dot: "bg-slate-400" },
+  Research:     { bg: "bg-brand/5",   text: "text-brand",                       dot: "bg-brand" },
+  Announcement: { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
+  Event:        { bg: "bg-brand/5",   text: "text-brand",                       dot: "bg-brand" },
+  Journal:      { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
+  Other:        { bg: "bg-paper",     text: "text-text-muted",                  dot: "bg-divider" },
 };
 
 const bannerColors = [
@@ -52,17 +53,23 @@ function pickBanner(title: string): string {
   return bannerColors[Math.abs(hash) % bannerColors.length];
 }
 
-function CategoryBadge({ category }: { category: string }) {
+function CategoryBadge({ category, tPosts }: { category: string; tPosts: any }) {
   const s = categoryStyles[category] ?? categoryStyles.Other;
+  const translated = category === "Research" ? tPosts("categoryResearch")
+    : category === "Announcement" ? tPosts("categoryAnnouncement")
+    : category === "Event" ? tPosts("categoryEvent")
+    : category === "Journal" ? tPosts("categoryJournal")
+    : tPosts("categoryOther");
+
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-bold ${s.text} shadow-sm backdrop-blur-md`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full bg-bg-surface/95 px-3 py-1.5 text-[11px] font-bold ${s.text} shadow-sm backdrop-blur-md`}>
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {category}
+      {translated}
     </span>
   );
 }
 
-function MetaRow({ createdAt }: { createdAt: string | null }) {
+function MetaRow({ createdAt, t }: { createdAt: string | null; t: any }) {
   return (
     <div className="flex items-center gap-3 text-[12px] font-medium text-text-muted">
       <span className="flex items-center gap-1.5">
@@ -72,7 +79,7 @@ function MetaRow({ createdAt }: { createdAt: string | null }) {
       <span className="text-divider">•</span>
       <span className="flex items-center gap-1.5">
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        {timeAgo(createdAt)}
+        {timeAgo(createdAt, t)}
       </span>
     </div>
   );
@@ -90,7 +97,7 @@ function AuthorChip({ author }: { author: string }) {
 }
 
 /* ── Featured (large) card ────────────────────────────────────────────── */
-function FeaturedCard({ post }: { post: LatestPost }) {
+function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
@@ -107,11 +114,11 @@ function FeaturedCard({ post }: { post: LatestPost }) {
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-        <div className="absolute left-4 top-4"><CategoryBadge category={post.category} /></div>
+        <div className="absolute left-4 top-4"><CategoryBadge category={post.category} tPosts={tPosts} /></div>
       </div>
 
       <div className="flex flex-1 flex-col p-6 sm:p-7">
-        <MetaRow createdAt={post.createdAt} />
+        <MetaRow createdAt={post.createdAt} t={t} />
         <h3 className="mb-3 mt-3 line-clamp-2 font-khmer-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl">
           {post.title}
         </h3>
@@ -121,7 +128,7 @@ function FeaturedCard({ post }: { post: LatestPost }) {
         <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-4">
           <AuthorChip author={post.author} />
           <span className="flex items-center gap-1 text-[13px] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100">
-            Read more
+            {t('readMore')}
             <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
           </span>
         </div>
@@ -131,8 +138,14 @@ function FeaturedCard({ post }: { post: LatestPost }) {
 }
 
 /* ── Compact horizontal list card ─────────────────────────────────────── */
-function ListCard({ post }: { post: LatestPost }) {
+function ListCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
   const s = categoryStyles[post.category] ?? categoryStyles.Other;
+  const translated = post.category === "Research" ? tPosts("categoryResearch")
+    : post.category === "Announcement" ? tPosts("categoryAnnouncement")
+    : post.category === "Event" ? tPosts("categoryEvent")
+    : post.category === "Journal" ? tPosts("categoryJournal")
+    : tPosts("categoryOther");
+
   return (
     <Link
       href={`/posts/${post.slug}`}
@@ -154,13 +167,13 @@ function ListCard({ post }: { post: LatestPost }) {
       <div className="flex min-w-0 flex-1 flex-col py-0.5">
         <span className={`inline-flex w-fit items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-          {post.category}
+          {translated}
         </span>
         <h4 className="mt-1 line-clamp-2 font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
           {post.title}
         </h4>
         <div className="mt-auto pt-1.5 text-[11px] font-medium text-text-muted">
-          {formatDate(post.createdAt)} · {timeAgo(post.createdAt)}
+          {formatDate(post.createdAt)} · {timeAgo(post.createdAt, t)}
         </div>
       </div>
     </Link>
@@ -169,6 +182,9 @@ function ListCard({ post }: { post: LatestPost }) {
 
 /* ── Section ──────────────────────────────────────────────────────────── */
 export default function LatestPosts({ posts }: Props) {
+  const t = useTranslations('home');
+  const tPosts = useTranslations('posts');
+
   if (!posts || posts.length === 0) return null;
 
   const [featured, ...rest] = posts;
@@ -179,20 +195,20 @@ export default function LatestPosts({ posts }: Props) {
       <div className="mx-auto max-w-[1400px] px-4 md:px-12">
         {/* Header */}
         <div className="mb-10 flex flex-col items-center text-center">
-          <span className="mb-3 text-[12px] font-bold uppercase tracking-[0.2em] text-brand">Stay Updated</span>
-          <SectionTitle as="h2" className="!mb-4">Latest Insights &amp; Announcements</SectionTitle>
+          <span className="mb-3 text-[12px] font-bold uppercase tracking-[0.2em] text-brand">{t('stayUpdated')}</span>
+          <SectionTitle as="h2" className="!mb-4">{t('latestInsights')}</SectionTitle>
           <p className="max-w-2xl text-[15px] leading-relaxed text-text-muted">
-            Discover the latest research insights, library announcements, and educational resources from our community.
+            {t('discoverLatest')}
           </p>
         </div>
 
         {/* Featured + list */}
         <div className={hasSidebar ? "grid gap-6 lg:grid-cols-[1.7fr_1fr] lg:gap-8" : "mx-auto max-w-3xl"}>
-          <FeaturedCard post={featured} />
+          <FeaturedCard post={featured} t={t} tPosts={tPosts} />
           {hasSidebar && (
             <div className="flex flex-col gap-4 sm:gap-5">
               {rest.slice(0, 3).map((post) => (
-                <ListCard key={post.id} post={post} />
+                <ListCard key={post.id} post={post} t={t} tPosts={tPosts} />
               ))}
             </div>
           )}
@@ -204,7 +220,7 @@ export default function LatestPosts({ posts }: Props) {
             href="/posts"
             className="inline-flex items-center gap-2 rounded-full border border-divider/60 bg-paper px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
           >
-            View all posts
+            {t('viewAllPosts')}
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
           </Link>
         </div>

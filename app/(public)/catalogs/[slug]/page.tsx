@@ -29,7 +29,7 @@ const COPY_STATUS_COLOR: Record<string, string> = {
   checked_out: "text-amber-600",
   lost:        "text-red-500",
   damaged:     "text-orange-500",
-  on_order:    "text-blue-500",
+  on_order:    "text-info",
 };
 
 const COPY_STATUS_BADGE: Record<string, string> = {
@@ -37,7 +37,7 @@ const COPY_STATUS_BADGE: Record<string, string> = {
   checked_out: "bg-amber-50 border-amber-200 text-amber-700",
   lost:        "bg-red-50 border-red-200 text-red-600",
   damaged:     "bg-orange-50 border-orange-200 text-orange-600",
-  on_order:    "bg-brand/5 border-blue-200 text-brand",
+  on_order:    "bg-brand/5 border-divider text-brand",
 };
 
 const COPY_STATUS_DOT: Record<string, string> = {
@@ -45,7 +45,7 @@ const COPY_STATUS_DOT: Record<string, string> = {
   checked_out: "bg-amber-400",
   lost:        "bg-red-400",
   damaged:     "bg-orange-400",
-  on_order:    "bg-blue-400",
+  on_order:    "bg-info",
 };
 
 export default async function CatalogBookPage({

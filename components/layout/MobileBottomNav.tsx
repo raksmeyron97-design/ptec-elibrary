@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import { useTranslations } from 'next-intl';
 
 // ── Icons ─────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -70,66 +71,69 @@ function getInitials(name: string | null, email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-// ── Nav items (left 2 + right 2, profile in center) ───────────
-const leftNav = [
-  { label: "Home",        href: "/home",  Icon: HomeIcon  },
-  { label: "E-Resources", href: "/books", Icon: BookIcon  },
-];
-const rightNav = [
-  { label: "Posts", href: "/posts", Icon: PostsIcon },
-  { label: "About", href: "/about", Icon: AboutIcon },
-];
-
-// ── Sheet menu items ──────────────────────────────────────────
-const sheetLinks = [
-  {
-    label: "My Dashboard",
-    href: "/dashboard",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-    ),
-  },
-  {
-    label: "Saved Books",
-    href: "/books",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-      </svg>
-    ),
-  },
-  {
-    label: "Posts",
-    href: "/posts",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-      </svg>
-    ),
-  },
-  {
-    label: "About",
-    href: "/about",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="8"/>
-        <line x1="12" y1="12" x2="12" y2="16"/>
-      </svg>
-    ),
-  },
-];
+// Removed arrays from here
 
 // ── Component ─────────────────────────────────────────────────
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+  const t = useTranslations('nav');
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // ── Nav items (left 2 + right 2, profile in center) ───────────
+  const leftNav = [
+    { label: t("home"),        href: "/home",  Icon: HomeIcon  },
+    { label: t("eResources"), href: "/books", Icon: BookIcon  },
+  ];
+  const rightNav = [
+    { label: t("posts"), href: "/posts", Icon: PostsIcon },
+    { label: t("about"), href: "/about", Icon: AboutIcon },
+  ];
+
+  // ── Sheet menu items ──────────────────────────────────────────
+  const sheetLinks = [
+    {
+      label: t("myDashboard"),
+      href: "/dashboard",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      ),
+    },
+    {
+      label: t("savedBooks"),
+      href: "/books",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+      ),
+    },
+    {
+      label: t("posts"),
+      href: "/posts",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      ),
+    },
+    {
+      label: t("about"),
+      href: "/about",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="8"/>
+          <line x1="12" y1="12" x2="12" y2="16"/>
+        </svg>
+      ),
+    },
+  ];
 
   // Close sheet on route change
   useEffect(() => { setSheetOpen(false); }, [pathname]);
@@ -216,15 +220,10 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       <div
         onClick={() => setSheetOpen(false)}
         aria-hidden="true"
+        className="fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 motion-reduce:transition-none"
         style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 60,
-          backgroundColor: "rgba(15, 23, 42, 0.45)",
-          backdropFilter: "blur(2px)",
           opacity: sheetOpen ? 1 : 0,
           pointerEvents: sheetOpen ? "auto" : "none",
-          transition: "opacity 280ms ease",
         }}
       />
 
@@ -233,17 +232,9 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Profile menu"
+        className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-8px_40px_rgba(0,0,0,0.15)] transition-transform duration-300 motion-reduce:transition-none"
         style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 70,
-          backgroundColor: "#ffffff",
-          borderRadius: "20px 20px 0 0",
-          boxShadow: "0 -8px 40px rgba(0,0,0,0.15)",
           transform: sheetOpen ? "translateY(0)" : "translateY(100%)",
-          transition: "transform 300ms cubic-bezier(0.32, 0.72, 0, 1)",
         }}
       >
         {/* Drag handle */}
@@ -315,7 +306,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
-                Logout
+                {t('logout')}
               </button>
             </form>
           ) : (
@@ -324,7 +315,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
               onClick={() => setSheetOpen(false)}
               className="flex w-full items-center justify-center rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-brand-contrast hover:bg-brand-hover active:scale-[0.98] transition-all"
             >
-              Login
+              {t('login')}
             </Link>
           )}
         </div>

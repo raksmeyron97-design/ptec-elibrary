@@ -59,7 +59,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Back cards (static, showing adjacent book colors) ── */}
       {backCards.map((style, i) => {
         const bk = backBooks[i] ?? books[0];
-        const bgColor = bk.coverColor ?? "bg-blue-950";
+        const bgColor = bk.coverColor ?? "bg-brand";
         // Extract hex from Tailwind class for gradient
         const hexMatch = bgColor.match(/#[0-9a-fA-F]{6}/);
         const hex = hexMatch ? hexMatch[0] : "#0a1629";

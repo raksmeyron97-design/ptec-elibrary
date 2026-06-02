@@ -62,7 +62,7 @@ async function getContinueReading(): Promise<ContinueBook[]> {
         rating: Number(b.rating) || 0,
         pages: b.pages ?? 1,
         summary: b.description ?? "",
-        cover: b.cover_color ?? "bg-blue-950",
+        cover: b.cover_color ?? "bg-brand",
         coverUrl: b.cover_url ?? null,
         pdfUrl: pdfFile?.file_url ?? null,
         tags: [],

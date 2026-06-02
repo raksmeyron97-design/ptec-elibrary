@@ -66,7 +66,7 @@ export default function CatalogBookError({
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={reset}
-              className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-950 px-6 text-sm font-semibold text-white transition hover:bg-brand"
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
             >
               <svg
                 className="h-4 w-4"

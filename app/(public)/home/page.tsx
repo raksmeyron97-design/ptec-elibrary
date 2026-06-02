@@ -8,6 +8,7 @@ import SearchBar from "@/components/ui/search/SearchBar";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { Button } from "@/components/ui/core/Button";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
+import { getTranslations } from 'next-intl/server';
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";
@@ -90,6 +91,7 @@ function formatStat(n: number): string {
 
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
+  const t = await getTranslations('home');
   const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
     getStats(),
     getTrendingBooks(),
@@ -98,10 +100,10 @@ export default async function HomePage() {
   ]);
 
   const heroStats = [
-    { label: "Resources", value: formatStat(stats.books) },
-    { label: "Views",     value: formatStat(stats.views) },
-    { label: "Downloads", value: formatStat(stats.downloads) },
-    { label: "Educators", value: formatStat(stats.users) },
+    { label: t("statResources"), value: formatStat(stats.books) },
+    { label: t("statViews"),     value: formatStat(stats.views) },
+    { label: t("statDownloads"), value: formatStat(stats.downloads) },
+    { label: t("statEducators"), value: formatStat(stats.users) },
   ];
 
   const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
@@ -150,14 +152,13 @@ export default async function HomePage() {
             {/* Left — min-w-0 prevents mobile horizontal overflow */}
             <div className="min-w-0 w-full max-w-2xl">
               <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400 drop-shadow-md">
-                Phnom Penh Teacher Education College
+                {t('tagline')}
               </span>
               <h1 className="mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-lg">
-                The Digital <span className="text-gold-400">Teaching Library</span>
+                {t('headline')}
               </h1>
               <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
-                Research, textbooks, and teaching resources curated by Phnom Penh Teacher
-                Education College — open and free for every educator and student.
+                {t('description')}
               </p>
 
               {/* Search + #4 suggestion chips */}
@@ -171,7 +172,7 @@ export default async function HomePage() {
               {/* Browse dept links */}
               {deptPills.length > 0 && (
                 <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-x-3 sm:gap-x-5 gap-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">Browse</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">{t('browse')}</span>
                   {deptPills.slice(0, 5).map((dept) => (
                     <Link
                       key={dept}
@@ -220,9 +221,9 @@ export default async function HomePage() {
       {deptPills.length > 0 && (
         <section className="mx-auto max-w-[1400px] px-4 py-10 sm:py-14 md:px-12 md:py-20">
           <div className="mb-6 sm:mb-9 flex items-end justify-between gap-5">
-            <SectionTitle as="h2" className="!mb-0">Featured Collections</SectionTitle>
+            <SectionTitle as="h2" className="!mb-0">{t('featuredCollections')}</SectionTitle>
             <Link href="/books" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
-              All departments →
+              {t('allDepartments')}
             </Link>
           </div>
           <FeaturedCollections departments={deptPills} limit={4} />
@@ -253,15 +254,14 @@ export default async function HomePage() {
         />
         <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:py-20 text-center md:px-12">
           <h2 className="font-khmer-serif text-[clamp(22px,4vw,40px)] font-bold leading-tight text-white">
-            Ready to explore the catalogue?
+            {t('ctaHeading')}
           </h2>
           <p className="mx-auto mt-3 sm:mt-4 max-w-lg text-[14px] sm:text-[15px] leading-relaxed text-blue-200">
-            Hundreds of educational resources — textbooks, research papers, and teaching
-            guides — available free to every educator in Cambodia.
+            {t('ctaBody')}
           </p>
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
-            <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">Browse all resources →</Button></Link>
-            <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">Physical Library</Button></Link>
+            <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">{t('ctaBrowse')}</Button></Link>
+            <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">{t('ctaPhysical')}</Button></Link>
           </div>
         </div>
       </section>

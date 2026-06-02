@@ -3,6 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from 'next-intl';
 import type { CatalogBook } from "@/lib/catalog";
 import {
   getAvailability,
@@ -16,9 +17,11 @@ type Props = {
 };
 
 export default function CatalogCard({ book }: Props) {
+  const t = useTranslations('catalogs');
   const status = getAvailability(book);
   const dotColor  = AVAILABILITY_DOT[status];
   const textColor = AVAILABILITY_COLOR[status];
+  const statusKey = status === 'available' ? 'availAvailable' : status === 'limited' ? 'availLimited' : 'availUnavailable';
 
   return (
     <Link
@@ -69,7 +72,7 @@ export default function CatalogCard({ book }: Props) {
           `}
         >
           <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-          {AVAILABILITY_LABEL[status]}
+          {t(statusKey as any)}
         </span>
       </div>
 
@@ -83,7 +86,7 @@ export default function CatalogCard({ book }: Props) {
         {/* Copies + shelf */}
         <div className="mt-auto pt-2 flex items-center justify-between">
           <span className={`text-[11px] font-semibold ${textColor}`}>
-            {book.copies_available}/{book.copies_total} copies
+            {t('copiesCount', { available: book.copies_available, total: book.copies_total })}
           </span>
           {book.shelf_location && (
             <span className="text-[10px] font-mono text-text-muted bg-paper px-1.5 py-0.5 rounded-md">

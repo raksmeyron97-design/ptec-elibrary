@@ -76,7 +76,7 @@ export default function OfflineBooksPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className={`flex h-full w-full flex-col justify-end p-4 ${book.coverColor || "bg-blue-900"}`}>
+                    <div className={`flex h-full w-full flex-col justify-end p-4 ${book.coverColor || "bg-brand"}`}>
                       <h3 className="line-clamp-3 font-khmer-serif text-lg font-bold leading-tight text-white">{book.title}</h3>
                       <p className="mt-1 line-clamp-1 text-sm text-white/80">{book.author}</p>
                     </div>
@@ -100,7 +100,7 @@ export default function OfflineBooksPage() {
                         e.preventDefault();
                         handleRemove(book.id);
                       }}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1.5 rounded-md transition-colors"
+                      className="rounded-md p-1.5 text-danger transition-colors hover:bg-danger/10 hover:text-danger"
                       aria-label="Remove from offline"
                     >
                       <Icon name="trash" className="text-[16px]" />

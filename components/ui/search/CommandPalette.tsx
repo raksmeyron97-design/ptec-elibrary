@@ -20,13 +20,13 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
 
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
   book:     "text-brand",
-  author:   "text-gold-700",
+  author:   "text-gold-700 dark:text-accent-text",
   category: "text-brand",
 };
 
 const TYPE_BG: Record<Suggestion["type"], string> = {
   book:     "bg-brand/5",
-  author:   "bg-gold-50",
+  author:   "bg-gold-50 dark:bg-accent/10",
   category: "bg-brand/10",
 };
 
@@ -127,7 +127,7 @@ export default function CommandPalette() {
     return (
       <>
         {text.slice(0, idx)}
-        <mark className="bg-gold-100 text-text-heading rounded-sm font-semibold not-italic">
+        <mark className="rounded-sm bg-accent/20 text-text-heading font-semibold not-italic">
           {text.slice(idx, idx + q.length)}
         </mark>
         {text.slice(idx + q.length)}
@@ -215,7 +215,7 @@ export default function CommandPalette() {
                         setQuery(term);
                         navigate(term);
                       }}
-                      className="inline-flex items-center gap-2 rounded-full border border-divider bg-paper px-4 py-1.5 text-sm font-medium text-text-heading transition-colors hover:border-gold-500/40 hover:bg-gold-50 hover:text-gold-700"
+                      className="inline-flex items-center gap-2 rounded-full border border-divider bg-paper px-4 py-1.5 text-sm font-medium text-text-heading transition-colors hover:border-accent/40 hover:bg-accent/10 hover:text-accent-text"
                     >
                       <Icon name="star" className="text-[14px] opacity-70" />
                       {term}

@@ -53,7 +53,7 @@ export default function SearchSuggestions({ trending = [] }: Props) {
             <button
               key={`r-${term}`}
               onClick={() => go(term)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-gold-500/50 hover:bg-white/10"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-bg-surface/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-gold-500/50 hover:bg-bg-surface/10"
             >
               <svg className="h-3 w-3 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8v4l3 3M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8" /><path d="M3 4v4h4" />

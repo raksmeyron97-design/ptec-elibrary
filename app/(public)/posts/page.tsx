@@ -2,10 +2,12 @@
 import Link from "next/link";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
+import { getTranslations } from 'next-intl/server';
 
 export const revalidate = 60;
 
 export default async function PostsPage() {
+  const t = await getTranslations('posts');
   const supabase = createServiceClient();
 
   // Only published posts on the public page
@@ -45,9 +47,9 @@ export default async function PostsPage() {
             <p className="mb-1.5 sm:mb-2 text-xs font-bold uppercase tracking-widest text-accent">
               PTEC Library
             </p>
-            <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold text-text-heading md:text-4xl">From the Library</h1>
+            <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold text-text-heading md:text-4xl">{t('title')}</h1>
             <p className="mt-1.5 sm:mt-2 max-w-2xl font-sans text-sm text-text-muted">
-              Research updates, announcements, events, and journals from across the library.
+              {t('subtitle')}
             </p>
           </div>
         </div>

@@ -3,8 +3,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useTranslations } from 'next-intl';
 
 export default function CatalogSearchBar() {
+  const t = useTranslations('catalogs');
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
@@ -34,7 +36,7 @@ export default function CatalogSearchBar() {
           onChange={(e) => setQuery(e.target.value)}
           type="search"
           autoComplete="off"
-          placeholder="Search title, author, or ISBN…"
+          placeholder={t('searchPlaceholder')}
           className="
             h-11 w-full rounded-xl
             border border-divider bg-bg-surface
@@ -59,7 +61,7 @@ export default function CatalogSearchBar() {
           active:scale-[0.98]
         "
       >
-        Search
+        {t('searchButton')}
       </button>
     </form>
   );

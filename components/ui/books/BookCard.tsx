@@ -8,6 +8,7 @@ import BookCover from "@/components/ui/books/BookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
 import { Badge } from "@/components/ui/core/Badge";
 import { incrementViewCount } from "@/app/actions/view-count";
+import { useTranslations } from 'next-intl';
 
 type BookCardProps = {
   book: Book & {
@@ -21,6 +22,7 @@ type BookCardProps = {
 };
 
 export default function BookCard({ book }: BookCardProps) {
+  const t = useTranslations('bookCard');
   const router = useRouter();
   const readable = !!book.pdfUrl;
   const progress = book.progressPct ?? 0;
@@ -165,8 +167,8 @@ export default function BookCard({ book }: BookCardProps) {
               </div>
 
               {/* CTA */}
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-brand/5 px-3 py-1.5 text-[11px] sm:px-2.5 sm:py-1 sm:text-[10px] font-bold text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast border border-blue-100 group-hover:border-brand">
-                {progress > 0 ? "Continue" : "View"}
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast sm:px-2.5 sm:py-1 sm:text-[10px]">
+                {progress > 0 ? t('continue') : t('view')}
                 <svg
                   className="h-3 w-3"
                   viewBox="0 0 24 24"

@@ -1,22 +1,25 @@
 import type { CatalogCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-actions";
 import Icon from "@/components/ui/core/Icon";
+import { getTranslations } from 'next-intl/server';
 
-const STATUS_CONFIG: Record<string, { label: string; colorClass: string }> = {
-  available: { label: "Available", colorClass: "text-emerald-500 border-emerald-200 bg-bg-surface" },
-  checked_out: { label: "Checked Out", colorClass: "text-amber-500 border-amber-200 bg-bg-surface" },
-  lost: { label: "Lost", colorClass: "text-red-500 border-red-200 bg-bg-surface" },
-  damaged: { label: "Damaged", colorClass: "text-orange-500 border-orange-200 bg-bg-surface" },
-  on_order: { label: "On Order", colorClass: "text-blue-500 border-blue-200 bg-bg-surface" },
-};
+export default async function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }) {
+  const t = await getTranslations('physical');
 
-export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }) {
+  const STATUS_CONFIG: Record<string, { label: string; colorClass: string }> = {
+    available: { label: t('available'), colorClass: "text-emerald-500 border-emerald-200 bg-bg-surface" },
+    checked_out: { label: t('checkedOut'), colorClass: "text-amber-500 border-amber-200 bg-bg-surface" },
+    lost: { label: t('lost'), colorClass: "text-red-500 border-red-200 bg-bg-surface" },
+    damaged: { label: t('damaged'), colorClass: "text-orange-500 border-orange-200 bg-bg-surface" },
+    on_order: { label: t('onOrder'), colorClass: "text-blue-500 border-divider bg-bg-surface" },
+  };
+
   if (!copies || copies.length === 0) return null;
 
   return (
     <div className="mt-12 scroll-mt-24">
       <div className="flex items-center gap-4 mb-8">
         <h2 className="font-khmer-serif text-[24px] font-bold text-brand whitespace-nowrap">
-          Physical Copies ({copies.length})
+          {t('physicalCopies', { count: copies.length })}
         </h2>
         <div className="h-[1px] w-full bg-paper" />
       </div>
@@ -38,7 +41,7 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
               <div className="grid grid-cols-2 gap-4 border-b border-divider pb-4 mb-4">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                    Barcode
+                    {t('barcode')}
                   </p>
                   <p className="text-[17px] font-bold text-brand truncate">
                     {copy.barcode || "—"}
@@ -46,7 +49,7 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                    Holding Library
+                    {t('holdingLibrary')}
                   </p>
                   <p className="text-[15px] font-bold text-brand truncate">
                     {copy.holding_library || "—"}
@@ -59,7 +62,7 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
                 <div>
                   <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-text-muted mb-1">
                     <Icon name="map-pin" className="text-[14px]" />
-                    Shelf Location
+                    {t('shelfLocation')}
                   </p>
                   <p className="text-[14px] font-semibold text-text-heading truncate">
                     {copy.shelf_location || "—"}
@@ -67,7 +70,7 @@ export default function PhysicalCopiesList({ copies }: { copies: CatalogCopy[] }
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                    Call Number
+                    {t('callNumber')}
                   </p>
                   <p className="text-[14px] font-semibold text-text-heading truncate">
                     {copy.call_number || "—"}

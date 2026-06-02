@@ -4,8 +4,36 @@ import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer } from "@/
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import CommandPalette from "@/components/ui/search/CommandPalette";
+import { getLocale, getMessages } from 'next-intl/server';
+import IntlProvider from '@/components/providers/IntlProvider';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const THEME_INIT_SCRIPT = `
+(() => {
+  try {
+    const root = document.documentElement;
+    const path = window.location.pathname;
+    const isAdmin = path === "/admin" || path.startsWith("/admin/");
+    const storedTheme = localStorage.getItem("ptec.theme");
+    const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const theme = isAdmin
+      ? "light"
+      : storedTheme === "light" || storedTheme === "dark"
+        ? storedTheme
+        : systemDark
+          ? "dark"
+          : "light";
+
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", theme === "dark" ? "#0B1530" : "#172554");
+    }
+  } catch (_) {}
+})();
+`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -37,9 +65,11 @@ export const viewport: Viewport = {
   themeColor: "#172554",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -61,17 +91,26 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="km" className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: THEME_INIT_SCRIPT,
+          }}
+        />
+      </head>
       <body
         suppressHydrationWarning
         className="bg-bg-app font-sans text-text-body antialiased"
       >
-        <JsonLd data={websiteSchema} />
-        <JsonLd data={orgSchema} />
-        {children}
-        <Suspense fallback={null}>
-          <CommandPalette />
-        </Suspense>
+        <IntlProvider locale={locale} messages={messages}>
+          <JsonLd data={websiteSchema} />
+          <JsonLd data={orgSchema} />
+          {children}
+          <Suspense fallback={null}>
+            <CommandPalette />
+          </Suspense>
+        </IntlProvider>
       </body>
     </html>
   );

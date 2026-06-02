@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Icon from "@/components/ui/core/Icon";
+import { useTranslations } from 'next-intl';
 
 interface ShareButtonProps {
   url: string;
@@ -53,6 +54,7 @@ const TARGETS: Target[] = [
 ];
 
 export default function ShareButton({ url, title = "PTEC Library" }: ShareButtonProps) {
+  const t = useTranslations('share');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -114,7 +116,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
           >
             {/* Header */}
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="font-khmer-serif text-xl font-bold text-text-heading">ចែករំលែក</h2>
+              <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('title')}</h2>
               <button
                 type="button"
                 onClick={close}
@@ -134,7 +136,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
                   onClick={() => openShare(t)}
                   className={`flex flex-col items-center justify-center gap-2 rounded-2xl ${t.bg} py-5 text-white transition-transform hover:-translate-y-0.5 hover:opacity-95 focus:outline-none`}
                 >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-surface/20">
                     {Glyph[t.key]}
                   </span>
                   <span className="text-sm font-bold">{t.label}</span>
@@ -144,7 +146,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
 
             {/* Copy link */}
             <div className="mt-6">
-              <p className="mb-2 text-sm font-semibold text-text-body">ឬចម្លងតំណភ្ជាប់</p>
+              <p className="mb-2 text-sm font-semibold text-text-body">{t('copyLinkLabel')}</p>
               <div className="flex items-center gap-2">
                 <input
                   readOnly
@@ -158,7 +160,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
                   className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
                 >
                   <Icon name={copied ? "check" : "external-link"} className="text-base" />
-                  {copied ? "បានចម្លង!" : "ចម្លង"}
+                  {copied ? t('copied') : t('copy')}
                 </button>
               </div>
             </div>

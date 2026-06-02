@@ -32,7 +32,7 @@ export default function BookDetailError({
       <div className="mt-6 flex gap-3">
         <button
           onClick={reset}
-          className="inline-flex h-10 items-center rounded-[12px] bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
+          className="inline-flex h-10 items-center rounded-[12px] bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
         >
           Try again
         </button>

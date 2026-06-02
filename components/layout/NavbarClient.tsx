@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Icon from "@/components/ui/core/Icon";
+import { useTranslations } from 'next-intl';
 
 type UserInfo = {
   email: string;
@@ -29,6 +30,7 @@ function getInitials(name: string | null, email: string) {
 }
 
 export default function NavbarClient({ user }: NavbarClientProps) {
+  const t = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -135,7 +137,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
           >
             <Icon name="account" className="text-[18px] text-text-muted" />
-            My Dashboard
+            {t('myDashboard')}
           </Link>
           <Link
             href="/books"
@@ -143,7 +145,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
           >
             <Icon name="bookmark" className="text-[18px] text-text-muted" />
-            Saved Books
+            {t('savedBooks')}
           </Link>
          
 
@@ -161,7 +163,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Sign out
+              {t('logout')}
             </button>
           </form>
         </div>
