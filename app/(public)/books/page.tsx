@@ -155,7 +155,7 @@ export default async function BooksPage({
     <ClientNavWrapper>
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
-      <div className="border-b border-divider bg-bg-surface px-4 py-5 md:px-12 md:py-7">
+      <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">
         <div className="mx-auto max-w-[1400px]">
           {/* Search bar */}
           <div className="mb-5">
@@ -167,9 +167,9 @@ export default async function BooksPage({
           </div>
 
           {/* Filters row */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between min-w-0 w-full">
-            {/* Category pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none sm:gap-2 min-w-0 flex-1 w-full">
+          <div className="flex flex-col gap-2 min-w-0 w-full">
+            {/* Category pills — horizontal scroll */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
               {categoryPills.map((cat) => {
                 const isAll = cat === "All";
                 const isActive = isAll ? !params.dept : params.dept === cat;
@@ -180,7 +180,7 @@ export default async function BooksPage({
                   <FilterLink
                     key={cat}
                     href={href}
-                    className={`shrink-0 rounded-full px-4 py-[7px] text-[12px] font-medium whitespace-nowrap transition-all border sm:text-[13px] ${
+                    className={`shrink-0 rounded-full px-3.5 py-[6px] text-[12px] font-medium whitespace-nowrap transition-all border sm:px-4 sm:text-[13px] ${
                       isActive
                         ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
                         : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
@@ -192,10 +192,10 @@ export default async function BooksPage({
               })}
             </div>
 
-            {/* Sort & Filters */}
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0 mt-2 sm:mt-0">
+            {/* Sort & Filters — single row, no divider that breaks on wrap */}
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider mr-1">
+                <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">
                   Sort
                 </span>
                 <SortSelect
@@ -210,26 +210,24 @@ export default async function BooksPage({
                   paramKey="sort"
                 />
               </div>
-
-              <div className="flex items-center gap-1.5 border-l border-divider pl-2 ml-1">
-                <FilterSelect
-                  value={params.language || ""}
-                  options={languages}
-                  defaultLabel="Language"
-                  paramKey="language"
-                />
-                <FilterSelect
-                  value={params.format || ""}
-                  options={formats}
-                  defaultLabel="Format"
-                  paramKey="format"
-                />
-              </div>
+              <div className="w-px h-4 bg-divider shrink-0" />
+              <FilterSelect
+                value={params.language || ""}
+                options={languages}
+                defaultLabel="Language"
+                paramKey="language"
+              />
+              <FilterSelect
+                value={params.format || ""}
+                options={formats}
+                defaultLabel="Format"
+                paramKey="format"
+              />
             </div>
           </div>
 
           {/* Result count */}
-          <p className="mt-4 text-[12px] text-text-muted sm:text-[13px]">
+          <p className="mt-3 text-[12px] text-text-muted sm:text-[13px]">
             {total > 0
               ? `${total} resource${total !== 1 ? "s" : ""}`
               : "No resources found"}
@@ -244,7 +242,7 @@ export default async function BooksPage({
       </div>
 
       {/* ── Grid ── */}
-      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-12 md:py-8">
+      <div className="mx-auto max-w-[1400px] px-4 py-5 md:px-12 md:py-8">
         {/* Active filter chips */}
         {hasFilters && (
           <div className="mb-5 flex flex-wrap items-center gap-2">
@@ -276,7 +274,7 @@ export default async function BooksPage({
           <EmptyState hasFilters={hasFilters} query={params.q} />
         ) : (
           <>
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
+            <div className="grid gap-3 grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {books.map((book) => (
                 <BookCard key={book.slug} book={book} />
               ))}
@@ -362,9 +360,9 @@ function EmptyState({
   query?: string;
 }) {
   return (
-    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-10 text-center">
-      <Icon name="search-off" className="mb-4 text-5xl text-text-muted" />
-      <h2 className="text-xl font-bold text-text-body">No resources found</h2>
+    <div className="flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-6 sm:p-10 text-center">
+      <Icon name="search-off" className="mb-3 text-4xl sm:text-5xl text-text-muted" />
+      <h2 className="text-lg sm:text-xl font-bold text-text-body">No resources found</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-text-muted">
         {query
           ? `No books match "${query}".`

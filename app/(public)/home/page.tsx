@@ -129,7 +129,7 @@ export default async function HomePage() {
         </div>
 
         {/* 2. Dark blue overlay */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-950/95 via-blue-900/80 to-blue-900/10" />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-950/95 via-blue-900/85 to-blue-900/70 sm:to-blue-900/10" />
         {/* 3. Subtle gold glow */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(820px_520px_at_88%_-10%,rgba(221,176,34,0.10),transparent_58%)]" />
         <div
@@ -144,7 +144,7 @@ export default async function HomePage() {
         <div aria-hidden className="pointer-events-none absolute -right-44 -top-48 h-[680px] w-[680px] rounded-full border border-white/[0.06]" />
         <div aria-hidden className="pointer-events-none absolute -left-40 -bottom-56 h-[420px] w-[420px] rounded-full border border-gold-500/10" />
 
-        <div className="relative mx-auto max-w-[1400px] px-4 py-20 md:px-12 md:py-24">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-10 sm:py-16 md:px-12 md:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
 
             {/* Left — min-w-0 prevents mobile horizontal overflow */}
@@ -152,16 +152,16 @@ export default async function HomePage() {
               <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400 drop-shadow-md">
                 Phnom Penh Teacher Education College
               </span>
-              <h1 className="mt-4 font-khmer-serif text-[clamp(33px,5vw,52px)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-lg">
+              <h1 className="mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-lg">
                 The Digital <span className="text-gold-400">Teaching Library</span>
               </h1>
-              <p className="mt-5 max-w-lg text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
+              <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
                 Research, textbooks, and teaching resources curated by Phnom Penh Teacher
                 Education College — open and free for every educator and student.
               </p>
 
               {/* Search + #4 suggestion chips */}
-              <div className="mt-8 max-w-xl relative z-10">
+              <div className="mt-5 sm:mt-8 max-w-xl relative z-10">
                 <Suspense fallback={<div className="h-12 rounded-xl bg-bg-surface/10 animate-pulse" />}>
                   <SearchBar />
                 </Suspense>
@@ -170,13 +170,13 @@ export default async function HomePage() {
 
               {/* Browse dept links */}
               {deptPills.length > 0 && (
-                <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-x-3 sm:gap-x-5 gap-y-2">
                   <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">Browse</span>
                   {deptPills.slice(0, 5).map((dept) => (
                     <Link
                       key={dept}
                       href={`/books?dept=${encodeURIComponent(dept)}`}
-                      className="border-b border-transparent pb-px text-[14px] text-blue-100 transition-colors hover:border-gold-500 hover:text-white"
+                      className="border-b border-transparent pb-px text-[13px] sm:text-[14px] text-blue-100 transition-colors hover:border-gold-500 hover:text-white"
                     >
                       {dept}
                     </Link>
@@ -185,13 +185,13 @@ export default async function HomePage() {
               )}
 
               {/* Slim stats strip */}
-              <div className="mt-10 flex flex-wrap gap-x-11 gap-y-5 border-t border-white/10 pt-6">
+              <div className="mt-6 sm:mt-10 grid grid-cols-4 gap-3 sm:flex sm:flex-wrap sm:gap-x-11 sm:gap-y-5 border-t border-white/10 pt-4 sm:pt-6">
                 {heroStats.map((s) => (
                   <div key={s.label}>
-                    <div className="font-khmer-serif text-2xl font-bold leading-none text-white drop-shadow-md">
+                    <div className="font-khmer-serif text-lg sm:text-2xl font-bold leading-none text-white drop-shadow-md">
                       {s.value}<span className="text-gold-400">+</span>
                     </div>
-                    <div className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-300">{s.label}</div>
+                    <div className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-300">{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -218,8 +218,8 @@ export default async function HomePage() {
 
       {/* ════════ FEATURED COLLECTIONS (#6 — themed per department) ════════ */}
       {deptPills.length > 0 && (
-        <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-          <div className="mb-9 flex items-end justify-between gap-5">
+        <section className="mx-auto max-w-[1400px] px-4 py-10 sm:py-14 md:px-12 md:py-20">
+          <div className="mb-6 sm:mb-9 flex items-end justify-between gap-5">
             <SectionTitle as="h2" className="!mb-0">Featured Collections</SectionTitle>
             <Link href="/books" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
               All departments →
@@ -251,17 +251,17 @@ export default async function HomePage() {
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
           style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
         />
-        <div className="relative mx-auto max-w-[1400px] px-4 py-20 text-center md:px-12">
-          <h2 className="font-khmer-serif text-[clamp(24px,4vw,40px)] font-bold leading-tight text-white">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:py-20 text-center md:px-12">
+          <h2 className="font-khmer-serif text-[clamp(22px,4vw,40px)] font-bold leading-tight text-white">
             Ready to explore the catalogue?
           </h2>
-          <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-blue-200">
+          <p className="mx-auto mt-3 sm:mt-4 max-w-lg text-[14px] sm:text-[15px] leading-relaxed text-blue-200">
             Hundreds of educational resources — textbooks, research papers, and teaching
             guides — available free to every educator in Cambodia.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link href="/books"><Button variant="gold" size="lg">Browse all resources →</Button></Link>
-            <Link href="/catalogs"><Button variant="secondary" size="lg" className="!border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">Physical Library</Button></Link>
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+            <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">Browse all resources →</Button></Link>
+            <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">Physical Library</Button></Link>
           </div>
         </div>
       </section>

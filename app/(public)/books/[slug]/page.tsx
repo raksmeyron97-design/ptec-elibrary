@@ -215,13 +215,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   };
 
   return (
-    <section className="bg-bg-body px-6 py-10 md:px-12 min-h-screen">
+    <section className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
       <JsonLd data={bookSchema} />
       <JsonLd data={breadcrumbSchema} />
       <div className="mx-auto max-w-[1200px]">
         <BookQuickNav hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId} hasReviews={!!book.dbId} />
         
-        <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-2 text-[14.5px] font-medium text-text-muted">
+        <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
           <Link href="/" className="hover:text-brand transition-colors">Home</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <Link href="/books" className="hover:text-brand transition-colors">Books</Link>
@@ -249,10 +249,10 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         )}
 
         {/* ── Hero card ── */}
-        <div id="details" className="grid gap-10 rounded-[28px] border border-divider bg-bg-surface p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr] scroll-mt-24">
+        <div id="details" className="grid gap-6 sm:gap-10 rounded-[28px] border border-divider bg-bg-surface p-5 sm:p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr] scroll-mt-24">
 
           {/* Cover */}
-          <div>
+          <div className="mx-auto w-full max-w-[220px] sm:max-w-none">
             {showPdfCover ? (
               <PDFCover
                 title={book.title}
@@ -279,26 +279,33 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <DownloadCount count={downloadCount} />
             </div>
 
-            <h1 className="font-khmer-serif mt-5 text-[clamp(28px,4vw,38px)] font-bold leading-[1.2] text-text-heading">
+            <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading">
               {book.title}
             </h1>
-            <p className="mt-2 text-[17px] font-medium text-text-muted">by {book.author}</p>
-            <div className="mt-4">
+            <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">by {book.author}</p>
+            <div className="mt-3 sm:mt-4">
               <RatingStars rating={book.rating} />
             </div>
 
             {resuming && (
-              <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-[14px] border border-blue-200 bg-brand/5 px-4 py-3.5">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-blue-200 bg-brand/5 px-4 py-3 sm:py-3.5">
                 <div className="min-w-0 flex-1 w-full">
-                  <p className="text-[13.5px] font-bold text-brand">
+                  <p className="text-[13px] sm:text-[13.5px] font-bold text-brand">
                     Continue reading — {savedProgress!.progressPct}% complete
                   </p>
-                  <p className="mt-0.5 text-[12px] text-brand/70 font-medium">
+                  <p className="mt-0.5 text-[11px] sm:text-[12px] text-brand/70 font-medium">
                     Last read{" "}
                     {savedProgress!.lastReadAt
                       ? new Date(savedProgress!.lastReadAt).toLocaleDateString()
                       : "recently"}
                   </p>
+                  {/* Progress bar — visible on all sizes */}
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-200 border border-blue-300 sm:hidden">
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${savedProgress!.progressPct}%` }}
+                    />
+                  </div>
                 </div>
                 <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-blue-200 sm:block border border-blue-300">
                   <div
@@ -308,30 +315,30 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 </div>
                 <a
                   href="#reader"
-                  className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2.5 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
+                  className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
                 >
                   Resume
                 </a>
               </div>
             )}
 
-            <p className="mt-6 font-sans text-[15.5px] leading-8 text-text-body">{book.summary}</p>
+            <p className="mt-4 sm:mt-6 font-sans text-[15px] sm:text-[15.5px] leading-7 sm:leading-8 text-text-body">{book.summary}</p>
 
-            <dl className="mt-7 grid gap-3 sm:grid-cols-2">
+            <dl className="mt-5 sm:mt-7 grid grid-cols-2 gap-2 sm:gap-3">
               {[
                 ["ISBN",             book.isbn],
                 ["Language",         book.language],
                 ["Publication year", String(book.year)],
                 ["Pages",            String(book.pages)],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-[13px] bg-paper border border-divider px-4 py-3.5 min-w-0">
-                  <dt className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
-                  <dd className="mt-1 text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
+                <div key={label} className="rounded-[13px] bg-paper border border-divider px-3 py-2.5 sm:px-4 sm:py-3.5 min-w-0">
+                  <dt className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
+                  <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
                 </div>
               ))}
             </dl>
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 sm:mt-7 flex flex-col gap-3 sm:flex-row">
               {book.pdfUrl ? (
                 <a
                   href="#reader"
@@ -374,12 +381,12 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
         {/* Reviews */}
         {book.dbId && (
-          <div id="reviews" className="mt-12 scroll-mt-24">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="font-khmer-serif text-[28px] font-bold text-text-heading">
+          <div id="reviews" className="mt-8 sm:mt-12 scroll-mt-24">
+            <div className="mb-5 sm:mb-6 flex items-center justify-between">
+              <h2 className="font-khmer-serif text-[22px] sm:text-[28px] font-bold text-text-heading">
                 Reader Reviews
                 {reviews.length > 0 && (
-                  <span className="ml-2.5 text-base font-semibold text-text-muted">({reviews.length})</span>
+                  <span className="ml-2 sm:ml-2.5 text-sm sm:text-base font-semibold text-text-muted">({reviews.length})</span>
                 )}
               </h2>
               {reviews.length > 0 && (
@@ -393,7 +400,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               )}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[1fr_360px]">
               <ReviewList reviews={reviews} totalCount={reviews.length} avgRating={avgRating} />
               <div className="lg:sticky lg:top-6 lg:self-start">
                 {user ? (
