@@ -5,7 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 // ── Load saved progress for a book ───────────────────────────────────────────
 export async function getReadingProgress(
   bookId: string
-): Promise<{ progressPct: number; lastReadAt: string | null } | null> {
+): Promise<{ progressPct: number; maxProgressPct: number; lastReadAt: string | null } | null> {
   // createClient() reads session cookies → auth.getUser() works correctly
   const supabase = await createClient();
 
@@ -19,7 +19,7 @@ export async function getReadingProgress(
 
   const { data, error } = await db
     .from("reading_progress")
-    .select("progress_pct, last_read_at")
+    .select("progress_pct, max_progress_pct, last_read_at")
     .eq("user_id", user.id)
     .eq("book_id", bookId)
     .maybeSingle();
@@ -30,7 +30,11 @@ export async function getReadingProgress(
   }
 
   return data
-    ? { progressPct: Number(data.progress_pct), lastReadAt: data.last_read_at }
+    ? { 
+        progressPct: Number(data.progress_pct), 
+        maxProgressPct: Number(data.max_progress_pct ?? data.progress_pct ?? 0), 
+        lastReadAt: data.last_read_at 
+      }
     : null;
 }
 
@@ -50,11 +54,24 @@ export async function saveReadingProgress(
   // Service client bypasses RLS for the write
   const db = createServiceClient();
 
+  // Fetch current max_progress_pct first
+  const { data: existing } = await db
+    .from("reading_progress")
+    .select("max_progress_pct")
+    .eq("user_id", user.id)
+    .eq("book_id", bookId)
+    .maybeSingle();
+
+  const currentMax = existing?.max_progress_pct ? Number(existing.max_progress_pct) : 0;
+  const clampedProgress = Math.min(100, Math.max(0, progressPct));
+  const newMax = Math.max(currentMax, clampedProgress);
+
   const { error } = await db.from("reading_progress").upsert(
     {
       user_id:      user.id,
       book_id:      bookId,
-      progress_pct: Math.min(100, Math.max(0, progressPct)),
+      progress_pct: clampedProgress,
+      max_progress_pct: newMax,
       last_read_at: new Date().toISOString(),
     },
     {

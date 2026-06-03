@@ -140,7 +140,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             {t('myDashboard')}
           </Link>
           <Link
-            href="/books"
+            href="/dashboard#saved"
             onClick={() => setOpen(false)}
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
           >

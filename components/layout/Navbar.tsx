@@ -85,9 +85,12 @@ export default async function Navbar() {
     href: "/about",
     icon: <AboutIcon />,
     subLinks: [
-      { label: t('about'),       href: "/about" },
       { label: t('contact'),     href: "/contact" },
-      { label: t('ourJourney'), href: "/about/journey" },
+      { label: t('libraryRules'), href: "/about/rules" },
+      { label: t('libraryTimings'), href: "/about/timings" },
+      { label: t('libraryCollection'), href: "/about/collection" },
+      { label: t('libraryCommittee'), href: "/about/committee" },
+      { label: t('libraryTeam'), href: "/about/team" },
     ],
   };
 
@@ -98,7 +101,11 @@ export default async function Navbar() {
     { label: t('posts'),           href: "/posts" },
     { label: t('about'),           href: "/about" },
     { label: t('contact'),         href: "/contact" },
-    { label: t('ourJourney'),     href: "/about/journey" },
+    { label: t('libraryRules'), href: "/about/rules" },
+    { label: t('libraryTimings'), href: "/about/timings" },
+    { label: t('libraryCollection'), href: "/about/collection" },
+    { label: t('libraryCommittee'), href: "/about/committee" },
+    { label: t('libraryTeam'), href: "/about/team" },
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────
@@ -187,7 +194,7 @@ export default async function Navbar() {
               </Link>
 
               {/* Desktop nav links */}
-              <div className="hidden lg:flex items-center gap-7 h-full pt-1">
+              <div className="hidden lg:flex items-center gap-4 xl:gap-7 h-full pt-1">
                 {navLinks.map((link) => (
                   <NavLinkActive
                     key={link.href}

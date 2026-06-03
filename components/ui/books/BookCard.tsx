@@ -113,9 +113,6 @@ export default function BookCard({ book }: BookCardProps) {
           </p>
 
           {/* Summary — hidden on mobile */}
-          <p className="mt-1.5 hidden text-[11px] leading-[1.6] text-text-body line-clamp-2 sm:block">
-            {book.summary}
-          </p>
 
           {/* ── Footer ── */}
           <div className="mt-auto pt-3">

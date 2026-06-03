@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "node scripts/copy-pdf-assets.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -15,6 +16,7 @@
     "@serwist/next": "^9.5.11",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.0",
+    "@vercel/blob": "^2.4.0",
     "lucide-react": "^1.17.0",
     "next": "^16.2.6",
     "next-intl": "^4.13.0",

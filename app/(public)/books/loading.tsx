@@ -27,8 +27,8 @@ export default function Loading() {
 
       {/* Grid Skeleton */}
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-12 md:py-8">
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-          {Array.from({ length: 15 }).map((_, i) => (
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
+          {Array.from({ length: 18 }).map((_, i) => (
             <BookCardSkeleton key={i} />
           ))}
         </div>

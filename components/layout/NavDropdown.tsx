@@ -41,12 +41,11 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
-      {/* Trigger button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={`relative flex items-center gap-2 text-[15px] font-khmer-serif py-6 transition-colors select-none ${
+    <div className="relative group" ref={ref}>
+      {/* Trigger link */}
+      <Link
+        href={href}
+        className={`relative flex items-center gap-2 text-[15px] font-khmer-serif py-6 transition-colors select-none whitespace-nowrap ${
           isActive ? "text-brand font-semibold" : "text-text-body font-medium hover:text-text-heading"
         }`}
       >
@@ -55,7 +54,7 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
         </span>
         {label}
         <svg
-          className={`h-3.5 w-3.5 text-text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className="h-3.5 w-3.5 text-text-muted transition-transform duration-200 group-hover:rotate-180"
           viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
           strokeLinecap="round" strokeLinejoin="round"
         >
@@ -66,15 +65,11 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
         {isActive && (
           <span className="absolute bottom-0 left-0 w-full h-[3px] bg-accent rounded-t-md" />
         )}
-      </button>
+      </Link>
 
       {/* Dropdown panel */}
       <div
-        className={`absolute left-0 top-[calc(100%-2px)] w-52 origin-top-left rounded-xl border border-divider bg-bg-surface shadow-md ring-1 ring-black/5 transition-all duration-200 z-50 ${
-          open
-            ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
-            : "pointer-events-none -translate-y-2 opacity-0 scale-95"
-        }`}
+        className="absolute left-0 top-[calc(100%-2px)] w-52 origin-top-left rounded-xl border border-divider bg-bg-surface shadow-md ring-1 ring-black/5 transition-all duration-200 z-50 pointer-events-none -translate-y-2 opacity-0 scale-95 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-hover:scale-100"
       >
         {/* Top accent bar */}
         <div className="h-[3px] w-full bg-accent rounded-t-xl" />
@@ -86,7 +81,6 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
               <Link
                 key={sub.href}
                 href={sub.href}
-                onClick={() => setOpen(false)}
                 className={`flex items-center justify-between px-4 py-2.5 text-[14px] font-medium transition-colors ${
                   subActive
                     ? "text-brand bg-brand/5"

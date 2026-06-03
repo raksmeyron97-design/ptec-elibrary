@@ -20,7 +20,7 @@ type SearchParams = {
   sort?: string;
 };
 
-const PAGE_SIZE = 15;
+const PAGE_SIZE = 18;
 
 async function fetchBooks(params: SearchParams) {
   const supabase = await createClient();
@@ -279,7 +279,7 @@ export default async function BooksPage({
           <EmptyState hasFilters={hasFilters} query={params.q} t={t} />
         ) : (
           <>
-            <div className="grid gap-3 grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
               {books.map((book) => (
                 <BookCard key={book.slug} book={book} />
               ))}

@@ -159,6 +159,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const showPdfCover = book.fromSupabase && !!book.pdfUrl;
   const resuming = !!(savedProgress && savedProgress.progressPct > 0);
 
+  const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
+
   const bookSchema = {
     "@context": "https://schema.org",
     "@type": "Book",
@@ -243,10 +245,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <div id="reader" className="mb-8 scroll-mt-24">
             <PDFViewer
               title={book.title}
-              pdfUrl={book.pdfUrl}
+              pdfUrl={fileSrc as string}
               bookId={book.dbId}
               totalPages={book.pages}
               initialProgressPct={savedProgress?.progressPct ?? 0}
+              initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
+              watermark="Phnom Penh Teacher Education college"
+              allowDownload={true}
             />
           </div>
         )}
@@ -363,7 +368,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   author={book.author}
                   coverUrl={book.coverUrl || null}
                   coverColor={book.cover}
-                  pdfUrl={book.pdfUrl}
+                  pdfUrl={fileSrc as string}
                 />
               )}
               {book.dbId && (

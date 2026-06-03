@@ -61,6 +61,34 @@ const customCaching: RuntimeCaching[] = [
       ],
     }),
   },
+  // Cache PDF.js assets (worker, cmaps, standard fonts)
+  {
+    matcher: ({ url }) => /^\/pdf\/.*\.(mjs|js|bcmap|pfb|ttf|otf)$/.test(url.pathname),
+    handler: new CacheFirst({
+      cacheName: 'pdfjs-assets',
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 400,
+        }),
+      ],
+    }),
+  },
+  // Cache book PDFs (proxy routes and direct URLs)
+  {
+    matcher: ({ url }) => 
+      url.pathname.endsWith('.pdf') || 
+      url.pathname.includes('/storage/v1/object/public/') ||
+      url.pathname.match(/^\/api\/books\/[^/]+\/file$/) !== null,
+    handler: new CacheFirst({
+      cacheName: 'offline-books',
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 50,
+          maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
+        }),
+      ],
+    }),
+  },
   ...defaultCache,
 ];
 
