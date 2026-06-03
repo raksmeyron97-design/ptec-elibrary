@@ -38,15 +38,9 @@ export default function UploadForm() {
 
   // Dynamic departments
   const [deptList, setDeptList] = useState<string[]>(defaultDepartments);
-  const [showNewDept, setShowNewDept] = useState(false);
-  const [newDeptName, setNewDeptName] = useState("");
-  const newDeptInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic categories
   const [catList, setCatList] = useState<string[]>([]);
-  const [showNewCat, setShowNewCat] = useState(false);
-  const [newCatName, setNewCatName] = useState("");
-  const newCatInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch departments (from books.department) & categories on mount
   useEffect(() => {
@@ -66,14 +60,6 @@ export default function UploadForm() {
     })();
   }, []);
 
-  // Focus new-dept / new-cat input when shown
-  useEffect(() => {
-    if (showNewDept) newDeptInputRef.current?.focus();
-  }, [showNewDept]);
-  useEffect(() => {
-    if (showNewCat) newCatInputRef.current?.focus();
-  }, [showNewCat]);
-
   function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
@@ -82,58 +68,6 @@ export default function UploadForm() {
     } else {
       setCoverPreview(null);
     }
-  }
-
-  async function handleAddDepartment() {
-    const name = newDeptName.trim();
-    if (!name) return;
-    // Case-insensitive duplicate check
-    if (deptList.some((d) => d.toLowerCase() === name.toLowerCase())) {
-      setShowNewDept(false);
-      setNewDeptName("");
-      return;
-    }
-    try {
-      // Use server action (bypasses RLS)
-      const result = await addDepartment(name);
-      if (result && result.error) {
-        throw new Error(result.error);
-      }
-      if (result && result.name && !deptList.includes(result.name)) {
-        setDeptList((prev) => [...prev, result.name as string].sort());
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add department");
-      return;
-    }
-    setNewDeptName("");
-    setShowNewDept(false);
-  }
-
-  async function handleAddCategory() {
-    const name = newCatName.trim();
-    if (!name) return;
-    // Case-insensitive duplicate check
-    if (catList.some((c) => c.toLowerCase() === name.toLowerCase())) {
-      setShowNewCat(false);
-      setNewCatName("");
-      return;
-    }
-    try {
-      // Use server action (bypasses RLS)
-      const result = await addCategory(name);
-      if (result && result.error) {
-        throw new Error(result.error);
-      }
-      if (result && result.name && !catList.includes(result.name)) {
-        setCatList((prev) => [...prev, result.name as string].sort());
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add category");
-      return;
-    }
-    setNewCatName("");
-    setShowNewCat(false);
   }
 
   const busy = phase !== "idle";
@@ -365,15 +299,6 @@ export default function UploadForm() {
           <span className="block text-sm font-semibold text-text-body">
             Category <span className="text-red-500">*</span>
           </span>
-          {!showNewCat && (
-            <button
-              type="button"
-              onClick={() => setShowNewCat(true)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition"
-            >
-              <span className="text-base leading-none">+</span> Add new category
-            </button>
-          )}
         </div>
         <SearchableSelect
           name="category"
@@ -381,33 +306,6 @@ export default function UploadForm() {
           options={catList}
           disabled={busy}
         />
-        {showNewCat && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              ref={newCatInputRef}
-              type="text"
-              value={newCatName}
-              onChange={(e) => setNewCatName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
-              placeholder="New category name"
-              className="h-9 flex-1 rounded-lg border border-divider px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
-            />
-            <button
-              type="button"
-              onClick={handleAddCategory}
-              className="h-9 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowNewCat(false); setNewCatName(""); }}
-              className="h-9 rounded-lg border border-divider px-3 text-xs font-semibold text-text-muted transition hover:bg-paper"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Language */}
@@ -434,15 +332,6 @@ export default function UploadForm() {
           <span className="block text-sm font-semibold text-text-body">
             Department <span className="text-red-500">*</span>
           </span>
-          {!showNewDept && (
-            <button
-              type="button"
-              onClick={() => setShowNewDept(true)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition"
-            >
-              <span className="text-base leading-none">+</span> Add new department
-            </button>
-          )}
         </div>
         <SearchableSelect
           name="department"
@@ -450,33 +339,6 @@ export default function UploadForm() {
           options={deptList}
           disabled={busy}
         />
-        {showNewDept && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              ref={newDeptInputRef}
-              type="text"
-              value={newDeptName}
-              onChange={(e) => setNewDeptName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddDepartment(); } }}
-              placeholder="New department name"
-              className="h-9 flex-1 rounded-lg border border-divider px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
-            />
-            <button
-              type="button"
-              onClick={handleAddDepartment}
-              className="h-9 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowNewDept(false); setNewDeptName(""); }}
-              className="h-9 rounded-lg border border-divider px-3 text-xs font-semibold text-text-muted transition hover:bg-paper"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Year */}
@@ -509,11 +371,10 @@ export default function UploadForm() {
       {/* Summary */}
       <label className="md:col-span-2">
         <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Summary <span className="text-red-500">*</span>
+          Summary
         </span>
         <textarea
           name="summary"
-          required
           rows={4}
           disabled={busy}
           placeholder="Short description for readers..."

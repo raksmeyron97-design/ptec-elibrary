@@ -43,8 +43,9 @@
   },
   "nav": {
     "home": "Home",
-    "eResources": "E-Resources",
-    "booksInLibrary": "Books In Library",
+    "eResources": "e-Resources",
+    "eBooks": "e-Books",
+    "booksInLibrary": "Books in Library",
     "posts": "Posts",
     "about": "About",
     "contact": "Contact",
@@ -58,7 +59,9 @@
     "logout": "Sign out",
     "myDashboard": "My Dashboard",
     "savedBooks": "Saved Books",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "researchReports": "Research Reports",
+    "summaryIndex": "Summary Index"
   },
   "home": {
     "tagline": "Phnom Penh Teacher Education College",
@@ -68,7 +71,7 @@
     "statResources": "Resources",
     "statViews": "Views",
     "statDownloads": "Downloads",
-    "statEducators": "Educators",
+    "statEducators": "Users",
     "featuredCollections": "Featured Collections",
     "allDepartments": "All departments →",
     "ctaHeading": "Ready to explore the catalogue?",
@@ -224,7 +227,7 @@
     "statResources": "Resources",
     "statViews": "Views",
     "statDownloads": "Downloads",
-    "statEducators": "Educators",
+    "statEducators": "Users",
     "copyright": "© {year} Phnom Penh Teacher Education College",
     "loginTitle": "Welcome back",
     "loginSubtitle": "Sign in to access the PTEC digital library.",
@@ -279,5 +282,12 @@
     "updatePassword": "Update password",
     "updating": "Updating...",
     "passwordUpdated": "Password updated successfully. Redirecting to login..."
+  },
+  "researchSummary": {
+    "title": "Research Reports Summary Index",
+    "description": "Complete index of all student research reports, categorized by academic year and cohort.",
+    "emptyState": "No research reports available yet.",
+    "groupHeader": "12+4 Student Teachers Research Report - Cohort {cohort} ({year})",
+    "byAuthor": "By: {authors}"
   }
 }

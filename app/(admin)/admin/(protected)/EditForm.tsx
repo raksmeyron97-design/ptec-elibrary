@@ -117,11 +117,10 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
       {/* Summary */}
       <label className="md:col-span-2">
         <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Summary <span className="text-red-500">*</span>
+          Summary
         </span>
         <textarea
           name="summary"
-          required
           rows={4}
           defaultValue={initial.summary}
           disabled={saving}

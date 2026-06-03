@@ -12,10 +12,13 @@ import {
   LogOut,
   ExternalLink,
   Menu,
-  X
+  X,
+  GraduationCap
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import ManageCategoriesModal from "./ManageCategoriesModal";
+import ManageDepartmentsModal from "./ManageDepartmentsModal";
 
 const navLinks = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -23,6 +26,7 @@ const navLinks = [
   { name: "Manage Books", href: "/admin/manage", icon: BookOpen },
   { name: "Catalog", href: "/admin/catalogs", icon: Library },
   { name: "Posts", href: "/admin/posts", icon: FileText },
+  { name: "Research Reports", href: "/admin/research-reports", icon: GraduationCap },
   { name: "Users", href: "/admin/users", icon: Users },
 ];
 
@@ -116,9 +120,11 @@ export default function AdminSidebar({
         <div className="flex items-center gap-2">
           <span className="font-bold">Library Admin</span>
         </div>
-        <button onClick={() => setIsOpen(!isOpen)} className="p-2">
-          {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsOpen(!isOpen)} className="p-2">
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Mobile Overlay */}
@@ -141,10 +147,14 @@ export default function AdminSidebar({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-0 pt-16 lg:pt-0">
         {/* Topbar Desktop Breadcrumb / Title Area */}
-        <div className="hidden lg:flex h-16 bg-bg-surface border-b border-divider items-center px-8 shrink-0">
+        <div className="hidden lg:flex h-16 bg-bg-surface border-b border-divider items-center justify-between px-8 shrink-0">
           <h1 className="text-xl font-semibold capitalize">
             {pathname === "/admin" ? "Dashboard" : pathname.split("/").pop()}
           </h1>
+          <div className="flex items-center gap-4">
+            <ManageCategoriesModal />
+            <ManageDepartmentsModal />
+          </div>
         </div>
 
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto">

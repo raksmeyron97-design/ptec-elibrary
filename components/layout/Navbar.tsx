@@ -66,6 +66,22 @@ const AboutIcon = () => (
   </svg>
 );
 
+const ResearchIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+  </svg>
+);
+
+const ExternalLinkIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 // Removed config arrays to place them inside the component
@@ -75,10 +91,20 @@ export default async function Navbar() {
 
   const navLinks = [
     { label: t('home'),            href: "/home",     icon: <HomeIcon /> },
-    { label: t('eResources'),     href: "/books",    icon: <EResourcesIcon /> },
-    { label: t('booksInLibrary'),href: "/catalogs", icon: <BooksIcon /> },
-    { label: t('posts'),           href: "/posts", icon: <PostsIcon /> },
+    { label: t('booksInLibrary'),  href: "/catalogs", icon: <BooksIcon /> },
+    { label: t('posts'),           href: "/posts",    icon: <PostsIcon /> },
   ];
+
+  const eResourcesDropdown = {
+    label: t('eResources'),
+    href: "/books",
+    icon: <EResourcesIcon />,
+    subLinks: [
+      { label: t('eBooks'), href: "/books", icon: <EResourcesIcon /> },
+      { label: t('researchReports'), href: "/research", icon: <ResearchIcon /> },
+      { label: "SVA Library", href: "https://svacamelib.org/", icon: <ExternalLinkIcon />, target: "_blank" }
+    ]
+  };
 
   const aboutDropdown = {
     label: t('about'),
@@ -96,8 +122,10 @@ export default async function Navbar() {
 
   const mobileNavLinks = [
     { label: t('home'),            href: "/home" },
-    { label: t('eResources'),     href: "/books" },
-    { label: t('booksInLibrary'),href: "/catalogs" },
+    { label: t('eResources'),      href: "/books" },
+    { label: t('researchReports'), href: "/research" },
+    { label: "SVA Library",        href: "https://svacamelib.org/" },
+    { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },
     { label: t('about'),           href: "/about" },
     { label: t('contact'),         href: "/contact" },
@@ -195,7 +223,7 @@ export default async function Navbar() {
 
               {/* Desktop nav links */}
               <div className="hidden lg:flex items-center gap-4 xl:gap-7 h-full pt-1">
-                {navLinks.map((link) => (
+                {navLinks.map((link, idx) => (
                   <NavLinkActive
                     key={link.href}
                     href={link.href}
@@ -203,6 +231,14 @@ export default async function Navbar() {
                     icon={link.icon}
                   />
                 ))}
+
+                {/* e-Resources dropdown */}
+                <NavDropdown
+                  label={eResourcesDropdown.label}
+                  href={eResourcesDropdown.href}
+                  icon={eResourcesDropdown.icon}
+                  subLinks={eResourcesDropdown.subLinks}
+                />
 
                 {/* About dropdown */}
                 <NavDropdown

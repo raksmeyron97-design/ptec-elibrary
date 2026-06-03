@@ -75,7 +75,7 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
   const department = requiredText(formData, "department");
   const category   = requiredText(formData, "category");
   const language   = requiredText(formData, "language");
-  const summary    = requiredText(formData, "summary");
+  const summary    = formData.get("summary")?.toString().trim() || "";
   const fileUrl    = requiredText(formData, "fileUrl");
 
   const isbn       = formData.get("isbn")?.toString().trim() || null;
@@ -281,7 +281,7 @@ export async function updateBook(bookId: string, formData: FormData) {
   const department = requiredText(formData, "department");
   const category   = requiredText(formData, "category");
   const language   = requiredText(formData, "language");
-  const summary    = requiredText(formData, "summary");
+  const summary    = formData.get("summary")?.toString().trim() || "";
 
   const isbn  = formData.get("isbn")?.toString().trim() || null;
   const year  = Number(formData.get("year"))  || new Date().getFullYear();
@@ -496,4 +496,101 @@ export async function addDepartment(name: string): Promise<{ id?: string; name?:
   await logAdminAction(user.id, "addDepartment", "departments", newDept.id, { name: newDept.name });
 
   return newDept;
+}
+
+// ── Taxonomy Management (Update & Delete) ──────────────────────────
+
+export async function updateCategory(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return { error: "Forbidden" };
+
+  const trimmed = newName.trim();
+  if (!trimmed) return { error: "Category name is required" };
+
+  // Check for duplicates
+  const { data: existing } = await supabase.from("categories").select("id").eq("name", trimmed).neq("id", id).maybeSingle();
+  if (existing) return { error: "A category with this name already exists" };
+
+  const { error } = await supabase.from("categories").update({ name: trimmed, slug: slugify(trimmed) }).eq("id", id);
+  if (error) return { error: `Failed to update category: ${error.message}` };
+
+  await logAdminAction(user.id, "updateCategory", "categories", id, { newName: trimmed });
+  revalidatePath("/admin");
+  return { success: true };
+}
+
+export async function deleteCategory(id: string): Promise<{ success?: boolean; error?: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return { error: "Forbidden" };
+
+  // Check if any book is using this category
+  const { count, error: countErr } = await supabase.from("books").select("id", { count: "exact", head: true }).eq("category_id", id);
+  if (countErr) return { error: countErr.message };
+  if (count && count > 0) return { error: `Cannot delete this category because it is used by ${count} book(s).` };
+
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) return { error: `Failed to delete category: ${error.message}` };
+
+  await logAdminAction(user.id, "deleteCategory", "categories", id);
+  revalidatePath("/admin");
+  return { success: true };
+}
+
+export async function updateDepartment(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return { error: "Forbidden" };
+
+  const trimmed = newName.trim();
+  if (!trimmed) return { error: "Department name is required" };
+
+  // Check for duplicates
+  const { data: existing } = await supabase.from("departments").select("id").eq("name", trimmed).neq("id", id).maybeSingle();
+  if (existing) return { error: "A department with this name already exists" };
+
+  const { error } = await supabase.from("departments").update({ name: trimmed, slug: slugify(trimmed) }).eq("id", id);
+  if (error) return { error: `Failed to update department: ${error.message}` };
+
+  // Also update text column in books for backward compatibility
+  await supabase.from("books").update({ department: trimmed }).eq("department_id", id);
+
+  await logAdminAction(user.id, "updateDepartment", "departments", id, { newName: trimmed });
+  revalidatePath("/admin");
+  return { success: true };
+}
+
+export async function deleteDepartment(id: string): Promise<{ success?: boolean; error?: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const supabase = createServiceClient();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return { error: "Forbidden" };
+
+  // Check if any book is using this department
+  const { count, error: countErr } = await supabase.from("books").select("id", { count: "exact", head: true }).eq("department_id", id);
+  if (countErr) return { error: countErr.message };
+  if (count && count > 0) return { error: `Cannot delete this department because it is used by ${count} book(s).` };
+
+  const { error } = await supabase.from("departments").delete().eq("id", id);
+  if (error) return { error: `Failed to delete department: ${error.message}` };
+
+  await logAdminAction(user.id, "deleteDepartment", "departments", id);
+  revalidatePath("/admin");
+  return { success: true };
 }

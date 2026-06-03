@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Icon from "@/components/ui/core/Icon";
 import { createServiceClient } from "@/lib/supabase/server";
-import UploadForm from "../UploadForm";
+import UploadPageClient from "./UploadPageClient";
 
 export default async function AdminUploadPage() {
   const supabase = createServiceClient();
@@ -15,8 +15,8 @@ export default async function AdminUploadPage() {
   return (
     <div className="mx-auto max-w-[1100px] space-y-8">
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
-        {/* ── Upload Form (client component, direct-to-Supabase) ── */}
-        <UploadForm />
+        {/* ── Client Component with Tab Switcher ── */}
+        <UploadPageClient />
 
         {/* ── Sidebar: Recent uploads ── */}
         <div className="h-fit rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

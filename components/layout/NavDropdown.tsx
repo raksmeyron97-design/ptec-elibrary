@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type SubLink = { label: string; href: string };
+type SubLink = { label: string; href: string; icon?: React.ReactNode; target?: string };
 
 type NavDropdownProps = {
   label: string;
@@ -81,13 +81,16 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
               <Link
                 key={sub.href}
                 href={sub.href}
-                className={`flex items-center justify-between px-4 py-2.5 text-[14px] font-medium transition-colors ${
+                target={sub.target}
+                rel={sub.target === "_blank" ? "noopener noreferrer" : undefined}
+                className={`flex items-center gap-3 px-4 py-2.5 text-[14px] font-medium transition-colors ${
                   subActive
                     ? "text-brand bg-brand/5"
                     : "text-text-body hover:bg-paper hover:text-brand"
                 }`}
               >
-                {sub.label}
+                {sub.icon && <span className="text-[16px] text-text-muted">{sub.icon}</span>}
+                <span className="flex-1">{sub.label}</span>
                 {subActive && (
                   <span className="h-1.5 w-1.5 rounded-full bg-brand" />
                 )}
