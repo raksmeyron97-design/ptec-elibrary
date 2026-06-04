@@ -67,13 +67,7 @@
   "home": {
     "tagline": "Phnom Penh Teacher Education College",
     "headline": "The Digital Library for the Next Generation of Teachers",
-<<<<<<< HEAD
-    "description": "Research, textbooks, and teaching resources curated by Phnom Penh Teacher Education College — open and free for every educator and student.",
-=======
-    "headlineKm": "បណ្ណាល័យឌីជីថល សម្រាប់គ្រូជំនាន់ថ្មី",
-    "headlineEn": "The Digital Library for the Next Generation of Teachers",
     "description": "Textbooks, research papers, and teaching resources — carefully curated, open and free for every student and educator.",
->>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
     "browse": "Browse",
     "statResources": "Resources",
     "statViews": "Views",
@@ -97,7 +91,6 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "daysAgo": "{days}d ago",
-<<<<<<< HEAD
     "weeksAgo": "{weeks}w ago",
     "ctaBody": "Hundreds of educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
     "ctaBrowse": "Browse all resources →",
@@ -105,9 +98,6 @@
     "searchPlaceholder": "Search title, author, ISBN, or topic",
     "searchButton": "Search",
     "trending": "TRENDING"
-=======
-    "weeksAgo": "{weeks}w ago"
->>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
   },
   "books": {
     "noResults": "No resources found",
