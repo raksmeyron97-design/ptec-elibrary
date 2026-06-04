@@ -227,9 +227,9 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         <BookQuickNav hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId} hasReviews={!!book.dbId} />
         
         <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
-          <Link href="/" className="hover:text-brand transition-colors">Home</Link>
+          <Link href="/" className="hover:text-brand transition-colors">{t("home")}</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
-          <Link href="/books" className="hover:text-brand transition-colors">Books</Link>
+          <Link href="/books" className="hover:text-brand transition-colors">{t("books")}</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <Link href={`/books?dept=${encodeURIComponent(book.department)}`} className="whitespace-nowrap hover:text-brand transition-colors">
             {book.department}
@@ -240,7 +240,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           </span>
         </nav>
 
-        {/* ── PDF reader (shown first) ── */}
         {book.fromSupabase && book.pdfUrl && book.dbId && (
           <div id="reader" className="mb-8 scroll-mt-24">
             <PDFViewer
@@ -252,6 +251,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
               watermark="Phnom Penh Teacher Education college"
               allowDownload={true}
+              isLoggedIn={!!user}
             />
           </div>
         )}
@@ -287,18 +287,18 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <DownloadCount count={downloadCount} />
             </div>
 
-            <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading">
+            <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading break-words">
               {book.title}
             </h1>
-            <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">by {book.author}</p>
+            <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">{t("byAuthor", { author: book.author })}</p>
             <div className="mt-3 sm:mt-4">
               <RatingStars rating={book.rating} />
             </div>
 
             {resuming && (
-              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5">
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5 min-w-0">
                 <div className="min-w-0 flex-1 w-full">
-                  <p className="text-[13px] sm:text-[13.5px] font-bold text-brand">
+                  <p className="text-[13px] sm:text-[13.5px] font-bold text-brand truncate max-w-full">
                     {t("continueReading")} — {savedProgress!.progressPct}% {t("complete")}
                   </p>
                   <p className="mt-0.5 text-[11px] sm:text-[12px] text-brand/70 font-medium">
@@ -341,7 +341,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[13px] bg-paper border border-divider px-3 py-2.5 sm:px-4 sm:py-3.5 min-w-0">
                   <dt className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
-                  <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
+                  <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-all min-w-0">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -369,6 +369,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   coverUrl={book.coverUrl || null}
                   coverColor={book.cover}
                   pdfUrl={fileSrc as string}
+                  isLoggedIn={!!user}
                 />
               )}
               {book.dbId && (
@@ -430,7 +431,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                       className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
                     >
                       <Icon name="account" className="text-base" />
-                      Sign in to review
+                      {t("signInToReview")}
                     </Link>
                   </div>
                 )}

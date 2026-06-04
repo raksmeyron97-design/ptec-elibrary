@@ -1,5 +1,5 @@
-// components/ui/LatestPosts.tsx
 import Link from "next/link";
+import Image from "next/image";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { useTranslations } from 'next-intl';
 
@@ -106,8 +106,7 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
       <span aria-hidden className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
       <div className="relative aspect-[16/10] w-full overflow-hidden">
         {post.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.coverUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
         ) : (
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-8`}>
             <span className="line-clamp-3 text-center font-khmer-serif text-2xl font-bold leading-snug text-white/90">{post.title}</span>
@@ -154,8 +153,7 @@ function ListCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }
       {/* Thumbnail */}
       <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg sm:h-24 sm:w-24">
         {post.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.coverUrl} alt={post.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-2`}>
             <span className="line-clamp-3 text-center font-khmer-serif text-[10px] font-bold leading-tight text-white/90">{post.title}</span>

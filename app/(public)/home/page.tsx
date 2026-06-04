@@ -9,6 +9,10 @@ import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { Button } from "@/components/ui/core/Button";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { getTranslations, getLocale } from 'next-intl/server';
+<<<<<<< HEAD
+=======
+import Image from "next/image";
+>>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";
@@ -94,6 +98,12 @@ function formatStat(n: number): string {
 export default async function HomePage() {
   const t = await getTranslations('home');
   const locale = await getLocale();
+<<<<<<< HEAD
+=======
+  const latinEyebrow = locale === 'en' ? 'uppercase tracking-[0.22em]' : 'tracking-normal';
+  const latinLabel   = locale === 'en' ? 'uppercase tracking-[0.18em]' : 'tracking-normal';
+  const latinCaption = locale === 'en' ? 'uppercase tracking-[0.12em]' : 'tracking-normal';
+>>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
   const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
     getStats(),
     getTrendingBooks(),
@@ -124,12 +134,13 @@ export default async function HomePage() {
       <section className="relative isolate overflow-hidden text-white">
         {/* 1. Background image (PTEC library) */}
         <div className="absolute inset-0 -z-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/ptec-library.jpg"
             alt=""
             aria-hidden="true"
-            className="h-full w-full object-cover object-center"
+            fill
+            priority
+            className="object-cover object-center"
           />
         </div>
 
@@ -154,15 +165,23 @@ export default async function HomePage() {
 
             {/* Left — min-w-0 prevents mobile horizontal overflow */}
             <div className="min-w-0 w-full max-w-2xl">
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400 drop-shadow-md">
+              <span className={`text-[11px] font-bold text-gold-400 drop-shadow-md ${latinEyebrow}`}>
                 {t('tagline')}
               </span>
+<<<<<<< HEAD
               <h1
                 className={`mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold text-white drop-shadow-lg ${
                   locale === 'km' ? 'leading-[1.4] tracking-normal' : 'leading-[1.1] tracking-tight'
                 }`}
               >
                 {t('headline')}
+=======
+              <h1 className="mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold leading-[1.35] tracking-normal text-white drop-shadow-lg">
+                {t('headlineKm')}
+                <span className="mt-2 block font-serif text-[clamp(18px,3vw,32px)] font-semibold leading-[1.25] tracking-tight text-blue-100/90">
+                  {t('headlineEn')}
+                </span>
+>>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
               </h1>
               <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
                 {t('description')}
@@ -179,7 +198,7 @@ export default async function HomePage() {
               {/* Browse dept links */}
               {deptPills.length > 0 && (
                 <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-x-3 sm:gap-x-5 gap-y-2">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">{t('browse')}</span>
+                  <span className={`text-[11px] font-bold text-blue-300 ${latinLabel}`}>{t('browse')}</span>
                   {deptPills.slice(0, 5).map((dept) => (
                     <Link
                       key={dept}
@@ -199,7 +218,7 @@ export default async function HomePage() {
                     <div className="font-khmer-serif text-lg sm:text-2xl font-bold leading-none text-white drop-shadow-md">
                       {s.value}<span className="text-gold-400">+</span>
                     </div>
-                    <div className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-300">{s.label}</div>
+                    <div className={`mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-semibold text-blue-300 ${latinCaption}`}>{s.label}</div>
                   </div>
                 ))}
               </div>

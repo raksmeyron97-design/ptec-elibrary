@@ -12,10 +12,11 @@ type Props = {
   coverUrl: string | null;
   coverColor: string | undefined;
   pdfUrl: string;
+  isLoggedIn: boolean;
 };
 
 export default function OfflineSaveButton({
-  bookId, bookSlug, title, author, coverUrl, coverColor, pdfUrl
+  bookId, bookSlug, title, author, coverUrl, coverColor, pdfUrl, isLoggedIn
 }: Props) {
   const [status, setStatus] = useState<"idle" | "downloading" | "saved">("idle");
   const [isSupported, setIsSupported] = useState(false);
@@ -32,6 +33,11 @@ export default function OfflineSaveButton({
   if (!isSupported) return null;
 
   const handleToggle = async () => {
+    if (!isLoggedIn) {
+      window.location.href = `/auth/login?callbackUrl=/books/${bookSlug}`;
+      return;
+    }
+
     if (status === "saved") {
       if (confirm("Remove this book from offline storage?")) {
         removeOfflineBookMeta(bookId);

@@ -12,9 +12,9 @@ export async function GET(
 
   // Verify auth directly in route handler (per Vercel recommendation)
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (download && !user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -26,6 +26,7 @@ export async function GET(
       book_files ( file_url, format )
     `)
     .eq("id", id)
+    .eq("is_published", true)
     .single();
 
   if (error || !book) {
