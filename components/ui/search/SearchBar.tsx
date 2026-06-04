@@ -9,6 +9,8 @@ import { readRecent } from "@/components/ui/home/SearchSuggestions";
 
 type SearchBarProps = {
   compact?: boolean;
+  placeholder?: string;
+  buttonLabel?: string;
 };
 
 const TYPE_ICON: Record<Suggestion["type"], IconName> = {
@@ -37,7 +39,7 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
 
 const DEFAULT_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
 
-export default function SearchBar({ compact = false }: SearchBarProps) {
+export default function SearchBar({ compact = false, placeholder = "Search title, author, ISBN, or topic", buttonLabel = "Search" }: SearchBarProps) {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
 
@@ -157,7 +159,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
               [&::-webkit-search-results-button]:hidden
               [&::-webkit-search-results-decoration]:hidden
             "
-            placeholder="Search title, author, ISBN, or topic"
+            placeholder={placeholder}
             type="text"
             inputMode="search"
             enterKeyHint="search"
@@ -214,7 +216,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
                 active:scale-95
                 sm:hidden
               "
-              aria-label="Search"
+              aria-label={buttonLabel}
             >
               <Icon name="search" className="text-[18px]" />
             </button>
@@ -237,7 +239,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
           "
         >
           <Icon name="search" className="text-[18px]" />
-          Search
+          {buttonLabel}
         </button>
       </form>
 

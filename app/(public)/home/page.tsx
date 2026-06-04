@@ -8,7 +8,7 @@ import SearchBar from "@/components/ui/search/SearchBar";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { Button } from "@/components/ui/core/Button";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";
@@ -93,6 +93,7 @@ function formatStat(n: number): string {
 // ── Page ────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
   const t = await getTranslations('home');
+  const locale = await getLocale();
   const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
     getStats(),
     getTrendingBooks(),
@@ -156,7 +157,11 @@ export default async function HomePage() {
               <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400 drop-shadow-md">
                 {t('tagline')}
               </span>
-              <h1 className="mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold leading-[1.1] tracking-tight text-white drop-shadow-lg">
+              <h1
+                className={`mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold text-white drop-shadow-lg ${
+                  locale === 'km' ? 'leading-[1.4] tracking-normal' : 'leading-[1.1] tracking-tight'
+                }`}
+              >
                 {t('headline')}
               </h1>
               <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
@@ -166,7 +171,7 @@ export default async function HomePage() {
               {/* Search + #4 suggestion chips */}
               <div className="mt-5 sm:mt-8 max-w-xl relative z-10">
                 <Suspense fallback={<div className="h-12 rounded-xl bg-bg-surface/10 animate-pulse" />}>
-                  <SearchBar />
+                  <SearchBar placeholder={t('searchPlaceholder')} buttonLabel={t('searchButton')} />
                 </Suspense>
                 <SearchSuggestions trending={trendingTerms} />
               </div>

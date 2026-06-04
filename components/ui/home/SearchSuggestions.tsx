@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations, useLocale } from "next-intl";
 
 export const RECENT_KEY = "ptec.recentSearches";
 const MAX_RECENT = 5;
@@ -24,6 +25,8 @@ export function readRecent(): string[] {
 
 export default function SearchSuggestions({ trending = [] }: Props) {
   const router = useRouter();
+  const t = useTranslations('home');
+  const locale = useLocale();
   const [recent, setRecent] = useState<string[]>([]);
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function SearchSuggestions({ trending = [] }: Props) {
 
       {trending.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-gold-400">Trending</span>
+          <span className={`text-[11px] font-bold text-gold-400 ${locale === 'en' ? 'uppercase tracking-[0.16em]' : 'tracking-normal'}`}>{t('trending')}</span>
           {trending.map((term) => (
             <button
               key={`t-${term}`}
