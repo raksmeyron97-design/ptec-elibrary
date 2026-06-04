@@ -8,7 +8,7 @@ import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import Pagination from "@/components/ui/core/Pagination";
 import { getTranslations } from 'next-intl/server';
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 type SearchParams = {
   q?:           string;

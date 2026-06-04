@@ -39,7 +39,8 @@
     "prev": "Previous page",
     "next": "Next page",
     "goToPage": "Go to page",
-    "hint": "← → turn page · +/− zoom · F fullscreen · / search"
+    "hint": "← → turn page · +/− zoom · F fullscreen · / search",
+    "signInToSync": "Sign in to sync your progress"
   },
   "nav": {
     "home": "Home",
@@ -65,16 +66,21 @@
   },
   "home": {
     "tagline": "Phnom Penh Teacher Education College",
-    "headline": "The Digital Teaching Library",
-    "description": "Research, textbooks, and teaching resources curated by Phnom Penh Teacher Education College — open and free for every educator and student.",
+    "headline": "The Digital Library for the Next Generation of Teachers",
+    "headlineKm": "បណ្ណាល័យឌីជីថល សម្រាប់គ្រូជំនាន់ថ្មី",
+    "headlineEn": "The Digital Library for the Next Generation of Teachers",
+    "description": "Textbooks, research papers, and teaching resources — carefully curated, open and free for every student and educator.",
     "browse": "Browse",
     "statResources": "Resources",
     "statViews": "Views",
     "statDownloads": "Downloads",
-    "statEducators": "Users",
+    "statEducators": "Members",
     "featuredCollections": "Featured Collections",
-    "allDepartments": "All departments →",
-    "ctaHeading": "Ready to explore the catalogue?",
+    "allDepartments": "All departments",
+    "ctaHeading": "Begin Your Learning Journey Today",
+    "ctaBody": "A rich collection of educational resources awaits you — free, and accessible anytime, anywhere.",
+    "ctaBrowse": "Browse Books",
+    "ctaPhysical": "Library Catalog",
     "heroTitle": "Expand your knowledge with PTEC",
     "heroSubtitle": "Access thousands of books, research papers, and educational resources.",
     "fromTheLibrary": "From the Library",
@@ -87,10 +93,7 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "daysAgo": "{days}d ago",
-    "weeksAgo": "{weeks}w ago",
-    "ctaBody": "Hundreds of educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
-    "ctaBrowse": "Browse all resources →",
-    "ctaPhysical": "Physical Library"
+    "weeksAgo": "{weeks}w ago"
   },
   "books": {
     "noResults": "No resources found",
@@ -135,7 +138,11 @@
     "readerReviews": "Reader Reviews",
     "average": "average",
     "leaveAReview": "Leave a review",
-    "signInToReview": "Sign in to rate this resource and share your experience with other readers."
+    "signInToReview": "Sign in to rate this resource and share your experience with other readers.",
+    "signInToReviewButton": "Sign in to review",
+    "home": "Home",
+    "books": "Books",
+    "byAuthor": "by {author}"
   },
   "physical": {
     "available": "Available",

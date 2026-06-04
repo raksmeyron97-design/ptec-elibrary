@@ -37,30 +37,45 @@ interface BookJob {
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
 
 function parseCsv(text: string): CsvRow[] {
-  const lines = text.trim().split(/\r?\n/);
+  // Handle Windows (\r\n), Unix (\n), and old Mac (\r) line endings
+  const lines = text.trim().split(/\r\n|\n|\r/);
   if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row");
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
+  const headerLine = lines[0].replace(/^\uFEFF/, '');
+  
+  // Detect delimiter
+  let delimiter = ",";
+  if (headerLine.includes("\t")) delimiter = "\t";
+  else if (headerLine.includes(";")) delimiter = ";";
+
+  const headers = headerLine.split(delimiter).map((h) => 
+    h.trim().replace(/^"|"$/g, '').toLowerCase().replace(/\s+/g, "_")
+  );
   const required = ["title", "author", "category", "department", "language", "pdf_file"];
 
   for (const r of required) {
-    if (!headers.includes(r)) throw new Error(`CSV is missing required column: "${r}"`);
+    if (!headers.includes(r)) {
+      throw new Error(`CSV is missing required column: "${r}". Found: ${headers.join(", ")}`);
+    }
   }
 
   return lines.slice(1).filter((l) => l.trim()).map((line, i) => {
-    // Simple CSV split (handles quoted fields with commas)
     const values: string[] = [];
     let cur = "";
     let inQuote = false;
     for (const ch of line) {
       if (ch === '"') { inQuote = !inQuote; continue; }
-      if (ch === "," && !inQuote) { values.push(cur.trim()); cur = ""; continue; }
+      if (ch === delimiter && !inQuote) { values.push(cur.trim()); cur = ""; continue; }
       cur += ch;
     }
     values.push(cur.trim());
 
     const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = values[idx] ?? ""; });
+    headers.forEach((h, idx) => { 
+      let val = values[idx] ?? "";
+      val = val.replace(/^"|"$/g, '');
+      obj[h] = val; 
+    });
 
     if (!obj.title) throw new Error(`Row ${i + 2}: "title" is empty`);
     if (!obj.pdf_file) throw new Error(`Row ${i + 2}: "pdf_file" is empty`);
@@ -344,7 +359,6 @@ export default function BulkUploadForm() {
               CSV metadata file <span className="text-red-500">*</span>
             </span>
             <div
-              onClick={() => csvInputRef.current?.click()}
               className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
                 csvReady
                   ? "border-emerald-400 bg-emerald-50 text-emerald-700"
@@ -362,6 +376,7 @@ export default function BulkUploadForm() {
               accept=".csv,text/csv"
               className="hidden"
               onChange={handleCsvChange}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
             />
           </label>
 
@@ -371,7 +386,6 @@ export default function BulkUploadForm() {
               PDF folder <span className="text-red-500">*</span>
             </span>
             <div
-              onClick={() => pdfInputRef.current?.click()}
               className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
                 pdfReady
                   ? "border-emerald-400 bg-emerald-50 text-emerald-700"
@@ -392,6 +406,7 @@ export default function BulkUploadForm() {
               webkitdirectory=""
               className="hidden"
               onChange={(e) => handleFolderChange(e, setPdfIndex)}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
             />
           </label>
 
@@ -402,7 +417,6 @@ export default function BulkUploadForm() {
               <span className="font-normal text-text-muted">(optional)</span>
             </span>
             <div
-              onClick={() => coverInputRef.current?.click()}
               className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
                 coverIndex.size > 0
                   ? "border-emerald-400 bg-emerald-50 text-emerald-700"
@@ -423,6 +437,7 @@ export default function BulkUploadForm() {
               webkitdirectory=""
               className="hidden"
               onChange={(e) => handleFolderChange(e, setCoverIndex)}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
             />
           </label>
         </div>
