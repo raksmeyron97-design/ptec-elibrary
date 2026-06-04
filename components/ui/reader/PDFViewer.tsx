@@ -51,6 +51,7 @@ type PDFViewerProps = {
   watermark?: string;
   /** Set false to hide the download button for protected books. Default true. */
   allowDownload?: boolean;
+  isLoggedIn?: boolean;
 };
 
 type FitMode = "width" | "page";
@@ -317,6 +318,7 @@ export default function PDFViewer({
   initialMaxProgressPct = 0,
   watermark,
   allowDownload = true,
+  isLoggedIn = false,
 }: PDFViewerProps) {
   /* ── i18n (strings follow the site locale via next-intl) ──────── */
   const t = useTranslations("reader");
@@ -589,7 +591,7 @@ export default function PDFViewer({
 
   /* ── Auto-save (debounced) + flush when the tab is hidden ───── */
   useEffect(() => {
-    if (!bookId || numPages === 0 || progressPct === lastSavedRef.current) return;
+    if (!isLoggedIn || !bookId || numPages === 0 || progressPct === lastSavedRef.current) return;
     const id = window.setTimeout(() => {
       lastSavedRef.current = progressPct;
       startTransition(() => {
@@ -597,12 +599,13 @@ export default function PDFViewer({
       });
     }, AUTOSAVE_MS);
     return () => window.clearTimeout(id);
-  }, [progressPct, bookId, numPages]);
+  }, [progressPct, bookId, numPages, isLoggedIn]);
 
   useEffect(() => {
     const flush = () => {
       if (
         document.visibilityState === "hidden" &&
+        isLoggedIn &&
         bookId &&
         numPagesRef.current > 0 &&
         progressRef.current !== lastSavedRef.current
@@ -613,10 +616,10 @@ export default function PDFViewer({
     };
     document.addEventListener("visibilitychange", flush);
     return () => document.removeEventListener("visibilitychange", flush);
-  }, [bookId]);
+  }, [bookId, isLoggedIn]);
 
   function saveNow() {
-    if (!bookId || numPages === 0) return;
+    if (!isLoggedIn || !bookId || numPages === 0) return;
     lastSavedRef.current = progressPct;
     startTransition(() => {
       saveReadingProgress(bookId, progressPct);
@@ -907,6 +910,10 @@ export default function PDFViewer({
   /* ── Download ───────────────────────────────────────────────── */
   async function handleDownload() {
     if (downloading || !pdfUrl || !allowDownload) return;
+    if (!isLoggedIn) {
+      window.location.href = `/auth/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+      return;
+    }
     setDownloading(true);
     try {
       startTransition(() => {

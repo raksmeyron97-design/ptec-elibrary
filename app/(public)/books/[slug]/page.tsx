@@ -240,7 +240,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           </span>
         </nav>
 
-        {/* ── PDF reader (shown first) ── */}
         {book.fromSupabase && book.pdfUrl && book.dbId && (
           <div id="reader" className="mb-8 scroll-mt-24">
             <PDFViewer
@@ -252,6 +251,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
               watermark="Phnom Penh Teacher Education college"
               allowDownload={true}
+              isLoggedIn={!!user}
             />
           </div>
         )}
@@ -369,6 +369,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   coverUrl={book.coverUrl || null}
                   coverColor={book.cover}
                   pdfUrl={fileSrc as string}
+                  isLoggedIn={!!user}
                 />
               )}
               {book.dbId && (

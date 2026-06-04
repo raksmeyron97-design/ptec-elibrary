@@ -39,7 +39,8 @@
     "prev": "Previous page",
     "next": "Next page",
     "goToPage": "Go to page",
-    "hint": "← → turn page · +/− zoom · F fullscreen · / search"
+    "hint": "← → turn page · +/− zoom · F fullscreen · / search",
+    "signInToSync": "Sign in to sync your progress"
   },
   "nav": {
     "home": "Home",
