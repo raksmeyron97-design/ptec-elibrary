@@ -262,9 +262,11 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-[15px] font-bold text-text-heading">
-                {user.full_name || "Welcome User"}
+                {user.full_name || user.email}
               </p>
-              <p className="truncate text-xs text-text-muted">{user.email}</p>
+              {user.full_name && (
+                <p className="truncate text-xs text-text-muted">{user.email}</p>
+              )}
               {user.role === "admin" && (
                 <span className="inline-flex items-center mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand/10 text-brand">
                   Admin

@@ -9,7 +9,7 @@ import { getDepartments } from "@/app/actions/departments";
 import { getLanguages, getFormats } from "@/app/actions/filters";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { getTranslations } from 'next-intl/server';
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 type SearchParams = {
   q?: string;
@@ -198,8 +198,8 @@ export default async function BooksPage({
             </div>
 
             {/* Sort & Filters — single row, no divider that breaks on wrap */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2 flex-wrap min-w-0 w-full">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">
                   {t('sortLabel')}
                 </span>

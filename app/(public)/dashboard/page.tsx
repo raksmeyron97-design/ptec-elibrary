@@ -6,6 +6,7 @@ import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
+import Image from "next/image";
 export const dynamic = "force-dynamic";
 
 type Profile = {
@@ -144,9 +145,9 @@ export default async function DashboardPage() {
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
                 {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt={displayName}
-                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover ring-4 ring-white/20" />
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden ring-4 ring-white/20">
+                    <Image src={avatarUrl} alt={displayName} fill className="object-cover" />
+                  </div>
                 ) : (
                   <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-brand ring-4 ring-gold-500/30">
                     <span className="font-khmer-serif text-xl sm:text-2xl font-bold tracking-wide">{initials}</span>
@@ -323,7 +324,10 @@ function EmptySection({
     <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-8 sm:py-12 text-center px-4">
       <Icon name={icon} className="mb-3 text-3xl sm:text-4xl text-text-muted/40" />
       <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
-      <p className="mt-1 max-w-xs text-xs text-text-muted">{description}</p>
+      <p className="mt-1 mb-4 max-w-xs text-xs text-text-muted">{description}</p>
+      <Link href="/books" className="inline-flex h-9 items-center rounded-lg bg-brand px-4 text-xs font-semibold text-brand-contrast transition hover:bg-brand-hover">
+        Browse Catalogue
+      </Link>
     </div>
   );
 }
