@@ -9,10 +9,7 @@ import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { Button } from "@/components/ui/core/Button";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { getTranslations, getLocale } from 'next-intl/server';
-<<<<<<< HEAD
-=======
 import Image from "next/image";
->>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
 
 // ── Feature components (live in components/ui/home/) ────────────────────────
 import ContinueReading from "@/components/ui/home/ContinueReading";
@@ -98,12 +95,9 @@ function formatStat(n: number): string {
 export default async function HomePage() {
   const t = await getTranslations('home');
   const locale = await getLocale();
-<<<<<<< HEAD
-=======
   const latinEyebrow = locale === 'en' ? 'uppercase tracking-[0.22em]' : 'tracking-normal';
   const latinLabel   = locale === 'en' ? 'uppercase tracking-[0.18em]' : 'tracking-normal';
   const latinCaption = locale === 'en' ? 'uppercase tracking-[0.12em]' : 'tracking-normal';
->>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
   const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
     getStats(),
     getTrendingBooks(),
@@ -168,20 +162,12 @@ export default async function HomePage() {
               <span className={`text-[11px] font-bold text-gold-400 drop-shadow-md ${latinEyebrow}`}>
                 {t('tagline')}
               </span>
-<<<<<<< HEAD
               <h1
                 className={`mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold text-white drop-shadow-lg ${
                   locale === 'km' ? 'leading-[1.4] tracking-normal' : 'leading-[1.1] tracking-tight'
                 }`}
               >
                 {t('headline')}
-=======
-              <h1 className="mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold leading-[1.35] tracking-normal text-white drop-shadow-lg">
-                {t('headlineKm')}
-                <span className="mt-2 block font-serif text-[clamp(18px,3vw,32px)] font-semibold leading-[1.25] tracking-tight text-blue-100/90">
-                  {t('headlineEn')}
-                </span>
->>>>>>> 4c3d0999d574f2dc0bde46fb25f02fd8a0abe2f6
               </h1>
               <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
                 {t('description')}
