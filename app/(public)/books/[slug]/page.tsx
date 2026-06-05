@@ -102,7 +102,8 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
       authors ( name, bio ),
       categories ( name ),
       departments ( name ),
-      book_files ( id, format, file_url, file_size_kb )
+      book_files ( id, format, file_url, file_size_kb ),
+      reviews ( rating )
     `)
     .eq("slug", slug)
     .eq("is_published", true)

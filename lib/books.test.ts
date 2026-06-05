@@ -28,7 +28,7 @@ describe('mapRowToBook', () => {
       categories: { name: 'Physics' },
       language: 'English',
       published_at: '2023-01-01',
-      rating: 4.5,
+      avg_rating: 4.5,
       pages: 100,
       description: 'A test book.',
       cover_color: 'bg-red-500',
@@ -61,6 +61,6 @@ describe('mapRowToBook', () => {
     expect(book.department).toBe('General');
     expect(book.year).toBe(new Date().getFullYear());
     expect(book.pdfUrl).toBeNull();
-    expect(book.rating).toBe(5);
+    expect(book.rating).toBe(0);
   });
 });

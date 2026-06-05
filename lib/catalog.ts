@@ -51,15 +51,15 @@ export const AVAILABILITY_LABEL: Record<AvailabilityStatus, string> = {
 };
 
 export const AVAILABILITY_COLOR: Record<AvailabilityStatus, string> = {
-  available:   "text-emerald-600",
-  limited:     "text-amber-500",
-  unavailable: "text-red-500",
+  available:   "text-emerald-600 dark:text-emerald-400",
+  limited:     "text-amber-500 dark:text-amber-400",
+  unavailable: "text-red-500 dark:text-red-400",
 };
 
 export const AVAILABILITY_BG: Record<AvailabilityStatus, string> = {
-  available:   "bg-emerald-50 border-emerald-200",
-  limited:     "bg-amber-50 border-amber-200",
-  unavailable: "bg-red-50 border-red-200",
+  available:   "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800",
+  limited:     "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800",
+  unavailable: "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800",
 };
 
 export const AVAILABILITY_DOT: Record<AvailabilityStatus, string> = {

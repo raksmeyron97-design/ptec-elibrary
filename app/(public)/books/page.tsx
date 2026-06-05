@@ -89,7 +89,7 @@ async function fetchBooks(params: SearchParams) {
        view_count,
        authors(name), categories(name),
        ${dept ? "departments!inner(name)" : "departments(name)"},
-       book_files(format, file_url, file_size_kb)`,
+       book_files(format, file_url, file_size_kb), reviews(rating)`,
       { count: "exact" }
     )
     .eq("is_published", true)

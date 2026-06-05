@@ -27,6 +27,7 @@ export type Book = {
   downloadCount?: number;
   viewCount?: number;
   dbId?: string | null;
+  reviewCount?: number; // real number of reviews (0 = unrated → shows "New")
 };
 
 

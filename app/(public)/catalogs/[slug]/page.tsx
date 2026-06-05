@@ -25,19 +25,27 @@ const COPY_STATUS_LABEL: Record<string, string> = {
 };
 
 const COPY_STATUS_COLOR: Record<string, string> = {
-  available:   "text-emerald-700",
-  checked_out: "text-amber-600",
-  lost:        "text-red-500",
-  damaged:     "text-orange-500",
-  on_order:    "text-info",
+  available:   "text-emerald-700 dark:text-emerald-400",
+  checked_out: "text-amber-600 dark:text-amber-400",
+  lost:        "text-red-500 dark:text-red-400",
+  damaged:     "text-orange-500 dark:text-orange-400",
+  on_order:    "text-info dark:text-info",
 };
 
 const COPY_STATUS_BADGE: Record<string, string> = {
-  available:   "bg-emerald-50 border-emerald-200 text-emerald-700",
-  checked_out: "bg-amber-50 border-amber-200 text-amber-700",
-  lost:        "bg-red-50 border-red-200 text-red-600",
-  damaged:     "bg-orange-50 border-orange-200 text-orange-600",
-  on_order:    "bg-brand/5 border-divider text-brand",
+  available:   "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400",
+  checked_out: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400",
+  lost:        "bg-red-50 border-red-200 text-red-600 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400",
+  damaged:     "bg-orange-50 border-orange-200 text-orange-600 dark:bg-orange-500/10 dark:border-orange-500/20 dark:text-orange-400",
+  on_order:    "bg-brand/5 border-divider text-brand dark:bg-brand/10 dark:text-brand",
+};
+
+const COPY_STATUS_CARD_BG: Record<string, string> = {
+  available:   "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800/50",
+  checked_out: "bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800/50",
+  lost:        "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800/50",
+  damaged:     "bg-orange-50 border-orange-200 dark:bg-orange-900/10 dark:border-orange-800/50",
+  on_order:    "bg-brand/5 border-divider dark:bg-brand/5 dark:border-divider",
 };
 
 const COPY_STATUS_DOT: Record<string, string> = {
@@ -251,7 +259,7 @@ export default async function CatalogBookPage({
                     {sortedCopies.map((copy) => (
                       <div
                         key={copy.id}
-                        className={`relative rounded-xl border p-4 ${COPY_STATUS_BADGE[copy.status]?.split(" ").slice(0, 2).join(" ") ?? "bg-paper border-divider"}`}
+                        className={`relative rounded-xl border p-4 ${COPY_STATUS_CARD_BG[copy.status] ?? "bg-paper border-divider"}`}
                       >
                         {/* Status badge */}
                         <span className={`absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${COPY_STATUS_BADGE[copy.status] ?? "bg-paper border-divider text-text-muted"}`}>

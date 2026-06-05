@@ -8,9 +8,33 @@ import {
 export { departments, coverColors, slugify };
 export type { Book };
 
-export function mapRowToBook(row: any): Book {
+export function mapRowToBook(row: any): Book & { reviewCount: number } {
   const files = Array.isArray(row.book_files) ? row.book_files : [];
   const pdfFile = files.find((f: any) => f.format === "pdf") ?? files[0] ?? null;
+
+  // ── Real review stats ──────────────────────────────────────────────
+  // Supports BOTH data shapes:
+  //  (A) the `books_with_stats` view  → row.review_count / row.avg_rating
+  //  (B) an embedded select            → row.reviews = [{ rating }, ...]
+  // We deliberately IGNORE row.rating (books.rating DEFAULT 5.0) so that
+  // unrated books no longer show a fake 5.0.
+  const embeddedReviews = Array.isArray(row.reviews) ? row.reviews : [];
+
+  const reviewCount =
+    typeof row.review_count === "number"
+      ? row.review_count
+      : embeddedReviews.length;
+
+  const avgFromEmbedded = embeddedReviews.length
+    ? embeddedReviews.reduce(
+        (sum: number, r: any) => sum + Number(r.rating || 0),
+        0,
+      ) / embeddedReviews.length
+    : null;
+
+  const realRating =
+    row.avg_rating != null ? Number(row.avg_rating) : avgFromEmbedded;
+  // ────────────────────────────────────────────────────────────────────
 
   return {
     slug:          row.slug,
@@ -25,7 +49,10 @@ export function mapRowToBook(row: any): Book {
                      : new Date().getFullYear(),
     format:        "PDF",
     availability:  "Digital",
-    rating:        Number(row.rating)    || 5,
+    // Real average (rounded to 1 decimal). Only shown when reviewCount > 0,
+    // so the exact value here is irrelevant for unrated books.
+    rating:        realRating != null ? Math.round(realRating * 10) / 10 : 0,
+    reviewCount,
     pages:         row.pages             ?? 1,
     summary:       row.description       ?? "",
     cover:         row.cover_color       ?? "bg-[#0a1629]",

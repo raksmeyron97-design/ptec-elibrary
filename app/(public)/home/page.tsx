@@ -45,7 +45,7 @@ async function getStats() {
 
 const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
    published_at, department, pages, isbn, rating, download_count, view_count,
-   authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb)`;
+   authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb), reviews(rating)`;
 
 // #2 — Trending = most downloaded
 async function getTrendingBooks() {

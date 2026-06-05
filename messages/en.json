@@ -64,6 +64,11 @@
     "researchReports": "Research Reports",
     "summaryIndex": "Summary Index"
   },
+  "bookCard": {
+    "view": "View",
+    "continue": "Continue",
+    "new": "NEW"
+  },
   "home": {
     "tagline": "Phnom Penh Teacher Education College",
     "headline": "The Digital Library for the Next Generation of Teachers",
@@ -76,9 +81,9 @@
     "featuredCollections": "Featured Collections",
     "allDepartments": "All departments",
     "ctaHeading": "Begin Your Learning Journey Today",
-    "ctaBody": "A rich collection of educational resources awaits you — free, and accessible anytime, anywhere.",
-    "ctaBrowse": "Browse Books",
-    "ctaPhysical": "Library Catalog",
+    "ctaBody": "Hundreds of educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
+    "ctaBrowse": "Browse all resources →",
+    "ctaPhysical": "Physical Library",
     "heroTitle": "Expand your knowledge with PTEC",
     "heroSubtitle": "Access thousands of books, research papers, and educational resources.",
     "fromTheLibrary": "From the Library",
@@ -92,9 +97,6 @@
     "yesterday": "Yesterday",
     "daysAgo": "{days}d ago",
     "weeksAgo": "{weeks}w ago",
-    "ctaBody": "Hundreds of educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
-    "ctaBrowse": "Browse all resources →",
-    "ctaPhysical": "Physical Library",
     "searchPlaceholder": "Search title, author, ISBN, or topic",
     "searchButton": "Search",
     "trending": "TRENDING"
@@ -118,10 +120,6 @@
     "emptyHintEmpty": "The catalogue is empty.",
     "activeFilterLanguage": "Language: {value}",
     "activeFilterFormat": "Format: {value}"
-  },
-  "bookCard": {
-    "view": "View",
-    "continue": "Continue"
   },
   "bookDetail": {
     "read": "Read",
