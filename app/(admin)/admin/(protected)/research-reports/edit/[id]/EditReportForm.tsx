@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPresignedUrl } from "@/app/actions/upload";
-import { createResearchReport } from "@/app/actions/research";
+import { updateResearchReport } from "@/app/actions/research";
 import { UploadCloud, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 
-export default function CreateReportForm() {
+export default function EditReportForm({ report }: { report: any }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,42 +31,43 @@ export default function CreateReportForm() {
     e.preventDefault();
     setError("");
     
-    if (!pdfFile) {
-      setError("Please upload the PDF report.");
-      return;
-    }
-
-    if (!coverFile) {
-      setError("Please upload a cover image.");
-      return;
-    }
-
     setLoading(true);
 
     try {
       const formData = new FormData(e.currentTarget);
       
-      // Upload PDF to R2
-      const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: pdfUrl, publicUrl: finalPdfUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type);
-      if (pdfError || !pdfUrl || !finalPdfUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
-      
-      await fetch(pdfUrl, {
-        method: "PUT",
-        body: pdfFile,
-        headers: { "Content-Type": pdfFile.type },
-      });
+      let finalPdfUrl = report.file_url;
+      let finalCoverUrl = report.cover_url;
+      let fileSizeKb = report.file_size_kb;
 
-      // Upload Cover to R2
-      const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: coverUploadUrl, publicUrl: finalCoverUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type);
-      if (coverError || !coverUploadUrl || !finalCoverUrl) throw new Error(coverError || "Failed to get Cover upload URL");
+      // Upload new PDF to R2 if selected
+      if (pdfFile) {
+        const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const { presignedUrl: pdfUrl, publicUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type);
+        if (pdfError || !pdfUrl || !publicUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
+        
+        await fetch(pdfUrl, {
+          method: "PUT",
+          body: pdfFile,
+          headers: { "Content-Type": pdfFile.type },
+        });
+        finalPdfUrl = publicUrl;
+        fileSizeKb = Math.round(pdfFile.size / 1024);
+      }
 
-      await fetch(coverUploadUrl, {
-        method: "PUT",
-        body: coverFile,
-        headers: { "Content-Type": coverFile.type },
-      });
+      // Upload new Cover to R2 if selected
+      if (coverFile) {
+        const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const { presignedUrl: coverUploadUrl, publicUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type);
+        if (coverError || !coverUploadUrl || !publicUrl) throw new Error(coverError || "Failed to get Cover upload URL");
+
+        await fetch(coverUploadUrl, {
+          method: "PUT",
+          body: coverFile,
+          headers: { "Content-Type": coverFile.type },
+        });
+        finalCoverUrl = publicUrl;
+      }
 
       // Save to DB
       const dbData = {
@@ -78,20 +79,21 @@ export default function CreateReportForm() {
         advisor_name: formData.get("advisor_name") as string,
         cover_url: finalCoverUrl,
         file_url: finalPdfUrl,
-        file_size_kb: Math.round(pdfFile.size / 1024),
-        is_published: false, // Default to draft
+        file_size_kb: fileSizeKb,
+        is_published: formData.get("is_published") === "true",
       };
 
-      const result = await createResearchReport(dbData);
+      const result = await updateResearchReport(report.id, dbData);
       
       if (!result.success) {
         throw new Error(result.error);
       }
 
       router.push("/admin/research-reports");
+      router.refresh();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to upload report. Please try again.");
+      setError(err.message || "Failed to update report. Please try again.");
       setLoading(false);
     }
   };
@@ -110,8 +112,9 @@ export default function CreateReportForm() {
             <label className="block text-sm font-semibold text-text-body mb-1.5">Title</label>
             <input 
               name="title" 
+              defaultValue={report.title}
               required 
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
               placeholder="e.g. The impact of digital learning..."
             />
           </div>
@@ -121,8 +124,9 @@ export default function CreateReportForm() {
               <label className="block text-sm font-semibold text-text-body mb-1.5">Cohort</label>
               <input 
                 name="cohort" 
+                defaultValue={report.cohort}
                 required 
-                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
                 placeholder="e.g. 3"
               />
             </div>
@@ -130,8 +134,9 @@ export default function CreateReportForm() {
               <label className="block text-sm font-semibold text-text-body mb-1.5">Academic Year</label>
               <input 
                 name="academic_year" 
+                defaultValue={report.academic_year}
                 required 
-                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
                 placeholder="e.g. 2023-2024"
               />
             </div>
@@ -141,7 +146,8 @@ export default function CreateReportForm() {
             <label className="block text-sm font-semibold text-text-body mb-1.5">Author Name(s)</label>
             <input 
               name="author_names" 
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+              defaultValue={report.author_names}
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
               placeholder="e.g. Sok San, Chan Dara"
             />
           </div>
@@ -150,9 +156,22 @@ export default function CreateReportForm() {
             <label className="block text-sm font-semibold text-text-body mb-1.5">Advisor Name</label>
             <input 
               name="advisor_name" 
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+              defaultValue={report.advisor_name}
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
               placeholder="e.g. Dr. Chea Vutha"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">Status</label>
+            <select
+              name="is_published"
+              defaultValue={report.is_published ? "true" : "false"}
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-bg-surface"
+            >
+              <option value="true">Published</option>
+              <option value="false">Draft</option>
+            </select>
           </div>
         </div>
 
@@ -161,22 +180,25 @@ export default function CreateReportForm() {
             <label className="block text-sm font-semibold text-text-body mb-1.5">Abstract (សេចក្តីសង្ខេប)</label>
             <textarea 
               name="abstract" 
+              defaultValue={report.abstract}
               required 
               rows={6}
-              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15" 
+              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
               placeholder="Brief summary of the research..."
             />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">PDF Report</label>
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-divider bg-paper rounded-lg cursor-pointer hover:border-brand transition-colors">
+            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-divider bg-paper rounded-lg cursor-pointer hover:border-brand transition-colors relative overflow-hidden">
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <FileText className="w-8 h-8 text-brand mb-2" />
                 <p className="text-sm text-text-muted">
-                  <span className="font-semibold text-brand">Click to upload</span> or drag and drop
+                  <span className="font-semibold text-brand">Click to replace</span> or drag and drop
                 </p>
-                <p className="text-xs text-text-muted/70 mt-1">{pdfFile ? pdfFile.name : "PDF files only"}</p>
+                <p className="text-xs text-text-muted/70 mt-1">
+                  {pdfFile ? pdfFile.name : (report.file_url ? "Current PDF attached" : "PDF files only")}
+                </p>
               </div>
               <input 
                 type="file" 
@@ -188,17 +210,22 @@ export default function CreateReportForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-text-body mb-1.5">Cover Image (Magazine Style)</label>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">Cover Image</label>
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-divider bg-paper rounded-lg cursor-pointer hover:border-brand transition-colors relative overflow-hidden">
+              {!coverPreview && report.cover_url && (
+                <img src={report.cover_url} alt="Cover preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+              )}
               {coverPreview && (
                 <img src={coverPreview} alt="Cover preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
               )}
               <div className="flex flex-col items-center justify-center pt-5 pb-6 relative z-10">
                 <ImageIcon className="w-8 h-8 text-brand mb-2" />
                 <p className="text-sm text-text-muted">
-                  <span className="font-semibold text-brand">Click to upload</span> or drag and drop
+                  <span className="font-semibold text-brand">Click to replace</span> or drag and drop
                 </p>
-                <p className="text-xs text-text-muted/70 mt-1">{coverFile ? coverFile.name : "PNG, JPG, WEBP"}</p>
+                <p className="text-xs text-text-muted/70 mt-1">
+                  {coverFile ? coverFile.name : (report.cover_url ? "Current cover attached" : "PNG, JPG, WEBP")}
+                </p>
               </div>
               <input 
                 type="file" 
@@ -211,16 +238,23 @@ export default function CreateReportForm() {
         </div>
       </div>
 
-      <div className="pt-4 border-t border-divider flex justify-end">
+      <div className="pt-4 border-t border-divider flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={() => router.push("/admin/research-reports")}
+          className="inline-flex items-center gap-2 bg-paper text-text-body border border-divider px-6 py-2.5 rounded-lg font-medium hover:bg-bg-surface transition-colors"
+        >
+          Cancel
+        </button>
         <button
           type="submit"
           disabled={loading}
           className="inline-flex items-center gap-2 bg-brand text-white px-6 py-2.5 rounded-lg font-medium hover:bg-brand/90 transition-colors disabled:opacity-50"
         >
           {loading ? (
-            <><Loader2 className="w-5 h-5 animate-spin" /> Uploading...</>
+            <><Loader2 className="w-5 h-5 animate-spin" /> Saving...</>
           ) : (
-            <><UploadCloud className="w-5 h-5" /> Save as Draft</>
+            <><UploadCloud className="w-5 h-5" /> Save Changes</>
           )}
         </button>
       </div>

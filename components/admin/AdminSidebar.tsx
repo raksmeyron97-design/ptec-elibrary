@@ -152,8 +152,12 @@ export default function AdminSidebar({
             {pathname === "/admin" ? "Dashboard" : pathname.split("/").pop()}
           </h1>
           <div className="flex items-center gap-4">
-            <ManageCategoriesModal />
-            <ManageDepartmentsModal />
+            {pathname === "/admin/upload" && (
+              <>
+                <ManageCategoriesModal />
+                <ManageDepartmentsModal />
+              </>
+            )}
           </div>
         </div>
 

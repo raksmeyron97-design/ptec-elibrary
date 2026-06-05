@@ -40,6 +40,7 @@ export default async function AdminResearchReportsPage({
       view_count,
       cohort,
       academic_year,
+      cover_url,
       created_at
     `,
       { count: "exact" }
@@ -60,6 +61,7 @@ export default async function AdminResearchReportsPage({
     cohort:        r.cohort ?? "—",
     academicYear:  r.academic_year ?? "—",
     isPublished:   r.is_published as boolean,
+    coverUrl:      r.cover_url as string | null,
     downloadCount: r.download_count ?? 0,
     viewCount:     r.view_count ?? 0,
     createdAt:     r.created_at,

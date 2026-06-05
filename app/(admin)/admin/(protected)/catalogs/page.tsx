@@ -12,6 +12,7 @@ import CatalogAdminActions from "./CatalogAdminActions";
 import CsvImportModal from "./CsvImportModal";
 import AdminCatalogToolbar from "./AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
+import Icon from "@/components/ui/core/Icon";
 
 export const dynamic = "force-dynamic";
 
@@ -173,6 +174,7 @@ export default async function AdminCatalogsPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-divider bg-paper/60 text-left">
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted text-center w-16">Cover</th>
                 {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
                   <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
                     {h}
@@ -195,6 +197,20 @@ export default async function AdminCatalogsPage({
                 const dotCls = AVAILABILITY_DOT[statusKey];
                 return (
                   <tr key={book.id} className={`hover:bg-paper/50 transition ${!book.is_active ? "opacity-40" : ""}`}>
+                    {/* Cover */}
+                    <td className="px-4 py-3 text-center">
+                      {book.cover_url ? (
+                        <img
+                          src={book.cover_url}
+                          alt={`${book.title} cover`}
+                          className="w-10 h-14 object-cover rounded shadow-sm mx-auto"
+                        />
+                      ) : (
+                        <div className="w-10 h-14 bg-paper rounded border border-divider flex items-center justify-center mx-auto text-text-muted">
+                          <Icon name="library" className="w-5 h-5 opacity-50" />
+                        </div>
+                      )}
+                    </td>
                     {/* Title */}
                     <td className="px-4 py-3 max-w-[240px]">
                       <p className="font-semibold text-text-heading truncate">{book.title}</p>

@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default async function CreateResearchReportPage() {
   return (
-    <div className="mx-auto max-w-[800px] space-y-6">
+    <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex items-center gap-4">
         <Link 
           href="/admin/research-reports"

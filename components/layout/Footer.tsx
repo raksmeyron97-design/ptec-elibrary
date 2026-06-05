@@ -163,7 +163,7 @@ export default async function Footer() {
             </div>
 
             {/* Find PTEC */}
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full gap-4">
               <h3 className="text-white font-khmer-serif font-bold text-[15px] mb-6 flex items-center gap-2 after:content-[''] after:flex-1 after:h-px after:bg-bg-surface/10">
                 {t('findPtec')}
               </h3>
@@ -181,6 +181,15 @@ export default async function Footer() {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 </Link>
+              </div>
+              {/* Flag Counter Widget */}
+              <div className="flex justify-start">
+                <a href="https://info.flagcounter.com/19Xs" target="_blank" rel="noopener noreferrer">
+                  <img 
+                    src="https://s01.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" 
+                    alt="Flag Counter" 
+                  />
+                </a>
               </div>
             </div>
 

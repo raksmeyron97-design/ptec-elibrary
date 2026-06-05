@@ -3,13 +3,15 @@
 // app/admin/manage/ManageClient.tsx
 import { useState, useTransition, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { deleteBook } from "@/app/(admin)/admin/(protected)/actions";
+import Icon from "@/components/ui/core/Icon";
 
 type BookRow = {
   id: string;
   title: string;
   slug: string;
+  coverUrl: string | null;
   author: string;
   category: string;
   department: string;
@@ -204,7 +206,8 @@ export default function ManageClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
-                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3 w-12">#</th>
+                <th className="px-4 py-3 w-16 text-center">Cover</th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3 hidden md:table-cell">Author</th>
                 <th className="px-4 py-3 hidden lg:table-cell">Department</th>
@@ -235,6 +238,21 @@ export default function ManageClient({
                     >
                       {/* # */}
                       <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{rowNum}</td>
+
+                      {/* Cover */}
+                      <td className="px-4 py-3 text-center">
+                        {book.coverUrl ? (
+                          <img
+                            src={book.coverUrl}
+                            alt={`${book.title} cover`}
+                            className="w-10 h-14 object-cover rounded shadow-sm mx-auto"
+                          />
+                        ) : (
+                          <div className="w-10 h-14 bg-paper rounded border border-divider flex items-center justify-center mx-auto text-text-muted">
+                            <Icon name="library" className="w-5 h-5 opacity-50" />
+                          </div>
+                        )}
+                      </td>
 
                       {/* Title */}
                       <td className="px-4 py-3 max-w-[240px]">
@@ -324,19 +342,21 @@ export default function ManageClient({
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-3 text-text-muted">
                             <Link
                               href={`/admin/edit/${book.id}`}
-                              className="rounded bg-blue-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand"
+                              className="hover:text-brand transition"
+                              title="Edit"
                             >
-                              Edit
+                              <Icon name="edit" className="w-5 h-5" />
                             </Link>
                             <button
                               onClick={() => setConfirmId(book.id)}
                               disabled={isDeleting}
-                              className="rounded border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                              className="hover:text-red-500 transition disabled:opacity-50"
+                              title="Delete"
                             >
-                              Delete
+                              <Icon name="trash" className="w-5 h-5" />
                             </button>
                           </div>
                         )}

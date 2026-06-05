@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
+import ViewsChart from "@/components/admin/ViewsChart";
 
 // កុំ​ឲ្យ Next.js cache ទំព័រ​នេះ — query DB ឡើងវិញ​រាល់​ពេល​ផ្ទុក
 export const dynamic = "force-dynamic";
@@ -25,8 +26,8 @@ const dayKey = (d: Date) =>
 
 const ONE_DAY = 86_400_000;
 
-// ── helper: downloads តាមថ្ងៃ ──
-function buildDailyBuckets(rows: { downloaded_at: string }[], days = 30) {
+// ── helper: metrics តាមថ្ងៃ ──
+function buildDailyBuckets(rows: any[], dateField: string, days = 30) {
   const buckets = new Map<string, number>();
   const keys: string[] = [];
   const now = Date.now();
@@ -37,8 +38,8 @@ function buildDailyBuckets(rows: { downloaded_at: string }[], days = 30) {
     keys.push(key);
   }
   for (const r of rows) {
-    if (!r?.downloaded_at) continue;
-    const key = dayKey(new Date(r.downloaded_at));
+    if (!r?.[dateField]) continue;
+    const key = dayKey(new Date(r[dateField]));
     if (buckets.has(key)) buckets.set(key, (buckets.get(key) || 0) + 1);
   }
   return keys.map((k) => ({ date: k, count: buckets.get(k) || 0 }));
@@ -140,6 +141,8 @@ export default async function AdminDashboardPage() {
     totalUsersRes, newUsersRes, catalogRes, logsRes,
     topDownloadedRes, topViewedRes, lowStockRes, draftPostsRes,
     userBaselineRes, userWindowRes,
+    postStatsRes, reportStatsRes,
+    viewLogsRes,
   ] = await Promise.all([
     supabase.from("books").select("*", { count: "exact", head: true }),
     supabase.from("books").select("*", { count: "exact", head: true }).eq("is_published", true),
@@ -155,6 +158,9 @@ export default async function AdminDashboardPage() {
     // ── Phase 3 ──
     supabase.from("profiles").select("*", { count: "exact", head: true }).lt("created_at", fetchFromUsers),
     supabase.from("profiles").select("created_at").gte("created_at", fetchFromUsers),
+    supabase.from("posts").select("views"),
+    supabase.from("research_reports").select("view_count"),
+    supabase.from("view_logs").select("viewed_at").gte("viewed_at", fetchFromDownloads),
   ]);
 
   const totalBooks = totalBooksRes.count ?? 0;
@@ -163,7 +169,18 @@ export default async function AdminDashboardPage() {
 
   const bookStats = bookStatsRes.data ?? [];
   const totalDownloads = bookStats.reduce((s, b: any) => s + (b.download_count || 0), 0);
-  const totalViews = bookStats.reduce((s, b: any) => s + (b.view_count || 0), 0);
+  const booksViews = bookStats.reduce((s, b: any) => s + (b.view_count || 0), 0);
+  
+  const postsViews = (postStatsRes.data ?? []).reduce((s, p: any) => s + (p.views || 0), 0);
+  const reportsViews = (reportStatsRes.data ?? []).reduce((s, r: any) => s + (r.view_count || 0), 0);
+
+  const totalViews = booksViews + postsViews + reportsViews;
+
+  const viewsData = [
+    { name: "Digital Books", count: booksViews, color: "#10b981" },
+    { name: "Research", count: reportsViews, color: "#3b82f6" },
+    { name: "Posts", count: postsViews, color: "#8b5cf6" },
+  ];
 
   const totalUsers = totalUsersRes.count ?? 0;
   const newUsers = newUsersRes.count ?? 0;
@@ -172,8 +189,11 @@ export default async function AdminDashboardPage() {
   const totalCopies = catalog.reduce((s, c: any) => s + (c.copies_total || 0), 0);
   const availableCopies = catalog.reduce((s, c: any) => s + (c.copies_available || 0), 0);
 
-  const daily = buildDailyBuckets(logsRes.data ?? []);
-  const periodDownloads = daily.reduce((s, d) => s + d.count, 0);
+  const dailyDownloads = buildDailyBuckets(logsRes.data ?? [], "downloaded_at");
+  const periodDownloads = dailyDownloads.reduce((s, d) => s + d.count, 0);
+
+  const dailyViews = buildDailyBuckets(viewLogsRes.data ?? [], "viewed_at");
+  const periodViews = dailyViews.reduce((s, d) => s + d.count, 0);
 
   const nf = (n: number) => n.toLocaleString("en-US");
 
@@ -215,6 +235,23 @@ export default async function AdminDashboardPage() {
           sub="available / total" accent="bg-sky-100 text-sky-600" />
       </div>
 
+      {/* ── Views chart ── */}
+      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-bold text-text-heading">
+              <Eye className="h-4 w-4 text-emerald-500" /> Views
+            </h2>
+            <p className="text-xs text-text-muted">Last 30 days</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-emerald-600">{nf(periodViews)}</div>
+            <div className="text-xs text-text-muted">in this period</div>
+          </div>
+        </div>
+        <ViewsChart data={dailyViews} />
+      </div>
+
       {/* ── Downloads chart ── */}
       <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
@@ -227,7 +264,7 @@ export default async function AdminDashboardPage() {
             <div className="text-xs text-text-muted">in this period</div>
           </div>
         </div>
-        <DownloadsChart data={daily} />
+        <DownloadsChart data={dailyDownloads} />
       </div>
 
       {/* ── User growth chart (Phase 3) ── */}
@@ -246,6 +283,7 @@ export default async function AdminDashboardPage() {
         </div>
         <UserGrowthChart data={growth} />
       </div>
+
 
       {/* ── Top lists ── */}
       <div className="grid gap-6 lg:grid-cols-2">

@@ -5,6 +5,7 @@ import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deletePost, togglePublish } from "@/app/(admin)/admin/(protected)/posts/actions";
+import Icon from "@/components/ui/core/Icon";
 
 type PostRow = {
   id: string;
@@ -290,21 +291,23 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <Link
-                              href={`/admin/posts/edit/${post.id}`}
-                              className="rounded bg-blue-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              onClick={() => setConfirmId(post.id)}
-                              disabled={isDeleting}
-                              className="rounded border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                        <div className="flex items-center justify-end gap-3 text-text-muted">
+                          <Link
+                            href={`/admin/posts/edit/${post.id}`}
+                            className="hover:text-brand transition"
+                            title="Edit"
+                          >
+                            <Icon name="edit" className="w-5 h-5" />
+                          </Link>
+                          <button
+                            onClick={() => setConfirmId(post.id)}
+                            disabled={isDeleting}
+                            className="hover:text-red-500 transition disabled:opacity-50"
+                            title="Delete"
+                          >
+                            <Icon name="trash" className="w-5 h-5" />
+                          </button>
+                        </div>
                         )}
                       </td>
                     </tr>

@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toggleReportPublishStatus } from "@/app/actions/research";
+import { toggleReportPublishStatus, deleteResearchReport } from "@/app/actions/research";
 import { FileText, Eye, Download, CheckCircle2, XCircle } from "lucide-react";
+import Icon from "@/components/ui/core/Icon";
+import Link from "next/link";
 
 type ReportRow = {
   id: string;
   title: string;
   cohort: string;
   academicYear: string;
+  coverUrl?: string | null;
   isPublished: boolean;
   downloadCount: number;
   viewCount: number;
@@ -38,6 +41,8 @@ export default function ResearchReportsClient({
 }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
     setLoadingId(id);
@@ -46,6 +51,17 @@ export default function ResearchReportsClient({
       router.refresh();
     } finally {
       setLoadingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteResearchReport(id);
+      router.refresh();
+    } finally {
+      setDeletingId(null);
+      setConfirmId(null);
     }
   };
 
@@ -91,10 +107,12 @@ export default function ResearchReportsClient({
           <table className="w-full text-left text-sm">
             <thead className="bg-paper border-b border-divider text-text-muted">
               <tr>
+                <th className="px-4 py-3 font-medium text-center w-16">Cover</th>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Cohort / Year</th>
                 <th className="px-4 py-3 font-medium text-center">Stats</th>
                 <th className="px-4 py-3 font-medium text-center">Status</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">
@@ -105,11 +123,27 @@ export default function ResearchReportsClient({
                   </td>
                 </tr>
               ) : (
-                reports.map((report) => (
-                  <tr key={report.id} className="hover:bg-paper/50 transition-colors">
+                reports.map((report) => {
+                  const isDeleting = deletingId === report.id;
+                  const isConfirming = confirmId === report.id;
+                  
+                  return (
+                  <tr key={report.id} className={`hover:bg-paper/50 transition-colors ${isDeleting ? "opacity-40" : ""}`}>
+                    <td className="px-4 py-3 text-center">
+                      {report.coverUrl ? (
+                        <img
+                          src={report.coverUrl}
+                          alt={`${report.title} cover`}
+                          className="w-10 h-14 object-cover rounded shadow-sm mx-auto"
+                        />
+                      ) : (
+                        <div className="w-10 h-14 bg-paper rounded border border-divider flex items-center justify-center mx-auto text-text-muted">
+                          <FileText className="w-5 h-5 opacity-50" />
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-start gap-3">
-                        <FileText className="w-5 h-5 text-brand shrink-0 mt-0.5" />
                         <div>
                           <p className="font-medium text-text-heading line-clamp-1">{report.title}</p>
                           <p className="text-xs text-text-muted">
@@ -152,8 +186,47 @@ export default function ResearchReportsClient({
                         )}
                       </button>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {isConfirming ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-text-muted">Delete?</span>
+                          <button
+                            onClick={() => handleDelete(report.id)}
+                            disabled={isDeleting}
+                            className="rounded bg-red-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {isDeleting ? "…" : "Yes"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmId(null)}
+                            className="rounded bg-paper px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-3 text-text-muted">
+                          <Link
+                            href={`/admin/research-reports/edit/${report.id}`}
+                            className="hover:text-brand transition"
+                            title="Edit"
+                          >
+                            <Icon name="edit" className="w-5 h-5" />
+                          </Link>
+                          <button
+                            onClick={() => setConfirmId(report.id)}
+                            disabled={isDeleting}
+                            className="hover:text-red-500 transition disabled:opacity-50"
+                            title="Delete"
+                          >
+                            <Icon name="trash" className="w-5 h-5" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

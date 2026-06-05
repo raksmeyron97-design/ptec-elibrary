@@ -74,6 +74,12 @@ export async function incrementResearchViewCount(id: string) {
   const supabase = createServiceClient();
   // Using RPC if exists, otherwise normal update bypassing RLS because we just increment
   const { error } = await supabase.rpc("increment_research_view_count", { row_id: id });
+  
+  // Track the view in view_logs for the daily chart
+  await supabase.from("view_logs").insert({
+    content_type: "research_report",
+    content_id: id,
+  });
   if (error) {
     console.error("Failed to increment view count:", error);
   }
@@ -108,6 +114,41 @@ export async function toggleReportPublishStatus(id: string, isPublished: boolean
 export async function createResearchReport(formData: any) {
   const supabase = await createClient();
   const { error } = await supabase.from("research_reports").insert([formData]);
+  
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  
+  revalidatePath("/admin/research-reports");
+  revalidatePath("/research");
+  
+  return { success: true };
+}
+
+export async function deleteResearchReport(id: string) {
+  const supabase = await createClient();
+  
+  // Clear dependent view logs first to avoid foreign key errors
+  await supabase.from("view_logs").delete().eq("content_type", "research_report").eq("content_id", id);
+  
+  const { error } = await supabase.from("research_reports").delete().eq("id", id);
+  
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  
+  revalidatePath("/admin/research-reports");
+  revalidatePath("/research");
+  
+  return { success: true };
+}
+
+export async function updateResearchReport(id: string, formData: any) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("research_reports")
+    .update(formData)
+    .eq("id", id);
   
   if (error) {
     return { success: false, error: error.message };

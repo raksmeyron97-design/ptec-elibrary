@@ -12,6 +12,7 @@ import {
   bulkAddCopies,
 } from "./copy-actions";
 import type { CatalogCopy, CopyStatus } from "./copy-actions";
+import Icon from "@/components/ui/core/Icon";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const STATUS_OPTS: { value: CopyStatus; label: string }[] = [
@@ -189,9 +190,15 @@ export default function CopiesManager({
       {/* Trigger button */}
       <button
         onClick={handleOpen}
-        className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
+        className="relative text-text-muted transition hover:text-brand"
+        title="Manage Copies"
       >
-        Copies {copies.length > 0 && !open ? `(${copies.length})` : ""}
+        <Icon name="library" className="w-5 h-5" />
+        {copies.length > 0 && !open && (
+          <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand text-[8px] font-bold text-white ring-2 ring-bg-surface">
+            {copies.length}
+          </span>
+        )}
       </button>
 
       {/* Modal */}

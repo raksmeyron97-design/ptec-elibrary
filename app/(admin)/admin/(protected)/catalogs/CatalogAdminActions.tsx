@@ -4,6 +4,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { CatalogBook } from "@/lib/catalog";
+import Icon from "@/components/ui/core/Icon";
 import { hardDeleteCatalogBook } from "./actions";
 import CopiesManager from "./CopiesManager";
 
@@ -19,13 +20,14 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-end gap-3 text-text-muted">
       {/* Edit */}
       <Link
         href={`/admin/catalogs/edit/${book.id}`}
-        className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
+        className="text-text-muted transition hover:text-brand"
+        title="Edit"
       >
-        Edit
+        <Icon name="edit" className="w-5 h-5" />
       </Link>
 
       {/* Copies — now uses the full CopiesManager panel */}
@@ -41,9 +43,10 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
         <button
           onClick={() => setShowConfirmDelete(true)}
           disabled={!book.is_active || isPending}
-          className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-muted transition hover:border-red-300 hover:text-red-500 disabled:opacity-50"
+          className="text-text-muted transition hover:text-red-500 disabled:opacity-50"
+          title="Delete"
         >
-          Delete
+          <Icon name="trash" className="w-5 h-5" />
         </button>
       ) : (
         <div className="flex items-center gap-1">

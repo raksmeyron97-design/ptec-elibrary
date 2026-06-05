@@ -33,7 +33,8 @@ export type IconName =
   | "sun"
   | "moon"
   | "camera"
-  | "alert-triangle";
+  | "alert-triangle"
+  | "edit";
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -205,10 +206,12 @@ const paths: Record<IconName, ReactNode> = {
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   ),
   trash: (
-    <>
-      <path d="M3 6h18" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-    </>
+    <path
+      d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12z M9 9h2v8H9z M13 9h2v8h-2z M19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+      fill="currentColor"
+      strokeWidth="0"
+      fillRule="evenodd"
+    />
   ),
   sun: (
     <>
@@ -237,6 +240,12 @@ const paths: Record<IconName, ReactNode> = {
       <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
       <path d="M12 9v4" />
       <path d="M12 17h.01" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
     </>
   )
 };

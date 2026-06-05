@@ -84,8 +84,28 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
   const fileSizeKb = Number(formData.get("fileSizeKb")) || 0;
   const coverUrl   = formData.get("coverUrl")?.toString().trim() || null;
 
-  const slug       = slugify(title);
+  let slug       = slugify(title);
   const coverColor = pickCoverColor(title);
+
+  let slugIsUnique = false;
+  let slugSuffix = 1;
+  let checkSlug = slug;
+
+  while (!slugIsUnique) {
+    const { data: existingBook } = await supabase
+      .from("books")
+      .select("id")
+      .eq("slug", checkSlug)
+      .maybeSingle();
+
+    if (existingBook) {
+      checkSlug = `${slug}-${slugSuffix}`;
+      slugSuffix++;
+    } else {
+      slugIsUnique = true;
+      slug = checkSlug;
+    }
+  }
 
   const { data: authorRow, error: authorError } = await supabase
     .from("authors")
@@ -218,7 +238,7 @@ export async function deleteBook(bookId: string) {
   // ── 1. Fetch book_files + cover_url before deleting ──────────
   const { data: bookFiles } = await supabase
     .from("book_files")
-    .select("file_url")
+    .select("id, file_url")
     .eq("book_id", bookId);
 
   const { data: bookData } = await supabase
@@ -243,6 +263,19 @@ export async function deleteBook(bookId: string) {
   }
 
   // ── 3. Delete DB records ──────────────────────────────────────
+  // Clear dependent logs and relations first to avoid foreign key errors
+  const bookFileIds = bookFiles?.map((f) => f.id) || [];
+  if (bookFileIds.length > 0) {
+    await supabase.from("download_logs").delete().in("book_file_id", bookFileIds);
+  }
+  
+  await Promise.all([
+    supabase.from("view_logs").delete().eq("content_type", "book").eq("content_id", bookId),
+    supabase.from("reviews").delete().eq("book_id", bookId),
+    supabase.from("saved_books").delete().eq("book_id", bookId),
+    supabase.from("reading_progress").delete().eq("book_id", bookId),
+  ]);
+
   await supabase.from("book_files").delete().eq("book_id", bookId);
   const { error } = await supabase.from("books").delete().eq("id", bookId);
   if (error) throw new Error(`Delete failed: ${error.message}`);

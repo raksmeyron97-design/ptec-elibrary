@@ -11,6 +11,12 @@ export async function incrementViewCount(bookId: string) {
     book_id: bookId,
   });
 
+  // Track the view in view_logs for the daily chart
+  await supabase.from("view_logs").insert({
+    content_type: "book",
+    content_id: bookId,
+  });
+
   if (error) {
     console.error("[incrementViewCount]", error.message);
   }

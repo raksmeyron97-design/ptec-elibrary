@@ -203,6 +203,9 @@ export async function deletePost(postId: string) {
     .eq("id", postId)
     .single();
 
+  // Clear dependent view logs first to avoid foreign key errors
+  await supabase.from("view_logs").delete().eq("content_type", "post").eq("content_id", postId);
+
   const { error } = await supabase.from("posts").delete().eq("id", postId);
   if (error) throw new Error(`Delete failed: ${error.message}`);
 
