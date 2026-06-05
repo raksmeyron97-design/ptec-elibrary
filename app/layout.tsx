@@ -7,7 +7,7 @@ import CommandPalette from "@/components/ui/search/CommandPalette";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://192.168.18.8:3000";
 const THEME_INIT_SCRIPT = `
 (() => {
   try {
