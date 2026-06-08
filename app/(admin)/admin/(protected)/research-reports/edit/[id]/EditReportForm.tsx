@@ -16,6 +16,7 @@ export default function EditReportForm({ report }: { report: any }) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverRemoved, setCoverRemoved] = useState(false);
 
   // Initialize cascade from the stored report — legacy rows may have program=null
   const [programFields, setProgramFields] = useState<CascadeValues>({
@@ -71,7 +72,7 @@ export default function EditReportForm({ report }: { report: any }) {
       const formData = new FormData(e.currentTarget);
 
       let finalPdfUrl = report.file_url;
-      let finalCoverUrl = report.cover_url;
+      let finalCoverUrl: string | null = coverRemoved ? null : report.cover_url;
       let fileSizeKb = report.file_size_kb;
 
       // Upload new PDF to R2 if selected
@@ -89,7 +90,7 @@ export default function EditReportForm({ report }: { report: any }) {
         fileSizeKb = Math.round(pdfFile.size / 1024);
       }
 
-      // Upload new Cover to R2 if selected
+      // Upload new Cover to R2 if selected (overrides remove)
       if (coverFile) {
         const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
         const { presignedUrl: coverUploadUrl, publicUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type);
@@ -245,9 +246,20 @@ export default function EditReportForm({ report }: { report: any }) {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-text-body mb-1.5">Cover Image</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-semibold text-text-body">Cover Image</label>
+              {(report.cover_url || coverPreview) && !coverRemoved && (
+                <button
+                  type="button"
+                  onClick={() => { setCoverRemoved(true); setCoverFile(null); setCoverPreview(null); }}
+                  className="text-xs text-red-500 hover:text-red-600 transition-colors"
+                >
+                  Remove cover
+                </button>
+              )}
+            </div>
             <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-divider bg-paper rounded-lg cursor-pointer hover:border-brand transition-colors relative overflow-hidden">
-              {!coverPreview && report.cover_url && (
+              {!coverPreview && !coverRemoved && report.cover_url && (
                 <img src={report.cover_url} alt="Cover preview" className="absolute inset-0 w-full h-full object-cover opacity-20" />
               )}
               {coverPreview && (
@@ -256,17 +268,17 @@ export default function EditReportForm({ report }: { report: any }) {
               <div className="flex flex-col items-center justify-center pt-5 pb-6 relative z-10">
                 <ImageIcon className="w-8 h-8 text-brand mb-2" />
                 <p className="text-sm text-text-muted">
-                  <span className="font-semibold text-brand">Click to replace</span> or drag and drop
+                  <span className="font-semibold text-brand">Click to {coverRemoved ? "add" : "replace"}</span> or drag and drop
                 </p>
                 <p className="text-xs text-text-muted/70 mt-1">
-                  {coverFile ? coverFile.name : (report.cover_url ? "Current cover attached" : "PNG, JPG, WEBP")}
+                  {coverFile ? coverFile.name : coverRemoved ? "No cover (will be removed)" : (report.cover_url ? "Current cover attached" : "PNG, JPG, WEBP")}
                 </p>
               </div>
               <input
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={handleCoverChange}
+                onChange={(e) => { handleCoverChange(e); setCoverRemoved(false); }}
               />
             </label>
           </div>

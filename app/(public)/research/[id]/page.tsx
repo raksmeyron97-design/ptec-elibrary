@@ -4,9 +4,10 @@ import { getResearchReportById, incrementResearchViewCount } from "@/app/actions
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
 import ShareButton from "@/components/ui/books/ShareButton";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye, Pencil } from "lucide-react";
 import Image from "next/image";
 import RelatedReports from "@/components/ui/research/RelatedReports";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +26,45 @@ export default async function ResearchReportDetailPage({
   // Increment view count in the background (fire and forget for this render)
   incrementResearchViewCount(id);
 
+  // Admin-only edit link — best-effort, non-blocking
+  let isAdmin = false;
+  try {
+    const authClient = await createClient();
+    const { data: { user } } = await authClient.auth.getUser();
+    if (user) {
+      const { data: profile } = await createServiceClient()
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      isAdmin = profile?.role === "admin";
+    }
+  } catch { /* non-fatal */ }
+
   return (
     <section className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
       <div className="mx-auto max-w-[1200px]">
         
-        <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
-          <Link href="/" className="hover:text-brand transition-colors">Home</Link>
-          <Icon name="chevron-right" className="text-[16px] text-divider" />
-          <Link href="/research" className="hover:text-brand transition-colors">Research Reports</Link>
-          <Icon name="chevron-right" className="text-[16px] text-divider" />
-          <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={report.title}>
-            {report.title}
-          </span>
-        </nav>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
+            <Link href="/" className="hover:text-brand transition-colors">Home</Link>
+            <Icon name="chevron-right" className="text-[16px] text-divider" />
+            <Link href="/research" className="hover:text-brand transition-colors">Research Reports</Link>
+            <Icon name="chevron-right" className="text-[16px] text-divider" />
+            <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={report.title}>
+              {report.title}
+            </span>
+          </nav>
+          {isAdmin && (
+            <Link
+              href={`/admin/research-reports/edit/${id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-xs font-medium text-text-muted hover:border-brand hover:text-brand transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit report
+            </Link>
+          )}
+        </div>
 
         {/* ── PDF reader (shown first) ── */}
         {report.file_url && (

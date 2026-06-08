@@ -11,6 +11,15 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { catalogSlugify, pickCatalogColor, parseCatalogCsv } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";
 
+/** Parse comma-separated tag string from FormData into a clean string[] */
+function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
+  return (fd.get(field) as string ?? "")
+    .split(",")
+    .map(t => t.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 async function requireAdmin() {
   const auth = await createClient();
   const { data: { user } } = await auth.auth.getUser();
@@ -60,6 +69,7 @@ export async function addCatalogBook(formData: FormData) {
       title, author, slug, language, description, isbn, cover_url, cover_color,
       category, department, shelf_location, accession_number, year,
       copies_total: 0, copies_available: 0,
+      keywords: parseTags(formData, "keywords"),
       created_by: userId,
     })
     .select("id, slug, shelf_location, accession_number")
@@ -106,6 +116,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
     .update({
       title, author, language, description, isbn, category, department,
       shelf_location, accession_number, year, copies_total,
+      keywords: parseTags(formData, "keywords"),
       ...coverUpdate,
     })
     .eq("id", bookId)
@@ -231,6 +242,7 @@ export async function importCatalogCsv(formData: FormData) {
       accession_number: mainRow.accession_number || null,
       cover_url: mainRow.cover_url || null,
       cover_color: pickCatalogColor(mainRow.title),
+      keywords: mainRow.keywords ? mainRow.keywords.split(",").map(k => k.trim()).filter(Boolean) : [],
       created_by: userId,
     };
 

@@ -61,7 +61,7 @@ export default async function ResearchReportsPage({
   const hasFilters = !!(params.cohort || params.year || params.q || params.program || params.faculty);
 
   const programOptions = PROGRAMS.map((p) => ({ value: p.code, label: `${p.nameKm} — ${p.nameEn}` }));
-  const categoryPills = ["All", ...visibleCohorts.map((c) => `Cohort ${c.number}`)];
+  const categoryPills = ["All", ...new Set(visibleCohorts.map((c) => `Cohort ${c.number}`))];
 
   return (
     <ClientNavWrapper>

@@ -12,6 +12,7 @@ import {
 } from "@/lib/book-utils";
 import { createClient } from "@/lib/supabase/client";
 import Icon from "@/components/ui/core/Icon";
+import TagInput from "@/components/ui/core/TagInput";
 import { ImagePlus, Save } from "lucide-react";
 
 type Initial = {
@@ -26,6 +27,7 @@ type Initial = {
   pages: number;
   summary: string;
   coverUrl: string | null;
+  tags: string[];
 };
 
 const TEXT_FIELDS = [
@@ -233,6 +235,18 @@ export default function EditForm({ initial, departments }: { initial: Initial; d
           <textarea
             name="summary" required rows={4} defaultValue={initial.summary} disabled={saving}
             className="w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm outline-none transition-all focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
+          />
+        </label>
+
+        {/* Tags */}
+        <label className="md:col-span-2 mt-5 block">
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
+            Keywords / Tags (ពាក្យគន្លឺះ)
+          </span>
+          <TagInput
+            name="tags"
+            defaultTags={initial.tags}
+            disabled={saving}
           />
         </label>
       </div>

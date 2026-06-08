@@ -175,6 +175,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     image: book.coverUrl,
     url: `${SITE_URL}/books/${slug}`,
     bookFormat: "https://schema.org/EBook",
+    keywords: book.tags?.length ? book.tags.join(", ") : undefined,
     publisher: {
       "@type": "Organization",
       name: "Phnom Penh Teacher Education College",

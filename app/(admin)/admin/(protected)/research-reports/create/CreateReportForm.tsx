@@ -7,6 +7,7 @@ import { createResearchReport } from "@/app/actions/research";
 import { UploadCloud, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import ProgramCohortFields, { type CascadeValues } from "../_components/ProgramCohortFields";
 import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
+import TagInput from "@/components/ui/core/TagInput";
 
 export default function CreateReportForm() {
   const router = useRouter();
@@ -101,6 +102,9 @@ export default function CreateReportForm() {
         headers: { "Content-Type": coverFile.type },
       });
 
+      const keywords = (formData.get("keywords") as string ?? "")
+        .split(",").map(k => k.trim()).filter(Boolean).slice(0, 20);
+
       // Save to DB — cascade fields come from state (not FormData) to ensure reliability
       const dbData = {
         title: formData.get("title") as string,
@@ -116,6 +120,7 @@ export default function CreateReportForm() {
         file_url: finalPdfUrl,
         file_size_kb: Math.round(pdfFile.size / 1024),
         is_published: false,
+        keywords,
       };
 
       const result = await createResearchReport(dbData);
@@ -184,6 +189,20 @@ export default function CreateReportForm() {
               className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
               placeholder="Brief summary of the research..."
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">
+              Keywords / Tags (ពាក្យគន្លឺះ)
+            </label>
+            <TagInput
+              name="keywords"
+              placeholder="e.g. ការស្រាវជ្រាវ, education, STEM…"
+              disabled={loading}
+            />
+            <p className="mt-1 text-[11px] text-text-muted">
+              ចុច Enter ឬ , ដើម្បីបន្ថែម tag
+            </p>
           </div>
 
           <div>

@@ -5,10 +5,10 @@ import { useState, useTransition, useRef } from "react";
 import Papa from "papaparse";
 import { importCatalogCsv } from "@/app/(admin)/admin/(protected)/catalogs/actions";
 
-const CSV_TEMPLATE = `title,author,isbn,year,language,category,department,shelf_location,copies_total,description,accession_number,barcode,cover_url
-Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33697,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing
-Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33698,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing
-ច្បាប់រដ្ឋប្បវេណី,ក សុខា,,2019,km,Law,Civil Law,B-2-05,1,ច្បាប់រដ្ឋប្បវេណីខ្មែរ,ACC-002,33699,`;
+const CSV_TEMPLATE = `title,author,isbn,year,language,category,department,shelf_location,copies_total,description,accession_number,barcode,cover_url,keywords
+Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33697,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing,"law, intro, guide"
+Introduction to Law,John Smith,978-0-000-00000-0,2020,en,Law,Public Law,A-1-01,1,A comprehensive intro to law.,ACC-001,33698,https://drive.google.com/file/d/1QuNSZO4OMf2tTlv89GfG4PGdCK2VE2sW/view?usp=sharing,"law, intro, guide"
+ច្បាប់រដ្ឋប្បវេណី,ក សុខា,,2019,km,Law,Civil Law,B-2-05,1,ច្បាប់រដ្ឋប្បវេណីខ្មែរ,ACC-002,33699,,`;
 
 // ─── Google Drive link converter ─────────────────────────────────────────────
 function convertGoogleDriveUrl(url: string): string {
@@ -142,7 +142,7 @@ export default function CsvImportModal() {
                   CSV Format <span className="font-normal text-text-muted">(required: title, author)</span>
                 </p>
                 <pre className="text-[10px] text-text-body overflow-x-auto leading-relaxed whitespace-pre">
-                  {`title, author, isbn, year, language, category,\ndepartment, shelf_location, copies_total,\ndescription, accession_number, barcode, cover_url`}
+                  {`title, author, isbn, year, language, category,\ndepartment, shelf_location, copies_total,\ndescription, accession_number, barcode, cover_url, keywords`}
                 </pre>
 
                 {/* Google Drive note */}

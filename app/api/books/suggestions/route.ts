@@ -19,7 +19,8 @@ function getClientIP(req: NextRequest): string {
 export type Suggestion =
   | { type: "book";     slug: string; label: string; sub: string }
   | { type: "author";   label: string }
-  | { type: "category"; label: string };
+  | { type: "category"; label: string }
+  | { type: "research"; id: string;   label: string; sub: string };
 
 export async function GET(req: NextRequest) {
   // Rate limiting check
@@ -92,6 +93,22 @@ export async function GET(req: NextRequest) {
 
   for (const c of categories ?? []) {
     results.push({ type: "category", label: c.name });
+  }
+
+  // ── 4. Matching published research report titles (up to 3) ───────────────────
+  const { data: reports } = await supabase
+    .from("research_reports")
+    .select("id, title, author_names, cohort, academic_year")
+    .eq("is_published", true)
+    .ilike("title", `%${q}%`)
+    .limit(3);
+
+  for (const r of reports ?? []) {
+    const cohortYear = [r.cohort ? `C${r.cohort}` : null, r.academic_year]
+      .filter(Boolean)
+      .join(" · ");
+    const sub: string = (r.author_names as string | null) ?? (cohortYear || "Research Report");
+    results.push({ type: "research", id: r.id, label: r.title, sub });
   }
 
   return NextResponse.json(results);

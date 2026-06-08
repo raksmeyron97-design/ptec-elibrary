@@ -2,6 +2,27 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { deleteR2File } from "@/app/actions/upload";
+
+function storagePathFromUrl(publicUrl: string): string | null {
+  try {
+    const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+    if (r2Base && publicUrl.startsWith(r2Base)) {
+      let path = publicUrl.slice(r2Base.length);
+      if (path.startsWith("/")) path = path.slice(1);
+      return decodeURIComponent(path);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const REVALIDATE_PATHS = [
+  "/admin/research-reports",
+  "/research",
+  "/research/summary",
+];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -19,6 +40,7 @@ export interface ResearchReportData {
   file_url?: string | null;
   file_size_kb?: number | null;
   is_published?: boolean;
+  keywords?: string[];
 }
 
 export interface ResearchCohort {
@@ -89,7 +111,19 @@ export async function getResearchReports({
   }
 
   if (q) {
-    query = query.ilike("title", `%${q}%`);
+    const { data: kwMatches } = await supabase
+      .from("research_reports")
+      .select("id")
+      .filter("keywords::text", "ilike", `%${q}%`)
+      .eq("is_published", true);
+    
+    const kwIds = kwMatches?.map(r => r.id) ?? [];
+    
+    let orStr = `title.ilike.%${q}%`;
+    if (kwIds.length > 0) {
+      orStr += `,id.in.(${kwIds.join(",")})`;
+    }
+    query = query.or(orStr);
   }
 
   const { data, error } = await query;
@@ -152,28 +186,34 @@ export async function toggleReportPublishStatus(id: string, isPublished: boolean
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/research-reports");
-  revalidatePath("/research");
-
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
 }
 
 export async function createResearchReport(formData: ResearchReportData) {
   const supabase = await createClient();
-  const { error } = await supabase.from("research_reports").insert([formData]);
+  const { error } = await supabase.from("research_reports").insert([{
+    ...formData,
+    keywords: formData.keywords ?? [],
+  }]);
 
   if (error) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/research-reports");
-  revalidatePath("/research");
-
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
 }
 
 export async function deleteResearchReport(id: string) {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
+
+  // Fetch URLs before deleting so we can clean up R2 afterwards
+  const { data: row } = await supabase
+    .from("research_reports")
+    .select("file_url, cover_url")
+    .eq("id", id)
+    .single();
 
   await supabase.from("view_logs").delete().eq("content_type", "research_report").eq("content_id", id);
 
@@ -183,9 +223,16 @@ export async function deleteResearchReport(id: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/research-reports");
-  revalidatePath("/research");
+  // Best-effort R2 cleanup (non-fatal — DB row is already gone)
+  const toDelete: (string | null | undefined)[] = [row?.file_url, row?.cover_url];
+  for (const url of toDelete) {
+    if (url) {
+      const path = storagePathFromUrl(url);
+      if (path) await deleteR2File(path).catch(() => null);
+    }
+  }
 
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
 }
 
@@ -200,9 +247,7 @@ export async function updateResearchReport(id: string, formData: ResearchReportD
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/research-reports");
-  revalidatePath("/research");
-
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
 }
 

@@ -14,6 +14,7 @@ import {
 } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
+import TagInput from "@/components/ui/core/TagInput";
 import { FileText, ImagePlus, Upload } from "lucide-react";
 
 const LANGUAGES = ["Khmer", "English"] as const;
@@ -145,6 +146,9 @@ export default function UploadForm() {
       payload.set("fileUrl",    pdfPublicUrl);
       payload.set("fileSizeKb", String(Math.round(pdf.size / 1024)));
       payload.set("coverUrl",   coverUrl ?? "");
+      
+      // tags come from TagInput hidden input — already in formData
+      payload.set("tags", formData.get("tags") as string ?? "");
 
       const res = await saveBookRecord(payload);
       if (res && "error" in res) throw new Error(res.error);
@@ -196,10 +200,11 @@ export default function UploadForm() {
               ref={pdfInputRef}
               name="pdf"
               type="file"
-              accept="application/pdf"
+              accept=".pdf,application/pdf"
               required
               disabled={busy}
               onChange={handlePdfChange}
+              onClick={(e) => e.stopPropagation()}
               className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
             />
           </div>
@@ -238,9 +243,10 @@ export default function UploadForm() {
                 ref={coverInputRef}
                 name="cover"
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
+                accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
                 disabled={busy}
                 onChange={handleCoverChange}
+                onClick={(e) => e.stopPropagation()}
                 className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
               />
             </div>
@@ -316,6 +322,21 @@ export default function UploadForm() {
             placeholder="Short description for readers..."
             className="w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm outline-none transition-all focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
           />
+        </label>
+
+        {/* Tags */}
+        <label>
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
+            Keywords / Tags (ពាក្យគន្លឺះ)
+          </span>
+          <TagInput
+            name="tags"
+            placeholder="e.g. គណិតវិទ្យា, algebra, textbook…"
+            disabled={busy}
+          />
+          <p className="mt-1 text-[11px] text-text-muted">
+            ចុច Enter ឬ , ដើម្បីបន្ថែម tag · Press Enter or comma to add each tag
+          </p>
         </label>
       </div>
 

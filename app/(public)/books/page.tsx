@@ -35,6 +35,7 @@ async function fetchBooks(params: SearchParams) {
 
   let authorBookIds: string[] | null = null;
   let categoryBookIds: string[] | null = null;
+  let tagBookIds: string[] | null = null;
 
   if (q) {
     const { data: matchingAuthors } = await supabase
@@ -67,6 +68,13 @@ async function fetchBooks(params: SearchParams) {
         .eq("is_published", true);
       categoryBookIds = bcf?.map((b) => b.id) ?? [];
     }
+
+    const { data: tagMatches } = await supabase
+      .from("books")
+      .select("id")
+      .filter("tags::text", "ilike", `%${q}%`)
+      .eq("is_published", true);
+    tagBookIds = tagMatches?.map(b => b.id) ?? [];
   }
 
   type SortOrder = { ascending: boolean; nullsFirst?: boolean };
@@ -86,7 +94,7 @@ async function fetchBooks(params: SearchParams) {
     .select(
       `id, title, slug, description, cover_color, cover_url, language,
        published_at, department, pages, isbn, rating, download_count,
-       view_count,
+       view_count, tags,
        authors(name), categories(name),
        ${dept ? "departments!inner(name)" : "departments(name)"},
        book_files(format, file_url, file_size_kb), reviews(rating)`,
@@ -98,7 +106,11 @@ async function fetchBooks(params: SearchParams) {
 
   if (q) {
     const relatedIds = [
-      ...new Set([...(authorBookIds ?? []), ...(categoryBookIds ?? [])]),
+      ...new Set([
+        ...(authorBookIds ?? []),
+        ...(categoryBookIds ?? []),
+        ...(tagBookIds ?? []),
+      ]),
     ];
     const directOr = [
       `title.ilike.%${q}%`,

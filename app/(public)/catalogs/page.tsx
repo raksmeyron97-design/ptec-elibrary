@@ -47,7 +47,21 @@ async function fetchCatalogBooks(params: SearchParams) {
     .order(column, { ascending: asc })
     .range(from, to);
 
-  if (q)                  query = query.or(`title.ilike.%${q}%,author.ilike.%${q}%,isbn.ilike.%${q}%,accession_number.ilike.%${q}%`);
+  if (q) {
+    let kwIds: string[] = [];
+    const { data: kwMatches } = await supabase
+      .from("catalog_books")
+      .select("id")
+      .filter("keywords::text", "ilike", `%${q}%`)
+      .eq("is_active", true);
+    kwIds = kwMatches?.map(r => r.id) ?? [];
+    
+    let orStr = `title.ilike.%${q}%,author.ilike.%${q}%,isbn.ilike.%${q}%,accession_number.ilike.%${q}%`;
+    if (kwIds.length > 0) {
+      orStr += `,id.in.(${kwIds.join(",")})`;
+    }
+    query = query.or(orStr);
+  }
   if (params.category)    query = query.ilike("category", `%${params.category}%`);
   if (params.language)    query = query.eq("language", params.language);
   if (avail === "available") query = query.gt("copies_available", 0);

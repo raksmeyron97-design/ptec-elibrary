@@ -20,6 +20,7 @@ interface CsvRow {
   year?: string;
   pages?: string;
   summary?: string;
+  keywords?: string;
   pdf_file: string;
   cover_file?: string;
 }
@@ -139,6 +140,7 @@ async function uploadBook(
     payload.set("isbn",       row.isbn ?? "");
     payload.set("year",       row.year ?? "");
     payload.set("pages",      row.pages ?? "");
+    payload.set("tags",       row.keywords ?? "");
     payload.set("fileUrl",    pdfPresigned.publicUrl);
     payload.set("fileSizeKb", String(Math.round(pdfFile.size / 1024)));
     payload.set("coverUrl",   coverUrl ?? "");
@@ -319,7 +321,7 @@ export default function BulkUploadForm() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-divider bg-slate-50">
-                {["title*","author*","category*","department*","language*","pdf_file*","cover_file","isbn","year","pages","summary"].map((h) => (
+                {["title*","author*","category*","department*","language*","pdf_file*","cover_file","keywords","isbn","year","pages","summary"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-semibold text-text-body">{h}</th>
                 ))}
               </tr>
@@ -333,6 +335,7 @@ export default function BulkUploadForm() {
                 <td className="px-3 py-2">Khmer</td>
                 <td className="px-3 py-2 font-mono text-brand">book-001.pdf</td>
                 <td className="px-3 py-2 font-mono">book-001.jpg</td>
+                <td className="px-3 py-2">legend, folk</td>
                 <td className="px-3 py-2"></td>
                 <td className="px-3 py-2">2022</td>
                 <td className="px-3 py-2">120</td>
@@ -383,7 +386,7 @@ export default function BulkUploadForm() {
           {/* PDF folder */}
           <label className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-text-body">
-              PDF folder <span className="text-red-500">*</span>
+              PDF files <span className="text-red-500">*</span>
             </span>
             <div
               className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
@@ -394,16 +397,14 @@ export default function BulkUploadForm() {
             >
               <span className="text-2xl">{pdfReady ? "✓" : "📁"}</span>
               <span className="text-xs font-medium">
-                {pdfReady ? `${pdfIndex.size} PDF files` : "Click to select folder"}
+                {pdfReady ? `${pdfIndex.size} PDF files` : "Click to select PDFs"}
               </span>
             </div>
             <input
               ref={pdfInputRef}
               type="file"
-              accept="application/pdf"
+              accept=".pdf,application/pdf"
               multiple
-              // @ts-ignore — webkitdirectory is not in TS types
-              webkitdirectory=""
               className="hidden"
               onChange={(e) => handleFolderChange(e, setPdfIndex)}
               onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
@@ -413,7 +414,7 @@ export default function BulkUploadForm() {
           {/* Cover folder */}
           <label className="flex flex-col gap-2">
             <span className="text-xs font-semibold text-text-body">
-              Cover folder{" "}
+              Cover files{" "}
               <span className="font-normal text-text-muted">(optional)</span>
             </span>
             <div
@@ -425,16 +426,14 @@ export default function BulkUploadForm() {
             >
               <span className="text-2xl">{coverIndex.size > 0 ? "✓" : "🖼️"}</span>
               <span className="text-xs font-medium">
-                {coverIndex.size > 0 ? `${coverIndex.size} cover files` : "Click to select folder"}
+                {coverIndex.size > 0 ? `${coverIndex.size} cover files` : "Click to select Covers"}
               </span>
             </div>
             <input
               ref={coverInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
+              accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
               multiple
-              // @ts-ignore
-              webkitdirectory=""
               className="hidden"
               onChange={(e) => handleFolderChange(e, setCoverIndex)}
               onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}

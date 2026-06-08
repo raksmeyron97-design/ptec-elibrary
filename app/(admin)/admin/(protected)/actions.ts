@@ -8,6 +8,15 @@ import { slugify } from "@/lib/books";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
 
+/** Parse comma-separated tag string from FormData into a clean string[] */
+function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
+  return (fd.get(field) as string ?? "")
+    .split(",")
+    .map(t => t.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 function requiredText(formData: FormData, key: string) {
   const value = formData.get(key);
   if (typeof value !== "string" || !value.trim()) {
@@ -196,6 +205,7 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
       pages,
       cover_color:  coverColor,
       cover_url:    coverUrl,
+      tags: parseTags(formData, "tags"),
     })
     .select("id, slug")
     .single();
@@ -417,6 +427,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       department, // keep text column for now during transition
       isbn,
       pages,
+      tags: parseTags(formData, "tags"),
       ...coverUpdate, // only included if cover changed/removed
     })
     .eq("id", bookId)

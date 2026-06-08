@@ -17,7 +17,7 @@ export default async function EditBookPage({
     .from("books")
     .select(`
       id, title, slug, description, language, published_at,
-      department, isbn, pages, cover_url,
+      department, isbn, pages, cover_url, tags,
       authors(name),
       categories(name),
       departments(name)
@@ -48,6 +48,7 @@ export default async function EditBookPage({
                   : new Date().getFullYear(),
     pages:      (book.pages as number) ?? 1,
     summary:    (book.description as string) ?? "",
+    tags:       Array.isArray(book.tags) ? (book.tags as string[]) : [],
     coverUrl: (book.cover_url as string | null) ?? null,
   };
 

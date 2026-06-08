@@ -17,24 +17,35 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   book:     "library",
   author:   "account",
   category: "bookmark",
+  research: "school",
 };
 
 const TYPE_LABEL: Record<Suggestion["type"], string> = {
   book:     "Book",
   author:   "Author",
   category: "Category",
+  research: "Research Report",
+};
+
+const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
+  book:     "Books",
+  author:   "Authors",
+  category: "Categories",
+  research: "Research Reports",
 };
 
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
   book:     "text-brand",
   author:   "text-gold-700 dark:text-accent-text",
   category: "text-brand",
+  research: "text-accent-text",
 };
 
 const TYPE_BG: Record<Suggestion["type"], string> = {
   book:     "bg-brand/5",
   author:   "bg-gold-50 dark:bg-accent/10",
   category: "bg-brand/10",
+  research: "bg-accent/10",
 };
 
 const FALLBACK_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
@@ -334,7 +345,7 @@ export default function SearchBar({ compact = false, placeholder = "Search title
                     <Icon name={TYPE_ICON[type]} className={`text-[13px] ${TYPE_COLOR[type]}`} />
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
-                    {TYPE_LABEL[type]}s
+                    {TYPE_LABEL_PLURAL[type]}
                   </span>
                 </div>
 
@@ -371,10 +382,10 @@ export default function SearchBar({ compact = false, placeholder = "Search title
                         <span className="block truncate text-sm font-medium text-text-heading">
                           {highlight(s.label, query)}
                         </span>
-                        {s.type === "book" && (
+                        {(s.type === "book" || s.type === "research") && s.sub && (
                           <span className="block truncate text-xs text-text-muted mt-0.5">{s.sub}</span>
                         )}
-                        {s.type !== "book" && (
+                        {(s.type === "author" || s.type === "category") && (
                           <span className="block text-xs text-text-muted mt-0.5">
                             Search by {TYPE_LABEL[type].toLowerCase()}
                           </span>

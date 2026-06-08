@@ -63,6 +63,11 @@ export function useBookSuggestions({ initialQuery = "", onClose }: UseBookSugges
       setOpen(false);
       if (onClose) onClose();
       router.push(`/books/${s.slug}`);
+    } else if (s.type === "research") {
+      pushRecentSearch(s.label);
+      setOpen(false);
+      if (onClose) onClose();
+      router.push(`/research/${s.id}`);
     } else {
       setQuery(s.label);
       navigate(s.label);
@@ -74,7 +79,7 @@ export function useBookSuggestions({ initialQuery = "", onClose }: UseBookSugges
     return acc;
   }, {});
 
-  const groupOrder: Suggestion["type"][] = ["book", "author", "category"];
+  const groupOrder: Suggestion["type"][] = ["book", "author", "category", "research"];
 
   return {
     query,

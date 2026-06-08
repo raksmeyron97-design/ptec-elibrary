@@ -22,6 +22,7 @@ export type CatalogBook = {
   is_active:        boolean;
   created_at:       string;
   updated_at:       string;
+  keywords:         string[];
 };
 
 export type CopiesLogEntry = {
@@ -114,6 +115,7 @@ export type CsvCatalogRow = {
   accession_number?: string;
   barcode?:          string;
   cover_url?:        string;  // ✅ fix: was typed as literal `null`; now optional string
+  keywords?:         string;
 };
 
 export function parseCatalogCsv(text: string): CsvCatalogRow[] {

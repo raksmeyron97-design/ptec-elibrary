@@ -62,10 +62,6 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     downloadCount: row.download_count    ?? 0,
     viewCount:     row.view_count        ?? 0,
     dbId:          row.id                ?? null,
-    tags:          Array.isArray(row.tags)
-                     ? row.tags
-                     : [row.departments?.name ?? row.department, row.categories?.name, row.language, row.authors?.name]
-                         .filter(Boolean)
-                         .map((t: string) => t.toLowerCase()),
+    tags:          row.tags              ?? [],
   };
 }

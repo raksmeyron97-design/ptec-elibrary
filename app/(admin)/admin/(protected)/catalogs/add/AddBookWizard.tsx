@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { addCatalogBook } from "../actions";
 import AddCopiesClient from "../add-copies/[bookId]/AddCopiesClient";
+import TagInput from "@/components/ui/core/TagInput";
 
 interface BookData {
   id: string;
@@ -220,6 +221,20 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         <div>
           <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Description</label>
           <textarea name="description" rows={4} className={inputCls + " resize-none"} placeholder="Brief description of the book…" />
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">
+            Keywords / Tags (ពាក្យគន្លឺះ)
+          </label>
+          <TagInput
+            name="keywords"
+            placeholder="e.g. ច្បាប់, law, reference…"
+            disabled={loading}
+          />
+          <p className="mt-1 text-[10px] text-text-muted">
+            ចុច Enter ឬ , ដើម្បីបន្ថែម tag
+          </p>
         </div>
 
         {/* Hidden fields — trigger will set counts from catalog_copies; pass 0 as initial */}

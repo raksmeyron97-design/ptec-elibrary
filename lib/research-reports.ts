@@ -17,6 +17,7 @@ export interface ResearchReport {
   is_published: boolean;
   view_count: number;
   download_count: number;
+  keywords: string[];
   created_at: string;
 }
 
@@ -40,6 +41,7 @@ export function mapRowToResearchReport(row: any): ResearchReport {
     is_published: row.is_published,
     view_count: row.view_count ?? 0,
     download_count: row.download_count ?? 0,
+    keywords: row.keywords ?? [],
     created_at: row.created_at,
   };
 }
