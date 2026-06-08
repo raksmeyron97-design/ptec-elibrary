@@ -8,7 +8,7 @@
 //   Angkor            → Khmer display face
 //   Battambang        → Khmer + Latin body (fallback/running text)
 // ──────────────────────────────────────────────────────────────────
-import { Angkor, Kantumruy_Pro, Playfair_Display, Inter, Noto_Serif_Khmer } from "next/font/google";
+import { Angkor, Kantumruy_Pro, Playfair_Display, Inter, Noto_Serif_Khmer, Hanuman } from "next/font/google";
 
 export const angkor = Angkor({
   weight: "400",
@@ -43,4 +43,11 @@ export const notoSerifKhmer = Noto_Serif_Khmer({
   subsets: ["khmer"],
   display: "swap",
   variable: "--font-var-khmer-serif",
+});
+
+export const hanuman = Hanuman({
+  weight: ["400", "700", "900"],
+  subsets: ["khmer"],
+  display: "swap",
+  variable: "--font-var-hanuman",
 });

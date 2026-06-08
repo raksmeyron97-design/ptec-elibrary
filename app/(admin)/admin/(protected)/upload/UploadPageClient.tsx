@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import UploadForm from "../UploadForm";
-// Assuming BulkUploadForm is in the same directory as UploadForm
 import BulkUploadForm from "../BulkUploadForm";
 
 export default function UploadPageClient() {
@@ -10,31 +9,33 @@ export default function UploadPageClient() {
 
   return (
     <div className="space-y-6">
-      {/* Tab Switcher */}
-      <div className="flex items-center gap-2 border-b border-divider pb-4">
-        <button
-          onClick={() => setActiveTab("single")}
-          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === "single"
-              ? "bg-brand text-white shadow-sm"
-              : "text-text-muted hover:bg-bg-surface hover:text-text-body"
-          }`}
-        >
-          Single Upload
-        </button>
-        <button
-          onClick={() => setActiveTab("bulk")}
-          className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
-            activeTab === "bulk"
-              ? "bg-brand text-white shadow-sm"
-              : "text-text-muted hover:bg-bg-surface hover:text-text-body"
-          }`}
-        >
-          Bulk Upload
-        </button>
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 w-fit shadow-sm">
+        {(["single", "bulk"] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className="relative px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-200"
+              style={
+                active
+                  ? { background: "linear-gradient(135deg,#1E3A8A,#2A47A6)", color: "#fff", boxShadow: "0 2px 8px rgba(30,58,138,0.25)" }
+                  : { color: "var(--ptec-text-muted)" }
+              }
+              onMouseEnter={(e) => {
+                if (!active) (e.currentTarget as HTMLElement).style.color = "var(--ptec-text-body)";
+              }}
+              onMouseLeave={(e) => {
+                if (!active) (e.currentTarget as HTMLElement).style.color = "var(--ptec-text-muted)";
+              }}
+            >
+              {tab === "single" ? "Single Upload" : "Bulk Upload"}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Active Form */}
       <div className="min-h-[500px]">
         {activeTab === "single" ? <UploadForm /> : <BulkUploadForm />}
       </div>

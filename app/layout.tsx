@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer } from "@/app/fonts";
+import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer, hanuman } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import CommandPalette from "@/components/ui/search/CommandPalette";
@@ -91,7 +91,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable} ${hanuman.variable}`}>
       <head>
         <script
           dangerouslySetInnerHTML={{

@@ -84,6 +84,10 @@ function localizeDigits(value: number | string, locale: string): string {
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
 
+/** Row style for the mobile overflow (⋯) menu. */
+const MENU_ROW =
+  "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-default disabled:opacity-50";
+
 const clamp = (min: number, max: number, v: number) =>
   Math.max(min, Math.min(max, v));
 
@@ -370,6 +374,9 @@ export default function PDFViewer({
   /* ── Navigation / save status ───────────────────────────────── */
   const [pageInputValue, setPageInputValue] = useState(String(currentPage));
   const [isPageInputFocused, setIsPageInputFocused] = useState(false);
+
+  /* ── Mobile overflow menu (⋯) — holds the secondary controls ─── */
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   /* ── Panel (outline / bookmarks / search) ───────────────────── */
   const [panelTab, setPanelTab] = useState<PanelTab>(null);
@@ -977,12 +984,12 @@ export default function PDFViewer({
         <div className="order-2 shrink-0 border-white/10 bg-slate-950 px-3 py-2.5 text-white sm:order-1 sm:border-b sm:px-4">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
             {/* Title + panel toggles */}
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5 sm:flex-1">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-surface/10">
                 <Icon name="pdf" className="text-xl text-cyan-100" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate text-[15px] font-bold sm:text-base">{title}</h2>
+                <h2 title={title} className="truncate text-[15px] font-bold sm:text-base">{title}</h2>
                 <p className="text-[11px] text-text-muted">{t("readOnline")}</p>
               </div>
 
@@ -991,7 +998,7 @@ export default function PDFViewer({
                   onClick={() => setPanelTab((p) => (p === "outline" ? null : "outline"))}
                   active={panelTab === "outline"}
                   label={t("outline")}
-                  className="h-8 w-8"
+                  className="hidden h-8 w-8 sm:inline-flex"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                     <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
@@ -1001,7 +1008,7 @@ export default function PDFViewer({
                   onClick={() => setPanelTab((p) => (p === "bookmarks" ? null : "bookmarks"))}
                   active={panelTab === "bookmarks"}
                   label={t("bookmarks")}
-                  className="h-8 w-8"
+                  className="hidden h-8 w-8 sm:inline-flex"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -1018,13 +1025,249 @@ export default function PDFViewer({
                     <path d="m21 21-4.3-4.3" />
                   </svg>
                 </ToolButton>
+
+                {/* ── Mobile overflow (⋯) — secondary controls live here ── */}
+                <div className="relative sm:hidden">
+                  <ToolButton
+                    onClick={() => setMobileMenuOpen((v) => !v)}
+                    active={mobileMenuOpen}
+                    label={locale === "km" ? "មុខងារផ្សេងទៀត" : "More"}
+                    className="h-8 w-8"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="5" cy="12" r="2" />
+                      <circle cx="12" cy="12" r="2" />
+                      <circle cx="19" cy="12" r="2" />
+                    </svg>
+                  </ToolButton>
+
+                  {mobileMenuOpen && (
+                    <>
+                      {/* tap-outside backdrop */}
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setMobileMenuOpen(false)}
+                        aria-hidden
+                      />
+                      {/* opens upward: on mobile the toolbar sits at the bottom */}
+                      <div
+                        role="menu"
+                        className="absolute bottom-full right-0 z-50 mb-1.5 w-60 rounded-lg border border-white/10 bg-slate-900 p-1.5 shadow-2xl"
+                      >
+                        {/* Zoom */}
+                        <div className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm text-slate-200">
+                          <span className="flex items-center gap-3">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="m21 21-4.3-4.3M8 11h6" />
+                              </svg>
+                            </span>
+                            {locale === "km" ? "ការពង្រីក" : "Zoom"}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={zoomOut}
+                              disabled={scale <= 0.5}
+                              aria-label={t("zoomOut")}
+                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-white transition hover:bg-white/15 disabled:opacity-30"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                                <path d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <span className="w-9 text-center text-[11px] font-semibold text-text-muted">
+                              {fmtNum(Math.round(scale * 100))}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={zoomIn}
+                              disabled={scale >= 3}
+                              aria-label={t("zoomIn")}
+                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-white transition hover:bg-white/15 disabled:opacity-30"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                                <path d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </span>
+                        </div>
+
+                        <div className="my-1 h-px bg-white/10" />
+
+                        {/* View mode */}
+                        <button type="button" role="menuitem" onClick={toggleView} className={MENU_ROW}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            {viewMode === "scroll" ? (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <rect x="5" y="3" width="14" height="7" rx="1" />
+                                <rect x="5" y="14" width="14" height="7" rx="1" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <rect x="6" y="3" width="12" height="18" rx="1" />
+                              </svg>
+                            )}
+                          </span>
+                          {viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
+                        </button>
+
+                        {/* Fit (single mode only) */}
+                        {viewMode === "single" && (
+                          <button type="button" role="menuitem" onClick={toggleFit} className={MENU_ROW}>
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                              {fitMode === "width" ? (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                                  <path d="M21 12H3m6-4-6 4 6 4m6-8 6 4-6 4" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <rect x="6" y="3" width="12" height="18" rx="1" />
+                                  <path d="M9 12h6" />
+                                </svg>
+                              )}
+                            </span>
+                            {fitMode === "width" ? t("fitWidth") : t("fitPage")}
+                          </button>
+                        )}
+
+                        {/* Theme */}
+                        <button type="button" role="menuitem" onClick={cycleTheme} className={MENU_ROW}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            {theme === "dark" ? (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+                              </svg>
+                            ) : theme === "sepia" ? (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2m0 16v2M4 12H2m20 0h-2m-2.5-7.5-1.4 1.4M6.9 17.1l-1.4 1.4m0-13.4 1.4 1.4m10.2 10.2 1.4 1.4" strokeLinecap="round" />
+                              </svg>
+                            )}
+                          </span>
+                          {t("theme")}: {theme}
+                        </button>
+
+                        {/* Bookmark current page */}
+                        {numPages > 0 && (
+                          <button type="button" role="menuitem" onClick={toggleBookmark} className={MENU_ROW}>
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                              </svg>
+                            </span>
+                            {isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
+                          </button>
+                        )}
+
+                        <div className="my-1 h-px bg-white/10" />
+
+                        {/* Outline */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setPanelTab("outline");
+                            setMobileMenuOpen(false);
+                          }}
+                          className={MENU_ROW}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                            </svg>
+                          </span>
+                          {t("outline")}
+                        </button>
+
+                        {/* Bookmarks panel */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setPanelTab("bookmarks");
+                            setMobileMenuOpen(false);
+                          }}
+                          className={MENU_ROW}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                          </span>
+                          {t("bookmarks")}
+                        </button>
+
+                        <div className="my-1 h-px bg-white/10" />
+
+                        {/* Save */}
+                        {numPages > 0 && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              saveNow();
+                              setMobileMenuOpen(false);
+                            }}
+                            disabled={isSaved}
+                            className={cx(MENU_ROW, isSaved && "text-emerald-400")}
+                          >
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                              {isSaved ? (
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                  <path d="M20 6 9 17l-5-5" />
+                                </svg>
+                              ) : (
+                                <svg className="h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                  <path d="M17 21v-8H7v8M7 3v5h8" />
+                                </svg>
+                              )}
+                            </span>
+                            {isSaved ? t("saved") : t("save")}
+                          </button>
+                        )}
+
+                        {/* Fullscreen */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsFullscreen((v) => !v);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={MENU_ROW}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            {isFullscreen ? (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                              </svg>
+                            )}
+                          </span>
+                          {isFullscreen ? t("exit") : t("fullscreen")}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
               {/* Zoom */}
-              <div className="flex items-center gap-1 rounded-md bg-bg-surface/10 px-1 py-1">
+              <div className="hidden items-center gap-1 rounded-md bg-bg-surface/10 px-1 py-1 sm:flex">
                 <ToolButton onClick={zoomOut} disabled={scale <= 0.5} label={t("zoomOut")} className="h-7 w-7">
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
                     <path d="M20 12H4" />
@@ -1045,7 +1288,7 @@ export default function PDFViewer({
                 onClick={toggleView}
                 active={viewMode === "scroll"}
                 label={viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
-                className="h-8 w-8"
+                className="hidden h-8 w-8 sm:inline-flex"
               >
                 {viewMode === "scroll" ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1065,7 +1308,7 @@ export default function PDFViewer({
                   onClick={toggleFit}
                   active={fitMode === "page"}
                   label={fitMode === "width" ? t("fitWidth") : t("fitPage")}
-                  className="h-8 w-8"
+                  className="hidden h-8 w-8 sm:inline-flex"
                 >
                   {fitMode === "width" ? (
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -1081,7 +1324,7 @@ export default function PDFViewer({
               )}
 
               {/* Theme */}
-              <ToolButton onClick={cycleTheme} label={`${t("theme")}: ${theme}`} className="h-8 w-8">
+              <ToolButton onClick={cycleTheme} label={`${t("theme")}: ${theme}`} className="hidden h-8 w-8 sm:inline-flex">
                 {theme === "dark" ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
@@ -1143,7 +1386,7 @@ export default function PDFViewer({
                   onClick={toggleBookmark}
                   active={isBookmarked}
                   label={isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
-                  className="h-8 w-8"
+                  className="hidden h-8 w-8 sm:inline-flex"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
                     <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -1197,7 +1440,7 @@ export default function PDFViewer({
                   disabled={isSaved}
                   aria-label={isSaved ? t("saved") : t("save")}
                   className={cx(
-                    "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition sm:px-3",
+                    "hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition sm:inline-flex sm:px-3",
                     isSaved
                       ? "cursor-default bg-emerald-500/20 text-emerald-400"
                       : "bg-cyan-500 text-white hover:bg-cyan-400",
@@ -1226,7 +1469,7 @@ export default function PDFViewer({
               <ToolButton
                 onClick={() => setIsFullscreen((v) => !v)}
                 label={isFullscreen ? t("exit") : t("fullscreen")}
-                className="h-8 w-8 border border-white/20"
+                className="hidden h-8 w-8 border border-white/20 sm:inline-flex"
               >
                 {isFullscreen ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1241,9 +1484,9 @@ export default function PDFViewer({
             </div>
           </div>
 
-          {/* Mobile progress */}
+          {/* Mobile progress — hidden on phones, shown on tablet only */}
           {numPages > 0 && (
-            <div className="mt-2 flex items-center gap-2 lg:hidden">
+            <div className="mt-2 hidden items-center gap-2 sm:flex lg:hidden">
               <div className="h-1 flex-1 overflow-hidden rounded-full bg-bg-surface/20">
                 <div className="h-full rounded-full bg-cyan-400 transition-all duration-300" style={{ width: `${progressPct}%` }} />
               </div>

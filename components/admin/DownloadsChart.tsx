@@ -1,8 +1,11 @@
 "use client";
-// ក្រាហ្វិក client 
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type DailyPoint = { date: string; count: number };
+
+const LINE_COLOR = "#D97706"; // amber-600
+const FILL_COLOR = "#FBBF24"; // amber-400
+const TIP_BORDER = "#D97706";
 
 export default function DownloadsChart({ data }: { data: DailyPoint[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -26,7 +29,7 @@ export default function DownloadsChart({ data }: { data: DailyPoint[] }) {
   const { linePath, areaPath, points, yTicks } = useMemo(() => {
     const innerW = Math.max(1, width - pad.left - pad.right);
     const innerH = height - pad.top - pad.bottom;
-    const maxV = Math.max(1, ...data.map((d) => d.count));
+    const maxV   = Math.max(1, ...data.map((d) => d.count));
     const niceMax = Math.max(4, Math.ceil(maxV / 4) * 4);
     const n = data.length;
 
@@ -71,26 +74,31 @@ export default function DownloadsChart({ data }: { data: DailyPoint[] }) {
       <svg width={width} height={height} className="block">
         <defs>
           <linearGradient id="dlFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1E3A8A" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="#1E3A8A" stopOpacity={0} />
+            <stop offset="0%"   stopColor={FILL_COLOR} stopOpacity={0.30} />
+            <stop offset="70%"  stopColor={FILL_COLOR} stopOpacity={0.06} />
+            <stop offset="100%" stopColor={FILL_COLOR} stopOpacity={0} />
           </linearGradient>
         </defs>
 
         {yTicks.map((t, i) => (
           <g key={i}>
-            <line x1={pad.left} x2={width - pad.right} y1={t.y} y2={t.y} stroke="#E2E8F0" strokeWidth={1} />
-            <text x={pad.left - 8} y={t.y} textAnchor="end" dominantBaseline="middle" fontSize={11} className="fill-slate-400">
+            <line x1={pad.left} x2={width - pad.right} y1={t.y} y2={t.y}
+              stroke="#E2E8F0" strokeWidth={1} strokeDasharray={i > 0 ? "3 4" : undefined} />
+            <text x={pad.left - 8} y={t.y} textAnchor="end" dominantBaseline="middle"
+              fontSize={11} className="fill-slate-400">
               {Math.round(t.v)}
             </text>
           </g>
         ))}
 
         {areaPath && <path d={areaPath} fill="url(#dlFill)" />}
-        <path d={linePath} fill="none" stroke="#1E3A8A" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={linePath} fill="none" stroke={LINE_COLOR} strokeWidth={3}
+          strokeLinejoin="round" strokeLinecap="round" />
 
         {points.map((p, i) =>
           i % labelEvery === 0 || i === points.length - 1 ? (
-            <text key={i} x={p.x} y={height - 10} textAnchor="middle" fontSize={11} className="fill-slate-400">
+            <text key={i} x={p.x} y={height - 10} textAnchor="middle"
+              fontSize={11} className="fill-slate-400">
               {fmt(p.date)}
             </text>
           ) : null
@@ -98,9 +106,11 @@ export default function DownloadsChart({ data }: { data: DailyPoint[] }) {
 
         {hover !== null && points[hover] && (
           <g>
-            <line x1={points[hover].x} x2={points[hover].x} y1={pad.top} y2={height - pad.bottom}
-              stroke="#DDB022" strokeWidth={1} strokeDasharray="4 3" />
-            <circle cx={points[hover].x} cy={points[hover].y} r={4.5} fill="#fff" stroke="#1E3A8A" strokeWidth={2.5} />
+            <line x1={points[hover].x} x2={points[hover].x}
+              y1={pad.top} y2={height - pad.bottom}
+              stroke={LINE_COLOR} strokeWidth={1} strokeDasharray="4 3" strokeOpacity={0.5} />
+            <circle cx={points[hover].x} cy={points[hover].y} r={5}
+              fill="#fff" stroke={LINE_COLOR} strokeWidth={2.5} />
           </g>
         )}
 
@@ -110,10 +120,16 @@ export default function DownloadsChart({ data }: { data: DailyPoint[] }) {
       </svg>
 
       {hover !== null && points[hover] && (
-        <div className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs text-white shadow-lg"
-          style={{ left: points[hover].x, top: points[hover].y - 10 }}>
-          <div className="font-semibold">{points[hover].count} downloads</div>
-          <div className="text-[10px] text-text-muted">{fmt(points[hover].date)}</div>
+        <div
+          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-xl px-3 py-2 text-xs text-white shadow-lg"
+          style={{
+            left: points[hover].x, top: points[hover].y - 12,
+            background: "#0F172A",
+            border: `1px solid ${TIP_BORDER}44`,
+          }}
+        >
+          <div className="font-bold" style={{ color: LINE_COLOR }}>{points[hover].count} downloads</div>
+          <div className="mt-0.5 text-slate-400">{fmt(points[hover].date)}</div>
         </div>
       )}
     </div>

@@ -30,13 +30,15 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
   category: "bg-brand/10",
 };
 
-const DEFAULT_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
+const FALLBACK_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
 
 export default function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [recent, setRecent] = useState<string[]>([]);
+  const [trending, setTrending] = useState<string[]>(FALLBACK_TRENDING);
+  const fetchedTrending = useRef(false);
 
   const {
     query,
@@ -69,6 +71,15 @@ export default function CommandPalette() {
   useEffect(() => {
     if (isOpen) {
       setRecent(readRecent());
+      if (!fetchedTrending.current) {
+        fetchedTrending.current = true;
+        fetch("/api/departments/trending")
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data) && data.length > 0) setTrending(data);
+          })
+          .catch(() => {});
+      }
       // Small delay to allow element to mount before focusing
       setTimeout(() => inputRef.current?.focus(), 50);
       document.body.style.overflow = "hidden";
@@ -207,7 +218,7 @@ export default function CommandPalette() {
                   Trending
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {DEFAULT_TRENDING.map((term) => (
+                  {trending.map((term) => (
                     <button
                       key={term}
                       type="button"

@@ -37,7 +37,7 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
   category: "bg-brand/10",
 };
 
-const DEFAULT_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
+const FALLBACK_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];
 
 export default function SearchBar({ compact = false, placeholder = "Search title, author, ISBN, or topic", buttonLabel = "Search" }: SearchBarProps) {
   const searchParams = useSearchParams();
@@ -62,10 +62,21 @@ export default function SearchBar({ compact = false, placeholder = "Search title
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [recent, setRecent] = useState<string[]>([]);
+  const [trending, setTrending] = useState<string[]>(FALLBACK_TRENDING);
+  const fetchedTrending = useRef(false);
 
   useEffect(() => {
     if (open) {
       setRecent(readRecent());
+      if (!fetchedTrending.current) {
+        fetchedTrending.current = true;
+        fetch("/api/departments/trending")
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data) && data.length > 0) setTrending(data);
+          })
+          .catch(() => {});
+      }
     }
   }, [open]);
 
@@ -280,7 +291,7 @@ export default function SearchBar({ compact = false, placeholder = "Search title
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-muted mb-2">Trending Searches</h4>
                 <div className="flex flex-wrap gap-2">
-                  {DEFAULT_TRENDING.map((term) => (
+                  {trending.map((term) => (
                     <button
                       key={term}
                       type="button"

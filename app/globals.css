@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanuman:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanuman:wght@400;700;900&display=swap');
 
 @import "tailwindcss";
 
@@ -31,6 +31,52 @@
   --ptec-warning: #806211;
   --ptec-danger: #B91C1C;
   --ptec-info: #2A47A6;
+
+  /* ── Admin forms palette ───────────────────────────────────────── */
+  --ptec-navy-700: #27499f;
+  --ptec-navy-950: #152258;
+  --ptec-indigo: #4f46e5;
+  --ptec-violet: #7c3aed;
+  --ptec-cyan: #0e7490;
+  --ptec-emerald: #0f9d6b;
+  --ptec-amber: #d97706;
+  --ptec-rose: #e11d48;
+
+  /* ── Admin metric accent palette ─────────────────────────────── */
+  /* Digital Books → indigo */
+  --ptec-metric-books-bg:     #EEF2FF;  /* indigo-50  */
+  --ptec-metric-books-border: #C7D2FE;  /* indigo-200 */
+  --ptec-metric-books-from:   #818CF8;  /* indigo-400 */
+  --ptec-metric-books-to:     #4F46E5;  /* indigo-600 */
+  --ptec-metric-books-num:    #3730A3;  /* indigo-700 */
+
+  /* Downloads → amber / gold */
+  --ptec-metric-dl-bg:        #FFFBEB;  /* amber-50  */
+  --ptec-metric-dl-border:    #FDE68A;  /* amber-200 */
+  --ptec-metric-dl-from:      #FBBF24;  /* amber-400 */
+  --ptec-metric-dl-to:        #D97706;  /* amber-600 */
+  --ptec-metric-dl-num:       #B45309;  /* amber-700 */
+
+  /* Views → emerald */
+  --ptec-metric-views-bg:     #ECFDF5;  /* emerald-50  */
+  --ptec-metric-views-border: #A7F3D0;  /* emerald-200 */
+  --ptec-metric-views-from:   #34D399;  /* emerald-400 */
+  --ptec-metric-views-to:     #059669;  /* emerald-600 */
+  --ptec-metric-views-num:    #047857;  /* emerald-700 */
+
+  /* Users → violet */
+  --ptec-metric-users-bg:     #F5F3FF;  /* violet-50  */
+  --ptec-metric-users-border: #DDD6FE;  /* violet-200 */
+  --ptec-metric-users-from:   #A78BFA;  /* violet-400 */
+  --ptec-metric-users-to:     #7C3AED;  /* violet-600 */
+  --ptec-metric-users-num:    #6D28D9;  /* violet-700 */
+
+  /* Catalog Copies → cyan */
+  --ptec-metric-cat-bg:       #ECFEFF;  /* cyan-50  */
+  --ptec-metric-cat-border:   #A5F3FC;  /* cyan-200 */
+  --ptec-metric-cat-from:     #22D3EE;  /* cyan-400 */
+  --ptec-metric-cat-to:       #0891B2;  /* cyan-600 */
+  --ptec-metric-cat-num:      #0E7490;  /* cyan-700 */
 }
 
 :root.dark {
@@ -118,10 +164,10 @@
 
   /* Fonts */
   --font-khmer-serif: var(--font-var-serif), ui-serif, Georgia, serif;
-  --font-sans: var(--font-var-sans), Arial, Helvetica, sans-serif;
-  --font-khmer-serif: var(--font-var-khmer-serif), serif;
+  --font-sans: "Hanuman", var(--font-var-sans), Arial, Helvetica, sans-serif;
+  --font-khmer-serif: "Hanuman", var(--font-var-khmer-serif), serif;
   --font-title: var(--font-var-angkor);
-  --font-body: var(--font-var-kantumruy-pro);
+  --font-body: "Hanuman", var(--font-var-hanuman);
   
   /* Shape, elevation */
   --radius-sm: 4px;
@@ -162,3 +208,85 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ── Admin sidebar ─────────────────────────────────────────────── */
+.admin-sidebar {
+  background: linear-gradient(160deg, #1E3A8A 0%, #162d70 60%, #0F2160 100%);
+}
+
+/* ── Admin metric badge gradients ──────────────────────────────── */
+.metric-badge-books   { background: linear-gradient(135deg, var(--ptec-metric-books-from), var(--ptec-metric-books-to)); }
+.metric-badge-dl      { background: linear-gradient(135deg, var(--ptec-metric-dl-from), var(--ptec-metric-dl-to)); }
+.metric-badge-views   { background: linear-gradient(135deg, var(--ptec-metric-views-from), var(--ptec-metric-views-to)); }
+.metric-badge-users   { background: linear-gradient(135deg, var(--ptec-metric-users-from), var(--ptec-metric-users-to)); }
+.metric-badge-catalog { background: linear-gradient(135deg, var(--ptec-metric-cat-from), var(--ptec-metric-cat-to)); }
+
+/* ── Admin gradient submit button ──────────────────────────────── */
+.btn-brand-gradient {
+  background: linear-gradient(135deg, #1E3A8A 0%, #2A47A6 100%);
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+.btn-brand-gradient:hover:not(:disabled) {
+  opacity: 0.92;
+  box-shadow: 0 4px 14px rgba(30, 58, 138, 0.35);
+}
+.btn-brand-gradient:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Admin form card & chips ───────────────────────────────────── */
+.form-card-accent { position: relative; }
+.form-card-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--ptec-brand), var(--ptec-indigo), var(--ptec-cyan), var(--ptec-emerald), var(--ptec-amber), var(--ptec-accent));
+}
+
+.sec-chip {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: none;
+  box-shadow: 0 8px 16px -8px rgba(0,0,0,.35);
+}
+.sec-chip--files { background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950)); }
+.sec-chip--details { background: linear-gradient(135deg, var(--ptec-violet), var(--ptec-indigo)); }
+.sec-chip--summary { background: linear-gradient(135deg, var(--ptec-emerald), #0c7a55); }
+
+.dz-chip {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: none;
+  transition: transform .2s;
+}
+.dz-chip--pdf { background: linear-gradient(135deg, #d23f57, #a01f33); }
+.dz-chip--img { background: linear-gradient(135deg, var(--ptec-violet), var(--ptec-indigo)); }
+
+/* ── Enhance gradient button ────────────────────────────────────── */
+.btn-brand-gradient {
+  background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950));
+  box-shadow: 0 12px 24px -12px rgba(21, 41, 107, .75);
+  transition: transform .2s, box-shadow .2s;
+}
+.btn-brand-gradient:hover:not(:disabled) {
+  opacity: 1; /* override previous */
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -12px rgba(21, 41, 107, .8), 0 0 0 3px rgba(221, 176, 34, .28);
+}
+
+@keyframes ptecFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.ptec-reveal { animation: ptecFadeUp .5s both; }

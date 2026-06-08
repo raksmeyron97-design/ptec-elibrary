@@ -138,7 +138,7 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-brand-gradient inline-flex h-12 items-center gap-2 rounded-xl px-8 font-semibold text-white"
         >
           <Icon name="pdf" className="text-lg" />
           {saving ? "Saving…" : "Save changes"}

@@ -1,6 +1,5 @@
 "use client";
 
-// app/admin/edit/[id]/EditForm.tsx
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
@@ -13,6 +12,7 @@ import {
 } from "@/lib/book-utils";
 import { createClient } from "@/lib/supabase/client";
 import Icon from "@/components/ui/core/Icon";
+import { ImagePlus, Save } from "lucide-react";
 
 type Initial = {
   id: string;
@@ -25,20 +25,28 @@ type Initial = {
   year: number;
   pages: number;
   summary: string;
-  coverUrl: string | null; // existing cover (may be null)
+  coverUrl: string | null;
 };
 
 const TEXT_FIELDS = [
   { name: "title",    label: "Title",    placeholder: "Book title",            required: true  },
   { name: "author",   label: "Author",   placeholder: "Author or institution", required: true  },
-  { name: "category", label: "Category", placeholder: "Research, Journal...",   required: true  },
+  { name: "category", label: "Category", placeholder: "Research, Journal…",    required: true  },
   { name: "language", label: "Language", placeholder: "",                      required: true  },
   { name: "isbn",     label: "ISBN",     placeholder: "Optional",              required: false },
 ] as const;
 
 type Phase = "idle" | "uploading-cover" | "saving";
 
-export default function EditForm({ initial, departments }: { initial: Initial, departments: string[] }) {
+const INPUT_CLASS =
+  "h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
+  "focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60";
+
+const SELECT_CLASS =
+  "h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
+  "focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60";
+
+export default function EditForm({ initial, departments }: { initial: Initial; departments: string[] }) {
   const supabase = createClient();
 
   const [phase, setPhase]         = useState<Phase>("idle");
@@ -46,24 +54,16 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
+  const coverZoneRef              = useRef<HTMLDivElement>(null);
 
   const saving = phase !== "idle";
 
-  // ── Preview when user picks a file ───────────────────────────
   function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif"];
-    if (!allowed.includes(file.type)) {
-      setError("Cover must be JPEG, PNG, WebP, or AVIF");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Cover image must be under 5 MB");
-      return;
-    }
-
+    if (!allowed.includes(file.type)) { setError("Cover must be JPEG, PNG, WebP, or AVIF"); return; }
+    if (file.size > 5 * 1024 * 1024)  { setError("Cover image must be under 5 MB"); return; }
     setError(null);
     setCoverFile(file);
     setPreview(URL.createObjectURL(file));
@@ -75,7 +75,6 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  // ── Submit ────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -85,54 +84,31 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
     const title    = (formData.get("title") as string)?.trim() || initial.title;
 
     try {
-      // ── 1. Upload new cover to R2 if selected ──────────────────────
       let newCoverUrl: string | null = null;
 
       if (coverFile) {
         setPhase("uploading-cover");
-        // Keep the new cover inside the book's existing folder when the old
-        // cover already follows the per-book layout; otherwise start a fresh
-        // folder so assets stay grouped (books/{category}/{slug}-{uid}/).
         const folder =
           bookFolderFromCoverUrl(initial.coverUrl) ??
           bookFolder(initial.category, title, makeUid());
         const path = bookCoverPath(folder, coverFile.name);
 
         const presignedRes = await getPresignedUrl(path, coverFile.type);
-        if ("error" in presignedRes) {
-          throw new Error(presignedRes.error);
-        }
+        if ("error" in presignedRes) throw new Error(presignedRes.error);
         const { presignedUrl, publicUrl } = presignedRes;
 
         const uploadRes = await fetch(presignedUrl, {
-          method: "PUT",
-          body: coverFile,
-          headers: {
-            "Content-Type": coverFile.type,
-          },
+          method: "PUT", body: coverFile, headers: { "Content-Type": coverFile.type },
         });
-
         if (!uploadRes.ok) throw new Error(`Cover upload failed: ${uploadRes.statusText}`);
-
         newCoverUrl = publicUrl;
       }
 
-      // ── 2. Pass coverUrl to server action ─────────────────────
-      // null  = remove cover (user cleared it)
-      // ""    = no change (keep existing)
-      // "https://..." = new cover uploaded above
-      if (newCoverUrl) {
-        formData.set("coverUrl", newCoverUrl);
-      } else if (preview === null) {
-        // user explicitly removed the cover
-        formData.set("coverUrl", "__remove__");
-      }
-      // else: don't set coverUrl → server keeps existing
+      if (newCoverUrl)        formData.set("coverUrl", newCoverUrl);
+      else if (preview === null) formData.set("coverUrl", "__remove__");
 
-      // ── 3. Save metadata via server action ───────────────────
       setPhase("saving");
       await updateBook(initial.id, formData);
-      // updateBook redirects on success — nothing runs after
     } catch (err) {
       setPhase("idle");
       setError(err instanceof Error ? err.message : "Update failed");
@@ -146,158 +122,145 @@ export default function EditForm({ initial, departments }: { initial: Initial, d
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid gap-5 rounded-xl border border-divider bg-bg-surface p-6 shadow-sm md:grid-cols-2 md:p-8"
-    >
-      <p className="md:col-span-2 rounded-lg bg-paper px-4 py-3 text-xs text-text-muted">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <p className="rounded-xl border border-divider bg-paper px-4 py-3 text-xs text-text-muted">
         Editing metadata and cover image. The PDF file is not changed here.
       </p>
 
-      {/* ── Cover image section ── */}
-      <div className="md:col-span-2">
-        <span className="mb-2 block text-sm font-semibold text-text-body">
+      {/* ── Cover section ── */}
+      <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-sm">
+        <h3 className="mb-4 text-sm font-bold text-text-heading">
           Cover image{" "}
           <span className="font-normal text-text-muted">(optional — JPEG, PNG, WebP · max 5 MB)</span>
-        </span>
+        </h3>
 
         <div className="flex items-start gap-4">
-          {/* Preview */}
+          {/* Current / new preview */}
           {preview ? (
-            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg border border-divider shadow-sm">
-              <Image
-                src={preview}
-                alt="Cover preview"
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
+            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-xl border border-divider shadow-sm">
+              <Image src={preview} alt="Cover preview" fill sizes="80px" className="object-cover" />
               <button
-                type="button"
-                onClick={removeCover}
-                disabled={saving}
-                title="Remove cover"
+                type="button" onClick={removeCover} disabled={saving} title="Remove cover"
                 className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] text-white hover:bg-black/80 disabled:opacity-50"
               >
                 ✕
               </button>
             </div>
           ) : (
-            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-xs text-text-muted">
+            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-divider bg-paper text-xs text-text-muted">
               No cover
             </div>
           )}
 
-          {/* File input */}
-          <div className="flex-1">
+          {/* Dropzone */}
+          <div
+            ref={coverZoneRef}
+            className="relative flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 py-6 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
+            onClick={() => !saving && fileInputRef.current?.click()}
+          >
+            <ImagePlus className="h-5 w-5 text-text-muted" />
+            <p className="text-xs text-text-muted">
+              {preview
+                ? coverFile ? `Selected: ${coverFile.name}` : "Click to replace cover"
+                : "Click to select cover image"}
+            </p>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/avif"
               disabled={saving}
               onChange={handleCoverChange}
-              className="block w-full rounded-lg border border-dashed border-divider bg-paper px-4 py-3 text-sm text-text-body transition hover:border-brand file:mr-4 file:cursor-pointer file:rounded-md file:border-0 file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-text-body disabled:opacity-50"
+              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
             />
-            <p className="mt-1.5 text-xs text-text-muted">
-              {preview
-                ? coverFile
-                  ? `New cover selected: ${coverFile.name}`
-                  : "Current cover shown. Pick a new file to replace it."
-                : "No cover — a colored placeholder will be used."}
-            </p>
           </div>
         </div>
       </div>
 
-      {/* ── Text fields ── */}
-      {TEXT_FIELDS.map((f) => (
-        <label key={f.name}>
+      {/* ── Metadata section ── */}
+      <div className="rounded-2xl border border-divider bg-bg-surface p-6 shadow-sm">
+        <h3 className="mb-5 text-sm font-bold text-text-heading">Metadata</h3>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          {TEXT_FIELDS.map((f) => (
+            <label key={f.name}>
+              <span className="mb-1.5 block text-sm font-semibold text-text-body">
+                {f.label} {f.required && <span className="text-red-500">*</span>}
+              </span>
+              <input
+                name={f.name}
+                required={f.required}
+                defaultValue={initial[f.name as keyof Initial] as string}
+                placeholder={f.placeholder}
+                disabled={saving}
+                className={INPUT_CLASS}
+              />
+            </label>
+          ))}
+
+          {/* Department */}
+          <label>
+            <span className="mb-1.5 block text-sm font-semibold text-text-body">
+              Department <span className="text-red-500">*</span>
+            </span>
+            <select
+              name="department" required defaultValue={initial.department}
+              disabled={saving} className={SELECT_CLASS}
+            >
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </label>
+
+          {/* Year */}
+          <label>
+            <span className="mb-1.5 block text-sm font-semibold text-text-body">Year</span>
+            <input name="year" type="number" min="1900" max="2099"
+              defaultValue={initial.year} disabled={saving} className={INPUT_CLASS} />
+          </label>
+
+          {/* Pages */}
+          <label>
+            <span className="mb-1.5 block text-sm font-semibold text-text-body">Pages</span>
+            <input name="pages" type="number" min="1"
+              defaultValue={initial.pages} disabled={saving} className={INPUT_CLASS} />
+          </label>
+        </div>
+
+        {/* Summary */}
+        <label className="mt-5 block">
           <span className="mb-1.5 block text-sm font-semibold text-text-body">
-            {f.label} {f.required && <span className="text-red-500">*</span>}
+            Summary <span className="text-red-500">*</span>
           </span>
-          <input
-            name={f.name}
-            required={f.required}
-            defaultValue={initial[f.name as keyof Initial] as string}
-            placeholder={f.placeholder}
-            disabled={saving}
-            className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
+          <textarea
+            name="summary" required rows={4} defaultValue={initial.summary} disabled={saving}
+            className="w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm outline-none transition-all focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
           />
         </label>
-      ))}
+      </div>
 
-      {/* Department */}
-      <label>
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Department <span className="text-red-500">*</span>
-        </span>
-        <select
-          name="department"
-          required
-          defaultValue={initial.department}
-          disabled={saving}
-          className="h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
-        >
-          {departments.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
-        </select>
-      </label>
-
-      {/* Year */}
-      <label>
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">Year</span>
-        <input
-          name="year" type="number" min="1900" max="2099"
-          defaultValue={initial.year} disabled={saving}
-          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
-        />
-      </label>
-
-      {/* Pages */}
-      <label>
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">Pages</span>
-        <input
-          name="pages" type="number" min="1"
-          defaultValue={initial.pages} disabled={saving}
-          className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
-        />
-      </label>
-
-      {/* Summary */}
-      <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Summary <span className="text-red-500">*</span>
-        </span>
-        <textarea
-          name="summary" required rows={4}
-          defaultValue={initial.summary} disabled={saving}
-          className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60"
-        />
-      </label>
-
+      {/* Error */}
       {error && (
-        <div className="md:col-span-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
+      {/* Progress */}
       {saving && (
-        <div className="md:col-span-2 flex items-center gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+        <div className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm"
+          style={{ borderColor: "#A5F3FC", background: "#ECFEFF", color: "#0E7490" }}>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
           {phaseLabel[phase]}
         </div>
       )}
 
-      <div className="md:col-span-2 flex gap-3">
-        <button
-          type="submit" disabled={saving}
-          className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Icon name="pdf" className="text-lg" />
-          {phaseLabel[phase]}
-        </button>
-      </div>
+      {/* Submit */}
+      <button
+        type="submit" disabled={saving}
+        className="btn-brand-gradient inline-flex h-12 items-center gap-2 rounded-xl px-8 font-semibold text-white"
+      >
+        <Save className="h-4 w-4" />
+        {phaseLabel[phase]}
+      </button>
     </form>
   );
 }

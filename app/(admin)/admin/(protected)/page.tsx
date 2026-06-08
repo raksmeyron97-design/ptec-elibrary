@@ -8,14 +8,10 @@ import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
 import ViewsChart from "@/components/admin/ViewsChart";
 
-// កុំ​ឲ្យ Next.js cache ទំព័រ​នេះ — query DB ឡើងវិញ​រាល់​ពេល​ផ្ទុក
 export const dynamic = "force-dynamic";
 
-// ── App timezone (ថេរ) ──────────────────────────────────────────
-// បែងចែក​ថ្ងៃ​តាម​ម៉ោង​កម្ពុជា ដើម្បី​កុំ​ឲ្យ​អាស្រ័យ​លើ timezone របស់ server
 const APP_TZ = "Asia/Phnom_Penh";
 
-// បម្លែង Date → "YYYY-MM-DD" តាម APP_TZ (en-CA ផ្តល់​ទម្រង់ YYYY-MM-DD)
 const dayKey = (d: Date) =>
   new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TZ,
@@ -26,12 +22,10 @@ const dayKey = (d: Date) =>
 
 const ONE_DAY = 86_400_000;
 
-// ── helper: metrics តាមថ្ងៃ ──
 function buildDailyBuckets(rows: any[], dateField: string, days = 30) {
   const buckets = new Map<string, number>();
   const keys: string[] = [];
   const now = Date.now();
-  // បង្កើត key ថ្ងៃ​ចុងក្រោយ N ថ្ងៃ​តាម APP_TZ (កម្ពុជា​គ្មាន DST ⇒ ដក​ 24h សុវត្ថិភាព)
   for (let i = days - 1; i >= 0; i--) {
     const key = dayKey(new Date(now - i * ONE_DAY));
     buckets.set(key, 0);
@@ -45,7 +39,6 @@ function buildDailyBuckets(rows: any[], dateField: string, days = 30) {
   return keys.map((k) => ({ date: k, count: buckets.get(k) || 0 }));
 }
 
-// ── helper: cumulative user growth ──
 function buildUserGrowth(rows: { created_at: string }[], baseline: number, days = 90) {
   const newPerDay = new Map<string, number>();
   const keys: string[] = [];
@@ -68,59 +61,146 @@ function buildUserGrowth(rows: { created_at: string }[], baseline: number, days 
   });
 }
 
-function StatCard({
-  icon: Icon, label, value, sub, accent,
-}: {
-  icon: LucideIcon; label: string; value: string; sub?: string; accent: string;
-}) {
+// ── Shared section card wrapper ──────────────────────────────────
+function SectionCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</span>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent}`}>
-          <Icon className="h-5 w-5" />
-        </span>
-      </div>
-      <div className="mt-3 text-2xl font-bold text-text-heading">{value}</div>
-      {sub && <div className="mt-1 text-xs text-text-muted">{sub}</div>}
+    <div className={`rounded-2xl border border-divider bg-bg-surface shadow-sm ${className}`}>
+      {children}
     </div>
   );
 }
 
+// ── Metric stat cards ────────────────────────────────────────────
+type MetricTheme = "books" | "dl" | "views" | "users" | "catalog";
+
+const METRIC_STYLE: Record<MetricTheme, {
+  cardBg: string; cardBorder: string; numColor: string; badgeClass: string;
+}> = {
+  books:   { cardBg: "var(--ptec-metric-books-bg)",  cardBorder: "var(--ptec-metric-books-border)",  numColor: "var(--ptec-metric-books-num)",  badgeClass: "metric-badge-books"   },
+  dl:      { cardBg: "var(--ptec-metric-dl-bg)",     cardBorder: "var(--ptec-metric-dl-border)",     numColor: "var(--ptec-metric-dl-num)",     badgeClass: "metric-badge-dl"      },
+  views:   { cardBg: "var(--ptec-metric-views-bg)",  cardBorder: "var(--ptec-metric-views-border)",  numColor: "var(--ptec-metric-views-num)",  badgeClass: "metric-badge-views"   },
+  users:   { cardBg: "var(--ptec-metric-users-bg)",  cardBorder: "var(--ptec-metric-users-border)",  numColor: "var(--ptec-metric-users-num)",  badgeClass: "metric-badge-users"   },
+  catalog: { cardBg: "var(--ptec-metric-cat-bg)",    cardBorder: "var(--ptec-metric-cat-border)",    numColor: "var(--ptec-metric-cat-num)",    badgeClass: "metric-badge-catalog" },
+};
+
+function StatCard({
+  icon: Icon, label, value, sub, metric,
+}: {
+  icon: LucideIcon; label: string; value: string; sub?: string; metric: MetricTheme;
+}) {
+  const s = METRIC_STYLE[metric];
+  return (
+    <div
+      className="rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+      style={{ background: s.cardBg, border: `1px solid ${s.cardBorder}` }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted leading-tight">{label}</span>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${s.badgeClass}`}>
+          <Icon className="h-5 w-5 text-white" />
+        </span>
+      </div>
+      <div className="mt-4 text-3xl font-bold leading-none" style={{ color: s.numColor }}>{value}</div>
+      {sub && <div className="mt-2 text-xs text-text-muted">{sub}</div>}
+    </div>
+  );
+}
+
+// ── Top-list card ────────────────────────────────────────────────
 type TopItem = { id: string; title: string; href: string; meta?: string; value: string };
 
 function TopListCard({
-  title, subtitle, items,
+  title, subtitle, items, accentColor,
 }: {
-  title: string; subtitle: string; items: TopItem[];
+  title: string; subtitle: string; items: TopItem[]; accentColor?: string;
 }) {
   return (
-    <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-      <h2 className="text-sm font-bold text-text-heading">{title}</h2>
-      <p className="text-xs text-text-muted">{subtitle}</p>
+    <SectionCard className="p-6">
+      <h2 className="text-base font-bold text-text-heading">{title}</h2>
+      <p className="mt-0.5 text-xs text-text-muted">{subtitle}</p>
       {items.length > 0 ? (
-        <ol className="mt-4 space-y-3">
+        <ol className="mt-5 space-y-1">
           {items.map((it, i) => (
-            <li key={it.id} className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-brand/10 text-xs font-bold text-brand">
+            <li
+              key={it.id}
+              className="group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-150 hover:bg-bg-app"
+            >
+              {/* rank badge */}
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold shadow-sm"
+                style={
+                  i === 0
+                    ? { background: "linear-gradient(135deg,#EDCB55,#DDB022)", color: "#fff" }
+                    : i === 1
+                    ? { background: "#E2E8F0", color: "#475569" }
+                    : i === 2
+                    ? { background: "#FEE2E2", color: "#B45309" }
+                    : { background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }
+                }
+              >
                 {i + 1}
               </span>
+
               <div className="min-w-0 flex-1">
                 <Link
                   href={it.href}
-                  className="block truncate text-sm font-medium text-text-body transition hover:text-accent"
+                  className="block truncate text-sm font-medium text-text-body transition-colors hover:text-brand"
                 >
                   {it.title}
                 </Link>
                 {it.meta && <p className="truncate text-xs text-text-muted">{it.meta}</p>}
               </div>
-              <span className="shrink-0 text-sm font-bold text-text-heading">{it.value}</span>
+
+              <span
+                className="shrink-0 tabular-nums text-sm font-bold"
+                style={{ color: accentColor ?? "var(--ptec-text-heading)" }}
+              >
+                {it.value}
+              </span>
             </li>
           ))}
         </ol>
       ) : (
         <p className="mt-4 text-sm text-text-muted">No data yet.</p>
       )}
+    </SectionCard>
+  );
+}
+
+// ── Chart section header ─────────────────────────────────────────
+function ChartHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  periodValue,
+  periodLabel,
+  accentColor,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  periodValue: string;
+  periodLabel: string;
+  accentColor: string;
+}) {
+  return (
+    <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <span
+          className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm"
+          style={{ background: accentColor + "22" }}
+        >
+          <Icon className="h-4 w-4" style={{ color: accentColor }} />
+        </span>
+        <div>
+          <h2 className="text-sm font-bold text-text-heading">{title}</h2>
+          <p className="text-xs text-text-muted">{subtitle}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="text-2xl font-bold" style={{ color: accentColor }}>{periodValue}</div>
+        <div className="text-xs text-text-muted">{periodLabel}</div>
+      </div>
     </div>
   );
 }
@@ -132,9 +212,8 @@ export default async function AdminDashboardPage() {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  // ទាញ​ទិន្នន័យ​ឲ្យ​ទូលាយ​បន្តិច (ដក 1 ថ្ងៃ​បន្ថែម) ដើម្បី​កុំ​ឲ្យ​បាត់ row នៅ​ស៊ុម​ថ្ងៃ
   const fetchFromDownloads = new Date(Date.now() - 31 * ONE_DAY).toISOString();
-  const fetchFromUsers = new Date(Date.now() - 91 * ONE_DAY).toISOString();
+  const fetchFromUsers     = new Date(Date.now() - 91 * ONE_DAY).toISOString();
 
   const [
     totalBooksRes, publishedBooksRes, bookStatsRes,
@@ -155,7 +234,6 @@ export default async function AdminDashboardPage() {
     supabase.from("books").select("id, title, slug, view_count, authors(name)").order("view_count", { ascending: false }).limit(5),
     supabase.from("catalog_books").select("id, title, slug, author, copies_available, copies_total").eq("is_active", true).lte("copies_available", 1).order("copies_available", { ascending: true }).limit(8),
     supabase.from("posts").select("*", { count: "exact", head: true }).eq("is_published", false),
-    // ── Phase 3 ──
     supabase.from("profiles").select("*", { count: "exact", head: true }).lt("created_at", fetchFromUsers),
     supabase.from("profiles").select("created_at").gte("created_at", fetchFromUsers),
     supabase.from("posts").select("views"),
@@ -163,36 +241,29 @@ export default async function AdminDashboardPage() {
     supabase.from("view_logs").select("viewed_at").gte("viewed_at", fetchFromDownloads),
   ]);
 
-  const totalBooks = totalBooksRes.count ?? 0;
+  const totalBooks     = totalBooksRes.count ?? 0;
   const publishedBooks = publishedBooksRes.count ?? 0;
-  const draftBooks = Math.max(0, totalBooks - publishedBooks);
+  const draftBooks     = Math.max(0, totalBooks - publishedBooks);
 
-  const bookStats = bookStatsRes.data ?? [];
+  const bookStats      = bookStatsRes.data ?? [];
   const totalDownloads = bookStats.reduce((s, b: any) => s + (b.download_count || 0), 0);
-  const booksViews = bookStats.reduce((s, b: any) => s + (b.view_count || 0), 0);
-  
-  const postsViews = (postStatsRes.data ?? []).reduce((s, p: any) => s + (p.views || 0), 0);
-  const reportsViews = (reportStatsRes.data ?? []).reduce((s, r: any) => s + (r.view_count || 0), 0);
+  const booksViews     = bookStats.reduce((s, b: any) => s + (b.view_count || 0), 0);
 
-  const totalViews = booksViews + postsViews + reportsViews;
-
-  const viewsData = [
-    { name: "Digital Books", count: booksViews, color: "#10b981" },
-    { name: "Research", count: reportsViews, color: "#3b82f6" },
-    { name: "Posts", count: postsViews, color: "#8b5cf6" },
-  ];
+  const postsViews   = (postStatsRes.data   ?? []).reduce((s, p: any) => s + (p.views       || 0), 0);
+  const reportsViews = (reportStatsRes.data ?? []).reduce((s, r: any) => s + (r.view_count  || 0), 0);
+  const totalViews   = booksViews + postsViews + reportsViews;
 
   const totalUsers = totalUsersRes.count ?? 0;
-  const newUsers = newUsersRes.count ?? 0;
+  const newUsers   = newUsersRes.count   ?? 0;
 
-  const catalog = catalogRes.data ?? [];
-  const totalCopies = catalog.reduce((s, c: any) => s + (c.copies_total || 0), 0);
+  const catalog        = catalogRes.data ?? [];
+  const totalCopies     = catalog.reduce((s, c: any) => s + (c.copies_total     || 0), 0);
   const availableCopies = catalog.reduce((s, c: any) => s + (c.copies_available || 0), 0);
 
-  const dailyDownloads = buildDailyBuckets(logsRes.data ?? [], "downloaded_at");
+  const dailyDownloads  = buildDailyBuckets(logsRes.data ?? [], "downloaded_at");
   const periodDownloads = dailyDownloads.reduce((s, d) => s + d.count, 0);
 
-  const dailyViews = buildDailyBuckets(viewLogsRes.data ?? [], "viewed_at");
+  const dailyViews  = buildDailyBuckets(viewLogsRes.data ?? [], "viewed_at");
   const periodViews = dailyViews.reduce((s, d) => s + d.count, 0);
 
   const nf = (n: number) => n.toLocaleString("en-US");
@@ -211,112 +282,132 @@ export default async function AdminDashboardPage() {
       meta: (b.authors as any)?.name, value: nf(b.view_count || 0),
     }));
 
-  const lowStock = lowStockRes.data ?? [];
+  const lowStock  = lowStockRes.data ?? [];
   const draftPosts = draftPostsRes.count ?? 0;
 
-  // ── Phase 3 ──
   const userBaseline = userBaselineRes.count ?? 0;
-  const growth = buildUserGrowth(userWindowRes.data ?? [], userBaseline);
-  const newUsers90 = (userWindowRes.data ?? []).length;
+  const growth       = buildUserGrowth(userWindowRes.data ?? [], userBaseline);
+  const newUsers90   = (userWindowRes.data ?? []).length;
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
+
       {/* ── KPI cards ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard icon={BookOpen} label="Digital books" value={nf(totalBooks)}
-          sub={`${publishedBooks} published · ${draftBooks} drafts`} accent="bg-brand/10 text-brand" />
-        <StatCard icon={Download} label="Downloads" value={nf(totalDownloads)}
-          sub="all time" accent="bg-amber-100 text-amber-600" />
-        <StatCard icon={Eye} label="Views" value={nf(totalViews)}
-          sub="all time" accent="bg-emerald-100 text-emerald-600" />
-        <StatCard icon={Users} label="Users" value={nf(totalUsers)}
-          sub={`+${nf(newUsers)} this month`} accent="bg-violet-100 text-violet-600" />
-        <StatCard icon={Library} label="Catalog copies" value={`${nf(availableCopies)} / ${nf(totalCopies)}`}
-          sub="available / total" accent="bg-sky-100 text-sky-600" />
+        <StatCard
+          icon={BookOpen}  label="Digital books"   value={nf(totalBooks)}
+          sub={`${publishedBooks} published · ${draftBooks} drafts`}
+          metric="books"
+        />
+        <StatCard
+          icon={Download}  label="Downloads"        value={nf(totalDownloads)}
+          sub="all time"
+          metric="dl"
+        />
+        <StatCard
+          icon={Eye}       label="Views"            value={nf(totalViews)}
+          sub="all time"
+          metric="views"
+        />
+        <StatCard
+          icon={Users}     label="Users"            value={nf(totalUsers)}
+          sub={`+${nf(newUsers)} this month`}
+          metric="users"
+        />
+        <StatCard
+          icon={Library}   label="Catalog copies"   value={`${nf(availableCopies)} / ${nf(totalCopies)}`}
+          sub="available / total"
+          metric="catalog"
+        />
       </div>
 
       {/* ── Views chart ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-bold text-text-heading">
-              <Eye className="h-4 w-4 text-emerald-500" /> Views
-            </h2>
-            <p className="text-xs text-text-muted">Last 30 days</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-emerald-600">{nf(periodViews)}</div>
-            <div className="text-xs text-text-muted">in this period</div>
-          </div>
-        </div>
+      <SectionCard className="p-6">
+        <ChartHeader
+          icon={Eye} title="Views" subtitle="Last 30 days"
+          periodValue={nf(periodViews)} periodLabel="in this period"
+          accentColor="#059669"
+        />
         <ViewsChart data={dailyViews} />
-      </div>
+      </SectionCard>
 
       {/* ── Downloads chart ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold text-text-heading">Downloads</h2>
-            <p className="text-xs text-text-muted">Last 30 days</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-brand">{nf(periodDownloads)}</div>
-            <div className="text-xs text-text-muted">in this period</div>
-          </div>
-        </div>
+      <SectionCard className="p-6">
+        <ChartHeader
+          icon={Download} title="Downloads" subtitle="Last 30 days"
+          periodValue={nf(periodDownloads)} periodLabel="in this period"
+          accentColor="#D97706"
+        />
         <DownloadsChart data={dailyDownloads} />
-      </div>
+      </SectionCard>
 
-      {/* ── User growth chart (Phase 3) ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-sm font-bold text-text-heading">
-              <UserPlus className="h-4 w-4 text-violet-500" /> User growth
-            </h2>
-            <p className="text-xs text-text-muted">Cumulative · last 90 days</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold text-violet-600">+{nf(newUsers90)}</div>
-            <div className="text-xs text-text-muted">new in this period</div>
-          </div>
-        </div>
+      {/* ── User growth chart ── */}
+      <SectionCard className="p-6">
+        <ChartHeader
+          icon={UserPlus} title="User growth" subtitle="Cumulative · last 90 days"
+          periodValue={`+${nf(newUsers90)}`} periodLabel="new in this period"
+          accentColor="#7C3AED"
+        />
         <UserGrowthChart data={growth} />
-      </div>
-
+      </SectionCard>
 
       {/* ── Top lists ── */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <TopListCard title="Top downloaded" subtitle="Most downloaded books (all time)" items={topDownloaded} />
-        <TopListCard title="Top viewed" subtitle="Most viewed books (all time)" items={topViewed} />
+        <TopListCard
+          title="Top downloaded" subtitle="Most downloaded books (all time)"
+          items={topDownloaded} accentColor="var(--ptec-metric-dl-num)"
+        />
+        <TopListCard
+          title="Top viewed" subtitle="Most viewed books (all time)"
+          items={topViewed} accentColor="var(--ptec-metric-views-num)"
+        />
       </div>
 
-      {/* ── Alerts ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <div className="mb-4 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <h2 className="text-sm font-bold text-text-heading">Needs attention</h2>
+      {/* ── Needs attention ── */}
+      <SectionCard className="p-6">
+        {/* Header */}
+        <div className="mb-5 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg"
+            style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          </span>
+          <h2 className="text-base font-bold text-text-heading">Needs attention</h2>
         </div>
 
+        {/* Draft chips */}
         <div className="grid gap-3 sm:grid-cols-2">
-          <Link href="/admin/manage"
-            className="flex items-center justify-between rounded-lg border border-divider bg-paper px-4 py-3 transition hover:border-accent/50 hover:bg-amber-50">
-            <span className="flex items-center gap-2 text-sm text-text-body">
-              <BookOpen className="h-4 w-4 text-text-muted" /> Unpublished book drafts
+          <Link
+            href="/admin/manage"
+            className="group flex items-center justify-between rounded-xl border border-divider bg-paper px-4 py-3 transition-all duration-150 hover:border-amber-200 hover:bg-amber-50"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-text-body">
+              <BookOpen className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
+              Unpublished book drafts
             </span>
-            <span className="rounded-md bg-brand/10 px-2 py-0.5 text-sm font-bold text-brand">{nf(draftBooks)}</span>
+            <span className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
+              style={{ background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }}>
+              {nf(draftBooks)}
+            </span>
           </Link>
-          <Link href="/admin/posts"
-            className="flex items-center justify-between rounded-lg border border-divider bg-paper px-4 py-3 transition hover:border-accent/50 hover:bg-amber-50">
-            <span className="flex items-center gap-2 text-sm text-text-body">
-              <FileText className="h-4 w-4 text-text-muted" /> Unpublished post drafts
+
+          <Link
+            href="/admin/posts"
+            className="group flex items-center justify-between rounded-xl border border-divider bg-paper px-4 py-3 transition-all duration-150 hover:border-amber-200 hover:bg-amber-50"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-text-body">
+              <FileText className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
+              Unpublished post drafts
             </span>
-            <span className="rounded-md bg-brand/10 px-2 py-0.5 text-sm font-bold text-brand">{nf(draftPosts)}</span>
+            <span className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
+              style={{ background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }}>
+              {nf(draftPosts)}
+            </span>
           </Link>
         </div>
 
-        <div className="mt-5">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+        {/* Low stock list */}
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
             Catalog low on copies ({lowStock.length})
           </p>
           {lowStock.length > 0 ? (
@@ -327,11 +418,14 @@ export default async function AdminDashboardPage() {
                     <p className="truncate text-sm font-medium text-text-body">{c.title}</p>
                     <p className="truncate text-xs text-text-muted">{c.author}</p>
                   </div>
-                  <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-bold ${
-                    (c.copies_available ?? 0) === 0
-                      ? "bg-red-100 text-red-600"
-                      : "bg-amber-100 text-amber-600"
-                  }`}>
+                  <span
+                    className="shrink-0 rounded-lg px-2.5 py-0.5 text-xs font-bold"
+                    style={
+                      (c.copies_available ?? 0) === 0
+                        ? { background: "#FEE2E2", color: "#B91C1C" }
+                        : { background: "#FFFBEB", color: "#B45309" }
+                    }
+                  >
                     {c.copies_available} / {c.copies_total} left
                   </span>
                 </li>
@@ -341,7 +435,7 @@ export default async function AdminDashboardPage() {
             <p className="text-sm text-text-muted">All catalog items have enough copies. ✓</p>
           )}
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }
