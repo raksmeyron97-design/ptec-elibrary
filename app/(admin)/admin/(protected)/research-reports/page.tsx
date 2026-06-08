@@ -38,6 +38,8 @@ export default async function AdminResearchReportsPage({
       is_published,
       download_count,
       view_count,
+      program,
+      faculty,
       cohort,
       academic_year,
       cover_url,
@@ -58,6 +60,8 @@ export default async function AdminResearchReportsPage({
   const rows = (reports ?? []).map((r: any) => ({
     id:            r.id as string,
     title:         r.title as string,
+    program:       r.program as string | null,
+    faculty:       r.faculty as string | null,
     cohort:        r.cohort ?? "—",
     academicYear:  r.academic_year ?? "—",
     isPublished:   r.is_published as boolean,
@@ -74,8 +78,8 @@ export default async function AdminResearchReportsPage({
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Research Reports</h1>
-          <p className="text-white/60 text-sm mt-1">Manage and publish student research reports</p>
+          <h1 className="text-2xl font-bold text-text-heading">Research Reports</h1>
+          <p className="text-text-muted text-sm mt-1">Manage and publish student research reports</p>
         </div>
         <Link
           href="/admin/research-reports/create"

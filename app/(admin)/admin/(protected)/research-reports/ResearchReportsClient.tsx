@@ -6,10 +6,13 @@ import { toggleReportPublishStatus, deleteResearchReport } from "@/app/actions/r
 import { FileText, Eye, Download, CheckCircle2, XCircle } from "lucide-react";
 import Icon from "@/components/ui/core/Icon";
 import Link from "next/link";
+import { getProgram } from "@/lib/research/programs";
 
 type ReportRow = {
   id: string;
   title: string;
+  program: string | null;
+  faculty: string | null;
   cohort: string;
   academicYear: string;
   coverUrl?: string | null;
@@ -153,6 +156,13 @@ export default function ResearchReportsClient({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-text-body">
+                      {report.program ? (
+                        <span className="text-xs text-brand font-medium block mb-0.5">
+                          {getProgram(report.program)?.nameEn ?? report.program}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-text-muted italic block mb-0.5">No program</span>
+                      )}
                       C{report.cohort} <span className="text-divider mx-1">•</span> {report.academicYear}
                     </td>
                     <td className="px-4 py-3">

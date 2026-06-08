@@ -17,13 +17,13 @@ export default async function EditResearchReportPage({ params }: { params: Promi
       <div className="flex items-center gap-4">
         <Link 
           href="/admin/research-reports"
-          className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white"
+          className="p-2 hover:bg-black/5 rounded-full transition-colors text-text-muted hover:text-text-heading"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold">Edit Research Report</h1>
-          <p className="text-white/60 text-sm mt-1">Update details for this research report</p>
+          <h1 className="text-2xl font-bold text-text-heading">Edit Research Report</h1>
+          <p className="text-text-muted text-sm mt-1">Update details for this research report</p>
         </div>
       </div>
 

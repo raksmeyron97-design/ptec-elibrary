@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { getPresignedUrl } from "@/app/actions/upload";
 import { updateResearchReport } from "@/app/actions/research";
 import { UploadCloud, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
+import ProgramCohortFields, { type CascadeValues } from "../../_components/ProgramCohortFields";
+import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
 
 export default function EditReportForm({ report }: { report: any }) {
   const router = useRouter();
@@ -14,6 +16,15 @@ export default function EditReportForm({ report }: { report: any }) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+
+  // Initialize cascade from the stored report — legacy rows may have program=null
+  const [programFields, setProgramFields] = useState<CascadeValues>({
+    program: report.program ?? "",
+    faculty: report.faculty ?? "",
+    subject: report.subject ?? "",
+    cohort: report.cohort ?? "",
+    academicYear: report.academic_year ?? "",
+  });
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,12 +41,35 @@ export default function EditReportForm({ report }: { report: any }) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
-    
+
+    // Validate cascade fields — require program before saving (even for legacy rows)
+    if (!programFields.program) {
+      setError("Please select a program before saving.");
+      return;
+    }
+    const programConfig = getProgram(programFields.program);
+    if (programConfig?.hasFaculty && !programFields.faculty) {
+      setError("Please select a faculty/major.");
+      return;
+    }
+    if (getSubjectsForFaculty(programFields.program, programFields.faculty).length > 0 && !programFields.subject) {
+      setError("Please select a subject.");
+      return;
+    }
+    if (!programFields.cohort) {
+      setError("Please select a cohort.");
+      return;
+    }
+    if (!programFields.academicYear) {
+      setError("Please select an academic year.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const formData = new FormData(e.currentTarget);
-      
+
       let finalPdfUrl = report.file_url;
       let finalCoverUrl = report.cover_url;
       let fileSizeKb = report.file_size_kb;
@@ -45,7 +79,7 @@ export default function EditReportForm({ report }: { report: any }) {
         const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
         const { presignedUrl: pdfUrl, publicUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type);
         if (pdfError || !pdfUrl || !publicUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
-        
+
         await fetch(pdfUrl, {
           method: "PUT",
           body: pdfFile,
@@ -69,12 +103,15 @@ export default function EditReportForm({ report }: { report: any }) {
         finalCoverUrl = publicUrl;
       }
 
-      // Save to DB
+      // Save to DB — cascade fields come from state (not FormData) to ensure reliability
       const dbData = {
         title: formData.get("title") as string,
         abstract: formData.get("abstract") as string,
-        cohort: formData.get("cohort") as string,
-        academic_year: formData.get("academic_year") as string,
+        program: programFields.program || null,
+        faculty: programFields.faculty || null,
+        subject: programFields.subject || null,
+        cohort: programFields.cohort,
+        academic_year: programFields.academicYear,
         author_names: formData.get("author_names") as string,
         advisor_name: formData.get("advisor_name") as string,
         cover_url: finalCoverUrl,
@@ -84,16 +121,16 @@ export default function EditReportForm({ report }: { report: any }) {
       };
 
       const result = await updateResearchReport(report.id, dbData);
-      
+
       if (!result.success) {
         throw new Error(result.error);
       }
 
       router.push("/admin/research-reports");
       router.refresh();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "Failed to update report. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to update report. Please try again.");
       setLoading(false);
     }
   };
@@ -106,58 +143,56 @@ export default function EditReportForm({ report }: { report: any }) {
         </div>
       )}
 
+      {/* Warn when editing a legacy report that has no program set */}
+      {!report.program && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          This report was created before the program field was added. Please select a Program before saving.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">Title</label>
-            <input 
-              name="title" 
+            <input
+              name="title"
               defaultValue={report.title}
-              required 
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
+              required
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
               placeholder="e.g. The impact of digital learning..."
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-text-body mb-1.5">Cohort</label>
-              <input 
-                name="cohort" 
-                defaultValue={report.cohort}
-                required 
-                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
-                placeholder="e.g. 3"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-text-body mb-1.5">Academic Year</label>
-              <input 
-                name="academic_year" 
-                defaultValue={report.academic_year}
-                required 
-                className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
-                placeholder="e.g. 2023-2024"
-              />
-            </div>
-          </div>
+          {/* Program → Faculty → Cohort → Academic Year cascade
+              ProgramCohortFields handles legacy values (stored values not in config)
+              by appending them as selectable options so data is never silently lost. */}
+          <ProgramCohortFields
+            defaultValues={{
+              program: report.program,
+              faculty: report.faculty,
+              subject: report.subject,
+              cohort: report.cohort,
+              academicYear: report.academic_year,
+            }}
+            onChange={setProgramFields}
+          />
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">Author Name(s)</label>
-            <input 
-              name="author_names" 
+            <input
+              name="author_names"
               defaultValue={report.author_names}
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
               placeholder="e.g. Sok San, Chan Dara"
             />
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">Advisor Name</label>
-            <input 
-              name="advisor_name" 
+            <input
+              name="advisor_name"
               defaultValue={report.advisor_name}
-              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
               placeholder="e.g. Dr. Chea Vutha"
             />
           </div>
@@ -178,12 +213,12 @@ export default function EditReportForm({ report }: { report: any }) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">Abstract (សេចក្តីសង្ខេប)</label>
-            <textarea 
-              name="abstract" 
+            <textarea
+              name="abstract"
               defaultValue={report.abstract}
-              required 
+              required
               rows={6}
-              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent" 
+              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
               placeholder="Brief summary of the research..."
             />
           </div>
@@ -200,10 +235,10 @@ export default function EditReportForm({ report }: { report: any }) {
                   {pdfFile ? pdfFile.name : (report.file_url ? "Current PDF attached" : "PDF files only")}
                 </p>
               </div>
-              <input 
-                type="file" 
-                accept="application/pdf" 
-                className="hidden" 
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
                 onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
               />
             </label>
@@ -227,10 +262,10 @@ export default function EditReportForm({ report }: { report: any }) {
                   {coverFile ? coverFile.name : (report.cover_url ? "Current cover attached" : "PNG, JPG, WEBP")}
                 </p>
               </div>
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
                 onChange={handleCoverChange}
               />
             </label>

@@ -4,6 +4,9 @@ export interface ResearchReport {
   abstract: string;
   department_id: string;
   department_name?: string; // Fetched from joined table
+  program: string | null;
+  faculty: string | null;
+  subject: string | null;
   cohort: string | null;
   academic_year: string | null;
   author_names: string | null;
@@ -24,6 +27,9 @@ export function mapRowToResearchReport(row: any): ResearchReport {
     abstract: row.abstract,
     department_id: row.department_id,
     department_name: row.departments?.name ?? null,
+    program: row.program ?? null,
+    faculty: row.faculty ?? null,
+    subject: row.subject ?? null,
     cohort: row.cohort,
     academic_year: row.academic_year,
     author_names: row.author_names,
