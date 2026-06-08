@@ -86,7 +86,12 @@ export async function downloadBook(bookFileId: string) {
 
 // ── Increment download count + record per-user history ───────
 // Called from PDFViewer whenever a user clicks Download.
+// Requires an authenticated session — silently no-ops for guests.
 export async function incrementDownloadCount(bookId: string): Promise<void> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return;
+
   const supabase = createServiceClient();
 
   // 1. Atomic global counter via RPC (with manual fallback)
@@ -95,7 +100,6 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
   });
 
   if (rpcError) {
-    // Fallback: manual increment if RPC doesn't exist yet
     const { data } = await supabase
       .from("books")
       .select("download_count")
@@ -108,30 +112,22 @@ export async function incrementDownloadCount(bookId: string): Promise<void> {
       .eq("id", bookId);
   }
 
-  // 2. Record analytics log (best-effort — don't block on failure)
+  // 2. Record per-user log
   try {
-    const authClient = await createClient();
-    const {
-      data: { user },
-    } = await authClient.auth.getUser();
+    const { data: fileData } = await supabase
+      .from("book_files")
+      .select("id")
+      .eq("book_id", bookId)
+      .limit(1)
+      .single();
 
-    const now = new Date().toISOString();
-    const { data: fileData } = await supabase.from("book_files").select("id").eq("book_id", bookId).limit(1).single();
-    
-    const logData: any = { downloaded_at: now };
-    if (user) {
-      logData.user_id = user.id;
-    }
-    if (fileData?.id) {
-      logData.book_file_id = fileData.id;
-    }
-    
-    const res = await supabase.from("download_logs").insert(logData);
-    if (res.error) {
-      console.error("[incrementDownloadCount] insert into download_logs failed:", res.error);
-    }
+    await supabase.from("download_logs").insert({
+      user_id: user.id,
+      book_file_id: fileData?.id ?? null,
+      downloaded_at: new Date().toISOString(),
+    });
   } catch (err) {
-    console.error("[incrementDownloadCount] history insert failed:", err);
+    console.error("[incrementDownloadCount] log insert failed:", err);
   }
 }
 

@@ -12,6 +12,16 @@ const s3Client = new S3Client({
   },
 });
 
+const ALLOWED_KEY_PREFIXES = ["books/", "posts/", "research/"];
+
+function validateR2Key(key: string): void {
+  if (key.startsWith("/") || key.startsWith("\\")) throw new Error("Invalid file path");
+  if (key.includes("..") || key.includes("\\")) throw new Error("Invalid file path");
+  if (!ALLOWED_KEY_PREFIXES.some((p) => key.startsWith(p))) {
+    throw new Error("File path must start with books/, posts/, or research/");
+  }
+}
+
 export async function getPresignedUrl(filePath: string, contentType: string) {
   try {
     const supabase = await createClient();
@@ -19,6 +29,8 @@ export async function getPresignedUrl(filePath: string, contentType: string) {
     if (!user) throw new Error("Not authenticated");
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
     if (profile?.role !== "admin") throw new Error("Forbidden");
+
+    validateR2Key(filePath);
 
     const bucketName = process.env.R2_BUCKET_NAME;
     const publicUrlBase = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;

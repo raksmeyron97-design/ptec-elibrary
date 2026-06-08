@@ -63,7 +63,14 @@ export default function LoginContent({ stats }: Props) {
   const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const rawCallback = searchParams.get("callbackUrl") ?? "/dashboard";
+  // Reject protocol-relative, absolute, and backslash-escape variants
+  const callbackUrl =
+    rawCallback.startsWith("/") &&
+    !rawCallback.startsWith("//") &&
+    !rawCallback.startsWith("/\\")
+      ? rawCallback
+      : "/dashboard";
   const urlError = searchParams.get("error");
   const urlErrorKey = urlError === "admin_signup_blocked" ? "errAdminBlocked" : urlError === "auth_failed" ? "errDefault" : null;
 

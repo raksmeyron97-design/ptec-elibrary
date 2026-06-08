@@ -14,14 +14,21 @@ export async function updateProfile(formData: FormData) {
     }
 
     const fullName = formData.get("full_name") as string;
+    if (fullName && fullName.length > 100) {
+      return { error: "Name must be 100 characters or fewer" };
+    }
     const avatarFile = formData.get("avatar") as File | null;
     let avatarUrl = undefined;
 
     if (avatarFile && avatarFile.size > 0) {
+      const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
+      if (!ALLOWED_MIME.includes(avatarFile.type)) {
+        return { error: "Avatar must be a JPEG, PNG, or WebP image" };
+      }
       if (avatarFile.size > 5 * 1024 * 1024) {
         return { error: "Avatar image must be less than 5MB" };
       }
-      
+
       const blob = await put(`avatars/${user.id}-${Date.now()}-${avatarFile.name}`, avatarFile, {
         access: "public",
         token: process.env.BLOB_READ_WRITE_TOKEN,

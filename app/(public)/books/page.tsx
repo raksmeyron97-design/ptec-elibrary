@@ -33,50 +33,6 @@ async function fetchBooks(params: SearchParams) {
   const language = params.language?.trim();
   const format = params.format?.trim();
 
-  let authorBookIds: string[] | null = null;
-  let categoryBookIds: string[] | null = null;
-  let tagBookIds: string[] | null = null;
-
-  if (q) {
-    const { data: matchingAuthors } = await supabase
-      .from("authors")
-      .select("id")
-      .ilike("name", `%${q}%`);
-    if (matchingAuthors?.length) {
-      const { data: baf } = await supabase
-        .from("books")
-        .select("id")
-        .in(
-          "author_id",
-          matchingAuthors.map((a) => a.id)
-        )
-        .eq("is_published", true);
-      authorBookIds = baf?.map((b) => b.id) ?? [];
-    }
-    const { data: matchingCategories } = await supabase
-      .from("categories")
-      .select("id")
-      .ilike("name", `%${q}%`);
-    if (matchingCategories?.length) {
-      const { data: bcf } = await supabase
-        .from("books")
-        .select("id")
-        .in(
-          "category_id",
-          matchingCategories.map((c) => c.id)
-        )
-        .eq("is_published", true);
-      categoryBookIds = bcf?.map((b) => b.id) ?? [];
-    }
-
-    const { data: tagMatches } = await supabase
-      .from("books")
-      .select("id")
-      .filter("tags::text", "ilike", `%${q}%`)
-      .eq("is_published", true);
-    tagBookIds = tagMatches?.map(b => b.id) ?? [];
-  }
-
   type SortOrder = { ascending: boolean; nullsFirst?: boolean };
   const sortMap: Record<string, { column: string; opts: SortOrder }> = {
     newest: { column: "published_at", opts: { ascending: false } },
@@ -105,30 +61,17 @@ async function fetchBooks(params: SearchParams) {
     .range(from, to);
 
   if (q) {
-    const relatedIds = [
-      ...new Set([
-        ...(authorBookIds ?? []),
-        ...(categoryBookIds ?? []),
-        ...(tagBookIds ?? []),
-      ]),
-    ];
-    const directOr = [
-      `title.ilike.%${q}%`,
-      `description.ilike.%${q}%`,
-      `language.ilike.%${q}%`,
-      `isbn.ilike.%${q}%`,
-    ];
-    if (relatedIds.length > 0)
-      directOr.push(`id.in.(${relatedIds.join(",")})`);
-    query = query.or(directOr.join(","));
+    // Use the pre-built tsvector column for safe, index-backed full-text search.
+    // websearch mode supports quoted phrases and - exclusions without SQL injection risk.
+    query = query.textSearch("fts", q, { type: "websearch", config: "english" });
   }
   if (dept) query = query.eq("departments.name", dept);
-  if (language) query = query.ilike("language", `%${language}%`);
+  if (language) query = query.eq("language", language);
   if (format) {
     const { data: bf } = await supabase
       .from("book_files")
       .select("book_id")
-      .ilike("format", `%${format}%`);
+      .eq("format", format);
     const formatBookIds = bf?.map((f) => f.book_id) ?? [];
     if (formatBookIds.length > 0) {
       query = query.in("id", formatBookIds);
