@@ -92,7 +92,18 @@ CREATE POLICY "Admins can update catalog_copies"    ON public.catalog_copies FOR
 CREATE POLICY "Admins can delete catalog_copies"    ON public.catalog_copies FOR DELETE  USING      (public.is_admin());
 
 -- contact_rate_limit (service-role only; no user path should touch this)
-ALTER TABLE public.contact_rate_limit ENABLE ROW LEVEL SECURITY;
+-- Guard: the table may not exist in all environments.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = 'contact_rate_limit' AND c.relkind = 'r'
+  ) THEN
+    EXECUTE 'ALTER TABLE public.contact_rate_limit ENABLE ROW LEVEL SECURITY';
+  END IF;
+END;
+$$;
 -- No policies: service role bypasses RLS, anon/authenticated are denied.
 
 -- ── 6. Fix per-user tables: add WITH CHECK on INSERT ─────────────────────────
