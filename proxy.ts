@@ -3,6 +3,9 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Paths that require an active session on the main domain
+const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: { headers: request.headers },
@@ -47,10 +50,8 @@ export async function proxy(request: NextRequest) {
 
   // ── Admin Subdomain Logic ────────────────────────────────────
   if (isAdminHost) {
-    // Determine the actual path (after potential rewrite)
     const effectivePath = url.pathname.startsWith("/admin") ? url.pathname : `/admin${url.pathname}`;
-    
-    // Auth Check for Admin
+
     if (effectivePath.startsWith("/admin")) {
       if (effectivePath !== "/admin/login" && effectivePath !== "/admin/auth/signout") {
         if (!user) {
@@ -70,23 +71,22 @@ export async function proxy(request: NextRequest) {
 
   // ── Main Domain Logic ─────────────────────────────────────────
 
-  // 2. Redirect logged-in users away from login page
+  // Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {
     const res = NextResponse.redirect(new URL("/books", request.url));
     return copyCookies(res);
   }
 
-  // 3. Protect /dashboard/*
-  if (url.pathname.startsWith("/dashboard") && !user) {
-    const res = NextResponse.redirect(new URL("/auth/login", request.url));
-    return copyCookies(res);
-  }
-
-  // 4. Protect /books/[slug]/download
-  const bookDownloadRegex = /^\/books\/[^/]+\/download$/;
-  if (bookDownloadRegex.test(url.pathname) && !user) {
-    const res = NextResponse.redirect(new URL("/auth/login", request.url));
-    return copyCookies(res);
+  // Protect /dashboard/*, /profile/*, /api/books/*
+  const isProtected = PROTECTED_PREFIXES.some((p) => url.pathname.startsWith(p));
+  if (isProtected && !user) {
+    const loginUrl = new URL("/auth/login", request.url);
+    // Reject open-redirect attempts before setting callbackUrl
+    const raw = url.pathname;
+    if (raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")) {
+      loginUrl.searchParams.set("callbackUrl", raw);
+    }
+    return copyCookies(NextResponse.redirect(loginUrl));
   }
 
   return response;

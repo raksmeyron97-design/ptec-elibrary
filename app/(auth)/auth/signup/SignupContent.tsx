@@ -1,12 +1,13 @@
 // app/(auth)/auth/signup/SignupContent.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from 'next-intl';
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 function friendlyError(msg: string): string {
@@ -85,6 +86,8 @@ export default function SignupContent({ stats }: Props) {
   const [showPw, setShowPw]             = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const [loading, setLoading]           = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]               = useState<string | null>(null);
@@ -122,23 +125,27 @@ export default function SignupContent({ stats }: Props) {
     e.preventDefault();
     setSubmitted(true);
     if (nameErrMsg || emailErrMsg || passwordErrMsg || confirmErrMsg || !email || !password || !fullName || password !== confirmPassword) return;
-    
+    if (!captchaToken) { setError("Please complete the verification below."); return; }
+
     setError(null);
     setLoading(true);
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        captchaToken,
         data: { full_name: fullName },
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
     });
 
-    if (error) { 
-      setError(friendlyErrorLocal(error.message)); 
-      setLoading(false); 
-      return; 
+    if (error) {
+      setError(friendlyErrorLocal(error.message));
+      setLoading(false);
+      turnstileRef.current?.reset();
+      setCaptchaToken(undefined);
+      return;
     }
     
     setSuccess(true);
@@ -513,10 +520,17 @@ export default function SignupContent({ stats }: Props) {
                   )}
                 </div>
 
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                  onSuccess={setCaptchaToken}
+                  onExpire={() => setCaptchaToken(undefined)}
+                  onError={() => setCaptchaToken(undefined)}
+                />
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading || googleLoading}
+                  disabled={loading || googleLoading || !captchaToken}
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
                 >
                   {loading ? (<><SpinnerIcon /> {t('creatingAccount')}</>) : t('createAccount')}

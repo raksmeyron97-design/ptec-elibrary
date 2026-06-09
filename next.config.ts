@@ -42,11 +42,11 @@ const securityHeaders = [
       // Styles: self + inline (Tailwind generates inline styles)
       "style-src 'self' 'unsafe-inline'",
       // Images: self + all approved external image hosts
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://pub-a07b6a3e6c63466392999efa42558aed.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com",
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com",
       // Fonts: self
       "font-src 'self' data:",
       // Connect: self + Supabase + Vercel Blob + R2
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://pub-a07b6a3e6c63466392999efa42558aed.r2.dev https://accounts.google.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://accounts.google.com",
       // Frames: none
       "frame-src 'none'",
       // Objects: none
@@ -107,10 +107,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images-na.ssl-images-amazon.com",
       },
-      // Cloudflare R2 bucket
+      // Cloudflare R2 public buckets (covers + legacy books bucket)
       {
         protocol: "https",
-        hostname: "pub-a07b6a3e6c63466392999efa42558aed.r2.dev",
+        hostname: "*.r2.dev",
       },
       // Vercel Blob
       {

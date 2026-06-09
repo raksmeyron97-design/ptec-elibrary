@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/core/Button";
 import { useTranslations } from "next-intl";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
@@ -12,20 +13,26 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!captchaToken) { setError("Please complete the verification below."); return; }
     setLoading(true);
     setError("");
     setMsg("");
-    
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${location.origin}/auth/reset-password`,
+      captchaToken,
     });
-    
+
     if (error) {
       setError(error.message);
+      turnstileRef.current?.reset();
+      setCaptchaToken(undefined);
     } else {
       setMsg(t('checkEmailForReset'));
     }
@@ -53,7 +60,14 @@ export default function ForgotPasswordPage() {
               className="h-11 w-full rounded-xl border border-divider bg-bg-body px-3 text-sm outline-none transition focus:border-brand"
             />
           </div>
-          <Button type="submit" className="w-full h-11 rounded-xl" disabled={loading}>
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+            onSuccess={setCaptchaToken}
+            onExpire={() => setCaptchaToken(undefined)}
+            onError={() => setCaptchaToken(undefined)}
+          />
+          <Button type="submit" className="w-full h-11 rounded-xl" disabled={loading || !captchaToken}>
             {loading ? t('sending') : t('sendResetLink')}
           </Button>
         </form>
