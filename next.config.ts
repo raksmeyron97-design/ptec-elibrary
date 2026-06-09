@@ -31,32 +31,6 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
   },
-  {
-    key: "Content-Security-Policy",
-    // Nonce-based CSP would be ideal but requires runtime injection; this static
-    // policy still eliminates the most common XSS vectors for this app.
-    value: [
-      "default-src 'self'",
-      // Scripts: self + Next.js inline bootstrap + Cloudflare Turnstile
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
-      // Styles: self + inline (Tailwind generates inline styles)
-      "style-src 'self' 'unsafe-inline'",
-      // Images: self + all approved external image hosts
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com",
-      // Fonts: self
-      "font-src 'self' data:",
-      // Connect: self + Supabase + Vercel Blob + R2 + Cloudflare Turnstile
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://accounts.google.com https://challenges.cloudflare.com",
-      // Frames: Cloudflare Turnstile only
-      "frame-src https://challenges.cloudflare.com",
-      // Objects: none
-      "object-src 'none'",
-      // Base: self only (prevents base-tag hijacking)
-      "base-uri 'self'",
-      // Form actions: self only
-      "form-action 'self'",
-    ].join("; "),
-  },
 ];
 
 const nextConfig: NextConfig = {

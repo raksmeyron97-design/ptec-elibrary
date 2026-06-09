@@ -106,23 +106,22 @@ export default function LoginContent({ stats }: Props) {
     if (/email not confirmed/i.test(msg)) return t('errEmailNotConfirmed');
     if (/too many requests|rate limit/i.test(msg)) return t('errTooManyRequests');
     if (/network/i.test(msg)) return t('errNetwork');
-    return t('errDefault');
+    if (/captcha/i.test(msg)) return isDev ? `[Dev] Supabase CAPTCHA is enabled — disable it in Supabase Auth settings or use production keys. Raw: ${msg}` : t('errDefault');
+    return isDev ? `[Dev] ${msg}` : t('errDefault');
   }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
     if (emailErrMsg || passwordErrMsg || !email || !password) return;
-    if (!isDev && !captchaToken) { setError("Please complete the verification below."); return; }
+    if (!captchaToken) { setError("Please complete the verification below."); return; }
     setError(null);
     setLoading(true);
-    const captchaOptions = isDev ? {} : { captchaToken };
-    const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions });
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
     if (error) {
       setError(friendlyError(error.message));
       setLoading(false);
-      turnstileRef.current?.reset();
-      setCaptchaToken(undefined);
+      if (!isDev) { turnstileRef.current?.reset(); setCaptchaToken(undefined); }
       return;
     }
     router.push(callbackUrl);
@@ -431,19 +430,17 @@ export default function LoginContent({ stats }: Props) {
               )}
             </div>
 
-            {!isDev && (
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                onSuccess={setCaptchaToken}
-                onExpire={() => setCaptchaToken(undefined)}
-                onError={() => setCaptchaToken(undefined)}
-              />
-            )}
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+              onSuccess={setCaptchaToken}
+              onExpire={() => setCaptchaToken(undefined)}
+              onError={() => setCaptchaToken(undefined)}
+            />
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || googleLoading || (!isDev && !captchaToken)}
+              disabled={loading || googleLoading || !captchaToken}
               className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
             >
               {loading ? (<><SpinnerIcon /> {t('signingIn')}</>) : t('signIn')}

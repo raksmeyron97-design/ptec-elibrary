@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer, hanuman } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
@@ -68,6 +69,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const headersList = await headers();
+  const nonce = headersList.get("x-nonce") || undefined;
+  
   const locale = await getLocale();
   const messages = await getMessages();
   const websiteSchema = {
@@ -94,6 +98,7 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable} ${hanuman.variable}`}>
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: THEME_INIT_SCRIPT,
           }}

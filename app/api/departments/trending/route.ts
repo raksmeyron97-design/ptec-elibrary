@@ -1,7 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 
-export async function GET() {
+function getClientIP(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+export async function GET(req: NextRequest) {
+  const ip = getClientIP(req);
+  const limit = rateLimit(ip, 30, 60000); // Max 30 requests per minute
+  if (!limit.success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   try {
     const supabase = await createClient();
     const { data } = await supabase

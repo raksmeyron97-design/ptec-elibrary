@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { rateLimit } from "@/lib/rate-limit";
 
 const COOLDOWN_MS = 2 * 60 * 1000;
 const MAX_PER_HOUR = 3;
@@ -66,10 +67,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
 
-  // Rate limit
   const ip = getClientIP(req);
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   
+  // 1. In-memory DDoS protection (fast fail)
+  const memLimit = rateLimit(ip, 10, 60 * 1000); // Max 10 requests per minute per IP
+  if (!memLimit.success) {
+    return NextResponse.json(
+      { error: "Too many rapid requests. Please slow down.", secondsLeft: Math.ceil((memLimit.reset - Date.now()) / 1000) },
+      { status: 429 }
+    );
+  }
+
+  // 2. Persistent Business Logic limit (3 per hour)
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const limit = await checkLimit(ip, supabase);
 
   if (limit.blocked) {
