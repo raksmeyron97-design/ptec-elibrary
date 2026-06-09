@@ -95,6 +95,7 @@ export default function SignupContent({ stats }: Props) {
   const [submitted, setSubmitted]       = useState(false);
 
   const supabase = createClient();
+  const isDev = process.env.NODE_ENV === 'development';
 
   const nameEmpty      = submitted && fullName.trim().length < 2;
   const emailInvalid   = submitted && email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -125,7 +126,7 @@ export default function SignupContent({ stats }: Props) {
     e.preventDefault();
     setSubmitted(true);
     if (nameErrMsg || emailErrMsg || passwordErrMsg || confirmErrMsg || !email || !password || !fullName || password !== confirmPassword) return;
-    if (!captchaToken) { setError("Please complete the verification below."); return; }
+    if (!isDev && !captchaToken) { setError("Please complete the verification below."); return; }
 
     setError(null);
     setLoading(true);
@@ -134,7 +135,7 @@ export default function SignupContent({ stats }: Props) {
       email,
       password,
       options: {
-        captchaToken,
+        ...(isDev ? {} : { captchaToken }),
         data: { full_name: fullName },
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
@@ -520,17 +521,19 @@ export default function SignupContent({ stats }: Props) {
                   )}
                 </div>
 
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-                  onSuccess={setCaptchaToken}
-                  onExpire={() => setCaptchaToken(undefined)}
-                  onError={() => setCaptchaToken(undefined)}
-                />
+                {!isDev && (
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                    onSuccess={setCaptchaToken}
+                    onExpire={() => setCaptchaToken(undefined)}
+                    onError={() => setCaptchaToken(undefined)}
+                  />
+                )}
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading || googleLoading || !captchaToken}
+                  disabled={loading || googleLoading || (!isDev && !captchaToken)}
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
                 >
                   {loading ? (<><SpinnerIcon /> {t('creatingAccount')}</>) : t('createAccount')}

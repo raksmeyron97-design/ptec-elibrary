@@ -89,6 +89,7 @@ export default function LoginContent({ stats }: Props) {
   const [submitted, setSubmitted]       = useState(false);
 
   const supabase = createClient();
+  const isDev = process.env.NODE_ENV === 'development';
 
   const emailInvalid =
     (emailTouched || submitted) && email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -112,10 +113,11 @@ export default function LoginContent({ stats }: Props) {
     e.preventDefault();
     setSubmitted(true);
     if (emailErrMsg || passwordErrMsg || !email || !password) return;
-    if (!captchaToken) { setError("Please complete the verification below."); return; }
+    if (!isDev && !captchaToken) { setError("Please complete the verification below."); return; }
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
+    const captchaOptions = isDev ? {} : { captchaToken };
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaOptions });
     if (error) {
       setError(friendlyError(error.message));
       setLoading(false);
@@ -429,17 +431,19 @@ export default function LoginContent({ stats }: Props) {
               )}
             </div>
 
-            <Turnstile
-              ref={turnstileRef}
-              siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-              onSuccess={setCaptchaToken}
-              onExpire={() => setCaptchaToken(undefined)}
-              onError={() => setCaptchaToken(undefined)}
-            />
+            {!isDev && (
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={setCaptchaToken}
+                onExpire={() => setCaptchaToken(undefined)}
+                onError={() => setCaptchaToken(undefined)}
+              />
+            )}
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading || googleLoading || !captchaToken}
+              disabled={loading || googleLoading || (!isDev && !captchaToken)}
               className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-semibold text-brand-contrast shadow-sm transition hover:bg-brand-hover hover:shadow-md disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 motion-safe:active:scale-[0.99]"
             >
               {loading ? (<><SpinnerIcon /> {t('signingIn')}</>) : t('signIn')}
