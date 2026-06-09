@@ -102,7 +102,7 @@ async function uploadBook(
     const folder = bookFolder(row.category || "uncategorized", row.title, uid);
     const pdfPath = bookPdfPath(folder);
 
-    const pdfPresigned = await getPresignedUrl(pdfPath, "application/pdf");
+    const pdfPresigned = await getPresignedUrl(pdfPath, "application/pdf", "private");
     if ("error" in pdfPresigned) throw new Error(pdfPresigned.error);
 
     const pdfRes = await fetch(pdfPresigned.presignedUrl, {
@@ -117,7 +117,7 @@ async function uploadBook(
       onStatus("uploading-cover");
       try {
         const coverPath = bookCoverPath(folder, coverFile.name);
-        const coverPresigned = await getPresignedUrl(coverPath, coverFile.type);
+        const coverPresigned = await getPresignedUrl(coverPath, coverFile.type, "public");
         if (!("error" in coverPresigned)) {
           const coverRes = await fetch(coverPresigned.presignedUrl, {
             method: "PUT", body: coverFile,

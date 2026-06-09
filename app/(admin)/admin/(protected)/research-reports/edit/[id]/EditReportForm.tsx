@@ -78,7 +78,7 @@ export default function EditReportForm({ report }: { report: any }) {
       // Upload new PDF to R2 if selected
       if (pdfFile) {
         const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const { presignedUrl: pdfUrl, publicUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type);
+        const { presignedUrl: pdfUrl, publicUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type, "private");
         if (pdfError || !pdfUrl || !publicUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
 
         await fetch(pdfUrl, {
@@ -93,7 +93,7 @@ export default function EditReportForm({ report }: { report: any }) {
       // Upload new Cover to R2 if selected (overrides remove)
       if (coverFile) {
         const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const { presignedUrl: coverUploadUrl, publicUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type);
+        const { presignedUrl: coverUploadUrl, publicUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type, "public");
         if (coverError || !coverUploadUrl || !publicUrl) throw new Error(coverError || "Failed to get Cover upload URL");
 
         await fetch(coverUploadUrl, {

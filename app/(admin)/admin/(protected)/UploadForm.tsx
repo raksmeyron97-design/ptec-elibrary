@@ -104,7 +104,7 @@ export default function UploadForm() {
       const folder = bookFolder(categoryName, title, uid);
       const pdfPath = bookPdfPath(folder);
 
-      const pdfPresignedRes = await getPresignedUrl(pdfPath, "application/pdf");
+      const pdfPresignedRes = await getPresignedUrl(pdfPath, "application/pdf", "private");
       if ("error" in pdfPresignedRes) throw new Error(pdfPresignedRes.error);
       const { presignedUrl: pdfPresignedUrl, publicUrl: pdfPublicUrl } = pdfPresignedRes;
 
@@ -119,7 +119,7 @@ export default function UploadForm() {
         const coverFile = cover as File;
         const coverPath = bookCoverPath(folder, coverFile.name);
         try {
-          const coverPresignedRes = await getPresignedUrl(coverPath, coverFile.type);
+          const coverPresignedRes = await getPresignedUrl(coverPath, coverFile.type, "public");
           if ("error" in coverPresignedRes) throw new Error(coverPresignedRes.error);
           const { presignedUrl: coverPresignedUrl, publicUrl: coverPublicUrl } = coverPresignedRes;
           const coverUploadRes = await fetch(coverPresignedUrl, {

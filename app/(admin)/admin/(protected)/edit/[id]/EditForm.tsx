@@ -95,7 +95,7 @@ export default function EditForm({ initial, departments }: { initial: Initial; d
           bookFolder(initial.category, title, makeUid());
         const path = bookCoverPath(folder, coverFile.name);
 
-        const presignedRes = await getPresignedUrl(path, coverFile.type);
+        const presignedRes = await getPresignedUrl(path, coverFile.type, "public");
         if ("error" in presignedRes) throw new Error(presignedRes.error);
         const { presignedUrl, publicUrl } = presignedRes;
 

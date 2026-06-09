@@ -82,7 +82,7 @@ export default function CreateReportForm() {
 
       // Upload PDF to R2
       const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: pdfUrl, publicUrl: finalPdfUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type);
+      const { presignedUrl: pdfUrl, publicUrl: finalPdfUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type, "private");
       if (pdfError || !pdfUrl || !finalPdfUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
 
       await fetch(pdfUrl, {
@@ -93,7 +93,7 @@ export default function CreateReportForm() {
 
       // Upload Cover to R2
       const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: coverUploadUrl, publicUrl: finalCoverUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type);
+      const { presignedUrl: coverUploadUrl, publicUrl: finalCoverUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type, "public");
       if (coverError || !coverUploadUrl || !finalCoverUrl) throw new Error(coverError || "Failed to get Cover upload URL");
 
       await fetch(coverUploadUrl, {
