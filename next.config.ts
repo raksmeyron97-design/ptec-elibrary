@@ -107,10 +107,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images-na.ssl-images-amazon.com",
       },
-      // Cloudflare R2 public buckets (covers + legacy books bucket)
+      // Cloudflare R2 public buckets (legacy books bucket)
       {
         protocol: "https",
-        hostname: "*.r2.dev",
+        hostname: "pub-a07b6a3e6c63466392999efa42558aed.r2.dev",
+      },
+      // Cloudflare R2 covers bucket
+      {
+        protocol: "https",
+        hostname: "pub-859a15e085144721b664647523d5ccff.r2.dev",
       },
       // Vercel Blob
       {
