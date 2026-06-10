@@ -233,26 +233,41 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Gmail SMTP — requires a 16-char App Password (not your real password).
+# Generate one at: https://myaccount.google.com/apppasswords (2FA must be on).
+# For local dev: set SMTP_USER / SMTP_PASS in .env.  Port 465 = SSL/TLS.
+# For production (Supabase Cloud): mirror these settings in the Supabase
+# Dashboard → Project Settings → Auth → SMTP Settings.
+[auth.email.smtp]
+enabled = true
+host = "smtp.gmail.com"
+port = 465
+user = "env(SMTP_USER)"
+pass = "env(SMTP_PASS)"
+admin_email = "env(SMTP_USER)"
+sender_name = "PTEC Library"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# ── Branded bilingual (KH/EN) email templates ─────────────────────────────────
+# For production, upload these via the Supabase Dashboard →
+# Authentication → Email Templates (paste the HTML into each template slot).
+
+[auth.email.template.confirmation]
+subject = "បញ្ជាក់អ៊ីមែលរបស់អ្នក / Confirm Your Email – PTEC Library"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "កំណត់ពាក្យសម្ងាត់ឡើងវិញ / Reset Your Password – PTEC Library"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "តំណភ្ជាប់ចូល / Your Sign-in Link – PTEC Library"
+content_path = "./supabase/templates/magic_link.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
 # subject = "Your password has been changed"
-# content_path = "./templates/password_changed_notification.html"
+# content_path = "./supabase/templates/password_changed_notification.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.

@@ -168,26 +168,33 @@ export default async function Footer() {
                 {t('findPtec')}
               </h3>
               <div className="relative w-full flex-1 min-h-[160px] rounded-xl overflow-hidden border border-white/10 group">
-                <Link href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3!4m6!3m5!1s0x310951a618265c67:0x159b1d2bb350bbae!8m2!3d11.5568858!4d104.8872782!16s%2Fg%2F1q665w1lh?entry=ttu&g_ep=EgoyMDI2MDUyNy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noreferrer" className="block w-full h-full relative">
-                  <iframe 
-                    src="https://maps.google.com/maps?q=Phnom%20Penh%20Teacher%20Education%20College&t=&z=15&ie=UTF8&iwloc=&output=embed" 
-                    width="100%" 
-                    height="100%" 
-                    style={{ border: 0, pointerEvents: 'none' }} 
-                    allowFullScreen={false} 
-                    loading="lazy" 
-                    referrerPolicy="no-referrer-when-downgrade"
-                    title="PTEC Location Map"
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </Link>
+                <iframe 
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.772583842131!2d104.88470327464049!3d11.568153444093952!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x310951a618265c67%3A0x159b1d2bb350bbae!2sPhnom%20Penh%20Teacher%20Education%20College!5e0!3m2!1sen!2skh!4v1717904033000!5m2!1sen!2skh" 
+                  width="100%" 
+                  height="100%" 
+                  style={{ border: 0, pointerEvents: 'none' }} 
+                  allowFullScreen={false} 
+                  loading="lazy" 
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="PTEC Location Map"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <Link 
+                  href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3!4m6!3m5!1s0x310951a618265c67:0x159b1d2bb350bbae!8m2!3d11.5568858!4d104.8872782!16s%2Fg%2F1q665w1lh" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="absolute inset-0 z-10 block" 
+                  aria-label="Open Map in new tab"
+                />
               </div>
               {/* Flag Counter Widget */}
               <div className="flex justify-start">
                 <a href="https://info.flagcounter.com/19Xs" target="_blank" rel="noopener noreferrer">
                   <img 
-                    src="https://s01.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" 
-                    alt="Flag Counter" 
+                    src="https://s11.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" 
+                    alt="Flag Counter"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade" 
                   />
                 </a>
               </div>
