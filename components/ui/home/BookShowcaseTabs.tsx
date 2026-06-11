@@ -5,6 +5,7 @@ import { useState, type ComponentProps } from "react";
 import Link from "next/link";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
+import { useTranslations } from "next-intl";
 
 // Stay in sync with BookCard's expected prop shape automatically.
 type BookCardData = ComponentProps<typeof BookCard>["book"];
@@ -18,15 +19,16 @@ type Props = {
   layout?: "carousel" | "grid";
 };
 
-const TABS: { key: TabKey; label: string; href: string }[] = [
-  { key: "trending", label: "Trending", href: "/books?sort=downloads" },
-  { key: "recent", label: "Recently Added", href: "/books?sort=newest" },
-];
+const TAB_HREFS: Record<TabKey, string> = {
+  trending: "/books?sort=downloads",
+  recent: "/books?sort=newest",
+};
 
 export default function BookShowcaseTabs({ trending, recent, layout = "carousel" }: Props) {
+  const t = useTranslations("home");
   const [tab, setTab] = useState<TabKey>("trending");
   const books = tab === "trending" ? trending : recent;
-  const activeHref = TABS.find((t) => t.key === tab)!.href;
+  const activeHref = TAB_HREFS[tab];
 
   return (
     <div>
@@ -37,21 +39,21 @@ export default function BookShowcaseTabs({ trending, recent, layout = "carousel"
           aria-label="Browse books"
           className="inline-flex rounded-full border border-divider bg-bg-surface p-1 shadow-sm shadow-inner"
         >
-          {TABS.map((t) => {
-            const active = t.key === tab;
+          {(["trending", "recent"] as TabKey[]).map((key) => {
+            const active = key === tab;
             return (
               <button
-                key={t.key}
+                key={key}
                 role="tab"
                 aria-selected={active}
-                onClick={() => setTab(t.key)}
+                onClick={() => setTab(key)}
                 className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-all sm:px-5 ${
                   active
                     ? "bg-gradient-to-r from-brand to-blue-600 text-white shadow-md shadow-brand/20"
                     : "text-text-muted hover:text-text-heading"
                 }`}
               >
-                {t.label}
+                {key === "trending" ? t("browseTrending") : t("browseRecent")}
               </button>
             );
           })}
@@ -61,7 +63,7 @@ export default function BookShowcaseTabs({ trending, recent, layout = "carousel"
           href={activeHref}
           className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex"
         >
-          Browse e-resources
+          {t("browseResources")}
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>

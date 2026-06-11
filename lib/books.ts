@@ -8,6 +8,10 @@ import {
 export { departments, coverColors, slugify };
 export type { Book };
 
+export const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
+   published_at, department, pages, isbn, rating, download_count, view_count,
+   authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb), reviews(rating)`;
+
 export function mapRowToBook(row: any): Book & { reviewCount: number } {
   const files = Array.isArray(row.book_files) ? row.book_files : [];
   const pdfFile = files.find((f: any) => f.format === "pdf") ?? files[0] ?? null;

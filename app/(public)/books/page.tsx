@@ -117,6 +117,19 @@ export default async function BooksPage({
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">
         <div className="mx-auto max-w-[1400px]">
+          {/* Title row */}
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('title')}</h1>
+              <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
+            </div>
+            <p className="shrink-0 text-sm text-text-muted">
+              {total > 0
+                ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
+                : t('noResults')}
+              {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
+            </p>
+          </div>
           {/* Search bar */}
           <div className="mb-5">
             <Suspense
@@ -186,18 +199,6 @@ export default async function BooksPage({
             </div>
           </div>
 
-          {/* Result count */}
-          <p className="mt-3 text-[12px] text-text-muted sm:text-[13px]">
-            {total > 0
-              ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
-              : t('noResults')}
-            {params.q && (
-              <>
-                {" "}
-                {t('resultsFor')} &ldquo;{params.q}&rdquo;
-              </>
-            )}
-          </p>
         </div>
       </div>
 

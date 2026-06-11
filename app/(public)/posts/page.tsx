@@ -38,14 +38,14 @@ export default async function PostsPage() {
   }));
 
   return (
-    <section className="min-h-screen bg-bg-body px-4 pb-12 pt-16 sm:px-6 sm:pb-16 sm:pt-24 md:px-12">
-      <div className="mx-auto max-w-[1200px] space-y-6 sm:space-y-8">
+    <section className="min-h-screen bg-bg-body px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 md:px-12">
+      <div className="mx-auto max-w-[1400px] space-y-6 sm:space-y-8">
 
         {/* Header */}
         <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="mb-1.5 sm:mb-2 text-xs font-bold uppercase tracking-widest text-accent">
-              PTEC Library
+              {t('eyebrow')}
             </p>
             <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold text-text-heading md:text-4xl">{t('title')}</h1>
             <p className="mt-1.5 sm:mt-2 max-w-2xl font-sans text-sm text-text-muted">

@@ -189,7 +189,7 @@ export default function LatestPosts({ posts }: Props) {
   const hasSidebar = rest.length > 0;
 
   return (
-    <section className="bg-bg-surface py-20">
+    <section className="bg-bg-surface py-10 sm:py-14 md:py-20">
       <div className="mx-auto max-w-[1400px] px-4 md:px-12">
         {/* Header */}
         <div className="mb-10 flex flex-col items-center text-center">

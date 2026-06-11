@@ -1,17 +1,15 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { mapRowToBook } from "@/lib/books";
+import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import BookShowcaseTabs from "./BookShowcaseTabs";
 import type { ComponentProps } from "react";
 import BookCard from "@/components/ui/books/BookCard";
+import { SectionTitle } from "@/components/ui/core/SectionTitle";
+import { getTranslations, getLocale } from "next-intl/server";
 
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 
 async function getRecentlyAdded() {
   const supabase = createServiceClient();
-  const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
-   published_at, department, pages, isbn, rating, download_count, view_count,
-   authors(name), categories(name), book_files(format, file_url, file_size_kb)`;
-   
   const { data } = await supabase
     .from("books")
     .select(BOOK_SELECT)
@@ -22,11 +20,20 @@ async function getRecentlyAdded() {
 }
 
 export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
-  const recentlyAdded = await getRecentlyAdded();
-  
+  const [recentlyAdded, t, locale] = await Promise.all([
+    getRecentlyAdded(),
+    getTranslations("home"),
+    getLocale(),
+  ]);
+  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
+
   return (
     <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper">
-      <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
+      <div className="mx-auto max-w-[1400px] px-4 py-10 sm:py-14 md:py-20 md:px-12">
+        <div className="mb-6 sm:mb-9">
+          <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
+          <SectionTitle as="h2" className="!mb-0 mt-2">{t("browseSectionTitle")}</SectionTitle>
+        </div>
         <BookShowcaseTabs trending={trendingBooks} recent={recentlyAdded} />
       </div>
     </section>

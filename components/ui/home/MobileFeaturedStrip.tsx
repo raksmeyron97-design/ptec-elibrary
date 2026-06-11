@@ -3,6 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations, useLocale } from "next-intl";
 
 type StripBook = {
   slug: string;
@@ -22,14 +23,21 @@ type Props = {
  * A swipeable row of covers so phone users get a visual hook in the hero.
  */
 export default function MobileFeaturedStrip({ books }: Props) {
+  const t = useTranslations("home");
+  const locale = useLocale();
+  const latinLabel = locale === "en" ? "uppercase tracking-[0.18em]" : "tracking-normal";
+
   if (books.length === 0) return null;
 
   return (
     <div className="mt-9 lg:hidden">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-400">Featured</span>
-        <Link href="/books?sort=downloads" className="text-[12px] font-semibold text-blue-100 hover:text-white">
-          See all →
+        <span className={`text-[11px] font-bold text-gold-400 ${latinLabel}`}>{t("mobileFeatured")}</span>
+        <Link href="/books?sort=downloads" className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-100 hover:text-white">
+          {t("mobileSeeAll")}
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
         </Link>
       </div>
 

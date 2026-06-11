@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { mapRowToBook } from "@/lib/books";
+import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import SearchBar from "@/components/ui/search/SearchBar";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { Button } from "@/components/ui/core/Button";
@@ -42,10 +42,6 @@ async function getStats() {
   const totalViews = (viewsRes.data ?? []).reduce((s, b) => s + (b.view_count ?? 0), 0);
   return { books: booksRes.count ?? 0, downloads: totalDownloads, users: usersRes.count ?? 0, views: totalViews };
 }
-
-const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
-   published_at, department, pages, isbn, rating, download_count, view_count,
-   authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb), reviews(rating)`;
 
 // #2 — Trending = most downloaded
 async function getTrendingBooks() {
@@ -97,7 +93,9 @@ export default async function HomePage() {
   const locale = await getLocale();
   const latinEyebrow = locale === 'en' ? 'uppercase tracking-[0.22em]' : 'tracking-normal';
   const latinLabel   = locale === 'en' ? 'uppercase tracking-[0.18em]' : 'tracking-normal';
-  const latinCaption = locale === 'en' ? 'uppercase tracking-[0.12em]' : 'tracking-normal';
+  const latinCaption = locale === 'en'
+    ? 'uppercase tracking-[0.12em] text-[10px] sm:text-[11px]'
+    : 'tracking-normal text-[11px] sm:text-[12px]';
   const [stats, trendingBooks, deptPills, trendingTerms] = await Promise.all([
     getStats(),
     getTrendingBooks(),
@@ -134,6 +132,7 @@ export default async function HomePage() {
             aria-hidden="true"
             fill
             priority
+            sizes="100vw"
             className="object-cover object-center"
           />
         </div>
@@ -156,7 +155,7 @@ export default async function HomePage() {
         <div aria-hidden className="pointer-events-none absolute -right-44 -top-48 h-[680px] w-[680px] rounded-full border border-white/[0.06]" />
         <div aria-hidden className="pointer-events-none absolute -left-40 -bottom-56 h-[420px] w-[420px] rounded-full border border-gold-500/10" />
 
-        <div className="relative mx-auto max-w-[1400px] px-4 py-10 sm:py-16 md:px-12 md:py-24">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-10 sm:py-12 md:px-12 md:py-14">
           <div className="grid items-center gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-14">
 
             {/* Left — min-w-0 prevents mobile horizontal overflow */}
@@ -165,13 +164,13 @@ export default async function HomePage() {
                 {t('tagline')}
               </span>
               <h1
-                className={`mt-3 sm:mt-4 font-khmer-serif text-[clamp(28px,5vw,52px)] font-bold text-white drop-shadow-lg ${
+                className={`mt-3 sm:mt-4 font-khmer-serif text-[clamp(24px,3.5vw,42px)] font-bold text-white drop-shadow-lg ${
                   locale === 'km' ? 'leading-[1.4] tracking-normal' : 'leading-[1.1] tracking-tight'
                 }`}
               >
                 {t('headline')}
               </h1>
-              <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.75] text-blue-50 md:text-base drop-shadow-md">
+              <p className="mt-3 sm:mt-5 max-w-lg text-[14px] sm:text-[15px] leading-[1.7] text-blue-50 md:text-base md:max-w-md drop-shadow-md">
                 {t('description')}
               </p>
 
@@ -187,7 +186,7 @@ export default async function HomePage() {
               {deptPills.length > 0 && (
                 <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2">
                   <span className={`text-[11px] font-bold text-blue-300 ${latinLabel}`}>{t('browse')}</span>
-                  {deptPills.slice(0, 5).map((dept) => (
+                  {deptPills.slice(0, 4).map((dept) => (
                     <Link
                       key={dept}
                       href={`/books?dept=${encodeURIComponent(dept)}`}
@@ -206,7 +205,7 @@ export default async function HomePage() {
                     <div className="font-khmer-serif text-lg sm:text-2xl font-bold leading-none text-white drop-shadow-md">
                       {s.value}<span className="text-gold-400">+</span>
                     </div>
-                    <div className={`mt-1 text-[10px] sm:text-[11px] font-semibold text-blue-300 ${latinCaption}`}>{s.label}</div>
+                    <div className={`mt-1 font-semibold text-blue-300 ${latinCaption}`}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -278,7 +277,7 @@ export default async function HomePage() {
             <p className="mx-auto mt-3 sm:mt-4 max-w-lg text-[14px] sm:text-[15px] leading-relaxed text-blue-200">
               {t('ctaBody')}
             </p>
-            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">{t('ctaBrowse')}</Button></Link>
               <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">{t('ctaPhysical')}</Button></Link>
             </div>
