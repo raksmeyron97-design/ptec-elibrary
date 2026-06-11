@@ -5,6 +5,7 @@ import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer, hanuman }
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import CommandPalette from "@/components/ui/search/CommandPalette";
+import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
 
@@ -112,6 +113,9 @@ export default async function RootLayout({
         <IntlProvider locale={locale} messages={messages}>
           <JsonLd data={websiteSchema} />
           <JsonLd data={orgSchema} />
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
           <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-contrast">
             Skip to content
           </a>

@@ -149,18 +149,14 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     return (
       <Link
         href={href}
-        className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-colors group ${
+        className={`relative flex flex-col items-center gap-1.5 w-[60px] py-1 transition-colors group ${
           isActive ? "text-brand" : "text-text-muted hover:text-brand"
         }`}
       >
-        {isActive && <span className="absolute inset-0 bg-brand/10 rounded-xl" />}
-        {isActive && (
-          <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[3px] bg-brand rounded-b-full" />
-        )}
-        <span className={`relative transition-transform ${isActive ? "scale-110" : "group-hover:scale-110"}`}>
+        <span className={`transition-transform duration-300 ${isActive ? "scale-110" : "group-hover:scale-110"}`}>
           <Icon />
         </span>
-        <span className={`relative text-[10px] tracking-wide ${isActive ? "font-bold" : "font-medium"}`}>
+        <span className={`text-[10px] tracking-wide transition-all duration-300 ${isActive ? "font-bold" : "font-medium"}`}>
           {label}
         </span>
       </Link>
@@ -170,8 +166,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   return (
     <>
       {/* ── Bottom nav bar ─────────────────────────────────── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface/95 backdrop-blur-md border-t border-divider/80 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-around h-16 px-2">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface/95 backdrop-blur-md border-t border-divider/50 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
+        <div className="flex items-center justify-around h-[68px] px-2 relative">
 
           {/* Left items */}
           {leftNav.map((item) => (
@@ -179,30 +175,32 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
           ))}
 
           {/* Center profile button */}
-          <button
-            onClick={() => setSheetOpen(true)}
-            aria-label="Open profile menu"
-            className="relative flex items-center justify-center px-3 py-2 transition-transform active:scale-95 group"
-          >
-            <div className="relative flex items-center justify-center w-10 h-10 overflow-hidden rounded-full ring-[1.5px] ring-divider transition-all group-hover:ring-focus-ring/50">
-              {user?.avatar_url ? (
-                <Image
-                  src={user.avatar_url}
-                  alt={user.full_name || user.email}
-                  fill
-                  className="object-cover"
-                />
-              ) : user ? (
-                <div className="flex items-center justify-center w-full h-full bg-brand text-brand-contrast text-[13px] font-bold">
-                  {getInitials(user.full_name, user.email)}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-paper text-text-muted">
-                  <PersonIcon />
-                </div>
-              )}
-            </div>
-          </button>
+          <div className="relative flex items-center justify-center">
+            <button
+              onClick={() => setSheetOpen(true)}
+              aria-label="Open profile menu"
+              className="relative flex items-center justify-center w-[54px] h-[54px] rounded-full transition-transform active:scale-95 hover:scale-105 group ring-[1.5px] ring-divider/80 hover:ring-brand/50"
+            >
+              <div className="relative flex items-center justify-center w-full h-full overflow-hidden rounded-full">
+                {user?.avatar_url ? (
+                  <Image
+                    src={user.avatar_url}
+                    alt={user.full_name || user.email}
+                    fill
+                    className="object-cover"
+                  />
+                ) : user ? (
+                  <div className="flex items-center justify-center w-full h-full bg-brand text-brand-contrast text-[13px] font-bold tracking-wider">
+                    {getInitials(user.full_name, user.email)}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-paper text-text-muted">
+                    <PersonIcon />
+                  </div>
+                )}
+              </div>
+            </button>
+          </div>
 
           {/* Right items */}
           {rightNav.map((item) => (

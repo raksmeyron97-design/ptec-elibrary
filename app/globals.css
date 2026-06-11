@@ -317,3 +317,43 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   border-radius: 8px 8px 0 0;
   background: linear-gradient(90deg, var(--ptec-brand), var(--ptec-accent), transparent);
 }
+
+/* ── Skeleton shimmer system ────────────────────────────────────── */
+:root,
+.theme-light {
+  --skeleton-base: #E9EEF8;
+  --skeleton-shine: #F5F8FF;
+}
+
+:root.dark {
+  --skeleton-base: #1a2e6a;
+  --skeleton-shine: #223480;
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 1200px 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+/* ── Navigation progress bar ────────────────────────────────────── */
+@keyframes nav-progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  60%  { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes nav-progress-glow {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
