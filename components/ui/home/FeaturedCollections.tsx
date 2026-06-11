@@ -20,14 +20,14 @@ export default function FeaturedCollections({ departments, limit = 4 }: Props) {
           <Link
             key={dept}
             href={`/books?dept=${encodeURIComponent(dept)}`}
-            className={`group relative overflow-hidden rounded-lg border border-divider border-t-[3px] ${t.topBorder} bg-bg-surface p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md`}
+            className={`group gradient-top-border relative overflow-hidden rounded-lg border border-divider bg-bg-surface p-6 shadow-sm backdrop-blur-sm transition-all hover:-translate-y-1.5 hover:shadow-lg hover:border-divider/60`}
           >
-            {/* soft themed glow on hover */}
+            {/* soft themed glow — visible at rest, brighter on hover */}
             <div
               aria-hidden
-              className={`pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${t.glow} to-transparent opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100`}
+              className={`pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-gradient-to-br ${t.glow} to-transparent opacity-[0.04] blur-2xl transition-opacity duration-300 group-hover:opacity-100`}
             />
-            <div className={`relative mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${t.iconBg} ${t.iconText}`}>
+            <div className={`relative mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${t.iconBg} ${t.iconText} shadow-sm ring-1 ring-black/5`}>
               {t.icon}
             </div>
             <h3 className="relative font-khmer-serif text-lg font-bold text-text-heading">{dept}</h3>

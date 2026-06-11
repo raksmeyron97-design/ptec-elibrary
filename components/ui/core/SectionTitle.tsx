@@ -17,7 +17,7 @@ export function SectionTitle({ children, as: Component = 'h2', className = '', .
   return (
     <Component className={`${baseStyles} ${sizes[Component]} ${className}`} {...props}>
       {children}
-      <span className="absolute bottom-0 left-0 w-12 h-[3px] bg-accent rounded-full" />
+      <span className="absolute bottom-0 left-0 w-16 h-[3px] rounded-full bg-gradient-to-r from-brand via-gold-400 to-transparent" />
     </Component>
   );
 }

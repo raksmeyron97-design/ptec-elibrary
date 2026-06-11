@@ -34,7 +34,6 @@ export interface ProgramConfig {
   faculties: FacultyOption[];
 }
 
-// ⚠️ TODO: Confirm faculty and subject lists with the institution.
 export const PROGRAMS: ProgramConfig[] = [
   {
     code: "b_ed_12_4",
@@ -54,19 +53,31 @@ export const PROGRAMS: ProgramConfig[] = [
         nameKm: "មធ្យមសិក្សាបឋមភូមិ",
         hasSubject: true,
         subjects: [
-          // ⚠️ TODO: Confirm this subject list with the institution.
-          { code: "math",      nameEn: "Mathematics",      nameKm: "គណិតវិទ្យា" },
-          { code: "physics",   nameEn: "Physics",          nameKm: "រូបវិទ្យា" },
-          { code: "chemistry", nameEn: "Chemistry",        nameKm: "គីមីវិទ្យា" },
-          { code: "biology",   nameEn: "Biology",          nameKm: "ជីវវិទ្យា" },
-          { code: "khmer",     nameEn: "Khmer Literature", nameKm: "អក្សរសាស្ត្រខ្មែរ" },
-          { code: "history",   nameEn: "History",          nameKm: "ប្រវត្តិវិទ្យា" },
-          { code: "geography", nameEn: "Geography",        nameKm: "ភូមិវិទ្យា" },
-          { code: "english",   nameEn: "English",          nameKm: "ភាសាអង់គ្លេស" },
-          { code: "ict",       nameEn: "ICT",              nameKm: "បច្ចេកវិទ្យាព័ត៌មាន" },
+          { code: "math",          nameEn: "Mathematics",      nameKm: "គណិតវិទ្យា" },
+          { code: "physics",       nameEn: "Physics",          nameKm: "រូបវិទ្យា" },
+          { code: "chemistry",     nameEn: "Chemistry",        nameKm: "គីមីវិទ្យា" },
+          { code: "biology",       nameEn: "Biology",          nameKm: "ជីវវិទ្យា" },
+          { code: "khmer",         nameEn: "Khmer Literature", nameKm: "អក្សរសាស្ត្រខ្មែរ" },
+          { code: "history",       nameEn: "History",          nameKm: "ប្រវត្តិវិទ្យា" },
+          { code: "geography",     nameEn: "Geography",        nameKm: "ភូមិវិទ្យា" },
+          { code: "earth_science", nameEn: "Earth Science",    nameKm: "ផែនដីវិទ្យា" },
+          { code: "morals_civics", nameEn: "Morals & Civics",  nameKm: "សីលធម៌ និងពលរដ្ឋវិជ្ជា" },
+          { code: "english",       nameEn: "English",          nameKm: "ភាសាអង់គ្លេស" },
+          { code: "french",        nameEn: "French",           nameKm: "ភាសាបារាំង" },
+          { code: "pe_health",     nameEn: "Physical Ed.",     nameKm: "អប់រំកាយ និងសុខភាព" },
+          { code: "ict",           nameEn: "ICT",              nameKm: "បច្ចេកវិទ្យាព័ត៌មាន" },
         ],
       },
-      // ⚠️ TODO: Add remaining faculty/major options
+      {
+        code: "early_childhood",
+        nameEn: "Early Childhood Education",
+        nameKm: "អប់រំកុមារតូច",
+      },
+      {
+        code: "school_management",
+        nameEn: "School Management",
+        nameKm: "ការគ្រប់គ្រងសាលារៀន",
+      },
     ],
   },
   {

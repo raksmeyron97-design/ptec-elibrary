@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 require('dotenv').config({ path: '.env' });
 const { createClient } = require('@supabase/supabase-js');
 

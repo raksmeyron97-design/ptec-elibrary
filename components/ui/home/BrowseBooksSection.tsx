@@ -25,7 +25,7 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   const recentlyAdded = await getRecentlyAdded();
   
   return (
-    <section className="border-y border-divider bg-bg-surface">
+    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper">
       <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
         <BookShowcaseTabs trending={trendingBooks} recent={recentlyAdded} />
       </div>

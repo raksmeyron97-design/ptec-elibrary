@@ -125,8 +125,9 @@ async function migrateField(
       if (updateErr) throw updateErr;
       console.log(`  ✓ [${table}] ${key}`);
       stats.copied++;
-    } catch (err: any) {
-      console.error(`  ✗ [${table}] ${key}:`, err?.message ?? err);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`  ✗ [${table}] ${key}:`, msg);
       stats.failed++;
     }
   }
@@ -166,8 +167,9 @@ async function migratePostsCoverUrls(stats: Stats): Promise<void> {
         await copyToPublicBucket(key);
         console.log(`  ✓ [posts.cover_urls] ${key}`);
         stats.copied++;
-      } catch (err: any) {
-        console.error(`  ✗ [posts.cover_urls] ${key}:`, err?.message ?? err);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`  ✗ [posts.cover_urls] ${key}:`, msg);
         stats.failed++;
         newUrls[i] = urls[i]; // revert this entry on failure
       }

@@ -35,7 +35,7 @@ export default function BookShowcaseTabs({ trending, recent, layout = "carousel"
         <div
           role="tablist"
           aria-label="Browse books"
-          className="inline-flex rounded-full border border-divider bg-bg-surface p-1 shadow-sm"
+          className="inline-flex rounded-full border border-divider bg-bg-surface p-1 shadow-sm shadow-inner"
         >
           {TABS.map((t) => {
             const active = t.key === tab;
@@ -47,7 +47,7 @@ export default function BookShowcaseTabs({ trending, recent, layout = "carousel"
                 onClick={() => setTab(t.key)}
                 className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-all sm:px-5 ${
                   active
-                    ? "bg-brand text-brand-contrast shadow-sm"
+                    ? "bg-gradient-to-r from-brand to-blue-600 text-white shadow-md shadow-brand/20"
                     : "text-text-muted hover:text-text-heading"
                 }`}
               >

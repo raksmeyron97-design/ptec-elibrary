@@ -140,8 +140,10 @@ export default async function HomePage() {
 
         {/* 2. Dark blue overlay */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-r from-blue-950/95 via-blue-900/85 to-blue-900/70 sm:to-blue-900/10" />
-        {/* 3. Subtle gold glow */}
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(820px_520px_at_88%_-10%,rgba(221,176,34,0.10),transparent_58%)]" />
+        {/* 3. Ambient gradient orbs */}
+        <div aria-hidden className="pointer-events-none absolute -z-10 top-1/4 left-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-600/20 blur-[120px] animate-float-orb" />
+        <div aria-hidden className="pointer-events-none absolute -z-10 bottom-0 right-1/4 h-[320px] w-[320px] rounded-full bg-gold-500/10 blur-[100px] animate-float-orb-slow" />
+        {/* 4. Dot pattern */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-10"
@@ -183,13 +185,13 @@ export default async function HomePage() {
 
               {/* Browse dept links */}
               {deptPills.length > 0 && (
-                <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-x-3 sm:gap-x-5 gap-y-2">
+                <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2">
                   <span className={`text-[11px] font-bold text-blue-300 ${latinLabel}`}>{t('browse')}</span>
                   {deptPills.slice(0, 5).map((dept) => (
                     <Link
                       key={dept}
                       href={`/books?dept=${encodeURIComponent(dept)}`}
-                      className="border-b border-transparent pb-px text-[13px] sm:text-[14px] text-blue-100 transition-colors hover:border-gold-500 hover:text-white"
+                      className="rounded-full border border-white/20 bg-white/[0.07] px-3 py-1 text-[12px] sm:text-[13px] text-blue-100 backdrop-blur-sm transition-all hover:bg-white/15 hover:border-gold-400/50 hover:text-white"
                     >
                       {dept}
                     </Link>
@@ -197,14 +199,14 @@ export default async function HomePage() {
                 </div>
               )}
 
-              {/* Slim stats strip */}
-              <div className="mt-6 sm:mt-10 grid grid-cols-4 gap-3 sm:flex sm:flex-wrap sm:gap-x-11 sm:gap-y-5 border-t border-white/10 pt-4 sm:pt-6">
+              {/* Stats strip — glass chips */}
+              <div className="mt-6 sm:mt-10 flex flex-wrap gap-2 sm:gap-3 border-t border-white/10 pt-4 sm:pt-6">
                 {heroStats.map((s) => (
-                  <div key={s.label}>
+                  <div key={s.label} className="rounded-lg border border-white/10 bg-white/[0.07] px-3 py-2 backdrop-blur-sm">
                     <div className="font-khmer-serif text-lg sm:text-2xl font-bold leading-none text-white drop-shadow-md">
                       {s.value}<span className="text-gold-400">+</span>
                     </div>
-                    <div className={`mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-semibold text-blue-300 ${latinCaption}`}>{s.label}</div>
+                    <div className={`mt-1 text-[10px] sm:text-[11px] font-semibold text-blue-300 ${latinCaption}`}>{s.label}</div>
                   </div>
                 ))}
               </div>
@@ -221,7 +223,7 @@ export default async function HomePage() {
             </div>
           </div>
         </div>
-        <div className="h-[2px] w-full bg-gradient-to-r from-gold-500 via-gold-400 to-transparent" />
+        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
       </section>
 
       {/* ════════ CONTINUE READING (personalized — renders only when logged in) ════════ */}
@@ -259,21 +261,27 @@ export default async function HomePage() {
 
       {/* ════════ CTA BANNER ════════ */}
       <section className="relative isolate overflow-hidden bg-gradient-to-br from-blue-900 to-blue-950">
+        {/* Ambient orbs */}
+        <div aria-hidden className="pointer-events-none absolute -z-10 -top-20 left-1/4 h-[360px] w-[360px] rounded-full bg-blue-600/25 blur-[100px] animate-float-orb" />
+        <div aria-hidden className="pointer-events-none absolute -z-10 bottom-0 right-1/4 h-[240px] w-[240px] rounded-full bg-gold-500/15 blur-[80px] animate-float-orb-slow" />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          className="pointer-events-none absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "24px 24px" }}
         />
         <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:py-20 text-center md:px-12">
-          <h2 className="font-khmer-serif text-[clamp(22px,4vw,40px)] font-bold leading-tight text-white">
-            {t('ctaHeading')}
-          </h2>
-          <p className="mx-auto mt-3 sm:mt-4 max-w-lg text-[14px] sm:text-[15px] leading-relaxed text-blue-200">
-            {t('ctaBody')}
-          </p>
-          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
-            <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">{t('ctaBrowse')}</Button></Link>
-            <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">{t('ctaPhysical')}</Button></Link>
+          {/* Glass content panel */}
+          <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-white/[0.04] px-6 py-10 backdrop-blur-sm sm:px-10 sm:py-12">
+            <h2 className="font-khmer-serif text-[clamp(22px,4vw,40px)] font-bold leading-tight text-white drop-shadow-lg">
+              {t('ctaHeading')}
+            </h2>
+            <p className="mx-auto mt-3 sm:mt-4 max-w-lg text-[14px] sm:text-[15px] leading-relaxed text-blue-200">
+              {t('ctaBody')}
+            </p>
+            <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row flex-wrap justify-center gap-3">
+              <Link href="/books" className="w-full sm:w-auto"><Button variant="gold" size="lg" className="w-full sm:w-auto">{t('ctaBrowse')}</Button></Link>
+              <Link href="/catalogs" className="w-full sm:w-auto"><Button variant="secondary" size="lg" className="w-full sm:w-auto !border-white/25 !bg-bg-surface/5 !text-white hover:!bg-bg-surface/10">{t('ctaPhysical')}</Button></Link>
+            </div>
           </div>
         </div>
       </section>

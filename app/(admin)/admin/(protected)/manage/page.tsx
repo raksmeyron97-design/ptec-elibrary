@@ -59,10 +59,9 @@ export default async function ManageBooksPage({
   if (status === "draft") query = query.eq("is_published", false);
 
   // ── Sort (done in the DB) ──
-  // TODO: switch "newest"/"oldest" to `created_at` after applying migration 0020.
   switch (sort) {
     case "oldest":
-      query = query.order("published_at", { ascending: true });
+      query = query.order("created_at", { ascending: true });
       break;
     case "title":
       query = query.order("title", { ascending: true });
@@ -78,7 +77,7 @@ export default async function ManageBooksPage({
       break;
     case "newest":
     default:
-      query = query.order("published_at", { ascending: false });
+      query = query.order("created_at", { ascending: false });
       break;
   }
 

@@ -290,3 +290,30 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   to { opacity: 1; transform: none; }
 }
 .ptec-reveal { animation: ptecFadeUp .5s both; }
+
+/* ── Modern UI utilities (home page) ────────────────────────────── */
+@keyframes floatOrb {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%       { transform: scale(1.08) translateY(-18px); }
+}
+.animate-float-orb {
+  animation: floatOrb 12s ease-in-out infinite;
+  will-change: transform;
+}
+.animate-float-orb-slow {
+  animation: floatOrb 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Gradient top-border card — use as parent wrapper */
+.gradient-top-border {
+  position: relative;
+}
+.gradient-top-border::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(90deg, var(--ptec-brand), var(--ptec-accent), transparent);
+}
