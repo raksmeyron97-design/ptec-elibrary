@@ -7,6 +7,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/books";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
+import { createAdminNotification } from "@/app/actions/notifications";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -221,6 +222,7 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
   if (fileError) throw new Error(`File error: ${fileError.message}`);
 
   await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title });
+  await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
 
   revalidatePath("/");
   revalidatePath("/books");

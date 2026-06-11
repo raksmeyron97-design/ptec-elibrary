@@ -3,6 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { deleteR2File } from "@/app/actions/upload";
+import { createAdminNotification } from "@/app/actions/notifications";
 
 function storagePathFromUrl(publicUrl: string): string | null {
   try {
@@ -201,6 +202,7 @@ export async function createResearchReport(formData: ResearchReportData) {
     return { success: false, error: error.message };
   }
 
+  await createAdminNotification("new_report", `New research report: "${formData.title}"`, undefined, "/research");
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
 }

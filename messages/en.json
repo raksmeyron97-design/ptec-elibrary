@@ -298,5 +298,13 @@
     "emptyState": "No research reports available yet.",
     "groupHeader": "12+4 Student Teachers Research Report - Cohort {cohort} ({year})",
     "byAuthor": "By: {authors}"
+  },
+  "notifications": {
+    "bellLabel": "Notifications",
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "loading": "Loading…",
+    "empty": "No notifications yet",
+    "manageAnnouncements": "Manage announcements"
   }
 }

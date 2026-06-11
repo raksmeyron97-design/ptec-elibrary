@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifySignup } from "@/app/actions/auth";
+import { createAdminNotification } from "@/app/actions/notifications";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 function safeCallbackUrl(raw: string | null): string {
@@ -30,6 +31,10 @@ export async function GET(request: Request) {
       if (!verification.success) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
       }
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser?.email) {
+        await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   } else if (code) {
@@ -39,6 +44,10 @@ export async function GET(request: Request) {
       const verification = await verifySignup();
       if (!verification.success) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
+      }
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser?.email) {
+        await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
       }
       return NextResponse.redirect(`${origin}${next}`);
     }

@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   GraduationCap,
+  Megaphone,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -27,6 +28,7 @@ const navLinks = [
   { name: "Catalog",           href: "/admin/catalogs",         icon: Library },
   { name: "Posts",             href: "/admin/posts",            icon: FileText },
   { name: "Research Reports",  href: "/admin/research-reports", icon: GraduationCap },
+  { name: "Announcements",     href: "/admin/announcements",    icon: Megaphone },
   { name: "Users",             href: "/admin/users",            icon: Users },
 ];
 

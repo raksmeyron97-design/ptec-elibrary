@@ -46,11 +46,18 @@ export default async function AdminUsersPage({
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
+  const { data: callerProfile } = await supabase
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("id", user?.id ?? "")
+    .single();
+
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
-      <UsersClient 
-        users={rows} 
-        currentUserId={user?.id ?? ""} 
+      <UsersClient
+        users={rows}
+        currentUserId={user?.id ?? ""}
+        isSuperAdmin={callerProfile?.is_super_admin ?? false}
         totalItems={totalItems}
         totalPages={totalPages}
         currentPage={safePage}
