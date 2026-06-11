@@ -47,8 +47,6 @@ type PDFViewerProps = {
   totalPages?: number;
   initialProgressPct?: number;
   initialMaxProgressPct?: number;
-  /** Tiled watermark text (e.g. the reader's email/id). Deterrent, not DRM. */
-  watermark?: string;
   /** Set false to hide the download button for protected books. Default true. */
   allowDownload?: boolean;
   isLoggedIn?: boolean;
@@ -195,7 +193,6 @@ const ScrollPage = memo(function ScrollPage({
   estHeight,
   render,
   filter,
-  watermark,
   customTextRenderer,
   registerRef,
 }: {
@@ -204,7 +201,6 @@ const ScrollPage = memo(function ScrollPage({
   estHeight: number;
   render: boolean;
   filter?: string;
-  watermark?: string;
   customTextRenderer?: (item: { str: string }) => string;
   registerRef: (page: number, el: HTMLDivElement | null) => void;
 }) {
@@ -239,7 +235,6 @@ const ScrollPage = memo(function ScrollPage({
               }
             />
           </div>
-          {watermark ? <Watermark text={watermark} /> : null}
         </div>
       ) : (
         <div
@@ -289,26 +284,6 @@ function useResolvedPdfFile(pdfUrl: string | null | undefined) {
   return { file, fromCache };
 }
 
-/* Tiled, non-destructive watermark overlay (a deterrent, not real DRM —
-   true protection needs server-side signed/expiring URLs). */
-function watermarkBg(text: string): string {
-  const safe = text.replace(/[<>&"']/g, "");
-  const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' width='340' height='200'>` +
-    `<text x='170' y='100' transform='rotate(-30 170 100)' ` +
-    `fill='rgba(120,120,120,0.16)' font-size='18' font-family='sans-serif' ` +
-    `text-anchor='middle' dominant-baseline='middle'>${safe}</text></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-const Watermark = memo(function Watermark({ text }: { text: string }) {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 z-[1] select-none"
-      style={{ backgroundImage: watermarkBg(text), backgroundRepeat: "repeat" }}
-    />
-  );
-});
 
 /* ──────────────────────────────────────────────────────────────────
    Main component
@@ -320,7 +295,6 @@ export default function PDFViewer({
   totalPages = 0,
   initialProgressPct = 0,
   initialMaxProgressPct = 0,
-  watermark,
   allowDownload = true,
   isLoggedIn = false,
 }: PDFViewerProps) {
@@ -1695,7 +1669,6 @@ export default function PDFViewer({
                       estHeight={estHeight}
                       render={Math.abs(p - currentPage) <= RENDER_WINDOW}
                       filter={filter}
-                      watermark={watermark}
                       customTextRenderer={searchQuery ? highlight : undefined}
                       registerRef={registerPageRef}
                     />
@@ -1723,8 +1696,7 @@ export default function PDFViewer({
                         }
                       />
                     </div>
-                    {watermark ? <Watermark text={watermark} /> : null}
-                  </div>
+                            </div>
                   {/* preload neighbours off-screen for instant page turns */}
                   <div aria-hidden className="pointer-events-none absolute opacity-0" style={{ left: -99999, top: 0 }}>
                     {currentPage > 1 && (

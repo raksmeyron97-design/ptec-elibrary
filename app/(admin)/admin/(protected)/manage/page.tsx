@@ -43,10 +43,10 @@ export default async function ManageBooksPage({
       is_published,
       download_count,
       department,
+      published_at,
       authors ( name ),
       categories ( name ),
       ${dept ? "departments!inner(name)" : "departments(name)"},
-      book_files ( file_size_kb )
       book_files ( file_size_kb )
     `,
       { count: "exact" }
@@ -59,9 +59,10 @@ export default async function ManageBooksPage({
   if (status === "draft") query = query.eq("is_published", false);
 
   // ── Sort (done in the DB) ──
+  // TODO: switch "newest"/"oldest" to `created_at` after applying migration 0020.
   switch (sort) {
     case "oldest":
-      query = query.order("published_at", { ascending: true, nullsFirst: false });
+      query = query.order("published_at", { ascending: true });
       break;
     case "title":
       query = query.order("title", { ascending: true });
@@ -73,13 +74,11 @@ export default async function ManageBooksPage({
       query = query.order("name", { referencedTable: "departments", ascending: true });
       break;
     case "category":
-      // order by a joined (embedded) column. supabase-js v2 uses `referencedTable`
-      // (older versions: `foreignTable`).
       query = query.order("name", { referencedTable: "categories", ascending: true });
       break;
     case "newest":
     default:
-      query = query.order("published_at", { ascending: false, nullsFirst: false });
+      query = query.order("published_at", { ascending: false });
       break;
   }
 
@@ -89,7 +88,8 @@ export default async function ManageBooksPage({
   // Pagination MUST come after ordering.
   query = query.range(from, to);
 
-  const { data: books, count } = await query;
+  const { data: books, count, error: booksError } = await query;
+  if (booksError) console.error("[ManageBooks] query error:", booksError.message, booksError.details);
 
   const rows = (books ?? []).map((b: any) => ({
     id:            b.id as string,
@@ -119,6 +119,12 @@ export default async function ManageBooksPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
+      {booksError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <strong>Database error:</strong> {booksError.message}
+          {booksError.details && <span className="ml-2 text-xs opacity-80">({booksError.details})</span>}
+        </div>
+      )}
       <ManageClient
         books={rows}
         departments={departments}

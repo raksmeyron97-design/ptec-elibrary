@@ -27,12 +27,13 @@ export default async function EditBookPage({
 
   if (!book) notFound();
 
-  // Fetch all departments for the dropdown
-  const { data: deptRows } = await supabase
-    .from("departments")
-    .select("name")
-    .order("name", { ascending: true });
+  // Fetch departments and categories for the searchable selects
+  const [{ data: deptRows }, { data: catRows }] = await Promise.all([
+    supabase.from("departments").select("name").order("name", { ascending: true }),
+    supabase.from("categories").select("name").order("name", { ascending: true }),
+  ]);
   const departments = (deptRows ?? []).map((d) => d.name);
+  const categories  = (catRows  ?? []).map((c) => c.name);
 
   // Flatten relations for the form
   const initial = {
@@ -54,7 +55,7 @@ export default async function EditBookPage({
 
   return (
     <div className="mx-auto max-w-[800px] space-y-8">
-      <EditForm initial={initial} departments={departments} />
+      <EditForm initial={initial} departments={departments} categories={categories} />
     </div>
   );
 }

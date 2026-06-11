@@ -71,12 +71,11 @@ export default async function ResearchReportDetailPage({
           <div id="reader" className="mb-8 scroll-mt-24">
             <PDFViewer
               title={report.title}
-              pdfUrl={report.file_url}
+              pdfUrl={`/api/research/${id}/file`}
               bookId={id}
-              totalPages={100} // Dummy for research reports
+              totalPages={100}
               initialProgressPct={0}
               initialMaxProgressPct={0}
-              watermark="Phnom Penh Teacher Education college"
               allowDownload={true}
             />
           </div>

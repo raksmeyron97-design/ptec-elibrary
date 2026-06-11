@@ -6,6 +6,7 @@ import Icon from "@/components/ui/core/Icon";
 interface SearchableSelectProps {
   name: string;
   options: string[];
+  defaultValue?: string;
   disabled?: boolean;
   required?: boolean;
   placeholder?: string;
@@ -14,21 +15,22 @@ interface SearchableSelectProps {
 export default function SearchableSelect({
   name,
   options,
+  defaultValue,
   disabled = false,
   required = false,
   placeholder = "Select...",
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(options[0] || "");
+  const [selected, setSelected] = useState(defaultValue ?? options[0] ?? "");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Update selected if options change and the current selected is not in the options
+  // Sync when options load asynchronously (e.g. from useEffect)
   useEffect(() => {
-    if (options.length > 0 && !options.includes(selected)) {
-      setSelected(options[0]);
+    if (options.length > 0 && !selected) {
+      setSelected(defaultValue ?? options[0]);
     }
-  }, [options, selected]);
+  }, [options, selected, defaultValue]);
 
   // Close on outside click  (FIX: previous code re-added the listener on cleanup
   // instead of removing it — leaked a listener on every mount)

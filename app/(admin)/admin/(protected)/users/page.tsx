@@ -7,13 +7,14 @@ const PAGE_SIZE = 20;
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const supabase = createServiceClient();
+  const params = await searchParams;
 
-  const page = parseInt(searchParams.page as string || "1", 10);
+  const page = parseInt(params.page as string || "1", 10);
   const safePage = isNaN(page) || page < 1 ? 1 : page;
-  const q = (searchParams.q as string || "").trim();
+  const q = (params.q as string || "").trim();
 
   let query = supabase
     .from("profiles")
@@ -53,7 +54,7 @@ export default async function AdminUsersPage({
         totalItems={totalItems}
         totalPages={totalPages}
         currentPage={safePage}
-        searchParams={searchParams as Record<string, string | undefined>}
+        searchParams={params as Record<string, string | undefined>}
       />
     </div>
   );

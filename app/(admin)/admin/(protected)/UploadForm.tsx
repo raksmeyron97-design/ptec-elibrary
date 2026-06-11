@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveBookRecord, addCategory, addDepartment } from "@/app/(admin)/admin/(protected)/actions";
-import { getPresignedUrl } from "@/app/actions/upload";
 import {
   departments as defaultDepartments,
   makeUid,
@@ -104,14 +103,18 @@ export default function UploadForm() {
       const folder = bookFolder(categoryName, title, uid);
       const pdfPath = bookPdfPath(folder);
 
-      const pdfPresignedRes = await getPresignedUrl(pdfPath, "application/pdf", "private");
-      if ("error" in pdfPresignedRes) throw new Error(pdfPresignedRes.error);
-      const { presignedUrl: pdfPresignedUrl, publicUrl: pdfPublicUrl } = pdfPresignedRes;
+      // Upload PDF via server-side proxy (avoids CORS issues with R2)
+      const pdfPayload = new FormData();
+      pdfPayload.set("file", pdf);
+      pdfPayload.set("key", pdfPath);
+      pdfPayload.set("target", "private");
 
-      const pdfUploadRes = await fetch(pdfPresignedUrl, {
-        method: "PUT", body: pdf, headers: { "Content-Type": "application/pdf" },
-      });
-      if (!pdfUploadRes.ok) throw new Error(`PDF upload failed: ${pdfUploadRes.statusText}`);
+      const pdfRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
+      if (!pdfRes.ok) {
+        const data = await pdfRes.json().catch(() => ({}));
+        throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
+      }
+      const { url: pdfPublicUrl } = await pdfRes.json();
 
       let coverUrl: string | null = null;
       if (hasCover) {
@@ -119,14 +122,18 @@ export default function UploadForm() {
         const coverFile = cover as File;
         const coverPath = bookCoverPath(folder, coverFile.name);
         try {
-          const coverPresignedRes = await getPresignedUrl(coverPath, coverFile.type, "public");
-          if ("error" in coverPresignedRes) throw new Error(coverPresignedRes.error);
-          const { presignedUrl: coverPresignedUrl, publicUrl: coverPublicUrl } = coverPresignedRes;
-          const coverUploadRes = await fetch(coverPresignedUrl, {
-            method: "PUT", body: coverFile, headers: { "Content-Type": coverFile.type },
-          });
-          if (!coverUploadRes.ok) throw new Error(`Cover upload failed: ${coverUploadRes.statusText}`);
-          coverUrl = coverPublicUrl;
+          const coverPayload = new FormData();
+          coverPayload.set("file", coverFile);
+          coverPayload.set("key", coverPath);
+          coverPayload.set("target", "public");
+
+          const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
+          if (!coverRes.ok) {
+            const data = await coverRes.json().catch(() => ({}));
+            throw new Error(data.error ?? `Cover upload failed (${coverRes.status})`);
+          }
+          const { url: uploadedCoverUrl } = await coverRes.json();
+          coverUrl = uploadedCoverUrl;
         } catch (coverErr) {
           console.warn("Cover upload failed:", coverErr instanceof Error ? coverErr.message : coverErr);
         }

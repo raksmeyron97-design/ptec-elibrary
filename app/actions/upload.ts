@@ -1,6 +1,6 @@
 "use server";
 
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,6 +12,45 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 });
+
+// Configure CORS once per server instance so browser PUT uploads work.
+// R2 requires explicit CORS rules or the browser preflight (OPTIONS) is rejected.
+let corsConfigured = false;
+
+async function ensureCorsConfigured() {
+  if (corsConfigured) return;
+  const corsRules = [
+    {
+      AllowedOrigins: ["*"],
+      AllowedMethods: ["GET", "PUT", "HEAD"] as ("GET" | "PUT" | "HEAD")[],
+      AllowedHeaders: ["*"],
+      MaxAgeSeconds: 3600,
+    },
+  ];
+  const buckets = [
+    process.env.R2_BUCKET_NAME,
+    process.env.R2_PUBLIC_BUCKET_NAME,
+  ].filter(Boolean) as string[];
+
+  try {
+    await Promise.all(
+      buckets.map((bucket) =>
+        s3Client.send(
+          new PutBucketCorsCommand({
+            Bucket: bucket,
+            CORSConfiguration: { CORSRules: corsRules },
+          })
+        )
+      )
+    );
+    corsConfigured = true;
+  } catch (err) {
+    // Non-fatal: if the R2 token lacks bucket-management permissions the PUT
+    // still works when CORS is already configured in the Cloudflare dashboard.
+    console.warn("Could not auto-configure R2 CORS (may already be set):", err);
+    corsConfigured = true; // don't retry on every call
+  }
+}
 
 const ALLOWED_KEY_PREFIXES = ["books/", "posts/", "research/", "reports/"];
 
@@ -55,14 +94,17 @@ export async function getPresignedUrl(
 
     if (!bucketName) throw new Error("Missing R2 bucket config");
 
+    // Ensure CORS is configured so the browser can PUT directly to R2
+    await ensureCorsConfigured();
+
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: filePath,
       ContentType: contentType,
     });
 
-    // Presigned PUT valid for 60 seconds
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 60 });
+    // Presigned PUT valid for 5 minutes (accommodates large PDFs on slow connections)
+    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
     // For public covers: full CDN URL stored in cover_url columns.
     // For private PDFs: bare key stored in book_files.file_url — the download

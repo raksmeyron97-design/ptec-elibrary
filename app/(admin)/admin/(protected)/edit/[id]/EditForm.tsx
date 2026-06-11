@@ -3,16 +3,15 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
-import { getPresignedUrl } from "@/app/actions/upload";
 import {
   makeUid,
   bookFolder,
   bookCoverPath,
   bookFolderFromCoverUrl,
 } from "@/lib/book-utils";
-import { createClient } from "@/lib/supabase/client";
 import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
+import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import { ImagePlus, Save } from "lucide-react";
 
 type Initial = {
@@ -33,7 +32,6 @@ type Initial = {
 const TEXT_FIELDS = [
   { name: "title",    label: "Title",    placeholder: "Book title",            required: true  },
   { name: "author",   label: "Author",   placeholder: "Author or institution", required: true  },
-  { name: "category", label: "Category", placeholder: "Research, Journal…",    required: true  },
   { name: "language", label: "Language", placeholder: "",                      required: true  },
   { name: "isbn",     label: "ISBN",     placeholder: "Optional",              required: false },
 ] as const;
@@ -44,13 +42,16 @@ const INPUT_CLASS =
   "h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
   "focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60";
 
-const SELECT_CLASS =
-  "h-12 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
-  "focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60";
 
-export default function EditForm({ initial, departments }: { initial: Initial; departments: string[] }) {
-  const supabase = createClient();
-
+export default function EditForm({
+  initial,
+  departments,
+  categories,
+}: {
+  initial: Initial;
+  departments: string[];
+  categories: string[];
+}) {
   const [phase, setPhase]         = useState<Phase>("idle");
   const [error, setError]         = useState<string | null>(null);
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
@@ -95,15 +96,18 @@ export default function EditForm({ initial, departments }: { initial: Initial; d
           bookFolder(initial.category, title, makeUid());
         const path = bookCoverPath(folder, coverFile.name);
 
-        const presignedRes = await getPresignedUrl(path, coverFile.type, "public");
-        if ("error" in presignedRes) throw new Error(presignedRes.error);
-        const { presignedUrl, publicUrl } = presignedRes;
+        const coverPayload = new FormData();
+        coverPayload.set("file", coverFile);
+        coverPayload.set("key", path);
+        coverPayload.set("target", "public");
 
-        const uploadRes = await fetch(presignedUrl, {
-          method: "PUT", body: coverFile, headers: { "Content-Type": coverFile.type },
-        });
-        if (!uploadRes.ok) throw new Error(`Cover upload failed: ${uploadRes.statusText}`);
-        newCoverUrl = publicUrl;
+        const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
+        if (!uploadRes.ok) {
+          const data = await uploadRes.json().catch(() => ({}));
+          throw new Error(data.error ?? `Cover upload failed (${uploadRes.status})`);
+        }
+        const { url } = await uploadRes.json();
+        newCoverUrl = url;
       }
 
       if (newCoverUrl)        formData.set("coverUrl", newCoverUrl);
@@ -199,18 +203,33 @@ export default function EditForm({ initial, departments }: { initial: Initial; d
             </label>
           ))}
 
+          {/* Category */}
+          <div>
+            <span className="mb-1.5 block text-sm font-semibold text-text-body">
+              Category <span className="text-red-500">*</span>
+            </span>
+            <SearchableSelect
+              name="category"
+              required
+              options={categories}
+              defaultValue={initial.category}
+              disabled={saving}
+            />
+          </div>
+
           {/* Department */}
-          <label>
+          <div>
             <span className="mb-1.5 block text-sm font-semibold text-text-body">
               Department <span className="text-red-500">*</span>
             </span>
-            <select
-              name="department" required defaultValue={initial.department}
-              disabled={saving} className={SELECT_CLASS}
-            >
-              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </label>
+            <SearchableSelect
+              name="department"
+              required
+              options={departments}
+              defaultValue={initial.department}
+              disabled={saving}
+            />
+          </div>
 
           {/* Year */}
           <label>

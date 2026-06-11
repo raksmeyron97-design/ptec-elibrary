@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
@@ -92,6 +92,7 @@ type BookWithSource = Book & { fromSupabase: boolean; dbId: string | null };
 async function getBook(slug: string): Promise<BookWithSource | null> {
   const supabase = await createClient();
 
+  // Use ANON client so is_published = true RLS is enforced
   const { data, error } = await supabase
     .from("books")
     .select(`
@@ -101,9 +102,7 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
       download_count,
       authors ( name, bio ),
       categories ( name ),
-      departments ( name ),
-      book_files ( id, format, file_url, file_size_kb ),
-      reviews ( rating )
+      departments ( name )
     `)
     .eq("slug", slug)
     .eq("is_published", true)
@@ -114,7 +113,15 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
   }
 
   if (data) {
-    const mapped = mapRowToBook(data); // ← use shared mapper
+    // Fetch book_files and reviews with service client so anonymous users
+    // can see the PDF and ratings (book_files RLS requires auth.uid() IS NOT NULL)
+    const svc = createServiceClient();
+    const [{ data: files }, { data: revs }] = await Promise.all([
+      svc.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
+      svc.from("reviews").select("rating").eq("book_id", data.id),
+    ]);
+
+    const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: revs ?? [] });
     return {
       ...mapped,
       fromSupabase: true,
@@ -251,8 +258,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               totalPages={book.pages}
               initialProgressPct={savedProgress?.progressPct ?? 0}
               initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-              watermark="Phnom Penh Teacher Education college"
-              allowDownload={true}
+allowDownload={true}
               isLoggedIn={!!user}
             />
           </div>
@@ -294,7 +300,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </h1>
             <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">{t("byAuthor", { author: book.author })}</p>
             <div className="mt-3 sm:mt-4">
-              <RatingStars rating={book.rating} />
+              <RatingStars rating={avgRating || book.rating} />
             </div>
 
             {resuming && (

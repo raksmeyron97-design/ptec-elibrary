@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function AdminLoginPage() {
   const supabase = createClient();
@@ -13,13 +14,21 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!captchaToken) {
+      setError("Please complete the CAPTCHA verification.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
 
     if (error) {
       if (error.message.includes("Invalid login")) {
@@ -29,6 +38,8 @@ export default function AdminLoginPage() {
       } else {
         setError(error.message);
       }
+      turnstileRef.current?.reset();
+      setCaptchaToken(undefined);
       setLoading(false);
     } else {
       router.push("/admin");
@@ -83,9 +94,17 @@ export default function AdminLoginPage() {
                 />
               </label>
 
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={setCaptchaToken}
+                onExpire={() => setCaptchaToken(undefined)}
+                onError={() => setCaptchaToken(undefined)}
+              />
+
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !captchaToken}
                 className="mt-2 h-12 rounded-lg bg-brand font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Signing in..." : "Continue"}
