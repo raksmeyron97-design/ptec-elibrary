@@ -1,5 +1,6 @@
 // components/ui/ContinueReading.tsx
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
@@ -40,12 +41,14 @@ async function getContinueReading(): Promise<ContinueBook[]> {
       authors ( name ), categories ( name ), book_files ( format, file_url )`)
     .in("id", ids);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const byId = new Map((booksData ?? []).map((b: any) => [b.id, b]));
 
   // Keep the last_read_at ordering (the .in() query does not preserve it).
   return rows.flatMap((r): ContinueBook[] => {
     const b = byId.get(r.book_id);
     if (!b) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdfFile = b.book_files?.find((f: any) => f.format === "pdf");
     return [
       {
@@ -77,7 +80,10 @@ async function getContinueReading(): Promise<ContinueBook[]> {
 }
 
 export default async function ContinueReading() {
-  const books = await getContinueReading();
+  const [books, t] = await Promise.all([
+    getContinueReading(),
+    getTranslations("home"),
+  ]);
   if (books.length === 0) return null;
 
   // The single closest-to-done title, used in the eyebrow line.
@@ -85,33 +91,35 @@ export default async function ContinueReading() {
 
   return (
     <section className="relative isolate overflow-hidden border-b border-divider bg-bg-surface">
-      {/* subtle brand wash so the personalized band reads as "yours" */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(640px_320px_at_8%_-20%,rgba(var(--brand-rgb,29_78_216)/0.05),transparent_60%)]" />
+      {/* Cyan radial wash — signals this section is "yours" */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(640px_320px_at_8%_-20%,rgba(34,211,238,0.06),transparent_60%)]" />
 
       <div className="mx-auto max-w-[1400px] px-4 py-14 md:px-12 md:py-16">
         <div className="mb-7 flex items-end justify-between gap-5">
           <div className="min-w-0">
-            <span className="mb-2 inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.18em] text-brand">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            <span className="mb-2 inline-flex items-center gap-2 text-[12px] font-bold text-cyan-600 dark:text-cyan-300">
+              {/* Sparkle icon */}
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d="M12 2l1.8 5.4L19.2 9l-5.4 1.8L12 16.2l-1.8-5.4L4.8 9l5.4-1.8L12 2z" opacity={0.85} />
+                <path d="M19 14l.9 2.7 2.7.9-2.7.9-.9 2.7-.9-2.7-2.7-.9 2.7-.9L19 14z" opacity={0.55} />
               </svg>
-              Welcome back
+              {t("forYou")}
             </span>
-            <SectionTitle as="h2" className="!mb-0">Continue Reading</SectionTitle>
+            <SectionTitle as="h2" className="!mb-0">{t("continueReading")}</SectionTitle>
           </div>
 
           <Link
             href="/dashboard#in-progress"
             className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex"
           >
-            My shelf
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            {t("myShelf")}
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </Link>
         </div>
 
-        <BookCarousel aria-label="Continue reading">
+        <BookCarousel aria-label={t("continueReading")}>
           {books.map((book) => (
             <BookCard key={book.slug} book={book} />
           ))}
@@ -120,8 +128,8 @@ export default async function ContinueReading() {
         {/* mobile shelf link */}
         <div className="mt-6 sm:hidden">
           <Link href="/dashboard#in-progress" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand">
-            Go to my shelf
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            {t("myShelf")}
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </Link>

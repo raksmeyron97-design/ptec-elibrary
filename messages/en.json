@@ -107,7 +107,23 @@
     "browseResources": "Browse e-resources",
     "mobileFeatured": "Featured",
     "mobileSeeAll": "See all",
-    "viewResources": "View resources"
+    "viewResources": "View resources",
+    "prompt1": "Find a book about teaching methods…",
+    "prompt2": "Khmer literature for grade 9…",
+    "prompt3": "Research reports on early-childhood education…",
+    "askButton": "Ask",
+    "askHint": "Search e-books, physical books, and research — or press / to start typing.",
+    "recent": "Recent",
+    "clear": "Clear",
+    "forYou": "For you",
+    "continueReading": "Continue reading",
+    "myShelf": "My shelf",
+    "bentoEbooksLabel": "E-library",
+    "bentoEbooksBody": "Read anywhere — every e-book is free for PTEC students and teachers, on any device.",
+    "bentoBrowseEbooks": "Browse e-books",
+    "bentoPhysicalLabel": "On our shelves",
+    "bentoOnShelves": "View catalog",
+    "bentoCategoriesLabel": "Categories"
   },
   "books": {
     "title": "e-Resources",
@@ -347,5 +363,23 @@
     "loading": "Loading…",
     "empty": "No notifications yet",
     "manageAnnouncements": "Manage announcements"
+  },
+  "ask": {
+    "title": "Library Assistant",
+    "subtitle": "Ask about books, hours, or borrowing",
+    "open": "Ask the library assistant",
+    "placeholder": "Ask anything…",
+    "send": "Send",
+    "starter1": "Recommend books about teaching methods",
+    "starter2": "What are the library opening hours?",
+    "starter3": "How do I borrow a book?",
+    "error": "Sorry, something went wrong. Try again.",
+    "disclaimer": "AI answers may contain mistakes — please verify with library staff.",
+    "loginRequired": "Sign in to use the library assistant.",
+    "loginButton": "Sign in",
+    "remaining": "{count} messages left today",
+    "quotaReached": "You've used all 10 messages for today. Come back tomorrow!",
+    "slowDown": "Please wait a moment before sending again.",
+    "busy": "The assistant is busy right now. Try again in a few minutes."
   }
 }

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:3000/api/ask -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"text\":\"Recommend books about math\"}]}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/ask -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"text\":\"តើបណ្ណាល័យបើកម៉ោងប៉ុន្មាន?\"}]}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/ask -H 'Content-Type: application/json' -d '{\"messages\":[{\"role\":\"user\",\"text\":\"Write my essay about Cambodia history for me\"}]}')"
+    ]
+  }
+}
