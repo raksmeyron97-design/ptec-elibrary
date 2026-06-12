@@ -58,6 +58,7 @@ export default function ManageCategoriesModal() {
       if (res.error) throw new Error(res.error);
       setNewCatName("");
       await loadCategories();
+      window.dispatchEvent(new CustomEvent("ptec:categories-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add category");
     } finally {
@@ -70,7 +71,7 @@ export default function ManageCategoriesModal() {
     if (!editingId) return;
     const name = editName.trim();
     if (!name) return;
-    
+
     setIsEditing(true);
     setError(null);
 
@@ -80,6 +81,7 @@ export default function ManageCategoriesModal() {
       setEditingId(null);
       setEditName("");
       await loadCategories();
+      window.dispatchEvent(new CustomEvent("ptec:categories-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update category");
     } finally {
@@ -89,12 +91,13 @@ export default function ManageCategoriesModal() {
 
   async function handleDelete(id: string, currentName: string) {
     if (!confirm(`Are you sure you want to delete the category "${currentName}"?`)) return;
-    
+
     setError(null);
     try {
       const res = await deleteCategory(id);
       if (res.error) throw new Error(res.error);
       await loadCategories();
+      window.dispatchEvent(new CustomEvent("ptec:categories-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete category");
     }

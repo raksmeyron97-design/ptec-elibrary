@@ -82,7 +82,10 @@ async function fetchBooks(params: SearchParams) {
 
   const { data, error, count } = await query;
   if (error) {
-    console.error("Supabase error:", error.message);
+    // PGRST103 = page offset beyond dataset size; not a real error
+    if ((error as any).code !== 'PGRST103') {
+      console.error("Supabase error:", error.message);
+    }
     return { books: [], total: 0, page };
   }
   return { books: (data ?? []).map(mapRowToBook), total: count ?? 0, page };

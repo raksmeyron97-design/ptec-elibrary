@@ -58,6 +58,7 @@ export default function ManageDepartmentsModal() {
       if (res.error) throw new Error(res.error);
       setNewDeptName("");
       await loadDepartments();
+      window.dispatchEvent(new CustomEvent("ptec:departments-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add department");
     } finally {
@@ -70,7 +71,7 @@ export default function ManageDepartmentsModal() {
     if (!editingId) return;
     const name = editName.trim();
     if (!name) return;
-    
+
     setIsEditing(true);
     setError(null);
 
@@ -80,6 +81,7 @@ export default function ManageDepartmentsModal() {
       setEditingId(null);
       setEditName("");
       await loadDepartments();
+      window.dispatchEvent(new CustomEvent("ptec:departments-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update department");
     } finally {
@@ -89,12 +91,13 @@ export default function ManageDepartmentsModal() {
 
   async function handleDelete(id: string, currentName: string) {
     if (!confirm(`Are you sure you want to delete the department "${currentName}"?`)) return;
-    
+
     setError(null);
     try {
       const res = await deleteDepartment(id);
       if (res.error) throw new Error(res.error);
       await loadDepartments();
+      window.dispatchEvent(new CustomEvent("ptec:departments-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete department");
     }

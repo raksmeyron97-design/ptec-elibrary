@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { saveBookRecord, addCategory, addDepartment } from "@/app/(admin)/admin/(protected)/actions";
+import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
 import {
   departments as defaultDepartments,
   makeUid,
@@ -48,18 +48,26 @@ export default function UploadForm() {
   const pdfInputRef   = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
+  const refreshLists = useCallback(async () => {
+    const [deptRes, catRes] = await Promise.all([
+      supabase.from("departments").select("name").order("name", { ascending: true }),
+      supabase.from("categories").select("name").order("name", { ascending: true }),
+    ]);
+    if (deptRes.data && deptRes.data.length > 0)
+      setDeptList(deptRes.data.map((d: { name: string }) => d.name));
+    if (catRes.data && catRes.data.length > 0)
+      setCatList(catRes.data.map((c: { name: string }) => c.name));
+  }, [supabase]);
+
   useEffect(() => {
-    (async () => {
-      const [deptRes, catRes] = await Promise.all([
-        supabase.from("departments").select("name").order("name", { ascending: true }),
-        supabase.from("categories").select("name").order("name", { ascending: true }),
-      ]);
-      if (deptRes.data && deptRes.data.length > 0)
-        setDeptList(deptRes.data.map((d: { name: string }) => d.name));
-      if (catRes.data && catRes.data.length > 0)
-        setCatList(catRes.data.map((c: { name: string }) => c.name));
-    })();
-  }, []);
+    refreshLists();
+    window.addEventListener("ptec:categories-changed", refreshLists);
+    window.addEventListener("ptec:departments-changed", refreshLists);
+    return () => {
+      window.removeEventListener("ptec:categories-changed", refreshLists);
+      window.removeEventListener("ptec:departments-changed", refreshLists);
+    };
+  }, [refreshLists]);
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -140,24 +148,21 @@ export default function UploadForm() {
       }
 
       setPhase("saving");
-      const payload = new FormData();
-      payload.set("title",      title);
-      payload.set("author",     formData.get("author") as string);
-      payload.set("department", formData.get("department") as string);
-      payload.set("category",   formData.get("category") as string);
-      payload.set("language",   formData.get("language") as string);
-      payload.set("summary",    formData.get("summary") as string);
-      payload.set("isbn",       (formData.get("isbn") as string) ?? "");
-      payload.set("year",       (formData.get("year") as string) ?? "");
-      payload.set("pages",      (formData.get("pages") as string) ?? "");
-      payload.set("fileUrl",    pdfPublicUrl);
-      payload.set("fileSizeKb", String(Math.round(pdf.size / 1024)));
-      payload.set("coverUrl",   coverUrl ?? "");
-      
-      // tags come from TagInput hidden input — already in formData
-      payload.set("tags", formData.get("tags") as string ?? "");
-
-      const res = await saveBookRecord(payload);
+      const res = await saveBookRecord({
+        title,
+        author:     (formData.get("author")     as string) ?? "",
+        department: (formData.get("department") as string) ?? "",
+        category:   (formData.get("category")   as string) ?? "",
+        language:   (formData.get("language")   as string) ?? "",
+        summary:    (formData.get("summary")    as string) ?? "",
+        isbn:       (formData.get("isbn")       as string) ?? "",
+        year:       (formData.get("year")       as string) ?? "",
+        pages:      (formData.get("pages")      as string) ?? "",
+        fileUrl:    pdfPublicUrl,
+        fileSizeKb: String(Math.round(pdf.size / 1024)),
+        coverUrl:   coverUrl ?? "",
+        tags:       (formData.get("tags")       as string) ?? "",
+      });
       if (res && "error" in res) throw new Error(res.error);
       else if (res && "success" in res) router.push(`/books/${res.slug}`);
     } catch (err) {

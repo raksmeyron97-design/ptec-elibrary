@@ -65,7 +65,25 @@ function storagePathFromUrl(publicUrl: string): string | null {
 }
 
 // ── saveBookRecord ────────────────────────────────────────────────
-export async function saveBookRecord(formData: FormData): Promise<{ error: string } | { success: true; slug: string }> {
+export interface BookInput {
+  title: string;
+  author: string;
+  department: string;
+  category: string;
+  language: string;
+  fileUrl: string;
+  summary?: string;
+  isbn?: string;
+  year?: string | number;
+  pages?: string | number;
+  fileSizeKb?: string | number;
+  coverUrl?: string;
+  tags?: string;
+  categoryId?: string;
+  departmentId?: string;
+}
+
+export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
   try {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
@@ -80,19 +98,26 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
     .single();
   if (profile?.role !== "admin") throw new Error("Forbidden");
 
-  const title      = requiredText(formData, "title");
-  const author     = requiredText(formData, "author");
-  const department = requiredText(formData, "department");
-  const category   = requiredText(formData, "category");
-  const language   = requiredText(formData, "language");
-  const summary    = formData.get("summary")?.toString().trim() || "";
-  const fileUrl    = requiredText(formData, "fileUrl");
+  const title      = input.title?.trim();
+  const author     = input.author?.trim();
+  const department = input.department?.trim();
+  const category   = input.category?.trim();
+  const language   = input.language?.trim();
+  const summary    = input.summary?.trim() || "";
+  const fileUrl    = input.fileUrl?.trim();
 
-  const isbn       = formData.get("isbn")?.toString().trim() || null;
-  const year       = Number(formData.get("year"))  || new Date().getFullYear();
-  const pages      = Number(formData.get("pages")) || 1;
-  const fileSizeKb = Number(formData.get("fileSizeKb")) || 0;
-  const coverUrl   = formData.get("coverUrl")?.toString().trim() || null;
+  if (!title)      throw new Error("title is required");
+  if (!author)     throw new Error("author is required");
+  if (!department) throw new Error("department is required");
+  if (!category)   throw new Error("category is required");
+  if (!language)   throw new Error("language is required");
+  if (!fileUrl)    throw new Error("fileUrl is required");
+
+  const isbn       = input.isbn?.trim() || null;
+  const year       = Number(input.year)  || new Date().getFullYear();
+  const pages      = Number(input.pages) || 1;
+  const fileSizeKb = Number(input.fileSizeKb) || 0;
+  const coverUrl   = input.coverUrl?.trim() || null;
 
   let slug       = slugify(title);
   const coverColor = pickCoverColor(title);
@@ -126,7 +151,7 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
 
   // Look up existing category first; only insert if not found
   let categoryId: string;
-  const providedCategoryId = formData.get("categoryId")?.toString().trim();
+  const providedCategoryId = input.categoryId?.trim();
 
   if (providedCategoryId) {
     categoryId = providedCategoryId;
@@ -159,7 +184,7 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
 
   // Look up existing department first; only insert if not found
   let departmentId: string;
-  const providedDepartmentId = formData.get("departmentId")?.toString().trim();
+  const providedDepartmentId = input.departmentId?.trim();
 
   if (providedDepartmentId) {
     departmentId = providedDepartmentId;
@@ -189,6 +214,12 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
     }
   }
 
+  const tagsArr = (input.tags ?? "")
+    .split(",")
+    .map((t: string) => t.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+
   const { data: book, error: bookError } = await supabase
     .from("books")
     .insert({
@@ -201,12 +232,12 @@ export async function saveBookRecord(formData: FormData): Promise<{ error: strin
       language,
       published_at: `${year}-01-01`,
       is_published: true,
-      department, // keep text column for now during transition
+      department,
       isbn,
       pages,
       cover_color:  coverColor,
       cover_url:    coverUrl,
-      tags: parseTags(formData, "tags"),
+      tags: tagsArr,
     })
     .select("id, slug")
     .single();

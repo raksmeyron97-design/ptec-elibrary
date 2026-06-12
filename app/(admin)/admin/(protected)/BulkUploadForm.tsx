@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
-import { getPresignedUrl } from "@/app/actions/upload";
 import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,20 +95,26 @@ async function uploadBook(
   if (!pdfFile) { onStatus("error", { error: `PDF not found: "${row.pdf_file}"` }); return; }
 
   try {
-    // 1. Upload PDF
+    // 1. Upload PDF via server proxy (server → R2, no CORS needed)
     onStatus("uploading-pdf");
     const uid = makeUid();
     const folder = bookFolder(row.category || "uncategorized", row.title, uid);
     const pdfPath = bookPdfPath(folder);
 
-    const pdfPresigned = await getPresignedUrl(pdfPath, "application/pdf", "private");
-    if ("error" in pdfPresigned) throw new Error(pdfPresigned.error);
-
-    const pdfRes = await fetch(pdfPresigned.presignedUrl, {
-      method: "PUT", body: pdfFile,
-      headers: { "Content-Type": "application/pdf" },
+    const pdfRes = await fetch("/api/admin/bulk-upload", {
+      method: "POST",
+      headers: {
+        "x-file-path": pdfPath,
+        "x-target": "private",
+        "x-content-type": "application/pdf",
+      },
+      body: pdfFile,
     });
-    if (!pdfRes.ok) throw new Error(`PDF upload failed: ${pdfRes.statusText}`);
+    if (!pdfRes.ok) {
+      const { error } = await pdfRes.json().catch(() => ({ error: pdfRes.statusText }));
+      throw new Error(`PDF upload failed: ${error}`);
+    }
+    const { url: pdfPublicUrl } = await pdfRes.json();
 
     // 2. Upload cover (optional, non-fatal)
     let coverUrl: string | null = null;
@@ -117,35 +122,39 @@ async function uploadBook(
       onStatus("uploading-cover");
       try {
         const coverPath = bookCoverPath(folder, coverFile.name);
-        const coverPresigned = await getPresignedUrl(coverPath, coverFile.type, "public");
-        if (!("error" in coverPresigned)) {
-          const coverRes = await fetch(coverPresigned.presignedUrl, {
-            method: "PUT", body: coverFile,
-            headers: { "Content-Type": coverFile.type },
-          });
-          if (coverRes.ok) coverUrl = coverPresigned.publicUrl;
+        const coverRes = await fetch("/api/admin/bulk-upload", {
+          method: "POST",
+          headers: {
+            "x-file-path": coverPath,
+            "x-target": "public",
+            "x-content-type": coverFile.type || "image/jpeg",
+          },
+          body: coverFile,
+        });
+        if (coverRes.ok) {
+          const { url } = await coverRes.json();
+          coverUrl = url;
         }
       } catch { /* non-fatal */ }
     }
 
     // 3. Save record
     onStatus("saving");
-    const payload = new FormData();
-    payload.set("title",      row.title);
-    payload.set("author",     row.author);
-    payload.set("department", row.department);
-    payload.set("category",   row.category);
-    payload.set("language",   row.language);
-    payload.set("summary",    row.summary ?? "");
-    payload.set("isbn",       row.isbn ?? "");
-    payload.set("year",       row.year ?? "");
-    payload.set("pages",      row.pages ?? "");
-    payload.set("tags",       row.keywords ?? "");
-    payload.set("fileUrl",    pdfPresigned.publicUrl);
-    payload.set("fileSizeKb", String(Math.round(pdfFile.size / 1024)));
-    payload.set("coverUrl",   coverUrl ?? "");
-
-    const result = await saveBookRecord(payload);
+    const result = await saveBookRecord({
+      title:      row.title,
+      author:     row.author,
+      department: row.department,
+      category:   row.category,
+      language:   row.language,
+      summary:    row.summary ?? "",
+      isbn:       row.isbn ?? "",
+      year:       row.year ?? "",
+      pages:      row.pages ?? "",
+      tags:       row.keywords ?? "",
+      fileUrl:    pdfPublicUrl,
+      fileSizeKb: String(Math.round(pdfFile.size / 1024)),
+      coverUrl:   coverUrl ?? "",
+    });
     if (result && "error" in result) throw new Error(result.error);
 
     onStatus("done", { slug: (result as any)?.slug });
@@ -249,12 +258,15 @@ export default function BulkUploadForm() {
   function handleFolderChange(
     e: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<Map<string, File>>>,
+    extensions?: string[],
   ) {
     const files = Array.from(e.target.files ?? []);
     const map = new Map<string, File>();
     for (const f of files) {
-      // Use bare filename (not full path) as key, lowercased for matching
-      map.set(f.name.toLowerCase(), f);
+      const name = f.name.toLowerCase();
+      if (!extensions || extensions.some((ext) => name.endsWith(ext))) {
+        map.set(name, f);
+      }
     }
     setter(map);
   }
@@ -405,9 +417,10 @@ export default function BulkUploadForm() {
               type="file"
               accept=".pdf,application/pdf"
               multiple
+              {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
               className="hidden"
-              onChange={(e) => handleFolderChange(e, setPdfIndex)}
-              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+              onChange={(e) => handleFolderChange(e, setPdfIndex, [".pdf"])}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
             />
           </label>
 
@@ -434,9 +447,10 @@ export default function BulkUploadForm() {
               type="file"
               accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
               multiple
+              {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
               className="hidden"
-              onChange={(e) => handleFolderChange(e, setCoverIndex)}
-              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+              onChange={(e) => handleFolderChange(e, setCoverIndex, [".jpg", ".jpeg", ".png", ".webp", ".avif"])}
+              onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
             />
           </label>
         </div>
