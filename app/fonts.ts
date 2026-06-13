@@ -2,33 +2,17 @@
 // ──────────────────────────────────────────────────────────────────
 // Web fonts (self-hosted via next/font/google)
 //
-//   Playfair Display  → Latin serif headings
-//   Inter             → Latin sans body
-//   Noto Serif Khmer  → Khmer serif headings
-//   Angkor            → Khmer display face
-//   Battambang        → Khmer + Latin body (fallback/running text)
+//   Inter    → Latin sans body
+//   Hanuman  → Khmer body + headings (also used as Latin fallback)
+//   Angkor   → Khmer display face (headings via font-title)
 // ──────────────────────────────────────────────────────────────────
-import { Angkor, Kantumruy_Pro, Playfair_Display, Inter, Noto_Serif_Khmer, Hanuman } from "next/font/google";
+import { Angkor, Inter, Hanuman } from "next/font/google";
 
 export const angkor = Angkor({
   weight: "400",
   subsets: ["khmer", "latin"],
   display: "swap",
   variable: "--font-var-angkor",
-});
-
-export const kantumruyPro = Kantumruy_Pro({
-  weight: ["400", "700"],
-  subsets: ["khmer", "latin"],
-  display: "swap",
-  variable: "--font-var-kantumruy-pro",
-});
-
-export const playfairDisplay = Playfair_Display({
-  weight: ["400", "500", "600", "700"],
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-var-serif",
 });
 
 export const inter = Inter({
@@ -38,15 +22,8 @@ export const inter = Inter({
   variable: "--font-var-sans",
 });
 
-export const notoSerifKhmer = Noto_Serif_Khmer({
-  weight: ["400", "700"],
-  subsets: ["khmer"],
-  display: "swap",
-  variable: "--font-var-khmer-serif",
-});
-
 export const hanuman = Hanuman({
-  weight: ["400", "700", "900"],
+  weight: ["400", "700"],
   subsets: ["khmer"],
   display: "swap",
   variable: "--font-var-hanuman",

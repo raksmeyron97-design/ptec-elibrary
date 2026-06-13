@@ -40,16 +40,23 @@ const customCaching: RuntimeCaching[] = [
         new ExpirationPlugin({
           maxEntries: 60,
           maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          purgeOnQuotaError: true,
         }),
       ],
     }),
   },
-  // Cache Supabase API GET requests (excluding auth/mutations)
+  // Cache public Supabase API GET requests for non-personalized data only.
+  // Requests carrying an Authorization header contain RLS-filtered rows and
+  // must NOT be served from cache to avoid leaking one user's data to another.
   {
     matcher: ({ request, url }) => {
-      return url.hostname.endsWith('supabase.co') && 
-             url.pathname.includes('/rest/v1/') && 
-             request.method === 'GET';
+      if (request.headers.get('authorization')) return false;
+      const publicPaths = ['/rest/v1/books', '/rest/v1/catalog', '/rest/v1/posts', '/rest/v1/research'];
+      return (
+        url.hostname.endsWith('supabase.co') &&
+        publicPaths.some((p) => url.pathname.includes(p)) &&
+        request.method === 'GET'
+      );
     },
     handler: new StaleWhileRevalidate({
       cacheName: 'supabase-api-cache',
@@ -57,6 +64,7 @@ const customCaching: RuntimeCaching[] = [
         new ExpirationPlugin({
           maxEntries: 50,
           maxAgeSeconds: 24 * 60 * 60, // 1 day
+          purgeOnQuotaError: true,
         }),
       ],
     }),
@@ -69,22 +77,25 @@ const customCaching: RuntimeCaching[] = [
       plugins: [
         new ExpirationPlugin({
           maxEntries: 400,
+          purgeOnQuotaError: true,
         }),
       ],
     }),
   },
-  // Cache book PDFs (proxy routes and direct URLs)
+  // Cache book PDFs — limited to 12 entries / 30 days to avoid exhausting
+  // device quota on low-end phones (PDFs can be 5-20 MB each).
   {
-    matcher: ({ url }) => 
-      url.pathname.endsWith('.pdf') || 
+    matcher: ({ url }) =>
+      url.pathname.endsWith('.pdf') ||
       url.pathname.includes('/storage/v1/object/public/') ||
       url.pathname.match(/^\/api\/books\/[^/]+\/file$/) !== null,
     handler: new CacheFirst({
       cacheName: 'offline-books',
       plugins: [
         new ExpirationPlugin({
-          maxEntries: 50,
-          maxAgeSeconds: 60 * 60 * 24 * 90, // 90 days
+          maxEntries: 12,
+          maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+          purgeOnQuotaError: true,
         }),
       ],
     }),

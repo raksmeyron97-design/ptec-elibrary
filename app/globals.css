@@ -1,11 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanuman:wght@400;700;900&display=swap');
-
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-:root,
-.theme-light {
+:root {
   color-scheme: light;
 
   --ptec-paper: #F3F4F6;
@@ -163,9 +160,8 @@
   --color-info: var(--ptec-info);
 
   /* Fonts */
-  --font-khmer-serif: var(--font-var-serif), ui-serif, Georgia, serif;
-  --font-sans: "Hanuman", var(--font-var-sans), Arial, Helvetica, sans-serif;
-  --font-khmer-serif: "Hanuman", var(--font-var-khmer-serif), serif;
+  --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
+  --font-khmer-serif: "Hanuman", var(--font-var-hanuman), serif;
   --font-title: var(--font-var-angkor);
   --font-body: "Hanuman", var(--font-var-hanuman);
   
@@ -221,20 +217,6 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .metric-badge-users   { background: linear-gradient(135deg, var(--ptec-metric-users-from), var(--ptec-metric-users-to)); }
 .metric-badge-catalog { background: linear-gradient(135deg, var(--ptec-metric-cat-from), var(--ptec-metric-cat-to)); }
 
-/* ── Admin gradient submit button ──────────────────────────────── */
-.btn-brand-gradient {
-  background: linear-gradient(135deg, #1E3A8A 0%, #2A47A6 100%);
-  transition: opacity 0.15s, box-shadow 0.15s;
-}
-.btn-brand-gradient:hover:not(:disabled) {
-  opacity: 0.92;
-  box-shadow: 0 4px 14px rgba(30, 58, 138, 0.35);
-}
-.btn-brand-gradient:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 /* ── Admin form card & chips ───────────────────────────────────── */
 .form-card-accent { position: relative; }
 .form-card-accent::before {
@@ -280,9 +262,12 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   transition: transform .2s, box-shadow .2s;
 }
 .btn-brand-gradient:hover:not(:disabled) {
-  opacity: 1; /* override previous */
   transform: translateY(-2px);
   box-shadow: 0 16px 30px -12px rgba(21, 41, 107, .8), 0 0 0 3px rgba(221, 176, 34, .28);
+}
+.btn-brand-gradient:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @keyframes ptecFadeUp {
@@ -335,6 +320,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 @media (prefers-reduced-motion: reduce) {
   .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
+  .animate-float-orb, .animate-float-orb-slow, .skeleton, .ptec-reveal { animation: none !important; }
 }
 
 /* Gradient top-border card — use as parent wrapper */
@@ -351,8 +337,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 /* ── Skeleton shimmer system ────────────────────────────────────── */
-:root,
-.theme-light {
+:root {
   --skeleton-base: #E9EEF8;
   --skeleton-shine: #F5F8FF;
 }

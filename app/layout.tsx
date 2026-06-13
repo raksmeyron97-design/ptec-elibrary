@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
-import { angkor, kantumruyPro, playfairDisplay, inter, notoSerifKhmer, hanuman } from "@/app/fonts";
+import { angkor, inter, hanuman } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import CommandPalette from "@/components/ui/search/CommandPalette";
@@ -15,7 +15,7 @@ const THEME_INIT_SCRIPT = `
   try {
     const root = document.documentElement;
     const path = window.location.pathname;
-    const isAdmin = path === "/admin" || path.startsWith("/admin/");
+    const isAdmin = path === "/admin" || path.startsWith("/admin/") || window.location.hostname.startsWith("admin.");
     const storedTheme = localStorage.getItem("ptec.theme");
     const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const theme = isAdmin
@@ -96,7 +96,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${kantumruyPro.variable} ${playfairDisplay.variable} ${inter.variable} ${notoSerifKhmer.variable} ${hanuman.variable}`}>
+    <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${inter.variable} ${hanuman.variable}`}>
       <head>
         <script
           nonce={nonce}
