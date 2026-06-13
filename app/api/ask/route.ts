@@ -75,7 +75,14 @@ async function searchBooks(args: {
 }): Promise<BookResult[]> {
   const db = createServiceClient();
   const limit = Math.min(args.limit ?? 5, 8);
-  const q = args.query.trim();
+  // Strip PostgREST filter metacharacters so the model-supplied query can't
+  // break out of the `.or(...)` / `.ilike(...)` filter strings below.
+  const q = args.query
+    .replace(/[%,()\\*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+  if (!q) return [];
 
   let query = db
     .from("books")

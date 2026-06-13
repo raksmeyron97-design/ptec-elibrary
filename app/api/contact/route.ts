@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
 
 const COOLDOWN_MS = 2 * 60 * 1000;
@@ -7,14 +7,42 @@ const MAX_PER_HOUR = 3;
 const HOUR_MS = 60 * 60 * 1000;
 
 function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  // Prefer x-real-ip: the platform/proxy (Vercel) sets this to the true client
+  // IP and the client cannot override it. The LEFT-most x-forwarded-for value is
+  // client-controlled and must not be trusted for rate limiting; fall back to the
+  // RIGHT-most entry (added by the closest trusted hop) only if x-real-ip is absent.
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
 
-async function checkLimit(ip: string, supabase: any) {
+// Verify a Cloudflare Turnstile token. If TURNSTILE_SECRET_KEY is not configured,
+// verification is skipped (no behavior change) so the form keeps working until the
+// secret is set in the deployment.
+async function verifyTurnstile(token: string | undefined, ip: string): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) return true;
+  if (!token) return false;
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ secret, response: token, remoteip: ip }),
+    });
+    const data = (await res.json()) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
+}
+
+async function checkLimit(ip: string, supabase: SupabaseClient) {
   const now = Date.now();
   const { data } = await supabase.from("contact_rate_limit").select("history").eq("ip", ip).single();
   let history: number[] = data ? data.history : [];
@@ -38,7 +66,7 @@ async function checkLimit(ip: string, supabase: any) {
   return { blocked: false, history };
 }
 
-async function recordSend(ip: string, history: number[], supabase: any) {
+async function recordSend(ip: string, history: number[], supabase: SupabaseClient) {
   const now = Date.now();
   history.push(now);
   await supabase.from("contact_rate_limit").upsert({ ip, history });
@@ -51,7 +79,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, email, message } = body;
+  const { name, email, message, turnstileToken } = body;
 
   // Validate
   if (!name?.trim() || !email?.trim() || !message?.trim()) {
@@ -68,7 +96,12 @@ export async function POST(req: NextRequest) {
   }
 
   const ip = getClientIP(req);
-  
+
+  // 0. CAPTCHA (enforced only when TURNSTILE_SECRET_KEY is configured)
+  if (!(await verifyTurnstile(turnstileToken, ip))) {
+    return NextResponse.json({ error: "Captcha verification failed." }, { status: 403 });
+  }
+
   // 1. In-memory DDoS protection (fast fail)
   const memLimit = rateLimit(ip, 10, 60 * 1000); // Max 10 requests per minute per IP
   if (!memLimit.success) {

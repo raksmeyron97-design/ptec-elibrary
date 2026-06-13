@@ -15,6 +15,13 @@
 
 import React from "react";
 
+// Only allow safe URL schemes in links — blocks javascript:, data:, vbscript:,
+// etc. that could execute in the reader's session via a crafted [text](url).
+function isSafeHref(url: string): boolean {
+  const trimmed = url.trim();
+  return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(trimmed);
+}
+
 // ── Inline formatting: bold, italic, code, links ──────────────────
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
@@ -41,11 +48,11 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
       );
     } else if (token.startsWith("[")) {
       const m = /\[([^\]]+)\]\(([^)]+)\)/.exec(token);
-      if (m) {
+      if (m && isSafeHref(m[2])) {
         nodes.push(
           <a
             key={key}
-            href={m[2]}
+            href={m[2].trim()}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-brand underline underline-offset-2 hover:text-text-heading"
@@ -53,6 +60,9 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
             {m[1]}
           </a>
         );
+      } else if (m) {
+        // Unsafe scheme — render the link text as plain text, drop the href.
+        nodes.push(<React.Fragment key={key}>{m[1]}</React.Fragment>);
       }
     } else if (token.startsWith("**")) {
       nodes.push(<strong key={key} className="font-bold text-text-heading">{token.slice(2, -2)}</strong>);

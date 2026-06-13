@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const contactItems: [IconName, string][] = [
   ["phone", "012 950 192"],
@@ -62,6 +65,8 @@ export default function ContactPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,10 +77,14 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message }),
+        body: JSON.stringify({ name, email, message, turnstileToken: captchaToken }),
       });
 
       const data = await res.json();
+
+      // Reset the widget so a fresh token is required for the next submission.
+      turnstileRef.current?.reset();
+      setCaptchaToken(undefined);
 
       if (!res.ok) {
         if (res.status === 429 && data.secondsLeft) {
@@ -109,6 +118,8 @@ export default function ContactPage() {
   }
 
   const isDisabled = status === "loading" || status === "success";
+  // When Turnstile is configured, block submission until a token is obtained.
+  const captchaPending = Boolean(TURNSTILE_SITE_KEY) && !captchaToken;
 
   return (
     <section className="bg-paper px-6 py-10 md:px-12">
@@ -159,6 +170,18 @@ export default function ContactPage() {
             />
           </div>
 
+          {TURNSTILE_SITE_KEY && (
+            <div className="mt-4">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={setCaptchaToken}
+                onExpire={() => setCaptchaToken(undefined)}
+                onError={() => setCaptchaToken(undefined)}
+              />
+            </div>
+          )}
+
           {status === "success" && (
             <p className="mt-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
               ✅ Your message was sent successfully!
@@ -176,7 +199,7 @@ export default function ContactPage() {
 
           <button
             type="submit"
-            disabled={isDisabled}
+            disabled={isDisabled || captchaPending}
             className="mt-5 rounded-md bg-brand px-5 py-3 font-semibold text-brand-contrast transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {status === "loading" ? "Sending…" : "Submit message"}
