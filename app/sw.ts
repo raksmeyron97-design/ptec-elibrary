@@ -10,11 +10,15 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Tables whose GET responses are safe to cache — they are public, non-personalized data.
+// RLS-filtered tables (saved_books, reading_progress, profiles, etc.) must NOT be listed
+// here, as serving cached rows to a different logged-in user would be a privacy violation.
+const PUBLIC_REST_RE = /\/rest\/v1\/(books|catalog_books|posts|authors|categories|departments)(\?|$)/;
+
 const customCaching: RuntimeCaching[] = [
   // Fallback for navigations to /~offline
   {
     matcher: ({ request, url }) => {
-      // Don't intercept auth routes or api routes that aren't public
       if (url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/auth')) return false;
       return request.mode === 'navigate';
     },
@@ -23,6 +27,7 @@ const customCaching: RuntimeCaching[] = [
       networkTimeoutSeconds: 5,
     }),
   },
+
   // Cache book cover images (Google Drive, OpenLibrary, Supabase, Amazon)
   {
     matcher: ({ request, url }) => {
@@ -45,30 +50,31 @@ const customCaching: RuntimeCaching[] = [
       ],
     }),
   },
-  // Cache public Supabase API GET requests for non-personalized data only.
-  // Requests carrying an Authorization header contain RLS-filtered rows and
-  // must NOT be served from cache to avoid leaking one user's data to another.
+
+  // Cache public Supabase REST GET responses for non-personalized tables only.
+  // SKIP any request that carries an Authorization header — those are RLS-filtered
+  // and serving one user's data to another on a shared device is a privacy violation.
   {
     matcher: ({ request, url }) => {
       if (request.headers.get('authorization')) return false;
-      const publicPaths = ['/rest/v1/books', '/rest/v1/catalog', '/rest/v1/posts', '/rest/v1/research'];
       return (
         url.hostname.endsWith('supabase.co') &&
-        publicPaths.some((p) => url.pathname.includes(p)) &&
-        request.method === 'GET'
+        request.method === 'GET' &&
+        PUBLIC_REST_RE.test(url.pathname)
       );
     },
     handler: new StaleWhileRevalidate({
-      cacheName: 'supabase-api-cache',
+      cacheName: 'supabase-public-cache',
       plugins: [
         new ExpirationPlugin({
           maxEntries: 50,
-          maxAgeSeconds: 24 * 60 * 60, // 1 day
+          maxAgeSeconds: 6 * 60 * 60, // 6 hours
           purgeOnQuotaError: true,
         }),
       ],
     }),
   },
+
   // Cache PDF.js assets (worker, cmaps, standard fonts)
   {
     matcher: ({ url }) => /^\/pdf\/.*\.(mjs|js|bcmap|pfb|ttf|otf)$/.test(url.pathname),
@@ -82,13 +88,32 @@ const customCaching: RuntimeCaching[] = [
       ],
     }),
   },
-  // Cache book PDFs — limited to 12 entries / 30 days to avoid exhausting
-  // device quota on low-end phones (PDFs can be 5-20 MB each).
+
+  // Cache book PDFs for offline reading — limited to 12 entries / 30 days to avoid
+  // exhausting device quota on low-end phones (PDFs can be 5-20 MB each).
+  //
+  // The /api/books/[slug]/file proxy returns Cache-Control: private, no-store; the SW
+  // ignores that header and would silently cache private PDFs. To prevent serving one
+  // user's private PDF to another on a shared device, we ONLY cache that proxy route when
+  // the "Save offline" button explicitly appends ?offline=1.  Plain inline viewers
+  // (which load /api/books/[slug]/file without the flag) are never cached.
+  //
+  // Public-storage .pdf URLs and /storage/v1/object/public/ paths are open data and are
+  // safe to cache unconditionally.
+  //
+  // IMPORTANT: The "Save offline" UI (OfflineSaveButton) must request the URL with
+  // ?offline=1 for this gate to work. See components/ui/pwa/OfflineSaveButton.tsx.
   {
-    matcher: ({ url }) =>
-      url.pathname.endsWith('.pdf') ||
-      url.pathname.includes('/storage/v1/object/public/') ||
-      url.pathname.match(/^\/api\/books\/[^/]+\/file$/) !== null,
+    matcher: ({ url }) => {
+      if (url.pathname.endsWith('.pdf')) return true;
+      if (url.pathname.includes('/storage/v1/object/public/')) return true;
+      // Proxy route: only when the offline-save flag is present
+      if (
+        /^\/api\/books\/[^/]+\/file$/.test(url.pathname) &&
+        url.searchParams.get('offline') === '1'
+      ) return true;
+      return false;
+    },
     handler: new CacheFirst({
       cacheName: 'offline-books',
       plugins: [
@@ -100,9 +125,9 @@ const customCaching: RuntimeCaching[] = [
       ],
     }),
   },
+
   ...defaultCache,
 ];
-
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,

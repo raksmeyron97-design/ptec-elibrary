@@ -52,7 +52,10 @@ export default function OfflineSaveButton({
       setStatus("downloading");
       
       const cache = await caches.open('offline-books');
-      const urlsToCache = [pdfUrl];
+      // The SW only caches /api/books/*/file when ?offline=1 is present
+      // (to avoid silently storing private PDFs without user intent).
+      const offlinePdfUrl = pdfUrl.startsWith('/api/') ? `${pdfUrl}?offline=1` : pdfUrl;
+      const urlsToCache = [offlinePdfUrl];
       if (coverUrl) urlsToCache.push(coverUrl);
 
       await cache.addAll(urlsToCache);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const s3 = new S3Client({
   region: "auto",
@@ -11,6 +12,13 @@ const s3 = new S3Client({
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
 });
+
+// NOTE: this limiter is in-memory and resets on every cold start. On Vercel
+// serverless that means the window can reset between requests on different
+// instances. Migrate to Upstash Redis or Vercel KV for true distributed
+// rate limiting in production.
+const DOWNLOAD_LIMIT = 5;
+const DOWNLOAD_WINDOW_MS = 60 * 1000; // 1 minute
 
 export async function GET(
   _req: Request,
@@ -23,6 +31,19 @@ export async function GET(
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  // Rate-limit per user: 5 downloads / minute
+  const rl = rateLimit(user.id, DOWNLOAD_LIMIT, DOWNLOAD_WINDOW_MS);
+  if (!rl.success) {
+    return new NextResponse("Too Many Requests", {
+      status: 429,
+      headers: {
+        "Retry-After": String(Math.ceil((rl.reset - Date.now()) / 1000)),
+        "X-RateLimit-Limit": String(DOWNLOAD_LIMIT),
+        "X-RateLimit-Remaining": "0",
+      },
+    });
   }
 
   const supabase = createServiceClient();
@@ -46,24 +67,21 @@ export async function GET(
     return new NextResponse("File not found", { status: 404 });
   }
 
-  // Log the download
-  await supabase.from("download_logs").insert({
-    user_id: user.id,
-    book_file_id: pdfFile.id,
-  });
-
-  // Increment counters
-  await supabase.rpc("increment_download_count", { book_id: book.id });
+  // Fire log + counter in parallel — neither result gates the presigned URL
+  await Promise.all([
+    supabase.from("download_logs").insert({
+      user_id: user.id,
+      book_file_id: pdfFile.id,
+    }),
+    supabase.rpc("increment_download_count", { book_id: book.id }),
+  ]);
 
   // Derive the R2 object key from the stored URL.
-  // file_url is stored as the full public URL: https://<pub-domain>/books/foo.pdf
-  // Strip the public base to get the key.
   const publicBase = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").replace(/\/$/, "");
   let objectKey = pdfFile.file_url as string;
   if (publicBase && objectKey.startsWith(publicBase + "/")) {
     objectKey = objectKey.slice(publicBase.length + 1);
   } else if (objectKey.startsWith("https://")) {
-    // Fallback: extract path after the hostname
     try {
       objectKey = new URL(objectKey).pathname.replace(/^\//, "");
     } catch {

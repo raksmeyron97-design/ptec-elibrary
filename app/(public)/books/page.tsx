@@ -45,15 +45,18 @@ async function fetchBooks(params: SearchParams) {
     params.sort && sortMap[params.sort] ? params.sort : "newest";
   const { column: sortCol, opts: sortOpts } = sortMap[sortKey];
 
+  // books_with_stats is a view that adds pre-aggregated review_count and
+  // avg_rating to each book row, avoiding the N-row reviews(rating) embed.
+  // mapRowToBook handles both shapes; the view shape is cheaper on the wire.
   let query = supabase
-    .from("books")
+    .from("books_with_stats")
     .select(
       `id, title, slug, description, cover_color, cover_url, language,
        published_at, department, pages, isbn, rating, download_count,
-       view_count, tags,
+       view_count, tags, review_count, avg_rating,
        authors(name), categories(name),
        ${dept ? "departments!inner(name)" : "departments(name)"},
-       book_files(format, file_url, file_size_kb), reviews(rating)`,
+       book_files(format, file_url, file_size_kb)`,
       { count: "exact" }
     )
     .eq("is_published", true)

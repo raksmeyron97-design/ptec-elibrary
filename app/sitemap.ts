@@ -3,18 +3,29 @@ import { createServiceClient } from '@/lib/supabase/server';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
+// Revalidate hourly so the sitemap picks up newly published books and posts
+// without being frozen at build time.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceClient();
 
+  // Bounded to 5,000 entries each (sitemap spec limit per file).
+  // When book/post count approaches 50,000 across both, switch to
+  // generateSitemaps() to emit one chunk per 5,000 items.
   const [{ data: books }, { data: posts }] = await Promise.all([
     supabase
       .from('books')
       .select('slug, published_at, updated_at')
-      .eq('is_published', true),
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .range(0, 4999),
     supabase
       .from('posts')
       .select('slug, created_at, updated_at')
-      .eq('is_published', true),
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .range(0, 4999),
   ]);
 
   const bookUrls: MetadataRoute.Sitemap = (books || []).map((book) => ({
@@ -33,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticUrls: MetadataRoute.Sitemap = [
     {
-      url: `${SITE_URL}/home`,        // ← ប្តូរពី `${SITE_URL}`
+      url: `${SITE_URL}/home`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1.0,
