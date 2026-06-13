@@ -165,7 +165,7 @@ export default async function Navbar() {
   }
 
   return (
-    <header className="w-full font-sans border-t-[3px] border-accent">
+    <header className="w-full font-sans border-t-[3px] border-accent relative z-[100]">
       {/* Top utility strip */}
         <div className="hidden lg:block bg-blue-950 dark:bg-bg-surface text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5 dark:border-white/10">
           <div className="flex items-center justify-between px-6 md:px-12 py-2 max-w-[1400px] mx-auto w-full">

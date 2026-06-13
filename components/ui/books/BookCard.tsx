@@ -27,6 +27,13 @@ type BookCardProps = {
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
 
+const formatCount = (n: number) =>
+  n >= 1_000_000
+    ? `${(n / 1_000_000).toFixed(1)}M`
+    : n >= 1_000
+      ? `${(n / 1_000).toFixed(1)}K`
+      : String(n);
+
 export default function BookCard({ book, variant = "browse" }: BookCardProps) {
   const t = useTranslations("home");
   const tc = useTranslations("bookCard");
@@ -50,12 +57,7 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
     return t("weeksAgo", { weeks: Math.floor(days / 7) });
   }
 
-  const formatCount = (n: number) =>
-    n >= 1_000_000
-      ? `${(n / 1_000_000).toFixed(1)}M`
-      : n >= 1_000
-        ? `${(n / 1_000).toFixed(1)}K`
-        : String(n);
+
 
   async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
@@ -64,7 +66,7 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
   }
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.18)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)]">
 
       {/* Brand-colored top-rule accent — reveals on hover */}
       <span

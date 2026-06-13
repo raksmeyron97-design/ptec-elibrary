@@ -89,7 +89,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
 
       {/* ── Dropdown ── */}
       <div
-        className={`absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right rounded-xl border border-divider bg-bg-surface shadow-xl ring-1 ring-black/5 transition-all duration-200 ${
+        className={`absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right rounded-xl border border-divider bg-bg-surface shadow-xl ring-1 ring-black/5 transition-all duration-200 z-[100] ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"

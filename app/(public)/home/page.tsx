@@ -23,6 +23,7 @@ import HomeBento from "@/components/ui/home/HomeBento";
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
 import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
+import InteractiveAurora from "@/components/ui/animations/InteractiveAurora";
 
 export const revalidate = 60;
 
@@ -79,34 +80,40 @@ export default async function HomePage() {
     <div className="min-h-screen bg-paper">
 
       {/* ════════ HERO ════════ */}
-      <section className="hero-ink relative isolate overflow-hidden text-white">
+      <section className="hero-ink relative isolate z-40 text-white">
 
-        {/* 1. Photo background — LCP image */}
-        <div className="absolute inset-0 -z-30" aria-hidden>
-          <Image
-            src="/ptec-library.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            quality={70}
-            className="object-cover object-center"
+        {/* Background wrapper with overflow-hidden so blurs/scales don't leak */}
+        <div className="absolute inset-0 -z-30 overflow-hidden pointer-events-none">
+          {/* 1. Photo background — LCP image */}
+          <div className="absolute inset-0" aria-hidden>
+            <Image
+              src="/ptec-library.jpg"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              quality={70}
+              className="object-cover object-center"
+            />
+          </div>
+
+          {/* 2a. Left-to-right ink overlay: text column reads clearly, photo shows on right */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-r from-[#060B1A]/95 via-[#0A1430]/85 to-[#0D1B3E]/60"
           />
+          {/* 2b. Bottom fade: photo melts into the next section */}
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
+          />
+
+          {/* 3. Aurora — 60% opacity so it tints without fighting the photo */}
+          <div className="aurora absolute inset-0 opacity-60" aria-hidden />
+
+          {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
+          <InteractiveAurora className="absolute inset-0" />
         </div>
-
-        {/* 2a. Left-to-right ink overlay: text column reads clearly, photo shows on right */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-20 bg-gradient-to-r from-[#060B1A]/95 via-[#0A1430]/85 to-[#0D1B3E]/60"
-        />
-        {/* 2b. Bottom fade: photo melts into the next section */}
-        <div
-          aria-hidden
-          className="absolute inset-0 -z-20 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
-        />
-
-        {/* 3. Aurora — 60% opacity so it tints without fighting the photo */}
-        <div className="aurora absolute inset-0 -z-10 opacity-60" aria-hidden />
 
         <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16 lg:py-16">
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
@@ -139,7 +146,7 @@ export default async function HomePage() {
               </p>
 
               {/* Ask bar */}
-              <div className="mt-8 max-w-xl">
+              <div className="relative z-50 mt-8 max-w-xl">
                 <AskLibraryHero
                   trending={trendingTerms}
                   prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}

@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import BookCard from "@/components/ui/books/BookCard";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
 import { getTranslations, getLocale } from "next-intl/server";
+import { ScrollRevealWrapper } from "@/components/ui/animations/ScrollRevealWrapper";
 
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 
@@ -44,18 +45,20 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   const trending10 = trendingBooks.slice(0, 10);
 
   return (
-    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper">
+    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
-        <div className="mb-6 sm:mb-9">
+        <ScrollRevealWrapper className="mb-6 sm:mb-9">
           <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
           <SectionTitle as="h2" className="!mb-0 mt-2">{t("browseSectionTitle")}</SectionTitle>
-        </div>
-        <BookShowcaseTabs
-          trending={trending10}
-          recent={recentlyAdded}
-          depts={depts}
-          deptBooks={deptBooks}
-        />
+        </ScrollRevealWrapper>
+        <ScrollRevealWrapper>
+          <BookShowcaseTabs
+            trending={trending10}
+            recent={recentlyAdded}
+            depts={depts}
+            deptBooks={deptBooks}
+          />
+        </ScrollRevealWrapper>
       </div>
     </section>
   );

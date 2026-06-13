@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "^2.106.0",
     "@vercel/blob": "^2.4.0",
     "ai": "^6.0.202",
+    "framer-motion": "^12.40.0",
     "lucide-react": "^1.17.0",
     "next": "^16.2.6",
     "next-intl": "^4.13.0",
@@ -32,6 +33,7 @@
     "pdfjs-dist": "^5.7.284",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-parallax-tilt": "^1.7.331",
     "react-pdf": "^10.4.1",
     "serwist": "^9.5.11"
   },

@@ -6,6 +6,7 @@ import Link from "next/link";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
 import { useTranslations } from "next-intl";
+import { StaggerRevealContainer, StaggerRevealItem } from "@/components/ui/animations/ScrollRevealWrapper";
 
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 
@@ -138,11 +139,13 @@ export default function BookShowcaseTabs({
               : "Nothing added recently."}
         </div>
       ) : layout === "grid" ? (
-        <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
+        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
           {books.map((book) => (
-            <BookCard key={book.slug} book={book} />
+            <StaggerRevealItem key={book.slug}>
+              <BookCard book={book} />
+            </StaggerRevealItem>
           ))}
-        </div>
+        </StaggerRevealContainer>
       ) : (
         <BookCarousel
           aria-label={
