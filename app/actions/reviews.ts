@@ -38,6 +38,9 @@ export async function submitReview(
   }
 
   const content = formData.get("content")?.toString().trim() || null;
+  if (content && content.length > 2000) {
+    return { success: false, error: "Review is too long (max 2000 characters)." };
+  }
 
   const supabase = createServiceClient();
 
@@ -51,7 +54,7 @@ export async function submitReview(
 
   if (selectError) {
     console.error("[Supabase Select Error]:", selectError);
-    return { success: false, error: `Read error: ${selectError.message}` };
+    return { success: false, error: "Could not submit your review. Please try again." };
   }
 
   if (existing) {
@@ -63,7 +66,7 @@ export async function submitReview(
 
     if (error) {
       console.error("[Supabase Update Error]:", error);
-      return { success: false, error: `Update failed: ${error.message} (${error.code})` };
+      return { success: false, error: "Could not submit your review. Please try again." };
     }
   } else {
     // Insert new review
@@ -76,7 +79,7 @@ export async function submitReview(
 
     if (error) {
       console.error("[Supabase Insert Error]:", error);
-      return { success: false, error: `Insert failed: ${error.message} (${error.code})` };
+      return { success: false, error: "Could not submit your review. Please try again." };
     }
   }
 

@@ -7,19 +7,21 @@ export const getAllTags = unstable_cache(
   async (): Promise<string[]> => {
     const supabase = createServiceClient();
     
+    // Only surface tags/keywords from publicly visible content — never leak
+    // metadata from unpublished books or reports.
     const [booksRes, catalogRes, researchRes] = await Promise.all([
-      supabase.from("books").select("tags"),
+      supabase.from("books").select("tags").eq("is_published", true),
       supabase.from("catalog_books").select("keywords"),
-      supabase.from("research_reports").select("keywords"),
+      supabase.from("research_reports").select("keywords").eq("is_published", true),
     ]);
 
     const allTags = new Set<string>();
 
-    const processRow = (row: any, key: string) => {
+    const processRow = (row: Record<string, unknown>, key: string) => {
       const arr = row[key];
       if (Array.isArray(arr)) {
-        arr.forEach(t => {
-          const trimmed = t.trim();
+        arr.forEach((t) => {
+          const trimmed = String(t).trim();
           if (trimmed) allTags.add(trimmed);
         });
       }

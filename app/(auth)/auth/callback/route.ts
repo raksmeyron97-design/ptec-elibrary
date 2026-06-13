@@ -4,6 +4,15 @@ import { verifySignup } from "@/app/actions/auth";
 import { createAdminNotification } from "@/app/actions/notifications";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
+// The PKCE `code` path runs on every OAuth sign-in, so guard the "new user"
+// admin notification to genuinely fresh accounts (created in the last 5 minutes)
+// instead of firing on every returning-user login.
+function isFreshSignup(createdAt?: string): boolean {
+  if (!createdAt) return false;
+  const ageMs = Date.now() - new Date(createdAt).getTime();
+  return ageMs >= 0 && ageMs < 5 * 60 * 1000;
+}
+
 function safeCallbackUrl(raw: string | null): string {
   if (!raw) return "/dashboard";
   // Allow only relative paths; reject protocol-relative (//), absolute, or backslash variants
@@ -32,7 +41,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
       }
       const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser?.email) {
+      if (newUser?.email && isFreshSignup(newUser.created_at)) {
         await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
       }
       return NextResponse.redirect(`${origin}${next}`);
@@ -46,7 +55,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/auth/login?error=admin_signup_blocked`);
       }
       const { data: { user: newUser } } = await supabase.auth.getUser();
-      if (newUser?.email) {
+      if (newUser?.email && isFreshSignup(newUser.created_at)) {
         await createAdminNotification("new_user", `New user registered: ${newUser.email}`, undefined, "/admin/users");
       }
       return NextResponse.redirect(`${origin}${next}`);
