@@ -28,6 +28,7 @@ export type Book = {
   viewCount?: number;
   dbId?: string | null;
   reviewCount?: number; // real number of reviews (0 = unrated → shows "New")
+  createdAt?: string;   // ISO string from created_at column; used for NEW badge
 };
 
 

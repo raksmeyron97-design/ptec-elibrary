@@ -24,7 +24,7 @@ export default async function CatalogsSection() {
 
   return (
     <section className="border-t border-divider/50">
-    <div className="mx-auto max-w-[1400px] px-4 py-10 sm:py-14 md:py-20 md:px-12">
+    <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
       <div className="mb-9 flex items-end justify-between gap-5">
         <SectionTitle as="h2" className="!mb-0">{t('fromTheLibrary')}</SectionTitle>
         <Link href="/catalogs" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">

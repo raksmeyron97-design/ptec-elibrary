@@ -190,11 +190,18 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
             setCooldownActive(true);
             if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
             cooldownTimer.current = setTimeout(() => setCooldownActive(false), 5_000);
-          } else if (body.error === "global_limit" || res.status === 503) {
+          } else if (body.error === "global_limit") {
             setGlobalBusy(true);
             setMessages((prev) => [
               ...prev,
               { id: genId(), role: "assistant", text: t("busy"), isError: true, errorKind: "global_limit" },
+            ]);
+            return;
+          } else if (res.status === 503) {
+            // Temporary server/DB error — show error but don't lock the widget
+            setMessages((prev) => [
+              ...prev,
+              { id: genId(), role: "assistant", text: t("error"), isError: true, errorKind: "general" },
             ]);
             return;
           }

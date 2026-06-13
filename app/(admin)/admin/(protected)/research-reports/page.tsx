@@ -43,7 +43,9 @@ export default async function AdminResearchReportsPage({
       cohort,
       academic_year,
       cover_url,
-      created_at
+      created_at,
+      doi,
+      published_at
     `,
       { count: "exact" }
     );
@@ -69,6 +71,8 @@ export default async function AdminResearchReportsPage({
     downloadCount: r.download_count ?? 0,
     viewCount:     r.view_count ?? 0,
     createdAt:     r.created_at,
+    doi:           r.doi as string | null,
+    publishedAt:   r.published_at as string | null,
   }));
 
   const totalItems = count ?? 0;

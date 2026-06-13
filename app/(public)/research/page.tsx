@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { getResearchReports, getResearchCohorts, getResearchAcademicYears } from "@/app/actions/research";
 import ResearchCard from "@/components/ui/research/ResearchCard";
+import ResearchListItem from "@/components/ui/research/ResearchListItem";
 import { ClientNavWrapper, FilterLink, FilterSelect } from "@/components/ui/books/ClientNavWrapper";
 import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
-import { List } from "lucide-react";
+import { List, LayoutGrid, Rows3 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PROGRAMS, getFacultiesForProgram } from "@/lib/research/programs";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function ResearchReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cohort?: string; year?: string; q?: string; program?: string; faculty?: string }>;
+  searchParams: Promise<{ cohort?: string; year?: string; q?: string; program?: string; faculty?: string; view?: string }>;
 }) {
   const t = await getTranslations("nav");
   const params = await searchParams;
@@ -34,6 +35,7 @@ export default async function ResearchReportsPage({
 
   const reports = reportsRes.data || [];
   const total = reports.length;
+  const isGrid = params.view === "grid";
 
   const allDbCohorts = cohortRes.data ?? [];
   const allDbYears = yearRes.data ?? [];
@@ -144,13 +146,34 @@ export default async function ResearchReportsPage({
                   paramKey="year"
                 />
               </div>
-              <Link
-                href="/research/summary"
-                className="inline-flex items-center gap-2 rounded-lg bg-paper border border-divider px-4 py-2 text-[13px] font-semibold text-text-body transition-colors hover:bg-brand/5 hover:text-brand hover:border-brand/30"
-              >
-                <List className="w-4 h-4" />
-                {t("summaryIndex")}
-              </Link>
+
+              <div className="flex items-center gap-2">
+                {/* View toggle */}
+                <div className="flex items-center rounded-lg border border-divider bg-paper p-0.5">
+                  <FilterLink
+                    href={buildHref(params, { view: undefined })}
+                    className={viewBtn(!isGrid)}
+                    aria-label="List view"
+                  >
+                    <Rows3 className="h-4 w-4" />
+                  </FilterLink>
+                  <FilterLink
+                    href={buildHref(params, { view: "grid" })}
+                    className={viewBtn(isGrid)}
+                    aria-label="Grid view"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </FilterLink>
+                </div>
+
+                <Link
+                  href="/research/summary"
+                  className="inline-flex items-center gap-2 rounded-lg bg-paper border border-divider px-4 py-2 text-[13px] font-semibold text-text-body transition-colors hover:bg-brand/5 hover:text-brand hover:border-brand/30"
+                >
+                  <List className="w-4 h-4" />
+                  {t("summaryIndex")}
+                </Link>
+              </div>
             </div>
 
             {/* Result count */}
@@ -163,7 +186,7 @@ export default async function ResearchReportsPage({
           </div>
         </div>
 
-        {/* ── Grid ── */}
+        {/* ── Results ── */}
         <div className="mx-auto max-w-[1400px] px-4 py-5 md:px-12 md:py-8">
           {reports.length === 0 ? (
             <div className="flex min-h-[280px] sm:min-h-[360px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-6 sm:p-10 text-center">
@@ -185,10 +208,16 @@ export default async function ResearchReportsPage({
                 </FilterLink>
               )}
             </div>
-          ) : (
+          ) : isGrid ? (
             <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-5">
               {reports.map((report) => (
                 <ResearchCard key={report.id} report={report} />
+              ))}
+            </div>
+          ) : (
+            <div className="mx-auto flex max-w-[980px] flex-col gap-4">
+              {reports.map((report) => (
+                <ResearchListItem key={report.id} report={report} />
               ))}
             </div>
           )}
@@ -200,7 +229,7 @@ export default async function ResearchReportsPage({
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-type Params = { cohort?: string; year?: string; q?: string; program?: string; faculty?: string };
+type Params = { cohort?: string; year?: string; q?: string; program?: string; faculty?: string; view?: string };
 
 function buildHref(current: Params, overrides: Partial<Params>): string {
   const merged = { ...current, ...overrides };
@@ -217,5 +246,11 @@ function pill(active: boolean): string {
     active
       ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
       : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
+  }`;
+}
+
+function viewBtn(active: boolean): string {
+  return `inline-flex items-center justify-center rounded-md px-2.5 py-1.5 transition-colors ${
+    active ? "bg-brand text-brand-contrast" : "text-text-muted hover:text-brand"
   }`;
 }

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPresignedUrl } from "@/app/actions/upload";
 import { updateResearchReport } from "@/app/actions/research";
 import { UploadCloud, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import ProgramCohortFields, { type CascadeValues } from "../../_components/ProgramCohortFields";
+import AbstractInput from "../../_components/AbstractInput";
+import ReferencesInput from "../../_components/ReferencesInput";
 import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
 
 export default function EditReportForm({ report }: { report: any }) {
@@ -75,33 +76,37 @@ export default function EditReportForm({ report }: { report: any }) {
       let finalCoverUrl: string | null = coverRemoved ? null : report.cover_url;
       let fileSizeKb = report.file_size_kb;
 
-      // Upload new PDF to R2 if selected
+      // Upload new PDF via server-side proxy if selected (avoids CORS issues with R2)
       if (pdfFile) {
         const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const { presignedUrl: pdfUrl, publicUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type, "private");
-        if (pdfError || !pdfUrl || !publicUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
-
-        await fetch(pdfUrl, {
-          method: "PUT",
-          body: pdfFile,
-          headers: { "Content-Type": pdfFile.type },
-        });
-        finalPdfUrl = publicUrl;
+        const pdfPayload = new FormData();
+        pdfPayload.set("file", pdfFile);
+        pdfPayload.set("key", pdfPath);
+        pdfPayload.set("target", "private");
+        const pdfRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
+        if (!pdfRes.ok) {
+          const data = await pdfRes.json().catch(() => ({}));
+          throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
+        }
+        const { url: uploadedPdfUrl } = await pdfRes.json();
+        finalPdfUrl = uploadedPdfUrl;
         fileSizeKb = Math.round(pdfFile.size / 1024);
       }
 
-      // Upload new Cover to R2 if selected (overrides remove)
+      // Upload new Cover via server-side proxy if selected (overrides remove)
       if (coverFile) {
         const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const { presignedUrl: coverUploadUrl, publicUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type, "public");
-        if (coverError || !coverUploadUrl || !publicUrl) throw new Error(coverError || "Failed to get Cover upload URL");
-
-        await fetch(coverUploadUrl, {
-          method: "PUT",
-          body: coverFile,
-          headers: { "Content-Type": coverFile.type },
-        });
-        finalCoverUrl = publicUrl;
+        const coverPayload = new FormData();
+        coverPayload.set("file", coverFile);
+        coverPayload.set("key", coverPath);
+        coverPayload.set("target", "public");
+        const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
+        if (!coverRes.ok) {
+          const data = await coverRes.json().catch(() => ({}));
+          throw new Error(data.error ?? `Cover upload failed (${coverRes.status})`);
+        }
+        const { url: uploadedCoverUrl } = await coverRes.json();
+        finalCoverUrl = uploadedCoverUrl;
       }
 
       // Save to DB — cascade fields come from state (not FormData) to ensure reliability
@@ -119,6 +124,9 @@ export default function EditReportForm({ report }: { report: any }) {
         file_url: finalPdfUrl,
         file_size_kb: fileSizeKb,
         is_published: formData.get("is_published") === "true",
+        doi: (formData.get("doi") as string)?.trim() || null,
+        references: (formData.get("references") as string) || null,
+        published_at: (formData.get("published_at") as string) || null,
       };
 
       const result = await updateResearchReport(report.id, dbData);
@@ -164,6 +172,16 @@ export default function EditReportForm({ report }: { report: any }) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">DOI / Official ID (Optional)</label>
+            <input
+              name="doi"
+              defaultValue={report.doi ?? ""}
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
+              placeholder="e.g. 10.1234/abc or https://doi.org/..."
+            />
+          </div>
+
           {/* Program → Faculty → Cohort → Academic Year cascade
               ProgramCohortFields handles legacy values (stored values not in config)
               by appending them as selectable options so data is never silently lost. */}
@@ -199,6 +217,16 @@ export default function EditReportForm({ report }: { report: any }) {
           </div>
 
           <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">Publication Date (Optional)</label>
+            <input
+              type="date"
+              name="published_at"
+              defaultValue={report.published_at ? report.published_at.substring(0, 10) : ""}
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">Status</label>
             <select
               name="is_published"
@@ -212,17 +240,9 @@ export default function EditReportForm({ report }: { report: any }) {
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-text-body mb-1.5">Abstract (សេចក្តីសង្ខេប)</label>
-            <textarea
-              name="abstract"
-              defaultValue={report.abstract}
-              required
-              rows={6}
-              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-transparent"
-              placeholder="Brief summary of the research..."
-            />
-          </div>
+          <AbstractInput defaultValue={report.abstract} />
+
+          <ReferencesInput defaultValue={report.references ?? ""} />
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">PDF Report</label>

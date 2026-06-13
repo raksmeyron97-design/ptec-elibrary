@@ -27,14 +27,35 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   ]);
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
+  // Group the pre-fetched trending books by department (max 6 depts × 10 books).
+  // trendingBooks comes from page.tsx with a limit of 60 for this purpose.
+  const deptMap = new Map<string, BookCardData[]>();
+  for (const book of trendingBooks) {
+    const dept = book.department;
+    if (dept && dept !== "General") {
+      if (!deptMap.has(dept)) deptMap.set(dept, []);
+      const arr = deptMap.get(dept)!;
+      if (arr.length < 10) arr.push(book);
+    }
+  }
+  const depts = [...deptMap.keys()].slice(0, 6);
+  const deptBooks = Object.fromEntries(deptMap.entries());
+
+  const trending10 = trendingBooks.slice(0, 10);
+
   return (
     <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper">
-      <div className="mx-auto max-w-[1400px] px-4 py-10 sm:py-14 md:py-20 md:px-12">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <div className="mb-6 sm:mb-9">
           <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
           <SectionTitle as="h2" className="!mb-0 mt-2">{t("browseSectionTitle")}</SectionTitle>
         </div>
-        <BookShowcaseTabs trending={trendingBooks} recent={recentlyAdded} />
+        <BookShowcaseTabs
+          trending={trending10}
+          recent={recentlyAdded}
+          depts={depts}
+          deptBooks={deptBooks}
+        />
       </div>
     </section>
   );

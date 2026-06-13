@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { put } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 
 export async function updateProfile(formData: FormData) {
@@ -29,11 +28,29 @@ export async function updateProfile(formData: FormData) {
         return { error: "Avatar image must be less than 5MB" };
       }
 
-      const blob = await put(`avatars/${user.id}-${Date.now()}-${avatarFile.name}`, avatarFile, {
-        access: "public",
-        token: process.env.BLOB_READ_WRITE_TOKEN,
+      const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const s3Client = new S3Client({
+        region: "auto",
+        endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+        },
       });
-      avatarUrl = blob.url;
+
+      const key = `avatars/${user.id}-${Date.now()}-${avatarFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const buffer = Buffer.from(await avatarFile.arrayBuffer());
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.R2_PUBLIC_BUCKET_NAME,
+          Key: key,
+          Body: buffer,
+          ContentType: avatarFile.type,
+        })
+      );
+
+      avatarUrl = `${(process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "").replace(/\/$/, "")}/${key}`;
     }
 
     const updates: { full_name?: string; avatar_url?: string } = {};

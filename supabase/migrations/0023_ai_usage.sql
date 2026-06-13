@@ -3,8 +3,11 @@
 -- "Day" is defined in Asia/Phnom_Penh (UTC+7) to match the user's local midnight reset.
 
 -- ── Table ─────────────────────────────────────────────────────────────────────
+-- user_id has no FK constraint because the global circuit-breaker uses a sentinel
+-- UUID (00000000-0000-0000-0000-000000000000) that is not a real auth.users row.
+-- Access is restricted to the service role via RLS + RPC — no direct writes are allowed.
 create table if not exists public.ai_usage (
-  user_id   uuid not null references auth.users(id) on delete cascade,
+  user_id   uuid not null,
   used_on   date not null,
   count     int  not null default 0,
   updated_at timestamptz not null default now(),

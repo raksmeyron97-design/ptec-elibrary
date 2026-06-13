@@ -94,10 +94,10 @@ export default async function ContinueReading() {
       {/* Cyan radial wash — signals this section is "yours" */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(640px_320px_at_8%_-20%,rgba(34,211,238,0.06),transparent_60%)]" />
 
-      <div className="mx-auto max-w-[1400px] px-4 py-14 md:px-12 md:py-16">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <div className="mb-7 flex items-end justify-between gap-5">
           <div className="min-w-0">
-            <span className="mb-2 inline-flex items-center gap-2 text-[12px] font-bold text-cyan-600 dark:text-cyan-300">
+            <span className="mb-2 inline-flex items-center gap-2 text-[12px] font-bold text-cyan-700 dark:text-cyan-300">
               {/* Sparkle icon */}
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d="M12 2l1.8 5.4L19.2 9l-5.4 1.8L12 16.2l-1.8-5.4L4.8 9l5.4-1.8L12 2z" opacity={0.85} />
@@ -121,7 +121,7 @@ export default async function ContinueReading() {
 
         <BookCarousel aria-label={t("continueReading")}>
           {books.map((book) => (
-            <BookCard key={book.slug} book={book} />
+            <BookCard key={book.slug} book={book} variant="continue" />
           ))}
         </BookCarousel>
 

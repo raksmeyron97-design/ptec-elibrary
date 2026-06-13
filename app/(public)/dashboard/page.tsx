@@ -153,6 +153,13 @@ export default async function DashboardPage() {
                 <Icon name="library" className="text-base" />
                 <span>{t("browse")}</span>
               </Link>
+              <Link
+                href="/dashboard/settings"
+                className="flex-1 sm:flex-none inline-flex h-9 sm:h-10 items-center justify-center gap-2 rounded-lg bg-bg-surface/10 px-3 sm:px-4 text-sm font-semibold text-white transition hover:bg-bg-surface/20"
+              >
+                <Icon name="settings" className="text-base" />
+                <span>{t("settings")}</span>
+              </Link>
               <form action="/auth/signout" method="POST" className="flex-1 sm:flex-none">
                 <button
                   type="submit"

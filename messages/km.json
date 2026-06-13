@@ -67,7 +67,8 @@
     "savedBooks": "សៀវភៅដែលបានរក្សាទុក",
     "appearance": "រូបរាង",
     "researchReports": "របាយការណ៍ស្រាវជ្រាវ",
-    "summaryIndex": "បញ្ជីសង្ខេប"
+    "summaryIndex": "បញ្ជីសង្ខេប",
+    "settings": "ការកំណត់"
   },
   "bookCard": {
     "view": "មើល",
@@ -102,6 +103,8 @@
     "yesterday": "ម្សិលមិញ",
     "daysAgo": "{days} ថ្ងៃមុន",
     "weeksAgo": "{weeks} សប្តាហ៍មុន",
+    "readPct": "បានអាន {pct}%",
+    "deptAll": "ទាំងអស់",
     "searchPlaceholder": "ស្វែងរកចំណងជើង អ្នកនិពន្ធ ISBN ឬប្រធានបទ…",
     "searchButton": "ស្វែងរក",
     "trending": "កំពុងពេញនិយម",
@@ -128,7 +131,15 @@
     "bentoBrowseEbooks": "មើលសៀវភៅអេឡិចត្រូនិក",
     "bentoPhysicalLabel": "នៅលើធ្នើបណ្ណាល័យ",
     "bentoOnShelves": "មើលកាតាឡុក",
-    "bentoCategoriesLabel": "ប្រភេទសៀវភៅ"
+    "bentoCategoriesLabel": "ប្រភេទសៀវភៅ",
+    "statMembers": "សមាជិក",
+    "aboutLibraryLabel": "បណ្ណាល័យរបស់យើង",
+    "aboutLibraryTitle": "បម្រើគ្រូបង្រៀនតាំងពីឆ្នាំ ២០១៧",
+    "aboutLibraryBody": "វ.គ.រ.ភ បង្កើតឡើងក្នុងឆ្នាំ ២០១៧ ដោយការរួមបញ្ចូលមជ្ឈមណ្ឌលគរុកោសល្យពីរ ដោយមានការគាំទ្រពី JICA។ បណ្ណាល័យស្ថិតក្រោមដេប៉ាតឺម៉ង់ស្រាវជ្រាវអប់រំ និងបណ្ណាល័យ ដើម្បីបម្រើគ្រូបង្រៀនជំនាន់ក្រោយរបស់កម្ពុជា។",
+    "aboutLibraryLink": "ស្វែងយល់បន្ថែម",
+    "researchLabel": "ស្រាវជ្រាវ និងការបោះពុម្ពផ្សាយ",
+    "researchBody": "អានព្រឹត្តិបត្រស្រាវជ្រាវ និងរបាយការណ៍របស់គ្រូឧទ្ទេស និងគរុនិស្សិត វ.គ.រ.ភ។",
+    "researchLink": "មើលឯកសារស្រាវជ្រាវ"
   },
   "books": {
     "title": "ធនធានអេឡិចត្រូនិក",
@@ -360,7 +371,8 @@
     "labelMemberSince": "សមាជិកតាំងពី",
     "labelUserId": "លេខសម្គាល់",
     "labelStatus": "ស្ថានភាព",
-    "statusActive": "សកម្ម"
+    "statusActive": "សកម្ម",
+    "settings": "ការកំណត់"
   },
   "notifications": {
     "bellLabel": "ការជូនដំណឹង",

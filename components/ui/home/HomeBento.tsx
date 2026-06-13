@@ -3,23 +3,17 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import AnimatedStat from "./AnimatedStat";
 
-async function getBentoCounts() {
+async function getCategoryCount() {
   const db = createServiceClient();
-  const [ebooksRes, physicalRes, categoriesRes] = await Promise.all([
-    db.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
-    db.from("catalog_books").select("id", { count: "exact", head: true }).eq("is_active", true),
-    db.from("categories").select("id", { count: "exact", head: true }),
-  ]);
-  return {
-    ebooks: ebooksRes.count ?? 0,
-    physical: physicalRes.count ?? 0,
-    categories: categoriesRes.count ?? 0,
-  };
+  const { count } = await db
+    .from("categories")
+    .select("id", { count: "exact", head: true });
+  return count ?? 0;
 }
 
 export default async function HomeBento() {
-  const [counts, t, tf, locale] = await Promise.all([
-    getBentoCounts(),
+  const [categories, t, tf, locale] = await Promise.all([
+    getCategoryCount(),
     getTranslations("home"),
     getTranslations("footer"),
     getLocale(),
@@ -29,45 +23,44 @@ export default async function HomeBento() {
 
   return (
     <section className="border-b border-divider/60 bg-bg-surface">
-      <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-12 md:py-12">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:grid-rows-2">
 
-          {/* ── 1. E-library (big card) ── */}
+          {/* ── 1. About the library (big card, gold/heritage) ── */}
           <Link
-            href="/books"
-            className="group relative col-span-2 row-span-2 overflow-hidden rounded-2xl border border-divider bg-bg-surface p-6 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.18)] lg:col-span-3 sm:p-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            href="/about"
+            className="group relative col-span-2 row-span-2 overflow-hidden rounded-2xl border border-divider bg-bg-surface p-6 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-8px_rgba(221,176,34,0.2)] lg:col-span-3 sm:p-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
           >
-            {/* Soft cyan blob top-right */}
+            {/* Soft gold blob top-right */}
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-10 -top-10 h-52 w-52 rounded-full bg-cyan-400/10 blur-[60px] transition-colors duration-500 group-hover:bg-cyan-400/20"
+              className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 rounded-full bg-gold-500/10 blur-[60px] transition-colors duration-500 group-hover:bg-gold-500/20"
             />
 
             <div className="relative flex h-full flex-col">
               {/* Eyebrow */}
-              <div className={`mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-cyan-500 dark:text-cyan-300 ${latinLabel}`}>
-                {/* Open-book icon */}
+              <div className={`mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-gold-700 dark:text-gold-400 ${latinLabel}`}>
+                {/* Landmark / building icon */}
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                  <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
-                {t("bentoEbooksLabel")}
+                {t("aboutLibraryLabel")}
               </div>
 
-              {/* Count */}
-              <div className="font-khmer-serif text-5xl font-bold text-text-heading sm:text-6xl">
-                <AnimatedStat targetValue={counts.ebooks} />
-                <span className="text-gold-500">+</span>
-              </div>
+              {/* Heading */}
+              <h3 className="font-khmer-serif text-2xl font-bold text-text-heading sm:text-3xl">
+                {t("aboutLibraryTitle")}
+              </h3>
 
               {/* Body */}
-              <p className="mt-3 max-w-xs text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
-                {t("bentoEbooksBody")}
+              <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
+                {t("aboutLibraryBody")}
               </p>
 
               {/* Link line */}
-              <div className="mt-auto pt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-cyan-600 dark:text-cyan-300">
-                {t("bentoBrowseEbooks")}
+              <div className="mt-auto pt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-gold-700 dark:text-gold-400">
+                {t("aboutLibraryLink")}
                 <svg
                   className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden
@@ -78,35 +71,36 @@ export default async function HomeBento() {
             </div>
           </Link>
 
-          {/* ── 2. On our shelves ── */}
+          {/* ── 2. Research & publications (cyan/digital) ── */}
           <Link
-            href="/catalogs"
-            className="group relative col-span-2 overflow-hidden rounded-2xl border border-divider bg-bg-surface p-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-8px_rgba(221,176,34,0.18)] lg:col-span-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+            href="/research"
+            className="group relative col-span-2 overflow-hidden rounded-2xl border border-divider bg-bg-surface p-5 transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.18)] lg:col-span-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
           >
-            {/* Gold blob */}
+            {/* Cyan blob */}
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-8 -bottom-8 h-40 w-40 rounded-full bg-gold-500/10 blur-[50px] transition-colors duration-500 group-hover:bg-gold-500/18"
+              className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 rounded-full bg-cyan-400/10 blur-[50px] transition-colors duration-500 group-hover:bg-cyan-400/20"
             />
 
             <div className="relative">
-              <div className={`mb-2 inline-flex items-center gap-2 text-[11px] font-bold text-gold-600 dark:text-gold-400 ${latinLabel}`}>
-                {/* Shelf / archive icon */}
+              <div className={`mb-2 inline-flex items-center gap-2 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 ${latinLabel}`}>
+                {/* Document / research icon */}
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <rect x="2" y="3" width="20" height="5" rx="1" />
-                  <path d="M4 8v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8" />
-                  <path d="M10 12h4" />
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
                 </svg>
-                {t("bentoPhysicalLabel")}
+                {t("researchLabel")}
               </div>
 
-              <div className="font-khmer-serif text-4xl font-bold text-text-heading">
-                <AnimatedStat targetValue={counts.physical} />
-                <span className="text-gold-500">+</span>
-              </div>
+              <p className="max-w-sm text-[14px] leading-relaxed text-text-muted">
+                {t("researchBody")}
+              </p>
 
-              <div className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-gold-600 dark:text-gold-400">
-                {t("bentoOnShelves")}
+              <div className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-cyan-700 dark:text-cyan-300">
+                {t("researchLink")}
                 <svg
                   className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden
@@ -123,14 +117,13 @@ export default async function HomeBento() {
               {t("bentoCategoriesLabel")}
             </p>
             <div className="font-khmer-serif text-3xl font-bold text-text-heading">
-              <AnimatedStat targetValue={counts.categories} />
+              <AnimatedStat targetValue={categories} />
             </div>
           </div>
 
           {/* ── 4. Opening hours ── */}
           <div className="col-span-1 rounded-2xl border border-divider bg-bg-surface p-5 lg:col-span-2">
-            <div className="mb-2 inline-flex items-center gap-2 text-gold-600 dark:text-gold-400">
-              {/* Clock icon */}
+            <div className="mb-2 inline-flex items-center gap-2 text-gold-700 dark:text-gold-400">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />

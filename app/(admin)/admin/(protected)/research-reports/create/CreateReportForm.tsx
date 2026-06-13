@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getPresignedUrl } from "@/app/actions/upload";
 import { createResearchReport } from "@/app/actions/research";
 import { UploadCloud, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import ProgramCohortFields, { type CascadeValues } from "../_components/ProgramCohortFields";
+import AbstractInput from "../_components/AbstractInput";
+import ReferencesInput from "../_components/ReferencesInput";
 import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
 import TagInput from "@/components/ui/core/TagInput";
 
@@ -80,32 +81,35 @@ export default function CreateReportForm() {
     try {
       const formData = new FormData(e.currentTarget);
 
-      // Upload PDF to R2
+      // Upload PDF via server-side proxy (avoids CORS issues with R2)
       const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: pdfUrl, publicUrl: finalPdfUrl, error: pdfError } = await getPresignedUrl(pdfPath, pdfFile.type, "private");
-      if (pdfError || !pdfUrl || !finalPdfUrl) throw new Error(pdfError || "Failed to get PDF upload URL");
+      const pdfPayload = new FormData();
+      pdfPayload.set("file", pdfFile);
+      pdfPayload.set("key", pdfPath);
+      pdfPayload.set("target", "private");
+      const pdfRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
+      if (!pdfRes.ok) {
+        const data = await pdfRes.json().catch(() => ({}));
+        throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
+      }
+      const { url: finalPdfUrl } = await pdfRes.json();
 
-      await fetch(pdfUrl, {
-        method: "PUT",
-        body: pdfFile,
-        headers: { "Content-Type": pdfFile.type },
-      });
-
-      // Upload Cover to R2
+      // Upload Cover via server-side proxy
       const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const { presignedUrl: coverUploadUrl, publicUrl: finalCoverUrl, error: coverError } = await getPresignedUrl(coverPath, coverFile.type, "public");
-      if (coverError || !coverUploadUrl || !finalCoverUrl) throw new Error(coverError || "Failed to get Cover upload URL");
-
-      await fetch(coverUploadUrl, {
-        method: "PUT",
-        body: coverFile,
-        headers: { "Content-Type": coverFile.type },
-      });
+      const coverPayload = new FormData();
+      coverPayload.set("file", coverFile);
+      coverPayload.set("key", coverPath);
+      coverPayload.set("target", "public");
+      const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
+      if (!coverRes.ok) {
+        const data = await coverRes.json().catch(() => ({}));
+        throw new Error(data.error ?? `Cover upload failed (${coverRes.status})`);
+      }
+      const { url: finalCoverUrl } = await coverRes.json();
 
       const keywords = (formData.get("keywords") as string ?? "")
         .split(",").map(k => k.trim()).filter(Boolean).slice(0, 20);
 
-      // Save to DB — cascade fields come from state (not FormData) to ensure reliability
       const dbData = {
         title: formData.get("title") as string,
         abstract: formData.get("abstract") as string,
@@ -121,6 +125,9 @@ export default function CreateReportForm() {
         file_size_kb: Math.round(pdfFile.size / 1024),
         is_published: false,
         keywords,
+        doi: (formData.get("doi") as string)?.trim() || null,
+        references: (formData.get("references") as string) || null,
+        published_at: (formData.get("published_at") as string) || null,
       };
 
       const result = await createResearchReport(dbData);
@@ -157,6 +164,15 @@ export default function CreateReportForm() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">DOI / Official ID (Optional)</label>
+            <input
+              name="doi"
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
+              placeholder="e.g. 10.1234/abc or https://doi.org/..."
+            />
+          </div>
+
           {/* Program → Faculty → Cohort → Academic Year cascade */}
           <ProgramCohortFields onChange={setProgramFields} />
 
@@ -177,19 +193,19 @@ export default function CreateReportForm() {
               placeholder="e.g. Dr. Chea Vutha"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-text-body mb-1.5">Publication Date (Optional)</label>
+            <input
+              type="date"
+              name="published_at"
+              className="h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
+            />
+          </div>
         </div>
 
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-text-body mb-1.5">Abstract (សេចក្តីសង្ខេប)</label>
-            <textarea
-              name="abstract"
-              required
-              rows={6}
-              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
-              placeholder="Brief summary of the research..."
-            />
-          </div>
+          <AbstractInput />
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">
@@ -204,6 +220,8 @@ export default function CreateReportForm() {
               ចុច Enter ឬ , ដើម្បីបន្ថែម tag
             </p>
           </div>
+
+          <ReferencesInput />
 
           <div>
             <label className="block text-sm font-semibold text-text-body mb-1.5">PDF Report</label>

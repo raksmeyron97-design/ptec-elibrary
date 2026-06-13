@@ -20,23 +20,18 @@ type ReportRow = {
   downloadCount: number;
   viewCount: number;
   createdAt: string;
-};
-
-type Department = {
-  id: string;
-  name: string;
+  doi?: string | null;
+  publishedAt?: string | null;
 };
 
 export default function ResearchReportsClient({
   reports,
-  departments,
   currentPage,
   pageSize,
   totalItems,
   filters,
 }: {
   reports: ReportRow[];
-  departments?: Department[];
   currentPage: number;
   pageSize: number;
   totalItems: number;
@@ -121,7 +116,7 @@ export default function ResearchReportsClient({
             <tbody className="divide-y divide-divider">
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-text-muted">
+                  <td colSpan={6} className="px-4 py-8 text-center text-text-muted">
                     No research reports found.
                   </td>
                 </tr>
@@ -149,9 +144,18 @@ export default function ResearchReportsClient({
                       <div className="flex items-start gap-3">
                         <div>
                           <p className="font-medium text-text-heading line-clamp-1">{report.title}</p>
-                          <p className="text-xs text-text-muted">
-                            Added {new Date(report.createdAt).toLocaleDateString()}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {report.doi && (
+                              <span className="inline-flex items-center rounded-md bg-paper border border-divider px-2 py-0.5 text-[10px] font-mono text-text-muted">
+                                DOI: {report.doi}
+                              </span>
+                            )}
+                            <p className="text-xs text-text-muted">
+                              {report.publishedAt 
+                                ? `Published ${new Date(report.publishedAt).toLocaleDateString()}` 
+                                : `Added ${new Date(report.createdAt).toLocaleDateString()}`}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </td>

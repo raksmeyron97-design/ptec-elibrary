@@ -62,7 +62,8 @@
     "savedBooks": "Saved Books",
     "appearance": "Appearance",
     "researchReports": "Research Reports",
-    "summaryIndex": "Summary Index"
+    "summaryIndex": "Summary Index",
+    "settings": "Settings"
   },
   "bookCard": {
     "view": "View",
@@ -97,6 +98,8 @@
     "yesterday": "Yesterday",
     "daysAgo": "{days}d ago",
     "weeksAgo": "{weeks}w ago",
+    "readPct": "{pct}% read",
+    "deptAll": "All",
     "searchPlaceholder": "Search title, author, ISBN, or topic",
     "searchButton": "Search",
     "trending": "TRENDING",
@@ -123,7 +126,15 @@
     "bentoBrowseEbooks": "Browse e-books",
     "bentoPhysicalLabel": "On our shelves",
     "bentoOnShelves": "View catalog",
-    "bentoCategoriesLabel": "Categories"
+    "bentoCategoriesLabel": "Categories",
+    "statMembers": "Members",
+    "aboutLibraryLabel": "Our library",
+    "aboutLibraryTitle": "Serving teachers since 2017",
+    "aboutLibraryBody": "PTEC was established in 2017 by merging two teacher-training centers, with support from JICA. The library is home to the Department of Educational Research and Library — built for Cambodia's next generation of teachers.",
+    "aboutLibraryLink": "Learn more",
+    "researchLabel": "Research & publications",
+    "researchBody": "Read PTEC's research bulletin and reports by our own lecturers and student teachers.",
+    "researchLink": "View research"
   },
   "books": {
     "title": "e-Resources",
@@ -354,7 +365,8 @@
     "labelMemberSince": "Member Since",
     "labelUserId": "User ID",
     "labelStatus": "Status",
-    "statusActive": "Active"
+    "statusActive": "Active",
+    "settings": "Settings"
   },
   "notifications": {
     "bellLabel": "Notifications",

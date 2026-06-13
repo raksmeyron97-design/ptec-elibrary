@@ -9,7 +9,7 @@ export { departments, coverColors, slugify };
 export type { Book };
 
 export const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
-   published_at, department, pages, isbn, rating, download_count, view_count,
+   published_at, created_at, department, pages, isbn, rating, download_count, view_count,
    authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb), reviews(rating)`;
 
 export function mapRowToBook(row: any): Book & { reviewCount: number } {
@@ -63,6 +63,7 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     coverUrl:      row.cover_url         ?? null,
     pdfUrl:        pdfFile?.file_url     ?? null,
     uploadedAt:    row.published_at      ?? undefined,
+    createdAt:     row.created_at        ?? undefined,
     downloadCount: row.download_count    ?? 0,
     viewCount:     row.view_count        ?? 0,
     dbId:          row.id                ?? null,

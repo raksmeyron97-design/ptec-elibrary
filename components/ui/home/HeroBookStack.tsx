@@ -54,7 +54,7 @@ export default function HeroBookStack({ books }: Props) {
   const backBooks = [prevBook, nextBook];
 
   return (
-    <div className="relative h-[360px] w-[300px]">
+    <div className="relative h-[480px] w-[400px]">
 
       {/* ── Back cards (static, showing adjacent book colors) ── */}
       {backCards.map((style, i) => {
@@ -67,7 +67,7 @@ export default function HeroBookStack({ books }: Props) {
         return (
           <div
             key={i}
-            className="absolute left-6 top-8 h-[280px] w-[200px] rounded-2xl shadow-2xl shadow-black/40"
+            className="absolute left-10 top-10 h-[380px] w-[280px] rounded-2xl shadow-2xl shadow-black/40"
             style={{
               transform: `rotate(${style.rotate}) translate(${style.translateX}, ${style.translateY}) scale(${style.scale})`,
               opacity: style.opacity,
@@ -87,7 +87,7 @@ export default function HeroBookStack({ books }: Props) {
 
       {/* ── Front card (fading cover) ── */}
       <div
-        className="absolute left-6 top-8 h-[280px] w-[200px] overflow-hidden rounded-2xl shadow-[0_32px_80px_-16px_rgba(0,0,0,0.5)]"
+        className="absolute left-10 top-10 h-[380px] w-[280px] overflow-hidden rounded-2xl shadow-[0_32px_80px_-16px_rgba(0,0,0,0.5)]"
         style={{
           transform: "rotate(0deg) translate(8px, 0px)",
           zIndex: 10,
@@ -103,7 +103,7 @@ export default function HeroBookStack({ books }: Props) {
               src={currentBook.coverUrl}
               alt={currentBook.title}
               fill
-              sizes="200px"
+              sizes="280px"
               className="object-cover"
               priority
             />
@@ -123,10 +123,10 @@ export default function HeroBookStack({ books }: Props) {
                   {currentBook.department}
                 </p>
               )}
-              <p className="text-[14px] font-bold leading-tight text-white line-clamp-3">
+              <p className="text-[16px] font-bold leading-tight text-white line-clamp-3">
                 {currentBook.title}
               </p>
-              <p className="mt-1 text-[11px] text-white/60">{currentBook.author}</p>
+              <p className="mt-1.5 text-[12px] text-white/60">{currentBook.author}</p>
             </div>
           )}
         </div>
@@ -137,13 +137,13 @@ export default function HeroBookStack({ books }: Props) {
         {/* Bottom info bar */}
         <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/70 via-black/40 to-transparent px-4 pb-3.5 pt-10">
           <p
-            className="text-[12px] font-bold leading-snug text-white line-clamp-2 transition-opacity duration-500"
+            className="text-[14px] font-bold leading-snug text-white line-clamp-2 transition-opacity duration-500"
             style={{ opacity: fadeState === "in" ? 1 : 0 }}
           >
             {currentBook.title}
           </p>
           <p
-            className="mt-0.5 text-[10px] text-white/60 transition-opacity duration-500"
+            className="mt-1 text-[12px] text-white/60 transition-opacity duration-500"
             style={{ opacity: fadeState === "in" ? 1 : 0 }}
           >
             {currentBook.author}
@@ -154,9 +154,9 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Book icon → Browse resources ── */}
       <Link
         href="/books"
-        className="absolute -right-2 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
+        className="absolute -right-4 top-8 z-20 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
-        <svg className="h-5 w-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <svg className="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
         </svg>
@@ -165,9 +165,9 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Download icon → Most downloaded ── */}
       <Link
         href="/books?sort=downloads"
-        className="absolute -left-3 bottom-12 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
+        className="absolute -left-5 bottom-16 z-20 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
-        <svg className="h-4 w-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v13m0 0-4-4m4 4 4-4" />
           <path d="M4 20h16" />
         </svg>

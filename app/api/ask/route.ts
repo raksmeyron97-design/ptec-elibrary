@@ -325,8 +325,8 @@ export async function POST(req: Request) {
       p_limit: DAILY_USER_LIMIT,
     });
     if (quotaErr) {
-      console.error("[/api/ask] quota RPC error:", quotaErr);
-      return Response.json({ error: "unavailable" }, { status: 503 });
+      console.error("[/api/ask] quota RPC error:", quotaErr.message ?? quotaErr);
+      return Response.json({ error: "db_error" }, { status: 503 });
     }
     if ((quotaResult as number) === -1) {
       return Response.json({ error: "quota", remaining: 0 }, { status: 429 });
@@ -342,8 +342,8 @@ export async function POST(req: Request) {
     p_limit: DAILY_GLOBAL_LIMIT,
   });
   if (globalErr) {
-    console.error("[/api/ask] global RPC error:", globalErr);
-    return Response.json({ error: "unavailable" }, { status: 503 });
+    console.error("[/api/ask] global RPC error:", globalErr.message ?? globalErr);
+    return Response.json({ error: "db_error" }, { status: 503 });
   }
   if ((globalResult as number) === -1) {
     return Response.json({ error: "global_limit" }, { status: 503 });

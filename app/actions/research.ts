@@ -42,6 +42,9 @@ export interface ResearchReportData {
   file_size_kb?: number | null;
   is_published?: boolean;
   keywords?: string[];
+  doi?: string | null;
+  published_at?: string | null;
+  references?: string | null;
 }
 
 export interface ResearchCohort {
@@ -178,9 +181,18 @@ export async function incrementResearchDownloadCount(id: string) {
 export async function toggleReportPublishStatus(id: string, isPublished: boolean) {
   const supabase = await createClient();
 
+  const updatePayload: any = { is_published: isPublished };
+
+  if (isPublished) {
+    const { data } = await supabase.from("research_reports").select("published_at").eq("id", id).single();
+    if (data && !data.published_at) {
+      updatePayload.published_at = new Date().toISOString();
+    }
+  }
+
   const { error } = await supabase
     .from("research_reports")
-    .update({ is_published: isPublished })
+    .update(updatePayload)
     .eq("id", id);
 
   if (error) {

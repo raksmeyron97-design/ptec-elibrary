@@ -149,6 +149,15 @@ export default function NavbarClient({ user }: NavbarClientProps) {
           </Link>
          
 
+          <Link
+            href="/dashboard/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-3 px-4 py-2.5 text-sm text-text-body transition-colors hover:bg-paper hover:text-brand"
+          >
+            <Icon name="settings" className="text-[18px] text-text-muted" />
+            {t('settings')}
+          </Link>
+
         </div>
 
         {/* Sign out */}

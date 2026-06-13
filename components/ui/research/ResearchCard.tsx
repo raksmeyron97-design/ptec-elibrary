@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/core/Badge";
+import { getKeywords } from "@/lib/research/report-fields";
 
 export default function ResearchCard({ report }: { report: any }) {
   const formatCount = (n: number) =>
@@ -12,6 +13,7 @@ export default function ResearchCard({ report }: { report: any }) {
 
   const downloads = report.download_count || 0;
   const views = report.view_count || 0;
+  const keywords = getKeywords(report).slice(0, 2);
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md hover:border-brand/20">
@@ -20,7 +22,7 @@ export default function ResearchCard({ report }: { report: any }) {
         aria-hidden
         className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
       />
-      
+
       <Link href={`/research/${report.id}`} className="flex h-full flex-col">
         {/* ── Cover ── */}
         <div className="relative mx-3 mt-3 overflow-hidden rounded-lg sm:mx-3.5 sm:mt-3.5 border border-divider/50">
@@ -67,6 +69,20 @@ export default function ResearchCard({ report }: { report: any }) {
             <p className="mt-1 text-[11px] text-text-muted line-clamp-1 sm:text-[12px] font-medium">
               {report.author_names}
             </p>
+          )}
+
+          {/* Keywords */}
+          {keywords.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {keywords.map((kw) => (
+                <span
+                  key={kw}
+                  className="rounded bg-bg-app px-1.5 py-0.5 text-[9px] font-medium text-text-muted line-clamp-1"
+                >
+                  {kw}
+                </span>
+              ))}
+            </div>
           )}
 
           {/* ── Footer ── */}
