@@ -25,6 +25,19 @@ const REVALIDATE_PATHS = [
   "/research/summary",
 ];
 
+// Server actions are callable by anyone who can craft the request, so every
+// mutating action must verify the caller is an admin — especially those that
+// use the service-role client (which bypasses RLS).
+async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return { ok: false, error: "Not authenticated" };
+  const svc = createServiceClient();
+  const { data: profile } = await svc.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") return { ok: false, error: "Forbidden" };
+  return { ok: true };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ResearchReportData {
@@ -158,12 +171,19 @@ export async function getResearchReportById(id: string) {
 }
 
 export async function incrementResearchViewCount(id: string) {
+  // Only count views from signed-in users (matches the book view-count behavior)
+  // and prevents anonymous callers from spamming the counter via this action.
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return;
+
   const supabase = createServiceClient();
   const { error } = await supabase.rpc("increment_research_view_count", { row_id: id });
 
   await supabase.from("view_logs").insert({
     content_type: "research_report",
     content_id: id,
+    user_id: user.id,
   });
   if (error) {
     console.error("Failed to increment view count:", error);
@@ -171,6 +191,10 @@ export async function incrementResearchViewCount(id: string) {
 }
 
 export async function incrementResearchDownloadCount(id: string) {
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
+  if (!user) return;
+
   const supabase = createServiceClient();
   const { error } = await supabase.rpc("increment_research_download_count", { row_id: id });
   if (error) {
@@ -179,9 +203,12 @@ export async function incrementResearchDownloadCount(id: string) {
 }
 
 export async function toggleReportPublishStatus(id: string, isPublished: boolean) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const supabase = await createClient();
 
-  const updatePayload: any = { is_published: isPublished };
+  const updatePayload: { is_published: boolean; published_at?: string } = { is_published: isPublished };
 
   if (isPublished) {
     const { data } = await supabase.from("research_reports").select("published_at").eq("id", id).single();
@@ -204,6 +231,9 @@ export async function toggleReportPublishStatus(id: string, isPublished: boolean
 }
 
 export async function createResearchReport(formData: ResearchReportData) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const supabase = await createClient();
   const { error } = await supabase.from("research_reports").insert([{
     ...formData,
@@ -220,6 +250,9 @@ export async function createResearchReport(formData: ResearchReportData) {
 }
 
 export async function deleteResearchReport(id: string) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const supabase = createServiceClient();
 
   // Fetch URLs before deleting so we can clean up R2 afterwards
@@ -251,6 +284,9 @@ export async function deleteResearchReport(id: string) {
 }
 
 export async function updateResearchReport(id: string, formData: ResearchReportData) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return { success: false, error: guard.error };
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("research_reports")

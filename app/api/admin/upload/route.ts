@@ -16,6 +16,10 @@ const s3 = new S3Client({
 
 const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/"];
 
+// Cap upload size so a single huge request can't exhaust the function's memory
+// (the body is buffered before being sent to R2).
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
+
 export async function POST(request: NextRequest) {
   try {
     const authClient = await createClient();
@@ -36,9 +40,12 @@ export async function POST(request: NextRequest) {
     const target = (formData.get("target") as string) === "public" ? "public" : "private";
 
     if (!file || file.size === 0) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "File too large (max 100 MB)." }, { status: 413 });
+    }
     if (!key) return NextResponse.json({ error: "No key provided" }, { status: 400 });
 
-    if (key.startsWith("/") || key.startsWith("\\") || key.includes("..")) {
+    if (key.startsWith("/") || key.startsWith("\\") || key.includes("..") || key.includes("\\")) {
       return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
     if (!ALLOWED_PREFIXES.some((p) => key.startsWith(p))) {

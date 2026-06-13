@@ -16,6 +16,10 @@ const s3 = new S3Client({
 
 const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/"];
 
+// Cap upload size so a single huge request can't exhaust the function's memory
+// (the body is buffered before being sent to R2).
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
+
 export async function POST(request: NextRequest) {
   try {
     const authClient = await createClient();
@@ -32,11 +36,17 @@ export async function POST(request: NextRequest) {
     const target = request.headers.get("x-target") === "public" ? "public" : "private";
     const contentType = request.headers.get("x-content-type") ?? "application/octet-stream";
 
-    if (!key || key.startsWith("/") || key.startsWith("\\") || key.includes("..")) {
+    if (!key || key.startsWith("/") || key.startsWith("\\") || key.includes("..") || key.includes("\\")) {
       return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
     if (!ALLOWED_PREFIXES.some((p) => key.startsWith(p))) {
       return NextResponse.json({ error: "File path must start with books/, posts/, research/, or reports/" }, { status: 400 });
+    }
+
+    // Reject oversized uploads before buffering the body into memory.
+    const declaredLength = Number(request.headers.get("content-length") ?? 0);
+    if (declaredLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "File too large (max 100 MB)." }, { status: 413 });
     }
 
     const bucket = target === "public"
@@ -47,6 +57,9 @@ export async function POST(request: NextRequest) {
     // Read as raw binary — no FormData parsing, handles large files
     const body = await request.arrayBuffer();
     if (body.byteLength === 0) return NextResponse.json({ error: "Empty file" }, { status: 400 });
+    if (body.byteLength > MAX_UPLOAD_BYTES) {
+      return NextResponse.json({ error: "File too large (max 100 MB)." }, { status: 413 });
+    }
 
     await s3.send(new PutObjectCommand({
       Bucket: bucket,
