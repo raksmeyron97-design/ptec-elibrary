@@ -61,7 +61,7 @@ export default function InstallPWA() {
       </button>
 
       {showIOSHint && (
-        <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg z-50">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg z-50">
           <button 
             onClick={() => setShowIOSHint(false)}
             className="absolute right-2 top-2 text-text-muted hover:text-text-heading"

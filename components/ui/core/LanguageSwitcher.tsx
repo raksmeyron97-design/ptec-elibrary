@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ className }: { className?: string }) {
   const [locale, setLocale] = useState<'en' | 'km'>('en');
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function LanguageSwitcher() {
     <button
       onClick={toggle}
       aria-label="Toggle language"
-      className="flex items-center gap-1.5 text-[12px] font-medium text-gold-200 hover:text-white transition-colors cursor-pointer"
+      className={className || "flex items-center gap-1.5 text-[12px] font-medium text-gold-200 hover:text-white transition-colors cursor-pointer"}
     >
       {locale === 'en' ? '🇰🇭 ខ្មែរ' : '🇬🇧 English'}
     </button>

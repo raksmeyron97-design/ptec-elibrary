@@ -8,7 +8,7 @@ import { getDoi, getYear, getDepartment, type ResearchReport } from "./report-fi
 export const REPOSITORY = {
   name: "Phnom Penh Teacher Education College", // e.g. "Royal University of Phnom Penh — Research Repository"
   // Falls back to the runtime origin when NEXT_PUBLIC_SITE_URL is unset.
-  baseUrl: process.env.NEXT_PUBLIC_SITE_URL ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/home\/?$/, "") : "",
+  baseUrl: "https://library.ptec.edu.kh",
 };
 
 export type CiteFormat = "apa" | "bibtex" | "ris";

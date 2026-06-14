@@ -218,7 +218,7 @@ export default async function Navbar() {
                   <Seal size={48} />
                 </div>
                 <div className="flex flex-col text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand whitespace-nowrap overflow-hidden">
-                  <span className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.រ.ភ</span>
+                  <span className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
                   <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
                 </div>
               </Link>

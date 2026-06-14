@@ -9,7 +9,7 @@ import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh";
+const SITE_URL = "https://library.ptec.edu.kh";
 const THEME_INIT_SCRIPT = `
 (() => {
   try {

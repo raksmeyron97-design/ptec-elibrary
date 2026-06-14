@@ -6,7 +6,7 @@
 export const LIBRARY_INFO = {
   name: {
     en: "PTEC Library (Phnom Penh Teacher Education College)",
-    km: "បណ្ណាល័យ វ.គ.រ.ភ (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ)",
+    km: "បណ្ណាល័យ វ.គ.ភ (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ)",
   },
   location: {
     en: "St. 271, Sangkat Teuk Laork 3, Khan Toul Kork, Phnom Penh, Cambodia.",

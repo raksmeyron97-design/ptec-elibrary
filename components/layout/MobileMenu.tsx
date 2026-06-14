@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from 'next-intl';
+import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
 
 type NavItem = { label: string; href: string };
 
@@ -114,7 +115,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             transition={{ type: "spring", stiffness: 450, damping: 32, mass: 0.6 }}
           >
         {/* Drawer header */}
-        <div className="flex items-center justify-between border-b border-divider px-5 py-4">
+        <div className="flex items-center justify-between border-b border-divider px-5 py-4 shrink-0">
           <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
             <Image
               src="/logo_top.png"
@@ -135,95 +136,44 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
           </button>
         </div>
 
-        {/* Profile block (logged in) */}
-        {user && (
-          <div className="flex items-center gap-3 border-b border-divider px-5 py-4">
-            <div className="relative h-10 w-10 shrink-0">
-              {user.avatar_url ? (
-                <Image
-                  src={user.avatar_url}
-                  alt={user.full_name || user.email}
-                  fill
-                  sizes="40px"
-                  className="rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-sm font-bold text-brand-contrast">
-                  {getInitials(user.full_name, user.email)}
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-text-heading">
-                {user.full_name || user.email}
-              </p>
-              {user.full_name && (
-                <p className="truncate text-xs text-text-muted">{user.email}</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Profile links (logged in) */}
-        {user && (
-          <div className="flex flex-col gap-1 border-b border-divider px-3 py-2">
-            <Link href="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-medium text-text-body hover:bg-paper hover:text-brand">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-              {t("myDashboard")}
-            </Link>
-            <Link href="/books" onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-[15px] font-medium text-text-body hover:bg-paper hover:text-brand">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-              </svg>
-              {t("savedBooks")}
-            </Link>
-          </div>
-        )}
-
-        {/* Search shortcut */}
-        <div className="px-5 pt-4">
-          <Link
-            href="/books"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-lg border border-divider bg-paper px-4 py-3 text-sm font-medium text-text-muted transition-colors hover:bg-paper"
-          >
-            <Icon name="search" className="text-[18px] text-text-muted" />
-            {t('searchPlaceholder')}
-          </Link>
+        {/* Scrollable Nav Area */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Nav links */}
+          <nav className="flex flex-col gap-1 px-3 py-4">
+            {navLinks.map((link) => {
+              const isActive =
+                pathname === link.href ||
+                (link.href !== "/" && pathname.startsWith(link.href));
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-brand/10 text-brand"
+                      : "text-text-body hover:bg-paper hover:text-brand-hover"
+                  }`}
+                >
+                  {link.label}
+                  {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Nav links */}
-        <nav className="flex flex-col gap-1 px-3 py-4">
-          {navLinks.map((link) => {
-            const isActive =
-              pathname === link.href ||
-              (link.href !== "/" && pathname.startsWith(link.href));
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
-                  isActive
-                    ? "bg-brand/10 text-brand"
-                    : "text-text-body hover:bg-paper hover:text-brand-hover"
-                }`}
-              >
-                {link.label}
-                {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
-              </Link>
-            );
-          })}
-        </nav>
-
         {/* Footer action: login or sign out */}
-        <div className="mt-auto border-t border-divider px-5 py-4">
-          <div className="mb-4 flex items-center justify-between rounded-lg border border-divider px-4 py-2">
-            <span className="text-sm font-medium text-text-muted">{t('appearance')}</span>
-            <ThemeToggle />
+        <div className="mt-auto border-t border-divider px-5 py-4 shrink-0">
+          <div className="mb-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between rounded-lg border border-divider px-4 py-2">
+              <span className="text-sm font-medium text-text-muted">{t('appearance')}</span>
+              <ThemeToggle />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-divider px-4 py-2">
+              <span className="text-sm font-medium text-text-muted">Language</span>
+              <LanguageSwitcher className="flex items-center gap-2 text-sm font-medium text-text-body hover:text-brand transition-colors cursor-pointer" />
+            </div>
           </div>
           {user ? (
             <form action="/auth/signout" method="POST">
