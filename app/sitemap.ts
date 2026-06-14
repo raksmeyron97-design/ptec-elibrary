@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh";
 
 // Revalidate hourly so the sitemap picks up newly published books and posts
 // without being frozen at build time.

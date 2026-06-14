@@ -35,8 +35,7 @@ function GlowOrb({
         y: ty,
         width: size,
         height: size,
-        background: `radial-gradient(circle, ${color} 0%, transparent 68%)`,
-        filter: `blur(${blurPx}px)`,
+        background: `radial-gradient(circle, ${color} 0%, transparent 70%)`,
       }}
       className="absolute left-0 top-0 rounded-full will-change-transform"
     />
@@ -75,14 +74,17 @@ export default function InteractiveAurora({
     if (!parent) return;
 
     // Seed both orbs at the section center so they don't jump in from (0,0)
-    const { width, height } = parent.getBoundingClientRect();
-    rawX1.set(width / 2);
-    rawY1.set(height / 2);
-    rawX2.set(width / 2 + 110);
-    rawY2.set(height / 2 - 70);
+    let rect = parent.getBoundingClientRect();
+    rawX1.set(rect.width / 2);
+    rawY1.set(rect.height / 2);
+    rawX2.set(rect.width / 2 + 110);
+    rawY2.set(rect.height / 2 - 70);
+
+    const onResize = () => {
+      rect = parent!.getBoundingClientRect();
+    };
 
     function onMove(e: MouseEvent) {
-      const rect = parent!.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       rawX1.set(mx);
@@ -92,8 +94,12 @@ export default function InteractiveAurora({
       rawY2.set(my - 90);
     }
 
-    parent.addEventListener("mousemove", onMove);
-    return () => parent.removeEventListener("mousemove", onMove);
+    window.addEventListener("resize", onResize, { passive: true });
+    parent.addEventListener("mousemove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("resize", onResize);
+      parent!.removeEventListener("mousemove", onMove);
+    };
   }, [rawX1, rawY1, rawX2, rawY2]);
 
   return (

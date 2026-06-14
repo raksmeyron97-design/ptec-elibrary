@@ -66,7 +66,7 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
   }
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)]">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)] transform-gpu will-change-transform">
 
       {/* Brand-colored top-rule accent — reveals on hover */}
       <span

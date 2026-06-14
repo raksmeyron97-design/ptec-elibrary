@@ -7,7 +7,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import Markdown from "./Markdown";
 import ViewTracker from "./ViewTracker";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh";
 import ImageGallery from "./ImageGallery";
 import RelatedPosts from "./RelatedPosts";
 import { getTranslations } from 'next-intl/server';

@@ -28,7 +28,7 @@ import BookQuickNav from "@/components/ui/books/BookQuickNav";
 
 export const dynamic = "force-dynamic";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://library.ptec.edu.kh";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string }>;

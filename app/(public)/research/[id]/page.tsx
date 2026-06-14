@@ -66,7 +66,7 @@ export default async function ResearchReportDetailPage({
   const department = getDepartment(report);
   const publishedOn = formatPublicationDate(report);
   const fileHref = `/api/research/${id}/file`;
-  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/research/${id}`;
+  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "https://library.ptec.edu.kh"}/research/${id}`;
 
   // ── Tab content ───────────────────────────────────────────────────────────
   const abstractPanel = (

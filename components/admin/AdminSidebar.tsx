@@ -120,7 +120,7 @@ export default function AdminSidebar({
           href={
             process.env.NEXT_PUBLIC_ROOT_DOMAIN
               ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
-              : "http://localhost:3000"
+              : "https://library.ptec.edu.kh"
           }
           className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-xl transition-all duration-200"
           style={{ color: "rgba(255,255,255,0.60)" }}

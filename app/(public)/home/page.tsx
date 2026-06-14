@@ -108,11 +108,11 @@ export default async function HomePage() {
             className="absolute inset-0 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
           />
 
-          {/* 3. Aurora — 60% opacity so it tints without fighting the photo */}
-          <div className="aurora absolute inset-0 opacity-60" aria-hidden />
+          {/* 3. Aurora — temporarily hidden for performance testing */}
+          {/* <div className="aurora absolute inset-0 opacity-60" aria-hidden /> */}
 
           {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
-          <InteractiveAurora className="absolute inset-0" />
+          {/* <InteractiveAurora className="absolute inset-0" /> */}
         </div>
 
         <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16 lg:py-16">
@@ -167,8 +167,8 @@ export default async function HomePage() {
             {/* ── Right column — desktop book stack ── */}
             <div className="relative hidden lg:flex lg:items-center lg:justify-center">
               <div aria-hidden className="pointer-events-none absolute inset-0">
-                <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-cyan-400/15 blur-[90px]" />
-                <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-gold-500/12 blur-[80px]" />
+                <div className="absolute right-0 top-0 h-48 w-48 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_60%)]" />
+                <div className="absolute bottom-0 left-0 h-40 w-40 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.12)_0%,transparent_60%)]" />
               </div>
               <div className="relative scale-110">
                 <HeroBookStack books={heroBooks} />

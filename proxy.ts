@@ -10,9 +10,10 @@ export async function proxy(request: NextRequest) {
   const nonce = crypto.randomUUID();
   const nonceB64 = Buffer.from(nonce).toString('base64');
   
+    const isDev = process.env.NODE_ENV === 'development';
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'nonce-${nonceB64}' https://challenges.cloudflare.com;
+      script-src 'self' 'nonce-${nonceB64}'${isDev ? " 'unsafe-eval'" : ''} https://challenges.cloudflare.com;
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.flagcounter.com;
       font-src 'self' data:;
@@ -93,6 +94,12 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── Main Domain Logic ─────────────────────────────────────────
+
+  // Prevent accessing /admin routes from the main domain
+  if (!isAdminHost && url.pathname.startsWith("/admin")) {
+    const res = NextResponse.rewrite(new URL("/404", request.url));
+    return copyCookies(res);
+  }
 
   // Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {

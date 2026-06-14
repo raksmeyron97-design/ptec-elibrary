@@ -10,7 +10,10 @@
       "Read(//tmp/**)",
       "Bash(sips -s format jpeg -s formatOptions 55 -Z 1440 /Users/mac/Desktop/e-library-ptec/public/ptec-library.jpg --out /tmp/ptec-comp2.jpg)",
       "Bash(sips -s format jpeg -s formatOptions 50 -Z 1440 /Users/mac/Desktop/e-library-ptec/public/ptec-library.jpg --out /tmp/ptec-comp3.jpg)",
-      "Bash(# 236KB is good. Use this version \\(quality 50, max-dim 1440px\\) *)"
+      "Bash(# 236KB is good. Use this version \\(quality 50, max-dim 1440px\\) *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ],
     "additionalDirectories": [
       "/private/tmp"

@@ -299,6 +299,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
     radial-gradient(800px 500px at 5% 105%, rgba(245,158,11,0.16), transparent 58%),
     radial-gradient(1200px 650px at 45% 45%, rgba(37,99,235,0.28), transparent 70%);
   animation: aurora-drift 22s ease-in-out infinite alternate;
+  will-change: transform;
 }
 .aurora--dim { opacity: 0.55; }
 @keyframes aurora-drift {

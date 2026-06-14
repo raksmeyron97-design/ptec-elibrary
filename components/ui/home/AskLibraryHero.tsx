@@ -332,7 +332,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
         {/* Ambient glow bed */}
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute -inset-2 rounded-[22px] bg-gradient-to-r from-gold-500/50 via-blue-500/25 to-cyan-400/50 blur-xl"
+          className="pointer-events-none absolute -inset-6 rounded-[22px] bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)]"
           animate={{ opacity: focused || isExpanded ? 1 : 0.45 }}
           transition={{ duration: 0.35 }}
         />

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from 'next-intl';
@@ -86,25 +87,32 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
       </button>
 
       {/* Backdrop — Using 100vw and 100dvh to escape the parent container */}
-      <div
-        onClick={() => setOpen(false)}
-        aria-hidden="true"
-        className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-300 motion-reduce:transition-none"
-        style={{
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? "auto" : "none",
-        }}
-      />
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+            className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Drawer panel — Using 100dvh so it fills the screen properly on mobile Safari/Chrome */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] transition-transform duration-300 motion-reduce:transition-none"
-        style={{
-          transform: open ? "translateX(0)" : "translateX(100%)",
-        }}
-      >
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)]"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 450, damping: 32, mass: 0.6 }}
+          >
         {/* Drawer header */}
         <div className="flex items-center justify-between border-b border-divider px-5 py-4">
           <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
@@ -241,7 +249,9 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             </Link>
           )}
         </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

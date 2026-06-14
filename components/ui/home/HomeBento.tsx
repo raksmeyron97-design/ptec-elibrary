@@ -24,8 +24,8 @@ export default async function HomeBento() {
   return (
     <section className="relative overflow-hidden border-b border-divider/60 bg-bg-surface">
       {/* Ambient background glows for glassmorphism */}
-      <div aria-hidden className="pointer-events-none absolute -left-40 top-0 h-[500px] w-[500px] rounded-full bg-brand/10 blur-[120px]" />
-      <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-[400px] w-[400px] rounded-full bg-cyan-400/10 blur-[100px]" />
+      <div aria-hidden className="pointer-events-none absolute -left-40 top-0 h-[500px] w-[500px] bg-[radial-gradient(circle_at_center,rgba(30,58,138,0.15)_0%,transparent_60%)]" />
+      <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-[400px] w-[400px] bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_60%)]" />
       
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:grid-rows-2">
@@ -33,12 +33,12 @@ export default async function HomeBento() {
           {/* ── 1. About the library (big card, gold/heritage) ── */}
           <Link
             href="/about"
-            className="group relative col-span-2 row-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg p-6 transition-all hover:-translate-y-0.5 hover:border-gold-500/30 hover:shadow-[0_8px_30px_-8px_rgba(221,176,34,0.3)] lg:col-span-3 sm:p-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+            className="group relative col-span-2 row-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-6 transition-all hover:-translate-y-0.5 hover:border-gold-500/30 hover:shadow-[0_8px_30px_-8px_rgba(221,176,34,0.3)] lg:col-span-3 sm:p-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 transform-gpu will-change-transform"
           >
             {/* Soft gold blob top-right */}
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 rounded-full bg-gold-500/10 blur-[60px] transition-colors duration-500 group-hover:bg-gold-500/20"
+              className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.2)_0%,transparent_60%)] transition-colors duration-500 group-hover:opacity-100 opacity-60"
             />
 
             <div className="relative flex h-full flex-col">
@@ -78,12 +78,12 @@ export default async function HomeBento() {
           {/* ── 2. Research & publications (cyan/digital) ── */}
           <Link
             href="/research"
-            className="group relative col-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg p-5 transition-all hover:-translate-y-0.5 hover:border-cyan-400/30 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.3)] lg:col-span-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+            className="group relative col-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 transition-all hover:-translate-y-0.5 hover:border-cyan-400/30 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.3)] lg:col-span-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 transform-gpu will-change-transform"
           >
             {/* Cyan blob */}
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 rounded-full bg-cyan-400/10 blur-[50px] transition-colors duration-500 group-hover:bg-cyan-400/20"
+              className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.2)_0%,transparent_60%)] transition-colors duration-500 group-hover:opacity-100 opacity-60"
             />
 
             <div className="relative">
@@ -116,7 +116,7 @@ export default async function HomeBento() {
           </Link>
 
           {/* ── 3. Categories ── */}
-          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-1">
+          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-1 transform-gpu will-change-transform">
             <p className={`mb-1.5 text-[11px] font-bold text-text-muted ${latinLabel}`}>
               {t("bentoCategoriesLabel")}
             </p>
@@ -126,7 +126,7 @@ export default async function HomeBento() {
           </div>
 
           {/* ── 4. Opening hours ── */}
-          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-2">
+          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-2 transform-gpu will-change-transform">
             <div className="mb-2 inline-flex items-center gap-2 text-gold-700 dark:text-gold-400">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="12" cy="12" r="10" />

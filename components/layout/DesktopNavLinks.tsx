@@ -43,12 +43,13 @@ export default function DesktopNavLinks({
     >
       {/* Sliding amber hover pill */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 h-[36px] rounded-lg pointer-events-none -z-10 transition-all duration-200 ease-out"
+        className="absolute top-1/2 -translate-y-1/2 h-[36px] rounded-lg pointer-events-none -z-10"
         style={{
           left:    hoverStyle.left,
           width:   hoverStyle.width,
           opacity: hoverStyle.opacity,
           background: "color-mix(in srgb, rgb(245 158 11) 8%, transparent)",
+          transition: "left 150ms ease-out, width 150ms ease-out, opacity 100ms ease-out",
         }}
       />
 

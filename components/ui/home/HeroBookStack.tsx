@@ -76,6 +76,7 @@ export default function HeroBookStack({ books }: Props) {
           >
             <div className="absolute inset-0 rounded-2xl border border-white/[0.08]" />
             {/* Subtle placeholder lines */}
+
             <div className="absolute bottom-6 left-5 right-5">
               <div className="mb-2 h-1.5 w-10 rounded-full bg-bg-surface/15" />
               <div className="h-2.5 w-24 rounded-full bg-bg-surface/20" />
