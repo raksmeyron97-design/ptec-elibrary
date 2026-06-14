@@ -48,6 +48,17 @@ export async function toggleUserRole(
 
   if (callerProfile?.role !== "admin") throw new Error("Forbidden");
 
+  // Protect super admins: only a super admin may change another super admin's
+  // role. Without this, a regular admin could demote (lock out) the super admin.
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("id", targetUserId)
+    .single();
+  if (targetProfile?.is_super_admin && !callerProfile.is_super_admin) {
+    throw new Error("Only a super admin can change a super admin's role.");
+  }
+
   const newRole = currentRole === "admin" ? "reader" : "admin";
   const isPromotion = newRole === "admin";
 
