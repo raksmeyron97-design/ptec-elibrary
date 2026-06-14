@@ -16,7 +16,9 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 18
+        # The toolchain (vitest 4 / rolldown, vite 8, pdfjs-dist, oxlint) requires
+        # Node >=20; Node 18 lacks node:util's styleText and crashes vitest.
+        node-version: 22
         cache: 'npm'
         
     - name: Install dependencies
