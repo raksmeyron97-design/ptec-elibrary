@@ -28,7 +28,14 @@ CREATE INDEX IF NOT EXISTS idx_book_files_format_book
 -- privileges and respects RLS on the underlying books and reviews tables.
 -- Without it, a SECURITY DEFINER view would bypass RLS on supabase anon.
 
-CREATE OR REPLACE VIEW public.books_with_stats
+-- NOTE: We DROP then CREATE rather than CREATE OR REPLACE. CREATE OR REPLACE
+-- VIEW can only APPEND columns to an existing view — it cannot reorder or rename
+-- them. The dashboard-created view had a different column order (and predates
+-- books.created_at from 0020), so b.* expands differently and REPLACE fails with
+-- "cannot change name of view column". Dropping first sidesteps that entirely.
+DROP VIEW IF EXISTS public.books_with_stats;
+
+CREATE VIEW public.books_with_stats
 WITH (security_invoker = true)
 AS
 SELECT
