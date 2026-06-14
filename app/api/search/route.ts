@@ -7,12 +7,33 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { GoogleGenAI } from "@google/genai";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
 
 const MAX_BOOKS  = 6;
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
+
+// Abuse / cost controls for this public, Gemini-backed endpoint.
+const RATE_PER_MIN       = 10;   // per-IP requests/minute
+const DAILY_AI_LIMIT     = 1000; // global Gemini calls/day (denial-of-wallet cap)
+// Distinct sentinel row in ai_usage so this counter doesn't mix with the
+// chat/ask global breaker.
+const SEARCH_SENTINEL = "00000000-0000-0000-0000-000000000002";
+
+function getClientIP(req: Request): string {
+  // x-real-ip is set by the platform and cannot be spoofed by the client;
+  // the left-most x-forwarded-for value can, so never trust it for limiting.
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,8 +47,13 @@ interface AIBook {
 
 // ── Book search (swap body for pgvector when ready) ───────────────────────────
 
-async function searchBooks(q: string): Promise<AIBook[]> {
+async function searchBooks(rawQ: string): Promise<AIBook[]> {
   const db = createServiceClient();
+
+  // Strip PostgREST filter metacharacters before interpolating into `.or(...)`
+  // filter strings so the user query can't break out of the filter.
+  const q = rawQ.replace(/[%,()\\*]/g, " ").replace(/\s+/g, " ").trim();
+  if (!q) return [];
 
   // 1. E-Books
   const { data: primaryBooks } = await db
@@ -163,6 +189,12 @@ Write 1–3 concise sentences: briefly explain the topic and how the listed book
 // ── GET /api/search?q=... ─────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
+  // Per-IP rate limit — this endpoint hits Gemini, so keep it tight.
+  const ip = getClientIP(req);
+  if (!rateLimit(ip, RATE_PER_MIN, 60_000).success) {
+    return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() ?? "";
 
@@ -172,7 +204,19 @@ export async function GET(req: Request) {
 
   try {
     const books = await searchBooks(q);
-    const answer = await generateAnswer(q, books.map((b) => b.title));
+
+    // Global daily cap on the Gemini summary (denial-of-wallet protection across
+    // all IPs). When exhausted, still return DB results — just skip the AI text.
+    let answer = "";
+    const db = createServiceClient();
+    const { data: aiAllowed } = await db.rpc("increment_ai_usage", {
+      p_user_id: SEARCH_SENTINEL,
+      p_limit: DAILY_AI_LIMIT,
+    });
+    if ((aiAllowed as number) !== -1) {
+      answer = await generateAnswer(q, books.map((b) => b.title));
+    }
+
     return Response.json({ answer, books });
   } catch (err) {
     console.error("[/api/search]", err);

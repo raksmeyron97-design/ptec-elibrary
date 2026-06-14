@@ -3,11 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
 
 function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  // Prefer x-real-ip (set by the platform, unspoofable); the left-most
+  // x-forwarded-for value is client-controlled and must not gate rate limits.
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
 
 export async function GET(req: NextRequest) {
