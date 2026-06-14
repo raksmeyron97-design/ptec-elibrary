@@ -321,7 +321,7 @@ export default function SearchBar({ compact = false, placeholder = "Search title
           {showNoResults && (
             <div className="px-4 py-8 text-center flex flex-col items-center">
               <Icon name="search-off" className="text-4xl text-text-muted mb-3" />
-              <p className="text-text-heading font-medium mb-1">No matches for "{query}"</p>
+              <p className="text-text-heading font-medium mb-1">No matches for &quot;{query}&quot;</p>
               <p className="text-sm text-text-muted mb-4">Try checking your spelling or use more general terms.</p>
               <button
                 type="button"
@@ -329,7 +329,7 @@ export default function SearchBar({ compact = false, placeholder = "Search title
                 className="inline-flex items-center gap-2 rounded-lg bg-brand/10 px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/20"
               >
                 <Icon name="search" />
-                Search all books for "{query}"
+                Search all books for &quot;{query}&quot;
               </button>
             </div>
           )}

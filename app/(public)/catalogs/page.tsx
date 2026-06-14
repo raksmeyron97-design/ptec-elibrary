@@ -1,5 +1,6 @@
 // app/catalogs/page.tsx
 import { Suspense } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
 import { getAvailability } from "@/lib/catalog";
@@ -241,9 +242,9 @@ export default async function CatalogsPage({
               {params.q ? t('emptyMatchQuery', { query: params.q }) : hasFilters ? t('emptyHintFilters') : t('emptyHintEmpty')}
             </p>
             {hasFilters && (
-              <a href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
+              <Link href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
                 {t('clearFilters')}
-              </a>
+              </Link>
             )}
           </div>
         ) : (

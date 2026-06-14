@@ -50,7 +50,7 @@ export default function OfflineBooksPage() {
             </div>
             <h2 className="mb-2 font-khmer-serif text-xl font-bold text-text-heading">No books saved for offline</h2>
             <p className="max-w-md text-base text-text-muted">
-              You haven't downloaded any books for offline reading yet. Go to any book page and click "Save Offline" to access it without an internet connection.
+              You haven&apos;t downloaded any books for offline reading yet. Go to any book page and click &quot;Save Offline&quot; to access it without an internet connection.
             </p>
             <Link
               href="/books"

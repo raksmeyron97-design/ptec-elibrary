@@ -94,7 +94,7 @@ export default function InstallPWA() {
             <>
               <p className="mb-2 text-sm font-semibold text-text-heading">Install App</p>
               <p className="text-xs text-text-muted mb-2">
-                To install this app, click the install icon (monitor with a down arrow) in the right side of your browser's address bar.
+                To install this app, click the install icon (monitor with a down arrow) in the right side of your browser&apos;s address bar.
               </p>
               <div className="mt-3 pt-3 border-t border-divider">
                 <p className="text-xs text-text-muted font-khmer-serif">

@@ -16,7 +16,6 @@ export default function AnimatedStat({ targetValue }: { targetValue: number }) {
     const el = ref.current;
     if (!el) return;
     
-    let observer: IntersectionObserver;
     let animationFrameId: number;
     
     // Check if user prefers reduced motion
@@ -49,7 +48,7 @@ export default function AnimatedStat({ targetValue }: { targetValue: number }) {
       animationFrameId = requestAnimationFrame(step);
     };
 
-    observer = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
         startAnimation();
         observer.disconnect(); // only animate once

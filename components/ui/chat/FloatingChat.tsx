@@ -1,7 +1,7 @@
-// @ts-nocheck
 "use client";
 
-import { useChat, UIMessage } from "@ai-sdk/react";
+import { useChat, type UIMessage } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
 import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
@@ -9,7 +9,7 @@ export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const { messages, status, sendMessage } = useChat({
-    api: "/api/chat",
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
   
   const isLoading = status === "submitted" || status === "streaming";

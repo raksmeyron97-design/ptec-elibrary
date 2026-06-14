@@ -15,14 +15,14 @@ export default function OfflinePage() {
         </div>
         
         <h1 className="mb-2 font-khmer-serif text-3xl font-bold text-text-heading">
-          You're offline
+          You&apos;re offline
         </h1>
         <h2 className="mb-6 font-khmer-serif text-xl font-bold text-text-heading">
           អ្នកកំពុងប្រើប្រាស់ក្រៅបណ្តាញ
         </h2>
         
         <p className="mb-8 text-base text-text-muted">
-          It looks like you've lost your internet connection. You can still read books that you've previously saved for offline use.
+          It looks like you&apos;ve lost your internet connection. You can still read books that you&apos;ve previously saved for offline use.
         </p>
 
         <div className="flex w-full flex-col gap-4 sm:flex-row sm:justify-center">

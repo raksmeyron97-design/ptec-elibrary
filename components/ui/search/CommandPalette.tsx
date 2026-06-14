@@ -252,7 +252,7 @@ export default function CommandPalette() {
             <div className="px-6 py-12 text-center flex flex-col items-center">
               <Icon name="search-off" className="text-5xl text-text-muted mb-4" />
               <p className="text-lg text-text-heading font-semibold mb-2">
-                No matches for "{query}"
+                No matches for &quot;{query}&quot;
               </p>
               <p className="text-text-muted mb-6">
                 Try checking your spelling or use more general terms.
@@ -263,7 +263,7 @@ export default function CommandPalette() {
                 className="inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover shadow-sm"
               >
                 <Icon name="search" className="text-lg" />
-                Search all books for "{query}"
+                Search all books for &quot;{query}&quot;
               </button>
             </div>
           )}
