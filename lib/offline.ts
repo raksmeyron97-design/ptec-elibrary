@@ -58,11 +58,15 @@ export async function removeBookFromCache(pdfUrl: string, coverUrl: string | nul
   if (!('caches' in window)) return;
   try {
     const cache = await caches.open('offline-books');
-    await cache.delete(pdfUrl);
+    // The PDF was cached with a ?offline=1 query (see OfflineSaveButton), but the
+    // stored metadata holds the bare URL. ignoreSearch deletes the entry
+    // regardless of query string — without it the PDF is never evicted, leaking
+    // storage and leaving a "removed" book readable offline on shared devices.
+    await cache.delete(pdfUrl, { ignoreSearch: true });
     if (coverUrl) {
-      await cache.delete(coverUrl);
+      await cache.delete(coverUrl, { ignoreSearch: true });
       const coverCache = await caches.open('book-covers');
-      await coverCache.delete(coverUrl);
+      await coverCache.delete(coverUrl, { ignoreSearch: true });
     }
   } catch (e) {
     console.error('Failed to remove from cache:', e);
