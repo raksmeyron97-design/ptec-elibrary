@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifySignup } from "@/app/actions/auth";
-import { createAdminNotification } from "@/app/actions/notifications";
+import { createAdminNotification } from "@/lib/admin-notifications";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 // The PKCE `code` path runs on every OAuth sign-in, so guard the "new user"

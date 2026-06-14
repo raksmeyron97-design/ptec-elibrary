@@ -3,7 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { deleteR2File } from "@/app/actions/upload";
-import { createAdminNotification } from "@/app/actions/notifications";
+import { createAdminNotification } from "@/lib/admin-notifications";
 
 function storagePathFromUrl(publicUrl: string): string | null {
   try {

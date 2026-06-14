@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requireUser } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
 
@@ -166,27 +166,4 @@ export async function getAnnouncementsForAdmin(): Promise<{
     data: (data ?? []).map((n) => ({ ...n, is_read: false })),
     error: null,
   };
-}
-
-// ── createAdminNotification ───────────────────────────────────────────────────
-// Internal helper called by other server actions. Never throws — errors are
-// logged only so the calling action always completes successfully.
-export async function createAdminNotification(
-  type: "new_user" | "new_book" | "new_report",
-  title_en: string,
-  body_en?: string,
-  link?: string
-): Promise<void> {
-  try {
-    const service = createServiceClient();
-    await service.from("notifications").insert({
-      type,
-      title_en,
-      body_en: body_en ?? null,
-      link: link ?? null,
-      target_role: "admin",
-    });
-  } catch (e) {
-    console.error("[createAdminNotification] Failed:", e);
-  }
 }

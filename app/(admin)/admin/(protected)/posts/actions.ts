@@ -64,7 +64,7 @@ async function uniqueSlug(
   let n = 1;
   while (true) {
     const { data } = await supabase.from("posts").select("id").eq("slug", slug).limit(1);
-    const taken = (data ?? []).some((r: any) => r.id !== ignoreId);
+    const taken = (data ?? []).some((r: { id: string }) => r.id !== ignoreId);
     if (!taken) return slug;
     n += 1;
     slug = `${base}-${n}`;
@@ -250,8 +250,7 @@ export async function togglePublish(postId: string, nextState: boolean) {
 
 // ── incrementViews ────────────────────────────────────────────────
 export async function incrementViews(postId: string) {
+  // Atomic increment via RPC — avoids the lost-update race of a read-then-write.
   const supabase = createServiceClient();
-  const { data } = await supabase.from("posts").select("views").eq("id", postId).single();
-  if (!data) return;
-  await supabase.from("posts").update({ views: (data.views ?? 0) + 1 }).eq("id", postId);
+  await supabase.rpc("increment_post_views", { p_post_id: postId });
 }

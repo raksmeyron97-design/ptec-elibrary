@@ -7,7 +7,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/books";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
-import { createAdminNotification } from "@/app/actions/notifications";
+import { createAdminNotification } from "@/lib/admin-notifications";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
