@@ -215,11 +215,11 @@ const ScrollPage = memo(function ScrollPage({
     <div
       ref={ref}
       data-page={pageNumber}
-      className="flex w-full justify-center px-1 py-3"
+      className="w-full px-1 py-3"
       style={{ minHeight: estHeight }}
     >
       {render ? (
-        <div className="relative shadow-lg">
+        <div className="relative mx-auto w-max shadow-lg">
           <div style={{ filter }}>
             <Page
               pageNumber={pageNumber}
@@ -239,7 +239,7 @@ const ScrollPage = memo(function ScrollPage({
       ) : (
         <div
           style={{ height: estHeight, width }}
-          className="flex items-center justify-center rounded bg-paper/40 text-xs text-text-muted"
+          className="mx-auto flex items-center justify-center rounded bg-paper/40 text-xs text-text-muted"
         >
           {pageNumber}
         </div>
@@ -947,7 +947,7 @@ export default function PDFViewer({
         className={cx(
           "flex flex-col overflow-hidden",
           isFullscreen
-            ? "fixed inset-0 z-50 bg-slate-950"
+            ? "fixed inset-0 z-[9999] bg-slate-950"
             : "rounded-lg border border-divider bg-bg-surface shadow-sm",
         )}
         role={isFullscreen ? "dialog" : undefined}
@@ -1660,7 +1660,7 @@ export default function PDFViewer({
               }
             >
               {viewMode === "scroll" ? (
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col">
                   {pages.map((p) => (
                     <ScrollPage
                       key={p}
@@ -1681,8 +1681,8 @@ export default function PDFViewer({
                   )}
                 </div>
               ) : (
-                <div className="flex justify-center py-4">
-                  <div className="relative shadow-lg">
+                <div className="py-4 w-full">
+                  <div className="relative mx-auto w-max shadow-lg">
                     <div style={{ filter }}>
                       <Page
                         pageNumber={currentPage}
@@ -1696,7 +1696,7 @@ export default function PDFViewer({
                         }
                       />
                     </div>
-                            </div>
+                  </div>
                   {/* preload neighbours off-screen for instant page turns */}
                   <div aria-hidden className="pointer-events-none absolute opacity-0" style={{ left: -99999, top: 0 }}>
                     {currentPage > 1 && (

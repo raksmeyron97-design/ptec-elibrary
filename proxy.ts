@@ -35,6 +35,19 @@ export async function proxy(request: NextRequest) {
   response.headers.set('Content-Security-Policy', cspHeader);
   response.headers.set('x-nonce', nonceB64);
 
+  const { nextUrl: url } = request;
+  const host = request.headers.get("host") ?? "";
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
+  const isAdminHost = host === `admin.${rootDomain}` || host.startsWith("admin.");
+
+  // Fast-path redirect for main domain root to bypass Supabase network calls
+  if (!isAdminHost && url.pathname === "/") {
+    const res = NextResponse.redirect(new URL("/home", request.url));
+    res.headers.set('Content-Security-Policy', cspHeader);
+    res.headers.set('x-nonce', nonceB64);
+    return res;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -58,11 +71,6 @@ export async function proxy(request: NextRequest) {
 
   // Refresh session — must run before any route check
   const { data: { user } } = await supabase.auth.getUser();
-
-  const { nextUrl: url } = request;
-  const host = request.headers.get("host") ?? "";
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
-  const isAdminHost = host === `admin.${rootDomain}` || host.startsWith("admin.");
 
   // Helper to copy cookies from the refreshed response to a new response
   const copyCookies = (newRes: NextResponse) => {
