@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/admin/edit/[id]/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";

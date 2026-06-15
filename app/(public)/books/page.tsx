@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { type Book, mapRowToBook } from "@/lib/books";

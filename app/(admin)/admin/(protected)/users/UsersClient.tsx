@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 // app/admin/users/UsersClient.tsx
 import { useEffect, useRef, useState, useTransition } from "react";

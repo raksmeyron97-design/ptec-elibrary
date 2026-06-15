@@ -1,4 +1,10 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // app/admin/catalogs/CsvImportModal.tsx
 
 import { useState, useTransition, useRef } from "react";

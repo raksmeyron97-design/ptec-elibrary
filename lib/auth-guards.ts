@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";

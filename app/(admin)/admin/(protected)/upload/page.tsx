@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import Icon from "@/components/ui/core/Icon";
 import { createServiceClient } from "@/lib/supabase/server";

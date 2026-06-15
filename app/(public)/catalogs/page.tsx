@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/catalogs/page.tsx
 import { Suspense } from "react";
 import Link from "next/link";

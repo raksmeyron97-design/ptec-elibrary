@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/admin/posts/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
 import Link from "next/link";

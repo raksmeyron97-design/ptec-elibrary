@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 import { useRef, useEffect, useState, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";

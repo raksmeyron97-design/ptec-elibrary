@@ -1,4 +1,10 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";

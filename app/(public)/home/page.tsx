@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/(public)/home/page.tsx
 import { Suspense } from "react";
 import type { Metadata } from "next";

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";

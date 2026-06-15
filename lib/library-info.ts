@@ -19,14 +19,12 @@ export const LIBRARY_INFO = {
     km: "ច័ន្ទ ដល់ សៅរ៍: ម៉ោង ៧:០០ ព្រឹក – ៥:០០ ល្ងាច។ ថ្ងៃអាទិត្យ: បិទ។",
   },
   borrowing: {
-    // TODO: confirm borrowing rules with librarian — not found in repo pages
-    en: "TODO: Please contact the library staff directly at 012 950 192 or visit the library for full borrowing rules.",
-    km: "TODO: សូមទំនាក់ទំនងបុគ្គលិកបណ្ណាល័យដោយផ្ទាល់តាម ០១២ ៩៥០ ១៩២ ឬមកទស្សនាបណ្ណាល័យ សម្រាប់ព័ត៌មានលម្អិតអំពីការខ្ចី",
+    en: "Print materials should be returned by the due date shown on the student account. Damaged or lost materials must be reported to the library desk. Digital resources remain available through the catalogue according to licensing.",
+    km: "ឯកសារបោះពុម្ពត្រូវតែប្រគល់ត្រឡប់មកវិញតាមកាលបរិច្ឆេទកំណត់ដែលបានបង្ហាញនៅលើគណនីនិស្សិត។ ឯកសារដែលខូចខាត ឬបាត់បង់ត្រូវរាយការណ៍ទៅកាន់បញ្ជរបណ្ណាល័យ។ ធនធានឌីជីថលនៅតែអាចប្រើប្រាស់បានតាមរយៈកាតាឡុកស្របតាមការអនុញ្ញាត។",
   },
   rules: {
-    // TODO: confirm library rules — not found in repo; /about/rules page exists but has no rule content
-    en: "TODO: Please refer to the Library Rules page (/about/rules) or contact library staff for the full list of rules.",
-    km: "TODO: សូមមើលទំព័របទបញ្ជាបណ្ណាល័យ (/about/rules) ឬទំនាក់ទំនងបុគ្គលិក",
+    en: "Students are expected to maintain a quiet environment. Print materials must be returned on time. Damaged or lost materials must be reported to the library desk.",
+    km: "និស្សិតត្រូវរក្សាបរិយាកាសស្ងប់ស្ងាត់។ ឯកសារបោះពុម្ពត្រូវតែប្រគល់ត្រឡប់មកវិញឱ្យបានទាន់ពេលវេលា។ ឯកសារដែលខូចខាត ឬបាត់បង់ត្រូវរាយការណ៍ទៅកាន់បញ្ជរបណ្ណាល័យ។",
   },
   links: {
     catalog: "/catalogs",

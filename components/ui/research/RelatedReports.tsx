@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 import ResearchCard from "@/components/ui/research/ResearchCard";

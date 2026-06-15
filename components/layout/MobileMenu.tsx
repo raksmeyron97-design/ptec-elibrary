@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -140,6 +144,42 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
         <div className="flex-1 overflow-y-auto">
           {/* Nav links */}
           <nav className="flex flex-col gap-1 px-3 py-4">
+            {user && (
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
+                    pathname === "/dashboard"
+                      ? "bg-brand/10 text-brand"
+                      : "text-text-body hover:bg-paper hover:text-brand-hover"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon name="account" className="text-[18px] text-text-muted" />
+                    {t('myDashboard')}
+                  </div>
+                  {pathname === "/dashboard" && <span className="h-2 w-2 rounded-full bg-brand" />}
+                </Link>
+                <Link
+                  href="/dashboard#saved"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
+                    pathname === "/dashboard#saved"
+                      ? "bg-brand/10 text-brand"
+                      : "text-text-body hover:bg-paper hover:text-brand-hover"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon name="bookmark" className="text-[18px] text-text-muted" />
+                    {t('savedBooks')}
+                  </div>
+                  {pathname === "/dashboard#saved" && <span className="h-2 w-2 rounded-full bg-brand" />}
+                </Link>
+                <div className="my-2 h-px w-full bg-divider" />
+              </>
+            )}
+
             {navLinks.map((link) => {
               const isActive =
                 pathname === link.href ||

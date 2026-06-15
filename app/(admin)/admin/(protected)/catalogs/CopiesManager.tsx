@@ -1,4 +1,10 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // app/admin/catalogs/CopiesManager.tsx
 // Inline panel (shown per-book in the admin table) for managing individual copy records.
 

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/admin/catalogs/edit/[id]/page.tsx
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";

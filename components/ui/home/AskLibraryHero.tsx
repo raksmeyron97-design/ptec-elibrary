@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @next/next/no-img-element */
+
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";

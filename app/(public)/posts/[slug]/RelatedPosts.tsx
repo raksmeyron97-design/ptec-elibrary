@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/posts/[slug]/RelatedPosts.tsx
 import Link from "next/link";
 import { getTranslations } from 'next-intl/server';

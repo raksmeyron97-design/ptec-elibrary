@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { FilterLink } from "@/components/ui/books/ClientNavWrapper";

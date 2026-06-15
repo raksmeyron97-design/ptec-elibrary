@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable react-hooks/exhaustive-deps */
+
 
 import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";

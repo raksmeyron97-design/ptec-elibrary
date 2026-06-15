@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 
 // app/posts/PostsListClient.tsx
 import { useState, useMemo } from "react";

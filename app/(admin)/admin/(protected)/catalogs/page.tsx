@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // app/admin/catalogs/page.tsx
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";

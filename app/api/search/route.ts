@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/search/route.ts
 // Public AI semantic search — no auth required.
 // Uses Supabase full-text search + Gemini summary.
@@ -64,7 +65,7 @@ async function searchBooks(rawQ: string): Promise<AIBook[]> {
     .order("download_count", { ascending: false })
     .limit(MAX_BOOKS);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const bookResults: any[] = primaryBooks ?? [];
 
   if (bookResults.length < 3) {

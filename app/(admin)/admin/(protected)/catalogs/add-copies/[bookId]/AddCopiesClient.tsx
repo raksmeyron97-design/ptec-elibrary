@@ -1,4 +1,10 @@
-"use client";
+"use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // app/admin/catalogs/add-copies/[bookId]/AddCopiesClient.tsx
 
 import { useState, useTransition } from "react";

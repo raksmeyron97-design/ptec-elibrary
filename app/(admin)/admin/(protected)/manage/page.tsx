@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/admin/manage/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
 import ManageClient from "./ManageClient";

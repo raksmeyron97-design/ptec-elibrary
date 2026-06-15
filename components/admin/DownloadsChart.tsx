@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type DailyPoint = { date: string; count: number };

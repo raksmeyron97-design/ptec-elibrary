@@ -36,7 +36,7 @@ Extracted from `app/globals.css`:
   - `font-khmer-serif`: Noto Serif Khmer (Khmer headings, needs `leading-[1.4]`).
   - `font-body`: Battambang (Khmer body, needs `leading-[1.8]`).
 - **Breakpoints**: Tailwind defaults (`sm: 640px`, `md: 768px`, `lg: 1024px`, `xl: 1280px`).
-- **Inconsistencies Found**: `MobileMenu.tsx` and `MobileBottomNav.tsx` use hardcoded hex colors like `#007c91` and `#0a1629` instead of `bg-brand` and `text-brand`.
+- **~~Inconsistencies Found~~** ✅ DONE: `MobileMenu.tsx` and `MobileBottomNav.tsx` no longer use hardcoded hex colors — all replaced with `brand` tokens.
 
 ## 4. Current Mobile Architecture
 - **Desktop (`lg`+)**: Uses `Navbar.tsx` and `NavbarClient.tsx`.
@@ -44,11 +44,11 @@ Extracted from `app/globals.css`:
   - `MobileBottomNav.tsx` sits fixed at the bottom (`h-16`).
   - `MobileMenu.tsx` is a slide-in drawer.
   - **Issue:** Tablets (`md` to `lg`) currently get the mobile layout. This is acceptable for touch devices, but we must ensure the mobile layout scales up cleanly to 1024px.
-  - **Issue:** Desktop dropdown has "My Dashboard" and "Saved Books", but mobile menus lack these destinations.
-  - **Issue:** The profile sheet shows the email twice if `user.full_name` is null.
+  - **~~Issue:~~** ✅ DONE: "My Dashboard", "Saved Books", and "Settings" now available in both `MobileBottomNav` sheet and `MobileMenu` drawer.
+  - **~~Issue:~~** ✅ DONE: Profile sheet no longer shows the email twice when `user.full_name` is null.
 
 ## 5. Per-Screen Mobile Problem List
-- **Global**: The fixed `MobileBottomNav` overlaps the `Footer` and page content because `app/(public)/layout.tsx` lacks bottom padding.
+- **~~Global~~**: ✅ DONE: `app/(public)/layout.tsx` now has `pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0`.
 - **`/books`**: The filter row (categories) uses a flex container without `min-w-0`, causing horizontal overflow on very small screens.
 - **`/books/[slug]`**: 
   - `<dl>` metadata values (like ISBNs) do not wrap, causing horizontal scroll.
@@ -59,9 +59,9 @@ Extracted from `app/globals.css`:
 ## 6. Proposed Redesign Plan (Design Decisions)
 1. **Breakpoint Strategy**: Mobile-first (`base` classes for phones). `sm` (640px) and `md` (768px) will handle larger phones and tablets. Desktop starts at `lg` (1024px).
 2. **Navigation Model**:
-   - Keep the `MobileBottomNav` and `MobileMenu` but unify the links. Add "Dashboard" and "Saved Books" to the mobile profile sheet.
-   - Replace all `#007c91` and `#0a1629` with `brand` tokens.
-   - Fix the duplicated email bug in the profile sheet.
+   - ✅ DONE: `MobileBottomNav` sheet and `MobileMenu` drawer now have "Dashboard", "Saved Books", and "Settings" links.
+   - ✅ DONE: All hardcoded hex colors replaced with `brand` tokens.
+   - ✅ DONE: Profile sheet no longer duplicates email.
 3. **Typography Scale**: Ensure all interactive text is ≥13px. Apply `.khmer` or `font-khmer-serif` utility classes consistently with appropriate line-heights.
 4. **Layout Primitives**: 
    - Apply a global `pb-[calc(4.5rem+env(safe-area-inset-bottom))]` to `app/(public)/layout.tsx`.

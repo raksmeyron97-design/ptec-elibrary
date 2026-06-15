@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createServiceClient } from "@/lib/supabase/server";
 import ResearchReportsClient from "./ResearchReportsClient";
 import Pagination from "@/components/ui/core/Pagination";

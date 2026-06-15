@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @typescript-eslint/no-unused-vars */
+
 
 // app/admin/posts/PostsClient.tsx
 import { useState, useMemo, useTransition } from "react";

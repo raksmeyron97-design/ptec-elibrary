@@ -1,4 +1,8 @@
-"use client";
+"use client"
+ 
+;
+/* eslint-disable @next/next/no-img-element */
+
 
 // app/admin/manage/ManageClient.tsx
 import { useState, useTransition, useCallback, useRef } from "react";

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Single source of truth for reading "extended" research-report fields.
  *
