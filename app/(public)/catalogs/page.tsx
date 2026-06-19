@@ -150,7 +150,7 @@ export default async function CatalogsPage({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
             {/* Category pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               <a href={buildHref(params, { category: undefined, page: undefined })}
                  className={pillClass(!params.category)}>{t('all')}</a>
               {categories.map((cat) => (

@@ -55,6 +55,7 @@
     "react-doctor": "^0.2.14",
     "supabase": "^2.104.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.8"
   }

@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { pushRecentSearch, readRecent, RECENT_KEY } from "./SearchSuggestions";
@@ -684,10 +685,9 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                   {t("trending")}
                 </span>
                 {trending.slice(0, 5).map((term) => (
-                  <button
+                  <Link
                     key={`t-${term}`}
-                    type="button"
-                    onClick={() => submit(term)}
+                    href={`/books?q=${encodeURIComponent(term)}`}
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
                   >
                     <svg className="h-3 w-3 shrink-0 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -695,7 +695,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                       <path d="M21 7h-6m6 0v6" />
                     </svg>
                     {term}
-                  </button>
+                  </Link>
                 ))}
               </div>
             )}
