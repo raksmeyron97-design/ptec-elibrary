@@ -229,7 +229,7 @@ Write 1–3 concise sentences: briefly explain the topic and how the listed book
   try {
     const ai = new GoogleGenAI({ apiKey: key });
     const res = await ai.models.generateContent({
-      model: "gemini-2.5-flash", // bump to gemini-3.5-flash for higher quality
+      model: "gemini-3.5-flash", // bump to gemini-3.5-flash for higher quality
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 250, thinkingConfig: { thinkingBudget: 0 } },
     });

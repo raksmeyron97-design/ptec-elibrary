@@ -18,7 +18,7 @@ const MAX_TURNS          = 6;    // max conversation turns sent to Gemini
 // This is not a real user — it tracks total daily requests across all users.
 const GLOBAL_SENTINEL = "00000000-0000-0000-0000-000000000000";
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash";
 
 // ── In-memory cooldown tracker (per-user, resets on cold start — that's OK) ──
 // Daily quota is NOT in-memory; it lives in Supabase.

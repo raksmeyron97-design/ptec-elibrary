@@ -19,7 +19,7 @@ const MAX_OUTPUT_TOKENS = 700; // hard cap on model response length
 const MAX_TURNS = 10; // max conversation turns accepted from the client
 const MAX_TEXT_LEN = 500; // max chars per message
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.5-flash";
 
 // Sentinel UUID for the global circuit breaker row in ai_usage (not a real user).
 const GLOBAL_SENTINEL = "00000000-0000-0000-0000-000000000000";
