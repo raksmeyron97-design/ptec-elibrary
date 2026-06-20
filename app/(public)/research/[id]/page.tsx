@@ -30,7 +30,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 type PageProps = { params: Promise<{ id: string }> };
 

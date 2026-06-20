@@ -316,6 +316,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .hero-stagger > *:nth-child(3){animation-delay:.25s}
 .hero-stagger > *:nth-child(4){animation-delay:.38s}
 .hero-stagger > *:nth-child(5){animation-delay:.5s}
+.hero-stagger > *:nth-child(6){animation-delay:.62s}
 @keyframes hero-rise { to { opacity:1; transform:translateY(0); } }
 
 @media (prefers-reduced-motion: reduce) {

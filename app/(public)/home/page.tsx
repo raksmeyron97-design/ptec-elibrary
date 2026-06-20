@@ -109,8 +109,8 @@ export default async function HomePage() {
             className="absolute inset-0 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
           />
 
-          {/* 3. Aurora — temporarily hidden for performance testing */}
-          {/* <div className="aurora absolute inset-0 opacity-60" aria-hidden /> */}
+          {/* 3. CSS aurora overlay */}
+          <div className="aurora absolute inset-0 opacity-50" aria-hidden />
 
           {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
           {/* <InteractiveAurora className="absolute inset-0" /> */}
@@ -121,9 +121,9 @@ export default async function HomePage() {
 
             {/* ── Left column ── */}
             <div className="hero-stagger min-w-0 w-full max-w-2xl">
-              {/* Gold eyebrow */}
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-[5px] w-[5px] rounded-full bg-gold-400" aria-hidden />
+              {/* Gold eyebrow — pill badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/[0.09] px-3 py-1.5 backdrop-blur-sm">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
                 <span className={`text-[11px] font-bold text-gold-400 ${latinEyebrow}`}>
                   {t("tagline")}
                 </span>
@@ -168,8 +168,9 @@ export default async function HomePage() {
             {/* ── Right column — desktop book stack ── */}
             <div className="relative hidden lg:flex lg:items-center lg:justify-center">
               <div aria-hidden className="pointer-events-none absolute inset-0">
-                <div className="absolute right-0 top-0 h-48 w-48 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_60%)]" />
-                <div className="absolute bottom-0 left-0 h-40 w-40 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.12)_0%,transparent_60%)]" />
+                <div className="absolute -right-8 -top-8 h-72 w-72 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.25)_0%,transparent_60%)]" />
+                <div className="absolute -bottom-4 -left-8 h-64 w-64 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.2)_0%,transparent_60%)]" />
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-[radial-gradient(ellipse_80%_60%_at_50%_100%,rgba(37,99,235,0.18),transparent)]" />
               </div>
               <div className="relative scale-110">
                 <HeroBookStack books={heroBooks} />

@@ -1,8 +1,17 @@
+import type { Metadata } from "next";
 import Icon from "@/components/ui/core/Icon";
+import { SITE_URL } from "@/lib/seo/site";
 
-export const metadata = {
-  title: "About Us | PTEC e-Library",
-  description: "Learn about Phnom Penh Teacher Education College (PTEC) - Leading institution for teacher education in Cambodia.",
+export const metadata: Metadata = {
+  title: "About PTEC e-Library",
+  description: "Learn about Phnom Penh Teacher Education College (PTEC) — a leading institution for teacher education in Cambodia and the free digital library we built for its students and educators.",
+  alternates: { canonical: `${SITE_URL}/about` },
+  openGraph: {
+    title: "About PTEC e-Library",
+    description: "Phnom Penh Teacher Education College: training the next generation of teachers with free, open digital resources.",
+    url: `${SITE_URL}/about`,
+    type: "website",
+  },
 };
 
 export default function AboutPage() {

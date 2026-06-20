@@ -1,3 +1,18 @@
+import type { Metadata } from "next";
+import { SITE_URL } from "@/lib/seo/site";
+
+export const metadata: Metadata = {
+  title: "Borrow & Return Policy",
+  description: "PTEC Library borrowing rules: return deadlines, damaged material reporting, and digital resource access terms.",
+  alternates: { canonical: `${SITE_URL}/policy` },
+  openGraph: {
+    title: "Borrow & Return Policy | PTEC Library",
+    description: "Library borrowing rules, return deadlines, and digital resource access terms.",
+    url: `${SITE_URL}/policy`,
+    type: "website",
+  },
+};
+
 export default function PolicyPage() {
   return (
     <section className="bg-paper px-6 py-10 md:px-12">

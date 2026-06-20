@@ -59,18 +59,21 @@ export default async function HeroStats({ stats }: { stats: HomeStats }) {
   ];
 
   return (
-    // Mobile: 2×2 grid with gap. sm+: flex row with hairline dividers.
-    <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-y-4 gap-x-0 sm:flex sm:items-center sm:gap-0 sm:divide-x sm:divide-white/10">
+    // 2×2 grid on mobile; 4-column glass-card row on sm+
+    <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       {items.map((item) => (
-        <div key={item.key} className="sm:px-5 sm:first:pl-0">
+        <div
+          key={item.key}
+          className="rounded-xl border border-white/[0.08] bg-white/[0.05] px-3 py-3 backdrop-blur-sm sm:px-4 sm:py-3.5"
+        >
           {/* Number — count-up via AnimatedStat (client component) */}
-          <div className="font-khmer-serif text-2xl sm:text-[28px] font-bold leading-none text-white">
+          <div className="font-khmer-serif text-[22px] sm:text-[26px] font-bold leading-none text-white">
             <AnimatedStat targetValue={item.value} />
           </div>
           {/* Icon + label */}
-          <div className="mt-1.5 flex items-center gap-1.5">
+          <div className="mt-2 flex items-center gap-1.5">
             {item.icon}
-            <span className={`text-[11px] text-blue-200/80 ${latinLabel}`}>{item.label}</span>
+            <span className={`text-[11px] text-blue-200/75 ${latinLabel}`}>{item.label}</span>
           </div>
         </div>
       ))}

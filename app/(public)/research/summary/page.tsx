@@ -1,11 +1,25 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getResearchReports } from "@/app/actions/research";
 import Icon from "@/components/ui/core/Icon";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { getTranslations } from "next-intl/server";
 import { getDoi, getDepartment } from "@/lib/research/report-fields";
+import { SITE_URL } from "@/lib/seo/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Research Summary",
+  description: "Complete index of all PTEC student research reports, organised by academic year and cohort.",
+  alternates: { canonical: `${SITE_URL}/research/summary` },
+  openGraph: {
+    title: "Research Summary | PTEC Library",
+    description: "Browse all PTEC research reports by academic year and student cohort.",
+    url: `${SITE_URL}/research/summary`,
+    type: "website",
+  },
+};
 
 export default async function ResearchSummaryPage() {
   const tNav = await getTranslations("nav");
