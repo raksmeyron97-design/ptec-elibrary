@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ] = await Promise.all([
     supabase
       .from('books')
-      .select('slug, published_at, updated_at')
+      .select('slug, published_at, created_at')
       .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(0, 4999),
@@ -43,8 +43,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const bookUrls: MetadataRoute.Sitemap = (books ?? []).map((book) => ({
     url: `${SITE_URL}/books/${book.slug}`,
-    lastModified: book.updated_at ?? book.published_at ?? new Date(),
-    changeFrequency: 'weekly',
+    lastModified: book.published_at ?? book.created_at ?? new Date(),
+    changeFrequency: 'monthly',
     priority: 0.8,
   }));
 
