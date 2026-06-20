@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { getResearchReportById, incrementResearchViewCount } from "@/app/actions/research";
+import { getResearchReportById } from "@/app/actions/research";
+import ResearchViewPing from "@/components/ui/research/ResearchViewPing";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
 import ShareButton from "@/components/ui/books/ShareButton";
@@ -131,9 +132,6 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
   if (error || !report || !report.is_published) {
     notFound();
   }
-
-  // Increment view count in the background (fire and forget for this render)
-  incrementResearchViewCount(id);
 
   // Admin-only edit link — best-effort, non-blocking
   let isAdmin = false;
@@ -265,6 +263,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={scholarlyArticleSchema} />
+      <ResearchViewPing id={id} />
       <div className="mx-auto max-w-[1200px]">
         {/* ── Breadcrumb + admin ── */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
@@ -292,9 +291,10 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
         </div>
 
         {/* ── Article header ── */}
-        <header className="mb-7 rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
+        <header className="gradient-top-border mb-7 overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
               Research Report
             </span>
             {doi && (
@@ -345,7 +345,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <a
               href={fileHref}
-              className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-brand px-6 py-3 text-[15px] font-bold text-brand-contrast shadow-lg shadow-brand/30 transition-all hover:-translate-y-0.5 hover:bg-brand-hover"
+              className="btn-brand-gradient inline-flex items-center justify-center gap-2 rounded-[14px] px-6 py-3 text-[15px] font-bold text-white"
             >
               <Download className="h-[18px] w-[18px]" />
               Download PDF
@@ -369,8 +369,11 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
                 {report.cover_url ? (
                   <Image src={report.cover_url} alt={report.title} fill className="object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-brand/5 text-brand/40">
-                    No Cover
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand/5 to-brand/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-brand/25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span className="text-[11px] font-medium text-brand/30">No Cover</span>
                   </div>
                 )}
               </div>
@@ -381,20 +384,24 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
 
             {/* Metrics */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-divider bg-bg-surface p-4 text-center shadow-sm">
-                <Eye className="mx-auto mb-1.5 h-4 w-4 text-text-muted" />
-                <div className="text-[20px] font-bold text-text-heading">{(report.view_count || 0) + 1}</div>
-                <div className="text-[11px] uppercase tracking-wider text-text-muted">Views</div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center shadow-sm dark:border-emerald-800/30 dark:bg-emerald-950/20">
+                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+                  <Eye className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
+                </div>
+                <div className="text-[20px] font-bold text-emerald-800 dark:text-emerald-300">{(report.view_count || 0) + 1}</div>
+                <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-500">Views</div>
               </div>
-              <div className="rounded-2xl border border-divider bg-bg-surface p-4 text-center shadow-sm">
-                <Download className="mx-auto mb-1.5 h-4 w-4 text-text-muted" />
-                <div className="text-[20px] font-bold text-text-heading">{report.download_count || 0}</div>
-                <div className="text-[11px] uppercase tracking-wider text-text-muted">Downloads</div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm dark:border-amber-800/30 dark:bg-amber-950/20">
+                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                  <Download className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+                </div>
+                <div className="text-[20px] font-bold text-amber-800 dark:text-amber-300">{report.download_count || 0}</div>
+                <div className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-500">Downloads</div>
               </div>
             </div>
 
             {/* Article information */}
-            <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+            <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
               <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">
                 Article information
               </h3>
