@@ -179,7 +179,7 @@ export default async function Navbar() {
               <span className="opacity-30">|</span>
               <div className="flex items-center gap-2">
                 <Icon name="mail" className="text-[14px] text-accent" />
-                <span>info@ptec.edu.kh <span className="opacity-50 mx-1">|</span> raksmyeron97@gmail.com</span>
+                <span>info@ptec.edu.kh <span className="opacity-50 mx-1">|</span> international@ptec.edu.kh</span>
               </div>
               <span className="opacity-30">|</span>
               <a href="https://maps.app.goo.gl/ZUFqo4sBHDTRW1V1A" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-gold-400 transition-colors">
