@@ -40,6 +40,18 @@ const nextConfig: NextConfig = {
     },
   },
   turbopack: {},
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // Allow Google Scholar to fetch PDFs from a .pdf-suffixed URL
+        // while the in-app viewer keeps using /file (no suffix needed there).
+        {
+          source: "/api/research/:id/file.pdf",
+          destination: "/api/research/:id/file",
+        },
+      ],
+    };
+  },
   async headers() {
     return [
       {

@@ -79,7 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       : [];
 
   const citationDate = formatCitationDate(report.published_at, report.created_at);
-  const pdfUrl = `${SITE_URL}/api/research/${id}/file`;
+  const pdfUrl = `${SITE_URL}/api/research/${id}/file.pdf`;
   const doi = report.doi as string | null | undefined;
 
   // Build citation_ meta tags — Google Scholar requires these for indexing

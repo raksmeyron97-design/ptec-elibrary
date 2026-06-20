@@ -61,7 +61,7 @@ export async function GET(
   const headers = new Headers();
   headers.set("Content-Type", "application/pdf");
   headers.set("Content-Disposition", disposition);
-  headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
+  headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
   const contentLength = r2Res.headers.get("content-length");
   if (contentLength) headers.set("Content-Length", contentLength);
 
