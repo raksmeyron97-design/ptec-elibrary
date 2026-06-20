@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { type Book, mapRowToBook } from "@/lib/books";
 import BookCard from "@/components/ui/books/BookCard";
@@ -11,7 +12,23 @@ import { getDepartments } from "@/app/actions/departments";
 import { getLanguages, getFormats } from "@/app/actions/filters";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { getTranslations } from 'next-intl/server';
+import { SITE_URL } from "@/lib/seo/site";
+
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Books",
+  description: "Browse the PTEC digital library collection — teaching resources, textbooks, and educational materials available to read online or download.",
+  alternates: {
+    canonical: `${SITE_URL}/books`,
+  },
+  openGraph: {
+    title: "Books | PTEC Library",
+    description: "Browse the PTEC digital library collection of teaching resources and textbooks.",
+    url: `${SITE_URL}/books`,
+    type: "website",
+  },
+};
 
 type SearchParams = {
   q?: string;

@@ -8,8 +8,7 @@ import CommandPalette from "@/components/ui/search/CommandPalette";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
-
-const SITE_URL = "https://library.ptec.edu.kh";
+import { SITE_URL } from '@/lib/seo/site';
 const THEME_INIT_SCRIPT = `
 (() => {
   try {

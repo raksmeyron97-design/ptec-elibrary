@@ -1,14 +1,12 @@
-// app/robots.ts
 import { MetadataRoute } from 'next';
-
-const SITE_URL = "https://library.ptec.edu.kh";
+import { SITE_URL } from '@/lib/seo/site';
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/dashboard', '/admin', '/auth', '/login'],
+      disallow: ['/admin/', '/api/', '/dashboard/', '/auth/', '/login'],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

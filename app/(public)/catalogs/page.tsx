@@ -3,6 +3,7 @@
 // app/catalogs/page.tsx
 import { Suspense } from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
 import { getAvailability } from "@/lib/catalog";
@@ -10,8 +11,23 @@ import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import Pagination from "@/components/ui/core/Pagination";
 import { getTranslations } from 'next-intl/server';
+import { SITE_URL } from "@/lib/seo/site";
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  title: "Books In Library",
+  description: "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
+  alternates: {
+    canonical: `${SITE_URL}/catalogs`,
+  },
+  openGraph: {
+    title: "Books In Library | PTEC Library",
+    description: "Browse physical books available in the PTEC library collection.",
+    url: `${SITE_URL}/catalogs`,
+    type: "website",
+  },
+};
 
 type SearchParams = {
   q?:           string;

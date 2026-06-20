@@ -270,7 +270,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby={headingId}
-          className="fixed inset-x-0 bottom-0 z-40 flex flex-col rounded-t-2xl bg-[#0B1226] ring-1 ring-white/10 shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-5 sm:w-[380px] sm:max-h-[600px] sm:rounded-2xl"
+          className="fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-2xl bg-[#0B1226] ring-1 ring-white/10 shadow-2xl sm:inset-x-auto sm:bottom-24 sm:right-5 sm:w-[380px] sm:max-h-[600px] sm:rounded-2xl"
           style={{
             maxHeight: "85dvh",
             boxShadow: "0 -2px 0 0 #E4BB30, inset 0 1px 0 rgba(34,211,238,0.15), 0 25px 50px -12px rgba(0,0,0,0.5)",
@@ -389,7 +389,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
               </div>
 
               {/* Input row */}
-              <div className="shrink-0 border-t border-white/[0.08] px-3 py-3">
+              <div className="shrink-0 border-t border-white/[0.08] px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] sm:pb-3">
                 {/* Quota exhausted banner */}
                 {quotaExhausted && (
                   <p className="mb-2 rounded-lg bg-amber-950/40 px-3 py-2 text-center text-[11px] text-amber-300 ring-1 ring-amber-500/20">
@@ -442,6 +442,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
         aria-expanded={open}
         className={`
           fixed z-40
+          ${open ? "hidden sm:flex" : "flex"}
           bottom-[calc(68px+env(safe-area-inset-bottom)+12px)] right-5
           sm:bottom-5 sm:right-5
           h-14 w-14 rounded-full

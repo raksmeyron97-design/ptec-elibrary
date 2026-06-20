@@ -30,7 +30,7 @@ import BookQuickNav from "@/components/ui/books/BookQuickNav";
 
 export const dynamic = "force-dynamic";
 
-const SITE_URL = "https://library.ptec.edu.kh";
+import { SITE_URL } from "@/lib/seo/site";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string }>;
@@ -43,7 +43,7 @@ export async function generateMetadata({
   const supabase = await createClient();
   const { data: book } = await supabase
     .from("books")
-    .select("title, description, cover_url, language, published_at, authors(name)")
+    .select("title, description, cover_url, language, published_at, tags, authors(name)")
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle();
@@ -56,21 +56,30 @@ export async function generateMetadata({
     ? (book.description.length > 157 ? book.description.substring(0, 157) + "..." : book.description)
     : "Read this book on PTEC Library.";
 
-  const authorName = Array.isArray(book.authors) 
+  const authorName = Array.isArray(book.authors)
     ? book.authors.map((a: any) => a.name).join(", ")
     : (book.authors as any)?.name ?? "Unknown Author";
+
+  const canonicalUrl = `${SITE_URL}/books/${slug}`;
+  const tags: string[] = Array.isArray(book.tags) ? book.tags : [];
 
   return {
     title: book.title,
     description: desc,
+    keywords: tags.length > 0 ? tags : undefined,
     alternates: {
-      canonical: `/books/${slug}`,
+      canonical: canonicalUrl,
+      languages: {
+        en: canonicalUrl,
+        km: canonicalUrl,
+        'x-default': canonicalUrl,
+      },
     },
     openGraph: {
       title: book.title,
       description: desc,
       type: "book",
-      url: `/books/${slug}`,
+      url: canonicalUrl,
       authors: [authorName],
       images: book.cover_url
         ? [
@@ -85,6 +94,9 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
+      title: book.title,
+      description: desc,
+      images: book.cover_url ? [book.cover_url] : undefined,
     },
   };
 }

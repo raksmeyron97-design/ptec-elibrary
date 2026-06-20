@@ -2,7 +2,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createServiceClient } from "@/lib/supabase/server";
+import JsonLd from "@/components/seo/JsonLd";
+import { SITE_URL } from "@/lib/seo/site";
 import type { CatalogBook } from "@/lib/catalog";
 import {
   getAvailability,
@@ -14,6 +17,59 @@ import {
 import type { CatalogCopy } from "@/app/(admin)/admin/(protected)/catalogs/copy-actions";
 
 export const revalidate = 300;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = createServiceClient();
+  const { data: book } = await supabase
+    .from("catalog_books")
+    .select("title, description, cover_url, author, isbn, year, language, is_active")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .single();
+
+  if (!book) return { title: "Book not found" };
+
+  const desc = book.description
+    ? book.description.length > 157
+      ? book.description.slice(0, 157) + "..."
+      : book.description
+    : `${book.title} by ${book.author ?? "Unknown"} — available in the PTEC Library physical collection.`;
+
+  const canonicalUrl = `${SITE_URL}/catalogs/${slug}`;
+
+  return {
+    title: book.title,
+    description: desc,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        en: canonicalUrl,
+        km: canonicalUrl,
+        'x-default': canonicalUrl,
+      },
+    },
+    openGraph: {
+      title: book.title,
+      description: desc,
+      type: "book",
+      url: canonicalUrl,
+      images: book.cover_url
+        ? [{ url: book.cover_url, alt: book.title }]
+        : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: book.title,
+      description: desc,
+      images: book.cover_url ? [book.cover_url] : undefined,
+    },
+  };
+}
 
 // ── Copy status display maps ───────────────────────────────────────────────────
 const COPY_STATUS_LABEL: Record<string, string> = {
@@ -100,8 +156,26 @@ export default async function CatalogBookPage({
     ? Math.round((b.copies_available / b.copies_total) * 100)
     : 0;
 
+  const bookSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    name: b.title,
+    author: b.author ? { '@type': 'Person', name: b.author } : undefined,
+    isbn: b.isbn || undefined,
+    inLanguage: b.language || undefined,
+    description: b.description || undefined,
+    image: b.cover_url || undefined,
+    url: `${SITE_URL}/catalogs/${b.slug}`,
+    publisher: {
+      '@type': 'EducationalOrganization',
+      name: 'Phnom Penh Teacher Education College',
+    },
+    bookFormat: 'https://schema.org/Hardcover',
+  };
+
   return (
     <div className="min-h-screen bg-paper">
+      <JsonLd data={bookSchema} />
 
       {/* Breadcrumb */}
       <div className="border-b border-divider bg-bg-surface px-4 py-3 md:px-12">

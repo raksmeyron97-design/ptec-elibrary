@@ -9,7 +9,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import Markdown from "./Markdown";
 import ViewTracker from "./ViewTracker";
 
-const SITE_URL = "https://library.ptec.edu.kh";
+import { SITE_URL } from "@/lib/seo/site";
 import ImageGallery from "./ImageGallery";
 import RelatedPosts from "./RelatedPosts";
 import { getTranslations } from 'next-intl/server';
@@ -66,18 +66,24 @@ export async function generateMetadata({
     : "Read this article on PTEC Library.";
 
   const authorName = (post.author as any)?.full_name ?? (post.author as any)?.email ?? "PTEC Library";
+  const canonicalUrl = `${SITE_URL}/posts/${slug}`;
 
   return {
     title: post.title,
     description: desc,
     alternates: {
-      canonical: `/posts/${slug}`,
+      canonical: canonicalUrl,
+      languages: {
+        en: canonicalUrl,
+        km: canonicalUrl,
+        'x-default': canonicalUrl,
+      },
     },
     openGraph: {
       title: post.title,
       description: desc,
       type: "article",
-      url: `/posts/${slug}`,
+      url: canonicalUrl,
       publishedTime: post.created_at ?? undefined,
       authors: [authorName],
       images: post.cover_url
@@ -93,6 +99,9 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
+      title: post.title,
+      description: desc,
+      images: post.cover_url ? [post.cover_url] : undefined,
     },
   };
 }

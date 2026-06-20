@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getResearchReports, getResearchCohorts, getResearchAcademicYears } from "@/app/actions/research";
 import ResearchCard from "@/components/ui/research/ResearchCard";
 import ResearchListItem from "@/components/ui/research/ResearchListItem";
@@ -9,8 +10,23 @@ import Icon from "@/components/ui/core/Icon";
 import { List, LayoutGrid, Rows3 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PROGRAMS, getFacultiesForProgram } from "@/lib/research/programs";
+import { SITE_URL } from "@/lib/seo/site";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Research Reports",
+  description: "Browse student research reports from the Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, and keywords.",
+  alternates: {
+    canonical: `${SITE_URL}/research`,
+  },
+  openGraph: {
+    title: "Research Reports | PTEC Library",
+    description: "Browse student research reports from PTEC. Search by program, cohort, and keywords.",
+    url: `${SITE_URL}/research`,
+    type: "website",
+  },
+};
 
 export default async function ResearchReportsPage({
   searchParams,

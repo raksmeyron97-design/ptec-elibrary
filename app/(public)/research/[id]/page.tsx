@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import { getResearchReportById, incrementResearchViewCount } from "@/app/actions/research";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
@@ -9,6 +10,7 @@ import RelatedReports from "@/components/ui/research/RelatedReports";
 import ResearchTabs, { type ResearchTab } from "@/components/ui/research/ResearchTabs";
 import ReferenceList from "@/components/ui/research/ReferenceList";
 import CiteThis from "@/components/ui/research/CiteThis";
+import JsonLd from "@/components/seo/JsonLd";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   getKeywords,
@@ -17,6 +19,7 @@ import {
   getDepartment,
   formatPublicationDate,
 } from "@/lib/research/report-fields";
+import { SITE_URL } from "@/lib/seo/site";
 import {
   Download,
   Eye,
@@ -29,11 +32,99 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function ResearchReportDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+type PageProps = { params: Promise<{ id: string }> };
+
+function truncate(text: string | null | undefined, max: number): string {
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
+
+function formatCitationDate(dateStr: string | null | undefined, fallback: string | null | undefined): string | null {
+  const raw = dateStr ?? fallback;
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}/${mm}/${dd}`;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createServiceClient();
+  const { data: report } = await supabase
+    .from('research_reports')
+    .select('id, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published')
+    .eq('id', id)
+    .eq('is_published', true)
+    .single();
+
+  if (!report) {
+    return { title: 'Report not found' };
+  }
+
+  const canonicalUrl = `${SITE_URL}/research/${id}`;
+  const description = truncate(report.abstract, 160) || 'Research report from Phnom Penh Teacher Education College.';
+
+  // Split "Sok San, Chan Dara" → ['Sok San', 'Chan Dara']
+  const authors: string[] = report.author_names
+    ? report.author_names.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
+  const keywords: string[] = Array.isArray(report.keywords)
+    ? report.keywords
+    : typeof report.keywords === 'string' && report.keywords
+      ? report.keywords.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : [];
+
+  const citationDate = formatCitationDate(report.published_at, report.created_at);
+  const pdfUrl = `${SITE_URL}/api/research/${id}/file`;
+  const doi = report.doi as string | null | undefined;
+
+  // Build citation_ meta tags — Google Scholar requires these for indexing
+  const citationOther: Record<string, string | string[]> = {
+    citation_title: report.title,
+    citation_publication_date: citationDate ?? String(new Date(report.created_at).getFullYear()),
+    citation_technical_report_institution: 'Phnom Penh Teacher Education College',
+    citation_pdf_url: pdfUrl,
+  };
+
+  if (authors.length > 0) citationOther.citation_author = authors;
+  if (report.abstract) citationOther.citation_abstract = report.abstract;
+  if (keywords.length > 0) citationOther.citation_keywords = keywords.join('; ');
+  if (doi) citationOther.citation_doi = doi;
+
+  return {
+    title: report.title,
+    description,
+    keywords: keywords.length > 0 ? keywords : undefined,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        en: canonicalUrl,
+        km: canonicalUrl,
+        'x-default': canonicalUrl,
+      },
+    },
+    openGraph: {
+      title: report.title,
+      description,
+      type: 'article',
+      url: canonicalUrl,
+      images: report.cover_url ? [{ url: report.cover_url, alt: report.title }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: report.title,
+      description,
+      images: report.cover_url ? [report.cover_url] : undefined,
+    },
+    other: citationOther,
+  };
+}
+
+export default async function ResearchReportDetailPage({ params }: PageProps) {
   const { id } = await params;
   const { data: report, error } = await getResearchReportById(id);
 
@@ -66,7 +157,7 @@ export default async function ResearchReportDetailPage({
   const department = getDepartment(report);
   const publishedOn = formatPublicationDate(report);
   const fileHref = `/api/research/${id}/file`;
-  const shareUrl = `https://library.ptec.edu.kh/research/${id}`;
+  const shareUrl = `${SITE_URL}/research/${id}`;
 
   // ── Tab content ───────────────────────────────────────────────────────────
   const abstractPanel = (
@@ -143,8 +234,37 @@ export default async function ResearchReportDetailPage({
     </span>
   );
 
+  const reportAuthors = report.author_names
+    ? (report.author_names as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+    : [];
+
+  const scholarlyArticleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ScholarlyArticle',
+    headline: report.title,
+    abstract: report.abstract || undefined,
+    author: reportAuthors.map((name: string) => ({ '@type': 'Person', name })),
+    datePublished: report.published_at ?? report.created_at ?? undefined,
+    keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
+    image: report.cover_url || undefined,
+    url: `${SITE_URL}/research/${id}`,
+    publisher: {
+      '@type': 'EducationalOrganization',
+      name: 'Phnom Penh Teacher Education College',
+      url: SITE_URL,
+    },
+    ...(doi ? {
+      identifier: {
+        '@type': 'PropertyValue',
+        propertyID: 'DOI',
+        value: doi,
+      },
+    } : {}),
+  };
+
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
+      <JsonLd data={scholarlyArticleSchema} />
       <div className="mx-auto max-w-[1200px]">
         {/* ── Breadcrumb + admin ── */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">

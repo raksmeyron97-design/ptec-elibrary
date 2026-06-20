@@ -2,11 +2,27 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // app/posts/page.tsx
 import Link from "next/link";
+import type { Metadata } from "next";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
 import { getTranslations } from 'next-intl/server';
+import { SITE_URL } from "@/lib/seo/site";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "News & Announcements",
+  description: "Latest news, announcements, events, and research updates from the Phnom Penh Teacher Education College (PTEC).",
+  alternates: {
+    canonical: `${SITE_URL}/posts`,
+  },
+  openGraph: {
+    title: "News & Announcements | PTEC Library",
+    description: "Latest news, announcements, and events from PTEC.",
+    url: `${SITE_URL}/posts`,
+    type: "website",
+  },
+};
 
 export default async function PostsPage() {
   const t = await getTranslations('posts');
