@@ -3,7 +3,7 @@
 // app/admin/posts/actions.ts
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
 
@@ -56,7 +56,7 @@ function storagePathFromUrl(publicUrl: string): string | null {
 }
 
 async function uniqueSlug(
-  supabase: ReturnType<typeof createServiceClient>,
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   base: string,
   ignoreId?: string
 ): Promise<string> {
@@ -85,13 +85,7 @@ function parseCoverUrls(formData: FormData): string[] {
 
 // ── createPost ────────────────────────────────────────────────────
 export async function createPost(formData: FormData) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -129,13 +123,7 @@ export async function createPost(formData: FormData) {
 
 // ── updatePost ────────────────────────────────────────────────────
 export async function updatePost(postId: string, formData: FormData) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -189,13 +177,7 @@ export async function updatePost(postId: string, formData: FormData) {
 
 // ── deletePost ────────────────────────────────────────────────────
 export async function deletePost(postId: string) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const { data: postData } = await supabase
     .from("posts")
@@ -225,13 +207,7 @@ export async function deletePost(postId: string) {
 
 // ── togglePublish ─────────────────────────────────────────────────
 export async function togglePublish(postId: string, nextState: boolean) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const { data: post, error } = await supabase
     .from("posts")
@@ -246,11 +222,4 @@ export async function togglePublish(postId: string, nextState: boolean) {
   revalidatePath("/posts");
   revalidatePath(`/posts/${post.slug}`);
   revalidatePath("/admin/posts");
-}
-
-// ── incrementViews ────────────────────────────────────────────────
-export async function incrementViews(postId: string) {
-  // Atomic increment via RPC — avoids the lost-update race of a read-then-write.
-  const supabase = createServiceClient();
-  await supabase.rpc("increment_post_views", { p_post_id: postId });
 }

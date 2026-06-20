@@ -15,7 +15,7 @@ const THEME_INIT_SCRIPT = `
   try {
     const root = document.documentElement;
     const path = window.location.pathname;
-    const isAdmin = path === "/admin" || path.startsWith("/admin/") || window.location.hostname.startsWith("admin.");
+    const isAdmin = path === "/admin" || path.startsWith("/admin/");
     const storedTheme = localStorage.getItem("ptec.theme");
     const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const theme = isAdmin

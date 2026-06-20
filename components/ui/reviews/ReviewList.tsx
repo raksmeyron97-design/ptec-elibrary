@@ -1,4 +1,5 @@
 import type { Review } from "@/app/actions/reviews";
+import Avatar from "@/components/ui/Avatar";
 
 type ReviewListProps = {
   reviews: Review[];
@@ -25,38 +26,6 @@ function StarBar({ rating, count, total }: { rating: number; count: number; tota
   );
 }
 
-function Avatar({ name, email, avatarUrl }: { name: string | null; email: string; avatarUrl: string | null }) {
-  const initials = name
-    ? name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
-    : email.slice(0, 2).toUpperCase();
-
-  if (avatarUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={avatarUrl}
-        alt={name ?? email}
-        className="h-9 w-9 rounded-full object-cover ring-2 ring-slate-100"
-      />
-    );
-  }
-
-  // Deterministic color from initials
-  const colors = [
-    "bg-brand", "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]",
-    "bg-[#db2777]", "bg-[#16a34a]", "bg-[#ca8a04]", "bg-[#ea580c]",
-  ];
-  const colorIdx =
-    (email.charCodeAt(0) + (email.charCodeAt(1) ?? 0)) % colors.length;
-
-  return (
-    <div
-      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${colors[colorIdx]}`}
-    >
-      {initials}
-    </div>
-  );
-}
 
 function ReviewCard({ review }: { review: Review }) {
   const profile = review.profiles;
@@ -71,9 +40,10 @@ function ReviewCard({ review }: { review: Review }) {
     <article className="border-b border-divider py-5 last:border-0 last:pb-0">
       <div className="flex items-start gap-3">
         <Avatar
+          url={profile?.avatar_url ?? null}
           name={profile?.full_name ?? null}
           email={""}
-          avatarUrl={profile?.avatar_url ?? null}
+          size={36}
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

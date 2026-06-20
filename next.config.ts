@@ -101,6 +101,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.public.blob.vercel-storage.com",
       },
+      // Cloudflare Images (avatar delivery variant URLs)
+      {
+        protocol: "https",
+        hostname: "imagedelivery.net",
+      },
+      // Wildcard Cloudflare R2 public buckets
+      {
+        protocol: "https",
+        hostname: "*.r2.dev",
+      },
     ],
   },
 };

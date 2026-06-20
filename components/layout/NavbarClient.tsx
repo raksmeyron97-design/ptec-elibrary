@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from 'next-intl';
 
@@ -58,8 +57,10 @@ export default function NavbarClient({ user }: NavbarClientProps) {
   }
 
   // ── Logged in ─────────────────────────────────────────────────
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const initials = getInitials(user.full_name, user.email);
   const displayName = user.full_name || user.email;
+  const showAvatar = !!user.avatar_url && !avatarFailed;
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -70,13 +71,14 @@ export default function NavbarClient({ user }: NavbarClientProps) {
         aria-label="User menu"
         aria-expanded={open}
       >
-        {user.avatar_url ? (
-          <Image
-            src={user.avatar_url}
+        {showAvatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.avatar_url!}
             alt={displayName}
-            fill
-            sizes="36px"
-            className="rounded-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setAvatarFailed(true)}
+            className="h-full w-full rounded-full object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center rounded-full bg-brand text-xs font-bold text-brand-contrast">
@@ -97,14 +99,14 @@ export default function NavbarClient({ user }: NavbarClientProps) {
       >
         {/* Profile header */}
         <div className="flex items-center gap-3 border-b border-divider px-4 py-4">
-          <div className="relative h-11 w-11 shrink-0">
-            {user.avatar_url ? (
-              <Image
-                src={user.avatar_url}
+          <div className="h-11 w-11 shrink-0">
+            {showAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.avatar_url!}
                 alt={displayName}
-                fill
-                sizes="44px"
-                className="rounded-full object-cover"
+                referrerPolicy="no-referrer"
+                className="h-11 w-11 rounded-full object-cover"
               />
             ) : (
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-sm font-bold text-brand-contrast">

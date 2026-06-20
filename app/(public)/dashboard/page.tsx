@@ -8,7 +8,7 @@ import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
-import Image from "next/image";
+import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
 import { getTranslations } from "next-intl/server";
 export const dynamic = "force-dynamic";
@@ -20,11 +20,6 @@ type Profile = {
   avatar_url: string | null;
   created_at: string;
 };
-
-function getInitials(name: string | null, email: string) {
-  if (name) return name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
-  return email.slice(0, 2).toUpperCase();
-}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -63,7 +58,6 @@ export default async function DashboardPage() {
 
   const avatarUrl   = profile?.avatar_url ?? googleAvatar ?? null;
   const displayName = profile?.full_name || googleName || profile?.email || user.email || "Reader";
-  const initials    = getInitials(profile?.full_name ?? googleName ?? null, profile?.email ?? user.email ?? "");
   const isAdmin     = profile?.role === "admin";
 
   const inProgress = progress.filter((p) => p.progress_pct < 100);
@@ -118,15 +112,13 @@ export default async function DashboardPage() {
           <div className="relative flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
-                {avatarUrl ? (
-                  <div className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden ring-4 ring-white/20">
-                    <Image src={avatarUrl} alt={displayName} fill sizes="80px" className="object-cover" />
-                  </div>
-                ) : (
-                  <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-brand ring-4 ring-gold-500/30">
-                    <span className="font-khmer-serif text-xl sm:text-2xl font-bold tracking-wide">{initials}</span>
-                  </div>
-                )}
+                <Avatar
+                  url={avatarUrl}
+                  name={displayName}
+                  email={profile?.email ?? user.email ?? ""}
+                  size={80}
+                  className="ring-4 ring-white/20"
+                />
                 <span className="absolute bottom-1 right-1 h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-blue-950 bg-emerald-400" />
               </div>
               <div className="min-w-0">

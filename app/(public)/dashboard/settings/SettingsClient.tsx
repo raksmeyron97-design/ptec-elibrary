@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { updateProfile, updatePassword } from "@/app/actions/profile";
 import Icon from "@/components/ui/core/Icon";
-import Image from "next/image";
 
 type SettingsClientProps = {
   user: {
@@ -23,11 +22,13 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAvatarPreview(URL.createObjectURL(file));
+      setAvatarFailed(false);
     }
   };
 
@@ -72,8 +73,15 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
         <form onSubmit={onProfileSubmit} className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-paper border-2 border-divider shrink-0 group">
-              {avatarPreview ? (
-                <Image src={avatarPreview} alt="Avatar" fill className="object-cover" />
+              {avatarPreview && !avatarFailed ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarPreview}
+                  alt="Avatar"
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={() => setAvatarFailed(true)}
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-brand text-brand-contrast text-2xl font-bold">
                   {(user.full_name || user.email).charAt(0).toUpperCase()}

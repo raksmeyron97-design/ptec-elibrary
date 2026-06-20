@@ -3,7 +3,7 @@
 // Server actions for managing individual physical copy records.
 
 import { revalidatePath } from "next/cache";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -22,26 +22,9 @@ export interface CatalogCopy {
   updated_at: string;
 }
 
-// ── Auth guard ─────────────────────────────────────────────────────────────────
-async function requireAdmin() {
-  const auth = await createClient();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
-
-  return { supabase, userId: user.id };
-}
-
 // ── fetchCopiesForBook ─────────────────────────────────────────────────────────
 export async function fetchCopiesForBook(bookId: string): Promise<CatalogCopy[]> {
-  const supabase = createServiceClient();
+  const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("catalog_copies")
     .select("*")

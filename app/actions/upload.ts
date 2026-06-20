@@ -2,7 +2,7 @@
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -79,11 +79,7 @@ export async function getPresignedUrl(
   target: "private" | "public" = "private",
 ) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role !== "admin") throw new Error("Forbidden");
+    await requireAdmin();
 
     validateR2Key(filePath);
 
@@ -125,13 +121,9 @@ export async function deleteR2File(
   filePath: string,
   target: "private" | "public" = "private",
 ) {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    if (profile?.role !== "admin") throw new Error("Forbidden");
+  await requireAdmin();
 
+  try {
     const bucketName =
       target === "public"
         ? process.env.R2_PUBLIC_BUCKET_NAME

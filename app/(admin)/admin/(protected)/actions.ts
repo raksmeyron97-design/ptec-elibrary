@@ -3,7 +3,7 @@
 // app/admin/actions.ts
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
@@ -85,18 +85,7 @@ export interface BookInput {
 
 export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
   try {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const title      = input.title?.trim();
   const author     = input.author?.trim();
@@ -266,17 +255,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
 
 // ── deleteBook — also removes PDF + cover from Storage ───────────
 export async function deleteBook(bookId: string) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   // ── 1. Fetch book_files + cover_url before deleting ──────────
   const { data: bookFiles } = await supabase
@@ -339,18 +318,7 @@ export async function deleteBook(bookId: string) {
 
 // ── updateBook — handles cover URL update ────────────────────────
 export async function updateBook(bookId: string, formData: FormData) {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-
-  const supabase = createServiceClient();
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
+  const { supabase, user } = await requireAdmin();
 
   const title      = requiredText(formData, "title");
   const author     = requiredText(formData, "author");
@@ -480,17 +448,13 @@ export async function updateBook(bookId: string, formData: FormData) {
 
 // ── addCategory — create a new category (admin only, bypasses RLS) ──
 export async function addCategory(name: string): Promise<{ id?: string; name?: string; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   const trimmed = name.trim();
   if (!trimmed) return { error: "Category name is required" };
@@ -529,17 +493,13 @@ export async function addCategory(name: string): Promise<{ id?: string; name?: s
 
 // ── addDepartment — create a new department (admin only, bypasses RLS) ──
 export async function addDepartment(name: string): Promise<{ id?: string; name?: string; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   const trimmed = name.trim();
   if (!trimmed) return { error: "Department name is required" };
@@ -578,13 +538,13 @@ export async function addDepartment(name: string): Promise<{ id?: string; name?:
 // ── Taxonomy Management (Update & Delete) ──────────────────────────
 
 export async function updateCategory(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   const trimmed = newName.trim();
   if (!trimmed) return { error: "Category name is required" };
@@ -602,13 +562,13 @@ export async function updateCategory(id: string, newName: string): Promise<{ suc
 }
 
 export async function deleteCategory(id: string): Promise<{ success?: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   // Check if any book is using this category
   const { count, error: countErr } = await supabase.from("books").select("id", { count: "exact", head: true }).eq("category_id", id);
@@ -624,13 +584,13 @@ export async function deleteCategory(id: string): Promise<{ success?: boolean; e
 }
 
 export async function updateDepartment(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   const trimmed = newName.trim();
   if (!trimmed) return { error: "Department name is required" };
@@ -651,13 +611,13 @@ export async function updateDepartment(id: string, newName: string): Promise<{ s
 }
 
 export async function deleteDepartment(id: string): Promise<{ success?: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Forbidden" };
+  }
+  const { supabase, user } = admin;
 
   // Check if any book is using this department
   const { count, error: countErr } = await supabase.from("books").select("id", { count: "exact", head: true }).eq("department_id", id);

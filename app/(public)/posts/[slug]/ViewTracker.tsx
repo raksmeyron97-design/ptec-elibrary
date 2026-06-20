@@ -2,7 +2,7 @@
 
 // app/research/[slug]/ViewTracker.tsx
 import { useEffect, useRef } from "react";
-import { incrementViews } from "@/app/(admin)/admin/(protected)/posts/actions";
+import { incrementPostViews } from "@/app/actions/post-views";
 
 export default function ViewTracker({ postId }: { postId: string }) {
   const fired = useRef(false);
@@ -11,7 +11,7 @@ export default function ViewTracker({ postId }: { postId: string }) {
     if (fired.current) return;
     fired.current = true;
     // Best-effort — ignore failures, never block the page.
-    incrementViews(postId).catch(() => {});
+    incrementPostViews(postId).catch(() => {});
   }, [postId]);
 
   return null;

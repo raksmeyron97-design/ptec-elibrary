@@ -36,12 +36,9 @@ export async function proxy(request: NextRequest) {
   response.headers.set('x-nonce', nonceB64);
 
   const { nextUrl: url } = request;
-  const host = request.headers.get("host") ?? "";
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? "localhost:3000";
-  const isAdminHost = host === `admin.${rootDomain}` || host.startsWith("admin.");
 
   // Fast-path redirect for main domain root to bypass Supabase network calls
-  if (!isAdminHost && url.pathname === "/") {
+  if (url.pathname === "/") {
     const res = NextResponse.redirect(new URL("/home", request.url));
     res.headers.set('Content-Security-Policy', cspHeader);
     res.headers.set('x-nonce', nonceB64);
@@ -80,34 +77,17 @@ export async function proxy(request: NextRequest) {
     return newRes;
   };
 
-  // ── Admin Subdomain Logic ────────────────────────────────────
-  if (isAdminHost) {
-    const effectivePath = url.pathname.startsWith("/admin") ? url.pathname : `/admin${url.pathname}`;
-
-    if (effectivePath.startsWith("/admin")) {
-      if (effectivePath !== "/admin/login" && effectivePath !== "/admin/auth/signout") {
-        if (!user) {
-          const res = NextResponse.redirect(new URL("/admin/login", request.url));
-          return copyCookies(res);
-        }
+  // ── Admin Path Logic ─────────────────────────────────────────
+  if (url.pathname.startsWith("/admin")) {
+    if (url.pathname !== "/admin/login" && url.pathname !== "/admin/auth/signout") {
+      if (!user) {
+        const res = NextResponse.redirect(new URL("/admin/login", request.url));
+        return copyCookies(res);
       }
     }
-
-    if (!url.pathname.startsWith("/admin")) {
-      const rewriteUrl = new URL(`/admin${url.pathname}`, request.url);
-      const res = NextResponse.rewrite(rewriteUrl);
-      return copyCookies(res);
-    }
-    return response;
   }
 
   // ── Main Domain Logic ─────────────────────────────────────────
-
-  // Prevent accessing /admin routes from the main domain
-  if (!isAdminHost && url.pathname.startsWith("/admin")) {
-    const res = NextResponse.rewrite(new URL("/404", request.url));
-    return copyCookies(res);
-  }
 
   // Redirect logged-in users away from login page
   if (url.pathname === "/auth/login" && user) {
@@ -132,6 +112,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|json)$).*)",
   ],
 };

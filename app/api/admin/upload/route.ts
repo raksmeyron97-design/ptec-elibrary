@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -22,17 +22,7 @@ const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
 
 export async function POST(request: NextRequest) {
   try {
-    const authClient = await createClient();
-    const { data: { user } } = await authClient.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-
-    const supabase = createServiceClient();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await requireAdmin();
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -74,6 +64,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url });
   } catch (err) {
+    if (isAdminAuthError(err)) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+
     console.error("[admin/upload]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Upload failed" },

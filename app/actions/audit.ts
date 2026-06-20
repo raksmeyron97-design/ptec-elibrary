@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function logAdminAction(
@@ -6,7 +5,7 @@ export async function logAdminAction(
   action: string,
   targetTable: string,
   targetId?: string,
-  metadata?: any
+  metadata?: Record<string, unknown>,
 ) {
   try {
     const supabase = createServiceClient();

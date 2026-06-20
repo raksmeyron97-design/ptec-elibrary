@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
@@ -81,6 +80,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const showAvatar = !!user?.avatar_url && !avatarFailed;
 
   const leftNav = [
     { label: t("home"),        href: "/home",  Icon: HomeIcon  },
@@ -182,9 +183,16 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             transition={{ type: "spring", stiffness: 420, damping: 20 }}
             className="relative flex items-center justify-center w-[46px] h-[46px] rounded-full shadow-[0_2px_8px_rgba(30,58,138,0.3)] bg-brand text-white z-10"
           >
-            <div className="relative flex items-center justify-center w-full h-full overflow-hidden rounded-full">
-              {user?.avatar_url ? (
-                <Image src={user.avatar_url} alt={user.full_name || user.email} fill className="object-cover" />
+            <div className="flex items-center justify-center w-full h-full overflow-hidden rounded-full">
+              {showAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user!.avatar_url!}
+                  alt={user!.full_name || user!.email}
+                  referrerPolicy="no-referrer"
+                  onError={() => setAvatarFailed(true)}
+                  className="h-full w-full object-cover"
+                />
               ) : user ? (
                 <div className="flex items-center justify-center w-full h-full bg-brand text-brand-contrast text-[13px] font-bold tracking-wider">
                   {getInitials(user.full_name, user.email)}
@@ -252,9 +260,15 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             {/* Profile header */}
             {user ? (
               <div className="flex items-center gap-3 px-5 py-4 border-b border-divider">
-                <div className="relative w-12 h-12 shrink-0">
-                  {user.avatar_url ? (
-                    <Image src={user.avatar_url} alt={user.full_name || user.email} fill sizes="48px" className="rounded-full object-cover" />
+                <div className="w-12 h-12 shrink-0 overflow-hidden rounded-full">
+                  {showAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={user.avatar_url!}
+                      alt={user.full_name || user.email}
+                      referrerPolicy="no-referrer"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="flex items-center justify-center w-12 h-12 rounded-full bg-brand text-brand-contrast text-sm font-bold">
                       {getInitials(user.full_name, user.email)}

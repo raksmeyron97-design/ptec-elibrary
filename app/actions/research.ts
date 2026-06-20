@@ -4,6 +4,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { deleteR2File } from "@/app/actions/upload";
 import { createAdminNotification } from "@/lib/admin-notifications";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 function storagePathFromUrl(publicUrl: string): string | null {
   try {
@@ -25,17 +26,8 @@ const REVALIDATE_PATHS = [
   "/research/summary",
 ];
 
-// Server actions are callable by anyone who can craft the request, so every
-// mutating action must verify the caller is an admin — especially those that
-// use the service-role client (which bypasses RLS).
-async function requireAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { ok: false, error: "Not authenticated" };
-  const svc = createServiceClient();
-  const { data: profile } = await svc.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { ok: false, error: "Forbidden" };
-  return { ok: true };
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Forbidden";
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -203,10 +195,13 @@ export async function incrementResearchDownloadCount(id: string) {
 }
 
 export async function toggleReportPublishStatus(id: string, isPublished: boolean) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { success: false, error: guard.error };
-
-  const supabase = await createClient();
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   const updatePayload: { is_published: boolean; published_at?: string } = { is_published: isPublished };
 
@@ -231,10 +226,14 @@ export async function toggleReportPublishStatus(id: string, isPublished: boolean
 }
 
 export async function createResearchReport(formData: ResearchReportData) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { success: false, error: guard.error };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
 
-  const supabase = await createClient();
+  const { supabase } = admin;
   const { error } = await supabase.from("research_reports").insert([{
     ...formData,
     keywords: formData.keywords ?? [],
@@ -250,10 +249,13 @@ export async function createResearchReport(formData: ResearchReportData) {
 }
 
 export async function deleteResearchReport(id: string) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { success: false, error: guard.error };
-
-  const supabase = createServiceClient();
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   // Fetch URLs before deleting so we can clean up R2 afterwards
   const { data: row } = await supabase
@@ -284,10 +286,14 @@ export async function deleteResearchReport(id: string) {
 }
 
 export async function updateResearchReport(id: string, formData: ResearchReportData) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return { success: false, error: guard.error };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
 
-  const supabase = await createClient();
+  const { supabase } = admin;
   const { error } = await supabase
     .from("research_reports")
     .update(formData)
@@ -328,13 +334,13 @@ export async function addResearchCohort({
   number: number;
   label?: string;
 }): Promise<{ data: ResearchCohort | null; error: string | null }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { data: null, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { data: null, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { data: null, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   // Check for existing cohort (graceful duplicate handling)
   const { data: existing } = await supabase
@@ -374,13 +380,13 @@ export async function updateResearchCohort(
   id: string,
   updates: { number?: number; label?: string | null; sort_order?: number },
 ): Promise<{ success: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { success: false, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   const { error } = await supabase.from("research_cohorts").update(updates).eq("id", id);
   if (error) return { success: false, error: error.message };
@@ -392,13 +398,13 @@ export async function updateResearchCohort(
 }
 
 export async function deleteResearchCohort(id: string): Promise<{ success: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { success: false, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   // Cascade will remove associated academic years (ON DELETE CASCADE)
   const { error } = await supabase.from("research_cohorts").delete().eq("id", id);
@@ -434,13 +440,13 @@ export async function addResearchAcademicYear({
   cohortId: string;
   label: string;
 }): Promise<{ data: ResearchAcademicYear | null; error: string | null }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { data: null, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { data: null, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { data: null, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   const trimmed = label.trim();
   if (!trimmed) return { data: null, error: "Academic year label is required" };
@@ -488,13 +494,13 @@ export async function updateResearchAcademicYear(
   id: string,
   updates: { label?: string; sort_order?: number },
 ): Promise<{ success: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { success: false, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   const payload: { label?: string; sort_order?: number } = {};
   if (updates.label !== undefined) payload.label = updates.label.trim();
@@ -514,13 +520,13 @@ export async function updateResearchAcademicYear(
 }
 
 export async function deleteResearchAcademicYear(id: string): Promise<{ success: boolean; error?: string }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { success: false, error: "Not authenticated" };
-
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") return { success: false, error: "Forbidden" };
+  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    admin = await requireAdmin();
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
 
   const { error } = await supabase.from("research_academic_years").delete().eq("id", id);
   if (error) return { success: false, error: error.message };

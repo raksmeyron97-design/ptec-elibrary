@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use server";
 // app/admin/catalogs/actions.ts
 // Only the addCatalogBook action is changed — redirect now goes to the
@@ -6,9 +5,7 @@
 // All other actions (updateCatalogBook, deleteCatalogBook, etc.) remain unchanged.
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { catalogSlugify, pickCatalogColor, parseCatalogCsv } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";
 
@@ -19,16 +16,6 @@ function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
     .map(t => t.trim())
     .filter(Boolean)
     .slice(0, 20);
-}
-
-async function requireAdmin() {
-  const auth = await createClient();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) throw new Error("Not authenticated");
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") throw new Error("Forbidden");
-  return { supabase, userId: user.id };
 }
 
 function req(fd: FormData, key: string) {
