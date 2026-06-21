@@ -161,6 +161,7 @@
 
   /* Fonts */
   --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
+  --font-serif: var(--font-var-serif), "Crimson Pro", Georgia, serif;
   --font-khmer-serif: "Hanuman", var(--font-var-hanuman), serif;
   --font-title: var(--font-var-angkor);
   --font-body: "Hanuman", var(--font-var-hanuman);

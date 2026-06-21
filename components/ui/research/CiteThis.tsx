@@ -74,6 +74,7 @@ export default function CiteThis({
             <button
               key={f.id}
               onClick={() => setFormat(f.id)}
+              aria-pressed={active}
               className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active
                   ? "bg-brand text-white shadow-sm"
@@ -95,6 +96,8 @@ export default function CiteThis({
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={copy}
+          disabled={copied}
+          aria-label={copied ? "Citation copied" : "Copy citation to clipboard"}
           className={`inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-all duration-150 ${
             copied
               ? "bg-emerald-600 text-white"
@@ -106,8 +109,8 @@ export default function CiteThis({
         </button>
         <button
           onClick={download}
+          aria-label={`Download citation as ${format === "apa" ? "TXT" : format.toUpperCase()} file`}
           className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-divider bg-paper px-3 py-2 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
-          title="Download citation file"
         >
           <Download className="h-4 w-4" />
           {format === "apa" ? "TXT" : format.toUpperCase()}
@@ -126,6 +129,7 @@ export default function CiteThis({
           </span>
           <button
             onClick={() => setOpen(false)}
+            aria-label="Close citation panel"
             className="cursor-pointer text-[12px] font-medium text-text-muted transition-colors hover:text-brand"
           >
             Close

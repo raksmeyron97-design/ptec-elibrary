@@ -10,7 +10,7 @@ function linkify(text: string) {
         href={part}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+        className="rounded-sm text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand focus:outline-none focus:ring-2 focus:ring-brand/50"
       >
         {part}
       </a>

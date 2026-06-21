@@ -27,9 +27,18 @@ export default async function CatalogsSection() {
     <section className="border-t border-divider/50 overflow-hidden">
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <ScrollRevealWrapper className="mb-9 flex items-end justify-between gap-5">
-          <SectionTitle as="h2" className="!mb-0">{t('fromTheLibrary')}</SectionTitle>
+          <div>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-accent to-brand" aria-hidden />
+              <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-accent-text">{t('bentoPhysicalLabel')}</span>
+            </div>
+            <SectionTitle as="h2" className="!mb-0 mt-1">{t('fromTheLibrary')}</SectionTitle>
+          </div>
           <Link href="/catalogs" className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand hover:text-gold-700 sm:inline-flex">
             {t('allPhysicalBooks')}
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
           </Link>
         </ScrollRevealWrapper>
         <StaggerRevealContainer className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-4">

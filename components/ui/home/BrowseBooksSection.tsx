@@ -48,8 +48,11 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
     <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
         <ScrollRevealWrapper className="mb-6 sm:mb-9">
-          <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
-          <SectionTitle as="h2" className="!mb-0 mt-2">{t("browseSectionTitle")}</SectionTitle>
+          <div className="mb-2 flex items-center gap-3">
+            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
+            <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("browseSectionEyebrow")}</span>
+          </div>
+          <SectionTitle as="h2" className="!mb-0 mt-1">{t("browseSectionTitle")}</SectionTitle>
         </ScrollRevealWrapper>
         <ScrollRevealWrapper>
           <BookShowcaseTabs
@@ -57,6 +60,7 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
             recent={recentlyAdded}
             depts={depts}
             deptBooks={deptBooks}
+            layout="grid"
           />
         </ScrollRevealWrapper>
       </div>

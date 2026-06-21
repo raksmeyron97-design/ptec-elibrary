@@ -47,6 +47,7 @@ export default function ResearchFilters({
           className={selectClass}
           value={currentDept}
           onChange={(e) => updateFilter("dept", e.target.value)}
+          aria-label="Filter by department"
         >
           <option value="">All</option>
           {departments.map((d) => (
@@ -67,6 +68,7 @@ export default function ResearchFilters({
           className={selectClass}
           value={currentCohort}
           onChange={(e) => updateFilter("cohort", e.target.value)}
+          aria-label="Filter by cohort"
         >
           <option value="">All</option>
           {uniqueCohorts.map((c) => (
@@ -87,6 +89,7 @@ export default function ResearchFilters({
           className={selectClass}
           value={currentYear}
           onChange={(e) => updateFilter("year", e.target.value)}
+          aria-label="Filter by year"
         >
           <option value="">All</option>
           {uniqueYears.map((y) => (

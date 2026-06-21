@@ -34,11 +34,11 @@ function timeAgo(iso: string | null, t: any): string {
 }
 
 const categoryStyles: Record<string, { bg: string; text: string; dot: string }> = {
-  Research:     { bg: "bg-brand/5",   text: "text-brand",                       dot: "bg-brand" },
+  Research:     { bg: "bg-brand/5",   text: "text-brand",                          dot: "bg-brand" },
   Announcement: { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
-  Event:        { bg: "bg-brand/5",   text: "text-brand",                       dot: "bg-brand" },
+  Event:        { bg: "bg-brand/5",   text: "text-brand",                          dot: "bg-brand" },
   Journal:      { bg: "bg-gold-50",   text: "text-gold-700 dark:text-accent-text", dot: "bg-accent" },
-  Other:        { bg: "bg-paper",     text: "text-text-muted",                  dot: "bg-divider" },
+  Other:        { bg: "bg-paper",     text: "text-text-muted",                     dot: "bg-divider" },
 };
 
 const bannerColors = [
@@ -78,10 +78,7 @@ function MetaRow({ createdAt, t }: { createdAt: string | null; t: any }) {
         {formatDate(createdAt)}
       </span>
       <span className="text-divider">•</span>
-      <span className="flex items-center gap-1.5">
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        {timeAgo(createdAt, t)}
-      </span>
+      <span>{timeAgo(createdAt, t)}</span>
     </div>
   );
 }
@@ -97,37 +94,53 @@ function AuthorChip({ author }: { author: string }) {
   );
 }
 
-/* ── Featured (large) card ────────────────────────────────────────────── */
+/* ── Featured card — horizontal on desktop ────────────────────────────── */
 function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-brand/5"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 lg:flex-row"
     >
-      <span aria-hidden className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
-      <div className="relative aspect-[16/10] w-full overflow-hidden">
+      {/* Animated top bar on hover */}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 rounded-t-2xl bg-gradient-to-r from-brand via-accent to-brand transition-transform duration-500 group-hover:scale-x-100"
+      />
+
+      {/* Image — full width mobile, left panel desktop */}
+      <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden lg:aspect-auto lg:min-h-[300px] lg:w-[46%]">
         {post.coverUrl ? (
-          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
+          <Image
+            src={post.coverUrl}
+            alt={post.title}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+          />
         ) : (
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-8`}>
             <span className="line-clamp-3 text-center font-khmer-serif text-2xl font-bold leading-snug text-white/90">{post.title}</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-        <div className="absolute left-4 top-4"><CategoryBadge category={post.category} tPosts={tPosts} /></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:via-transparent lg:to-black/10" />
+        <div className="absolute left-4 top-4 z-10">
+          <CategoryBadge category={post.category} tPosts={tPosts} />
+        </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-6 sm:p-7">
+      {/* Text panel */}
+      <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-9 lg:pl-10">
         <MetaRow createdAt={post.createdAt} t={t} />
-        <h3 className="mb-3 mt-3 line-clamp-2 font-khmer-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl">
+        <h3 className="mb-3 mt-3 font-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl lg:text-[1.65rem]">
           {post.title}
         </h3>
         {post.excerpt && (
-          <p className="mb-6 line-clamp-2 text-[15px] leading-relaxed text-text-muted">{post.excerpt}</p>
+          <p className="line-clamp-3 text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
+            {post.excerpt}
+          </p>
         )}
-        <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-4">
+        <div className="mt-auto flex items-center justify-between border-t border-divider/50 pt-5">
           <AuthorChip author={post.author} />
-          <span className="flex items-center gap-1 text-[13px] font-semibold text-brand opacity-0 transition-opacity group-hover:opacity-100">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand/8 px-3.5 py-2 text-[13px] font-semibold text-brand transition-all duration-200 group-hover:bg-brand group-hover:text-white">
             {t('readMore')}
             <svg className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
           </span>
@@ -137,8 +150,8 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
   );
 }
 
-/* ── Compact horizontal list card ─────────────────────────────────────── */
-function ListCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
+/* ── Small card — stacked in 3-col grid below featured ───────────────── */
+function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
   const s = categoryStyles[post.category] ?? categoryStyles.Other;
   const translated = post.category === "Research" ? tPosts("categoryResearch")
     : post.category === "Announcement" ? tPosts("categoryAnnouncement")
@@ -149,31 +162,30 @@ function ListCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group flex gap-4 rounded-xl border border-divider/60 bg-paper p-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/20 hover:shadow-md"
     >
-      {/* Thumbnail */}
-      <div className="relative h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg sm:h-24 sm:w-24">
+      {/* Image */}
+      <div className="relative aspect-[16/9] w-full overflow-hidden">
         {post.coverUrl ? (
-          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-105" />
+          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         ) : (
-          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-2`}>
-            <span className="line-clamp-3 text-center font-khmer-serif text-[10px] font-bold leading-tight text-white/90">{post.title}</span>
+          <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-4`}>
+            <span className="line-clamp-2 text-center font-khmer-serif text-sm font-bold text-white/90">{post.title}</span>
           </div>
         )}
       </div>
-
       {/* Text */}
-      <div className="flex min-w-0 flex-1 flex-col py-0.5">
-        <span className={`inline-flex w-fit items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
+        <span className={`mb-2 inline-flex w-fit items-center gap-1 text-[10px] font-bold uppercase tracking-wide ${s.text}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
           {translated}
         </span>
-        <h4 className="mt-1 line-clamp-2 font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+        <h4 className="line-clamp-2 font-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[16px]">
           {post.title}
         </h4>
-        <div className="mt-auto pt-1.5 text-[11px] font-medium text-text-muted">
-          {formatDate(post.createdAt)} · {timeAgo(post.createdAt, t)}
-        </div>
+        <p className="mt-auto pt-3 text-[11px] font-medium text-text-muted">
+          {formatDate(post.createdAt)}
+        </p>
       </div>
     </Link>
   );
@@ -187,37 +199,51 @@ export default function LatestPosts({ posts }: Props) {
   if (!posts || posts.length === 0) return null;
 
   const [featured, ...rest] = posts;
-  const hasSidebar = rest.length > 0;
+  const smallCards = rest.slice(0, 3);
 
   return (
-    <section className="bg-bg-surface py-10 sm:py-14 md:py-20">
+    <section className="border-t border-divider/60 bg-paper py-10 sm:py-14 md:py-20">
       <div className="mx-auto max-w-[1400px] px-4 md:px-12">
         {/* Header */}
-        <div className="mb-10 flex flex-col items-center text-center">
-          <span className="mb-3 text-[12px] font-bold uppercase tracking-[0.2em] text-brand">{t('stayUpdated')}</span>
-          <SectionTitle as="h2" className="!mb-4">{t('latestInsights')}</SectionTitle>
-          <p className="max-w-2xl text-[15px] leading-relaxed text-text-muted">
-            {t('discoverLatest')}
-          </p>
-        </div>
-
-        {/* Featured + list */}
-        <div className={hasSidebar ? "grid gap-6 lg:grid-cols-[1.7fr_1fr] lg:gap-8" : "mx-auto max-w-3xl"}>
-          <FeaturedCard post={featured} t={t} tPosts={tPosts} />
-          {hasSidebar && (
-            <div className="flex flex-col gap-4 sm:gap-5">
-              {rest.slice(0, 3).map((post) => (
-                <ListCard key={post.id} post={post} t={t} tPosts={tPosts} />
-              ))}
+        <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-2 flex items-center gap-3">
+              <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">{t('stayUpdated')}</span>
             </div>
-          )}
-        </div>
-
-        {/* View all */}
-        <div className="mt-12 text-center">
+            <SectionTitle as="h2" className="!mb-2 mt-1">{t('latestInsights')}</SectionTitle>
+            <p className="max-w-lg text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
+              {t('discoverLatest')}
+            </p>
+          </div>
           <Link
             href="/posts"
-            className="inline-flex items-center gap-2 rounded-full border border-divider/60 bg-paper px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
+            className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex"
+          >
+            {t('viewAllPosts')}
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
+        </div>
+
+        {/* Featured card — full width, horizontal on desktop */}
+        <FeaturedCard post={featured} t={t} tPosts={tPosts} />
+
+        {/* 3-column small cards below */}
+        {smallCards.length > 0 && (
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-5">
+            {smallCards.map((post) => (
+              <SmallCard key={post.id} post={post} tPosts={tPosts} />
+            ))}
+          </div>
+        )}
+
+        {/* View all — mobile only (desktop version is in the header row) */}
+        <div className="mt-10 text-center sm:hidden">
+          <Link
+            href="/posts"
+            className="inline-flex items-center gap-2 rounded-full border border-divider/60 bg-bg-surface px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
           >
             {t('viewAllPosts')}
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
