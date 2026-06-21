@@ -56,7 +56,7 @@ export default function CiteThis({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
       >
         <Quote className="h-3.5 w-3.5" />
         Cite
@@ -67,17 +67,17 @@ export default function CiteThis({
   const panel = (
     <>
       {/* Format tabs */}
-      <div className="flex items-center gap-1 rounded-lg bg-bg-app p-1">
+      <div className="flex items-center gap-1 rounded-xl bg-bg-app p-1">
         {FORMATS.map((f) => {
           const active = f.id === format;
           return (
             <button
               key={f.id}
               onClick={() => setFormat(f.id)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+              className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active
-                  ? "bg-bg-surface text-brand shadow-sm"
-                  : "text-text-muted hover:text-text-body"
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-text-muted hover:bg-bg-surface hover:text-text-body"
               }`}
             >
               {f.label}
@@ -87,7 +87,7 @@ export default function CiteThis({
       </div>
 
       {/* Citation text */}
-      <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-divider bg-bg-app px-3.5 py-3 font-mono text-[12px] leading-relaxed text-text-body">
+      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-divider bg-bg-app px-3.5 py-3 font-mono text-[11.5px] leading-relaxed text-text-body">
         {text}
       </pre>
 
@@ -95,14 +95,18 @@ export default function CiteThis({
       <div className="mt-3 flex items-center gap-2">
         <button
           onClick={copy}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-[12.5px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
+          className={`inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-all duration-150 ${
+            copied
+              ? "bg-emerald-600 text-white"
+              : "bg-brand text-brand-contrast hover:bg-brand-hover"
+          }`}
         >
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? "Copied!" : "Copy"}
         </button>
         <button
           onClick={download}
-          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-2 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
+          className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-divider bg-paper px-3 py-2 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
           title="Download citation file"
         >
           <Download className="h-4 w-4" />
@@ -122,7 +126,7 @@ export default function CiteThis({
           </span>
           <button
             onClick={() => setOpen(false)}
-            className="text-[12px] font-medium text-text-muted hover:text-brand"
+            className="cursor-pointer text-[12px] font-medium text-text-muted transition-colors hover:text-brand"
           >
             Close
           </button>
@@ -134,7 +138,7 @@ export default function CiteThis({
 
   // Full sidebar card.
   return (
-    <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+    <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
       <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
         <Quote className="h-4 w-4 text-brand" /> Cite this report
       </h3>

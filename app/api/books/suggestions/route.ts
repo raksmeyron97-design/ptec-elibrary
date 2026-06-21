@@ -6,6 +6,13 @@ export const dynamic = "force-dynamic";
 
 import { rateLimit } from "@/lib/rate-limit";
 
+const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
+
+function coverUrlOf(raw: string | null): string | null {
+  if (!raw) return null;
+  return raw.startsWith("http") ? raw : `${COVERS_URL}/${raw}`;
+}
+
 function getClientIP(req: NextRequest): string {
   // Prefer x-real-ip (set by the platform, unspoofable); the left-most
   // x-forwarded-for value is client-controlled and must not gate rate limits.
@@ -20,10 +27,10 @@ function getClientIP(req: NextRequest): string {
 }
 
 export type Suggestion =
-  | { type: "book";     slug: string; label: string; sub: string }
+  | { type: "book";     slug: string; label: string; sub: string; coverUrl?: string | null }
   | { type: "author";   label: string }
   | { type: "category"; label: string }
-  | { type: "research"; id: string;   label: string; sub: string };
+  | { type: "research"; id: string;   label: string; sub: string; coverUrl?: string | null };
 
 export async function GET(req: NextRequest) {
   // Rate limiting check (60 requests per minute)
@@ -44,7 +51,7 @@ export async function GET(req: NextRequest) {
   // ── 1. Matching book titles (up to 4) ───────────────────────────────────────
   const { data: books } = await supabase
     .from("books")
-    .select("slug, title, authors ( name )")
+    .select("slug, title, cover_url, authors ( name )")
     .eq("is_published", true)
     .ilike("title", `%${q}%`)
     .limit(4);
@@ -55,6 +62,7 @@ export async function GET(req: NextRequest) {
       slug:  b.slug,
       label: b.title,
       sub:   (b.authors as any)?.name ?? "Unknown",
+      coverUrl: coverUrlOf(b.cover_url),
     });
   }
 
@@ -83,7 +91,7 @@ export async function GET(req: NextRequest) {
   // ── 4. Matching published research report titles (up to 3) ───────────────────
   const { data: reports } = await supabase
     .from("research_reports")
-    .select("id, title, author_names, cohort, academic_year")
+    .select("id, title, author_names, cohort, academic_year, cover_url")
     .eq("is_published", true)
     .ilike("title", `%${q}%`)
     .limit(3);
@@ -93,7 +101,7 @@ export async function GET(req: NextRequest) {
       .filter(Boolean)
       .join(" · ");
     const sub: string = (r.author_names as string | null) ?? (cohortYear || "Research Report");
-    results.push({ type: "research", id: r.id, label: r.title, sub });
+    results.push({ type: "research", id: r.id, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
   }
 
   return NextResponse.json(results);

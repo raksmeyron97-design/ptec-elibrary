@@ -298,9 +298,13 @@ export default function CommandPalette() {
                           `}
                         >
                           <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[type]} ring-1 ring-divider`}
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[type]} ring-1 ring-divider overflow-hidden`}
                           >
-                            <Icon name={TYPE_ICON[type]} className={`text-lg ${TYPE_COLOR[type]}`} />
+                            {("coverUrl" in s && s.coverUrl) ? (
+                              <img src={s.coverUrl} alt={s.label} className="h-full w-full object-cover" />
+                            ) : (
+                              <Icon name={TYPE_ICON[type]} className={`text-lg ${TYPE_COLOR[type]}`} />
+                            )}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-medium text-text-heading">

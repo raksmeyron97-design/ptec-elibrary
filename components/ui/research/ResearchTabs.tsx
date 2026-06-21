@@ -33,7 +33,11 @@ export default function ResearchTabs({
   return (
     <div className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
       {/* Tab bar */}
-      <div role="tablist" aria-label="Report sections" className="flex gap-1 overflow-x-auto border-b border-divider px-2 sm:px-4">
+      <div
+        role="tablist"
+        aria-label="Report sections"
+        className="flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-divider bg-bg-app/60 px-2 sm:px-3"
+      >
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
@@ -42,7 +46,7 @@ export default function ResearchTabs({
               role="tab"
               aria-selected={isActive}
               onClick={() => activate(t.id)}
-              className={`relative shrink-0 px-3 py-3.5 text-[13.5px] font-semibold transition-colors sm:px-4 sm:text-[14px] ${
+              className={`relative shrink-0 cursor-pointer px-3 py-3.5 text-[13.5px] font-semibold transition-all duration-150 sm:px-4 sm:text-[14px] ${
                 isActive ? "text-brand" : "text-text-muted hover:text-text-body"
               }`}
             >
@@ -50,18 +54,21 @@ export default function ResearchTabs({
                 {t.label}
                 {t.badge !== undefined && t.badge !== "" && (
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                      isActive ? "bg-brand/10 text-brand" : "bg-bg-app text-text-muted"
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
+                      isActive
+                        ? "bg-brand text-white"
+                        : "bg-bg-surface text-text-muted"
                     }`}
                   >
                     {t.badge}
                   </span>
                 )}
               </span>
+              {/* Active indicator */}
               <span
                 aria-hidden
-                className={`absolute inset-x-2 -bottom-px h-[2.5px] rounded-full bg-brand transition-opacity ${
-                  isActive ? "opacity-100" : "opacity-0"
+                className={`absolute inset-x-1 -bottom-px h-[2.5px] rounded-full bg-brand transition-all duration-200 ${
+                  isActive ? "scale-x-100 opacity-100" : "scale-x-50 opacity-0"
                 }`}
               />
             </button>

@@ -15,11 +15,11 @@ export default function ResearchListItem({ report }: { report: any }) {
   const source = getSourceLine(report);
 
   return (
-    <article className="group flex gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-colors hover:border-brand/30 sm:gap-5 sm:p-5">
+    <article className="group flex gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-all duration-200 hover:border-brand/30 hover:shadow-md sm:gap-5 sm:p-5">
       {/* Thumbnail */}
       <Link
         href={`/research/${report.id}`}
-        className="relative hidden h-[132px] w-[99px] shrink-0 overflow-hidden rounded-lg border border-divider/60 bg-paper sm:block"
+        className="relative hidden h-[132px] w-[99px] shrink-0 overflow-hidden rounded-xl border border-divider/60 bg-paper sm:block"
       >
         {report.cover_url ? (
           <Image
@@ -30,8 +30,19 @@ export default function ResearchListItem({ report }: { report: any }) {
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[10px] text-brand/40">
-            No Cover
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-brand/5 to-brand/10">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-8 w-8 text-brand/25"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
           </div>
         )}
       </Link>
@@ -70,7 +81,7 @@ export default function ResearchListItem({ report }: { report: any }) {
             {keywords.map((kw) => (
               <span
                 key={kw}
-                className="rounded-full bg-bg-app px-2.5 py-0.5 text-[11px] font-medium text-text-muted"
+                className="rounded-full border border-divider bg-bg-app px-2.5 py-0.5 text-[11px] font-medium text-text-muted"
               >
                 {kw}
               </span>
@@ -80,11 +91,11 @@ export default function ResearchListItem({ report }: { report: any }) {
 
         {/* Footer row */}
         <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-text-muted">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-emerald-600 dark:text-emerald-400">
             <Eye className="h-3.5 w-3.5" />
             {report.view_count || 0}
           </span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-text-muted">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-amber-600 dark:text-amber-400">
             <Download className="h-3.5 w-3.5" />
             {report.download_count || 0}
           </span>
@@ -103,7 +114,7 @@ export default function ResearchListItem({ report }: { report: any }) {
             <CiteThis report={report} reportId={report.id} compact />
             <Link
               href={`/research/${report.id}`}
-              className="inline-flex items-center gap-1 rounded-lg bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
             >
               View
               <ArrowRight className="h-3.5 w-3.5" />
