@@ -2,143 +2,202 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import AnimatedStat from "./AnimatedStat";
+import Reveal from "./Reveal";
 
-async function getCategoryCount() {
+// ── Data ─────────────────────────────────────────────────────────────────────
+async function getCatalogueCounts() {
   const db = createServiceClient();
-  const { count } = await db
-    .from("categories")
-    .select("id", { count: "exact", head: true });
-  return count ?? 0;
+  const [booksRes, catsRes] = await Promise.all([
+    db.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
+    db.from("categories").select("id", { count: "exact", head: true }),
+  ]);
+  return { books: booksRes.count ?? 0, categories: catsRes.count ?? 0 };
 }
 
+// Shared entrance classes (literal strings so Tailwind JIT can see them)
+const FADE_UP =
+  "opacity-0 translate-y-3 transition-all duration-700 ease-out " +
+  "[&.is-visible]:opacity-100 [&.is-visible]:translate-y-0 " +
+  "motion-reduce:transition-none motion-reduce:opacity-100 motion-reduce:translate-y-0";
+
+const RULE =
+  "h-px origin-left scale-x-0 bg-divider transition-transform duration-700 ease-out " +
+  "[&.is-visible]:scale-x-100 motion-reduce:transition-none motion-reduce:scale-x-100";
+
+// ── Section ──────────────────────────────────────────────────────────────────
 export default async function HomeBento() {
-  const [categories, t, tf, locale] = await Promise.all([
-    getCategoryCount(),
+  const [{ books, categories }, t, tf, locale] = await Promise.all([
+    getCatalogueCounts(),
     getTranslations("home"),
     getTranslations("footer"),
     getLocale(),
   ]);
 
-  const latinLabel = locale === "en" ? "uppercase tracking-[0.16em]" : "tracking-normal";
+  const isLatin = locale === "en";
+  const latinLabel = isLatin ? "uppercase tracking-[0.18em]" : "tracking-normal";
+  const latinTiny = isLatin ? "uppercase tracking-[0.16em]" : "tracking-normal";
+
+  // Trust signals — parallel, so no decorative numbering; the label carries it.
+  // `cls` builds the hairline grid: vertical rules between columns (desktop),
+  // 2×2 with horizontal rules between rows (mobile).
+  const features = [
+    {
+      title: t("aboutFeatCuratedTitle"),
+      body: t("aboutFeatCuratedBody"),
+      cls: "pl-0 pr-4 sm:pr-5 lg:px-6 lg:pl-0 lg:border-l-0",
+    },
+    {
+      title: t("aboutFeatOpenTitle"),
+      body: t("aboutFeatOpenBody"),
+      cls: "pl-4 sm:pl-5 pr-0 lg:px-6 border-l border-divider/70",
+    },
+    {
+      title: t("aboutFeatBilingualTitle"),
+      body: t("aboutFeatBilingualBody"),
+      cls:
+        "pl-0 pr-4 sm:pr-5 lg:px-6 border-t border-divider/70 pt-7 " +
+        "lg:border-t-0 lg:pt-0 lg:border-l lg:border-divider/70",
+    },
+    {
+      title: t("aboutFeatCampusTitle"),
+      body: t("aboutFeatCampusBody"),
+      cls:
+        "pl-4 sm:pl-5 pr-0 lg:px-6 lg:pr-0 border-l border-t border-divider/70 pt-7 " +
+        "lg:border-t-0 lg:pt-0",
+    },
+  ];
 
   return (
-    <section className="relative overflow-hidden border-b border-divider/60 bg-bg-surface">
-      {/* Ambient background glows for glassmorphism */}
-      <div aria-hidden className="pointer-events-none absolute -left-40 top-0 h-[500px] w-[500px] bg-[radial-gradient(circle_at_center,rgba(30,58,138,0.15)_0%,transparent_60%)]" />
-      <div aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-[400px] w-[400px] bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_60%)]" />
-      
-      <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:grid-rows-2">
+    <section className="border-b border-divider/60 bg-paper" aria-labelledby="about-title">
+      <div className="mx-auto max-w-[1400px] px-4 py-14 sm:py-16 md:px-12 md:py-20">
 
-          {/* ── 1. About the library (big card, gold/heritage) ── */}
+        {/* ── Label row ── */}
+        <Reveal className={`flex items-baseline justify-between gap-4 pb-4 ${FADE_UP}`}>
+          <span
+            className={`inline-flex items-center gap-2 text-[11px] font-bold text-gold-600 dark:text-gold-400 ${latinLabel}`}
+          >
+            <span aria-hidden className="h-[7px] w-[7px] rotate-45 rounded-[1px] bg-gold-400" />
+            {t("aboutSectionLabel")}
+          </span>
+          <span className={`text-[11px] font-semibold text-text-muted ${latinTiny}`}>
+            {t("aboutEstablished")}
+          </span>
+        </Reveal>
+
+        <Reveal className={RULE} />
+
+        {/* ── Lede + colophon ── */}
+        <div className="grid gap-6 py-7 sm:py-9 lg:grid-cols-[1.55fr_0.9fr] lg:gap-12">
+          <Reveal delay={80} className={FADE_UP}>
+            <h2
+              id="about-title"
+              className={`max-w-[34rem] font-khmer-serif font-medium text-text-heading ${
+                locale === "km" ? "leading-[1.4]" : "leading-[1.16] tracking-tight"
+              }`}
+              style={{ fontSize: "clamp(26px, 3.4vw, 42px)" }}
+            >
+              {t("aboutLede")}
+            </h2>
+            <p className="mt-4 max-w-md text-[15px] leading-[1.7] text-text-muted">
+              {t("aboutSupport")}
+            </p>
+          </Reveal>
+
+          <Reveal
+            delay={160}
+            className={`self-start border-divider/70 lg:border-l lg:pl-8 ${FADE_UP}`}
+          >
+            <dl className="grid gap-4">
+              <div>
+                <dt className={`text-[10px] font-bold text-text-muted ${latinTiny}`}>
+                  {t("aboutInitiativeLabel")}
+                </dt>
+                <dd className="mt-0.5 text-[14px] font-semibold text-text-heading">
+                  {t("aboutInitiativeName")}
+                </dd>
+              </div>
+
+              <div>
+                <dt className={`text-[10px] font-bold text-text-muted ${latinTiny}`}>
+                  {t("aboutCatalogueLabel")}
+                </dt>
+                <dd className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[14px] text-text-heading">
+                  <span className="font-khmer-serif text-2xl font-semibold leading-none">
+                    <AnimatedStat targetValue={books} />
+                    <span className="text-gold-600">+</span>
+                  </span>
+                  <span className="text-text-muted">{t("aboutResourcesWord")}</span>
+                  <span aria-hidden className="text-divider">·</span>
+                  <span className="font-khmer-serif text-2xl font-semibold leading-none">
+                    <AnimatedStat targetValue={categories} />
+                  </span>
+                  <span className="text-text-muted">{t("aboutCategoriesWord")}</span>
+                </dd>
+              </div>
+
+              <div>
+                <dt className={`text-[10px] font-bold text-text-muted ${latinTiny}`}>
+                  {t("aboutAccessLabel")}
+                </dt>
+                <dd className="mt-0.5 text-[14px] font-medium text-text-heading">
+                  {t("aboutAccessValue")}
+                </dd>
+              </div>
+
+              <div>
+                <dt className={`text-[10px] font-bold text-text-muted ${latinTiny}`}>
+                  {t("aboutOnCampusLabel")}
+                </dt>
+                <dd className="mt-0.5 text-[14px] font-medium text-text-heading">
+                  {tf("hoursValue")}
+                </dd>
+                <dd className="mt-0.5 text-[12px] text-text-muted">{tf("hoursClosed")}</dd>
+              </div>
+            </dl>
+          </Reveal>
+        </div>
+
+        <Reveal className={RULE} />
+
+        {/* ── Trust signals ── */}
+        <div className="grid grid-cols-2 gap-y-7 py-8 sm:py-9 lg:grid-cols-4 lg:gap-y-0">
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={i * 70} className={`relative ${f.cls} ${FADE_UP}`}>
+              <h3
+                className={`mb-2 flex items-center gap-2 text-[11px] font-bold text-text-heading ${latinTiny}`}
+              >
+                <span aria-hidden className="h-[5px] w-[5px] flex-none rounded-full bg-gold-400" />
+                {f.title}
+              </h3>
+              <p className="text-[13px] leading-[1.6] text-text-muted">{f.body}</p>
+            </Reveal>
+          ))}
+        </div>
+
+        <Reveal className={RULE} />
+
+        {/* ── Link ── */}
+        <Reveal delay={60} className={`pt-5 ${FADE_UP}`}>
           <Link
             href="/about"
-            className="group relative col-span-2 row-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-6 transition-all hover:-translate-y-0.5 hover:border-gold-500/30 hover:shadow-[0_8px_30px_-8px_rgba(221,176,34,0.3)] lg:col-span-3 sm:p-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 transform-gpu will-change-transform"
+            className="group inline-flex items-center gap-2 rounded-sm text-[14px] font-semibold text-gold-600 dark:text-gold-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
           >
-            {/* Soft gold blob top-right */}
-            <div
+            {t("aboutMoreLink")}
+            <svg
+              className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
               aria-hidden
-              className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.2)_0%,transparent_60%)] transition-colors duration-500 group-hover:opacity-100 opacity-60"
-            />
-
-            <div className="relative flex h-full flex-col">
-              {/* Eyebrow */}
-              <div className={`mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-gold-700 dark:text-gold-400 ${latinLabel}`}>
-                {/* Landmark / building icon */}
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-                {t("aboutLibraryLabel")}
-              </div>
-
-              {/* Heading */}
-              <h3 className="font-khmer-serif text-2xl font-bold text-text-heading sm:text-3xl">
-                {t("aboutLibraryTitle")}
-              </h3>
-
-              {/* Body */}
-              <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-text-muted sm:text-[15px]">
-                {t("aboutLibraryBody")}
-              </p>
-
-              {/* Link line */}
-              <div className="mt-auto pt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-gold-700 dark:text-gold-400">
-                {t("aboutLibraryLink")}
-                <svg
-                  className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden
-                >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </div>
-            </div>
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
           </Link>
+        </Reveal>
 
-          {/* ── 2. Research & publications (cyan/digital) ── */}
-          <Link
-            href="/research"
-            className="group relative col-span-2 overflow-hidden rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 transition-all hover:-translate-y-0.5 hover:border-cyan-400/30 hover:shadow-[0_8px_30px_-8px_rgba(34,211,238,0.3)] lg:col-span-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 transform-gpu will-change-transform"
-          >
-            {/* Cyan blob */}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-8 -top-8 h-44 w-44 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.2)_0%,transparent_60%)] transition-colors duration-500 group-hover:opacity-100 opacity-60"
-            />
-
-            <div className="relative">
-              <div className={`mb-2 inline-flex items-center gap-2 text-[11px] font-bold text-cyan-700 dark:text-cyan-300 ${latinLabel}`}>
-                {/* Document / research icon */}
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                {t("researchLabel")}
-              </div>
-
-              <p className="max-w-sm text-[14px] leading-relaxed text-text-muted">
-                {t("researchBody")}
-              </p>
-
-              <div className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-cyan-700 dark:text-cyan-300">
-                {t("researchLink")}
-                <svg
-                  className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
-                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden
-                >
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </div>
-            </div>
-          </Link>
-
-          {/* ── 3. Categories ── */}
-          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-1 transform-gpu will-change-transform">
-            <p className={`mb-1.5 text-[11px] font-bold text-text-muted ${latinLabel}`}>
-              {t("bentoCategoriesLabel")}
-            </p>
-            <div className="font-khmer-serif text-3xl font-bold text-text-heading">
-              <AnimatedStat targetValue={categories} />
-            </div>
-          </div>
-
-          {/* ── 4. Opening hours ── */}
-          <div className="col-span-1 rounded-2xl bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg p-5 lg:col-span-2 transform-gpu will-change-transform">
-            <div className="mb-2 inline-flex items-center gap-2 text-gold-700 dark:text-gold-400">
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span className={`text-[11px] font-bold ${latinLabel}`}>{tf("hoursLabel")}</span>
-            </div>
-            <p className="text-[13px] font-semibold text-text-heading">{tf("hoursValue")}</p>
-            <p className="mt-0.5 text-[12px] text-text-muted">{tf("hoursClosed")}</p>
-          </div>
-
-        </div>
       </div>
     </section>
   );

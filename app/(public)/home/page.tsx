@@ -7,7 +7,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import HeroStatsStrip from "@/components/ui/home/HeroStatsStrip";
+import HeroStats from "@/components/ui/home/HeroStats";
 import { Button } from "@/components/ui/core/Button";
 import { getTranslations, getLocale } from "next-intl/server";
 
@@ -52,15 +52,29 @@ async function getTrendingTerms(): Promise<string[]> {
   return names.length ? names.slice(0, 6) : ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
 }
 
+async function getHomeStats() {
+  const supabase = await createClient();
+  const [booksRes, downloadsRes, usersRes, viewsRes] = await Promise.all([
+    supabase.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
+    supabase.from("books").select("download_count").eq("is_published", true),
+    supabase.from("profiles").select("id", { count: "exact", head: true }),
+    supabase.from("books").select("view_count").eq("is_published", true),
+  ]);
+  const totalDownloads = (downloadsRes.data ?? []).reduce((s: number, b: { download_count?: number | null }) => s + (b.download_count ?? 0), 0);
+  const totalViews = (viewsRes.data ?? []).reduce((s: number, b: { view_count?: number | null }) => s + (b.view_count ?? 0), 0);
+  return { books: booksRes.count ?? 0, downloads: totalDownloads, users: usersRes.count ?? 0, views: totalViews };
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
   const t = await getTranslations("home");
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const [trendingBooks, trendingTerms, { data: { user } }] = await Promise.all([
+  const [trendingBooks, trendingTerms, homeStats, { data: { user } }] = await Promise.all([
     getTrendingBooks(),
     getTrendingTerms(),
+    getHomeStats(),
     supabase.auth.getUser(),
   ]);
 
@@ -169,6 +183,9 @@ export default async function HomePage() {
                 <MobileFeaturedStrip books={heroBooks} />
               </div>
 
+              {/* Ledger Rail stats — inside the dark hero */}
+              <HeroStats stats={homeStats} />
+
             </div>
 
             {/* ── Right column — desktop book stack ── */}
@@ -189,11 +206,6 @@ export default async function HomePage() {
         {/* Gold seam at the bottom of the hero */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
-
-      {/* ════════ STATS STRIP ════════ */}
-      <Suspense fallback={<div className="h-[100px] animate-pulse bg-bg-surface border-b border-divider" />}>
-        <HeroStatsStrip />
-      </Suspense>
 
       {/* ════════ BENTO ════════ */}
       <Suspense fallback={<div className="h-48 animate-pulse bg-bg-surface border-b border-divider/60" />}>
