@@ -160,7 +160,7 @@ export default async function Footer() {
             <div className="ptec-reveal flex flex-col gap-5">
               <div className="flex flex-col items-start gap-3">
                 <span className="ptec-seal">
-                  <Seal size={72} />
+                  <Seal size={72} variant="footer" />
                 </span>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-200 mb-1">

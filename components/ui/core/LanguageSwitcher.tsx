@@ -20,7 +20,11 @@ export default function LanguageSwitcher({ className }: { className?: string }) 
   };
 
   return (
-    <button type="button">
+    <button 
+      type="button" 
+      onClick={toggle}
+      className={`text-sm hover:text-white transition-colors flex items-center gap-2 ${className || ''}`}
+    >
       {locale === 'en' ? '🇰🇭 ខ្មែរ' : '🇬🇧 English'}
     </button>
   );

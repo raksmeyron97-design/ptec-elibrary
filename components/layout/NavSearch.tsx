@@ -17,7 +17,11 @@ export default function NavSearch() {
   }
 
   return (
-    <button type="button">
+    <button 
+      type="button"
+      onClick={openCommandPalette}
+      className="group relative flex h-10 w-full sm:w-[240px] lg:w-[280px] items-center justify-between rounded-full border border-divider bg-black/5 dark:bg-white/5 pl-10 pr-3 text-sm text-text-muted transition-colors hover:border-brand/30 hover:bg-black/10 dark:hover:bg-white/10"
+    >
       <Icon name="search" className="absolute left-3.5 text-[18px] text-text-muted group-hover:text-brand transition-colors" />
       <span className="whitespace-nowrap overflow-hidden text-ellipsis text-left flex-1 mr-2">
         Search e-Library...
