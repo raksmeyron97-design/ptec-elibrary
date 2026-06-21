@@ -18,8 +18,7 @@ export default function SettingsError({
       <p className="text-text-muted mb-8 max-w-md">
         {error.message || "An unexpected error occurred while loading your settings."}
       </p>
-      <button
-        onClick={() => reset()}
+      <button type="button" onClick={() => reset()}
         className="h-11 px-6 rounded-xl bg-brand text-brand-contrast font-bold hover:bg-brand-hover transition-colors"
       >
         Try again

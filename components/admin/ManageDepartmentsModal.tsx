@@ -109,8 +109,7 @@ export default function ManageDepartmentsModal() {
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
+      <button type="button" onClick={() => setIsOpen(true)}
         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold bg-brand text-white shadow-sm hover:bg-brand-hover rounded-lg transition-all"
       >
         <Plus className="w-4 h-4" /> Manage Departments
@@ -121,8 +120,7 @@ export default function ManageDepartmentsModal() {
           <div className="w-full max-w-lg bg-bg-surface rounded-2xl shadow-xl flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between p-5 border-b border-divider">
               <h2 className="text-xl font-bold text-text-heading">Manage Departments</h2>
-              <button
-                onClick={() => setIsOpen(false)}
+              <button type="button" onClick={() => setIsOpen(false)}
                 className="p-1.5 text-text-muted hover:text-text-body hover:bg-paper rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -198,15 +196,13 @@ export default function ManageDepartmentsModal() {
                         <>
                           <span className="text-sm font-medium text-text-body">{dept.name}</span>
                           <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { setEditingId(dept.id); setEditName(dept.name); }}
+                            <button type="button" onClick={() => { setEditingId(dept.id); setEditName(dept.name); }}
                               className="p-1.5 text-text-muted hover:text-brand hover:bg-brand/10 rounded transition-colors"
                               title="Edit"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button
-                              onClick={() => handleDelete(dept.id, dept.name)}
+                            <button type="button" onClick={() => handleDelete(dept.id, dept.name)}
                               className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Delete"
                             >

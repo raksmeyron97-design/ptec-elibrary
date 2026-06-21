@@ -155,10 +155,7 @@ export default function MfaEnrollPage() {
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {state.message}
                 </div>
-                <button
-                  onClick={startEnrollment}
-                  className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-hover"
-                >
+                <button type="button">
                   Try Again
                 </button>
               </div>

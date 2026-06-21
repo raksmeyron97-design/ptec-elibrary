@@ -62,11 +62,7 @@ export default function BookShowcaseTabs({
           {(["trending", "recent"] as TabKey[]).map((key) => {
             const active = key === tab && !activeDept;
             return (
-              <button
-                key={key}
-                role="tab"
-                aria-selected={active}
-                onClick={() => { setTab(key); setActiveDept(null); }}
+              <button key={key} type="button" onClick={() => { setTab(key); setActiveDept(null); }}
                 className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-all sm:px-5 ${
                   active
                     ? "bg-gradient-to-r from-brand to-blue-600 text-white shadow-md shadow-brand/20"
@@ -102,8 +98,7 @@ export default function BookShowcaseTabs({
       {depts.length > 0 && (
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {/* "All" chip */}
-          <button
-            onClick={() => setActiveDept(null)}
+          <button type="button" onClick={() => setActiveDept(null)}
             className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
               activeDept === null
                 ? "border-brand bg-brand text-white"
@@ -114,9 +109,7 @@ export default function BookShowcaseTabs({
           </button>
 
           {depts.map((dept) => (
-            <button
-              key={dept}
-              onClick={() => setActiveDept(dept)}
+            <button key={dept} type="button" onClick={() => setActiveDept(dept)}
               className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
                 activeDept === dept
                   ? "border-brand bg-brand text-white"

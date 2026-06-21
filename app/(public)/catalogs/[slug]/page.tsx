@@ -198,7 +198,7 @@ export default async function CatalogBookPage({
             {/* Cover */}
             <div className="relative aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-2xl border border-divider/50 shadow-lg shadow-brand/10">
               {b.cover_url ? (
-                <Image src={b.cover_url} alt={b.title} fill className="object-cover" />
+                <Image src={b.cover_url} alt={b.title} fill sizes="(max-width: 768px) 100vw, 280px" className="object-cover" />
               ) : (
                 <div className={`absolute inset-0 ${b.cover_color} flex items-end p-5`}>
                   <div>

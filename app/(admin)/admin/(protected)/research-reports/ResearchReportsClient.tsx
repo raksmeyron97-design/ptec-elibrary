@@ -186,8 +186,7 @@ export default function ResearchReportsClient({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <button
-                        onClick={() => handleTogglePublish(report.id, report.isPublished)}
+                      <button type="button" onClick={() => handleTogglePublish(report.id, report.isPublished)}
                         disabled={loadingId === report.id}
                         className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
                           report.isPublished
@@ -210,15 +209,13 @@ export default function ResearchReportsClient({
                       {isConfirming ? (
                         <div className="flex items-center justify-end gap-2">
                           <span className="text-xs text-text-muted">Delete?</span>
-                          <button
-                            onClick={() => handleDelete(report.id)}
+                          <button type="button" onClick={() => handleDelete(report.id)}
                             disabled={isDeleting}
                             className="rounded bg-red-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                           >
                             {isDeleting ? "…" : "Yes"}
                           </button>
-                          <button
-                            onClick={() => setConfirmId(null)}
+                          <button type="button" onClick={() => setConfirmId(null)}
                             className="rounded bg-paper px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper"
                           >
                             No
@@ -233,8 +230,7 @@ export default function ResearchReportsClient({
                           >
                             <Icon name="edit" className="w-5 h-5" />
                           </Link>
-                          <button
-                            onClick={() => setConfirmId(report.id)}
+                          <button type="button" onClick={() => setConfirmId(report.id)}
                             disabled={isDeleting}
                             className="hover:text-red-500 transition disabled:opacity-50"
                             title="Delete"

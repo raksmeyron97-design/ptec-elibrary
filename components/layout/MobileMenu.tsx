@@ -70,8 +70,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
   return (
     <div className="lg:hidden">
       {/* Hamburger button (hidden on lg+) */}
-      <button
-        onClick={() => setOpen(true)}
+      <button type="button" onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
         className="flex h-10 w-10 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand"
@@ -129,8 +128,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
               className="h-9 w-auto object-contain"
             />
           </Link>
-          <button
-            onClick={() => setOpen(false)}
+          <button type="button" onClick={() => setOpen(false)}
             aria-label="Close menu"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >

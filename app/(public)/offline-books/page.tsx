@@ -95,8 +95,7 @@ export default function OfflineBooksPage() {
                     <span className="text-[11px] font-medium text-text-muted">
                       Saved {new Date(book.savedAt).toLocaleDateString()}
                     </span>
-                    <button
-                      onClick={(e) => {
+                    <button type="button" onClick={(e) => {
                         e.preventDefault();
                         handleRemove(book.id);
                       }}

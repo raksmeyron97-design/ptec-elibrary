@@ -199,14 +199,14 @@ export default async function PostDetailPage({
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
                 {/* Title pinned to bottom */}
                 <div className="absolute inset-x-0 bottom-0 px-4 pb-4 sm:px-6 sm:pb-6">
-                  <h1 className="font-khmer-serif font-bold text-2xl sm:text-3xl leading-[1.3] sm:leading-[1.4] text-white drop-shadow-lg md:text-4xl">
+                  <h1 className="font-khmer-serif font-bold text-2xl sm:text-3xl leading-[1.4] sm:leading-[1.5] text-white drop-shadow-lg md:text-4xl">
                     {post.title}
                   </h1>
                 </div>
               </div>
             ) : (
               <div className={`flex h-36 sm:h-44 items-end rounded-2xl shadow-sm border border-divider bg-gradient-to-br ${pickBanner(post.title)} px-4 pb-4 sm:px-6 sm:pb-6`}>
-                <h1 className="font-khmer-serif font-bold text-2xl sm:text-3xl leading-[1.3] sm:leading-[1.4] text-white md:text-4xl">
+                <h1 className="font-khmer-serif font-bold text-2xl sm:text-3xl leading-[1.4] sm:leading-[1.5] text-white md:text-4xl">
                   {post.title}
                 </h1>
               </div>

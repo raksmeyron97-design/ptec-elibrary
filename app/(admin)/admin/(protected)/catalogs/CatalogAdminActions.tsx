@@ -40,8 +40,7 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
 
       {/* Delete */}
       {!showConfirmDelete ? (
-        <button
-          onClick={() => setShowConfirmDelete(true)}
+        <button type="button" onClick={() => setShowConfirmDelete(true)}
           disabled={!book.is_active || isPending}
           className="text-text-muted transition hover:text-red-500 disabled:opacity-50"
           title="Delete"
@@ -50,15 +49,10 @@ export default function CatalogAdminActions({ book }: { book: CatalogBook }) {
         </button>
       ) : (
         <div className="flex items-center gap-1">
-          <button
-            onClick={handleDelete}
-            disabled={isPending}
-            className="rounded-lg bg-red-500 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-red-600 disabled:opacity-50"
-          >
+          <button type="button">
             {isPending ? "…" : "Confirm"}
           </button>
-          <button
-            onClick={() => setShowConfirmDelete(false)}
+          <button type="button" onClick={() => setShowConfirmDelete(false)}
             className="rounded-lg border border-divider px-2 py-1 text-xs text-text-muted transition hover:bg-paper"
           >
             Cancel

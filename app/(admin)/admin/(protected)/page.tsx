@@ -213,8 +213,10 @@ export default async function AdminDashboardPage() {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const fetchFromDownloads = new Date(Date.now() - 31 * ONE_DAY).toISOString();
-  const fetchFromUsers     = new Date(Date.now() - 91 * ONE_DAY).toISOString();
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
+  const fetchFromDownloads = new Date(nowMs - 31 * ONE_DAY).toISOString();
+  const fetchFromUsers     = new Date(nowMs - 91 * ONE_DAY).toISOString();
 
   const [
     totalBooksRes, publishedBooksRes, bookStatsRes,

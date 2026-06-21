@@ -41,13 +41,7 @@ export default function ResearchTabs({
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
-            <button
-              key={t.id}
-              id={`tab-${t.id}`}
-              role="tab"
-              aria-selected={isActive}
-              aria-controls={`panel-${t.id}`}
-              onClick={() => activate(t.id)}
+            <button type="button" onClick={() => activate(t.id)}
               className={`relative shrink-0 cursor-pointer px-3 py-3.5 text-[13.5px] font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/40 sm:px-4 sm:text-[14px] ${
                 isActive ? "text-brand" : "text-text-muted hover:text-text-body"
               }`}

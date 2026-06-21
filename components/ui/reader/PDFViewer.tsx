@@ -256,11 +256,17 @@ const ScrollPage = memo(function ScrollPage({
 function useResolvedPdfFile(pdfUrl: string | null | undefined) {
   const [file, setFile] = useState<string | null>(pdfUrl ?? null);
   const [fromCache, setFromCache] = useState(false);
+  const [prevUrl, setPrevUrl] = useState(pdfUrl);
+
+  if (pdfUrl !== prevUrl) {
+    setPrevUrl(pdfUrl);
+    setFile(pdfUrl ?? null);
+    setFromCache(false);
+  }
+
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
-    setFile(pdfUrl ?? null);
-    setFromCache(false);
     if (!pdfUrl || typeof window === "undefined" || !("caches" in window))
       return;
     const abs = new URL(pdfUrl, window.location.origin).href;
@@ -378,12 +384,14 @@ export default function PDFViewer({
   const numPagesRef = useRef(numPages);
   const navigateRef = useRef<(p: number) => void>(() => {});
   const progressRef = useRef(0);
+  const [lastSaved, setLastSaved] = useState(initialProgressPct);
   const lastSavedRef = useRef(initialProgressPct);
+  useEffect(() => { lastSavedRef.current = lastSaved; }, [lastSaved]);
 
   /* ── Derived ────────────────────────────────────────────────── */
   const progressPct =
     numPages > 0 ? Math.round((currentPage / numPages) * 100) : 0;
-  const isSaved = progressPct === lastSavedRef.current;
+  const isSaved = progressPct === lastSaved;
   const isBookmarked = bookmarks.includes(currentPage);
 
   useEffect(() => void (scaleRef.current = scale), [scale]);
@@ -392,9 +400,9 @@ export default function PDFViewer({
   useEffect(() => void (numPagesRef.current = numPages), [numPages]);
   useEffect(() => void (progressRef.current = progressPct), [progressPct]);
   
-  useEffect(() => {
-    if (progressPct > maxProgressPct) setMaxProgressPct(progressPct);
-  }, [progressPct, maxProgressPct]);
+  if (progressPct > maxProgressPct) {
+    setMaxProgressPct(progressPct);
+  }
 
   /* ── Page width (folds zoom in; implements REAL fit-to-page) ──── */
   const baseWidth = useMemo(() => {
@@ -415,6 +423,7 @@ export default function PDFViewer({
   /* ── Load persisted prefs after mount (avoids hydration mismatch) ── */
   useEffect(() => {
     const v = lsGet("ebook:viewMode");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (v === "single" || v === "scroll") setViewMode(v);
     const f = lsGet("ebook:fitMode");
     if (f === "width" || f === "page") setFitMode(f);
@@ -468,6 +477,7 @@ export default function PDFViewer({
   /* ── Aria-Live Announcer ──────────────────────────────────────── */
   const [ariaPageAnnouncement, setAriaPageAnnouncement] = useState("");
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (numPages > 0) setAriaPageAnnouncement(`${t("page")} ${fmtNum(currentPage)} / ${fmtNum(numPages)}`);
   }, [currentPage, numPages, t, fmtNum]);
 
@@ -484,9 +494,9 @@ export default function PDFViewer({
   }, []);
 
   /* ── Keep the page input in sync when not being edited ──────── */
-  useEffect(() => {
-    if (!isPageInputFocused) setPageInputValue(String(currentPage));
-  }, [currentPage, isPageInputFocused]);
+  if (!isPageInputFocused && pageInputValue !== String(currentPage)) {
+    setPageInputValue(String(currentPage));
+  }
 
   /* ── Central navigation (also scrolls the page into view in
         scroll mode and suppresses observer fighting) ──────────── */
@@ -574,7 +584,7 @@ export default function PDFViewer({
   useEffect(() => {
     if (!isLoggedIn || !bookId || numPages === 0 || progressPct === lastSavedRef.current) return;
     const id = window.setTimeout(() => {
-      lastSavedRef.current = progressPct;
+      setLastSaved(progressPct);
       startTransition(() => {
         saveReadingProgress(bookId, progressPct);
       });
@@ -591,7 +601,7 @@ export default function PDFViewer({
         numPagesRef.current > 0 &&
         progressRef.current !== lastSavedRef.current
       ) {
-        lastSavedRef.current = progressRef.current;
+        setLastSaved(progressRef.current);
         saveReadingProgress(bookId, progressRef.current);
       }
     };
@@ -601,7 +611,7 @@ export default function PDFViewer({
 
   function saveNow() {
     if (!isLoggedIn || !bookId || numPages === 0) return;
-    lastSavedRef.current = progressPct;
+    setLastSaved(progressPct);
     startTransition(() => {
       saveReadingProgress(bookId, progressPct);
     });
@@ -673,16 +683,17 @@ export default function PDFViewer({
     if (viewMode !== "scroll" || !numPages) return;
     const root = containerRef.current;
     if (!root) return;
+    const currentRatios = ratios.current;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           const p = Number((e.target as HTMLElement).dataset.page);
-          ratios.current.set(p, e.isIntersecting ? e.intersectionRatio : 0);
+          currentRatios.set(p, e.isIntersecting ? e.intersectionRatio : 0);
         }
         if (programmaticScroll.current) return;
         let best = currentPageRef.current;
         let bestR = -1;
-        ratios.current.forEach((r, p) => {
+        currentRatios.forEach((r, p) => {
           if (r > bestR) {
             bestR = r;
             best = p;
@@ -700,7 +711,7 @@ export default function PDFViewer({
     return () => {
       io.disconnect();
       observerRef.current = null;
-      ratios.current.clear();
+      currentRatios.clear();
     };
   }, [viewMode, numPages]);
 

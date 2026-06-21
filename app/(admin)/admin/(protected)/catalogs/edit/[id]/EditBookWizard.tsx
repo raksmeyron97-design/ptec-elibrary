@@ -87,8 +87,7 @@ export default function EditBookWizard({
 
           {/* Step indicators */}
           <div className="mb-5 flex items-center gap-3">
-            <button
-              onClick={() => setStep(1)}
+            <button type="button" onClick={() => setStep(1)}
               className="flex items-center gap-2 hover:opacity-80 transition"
             >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white">✓</span>

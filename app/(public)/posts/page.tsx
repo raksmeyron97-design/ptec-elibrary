@@ -65,8 +65,8 @@ export default async function PostsPage() {
             <p className="mb-1.5 sm:mb-2 text-xs font-bold uppercase tracking-widest text-accent">
               {t('eyebrow')}
             </p>
-            <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold text-text-heading md:text-4xl">{t('title')}</h1>
-            <p className="mt-1.5 sm:mt-2 max-w-2xl font-sans text-sm text-text-muted">
+            <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold leading-[1.4] sm:leading-[1.5] text-text-heading md:text-4xl">{t('title')}</h1>
+            <p className="mt-1.5 sm:mt-2 max-w-2xl font-sans text-sm leading-[1.7] text-text-muted">
               {t('subtitle')}
             </p>
           </div>

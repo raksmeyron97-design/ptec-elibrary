@@ -94,7 +94,7 @@ export default function UsersClient({
           className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
         />
         {query && (
-          <button onClick={() => setQuery("")} className="text-text-muted hover:text-text-body">✕</button>
+          <button type="button" onClick={() => setQuery("")} className="text-text-muted hover:text-text-body">✕</button>
         )}
         <span className="text-xs text-text-muted">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
       </div>
@@ -179,8 +179,7 @@ export default function UsersClient({
                         {isMe ? (
                           <span className="text-xs text-text-muted italic">—</span>
                         ) : (
-                          <button
-                            onClick={() => handleToggleClick(u)}
+                          <button type="button" onClick={() => handleToggleClick(u)}
                             disabled={isToggling || !!togglingId || promoteBlocked}
                             title={promoteBlocked ? "Only a super admin can promote users to admin" : undefined}
                             className={`rounded px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${

@@ -54,8 +54,7 @@ export default function CiteThis({
 
   if (compact && !open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
+      <button type="button" onClick={() => setOpen(true)}
         className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
       >
         <Quote className="h-3.5 w-3.5" />
@@ -71,9 +70,7 @@ export default function CiteThis({
         {FORMATS.map((f) => {
           const active = f.id === format;
           return (
-            <button
-              key={f.id}
-              onClick={() => setFormat(f.id)}
+            <button type="button" onClick={() => setFormat(f.id)}
               aria-pressed={active}
               className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active
@@ -94,24 +91,11 @@ export default function CiteThis({
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2">
-        <button
-          onClick={copy}
-          disabled={copied}
-          aria-label={copied ? "Citation copied" : "Copy citation to clipboard"}
-          className={`inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] font-bold transition-all duration-150 ${
-            copied
-              ? "bg-emerald-600 text-white"
-              : "bg-brand text-brand-contrast hover:bg-brand-hover"
-          }`}
-        >
+        <button type="button">
           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy"}
         </button>
-        <button
-          onClick={download}
-          aria-label={`Download citation as ${format === "apa" ? "TXT" : format.toUpperCase()} file`}
-          className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-divider bg-paper px-3 py-2 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
-        >
+        <button type="button">
           <Download className="h-4 w-4" />
           {format === "apa" ? "TXT" : format.toUpperCase()}
         </button>
@@ -127,8 +111,7 @@ export default function CiteThis({
           <span className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-text-muted">
             <Quote className="h-3.5 w-3.5" /> Cite this report
           </span>
-          <button
-            onClick={() => setOpen(false)}
+          <button type="button" onClick={() => setOpen(false)}
             aria-label="Close citation panel"
             className="cursor-pointer text-[12px] font-medium text-text-muted transition-colors hover:text-brand"
           >

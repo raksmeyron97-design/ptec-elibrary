@@ -50,6 +50,41 @@ const PersonIcon = () => (
   </svg>
 );
 
+// ── Nav link (desktop uses separate component; this is mobile-only) ──
+function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC; label: string, pathname: string }) {
+  const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+  return (
+    <Link
+      href={href}
+      className={`relative flex flex-col items-center gap-[3px] min-w-[52px] py-1.5 group ${
+        isActive ? "text-brand font-bold" : "text-text-muted font-medium"
+      }`}
+    >
+      <motion.span
+        animate={{ scale: isActive ? 1.15 : 1 }}
+        transition={{ type: "spring", stiffness: 420, damping: 22, mass: 0.6 }}
+      >
+        <Icon />
+      </motion.span>
+      <span className="text-[10px] tracking-wide whitespace-nowrap overflow-visible">
+        {label}
+      </span>
+      <AnimatePresence>
+        {isActive && (
+          <motion.span
+            key="dot"
+            className="absolute top-[2px] w-1 h-1 rounded-full bg-brand"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 24 }}
+          />
+        )}
+      </AnimatePresence>
+    </Link>
+  );
+}
+
 // ── Types ──────────────────────────────────────────────────────
 type UserInfo = {
   email: string;
@@ -122,59 +157,15 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     return () => { document.body.style.overflow = ""; };
   }, [sheetOpen]);
 
-  // ── Nav link (desktop uses separate component; this is mobile-only) ──
-  function NavLink({ href, Icon, label }: { href: string; Icon: React.FC; label: string }) {
-    const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
-    return (
-      <Link
-        href={href}
-        className={`relative flex flex-col items-center gap-[3px] min-w-[52px] py-1.5 group ${
-          isActive ? "text-brand font-bold" : "text-text-muted font-medium"
-        }`}
-      >
-        {/*
-         * FIXED: was a simple CSS scale. Now uses Framer motion so the
-         * scale animates with a spring bounce instead of a linear ease.
-         */}
-        <motion.span
-          animate={{ scale: isActive ? 1.15 : 1 }}
-          transition={{ type: "spring", stiffness: 420, damping: 22, mass: 0.6 }}
-        >
-          <Icon />
-        </motion.span>
-
-        <span className="text-[10px] tracking-wide whitespace-nowrap overflow-visible">
-          {label}
-        </span>
-
-        {/* Active dot */}
-        <AnimatePresence>
-          {isActive && (
-            <motion.span
-              key="dot"
-              className="absolute top-[2px] w-1 h-1 rounded-full bg-brand"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 500, damping: 24 }}
-            />
-          )}
-        </AnimatePresence>
-      </Link>
-    );
-  }
-
   return (
     <>
-      {/* ── Bottom nav bar ─────────────────────────────────────── */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-bg-surface/94 backdrop-blur-[20px] saturate-150 border-t border-divider/50 shadow-[0_-6px_24px_rgba(0,0,0,0.05)]">
         <div className="flex items-center justify-around h-[64px] px-2 relative">
 
           {leftNav.map((item) => (
-            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} />
+            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} pathname={pathname} />
           ))}
 
-          {/* Center profile button */}
           <motion.button
             onClick={() => setSheetOpen(true)}
             aria-label="Open profile menu"
@@ -206,7 +197,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
           </motion.button>
 
           {rightNav.map((item) => (
-            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} />
+            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} pathname={pathname} />
           ))}
         </div>
 

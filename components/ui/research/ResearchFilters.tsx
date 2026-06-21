@@ -103,8 +103,7 @@ export default function ResearchFilters({
 
       {/* Clear filters */}
       {hasFilters && (
-        <button
-          onClick={() => router.push("/research")}
+        <button type="button" onClick={() => router.push("/research")}
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[12.5px] font-semibold text-text-muted shadow-sm transition-colors hover:border-danger/40 hover:text-danger"
         >
           <X className="h-3.5 w-3.5" />

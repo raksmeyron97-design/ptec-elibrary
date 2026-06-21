@@ -80,17 +80,7 @@ export default function OfflineSaveButton({
   };
 
   return (
-    <button
-      onClick={handleToggle}
-      disabled={status === "downloading"}
-      className={`inline-flex items-center justify-center gap-2 rounded-[14px] border px-6 py-3.5 text-[15px] font-bold transition-all
-        ${status === "saved" 
-          ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100" 
-          : "border-brand bg-brand/5 text-brand hover:bg-brand hover:text-brand-contrast"
-        }
-        ${status === "downloading" ? "opacity-70 cursor-not-allowed" : ""}
-      `}
-    >
+    <button type="button">
       {status === "downloading" ? (
         <>
           <Icon name="spinner" className="text-[20px] animate-spin" />

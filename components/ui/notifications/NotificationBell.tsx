@@ -83,8 +83,7 @@ export default function NotificationBell({ userRole }: Props) {
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Bell button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
+      <button type="button" onClick={() => setOpen((v) => !v)}
         aria-label={t("bellLabel")}
         aria-expanded={open}
         className="relative text-text-muted transition-colors hover:text-brand focus:outline-none rounded-lg p-1"
@@ -123,10 +122,7 @@ export default function NotificationBell({ userRole }: Props) {
         <div className="flex items-center justify-between border-b border-divider px-4 py-3">
           <span className="text-sm font-semibold text-text-heading">{t("title")}</span>
           {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAll}
-              className="text-xs text-brand hover:underline"
-            >
+            <button type="button">
               {t("markAllRead")}
             </button>
           )}

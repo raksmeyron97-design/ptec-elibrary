@@ -53,9 +53,7 @@ export default function SearchSuggestions({ trending = [] }: Props) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-blue-300">Recent</span>
           {recent.map((term) => (
-            <button
-              key={`r-${term}`}
-              onClick={() => go(term)}
+            <button type="button" onClick={() => go(term)}
               className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-bg-surface/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-gold-500/50 hover:bg-bg-surface/10"
             >
               <svg className="h-3 w-3 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -64,7 +62,7 @@ export default function SearchSuggestions({ trending = [] }: Props) {
               {term}
             </button>
           ))}
-          <button onClick={clearRecent} className="text-[11px] font-semibold text-blue-300/80 underline-offset-2 hover:text-white hover:underline">
+          <button type="button">
             Clear
           </button>
         </div>
@@ -74,9 +72,7 @@ export default function SearchSuggestions({ trending = [] }: Props) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className={`text-[11px] font-bold text-gold-400 ${locale === 'en' ? 'uppercase tracking-[0.16em]' : 'tracking-normal'}`}>{t('trending')}</span>
           {trending.map((term) => (
-            <button
-              key={`t-${term}`}
-              onClick={() => go(term)}
+            <button type="button" onClick={() => go(term)}
               className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20"
             >
               <svg className="h-3 w-3 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

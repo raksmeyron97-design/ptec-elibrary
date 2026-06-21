@@ -26,13 +26,12 @@ function requiredText(formData: FormData, key: string) {
   return value.trim();
 }
 
-const coverColors = [
-  "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]", "bg-[#16a34a]",
-  "bg-[#db2777]", "bg-[#0891b2]", "bg-[#ca8a04]", "bg-[#ea580c]",
-  "bg-[#dc2626]", "bg-[#4f46e5]",
-];
-
 function pickCoverColor(title: string): string {
+  const coverColors = [
+    "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]", "bg-[#16a34a]",
+    "bg-[#db2777]", "bg-[#0891b2]", "bg-[#ca8a04]", "bg-[#ea580c]",
+    "bg-[#dc2626]", "bg-[#4f46e5]",
+  ];
   let hash = 0;
   for (let i = 0; i < title.length; i++) {
     hash = title.charCodeAt(i) + ((hash << 5) - hash);

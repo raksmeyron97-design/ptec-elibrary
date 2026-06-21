@@ -20,11 +20,7 @@ export default function LanguageSwitcher({ className }: { className?: string }) 
   };
 
   return (
-    <button
-      onClick={toggle}
-      aria-label="Toggle language"
-      className={className || "flex items-center gap-1.5 text-[12px] font-medium text-gold-200 hover:text-white transition-colors cursor-pointer"}
-    >
+    <button type="button">
       {locale === 'en' ? '🇰🇭 ខ្មែរ' : '🇬🇧 English'}
     </button>
   );

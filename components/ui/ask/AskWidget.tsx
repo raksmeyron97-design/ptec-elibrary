@@ -300,8 +300,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                 {t("remaining", { count: remaining })}
               </span>
             )}
-            <button
-              onClick={() => setOpen(false)}
+            <button type="button" onClick={() => setOpen(false)}
               aria-label="Close library assistant"
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-blue-300/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
             >
@@ -338,9 +337,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                     <p className="text-center text-[12px] text-blue-300/60">{t("subtitle")}</p>
                     <div className="flex flex-col gap-2">
                       {starters.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => sendMessage(s)}
+                        <button type="button" onClick={() => sendMessage(s)}
                           disabled={inputDisabled}
                           className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-[13px] text-blue-100 transition-colors hover:border-gold-400/40 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:pointer-events-none disabled:opacity-40"
                         >
@@ -435,9 +432,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
       )}
 
       {/* ── FAB ───────────────────────────────────────────────────── */}
-      <button
-        ref={fabRef}
-        onClick={() => setOpen((v) => !v)}
+      <button type="button" onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close library assistant" : t("open")}
         aria-expanded={open}
         className={`

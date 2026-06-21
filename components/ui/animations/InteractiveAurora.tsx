@@ -1,8 +1,4 @@
-"use client"
-/* eslint-disable @typescript-eslint/no-unused-vars */
-;
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
+"use client";
 
 import { useRef, useEffect } from "react";
 import {

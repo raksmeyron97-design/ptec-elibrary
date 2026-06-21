@@ -68,11 +68,11 @@ export default function CatalogBookLoading() {
                   <div key={i} className="space-y-1.5">
                     <div
                       className="h-3 rounded skeleton"
-                      style={{ width: `${50 + Math.random() * 30}%`, animationDelay: `${i * 60}ms` }}
+                      style={{ width: `${50 + ((i * 13) % 30)}%`, animationDelay: `${i * 60}ms` }}
                     />
                     <div
                       className="h-4 rounded skeleton"
-                      style={{ width: `${40 + Math.random() * 40}%`, animationDelay: `${i * 60}ms` }}
+                      style={{ width: `${40 + ((i * 17) % 40)}%`, animationDelay: `${i * 60}ms` }}
                     />
                   </div>
                 ))}

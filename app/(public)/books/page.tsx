@@ -190,9 +190,9 @@ export default async function BooksPage({
               })}
             </div>
 
-            {/* Sort & Filters — single row, no divider that breaks on wrap */}
-            <div className="flex items-center gap-2 flex-wrap min-w-0 w-full">
-              <div className="flex items-center gap-1.5 min-w-0">
+            {/* Sort & Filters — single row, horizontally scrollable on mobile */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none w-full">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-[11px] text-text-muted font-medium uppercase tracking-wider">
                   {t('sortLabel')}
                 </span>
@@ -209,18 +209,22 @@ export default async function BooksPage({
                 />
               </div>
               <div className="w-px h-4 bg-divider shrink-0" />
-              <FilterSelect
-                value={params.language || ""}
-                options={languages}
-                defaultLabel={t('filterLanguage')}
-                paramKey="language"
-              />
-              <FilterSelect
-                value={params.format || ""}
-                options={formats}
-                defaultLabel={t('filterFormat')}
-                paramKey="format"
-              />
+              <div className="shrink-0">
+                <FilterSelect
+                  value={params.language || ""}
+                  options={languages}
+                  defaultLabel={t('filterLanguage')}
+                  paramKey="language"
+                />
+              </div>
+              <div className="shrink-0">
+                <FilterSelect
+                  value={params.format || ""}
+                  options={formats}
+                  defaultLabel={t('filterFormat')}
+                  paramKey="format"
+                />
+              </div>
             </div>
           </div>
 

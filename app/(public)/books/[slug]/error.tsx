@@ -30,10 +30,7 @@ export default function BookDetailError({
         Something went wrong while fetching the book details. Please try again.
       </p>
       <div className="mt-6 flex gap-3">
-        <button
-          onClick={reset}
-          className="inline-flex h-10 items-center rounded-[12px] bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
-        >
+        <button type="button">
           Try again
         </button>
         <Link

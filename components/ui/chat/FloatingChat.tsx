@@ -46,8 +46,7 @@ export default function FloatingChat() {
               <Bot size={20} />
               <h3 className="font-semibold">ជំនួយការបណ្ណាល័យ AI</h3>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
+            <button type="button" onClick={() => setIsOpen(false)}
               className="p-1 hover:bg-black/10 rounded-md transition-colors"
               aria-label="Close chat"
             >
@@ -137,8 +136,7 @@ export default function FloatingChat() {
       )}
 
       {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
+      <button type="button" onClick={() => setIsOpen(!isOpen)}
         className="w-14 h-14 rounded-full bg-brand text-brand-contrast flex items-center justify-center shadow-xl hover:scale-105 active:scale-95 transition-all"
         aria-label="Toggle chat"
       >

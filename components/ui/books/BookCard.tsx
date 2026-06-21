@@ -3,6 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 import type { Book } from "@/lib/books";
 import BookCover from "@/components/ui/books/BookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
@@ -35,6 +36,9 @@ const formatCount = (n: number) =>
       : String(n);
 
 export default function BookCard({ book, variant = "browse" }: BookCardProps) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
+
   const t = useTranslations("home");
   const tc = useTranslations("bookCard");
   const router = useRouter();
@@ -44,13 +48,13 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
   const reviews = book.reviewCount ?? 0;
 
   // NEW badge: only within 14 days of creation, only on browse variant
-  const isNew = !isContinue && book.createdAt
-    ? Date.now() - new Date(book.createdAt).getTime() < FOURTEEN_DAYS_MS
+  const isNew = !isContinue && book.createdAt && now
+    ? now - new Date(book.createdAt).getTime() < FOURTEEN_DAYS_MS
     : false;
 
   function relativeTime(iso: string | null | undefined): string {
-    if (!iso) return "";
-    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    if (!iso || !now) return "";
+    const days = Math.floor((now - new Date(iso).getTime()) / 86_400_000);
     if (days === 0) return t("today");
     if (days === 1) return t("yesterday");
     if (days < 7) return t("daysAgo", { days });

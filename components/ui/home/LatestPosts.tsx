@@ -167,7 +167,7 @@ function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
       {/* Image */}
       <div className="relative aspect-[16/9] w-full overflow-hidden">
         {post.coverUrl ? (
-          <Image src={post.coverUrl} alt={post.title} fill className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+          <Image src={post.coverUrl} alt={post.title} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
         ) : (
           <div className={`flex h-full w-full items-center justify-center bg-gradient-to-br ${pickBanner(post.title)} p-4`}>
             <span className="line-clamp-2 text-center font-khmer-serif text-sm font-bold text-white/90">{post.title}</span>

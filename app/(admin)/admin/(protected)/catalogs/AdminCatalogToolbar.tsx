@@ -153,10 +153,7 @@ export default function AdminCatalogToolbar({
           </select>
 
           {anyFilterActive && (
-            <button
-              onClick={resetAll}
-              className="h-10 rounded-xl border border-divider px-3 text-xs font-semibold text-text-body transition hover:bg-paper"
-            >
+            <button type="button">
               Reset
             </button>
           )}

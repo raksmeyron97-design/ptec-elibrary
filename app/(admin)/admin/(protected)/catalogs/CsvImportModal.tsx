@@ -114,8 +114,7 @@ export default function CsvImportModal() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
+      <button type="button" onClick={() => setOpen(true)}
         className="inline-flex h-10 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-5 text-sm font-semibold text-text-body transition hover:bg-paper"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -133,7 +132,7 @@ export default function CsvImportModal() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-divider bg-paper px-6 py-4">
               <h2 className="font-bold text-text-heading">Import Books from CSV</h2>
-              <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
+              <button type="button" onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
                 </svg>
@@ -165,8 +164,7 @@ export default function CsvImportModal() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => {
+                <button type="button" onClick={() => {
                     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
                     const a = document.createElement("a");
                     a.href = URL.createObjectURL(blob);
@@ -249,17 +247,12 @@ export default function CsvImportModal() {
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setOpen(false)}
+                <button type="button" onClick={() => setOpen(false)}
                   className="rounded-xl border border-divider px-5 py-2 text-sm font-semibold text-text-body transition hover:bg-paper"
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleImport}
-                  disabled={!csvText.trim() || isPending}
-                  className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-6 py-2 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50"
-                >
+                <button type="button">
                   {isPending ? "Importing…" : "Import"}
                 </button>
               </div>

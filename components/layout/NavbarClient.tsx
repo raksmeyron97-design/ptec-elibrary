@@ -44,6 +44,11 @@ export default function NavbarClient({ user }: NavbarClientProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const initials = user ? getInitials(user.full_name, user.email) : "";
+  const displayName = user ? (user.full_name || user.email) : "";
+  const showAvatar = user ? (!!user.avatar_url && !avatarFailed) : false;
+
   // ── Not logged in ─────────────────────────────────────────────
   if (!user) {
     return (
@@ -57,16 +62,11 @@ export default function NavbarClient({ user }: NavbarClientProps) {
   }
 
   // ── Logged in ─────────────────────────────────────────────────
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  const initials = getInitials(user.full_name, user.email);
-  const displayName = user.full_name || user.email;
-  const showAvatar = !!user.avatar_url && !avatarFailed;
 
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Avatar button */}
-      <button
-        onClick={() => setOpen((v) => !v)}
+      <button type="button" onClick={() => setOpen((v) => !v)}
         className="relative h-9 w-9 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus-ring/20"
         aria-label="User menu"
         aria-expanded={open}

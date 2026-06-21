@@ -130,7 +130,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
             className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
           />
           {query && (
-            <button onClick={() => handleSearch("")} className="text-text-muted hover:text-text-body">
+            <button type="button" onClick={() => handleSearch("")} className="text-text-muted hover:text-text-body">
               ✕
             </button>
           )}
@@ -154,9 +154,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
       {/* ── Category filter ── */}
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => handleCategory(c)}
+          <button type="button" onClick={() => handleCategory(c)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               activeCat === c
                 ? "bg-brand text-white"
@@ -239,8 +237,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
 
                       {/* Status (clickable toggle) */}
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleToggle(post.id, post.isPublished)}
+                        <button type="button" onClick={() => handleToggle(post.id, post.isPublished)}
                           disabled={isToggling || isDeleting}
                           title={post.isPublished ? "Click to unpublish" : "Click to publish"}
                           className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide transition disabled:opacity-50 ${
@@ -280,15 +277,13 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                         {isConfirming ? (
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs text-text-muted">Delete?</span>
-                            <button
-                              onClick={() => handleDelete(post.id)}
+                            <button type="button" onClick={() => handleDelete(post.id)}
                               disabled={isDeleting}
                               className="rounded bg-red-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                             >
                               {isDeleting ? "…" : "Yes"}
                             </button>
-                            <button
-                              onClick={() => setConfirmId(null)}
+                            <button type="button" onClick={() => setConfirmId(null)}
                               className="rounded bg-paper px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper"
                             >
                               No
@@ -303,8 +298,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                           >
                             <Icon name="edit" className="w-5 h-5" />
                           </Link>
-                          <button
-                            onClick={() => setConfirmId(post.id)}
+                          <button type="button" onClick={() => setConfirmId(post.id)}
                             disabled={isDeleting}
                             className="hover:text-red-500 transition disabled:opacity-50"
                             title="Delete"
@@ -332,9 +326,9 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
             showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
           </p>
           <div className="flex gap-1.5">
-            <button onClick={() => setPage(1)} disabled={safePage === 1}
+            <button type="button" onClick={() => setPage(1)} disabled={safePage === 1}
               className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">«</button>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+            <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
               className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">‹</button>
 
             {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -348,16 +342,16 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                 p === "…" ? (
                   <span key={`ellipsis-${i}`} className="flex h-8 w-8 items-center justify-center text-xs text-text-muted">…</span>
                 ) : (
-                  <button key={p} onClick={() => setPage(p as number)}
+                  <button type="button" onClick={() => setPage(p as number)}
                     className={`h-8 min-w-[2rem] rounded-lg border px-2 text-xs font-bold transition ${
                       safePage === p ? "border-brand bg-brand text-white" : "border-divider text-text-body hover:bg-paper"
                     }`}>{p}</button>
                 )
               )}
 
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+            <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
               className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">›</button>
-            <button onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
+            <button type="button" onClick={() => setPage(totalPages)} disabled={safePage === totalPages}
               className="h-8 w-8 rounded-lg border border-divider text-xs font-bold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40">»</button>
           </div>
         </div>

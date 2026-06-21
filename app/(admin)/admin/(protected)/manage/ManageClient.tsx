@@ -138,7 +138,7 @@ export default function ManageClient({
               className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
             />
             {queryText && (
-              <button onClick={clearSearch} className="text-text-muted hover:text-text-body">✕</button>
+              <button type="button">✕</button>
             )}
           </div>
 
@@ -182,10 +182,7 @@ export default function ManageClient({
             </select>
 
             {anyFilterActive && (
-              <button
-                onClick={resetAll}
-                className="rounded-lg border border-divider px-3 py-2 text-xs font-semibold text-text-body transition hover:bg-paper"
-              >
+              <button type="button">
                 Reset
               </button>
             )}
@@ -331,15 +328,13 @@ export default function ManageClient({
                         {isConfirming ? (
                           <div className="flex items-center justify-end gap-2">
                             <span className="text-xs text-text-muted">Delete?</span>
-                            <button
-                              onClick={() => handleDelete(book.id)}
+                            <button type="button" onClick={() => handleDelete(book.id)}
                               disabled={isDeleting}
                               className="rounded bg-red-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                             >
                               {isDeleting ? "…" : "Yes"}
                             </button>
-                            <button
-                              onClick={() => setConfirmId(null)}
+                            <button type="button" onClick={() => setConfirmId(null)}
                               className="rounded bg-paper px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper"
                             >
                               No
@@ -354,8 +349,7 @@ export default function ManageClient({
                             >
                               <Icon name="edit" className="w-5 h-5" />
                             </Link>
-                            <button
-                              onClick={() => setConfirmId(book.id)}
+                            <button type="button" onClick={() => setConfirmId(book.id)}
                               disabled={isDeleting}
                               className="hover:text-red-500 transition disabled:opacity-50"
                               title="Delete"

@@ -193,9 +193,7 @@ export default function AddCopiesClient({
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-muted">Quick add:</span>
           {[1, 3, 5, 10].map((n) => (
-            <button
-              key={n}
-              onClick={() => addManyRows(n)}
+            <button type="button" onClick={() => addManyRows(n)}
               className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
             >
               +{n}
@@ -239,8 +237,7 @@ export default function AddCopiesClient({
               <div className="flex items-center gap-2">
                 {/* Save this row */}
                 {!row.saved && (
-                  <button
-                    onClick={() => saveRow(row)}
+                  <button type="button" onClick={() => saveRow(row)}
                     disabled={row.saving}
                     className="rounded-lg border border-brand/30 px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand/5 disabled:opacity-50"
                   >
@@ -249,8 +246,7 @@ export default function AddCopiesClient({
                 )}
                 {/* Remove row (only if not saved) */}
                 {!row.saved && rows.length > 1 && (
-                  <button
-                    onClick={() => removeRow(row.id)}
+                  <button type="button" onClick={() => removeRow(row.id)}
                     className="rounded-lg p-1.5 text-text-muted transition hover:text-red-400"
                     aria-label="Remove row"
                   >
@@ -366,10 +362,7 @@ export default function AddCopiesClient({
       </div>
 
       {/* Add another row button */}
-      <button
-        onClick={addRow}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-divider py-4 text-sm font-semibold text-text-muted transition hover:border-brand/40 hover:text-brand"
-      >
+      <button type="button">
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
         </svg>
@@ -385,17 +378,11 @@ export default function AddCopiesClient({
 
       {/* Footer actions */}
       <div className="flex items-center justify-between rounded-2xl border border-divider bg-bg-surface px-6 py-4 shadow-sm">
-        <button
-          onClick={handleGoToAdmin}
-          className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body transition hover:bg-paper"
-        >
+        <button type="button">
           Save &amp; go to admin
         </button>
 
-        <button
-          onClick={handleFinish}
-          className="rounded-xl bg-gradient-to-br from-blue-950 to-brand px-8 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(0,124,145,0.3)] transition hover:shadow-[0_6px_24px_rgba(0,124,145,0.45)] active:scale-[0.98]"
-        >
+        <button type="button">
           Save &amp; Finish →
         </button>
       </div>

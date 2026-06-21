@@ -92,8 +92,7 @@ export default function ImageGallery({ urls, alt }: { urls: string[]; alt: strin
           />
 
           {/* Close */}
-          <button onClick={closeLightbox} aria-label="Close"
-            className="absolute right-4 top-4 rounded-full bg-bg-surface/10 p-2.5 text-white backdrop-blur-sm transition hover:bg-bg-surface/25">
+          <button type="button">
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
@@ -101,7 +100,7 @@ export default function ImageGallery({ urls, alt }: { urls: string[]; alt: strin
 
           {/* Prev */}
           {urls.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Previous"
+            <button type="button" onClick={(e) => { e.stopPropagation(); prev(); }} aria-label="Previous"
               className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-bg-surface/10 p-3 text-white backdrop-blur-sm transition hover:bg-bg-surface/25">
               <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
@@ -111,7 +110,7 @@ export default function ImageGallery({ urls, alt }: { urls: string[]; alt: strin
 
           {/* Next */}
           {urls.length > 1 && (
-            <button onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Next"
+            <button type="button" onClick={(e) => { e.stopPropagation(); next(); }} aria-label="Next"
               className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-bg-surface/10 p-3 text-white backdrop-blur-sm transition hover:bg-bg-surface/25">
               <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 18l6-6-6-6"/>

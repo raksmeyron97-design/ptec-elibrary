@@ -73,12 +73,7 @@ export default function NotificationItem({ notification: n, onRead, onClose }: P
   }
 
   return (
-    <button
-      onClick={handleClick}
-      className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-bg-muted ${
-        n.is_read ? "opacity-60" : ""
-      }`}
-    >
+    <button type="button">
       <span
         className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           TYPE_COLOR[n.type] ?? "bg-bg-muted text-text-muted"

@@ -218,19 +218,6 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
     content: <ReferenceList references={references} />,
   });
 
-  // Small reusable meta chip
-  const MetaChip = ({
-    icon,
-    children,
-  }: {
-    icon: React.ReactNode;
-    children: React.ReactNode;
-  }) => (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] font-medium text-text-body">
-      <span className="text-text-muted">{icon}</span>
-      {children}
-    </span>
-  );
 
   const reportAuthors = report.author_names
     ? (report.author_names as string).split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -367,7 +354,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
             <div className="overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-sm">
               <div className="relative aspect-[3/4] w-full">
                 {report.cover_url ? (
-                  <Image src={report.cover_url} alt={report.title} fill className="object-cover" />
+                  <Image src={report.cover_url} alt={report.title} fill sizes="(max-width: 768px) 100vw, 240px" className="object-cover" />
                 ) : (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand/5 to-brand/10">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-brand/25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -447,7 +434,21 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <dt className="shrink-0 text-text-muted">{label}</dt>
-      <dd className="text-right font-medium text-text-heading">{value}</dd>
     </div>
+  );
+}
+
+function MetaChip({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] font-medium text-text-body">
+      <span className="text-text-muted">{icon}</span>
+      {children}
+    </span>
   );
 }

@@ -6,9 +6,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
-import { getHomeStats } from "@/lib/home-stats";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import HeroStats from "@/components/ui/home/HeroStats";
+import HeroStatsStrip from "@/components/ui/home/HeroStatsStrip";
 import { Button } from "@/components/ui/core/Button";
 import { getTranslations, getLocale } from "next-intl/server";
 
@@ -59,10 +58,9 @@ export default async function HomePage() {
   const locale = await getLocale();
 
   const supabase = await createClient();
-  const [trendingBooks, trendingTerms, homeStats, { data: { user } }] = await Promise.all([
+  const [trendingBooks, trendingTerms, { data: { user } }] = await Promise.all([
     getTrendingBooks(),
     getTrendingTerms(),
-    getHomeStats(),
     supabase.auth.getUser(),
   ]);
 
@@ -109,14 +107,24 @@ export default async function HomePage() {
             className="absolute inset-0 bg-gradient-to-t from-[#060B1A]/90 via-transparent to-[#060B1A]/40"
           />
 
-          {/* 3. CSS aurora overlay */}
+          {/* 3. Subtle dot grid — depth texture */}
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-40"
+            style={{
+              backgroundImage: "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
+          />
+
+          {/* 4. CSS aurora overlay */}
           <div className="aurora absolute inset-0 opacity-50" aria-hidden />
 
           {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
           {/* <InteractiveAurora className="absolute inset-0" /> */}
         </div>
 
-        <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16 lg:py-16">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-14 sm:py-20 md:px-12 md:py-24 lg:py-28">
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
 
             {/* ── Left column ── */}
@@ -131,12 +139,12 @@ export default async function HomePage() {
 
               {/* Headline */}
               <h1
-                className={`mt-3 font-khmer-serif font-bold text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${
+                className={`mt-3 font-bold text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${
                   locale === "km"
-                    ? "leading-[1.4] tracking-normal"
-                    : "leading-[1.1] tracking-tight"
+                    ? "font-khmer-serif leading-[1.4] tracking-normal"
+                    : "font-serif leading-[1.06] tracking-tight"
                 }`}
-                style={{ fontSize: "clamp(28px, 3.8vw, 46px)" }}
+                style={{ fontSize: "clamp(30px, 4.4vw, 58px)" }}
               >
                 {t("headline")}
               </h1>
@@ -161,8 +169,6 @@ export default async function HomePage() {
                 <MobileFeaturedStrip books={heroBooks} />
               </div>
 
-              {/* Stats row — last child so it fades in as part of the hero stagger */}
-              <HeroStats stats={homeStats} />
             </div>
 
             {/* ── Right column — desktop book stack ── */}
@@ -183,6 +189,11 @@ export default async function HomePage() {
         {/* Gold seam at the bottom of the hero */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
+
+      {/* ════════ STATS STRIP ════════ */}
+      <Suspense fallback={<div className="h-[100px] animate-pulse bg-bg-surface border-b border-divider" />}>
+        <HeroStatsStrip />
+      </Suspense>
 
       {/* ════════ BENTO ════════ */}
       <Suspense fallback={<div className="h-48 animate-pulse bg-bg-surface border-b border-divider/60" />}>
@@ -212,19 +223,37 @@ export default async function HomePage() {
       {/* ════════ CTA BANNER — logged-out visitors only ════════ */}
       {!user && (
         <section className="hero-ink relative overflow-hidden">
-          {/* Aurora: z-auto + DOM order ensures it sits behind the content div */}
           <div className="aurora absolute inset-0" aria-hidden />
-          <div className="relative mx-auto max-w-[1400px] px-4 py-14 sm:py-18 md:px-12 md:py-20 text-center">
+          {/* Dot grid for consistency with hero */}
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage: "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px)",
+              backgroundSize: "28px 28px",
+            }}
+          />
+
+          <div className="relative mx-auto max-w-[1400px] px-4 py-16 sm:py-20 md:px-12 md:py-24 text-center">
+            {/* Gold eyebrow line */}
+            <div className="mb-4 flex items-center justify-center gap-3">
+              <span className="h-px w-12 bg-gradient-to-r from-transparent to-gold-400/60" aria-hidden />
+              <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400">
+                Free for educators
+              </span>
+              <span className="h-px w-12 bg-gradient-to-l from-transparent to-gold-400/60" aria-hidden />
+            </div>
+
             <h2
               className="font-khmer-serif font-bold text-white"
-              style={{ fontSize: "clamp(22px, 3.4vw, 38px)" }}
+              style={{ fontSize: "clamp(24px, 3.4vw, 42px)" }}
             >
               {t("ctaHeading")}
             </h2>
-            <p className="mx-auto mt-3 max-w-lg text-[14px] leading-relaxed text-blue-200 sm:text-[15px]">
+            <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-blue-200/90 sm:text-[16px]">
               {t("ctaBody")}
             </p>
-            <div className="mt-7 flex flex-col sm:flex-row justify-center gap-3">
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
               <Link href="/books" className="w-full sm:w-auto">
                 <Button variant="gold" size="lg" className="w-full sm:w-auto">{t("ctaBrowse")}</Button>
               </Link>

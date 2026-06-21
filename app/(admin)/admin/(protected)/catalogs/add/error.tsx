@@ -27,8 +27,7 @@ export default function Error({
         <p className="text-sm text-red-600/80 dark:text-red-300/80 mb-6">
           {error.message || 'An unexpected error occurred while loading this page.'}
         </p>
-        <button
-          onClick={() => reset()}
+        <button type="button" onClick={() => reset()}
           className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900 focus:outline-none"
         >
           Try again

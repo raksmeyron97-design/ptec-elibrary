@@ -56,18 +56,13 @@ export default function InstallPWA() {
 
   return (
     <div className="relative flex items-center">
-      <button
-        onClick={handleInstallClick}
-        aria-label="Install App"
-        className="w-9 h-9 rounded-xl bg-bg-surface/5 border border-white/10 flex items-center justify-center hover:bg-brand hover:border-brand transition-all text-blue-100 hover:text-white"
-      >
+      <button type="button">
         <Icon name="download" className="text-[16px]" />
       </button>
 
       {showIOSHint && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg z-50">
-          <button 
-            onClick={() => setShowIOSHint(false)}
+          <button type="button" onClick={() => setShowIOSHint(false)}
             className="absolute right-2 top-2 text-text-muted hover:text-text-heading"
           >
             <Icon name="x" className="text-lg" />

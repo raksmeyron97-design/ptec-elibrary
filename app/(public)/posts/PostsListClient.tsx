@@ -94,7 +94,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
           className="flex-1 bg-transparent text-sm text-text-body placeholder-text-muted outline-none"
         />
         {query && (
-          <button onClick={() => setQuery("")} className="text-text-muted hover:text-text-body transition-colors">
+          <button type="button" onClick={() => setQuery("")} className="text-text-muted hover:text-text-body transition-colors">
             ✕
           </button>
         )}
@@ -103,9 +103,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
       {/* ── Filter bar ── */}
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((c) => (
-          <button
-            key={c}
-            onClick={() => setActiveCat(c)}
+          <button type="button" onClick={() => setActiveCat(c)}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
               activeCat === c
                 ? "bg-brand text-brand-contrast shadow-sm"
@@ -176,11 +174,11 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                     {t(`category${post.category}` as any)}
                   </span>
                 </div>
-                <h3 className="mb-2 line-clamp-2 font-khmer-serif font-bold text-[15px] leading-[1.4] text-text-heading transition group-hover:text-brand">
+                <h3 className="mb-2 line-clamp-2 font-khmer-serif font-bold text-[15px] leading-[1.6] text-text-heading transition group-hover:text-brand">
                   {post.title}
                 </h3>
                 {post.excerpt && (
-                  <p className="mb-4 line-clamp-2 font-sans text-[13px] leading-relaxed text-text-muted">
+                  <p className="mb-4 line-clamp-2 font-sans text-[13px] leading-[1.7] text-text-muted">
                     {post.excerpt}
                   </p>
                 )}

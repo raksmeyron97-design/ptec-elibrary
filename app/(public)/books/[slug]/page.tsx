@@ -268,7 +268,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         </nav>
 
         {book.fromSupabase && book.pdfUrl && book.dbId && (
-          <div id="reader" className="mb-8 scroll-mt-24">
+          <div id="reader" className="mb-8 scroll-mt-24 w-full overflow-hidden">
             <PDFViewer
               title={book.title}
               pdfUrl={fileSrc as string}
@@ -367,7 +367,7 @@ allowDownload={true}
               ].map(([label, value]) => (
                 <div key={label} className="rounded-[13px] bg-paper border border-divider px-3 py-2.5 sm:px-4 sm:py-3.5 min-w-0">
                   <dt className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
-                  <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-all min-w-0">{value}</dd>
+                  <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
                 </div>
               ))}
             </dl>

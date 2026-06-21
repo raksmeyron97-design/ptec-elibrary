@@ -194,11 +194,7 @@ export default function CopiesManager({
   return (
     <>
       {/* Trigger button */}
-      <button
-        onClick={handleOpen}
-        className="relative text-text-muted transition hover:text-brand"
-        title="Manage Copies"
-      >
+      <button type="button">
         <Icon name="library" className="w-5 h-5" />
         {copies.length > 0 && !open && (
           <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand text-[8px] font-bold text-white ring-2 ring-bg-surface">
@@ -220,7 +216,7 @@ export default function CopiesManager({
                   {copies.length} cop{copies.length !== 1 ? "ies" : "y"} · {availableCount} available
                 </p>
               </div>
-              <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
+              <button type="button" onClick={() => setOpen(false)} className="text-text-muted hover:text-text-body transition">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
                 </svg>
@@ -230,9 +226,7 @@ export default function CopiesManager({
             {/* Tabs */}
             <div className="flex border-b border-divider px-6">
               {(["list", "add", "bulk"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                <button type="button" onClick={() => setTab(t)}
                   className={`py-3 px-3 text-xs font-semibold border-b-2 transition -mb-px ${
                     tab === t
                       ? "border-brand text-brand"
@@ -298,10 +292,10 @@ export default function CopiesManager({
                                 </div>
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={() => handleSaveEdit(copy.id)} disabled={isPending} className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover disabled:opacity-50">
+                                <button type="button" onClick={() => handleSaveEdit(copy.id)} disabled={isPending} className="flex-1 rounded-lg bg-brand py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover disabled:opacity-50">
                                   {isPending ? "Saving…" : "Save"}
                                 </button>
-                                <button onClick={() => setEditingId(null)} className="rounded-lg border border-divider px-3 py-1.5 text-xs text-text-muted hover:bg-paper">
+                                <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-divider px-3 py-1.5 text-xs text-text-muted hover:bg-paper">
                                   Cancel
                                 </button>
                               </div>
@@ -335,10 +329,10 @@ export default function CopiesManager({
                               >
                                 {STATUS_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                               </select>
-                              <button onClick={() => startEdit(copy)} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-brand hover:text-brand transition">
+                              <button type="button" onClick={() => startEdit(copy)} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-brand hover:text-brand transition">
                                 Edit
                               </button>
-                              <button onClick={() => handleDelete(copy.id)} disabled={isPending} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-red-300 hover:text-red-500 transition disabled:opacity-50">
+                              <button type="button" onClick={() => handleDelete(copy.id)} disabled={isPending} className="shrink-0 rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted hover:border-red-300 hover:text-red-500 transition disabled:opacity-50">
                                 ×
                               </button>
                             </div>
@@ -381,7 +375,7 @@ export default function CopiesManager({
                       <input value={addForm.notes} onChange={(e) => setAddForm({...addForm, notes: e.target.value})} className={inputCls} placeholder="e.g. Damaged spine" />
                     </div>
                   </div>
-                  <button onClick={handleAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-blue-950 to-brand py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
+                  <button type="button">
                     {isPending ? "Adding…" : "Add Copy"}
                   </button>
                 </div>
@@ -417,7 +411,7 @@ export default function CopiesManager({
                       <input value={bulkShelf} onChange={(e) => setBulkShelf(e.target.value)} className={inputCls} placeholder={bookShelfLocation ?? "A-1-01"} />
                     </div>
                   </div>
-                  <button onClick={handleBulkAdd} disabled={isPending} className="w-full rounded-xl bg-gradient-to-br from-blue-950 to-brand py-2.5 text-sm font-semibold text-white shadow transition hover:shadow-lg disabled:opacity-50">
+                  <button type="button">
                     {isPending ? "Adding…" : "Bulk Add Copies"}
                   </button>
                 </div>
