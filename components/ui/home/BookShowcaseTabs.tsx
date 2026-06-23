@@ -132,9 +132,9 @@ export default function BookShowcaseTabs({
               : "Nothing added recently."}
         </div>
       ) : layout === "grid" ? (
-        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-5">
+        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {books.map((book) => (
-            <StaggerRevealItem key={book.slug}>
+            <StaggerRevealItem key={book.slug} className="h-full">
               <BookCard book={book} />
             </StaggerRevealItem>
           ))}

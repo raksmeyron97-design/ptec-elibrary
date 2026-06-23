@@ -41,7 +41,7 @@ async function getTrendingBooks() {
     .select(BOOK_SELECT)
     .eq("is_published", true)
     .order("download_count", { ascending: false })
-    .limit(60); // 60 so BrowseBooksSection can group up to 6 depts × 10 books
+    .limit(72); // 72 so BrowseBooksSection can group up to 6 depts × 12 books
   return (data ?? []).map(mapRowToBook);
 }
 

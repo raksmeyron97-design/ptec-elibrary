@@ -16,7 +16,7 @@ async function getRecentlyAdded() {
     .select(BOOK_SELECT)
     .eq("is_published", true)
     .order("published_at", { ascending: false })
-    .limit(10);
+    .limit(12);
   return (data ?? []).map(mapRowToBook);
 }
 
@@ -36,13 +36,13 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
     if (dept && dept !== "General") {
       if (!deptMap.has(dept)) deptMap.set(dept, []);
       const arr = deptMap.get(dept)!;
-      if (arr.length < 10) arr.push(book);
+      if (arr.length < 12) arr.push(book);
     }
   }
   const depts = [...deptMap.keys()].slice(0, 6);
   const deptBooks = Object.fromEntries(deptMap.entries());
 
-  const trending10 = trendingBooks.slice(0, 10);
+  const trending12 = trendingBooks.slice(0, 12);
 
   return (
     <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
@@ -56,7 +56,7 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
         </ScrollRevealWrapper>
         <ScrollRevealWrapper>
           <BookShowcaseTabs
-            trending={trending10}
+            trending={trending12}
             recent={recentlyAdded}
             depts={depts}
             deptBooks={deptBooks}

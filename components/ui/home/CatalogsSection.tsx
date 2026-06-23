@@ -43,7 +43,7 @@ export default async function CatalogsSection() {
         </ScrollRevealWrapper>
         <StaggerRevealContainer className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-4">
           {recentCatalogs.map((book) => (
-            <StaggerRevealItem key={book.slug}>
+            <StaggerRevealItem key={book.slug} className="h-full">
               <CatalogCard book={book} />
             </StaggerRevealItem>
           ))}

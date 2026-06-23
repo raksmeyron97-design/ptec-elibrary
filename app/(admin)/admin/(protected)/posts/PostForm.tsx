@@ -1,8 +1,5 @@
-"use client"
- 
-;
+"use client";
 /* eslint-disable @typescript-eslint/no-unused-vars */
-
 
 // app/admin/posts/PostForm.tsx
 import { useState, useRef } from "react";
@@ -11,6 +8,7 @@ import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/ac
 import { getPresignedUrl } from "@/app/actions/upload";
 import { makeUid, postFolder, postCoverPath } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
+import Markdown from "@/app/(public)/posts/[slug]/Markdown";
 
 const CATEGORIES = ["Research", "Announcement", "Event", "Journal", "Other"] as const;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -53,6 +51,8 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
   const [uploadProgress, setUploadProgress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState(initial?.title ?? "");
+  const [content, setContent] = useState(initial?.content ?? "");
+  const [contentTab, setContentTab] = useState<"write" | "preview">("write");
 
   // Build initial preview list from existing URLs
   const [previews, setPreviews] = useState<PreviewItem[]>(() =>
@@ -429,21 +429,64 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       </label>
 
       {/* Content */}
-      <label className="md:col-span-2">
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Content <span className="text-red-500">*</span>{" "}
-          <span className="font-normal text-text-muted">(Markdown supported)</span>
-        </span>
+      <div className="md:col-span-2">
+        {/* Tab header */}
+        <div className="mb-0 flex items-center justify-between">
+          <span className="text-sm font-semibold text-text-body">
+            Content <span className="text-red-500">*</span>{" "}
+            <span className="font-normal text-text-muted">(Markdown)</span>
+          </span>
+          <div className="flex rounded-lg border border-divider bg-paper p-0.5">
+            <button
+              type="button"
+              onClick={() => setContentTab("write")}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                contentTab === "write"
+                  ? "bg-bg-surface text-text-heading shadow-sm"
+                  : "text-text-muted hover:text-text-body"
+              }`}
+            >
+              Write
+            </button>
+            <button
+              type="button"
+              onClick={() => setContentTab("preview")}
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+                contentTab === "preview"
+                  ? "bg-bg-surface text-text-heading shadow-sm"
+                  : "text-text-muted hover:text-text-body"
+              }`}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+
+        {/* Write pane */}
         <textarea
           name="content"
           required
           rows={14}
-          defaultValue={initial?.content ?? ""}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
           disabled={busy}
           placeholder={"Write your post in Markdown…\n\n## A heading\n\nSome **bold** text and a [link](https://example.com)."}
-          className="w-full resize-y rounded-lg border border-divider p-4 text-sm font-mono leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
+          className={`mt-1.5 w-full resize-y rounded-lg border border-divider p-4 text-sm font-mono leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60 ${
+            contentTab === "write" ? "block" : "hidden"
+          }`}
         />
-      </label>
+
+        {/* Preview pane */}
+        {contentTab === "preview" && (
+          <div className="mt-1.5 min-h-[14rem] w-full rounded-lg border border-divider bg-bg-surface p-5 text-sm">
+            {content.trim() ? (
+              <Markdown content={content} />
+            ) : (
+              <p className="text-text-muted italic">Nothing to preview yet — switch to Write and add some content.</p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Error */}
       {error && (
@@ -466,7 +509,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
           disabled={busy}
           className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-950 px-6 font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <Icon name="pdf" className="text-lg" />
+          <Icon name={isEdit ? "edit" : "check"} className="text-lg" />
           {busy ? uploadProgress : isEdit ? "Save changes" : "Create post"}
         </button>
       </div>

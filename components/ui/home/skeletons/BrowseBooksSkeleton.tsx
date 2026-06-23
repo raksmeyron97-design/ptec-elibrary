@@ -6,12 +6,18 @@ export default function BrowseBooksSkeleton() {
           <div className="h-10 w-48 rounded-full skeleton shadow-sm" />
           <div className="hidden h-5 w-32 rounded skeleton sm:block" />
         </div>
-        <div className="flex gap-4 sm:gap-5 overflow-hidden">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[150px] sm:w-[180px] lg:w-[200px] shrink-0">
-              <div className="aspect-[3/4] w-full rounded-xl skeleton border border-divider shadow-sm mb-4" />
-              <div className="h-3.5 w-3/4 rounded skeleton mb-2.5" />
-              <div className="h-3 w-1/2 rounded skeleton" />
+        <div className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="flex flex-col overflow-hidden rounded-xl bg-bg-surface/40 border border-divider shadow-sm">
+              <div className="aspect-[3/4] w-full rounded-xl skeleton border border-divider shadow-sm mb-4 bg-bg-surface/80" />
+              <div className="flex flex-1 flex-col gap-2 p-3 pb-4">
+                <div className="h-4 w-[90%] rounded bg-bg-surface/80 skeleton" />
+                <div className="h-3 w-2/3 rounded bg-bg-surface/80 skeleton" />
+                <div className="mt-4 flex justify-between">
+                  <div className="h-3 w-1/3 rounded bg-bg-surface/80 skeleton" />
+                  <div className="h-3 w-1/4 rounded bg-bg-surface/80 skeleton" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
