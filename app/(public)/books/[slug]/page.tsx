@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
@@ -131,12 +131,9 @@ async function getBook(slug: string): Promise<BookWithSource | null> {
   }
 
   if (data) {
-    // Fetch book_files and reviews with service client so anonymous users
-    // can see the PDF and ratings (book_files RLS requires auth.uid() IS NOT NULL)
-    const svc = createServiceClient();
     const [{ data: files }, { data: revs }] = await Promise.all([
-      svc.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
-      svc.from("reviews").select("rating").eq("book_id", data.id),
+      supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
+      supabase.from("reviews").select("rating").eq("book_id", data.id),
     ]);
 
     const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: revs ?? [] });

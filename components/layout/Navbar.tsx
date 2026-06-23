@@ -12,7 +12,7 @@ import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
 import NavbarStickyWrapper from "./NavbarStickyWrapper";
 import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, getLocale } from 'next-intl/server';
 import DesktopNavLinks from "./DesktopNavLinks";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
 
@@ -91,6 +91,7 @@ const ExternalLinkIcon = (
 
 export default async function Navbar() {
   const t = await getTranslations('nav');
+  const locale = (await getLocale()) as 'en' | 'km';
 
   const navLinks = [
     { label: t('home'),            href: "/home",     icon: HomeIcon },
@@ -202,7 +203,7 @@ export default async function Navbar() {
                 </a>
               </div>
               <span className="opacity-30">|</span>
-              <LanguageSwitcher />
+              <LanguageSwitcher locale={locale} />
             </div>
           </div>
         </div>
@@ -252,7 +253,7 @@ export default async function Navbar() {
               </div>
 
               {/* Hamburger + drawer — mobile/tablet only (below lg) */}
-              <MobileMenu navLinks={mobileNavLinks} user={userInfo} />
+              <MobileMenu navLinks={mobileNavLinks} user={userInfo} locale={locale} />
             </div>
 
           </div>

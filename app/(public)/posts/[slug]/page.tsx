@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // app/posts/[slug]/page.tsx
 import Link from "next/link";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
@@ -50,7 +50,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
     .select("title, excerpt, cover_url, created_at, author:profiles(full_name, email)")
@@ -117,7 +117,7 @@ export default async function PostDetailPage({
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
-  const supabase = createServiceClient();
+  const supabase = authClient;
 
   let isAdmin = false;
   if (user) {

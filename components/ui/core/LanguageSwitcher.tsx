@@ -1,23 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Globe } from 'lucide-react';
+import { setLocaleCookie } from '@/app/actions/locale';
 
-export default function LanguageSwitcher({ className }: { className?: string }) {
-  const [locale, setLocale] = useState<'en' | 'km'>('en');
+interface Props {
+  locale: 'en' | 'km';
+  className?: string;
+}
 
-  useEffect(() => {
-    const cookie = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('ptec_locale='));
-    const value = cookie?.split('=')[1];
-    if (value === 'km') setLocale('km');
-  }, []);
+export default function LanguageSwitcher({ locale, className }: Props) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
 
   const switchTo = (next: 'en' | 'km') => {
     if (next === locale) return;
-    document.cookie = `ptec_locale=${next}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-    window.location.reload();
+    startTransition(async () => {
+      await setLocaleCookie(next);
+      router.refresh();
+    });
   };
 
   const enLabel = locale === 'km' ? 'អង់គ្លេស' : 'EN';

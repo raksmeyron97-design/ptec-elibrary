@@ -18,7 +18,7 @@ function getClientIP(req: NextRequest): string {
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
-  const limit = rateLimit(ip, 30, 60000); // Max 30 requests per minute
+  const limit = await rateLimit(ip, 30, 60000); // Max 30 requests per minute
   if (!limit.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import BookCard from "@/components/ui/books/BookCard";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
 import Avatar from "@/components/ui/Avatar";
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?callbackUrl=/dashboard");
 
-  const db = createServiceClient();
+  const db = supabase;
 
   const [profileResult, savedBooks, progressResult] = await Promise.all([
     db

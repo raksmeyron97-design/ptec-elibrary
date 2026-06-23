@@ -26,6 +26,7 @@ type UserInfo = {
 type MobileMenuProps = {
   navLinks: NavItem[];
   user: UserInfo | null;
+  locale: 'en' | 'km';
 };
 
 function getInitials(name: string | null, email: string) {
@@ -40,7 +41,7 @@ function getInitials(name: string | null, email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
+export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) {
   const t = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -210,7 +211,7 @@ export default function MobileMenu({ navLinks, user }: MobileMenuProps) {
             </div>
             <div className="flex items-center justify-between rounded-lg border border-divider px-4 py-2">
               <span className="text-sm font-medium text-text-muted">Language</span>
-              <LanguageSwitcher className="flex items-center gap-2 text-sm font-medium text-text-body hover:text-brand transition-colors cursor-pointer" />
+              <LanguageSwitcher locale={locale} className="flex items-center gap-2 text-sm font-medium text-text-body hover:text-brand transition-colors cursor-pointer" />
             </div>
           </div>
           {user ? (

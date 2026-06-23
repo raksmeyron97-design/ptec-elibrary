@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 1. In-memory DDoS protection (fast fail)
-  const memLimit = rateLimit(ip, 10, 60 * 1000); // Max 10 requests per minute per IP
+  const memLimit = await rateLimit(ip, 10, 60 * 1000); // Max 10 requests per minute per IP
   if (!memLimit.success) {
     return NextResponse.json(
       { error: "Too many rapid requests. Please slow down.", secondsLeft: Math.ceil((memLimit.reset - Date.now()) / 1000) },

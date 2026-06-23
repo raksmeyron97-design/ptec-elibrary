@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import HeroStats from "@/components/ui/home/HeroStats";
@@ -71,7 +71,7 @@ async function getTrendingTerms(): Promise<string[]> {
 }
 
 async function getHomeStats() {
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data } = await supabase.rpc("get_home_stats");
   const raw = (data ?? {}) as { resources?: number; views?: number; downloads?: number; members?: number };
   return {

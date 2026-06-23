@@ -1,53 +1,43 @@
 // lib/rate-limit.ts
+// Distributed sliding-window rate limiter backed by Supabase Postgres.
+// State is shared across serverless instances and survives cold starts.
 
-type RateLimitStore = Map<string, number[]>;
+import { createClient } from "@supabase/supabase-js";
 
-const store: RateLimitStore = new Map();
+// Use the service-role client directly (no Next.js cookies needed here —
+// rate-limit checks happen in API routes, not Server Components).
+function getServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
+  );
+}
 
-/**
- * Basic in-memory rate limiter using a sliding window.
- * Note: In serverless environments (like Vercel), this state may be reset during cold starts.
- * For true distributed rate limiting, consider Upstash Redis or Vercel KV.
- * 
- * @param ip Client IP address
- * @param limit Maximum allowed requests within the window
- * @param windowMs Time window in milliseconds
- * @returns { success: boolean, remaining: number, reset: number }
- */
-export function rateLimit(ip: string, limit: number, windowMs: number) {
-  const now = Date.now();
-  
-  // Clean up old timestamps for this IP
-  let timestamps = store.get(ip) || [];
-  timestamps = timestamps.filter(time => now - time < windowMs);
-  
-  if (timestamps.length >= limit) {
-    const oldestTimestamp = timestamps[0];
-    const resetTime = oldestTimestamp + windowMs;
-    return {
-      success: false,
-      remaining: 0,
-      reset: resetTime,
-    };
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<{ success: boolean; remaining: number; reset: number }> {
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase.rpc("check_rate_limit", {
+    p_key: key,
+    p_limit: limit,
+    p_window_ms: windowMs,
+  });
+
+  if (error) {
+    // Fail open: if the DB is unavailable, allow the request rather than
+    // blocking all traffic. Log so ops can detect the outage.
+    console.error("[rate-limit] DB error, failing open:", error.message);
+    return { success: true, remaining: limit, reset: Date.now() + windowMs };
   }
 
-  // Add current request
-  timestamps.push(now);
-  store.set(ip, timestamps);
-
-  // Periodically clean up the whole store to prevent memory leaks in long-running instances
-  if (store.size > 10000) {
-    // Keep only the most recent 5000 active IPs
-    const sortedEntries = Array.from(store.entries())
-      .sort((a, b) => (b[1][b[1].length - 1] || 0) - (a[1][a[1].length - 1] || 0))
-      .slice(0, 5000);
-    store.clear();
-    for (const [k, v] of sortedEntries) store.set(k, v);
-  }
-
+  const allowed = data as boolean;
   return {
-    success: true,
-    remaining: limit - timestamps.length,
-    reset: now + windowMs,
+    success: allowed,
+    remaining: allowed ? 1 : 0,
+    reset: Date.now() + windowMs,
   };
 }

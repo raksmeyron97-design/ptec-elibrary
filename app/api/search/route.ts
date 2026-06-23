@@ -243,7 +243,7 @@ Write 1–3 concise sentences: briefly explain the topic and how the listed book
 // ── GET /api/search?q=... ─────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const ip = getClientIP(req);
-  if (!rateLimit(ip, RATE_PER_MIN, 60_000).success) {
+  if (!(await rateLimit(ip, RATE_PER_MIN, 60_000)).success) {
     return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
   }
 

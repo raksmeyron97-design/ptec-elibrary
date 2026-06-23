@@ -35,7 +35,7 @@ export async function GET(
   }
 
   // Rate-limit per user: 5 downloads / minute
-  const rl = rateLimit(user.id, DOWNLOAD_LIMIT, DOWNLOAD_WINDOW_MS);
+  const rl = await rateLimit(user.id, DOWNLOAD_LIMIT, DOWNLOAD_WINDOW_MS);
   if (!rl.success) {
     return new NextResponse("Too Many Requests", {
       status: 429,

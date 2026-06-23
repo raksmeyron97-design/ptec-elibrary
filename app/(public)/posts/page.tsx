@@ -3,7 +3,7 @@
 // app/posts/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
 
 export default async function PostsPage() {
   const t = await getTranslations('posts');
-  const supabase = createServiceClient();
+  const supabase = await createClient();
 
   // Only published posts on the public page
   const { data: posts } = await supabase

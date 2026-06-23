@@ -12,7 +12,7 @@ import ResearchTabs, { type ResearchTab } from "@/components/ui/research/Researc
 import ReferenceList from "@/components/ui/research/ReferenceList";
 import CiteThis from "@/components/ui/research/CiteThis";
 import JsonLd from "@/components/seo/JsonLd";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import {
   getKeywords,
   getReferences,
@@ -53,7 +53,7 @@ function formatCitationDate(dateStr: string | null | undefined, fallback: string
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data: report } = await supabase
     .from('research_reports')
     .select('id, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published')
@@ -139,7 +139,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
     const authClient = await createClient();
     const { data: { user } } = await authClient.auth.getUser();
     if (user) {
-      const { data: profile } = await createServiceClient()
+      const { data: profile } = await authClient
         .from("profiles")
         .select("role")
         .eq("id", user.id)

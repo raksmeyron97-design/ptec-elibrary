@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import JsonLd from "@/components/seo/JsonLd";
 import { SITE_URL } from "@/lib/seo/site";
 import type { CatalogBook } from "@/lib/catalog";
@@ -24,7 +24,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
   const { data: book } = await supabase
     .from("catalog_books")
     .select("title, description, cover_url, author, isbn, year, language, is_active")
@@ -118,7 +118,7 @@ export default async function CatalogBookPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const supabase = createServiceClient();
+  const supabase = await createClient();
 
   // Fetch book first
   const { data: book, error } = await supabase

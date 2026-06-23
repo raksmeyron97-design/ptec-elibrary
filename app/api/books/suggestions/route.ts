@@ -35,7 +35,7 @@ export type Suggestion =
 export async function GET(req: NextRequest) {
   // Rate limiting check (60 requests per minute)
   const ip = getClientIP(req);
-  const limit = rateLimit(ip, 60, 60000);
+  const limit = await rateLimit(ip, 60, 60000);
   
   if (!limit.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
