@@ -50,7 +50,7 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button type="button">
+    <button type="button" onClick={toggleTheme} aria-label="Toggle theme">
       {theme === "light" ? (
         <Icon name="moon" className="text-[18px]" />
       ) : (
