@@ -10,7 +10,7 @@ import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import HeroStats from "@/components/ui/home/HeroStats";
 import { Button } from "@/components/ui/core/Button";
 import { getTranslations, getLocale } from "next-intl/server";
-
+import { getHomeStats as fetchHomeStats } from "@/lib/home-stats";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import ContinueReading from "@/components/ui/home/ContinueReading";
@@ -71,9 +71,7 @@ async function getTrendingTerms(): Promise<string[]> {
 }
 
 async function getHomeStats() {
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("get_home_stats");
-  const raw = (data ?? {}) as { resources?: number; views?: number; downloads?: number; members?: number };
+  const raw = await fetchHomeStats();
   return {
     books: raw.resources ?? 0,
     views: raw.views ?? 0,
