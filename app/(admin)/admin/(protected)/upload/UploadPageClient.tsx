@@ -14,7 +14,7 @@ export default function UploadPageClient() {
         {(["single", "bulk"] as const).map((tab) => {
           const active = activeTab === tab;
           return (
-            <button type="button" onClick={() => setActiveTab(tab)}
+            <button key={tab} type="button" onClick={() => setActiveTab(tab)}
               className="relative px-5 py-2 text-sm font-semibold rounded-xl transition-all duration-200"
               style={
                 active

@@ -70,7 +70,7 @@ export default function CiteThis({
         {FORMATS.map((f) => {
           const active = f.id === format;
           return (
-            <button type="button" onClick={() => setFormat(f.id)}
+            <button key={f.id} type="button" onClick={() => setFormat(f.id)}
               aria-pressed={active}
               className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active

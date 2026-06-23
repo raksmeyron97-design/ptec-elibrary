@@ -103,7 +103,7 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
       {/* ── Filter bar ── */}
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((c) => (
-          <button type="button" onClick={() => setActiveCat(c)}
+          <button key={c} type="button" onClick={() => setActiveCat(c)}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
               activeCat === c
                 ? "bg-brand text-brand-contrast shadow-sm"

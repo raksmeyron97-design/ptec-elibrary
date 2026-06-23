@@ -40,7 +40,12 @@ export default function SaveButton({
   }
 
   return (
-    <button type="button">
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-divider bg-paper px-6 py-3.5 text-sm font-semibold text-text-body transition hover:border-brand hover:text-brand disabled:opacity-50"
+    >
       <Icon
         name={saved ? "bookmark" : "bookmark-plus"}
         className="text-[20px]"

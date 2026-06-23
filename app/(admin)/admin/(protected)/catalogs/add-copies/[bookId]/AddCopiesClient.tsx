@@ -193,7 +193,7 @@ export default function AddCopiesClient({
         <div className="flex items-center gap-2">
           <span className="text-xs text-text-muted">Quick add:</span>
           {[1, 3, 5, 10].map((n) => (
-            <button type="button" onClick={() => addManyRows(n)}
+            <button key={n} type="button" onClick={() => addManyRows(n)}
               className="rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body transition hover:border-brand hover:text-brand"
             >
               +{n}

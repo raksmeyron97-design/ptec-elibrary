@@ -405,6 +405,25 @@ allowDownload={true}
               )}
               <ShareButton url={`${SITE_URL}/books/${slug}`} />
             </div>
+
+            {book.tags && book.tags.length > 0 && (
+              <div className="mt-6">
+                <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-text-muted mb-2.5">
+                  {t("tags")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {book.tags.map((tag: string) => (
+                    <Link
+                      key={tag}
+                      href={`/books?tag=${encodeURIComponent(tag)}`}
+                      className="text-[12.5px] font-medium text-text-muted bg-paper border border-divider rounded-[7px] px-3 py-1 hover:bg-brand hover:text-brand-contrast hover:border-brand transition-colors"
+                    >
+                      {tag}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

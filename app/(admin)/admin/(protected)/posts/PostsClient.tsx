@@ -154,7 +154,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
       {/* ── Category filter ── */}
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
-          <button type="button" onClick={() => handleCategory(c)}
+          <button key={c} type="button" onClick={() => handleCategory(c)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               activeCat === c
                 ? "bg-brand text-white"
@@ -342,7 +342,7 @@ export default function PostsClient({ posts }: { posts: PostRow[] }) {
                 p === "…" ? (
                   <span key={`ellipsis-${i}`} className="flex h-8 w-8 items-center justify-center text-xs text-text-muted">…</span>
                 ) : (
-                  <button type="button" onClick={() => setPage(p as number)}
+                  <button key={p} type="button" onClick={() => setPage(p as number)}
                     className={`h-8 min-w-[2rem] rounded-lg border px-2 text-xs font-bold transition ${
                       safePage === p ? "border-brand bg-brand text-white" : "border-divider text-text-body hover:bg-paper"
                     }`}>{p}</button>

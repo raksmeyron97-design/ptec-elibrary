@@ -202,7 +202,8 @@
     "signInToReviewButton": "Sign in to review",
     "home": "Home",
     "books": "Books",
-    "byAuthor": "by {author}"
+    "byAuthor": "by {author}",
+    "tags": "Topics"
   },
   "physical": {
     "available": "Available",

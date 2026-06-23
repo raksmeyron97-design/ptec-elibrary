@@ -226,7 +226,7 @@ export default function CopiesManager({
             {/* Tabs */}
             <div className="flex border-b border-divider px-6">
               {(["list", "add", "bulk"] as const).map((t) => (
-                <button type="button" onClick={() => setTab(t)}
+                <button key={t} type="button" onClick={() => setTab(t)}
                   className={`py-3 px-3 text-xs font-semibold border-b-2 transition -mb-px ${
                     tab === t
                       ? "border-brand text-brand"

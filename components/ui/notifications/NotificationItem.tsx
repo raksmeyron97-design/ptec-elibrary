@@ -73,7 +73,7 @@ export default function NotificationItem({ notification: n, onRead, onClose }: P
   }
 
   return (
-    <button type="button">
+    <button type="button" onClick={handleClick} className="flex w-full items-start gap-3 text-left">
       <span
         className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           TYPE_COLOR[n.type] ?? "bg-bg-muted text-text-muted"

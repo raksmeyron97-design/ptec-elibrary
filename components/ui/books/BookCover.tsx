@@ -1,19 +1,21 @@
-// components/ui/BookCover.tsx
-// A purely-generated, designed book cover used whenever a book has no real
-// cover image. Deterministic theme + decoration based on the title, so the
-// same book always looks the same. Server-renderable (no hooks).
-
 type Variant = "card" | "thumb" | "detail" | "hero";
 
 type BookCoverProps = {
   title: string;
-  label?: string | null; // category or department shown at the top
+  label?: string | null;
   author?: string | null;
   variant?: Variant;
   className?: string;
 };
 
-const THEMES = ["bookcv-1", "bookcv-2", "bookcv-3", "bookcv-4", "bookcv-5", "bookcv-6"];
+const BG_COLORS = [
+  "#0B1530", // deep navy
+  "#172554", // navy blue
+  "#1C1917", // charcoal
+  "#14532D", // forest green
+  "#3B1F5E", // deep purple
+  "#7C2D12", // burnt sienna
+];
 
 function hashOf(seed: string): number {
   let h = 0;
@@ -21,12 +23,22 @@ function hashOf(seed: string): number {
   return Math.abs(h);
 }
 
-const SIZES: Record<Variant, { pad: string; cat: string; title: string; author: string; rule: string }> = {
-  hero:   { pad: "p-4",   cat: "text-[9px]",    title: "text-base",     author: "text-[10px]", rule: "mt-2.5 w-7" },
-  card:   { pad: "p-[22px]", cat: "text-[10px]", title: "text-[21px]",  author: "text-[12px]", rule: "mt-3.5 w-8" },
-  thumb:  { pad: "p-3",   cat: "text-[8px]",    title: "text-[13px]",   author: "text-[10px]", rule: "mt-2 w-5" },
-  detail: { pad: "p-7",   cat: "text-[11px]",   title: "text-[28px]",   author: "text-[13px]", rule: "mt-4 w-10" },
-};
+function wrapText(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    if ((current + " " + word).trim().length > maxChars) {
+      if (current) lines.push(current.trim());
+      current = word;
+    } else {
+      current = (current + " " + word).trim();
+    }
+  }
+  if (current) lines.push(current.trim());
+  return lines.slice(0, 3);
+}
 
 export default function BookCover({
   title,
@@ -36,37 +48,96 @@ export default function BookCover({
   className = "",
 }: BookCoverProps) {
   const h = hashOf(title || "Untitled");
-  const theme = THEMES[h % THEMES.length];
-  const decoration = h % 2 === 0 ? "dots" : "arc";
-  const s = SIZES[variant];
+  const bg = BG_COLORS[h % BG_COLORS.length];
+
+  // Font sizes per variant (viewBox is always 300×400)
+  const cfg = {
+    hero:   { labelSize: 8,  titleSize: 20, authorSize: 11, maxChars: 16 },
+    card:   { labelSize: 9,  titleSize: 22, authorSize: 12, maxChars: 14 },
+    thumb:  { labelSize: 7,  titleSize: 16, authorSize: 10, maxChars: 14 },
+    detail: { labelSize: 9,  titleSize: 24, authorSize: 13, maxChars: 14 },
+  }[variant];
+
+  const titleLines = wrapText(title, cfg.maxChars);
+  const titleStartY = 180 - (titleLines.length - 1) * (cfg.titleSize * 1.25);
+  const dividerY = titleStartY + titleLines.length * cfg.titleSize * 1.3 + 6;
+  const authorY = dividerY + 18;
+
+  // Decorative circle center: top-right quadrant, different per hash
+  const cx = 220 + (h % 50);
+  const cy = 60 + (h % 40);
 
   return (
-    <div
-      className={`book-cover-surface ${theme} relative flex h-full w-full flex-col justify-between text-white ${s.pad} ${className}`}
-    >
-      {/* decorative layer */}
-      {decoration === "dots" ? (
-        <span className="cover-dots" aria-hidden />
-      ) : (
-        <>
-          <span className="cover-arc" aria-hidden />
-          <span className="cover-arc" style={{ height: "80%", bottom: "-30%" }} aria-hidden />
-        </>
-      )}
+    <div className={`relative w-full h-full ${className}`}>
+      <svg
+        viewBox="0 0 300 400"
+        xmlns="http://www.w3.org/2000/svg"
+        className="block w-full h-full"
+        aria-label={`Cover of ${title}`}
+      >
+        {/* Background */}
+        <rect width="300" height="400" fill={bg}></rect>
 
-      {/* top: category */}
-      {label && (
-        <span className={`relative z-[3] font-bold uppercase tracking-[0.16em] text-white/85 ${s.cat}`}>
-          {label}
-        </span>
-      )}
+        {/* Decorative concentric circles */}
+        <circle cx={cx} cy={cy} r="160" fill="none" stroke="#DDB022" strokeWidth="0.7" opacity="0.2"></circle>
+        <circle cx={cx} cy={cy} r="110" fill="none" stroke="#DDB022" strokeWidth="0.7" opacity="0.2"></circle>
+        <circle cx={cx} cy={cy} r="65"  fill="none" stroke="#DDB022" strokeWidth="0.7" opacity="0.2"></circle>
 
-      {/* bottom: title + author */}
-      <div className="relative z-[3]">
-        <div className={`serif font-medium leading-[1.12] ${s.title}`}>{title}</div>
-        <div className={`h-[2px] bg-bg-surface/60 ${s.rule}`} />
-        {author && <div className={`mt-2 font-medium text-white/80 ${s.author}`}>{author}</div>}
-      </div>
+        {/* Gold left accent bar */}
+        <rect x="0" y="0" width="7" height="400" fill="#DDB022"></rect>
+
+        {/* Label (department / category) */}
+        {label && (
+          <text
+            x="22"
+            y="22"
+            fontFamily="Georgia, serif"
+            fontSize={cfg.labelSize}
+            fill="#DDB022"
+            opacity="0.8"
+            letterSpacing="2.5"
+          >
+            {label.toUpperCase()}
+          </text>
+        )}
+
+        {/* Top rule */}
+        <rect x="22" y="30" width="258" height="1.5" fill="#DDB022" opacity="0.4"></rect>
+
+        {/* Title lines */}
+        {titleLines.map((line, i) => (
+          <text
+            key={i}
+            x="22"
+            y={titleStartY + i * cfg.titleSize * 1.3}
+            fontFamily="Georgia, serif"
+            fontSize={cfg.titleSize}
+            fontWeight="bold"
+            fill="white"
+          >
+            {line}
+          </text>
+        ))}
+
+        {/* Gold divider */}
+        <rect x="22" y={dividerY} width="52" height="2" fill="#DDB022"></rect>
+
+        {/* Author */}
+        {author && (
+          <text
+            x="22"
+            y={authorY}
+            fontFamily="Georgia, serif"
+            fontSize={cfg.authorSize}
+            fill="rgba(255,255,255,0.65)"
+          >
+            {author.length > 24 ? author.substring(0, 22) + "…" : author}
+          </text>
+        )}
+
+        {/* Gold bottom accent bar */}
+        <rect x="0" y="390" width="300" height="10" fill="#DDB022" opacity="0.75"></rect>
+      </svg>
     </div>
   );
 }

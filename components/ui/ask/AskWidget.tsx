@@ -337,7 +337,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                     <p className="text-center text-[12px] text-blue-300/60">{t("subtitle")}</p>
                     <div className="flex flex-col gap-2">
                       {starters.map((s, i) => (
-                        <button type="button" onClick={() => sendMessage(s)}
+                        <button key={i} type="button" onClick={() => sendMessage(s)}
                           disabled={inputDisabled}
                           className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-[13px] text-blue-100 transition-colors hover:border-gold-400/40 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:pointer-events-none disabled:opacity-40"
                         >
