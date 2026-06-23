@@ -123,6 +123,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.r2.dev",
       },
+      // PTEC custom storage API
+      {
+        protocol: "http",
+        hostname: "api.storage-ptec.online",
+      },
+      {
+        protocol: "https",
+        hostname: "api.storage-ptec.online",
+      },
     ],
   },
 };

@@ -248,7 +248,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       <JsonLd data={bookSchema} />
       <JsonLd data={breadcrumbSchema} />
       <div className="mx-auto max-w-[1200px]">
-        <BookQuickNav hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId} hasReviews={!!book.dbId} />
+        <BookQuickNav
+          hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId}
+          hasReviews={!!book.dbId}
+          hasCopies={copies.length > 0}
+        />
         
         <nav aria-label="Breadcrumb" className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[13px] sm:text-[14.5px] font-medium text-text-muted overflow-hidden">
           <Link href="/" className="hover:text-brand transition-colors">{t("home")}</Link>
@@ -282,8 +286,8 @@ allowDownload={true}
         {/* ── Hero card ── */}
         <div id="details" className="grid gap-6 sm:gap-10 rounded-[28px] border border-divider bg-bg-surface p-5 sm:p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr] scroll-mt-24">
 
-          {/* Cover */}
-          <div className="mx-auto w-full max-w-[220px] sm:max-w-none">
+          {/* Cover — sticky on desktop */}
+          <div className="mx-auto w-full max-w-[220px] sm:max-w-none lg:sticky lg:top-[84px] lg:self-start">
             {showPdfCover ? (
               <PDFCover
                 title={book.title}
@@ -293,7 +297,8 @@ allowDownload={true}
                 author={book.author}
               />
             ) : (
-              <div className="overflow-hidden rounded-2xl shadow-lg shadow-brand/10 border border-divider/50">
+              <div className="overflow-hidden rounded-[20px] border border-divider/50"
+                   style={{ boxShadow: "0 20px 48px rgba(30,58,138,0.18), 0 8px 16px rgba(0,0,0,0.08)" }}>
                 <div className="aspect-[3/4] w-full bg-paper">
                   <BookCover title={book.title} label={book.department} author={book.author} variant="detail" />
                 </div>

@@ -203,7 +203,8 @@
     "home": "Home",
     "books": "Books",
     "byAuthor": "by {author}",
-    "tags": "Topics"
+    "tags": "Topics",
+    "physicalCopies": "Physical Copies"
   },
   "physical": {
     "available": "Available",

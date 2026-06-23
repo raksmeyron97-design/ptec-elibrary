@@ -208,7 +208,8 @@
     "home": "ទំព័រដើម",
     "books": "សៀវភៅ",
     "byAuthor": "ដោយ {author}",
-    "tags": "ប្រធានបទ"
+    "tags": "ប្រធានបទ",
+    "physicalCopies": "ច្បាប់ពុម្ភ"
   },
   "physical": {
     "available": "មានស្តុក",
