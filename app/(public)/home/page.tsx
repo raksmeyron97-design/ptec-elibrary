@@ -19,6 +19,7 @@ import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CatalogsSection from "@/components/ui/home/CatalogsSection";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import HomeBento from "@/components/ui/home/HomeBento";
+import FeaturedBooksSection from "@/components/ui/home/FeaturedBooksSection";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
@@ -168,12 +169,12 @@ export default async function HomePage() {
 
               {/* Headline */}
               <h1
-                className={`mt-3 font-bold text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)] ${
+                className={`mt-3 font-bold text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
                   locale === "km"
                     ? "font-khmer-serif leading-[1.4] tracking-normal"
-                    : "font-serif leading-[1.06] tracking-tight"
+                    : "font-serif leading-[1.06] tracking-[-0.025em]"
                 }`}
-                style={{ fontSize: "clamp(30px, 4.4vw, 58px)" }}
+                style={{ fontSize: "clamp(32px, 4.6vw, 62px)" }}
               >
                 {t("headline")}
               </h1>
@@ -221,6 +222,16 @@ export default async function HomePage() {
         {/* Gold seam at the bottom of the hero */}
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
+
+      {/* ════════ FEATURED EDITORIAL ════════ */}
+      <FeaturedBooksSection books={trendingBooks.slice(0, 4).map((b) => ({
+        slug: b.slug,
+        title: b.title,
+        author: b.author,
+        coverUrl: b.coverUrl ?? null,
+        cover: b.cover,
+        department: b.department,
+      }))} />
 
       {/* ════════ BENTO ════════ */}
       <Suspense fallback={<div className="h-48 animate-pulse bg-bg-surface border-b border-divider/60" />}>
