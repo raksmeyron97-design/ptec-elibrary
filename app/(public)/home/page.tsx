@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import HeroStats from "@/components/ui/home/HeroStats";
@@ -44,25 +44,42 @@ async function getTrendingBooks() {
   return (data ?? []).map(mapRowToBook);
 }
 
-// TODO: replace with search-frequency ordering when tracked
 async function getTrendingTerms(): Promise<string[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("categories").select("name").order("name").limit(6);
-  const names = (data ?? []).map((c: { name: string }) => c.name).filter(Boolean);
-  return names.length ? names.slice(0, 6) : ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
+  // Fetch categories that have the most-viewed/downloaded books
+  const { data } = await supabase
+    .from("books")
+    .select("category_id, view_count, download_count, categories!inner(name)")
+    .eq("is_published", true)
+    .not("category_id", "is", null);
+
+  if (!data?.length) return ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
+
+  // Aggregate score per category
+  const scoreMap = new Map<string, number>();
+  for (const row of data) {
+    const cat = (row.categories as unknown as { name: string } | null);
+    if (!cat?.name) continue;
+    const score = (row.view_count ?? 0) + (row.download_count ?? 0) * 3;
+    scoreMap.set(cat.name, (scoreMap.get(cat.name) ?? 0) + score);
+  }
+
+  return [...scoreMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([name]) => name);
 }
 
 async function getHomeStats() {
-  const supabase = await createClient();
-  const [booksRes, downloadsRes, usersRes, viewsRes] = await Promise.all([
-    supabase.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
-    supabase.from("books").select("download_count").eq("is_published", true),
-    supabase.from("profiles").select("id", { count: "exact", head: true }),
-    supabase.from("books").select("view_count").eq("is_published", true),
-  ]);
-  const totalDownloads = (downloadsRes.data ?? []).reduce((s: number, b: { download_count?: number | null }) => s + (b.download_count ?? 0), 0);
-  const totalViews = (viewsRes.data ?? []).reduce((s: number, b: { view_count?: number | null }) => s + (b.view_count ?? 0), 0);
-  return { books: booksRes.count ?? 0, downloads: totalDownloads, users: usersRes.count ?? 0, views: totalViews };
+  const supabase = createServiceClient();
+  const { data } = await supabase.rpc("get_home_stats");
+  const raw = (data ?? {}) as { resources?: number; views?: number; downloads?: number; members?: number };
+  return {
+    books: raw.resources ?? 0,
+    views: raw.views ?? 0,
+    downloads: raw.downloads ?? 0,
+    users: raw.members ?? 0,
+  };
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────

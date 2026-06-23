@@ -47,7 +47,8 @@ async function fetchBooks(params: SearchParams) {
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   const rawQ = params.q?.trim();
-  const q = rawQ ? rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim() : undefined;
+  // Also strip ILIKE wildcards so user input can't alter the %q% wrapping below
+  const q = rawQ ? rawQ.replace(/[(),.\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
   const dept = params.dept?.trim();
   const language = params.language?.trim();
   const format = params.format?.trim();
@@ -83,9 +84,23 @@ async function fetchBooks(params: SearchParams) {
     .range(from, to);
 
   if (q) {
-    // Use the pre-built tsvector column for safe, index-backed full-text search.
-    // websearch mode supports quoted phrases and - exclusions without SQL injection risk.
-    query = query.textSearch("fts", q, { type: "websearch", config: "english" });
+    // FTS with 'english' config fails for Khmer (no tokenizer). Use ILIKE instead —
+    // backed by pg_trgm GIN indexes on title + description (migration 0007).
+    // Also search department and category names so clicking "ស្រាវជ្រាវ" finds results.
+    const [deptRes, catRes] = await Promise.all([
+      supabase.from("departments").select("id").ilike("name", `%${q}%`),
+      supabase.from("categories").select("id").ilike("name", `%${q}%`),
+    ]);
+    const deptIds = (deptRes.data ?? []).map((d: { id: string }) => d.id);
+    const catIds  = (catRes.data  ?? []).map((c: { id: string }) => c.id);
+
+    const orParts = [
+      `title.ilike.%${q}%`,
+      `description.ilike.%${q}%`,
+      ...(deptIds.length ? [`department_id.in.(${deptIds.join(",")})`] : []),
+      ...(catIds.length  ? [`category_id.in.(${catIds.join(",")})`]  : []),
+    ];
+    query = query.or(orParts.join(","));
   }
   if (dept) query = query.eq("departments.name", dept);
   if (language) query = query.eq("language", language);
