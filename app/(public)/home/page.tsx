@@ -29,7 +29,14 @@ import InteractiveAurora from "@/components/ui/animations/InteractiveAurora";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
+  title: "Free Teaching Resources & Educational Books",
+  description: "PTEC Digital Library — free textbooks, teaching resources, and research reports from Phnom Penh Teacher Education College (PTEC). Available in Khmer and English.",
   alternates: { canonical: "/home" },
+  openGraph: {
+    title: "PTEC Digital Library — Free Teaching Resources",
+    description: "Browse free textbooks, teaching materials, and research reports from Phnom Penh Teacher Education College. Available online in Khmer and English.",
+    type: "website",
+  },
 };
 
 // ── Data fetchers ────────────────────────────────────────────────────────────

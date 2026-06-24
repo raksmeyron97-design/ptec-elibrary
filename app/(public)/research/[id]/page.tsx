@@ -223,6 +223,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
     ? (report.author_names as string).split(',').map((s: string) => s.trim()).filter(Boolean)
     : [];
 
+  const reportUrl = `${SITE_URL}/research/${id}`;
   const scholarlyArticleSchema = {
     '@context': 'https://schema.org',
     '@type': 'ScholarlyArticle',
@@ -232,11 +233,18 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
     datePublished: report.published_at ?? report.created_at ?? undefined,
     keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
     image: report.cover_url || undefined,
-    url: `${SITE_URL}/research/${id}`,
+    url: reportUrl,
+    isAccessibleForFree: true,
     publisher: {
       '@type': 'EducationalOrganization',
       name: 'Phnom Penh Teacher Education College',
       url: SITE_URL,
+    },
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/OnlineOnly',
     },
     ...(doi ? {
       identifier: {

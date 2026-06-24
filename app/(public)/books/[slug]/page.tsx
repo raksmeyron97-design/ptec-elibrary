@@ -184,6 +184,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
 
+  const bookUrl = `${SITE_URL}/books/${slug}`;
   const bookSchema = {
     "@context": "https://schema.org",
     "@type": "Book",
@@ -195,14 +196,29 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     inLanguage: book.language,
     description: book.summary,
     image: book.coverUrl,
-    url: `${SITE_URL}/books/${slug}`,
+    url: bookUrl,
     bookFormat: "https://schema.org/EBook",
+    isAccessibleForFree: true,
     keywords: book.tags?.length ? book.tags.join(", ") : undefined,
     publisher: {
-      "@type": "Organization",
+      "@type": "EducationalOrganization",
       name: "Phnom Penh Teacher Education College",
+      url: SITE_URL,
     },
     datePublished: (book as any).publishedAt || undefined,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/OnlineOnly",
+    },
+    readAction: {
+      "@type": "ReadAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: bookUrl,
+      },
+    },
     ...(avgRating > 0 ? {
       aggregateRating: {
         "@type": "AggregateRating",

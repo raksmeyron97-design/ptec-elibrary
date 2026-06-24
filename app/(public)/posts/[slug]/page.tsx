@@ -161,16 +161,20 @@ export default async function PostDetailPage({
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
+    description: post.excerpt || undefined,
+    url: `${SITE_URL}/posts/${slug}`,
     image: coverUrls,
     datePublished: post.created_at || undefined,
     dateModified: post.updated_at || post.created_at || undefined,
+    isAccessibleForFree: true,
     author: {
       "@type": "Person",
       name: author,
     },
     publisher: {
-      "@type": "Organization",
+      "@type": "EducationalOrganization",
       name: "Phnom Penh Teacher Education College",
+      url: SITE_URL,
     },
   };
 

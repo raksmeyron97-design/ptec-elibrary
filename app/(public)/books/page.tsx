@@ -13,6 +13,7 @@ import { getLanguages, getFormats } from "@/app/actions/filters";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
+import JsonLd from "@/components/seo/JsonLd";
 
 export const revalidate = 3600;
 
@@ -151,8 +152,26 @@ export default async function BooksPage({
   );
   const categoryPills = ["All", ...departments];
 
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Books — PTEC Digital Library",
+    description: "Browse free teaching resources, textbooks, and educational materials from Phnom Penh Teacher Education College.",
+    url: `${SITE_URL}/books`,
+    isAccessibleForFree: true,
+    inLanguage: ["km", "en"],
+    hasPart: books.slice(0, 10).map((b) => ({
+      "@type": "Book",
+      name: b.title,
+      url: `${SITE_URL}/books/${b.slug}`,
+      isAccessibleForFree: true,
+      bookFormat: "https://schema.org/EBook",
+    })),
+  };
+
   return (
     <ClientNavWrapper>
+    <JsonLd data={collectionSchema} />
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">

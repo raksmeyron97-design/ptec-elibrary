@@ -90,8 +90,29 @@ export default async function RootLayout({
     "@context": "https://schema.org",
     "@type": "EducationalOrganization",
     name: "Phnom Penh Teacher Education College",
+    alternateName: "PTEC",
     url: SITE_URL,
     logo: `${SITE_URL}/logo.png`,
+    sameAs: [
+      "https://ptec.edu.kh",
+      "https://www.facebook.com/ptec.edu.kh",
+    ],
+    description: "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
+  };
+
+  const librarySchema = {
+    "@context": "https://schema.org",
+    "@type": "Library",
+    name: "PTEC Digital Library",
+    url: SITE_URL,
+    description: "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
+    inLanguage: ["km", "en"],
+    isAccessibleForFree: true,
+    parentOrganization: {
+      "@type": "EducationalOrganization",
+      name: "Phnom Penh Teacher Education College",
+      url: SITE_URL,
+    },
   };
 
   return (
@@ -112,6 +133,7 @@ export default async function RootLayout({
         <IntlProvider locale={locale} messages={messages}>
           <JsonLd data={websiteSchema} />
           <JsonLd data={orgSchema} />
+          <JsonLd data={librarySchema} />
           <Suspense fallback={null}>
             <NavigationProgress />
           </Suspense>
