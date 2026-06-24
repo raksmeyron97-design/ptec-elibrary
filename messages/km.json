@@ -269,9 +269,10 @@
   },
   "posts": {
     "eyebrow": "បណ្ណាល័យ PTEC",
-    "title": "ចេញពីបណ្ណាល័យ",
-    "subtitle": "បច្ចុប្បន្នភាពស្រាវជ្រាវ សេចក្តីប្រកាស ព្រឹត្តិការណ៍ និងទស្សនាវដ្តីពីបណ្ណាល័យ។",
+    "title": "ព័ត៌មាន និងព្រឹត្តិការណ៍",
+    "subtitle": "ដំណឹង សេចក្តីប្រកាស និងសកម្មភាពថ្មីៗ ពីបណ្ណាល័យ វ.គ.ភ.",
     "searchPlaceholder": "ស្វែងរកអត្ថបទ…",
+    "searchSidebarPlaceholder": "ស្វែងរកព័ត៌មាន...",
     "noPostsFound": "រកមិនឃើញអត្ថបទទេ",
     "emptyHintSearch": "សូមសាកល្បងកែសម្រួលតម្រង ឬពាក្យស្វែងរករបស់អ្នក។",
     "emptyHintEmpty": "សូមរង់ចាំ — អត្ថបទថ្មីៗនឹងមានក្នុងពេលឆាប់ៗនេះ។",
@@ -286,7 +287,13 @@
     "categoryAnnouncement": "សេចក្តីប្រកាស",
     "categoryEvent": "ព្រឹត្តិការណ៍",
     "categoryJournal": "ទស្សនាវដ្តី",
-    "categoryOther": "ផ្សេងៗ"
+    "categoryOther": "ផ្សេងៗ",
+    "featuredBadge": "អត្ថបទពិសេស",
+    "readMore": "អានបន្ត",
+    "categoriesTitle": "ប្រភេទព័ត៌មាន",
+    "recentTitle": "អត្ថបទថ្មីៗ",
+    "contactTitle": "ទំនាក់ទំនង",
+    "nextPage": "បន្ទាប់"
   },
   "auth": {
     "digitalLearningHub": "មជ្ឈមណ្ឌលសិក្សាឌីជីថល",

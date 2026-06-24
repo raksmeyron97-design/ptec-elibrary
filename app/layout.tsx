@@ -9,6 +9,7 @@ import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
 import { SITE_URL } from '@/lib/seo/site';
+import { PTEC } from '@/lib/ptec';
 const THEME_INIT_SCRIPT = `
 (() => {
   try {
@@ -89,15 +90,20 @@ export default async function RootLayout({
   const orgSchema = {
     "@context": "https://schema.org",
     "@type": "EducationalOrganization",
-    name: "Phnom Penh Teacher Education College",
-    alternateName: "PTEC",
-    url: SITE_URL,
+    name: PTEC.name.en,
+    alternateName: PTEC.name.short,
+    url: PTEC.links.website,
     logo: `${SITE_URL}/logo.png`,
-    sameAs: [
-      "https://ptec.edu.kh",
-      "https://www.facebook.com/ptec.edu.kh",
-    ],
+    telephone: PTEC.phone,
+    email: PTEC.email,
+    sameAs: PTEC.sameAs,
     description: "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: PTEC.address.streetAddress,
+      addressLocality: PTEC.address.city,
+      addressCountry: PTEC.address.country,
+    },
   };
 
   const librarySchema = {
@@ -105,13 +111,22 @@ export default async function RootLayout({
     "@type": "Library",
     name: "PTEC Digital Library",
     url: SITE_URL,
+    image: `${SITE_URL}/logo.png`,
+    telephone: PTEC.phone,
     description: "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
     inLanguage: ["km", "en"],
     isAccessibleForFree: true,
+    openingHours: PTEC.hours.openingHoursSpec,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: PTEC.address.streetAddress,
+      addressLocality: PTEC.address.city,
+      addressCountry: PTEC.address.country,
+    },
     parentOrganization: {
       "@type": "EducationalOrganization",
-      name: "Phnom Penh Teacher Education College",
-      url: SITE_URL,
+      name: PTEC.name.en,
+      url: PTEC.links.website,
     },
   };
 

@@ -263,9 +263,10 @@
   },
   "posts": {
     "eyebrow": "PTEC Library",
-    "title": "From the Library",
-    "subtitle": "Research updates, announcements, events, and journals from across the library.",
+    "title": "News & Events",
+    "subtitle": "Latest news, announcements, and activities from PTEC Library.",
     "searchPlaceholder": "Search posts…",
+    "searchSidebarPlaceholder": "Search news...",
     "noPostsFound": "No posts found",
     "emptyHintSearch": "Try adjusting your search or filters.",
     "emptyHintEmpty": "Check back soon — new posts are on the way.",
@@ -280,7 +281,13 @@
     "categoryAnnouncement": "Announcement",
     "categoryEvent": "Event",
     "categoryJournal": "Journal",
-    "categoryOther": "Other"
+    "categoryOther": "Other",
+    "featuredBadge": "Featured",
+    "readMore": "Read more",
+    "categoriesTitle": "Categories",
+    "recentTitle": "Recent Posts",
+    "contactTitle": "Contact",
+    "nextPage": "Next"
   },
   "auth": {
     "digitalLearningHub": "Digital Learning Hub",

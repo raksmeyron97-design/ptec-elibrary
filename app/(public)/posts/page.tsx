@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/posts/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
@@ -11,13 +9,13 @@ import { SITE_URL } from "@/lib/seo/site";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "News & Announcements",
-  description: "Latest news, announcements, events, and research updates from the Phnom Penh Teacher Education College (PTEC).",
+  title: "News & Events",
+  description: "Latest news, announcements, events, and activities from the Phnom Penh Teacher Education College (PTEC) Library.",
   alternates: {
     canonical: `${SITE_URL}/posts`,
   },
   openGraph: {
-    title: "News & Announcements | PTEC Library",
+    title: "News & Events | PTEC Library",
     description: "Latest news, announcements, and events from PTEC.",
     url: `${SITE_URL}/posts`,
     type: "website",
@@ -26,9 +24,9 @@ export const metadata: Metadata = {
 
 export default async function PostsPage() {
   const t = await getTranslations('posts');
+  const tNav = await getTranslations('nav');
   const supabase = await createClient();
 
-  // Only published posts on the public page
   const { data: posts } = await supabase
     .from("posts")
     .select(`
@@ -56,24 +54,27 @@ export default async function PostsPage() {
   }));
 
   return (
-    <section className="min-h-screen bg-bg-body px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 md:px-12">
-      <div className="mx-auto max-w-[1400px] space-y-6 sm:space-y-8">
-
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="mb-1.5 sm:mb-2 text-xs font-bold uppercase tracking-widest text-accent">
-              {t('eyebrow')}
-            </p>
-            <h1 className="font-khmer-serif text-2xl sm:text-3xl font-bold leading-[1.4] sm:leading-[1.5] text-text-heading md:text-4xl">{t('title')}</h1>
-            <p className="mt-1.5 sm:mt-2 max-w-2xl font-sans text-sm leading-[1.7] text-text-muted">
-              {t('subtitle')}
-            </p>
+    <div>
+      {/* Page banner */}
+      <div className="bg-gradient-to-b from-blue-800 to-blue-700 text-white">
+        <div className="mx-auto max-w-[1180px] px-5 py-12">
+          <div className="flex items-center gap-2 text-sm text-blue-200 mb-4">
+            <Link href="/" className="hover:text-amber-300 transition-colors">
+              {tNav('home')}
+            </Link>
+            <span className="opacity-50">›</span>
+            <span className="text-amber-300">{t('title')}</span>
           </div>
+          <h1 className="font-khmer-serif font-bold text-[clamp(30px,5vw,46px)] leading-snug m-0">
+            {t('title')}
+          </h1>
+          <p className="mt-3 text-lg text-blue-100 max-w-[620px] leading-snug">
+            {t('subtitle')}
+          </p>
         </div>
-
-        <PostsListClient posts={cards} />
       </div>
-    </section>
+
+      <PostsListClient posts={cards} />
+    </div>
   );
 }

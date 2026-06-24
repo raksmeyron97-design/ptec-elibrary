@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import { getTranslations } from "next-intl/server";
+import { PTEC } from "@/lib/ptec";
 
 /* ────────────────────────────────────────────────────────────
    Footer motion + interaction styles.
@@ -179,7 +180,7 @@ export default async function Footer() {
               {/* Social icons */}
               <div className="flex flex-wrap gap-2.5 mt-1">
                 <a
-                  href="https://web.facebook.com/ptec.edu"
+                  href={PTEC.links.facebook}
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Facebook"
@@ -190,7 +191,7 @@ export default async function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="https://www.youtube.com/@phnompenhteachereducationc3430"
+                  href={PTEC.links.youtube}
                   target="_blank"
                   rel="noreferrer"
                   aria-label="YouTube"
@@ -201,7 +202,7 @@ export default async function Footer() {
                   </svg>
                 </a>
                 <a
-                  href="https://www.ptec.edu.kh/"
+                  href={PTEC.links.website}
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Website"
@@ -234,8 +235,8 @@ export default async function Footer() {
                   </div>
                   <div>
                     <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("phoneLabel")}</p>
-                    <a href="tel:012950192" className="ptec-link text-blue-50 text-[13px] hover:text-gold-300 inline-block">
-                      012 950 192
+                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50 text-[13px] hover:text-gold-300 inline-block">
+                      {PTEC.phone}
                     </a>
                   </div>
                 </li>
@@ -281,7 +282,7 @@ export default async function Footer() {
 
               <div className="ptec-mapwrap relative w-full flex-1 min-h-[180px] sm:min-h-[160px] rounded-xl overflow-hidden border border-white/10">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.772583842131!2d104.88470327464049!3d11.568153444093952!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x310951a618265c67%3A0x159b1d2bb350bbae!2sPhnom%20Penh%20Teacher%20Education%20College!5e0!3m2!1sen!2skh!4v1717904033000!5m2!1sen!2skh"
+                  src={PTEC.links.mapEmbed}
                   width="100%"
                   height="100%"
                   style={{ border: 0, pointerEvents: "none" }}
@@ -292,7 +293,7 @@ export default async function Footer() {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
                 <Link
-                  href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3!4m6!3m5!1s0x310951a618265c67:0x159b1d2bb350bbae!8m2!3d11.5568858!4d104.8872782!16s%2Fg%2F1q665w1lh"
+                  href={PTEC.links.mapPlace}
                   target="_blank"
                   rel="noreferrer"
                   className="absolute inset-0 z-10 block"

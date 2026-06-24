@@ -3,20 +3,21 @@
 import { useRef, useState } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
+import { PTEC } from "@/lib/ptec";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const contactItems: [IconName, string][] = [
-  ["phone", "012 950 192"],
-  ["mail", "raksmeyron97@gmail.com"],
+  ["phone", PTEC.phone],
+  ["mail", PTEC.email],
   ["clock", "Mon - Sat, 7 AM - 5 PM"],
-  ["map-pin", "St.271, Khan Toul Kork, Phnom Penh"],
+  ["map-pin", PTEC.address.en],
 ];
 
 const socialLinks = [
   {
     name: "Telegram",
-    href: "https://t.me/ptec_edu",
+    href: PTEC.links.telegram,
     colorClass: "text-[#2AABEE]",
     icon: (
       <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
@@ -26,7 +27,7 @@ const socialLinks = [
   },
   {
     name: "Facebook",
-    href: "https://web.facebook.com/ptec.edu",
+    href: PTEC.links.facebook,
     colorClass: "text-[#1877F2]",
     icon: (
       <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
@@ -36,7 +37,7 @@ const socialLinks = [
   },
   {
     name: "Messenger",
-    href: "https://m.me/ptec.edu",
+    href: PTEC.links.messenger,
     colorClass: "text-[#00B2FF]",
     icon: (
       <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
@@ -46,7 +47,7 @@ const socialLinks = [
   },
   {
     name: "Youtube",
-    href: "https://www.youtube.com/@phnompenhteachereducationc3430",
+    href: PTEC.links.youtube,
     colorClass: "text-[#FF0000]",
     icon: (
       <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
