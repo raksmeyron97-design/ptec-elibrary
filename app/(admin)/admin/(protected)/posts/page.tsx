@@ -19,7 +19,7 @@ export default async function AdminPostsPage() {
       is_published,
       views,
       created_at,
-      author:profiles ( full_name, email )
+      author:profiles!author_id ( full_name, email )
     `)
     .order("created_at", { ascending: false });
 

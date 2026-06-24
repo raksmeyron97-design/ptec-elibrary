@@ -80,6 +80,31 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   return nodes;
 }
 
+function slugifyHeading(text: string): string {
+  return text
+    .trim()
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/`/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9ក-៿-]/g, "")
+    .toLowerCase();
+}
+
+export function extractToc(content: string): { id: string; text: string }[] {
+  const toc: { id: string; text: string }[] = [];
+  for (const line of content.split("\n")) {
+    const m = /^##\s+(.+)$/.exec(line);
+    if (m) toc.push({ id: slugifyHeading(m[1]), text: m[1].trim() });
+  }
+  return toc;
+}
+
+export function computeReadingTime(content: string): number {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 150));
+}
+
 export default function Markdown({ content }: { content: string }) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: React.ReactNode[] = [];
@@ -118,17 +143,19 @@ export default function Markdown({ content }: { content: string }) {
     const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     if (heading) {
       const level = heading[1].length;
-      const content = renderInline(heading[2], `h-${key}`);
+      const hText = heading[2];
+      const content = renderInline(hText, `h-${key}`);
       const cls = [
         "mt-8 mb-3 font-title text-3xl text-text-heading",
-        "mt-7 mb-3 font-title text-2xl text-text-heading",
-        "mt-6 mb-2 font-title text-xl text-text-heading",
+        "mt-7 mb-3 font-title text-2xl text-text-heading scroll-mt-24",
+        "mt-6 mb-2 font-title text-xl text-text-heading scroll-mt-24",
         "mt-5 mb-2 font-title text-lg text-text-heading",
         "mt-4 mb-2 font-title text-base text-text-body",
         "mt-4 mb-2 font-title text-sm uppercase tracking-wide text-text-muted",
       ][level - 1];
       const Tag = (`h${level}` as keyof React.JSX.IntrinsicElements);
-      blocks.push(<Tag key={key++} className={cls}>{content}</Tag>);
+      const id = level >= 2 ? slugifyHeading(hText) : undefined;
+      blocks.push(<Tag key={key++} id={id} className={cls}>{content}</Tag>);
       i++;
       continue;
     }

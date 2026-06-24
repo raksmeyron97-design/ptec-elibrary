@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/posts/[slug]/RelatedPosts.tsx
 import Link from "next/link";
-import { getTranslations } from 'next-intl/server';
+import { getTranslations } from "next-intl/server";
 
 interface RelatedPost {
   id: string;
@@ -14,86 +12,81 @@ interface RelatedPost {
   created_at: string | null;
 }
 
-const categoryStyles: Record<string, string> = {
-  Research:     "bg-brand/5 text-brand border border-divider",
-  Announcement: "bg-amber-50 text-amber-700 border border-amber-100",
-  Event:        "bg-orange-50 text-orange-700 border border-orange-100",
-  Journal:      "bg-teal-50 text-teal-700 border border-teal-100",
-  Other:        "bg-paper text-text-muted border border-divider",
+const categoryColors: Record<string, string> = {
+  Research:     "text-blue-700",
+  Announcement: "text-gold-700",
+  Event:        "text-orange-600",
+  Journal:      "text-teal-600",
+  Other:        "text-text-muted",
 };
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(iso).toLocaleDateString("km-KH", { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default async function RelatedPosts({ posts, category }: { posts: RelatedPost[]; category: string }) {
-  const t = await getTranslations('posts');
+  const t = await getTranslations("posts");
   if (!posts || posts.length === 0) return null;
 
   return (
-    <aside className="w-full">
-      {/* Header */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="h-4 w-1 rounded-full bg-accent" />
-        <h2 className="text-sm font-bold uppercase tracking-widest text-text-muted">
-          {t('relatedPosts')}
-        </h2>
+    <section className="bg-white border-t border-divider">
+      <div className="max-w-[1180px] mx-auto px-5 py-12">
+        {/* Section header */}
+        <div className="flex items-center gap-3 mb-8">
+          <span className="w-[5px] h-7 bg-accent rounded-full" />
+          <h2 className="font-khmer-serif font-bold text-text-heading text-2xl m-0">
+            {t("relatedPosts")}
+          </h2>
+        </div>
+
+        <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+          {posts.map((post) => {
+            const thumb =
+              Array.isArray(post.cover_urls) && (post.cover_urls as string[]).length > 0
+                ? (post.cover_urls as string[])[0]
+                : post.cover_url ?? null;
+
+            return (
+              <Link
+                key={post.id}
+                href={`/posts/${post.slug}`}
+                className="group flex flex-col bg-white border border-divider rounded-xl overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg text-inherit no-underline"
+              >
+                {/* Thumbnail */}
+                <div className="h-[150px] overflow-hidden flex-none">
+                  {thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumb}
+                      alt={post.title}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-brand flex items-center justify-center">
+                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 5a2 2 0 012-2h6a2 2 0 012 2v15a2 2 0 00-2-2H2z"/>
+                        <path d="M22 5a2 2 0 00-2-2h-6a2 2 0 00-2 2v15a2 2 0 012-2h6z"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex flex-col flex-1 p-5">
+                  <span className={`text-xs font-bold tracking-wide ${categoryColors[post.category] ?? categoryColors.Other}`}>
+                    {t(`category${post.category}` as any)}
+                  </span>
+                  <h3 className="font-khmer-serif font-bold text-text-heading text-lg leading-snug mt-2 mb-0 transition-colors group-hover:text-brand line-clamp-3">
+                    {post.title}
+                  </h3>
+                  <span className="text-text-muted text-xs mt-auto pt-4">{formatDate(post.created_at)}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
-
-      <div className="flex flex-col gap-4">
-        {posts.map((post) => {
-          const thumb =
-            Array.isArray(post.cover_urls) && post.cover_urls.length > 0
-              ? post.cover_urls[0]
-              : post.cover_url ?? null;
-
-          return (
-            <Link
-              key={post.id}
-              href={`/posts/${post.slug}`}
-              className="group flex flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition hover:shadow-md hover:border-brand/30"
-            >
-              {/* Thumbnail */}
-              <div className="relative h-36 w-full overflow-hidden bg-paper">
-                {thumb ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={thumb}
-                    alt={post.title}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-paper to-divider">
-                    <svg className="h-8 w-8 text-text-muted" viewBox="0 0 24 24" fill="none"
-                      stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                  </div>
-                )}
-                {/* Category badge */}
-                <span className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-bold ${categoryStyles[post.category] ?? categoryStyles.Other}`}>
-                  {t(`category${post.category}` as any)}
-                </span>
-              </div>
-
-              {/* Text */}
-              <div className="flex flex-col gap-1.5 p-3">
-                <p className="line-clamp-2 text-[14px] font-khmer-serif font-bold leading-snug text-text-heading transition group-hover:text-brand">
-                  {post.title}
-                </p>
-                <p className="text-xs text-text-muted font-medium">{formatDate(post.created_at)}</p>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-    </aside>
+    </section>
   );
 }

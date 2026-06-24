@@ -37,7 +37,7 @@ export default async function PostsPage() {
       excerpt,
       cover_url,
       created_at,
-      author:profiles ( full_name, email )
+      author:profiles!author_id ( full_name, email )
     `)
     .eq("is_published", true)
     .order("created_at", { ascending: false });
