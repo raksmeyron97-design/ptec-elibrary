@@ -17,7 +17,7 @@ export async function proxy(request: NextRequest) {
       style-src 'self' 'unsafe-inline';
       img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.flagcounter.com;
       font-src 'self' data:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://accounts.google.com https://challenges.cloudflare.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online;
       frame-src https://challenges.cloudflare.com https://www.google.com;
       frame-ancestors 'none';
       object-src 'none';

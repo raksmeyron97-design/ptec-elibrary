@@ -8,7 +8,7 @@ import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/ac
 import { getPresignedUrl } from "@/app/actions/upload";
 import { makeUid, postFolder, postCoverPath } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
-import Markdown from "@/app/(public)/posts/[slug]/Markdown";
+import MarkdownEditor from "@/app/(admin)/admin/(protected)/posts/MarkdownEditor";
 
 const CATEGORIES = ["Research", "Announcement", "Event", "Journal", "Other"] as const;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -33,8 +33,9 @@ export type PostInitial = {
   category: string;
   excerpt: string | null;
   content: string;
-  coverUrls: string[];        // ← array now (was coverUrl: string | null)
+  coverUrls: string[];
   isPublished: boolean;
+  tags: string[];
 };
 
 // Preview item — either an existing URL or a new File picked by the user
@@ -52,7 +53,8 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
-  const [contentTab, setContentTab] = useState<"write" | "preview">("write");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
 
   // Build initial preview list from existing URLs
   const [previews, setPreviews] = useState<PreviewItem[]>(() =>
@@ -64,6 +66,27 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
   );
 
   const busy = phase !== "idle";
+
+  // ── Tag helpers ───────────────────────────────────────────────
+  function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase().replace(/[^a-z0-9ក-៿\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    if (!tag || tags.includes(tag) || tags.length >= 10) return;
+    setTags((prev) => [...prev, tag]);
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === "," || e.key === " ") {
+      e.preventDefault();
+      addTag(tagInput);
+      setTagInput("");
+    } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+      setTags((prev) => prev.slice(0, -1));
+    }
+  }
+
+  function removeTag(tag: string) {
+    setTags((prev) => prev.filter((t) => t !== tag));
+  }
 
   // ── File picker handler ────────────────────────────────────────
   function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -158,35 +181,34 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       const uploadedUrls: string[] = [];
       if (newPreviews.length > 0) {
         setPhase("uploading");
-        // All images for this post live in one folder: posts/{slug}-{uid}/
         const folder = postFolder(titleVal, makeUid());
         for (let i = 0; i < newPreviews.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${newPreviews.length}…`);
           const { file } = newPreviews[i];
           const path = postCoverPath(folder, i, file.name);
 
-          try {
-            const presignedRes = await getPresignedUrl(path, file.type, "public");
-            if ("error" in presignedRes) {
-              throw new Error(presignedRes.error);
-            }
-            const { presignedUrl, publicUrl } = presignedRes;
-            
-            const upRes = await fetch(presignedUrl, {
-              method: "PUT",
-              body: file,
-              headers: {
-                "Content-Type": file.type,
-              },
-            });
-
-            if (!upRes.ok) throw new Error(upRes.statusText);
-
-            uploadedUrls.push(publicUrl);
-          } catch (upErr) {
-            console.warn("Upload failed:", upErr instanceof Error ? upErr.message : upErr);
-            continue; // skip failed, keep going
+          // ── Step A: get presigned URL from server ────────────────
+          const presignedRes = await getPresignedUrl(path, file.type, "public");
+          if ("error" in presignedRes) {
+            throw new Error(`Could not get upload URL: ${presignedRes.error}`);
           }
+          const { presignedUrl, publicUrl } = presignedRes;
+
+          // ── Step B: PUT file directly to Cloudflare R2 ──────────
+          const upRes = await fetch(presignedUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+
+          if (!upRes.ok) {
+            throw new Error(
+              `Upload to Cloudflare R2 failed (${upRes.status} ${upRes.statusText}). ` +
+              `Check that your R2 bucket has CORS enabled (AllowedOrigins: ["*"], AllowedMethods: ["PUT"]).`
+            );
+          }
+
+          uploadedUrls.push(publicUrl);
         }
       }
 
@@ -216,8 +238,8 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       payload.set("excerpt",     (formData.get("excerpt") as string) ?? "");
       payload.set("content",     contentVal);
       payload.set("isPublished", formData.get("isPublished") === "on" ? "true" : "false");
-      // Pass as JSON array string — actions.ts will parse it
       payload.set("coverUrls",   JSON.stringify(finalUrls));
+      payload.set("tags",        JSON.stringify(tags));
 
       if (isEdit && initial) {
         await updatePost(initial.id, payload);
@@ -428,64 +450,61 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
         />
       </label>
 
+      {/* Tags */}
+      <div className="md:col-span-2">
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">
+          Tags{" "}
+          <span className="font-normal text-text-muted">(optional · up to 10 · press Enter, comma, or space to add)</span>
+        </span>
+        <div
+          className="flex flex-wrap gap-1.5 min-h-[42px] w-full rounded-lg border border-divider px-3 py-2 transition focus-within:border-brand focus-within:ring-2 focus-within:ring-focus-ring/15"
+          onClick={() => (document.getElementById("tag-input") as HTMLInputElement | null)?.focus()}
+        >
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold px-2.5 py-1 rounded-full"
+            >
+              #{tag}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); removeTag(tag); }}
+                disabled={busy}
+                className="text-blue-500 hover:text-blue-800 transition-colors cursor-pointer disabled:cursor-not-allowed ml-0.5"
+                aria-label={`Remove tag ${tag}`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </span>
+          ))}
+          <input
+            id="tag-input"
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            onBlur={() => { if (tagInput.trim()) { addTag(tagInput); setTagInput(""); } }}
+            disabled={busy || tags.length >= 10}
+            placeholder={tags.length === 0 ? "e.g. education, math, research…" : ""}
+            className="flex-1 min-w-[140px] border-none outline-none bg-transparent text-sm placeholder:text-text-muted disabled:cursor-not-allowed"
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-text-muted">
+          {tags.length}/10 tags · Lowercase, letters, numbers, hyphens only
+        </p>
+      </div>
+
       {/* Content */}
       <div className="md:col-span-2">
-        {/* Tab header */}
-        <div className="mb-0 flex items-center justify-between">
-          <span className="text-sm font-semibold text-text-body">
-            Content <span className="text-red-500">*</span>{" "}
-            <span className="font-normal text-text-muted">(Markdown)</span>
-          </span>
-          <div className="flex rounded-lg border border-divider bg-paper p-0.5">
-            <button
-              type="button"
-              onClick={() => setContentTab("write")}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
-                contentTab === "write"
-                  ? "bg-bg-surface text-text-heading shadow-sm"
-                  : "text-text-muted hover:text-text-body"
-              }`}
-            >
-              Write
-            </button>
-            <button
-              type="button"
-              onClick={() => setContentTab("preview")}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
-                contentTab === "preview"
-                  ? "bg-bg-surface text-text-heading shadow-sm"
-                  : "text-text-muted hover:text-text-body"
-              }`}
-            >
-              Preview
-            </button>
-          </div>
-        </div>
-
-        {/* Write pane */}
-        <textarea
+        <MarkdownEditor
           name="content"
-          required
-          rows={14}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={setContent}
           disabled={busy}
-          placeholder={"Write your post in Markdown…\n\n## A heading\n\nSome **bold** text and a [link](https://example.com)."}
-          className={`mt-1.5 w-full resize-y rounded-lg border border-divider p-4 text-sm font-mono leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60 ${
-            contentTab === "write" ? "block" : "hidden"
-          }`}
+          required
         />
-
-        {/* Preview pane */}
-        {contentTab === "preview" && (
-          <div className="mt-1.5 min-h-[14rem] w-full rounded-lg border border-divider bg-bg-surface p-5 text-sm">
-            {content.trim() ? (
-              <Markdown content={content} />
-            ) : (
-              <p className="text-text-muted italic">Nothing to preview yet — switch to Write and add some content.</p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Error */}

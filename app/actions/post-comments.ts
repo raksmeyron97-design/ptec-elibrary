@@ -1,0 +1,75 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+
+async function getAuthUser() {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Authentication required");
+  return { supabase, user };
+}
+
+export async function createComment(
+  postId: string,
+  postSlug: string,
+  body: string,
+  parentId?: string | null,
+): Promise<{ error?: string }> {
+  const trimmed = body.trim();
+  if (!trimmed) return { error: "Comment cannot be empty" };
+  if (trimmed.length > 2000) return { error: "Comment is too long (max 2000 characters)" };
+
+  try {
+    const { supabase, user } = await getAuthUser();
+
+    const { error } = await supabase.from("post_comments").insert({
+      post_id:   postId,
+      user_id:   user.id,
+      body:      trimmed,
+      parent_id: parentId ?? null,
+    });
+
+    if (error) return { error: error.message };
+
+    revalidatePath(`/posts/${postSlug}`);
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to post comment" };
+  }
+}
+
+export async function deleteComment(
+  commentId: string,
+  postSlug: string,
+): Promise<{ error?: string }> {
+  try {
+    const { supabase, user } = await getAuthUser();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const isAdmin = profile?.role === "admin";
+
+    // Soft-delete: admins can delete any comment; users only their own
+    let query = supabase
+      .from("post_comments")
+      .update({ is_deleted: true })
+      .eq("id", commentId);
+
+    if (!isAdmin) {
+      query = query.eq("user_id", user.id);
+    }
+
+    const { error } = await query;
+    if (error) return { error: error.message };
+
+    revalidatePath(`/posts/${postSlug}`);
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to delete comment" };
+  }
+}

@@ -19,18 +19,18 @@ type PostCard = {
 };
 
 const FILTERS = ["All", "Research", "Announcement", "Event", "Journal"] as const;
-const PER_PAGE = 5;
+const PER_PAGE = 6;
 
-const CAT_COLORS: Record<string, { bg: string; text: string; badgeBg: string; badgeText: string }> = {
-  Research:     { bg: "#1e40af", text: "#bfdbfe", badgeBg: "#dbeafe", badgeText: "#1d4ed8" },
-  Announcement: { bg: "#92400e", text: "#fde68a", badgeBg: "#fef3c7", badgeText: "#b45309" },
-  Event:        { bg: "#065f46", text: "#a7f3d0", badgeBg: "#d1fae5", badgeText: "#047857" },
-  Journal:      { bg: "#4c1d95", text: "#ddd6fe", badgeBg: "#ede9fe", badgeText: "#6d28d9" },
-  Other:        { bg: "#1e3a5f", text: "#bfdbfe", badgeBg: "#e0f2fe", badgeText: "#0369a1" },
+const CAT_STYLES: Record<string, { accent: string; badge: string; badgeText: string; bg: string; text: string }> = {
+  Research:     { accent: "#1d4ed8", badge: "#dbeafe", badgeText: "#1d4ed8", bg: "#1e40af", text: "#bfdbfe" },
+  Announcement: { accent: "#b45309", badge: "#fef3c7", badgeText: "#b45309", bg: "#92400e", text: "#fde68a" },
+  Event:        { accent: "#047857", badge: "#d1fae5", badgeText: "#047857", bg: "#065f46", text: "#a7f3d0" },
+  Journal:      { accent: "#6d28d9", badge: "#ede9fe", badgeText: "#6d28d9", bg: "#4c1d95", text: "#ddd6fe" },
+  Other:        { accent: "#0369a1", badge: "#e0f2fe", badgeText: "#0369a1", bg: "#1e3a5f", text: "#bae6fd" },
 };
 
 function getCat(cat: string) {
-  return CAT_COLORS[cat] ?? CAT_COLORS.Other;
+  return CAT_STYLES[cat] ?? CAT_STYLES.Other;
 }
 
 function formatDate(iso: string | null, locale: string): string {
@@ -80,285 +80,379 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
   }
 
   return (
-    <div className="mx-auto max-w-[1180px] px-5 py-10 pb-16 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10 items-start">
+    <div className="bg-bg-app">
 
-      {/* ── Main feed ── */}
-      <div className="min-w-0">
-
-        {/* Category filter tabs */}
-        <div className="flex flex-wrap gap-2 mb-8 border-b border-divider pb-5">
-          {FILTERS.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => handleCatChange(cat)}
-              className="text-sm font-semibold px-[18px] py-2 rounded-full cursor-pointer transition-colors border"
-              style={{
-                background:   cat === activeCat ? "#1d4ed8" : undefined,
-                color:        cat === activeCat ? "#fff" : undefined,
-                borderColor:  cat === activeCat ? "#1d4ed8" : undefined,
-              }}
-            >
-              {t(`category${cat}` as any)}
-            </button>
-          ))}
-        </div>
-
-        {/* Featured post */}
-        {featured && (
-          <Link
-            href={`/posts/${featured.slug}`}
-            className="group block no-underline relative rounded-2xl overflow-hidden shadow-md mb-8 bg-[#0b1530]"
-          >
-            <div className="aspect-[16/8] overflow-hidden">
-              {featured.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={featured.coverUrl}
-                  alt={featured.title}
-                  className="w-full h-full object-cover transition-transform duration-[400ms] group-hover:scale-[1.04]"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center p-8"
-                  style={{ background: getCat(featured.category).bg }}
+      {/* ── Filter strip ── */}
+      <div className="bg-bg-surface border-b border-divider">
+        <div className="mx-auto max-w-[1180px] px-5">
+          <div className="flex overflow-x-auto gap-1 py-3" style={{ scrollbarWidth: "none" }}>
+            {FILTERS.map((cat) => {
+              const count = cat === "All"
+                ? posts.length
+                : posts.filter(p => p.category === cat).length;
+              const isActive = cat === activeCat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleCatChange(cat)}
+                  className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-full cursor-pointer transition-all whitespace-nowrap border"
+                  style={{
+                    background:  isActive ? "#1e3a8a" : "transparent",
+                    color:       isActive ? "#fff" : "#475569",
+                    borderColor: isActive ? "#1e3a8a" : "transparent",
+                  }}
                 >
+                  {t(`category${cat}` as any)}
                   <span
-                    className="font-khmer-serif font-bold text-3xl text-center leading-snug"
-                    style={{ color: getCat(featured.category).text }}
-                  >
-                    {featured.title}
-                  </span>
-                </div>
-              )}
-            </div>
-            {/* Gradient overlay */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: "linear-gradient(180deg,rgba(11,21,48,0) 30%,rgba(11,21,48,.55) 60%,rgba(11,21,48,.92) 100%)" }}
-            />
-            <div className="absolute left-0 right-0 bottom-0 p-8">
-              <span
-                className="inline-flex items-center gap-[7px] text-xs font-bold tracking-[.04em] px-3 py-[5px] rounded-full mb-3"
-                style={{ background: "#f59e0b", color: "#0b1530" }}
-              >
-                ★ {t('featuredBadge')}
-              </span>
-              <h2 className="font-khmer-serif font-bold text-white text-[clamp(22px,3vw,30px)] leading-snug m-0 mb-3 transition-colors group-hover:text-amber-200">
-                {featured.title}
-              </h2>
-              <div className="flex items-center gap-4 text-blue-100 text-sm">
-                <span className="inline-flex items-center gap-[6px]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
-                  </svg>
-                  {formatDate(featured.createdAt, locale)}
-                </span>
-                <span className="text-amber-300">{t(`category${featured.category}` as any)}</span>
-              </div>
-            </div>
-          </Link>
-        )}
-
-        {/* Post list / empty state */}
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-20 text-center shadow-sm">
-            <h3 className="font-khmer-serif font-bold text-lg text-text-heading">{t('noPostsFound')}</h3>
-            <p className="mt-1 max-w-sm text-sm text-text-muted">
-              {query || activeCat !== "All" ? t('emptyHintSearch') : t('emptyHintEmpty')}
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            {pagePosts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/posts/${post.slug}`}
-                className="group grid grid-cols-1 sm:grid-cols-[240px_1fr] no-underline bg-bg-surface border border-divider rounded-xl overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-[3px] hover:shadow-lg"
-              >
-                {/* Thumbnail */}
-                <div className="relative overflow-hidden min-h-[140px] sm:min-h-0">
-                  {post.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={post.coverUrl}
-                      alt={post.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-[350ms] group-hover:scale-[1.05]"
-                    />
-                  ) : (
-                    <div
-                      className="absolute inset-0 flex items-center justify-center p-4"
-                      style={{ background: getCat(post.category).bg }}
-                    >
-                      <span
-                        className="font-khmer-serif font-bold text-2xl text-center"
-                        style={{ color: getCat(post.category).text }}
-                      >
-                        {t(`category${post.category}` as any)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-col p-5 pl-6">
-                  <span
-                    className="self-start text-xs font-bold tracking-[.03em] px-[11px] py-1 rounded-full mb-3"
+                    className="text-[11px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center leading-none"
                     style={{
-                      background: getCat(post.category).badgeBg,
-                      color:      getCat(post.category).badgeText,
+                      background: isActive ? "rgba(255,255,255,0.2)" : "#f1f5f9",
+                      color:      isActive ? "#fff" : "#64748b",
                     }}
                   >
-                    {t(`category${post.category}` as any)}
+                    {count}
                   </span>
-                  <h3 className="font-khmer-serif font-bold text-text-heading text-xl leading-snug m-0 mb-2 transition-colors group-hover:text-brand">
-                    {post.title}
-                  </h3>
-                  {post.excerpt && (
-                    <p className="m-0 mb-4 text-base leading-normal text-text-body font-sans line-clamp-2">
-                      {post.excerpt}
-                    </p>
-                  )}
-                  <div className="mt-auto flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-[6px] text-text-muted text-sm">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                        <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
-                      </svg>
-                      {formatDate(post.createdAt, locale)}
-                    </span>
-                    <span className="inline-flex items-center gap-[7px] text-brand text-sm font-bold transition-all group-hover:gap-3">
-                      {t('readMore')}
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14" /><path d="M12 5l7 7-7 7" />
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </button>
+              );
+            })}
           </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-10">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-              <button
-                key={pg}
-                onClick={() => setPage(pg)}
-                className="inline-flex items-center justify-center min-w-[40px] h-10 px-3 rounded-md text-sm cursor-pointer transition-all"
-                style={{
-                  background:   pg === page ? "#1d4ed8" : "#fff",
-                  color:        pg === page ? "#fff" : "#475569",
-                  border:       pg === page ? "none" : "1px solid #cbd5e1",
-                  fontWeight:   pg === page ? 700 : 600,
-                }}
-              >
-                {pg}
-              </button>
-            ))}
-            {page < totalPages && (
-              <button
-                onClick={() => setPage(p => p + 1)}
-                className="inline-flex items-center gap-[6px] h-10 px-4 rounded-md bg-white border border-[#cbd5e1] text-slate-700 text-sm font-semibold transition-all hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 cursor-pointer"
-              >
-                {t('nextPage')}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* ── Sidebar ── */}
-      <aside className="flex flex-col gap-6 lg:sticky lg:top-[90px]">
+      {/* ── Content + Sidebar ── */}
+      <div className="mx-auto max-w-[1180px] px-5 py-8 pb-16 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-10 items-start">
 
-        {/* Search */}
-        <div className="bg-bg-surface border border-divider rounded-xl p-5 shadow-sm">
-          <div className="flex items-center gap-2 bg-paper border border-divider rounded-full px-4 py-[9px]">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="text-text-muted shrink-0">
-              <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={t('searchSidebarPlaceholder')}
-              className="border-none outline-none bg-transparent font-sans text-sm text-text-heading w-full placeholder:text-text-muted"
-            />
-          </div>
-        </div>
+        {/* ── Main feed ── */}
+        <div className="min-w-0">
 
-        {/* Categories */}
-        <div className="bg-bg-surface border border-divider rounded-xl px-6 py-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="w-1 h-5 bg-amber-500 rounded-full shrink-0" />
-            <h3 className="font-khmer-serif font-bold text-text-heading text-lg m-0">{t('categoriesTitle')}</h3>
-          </div>
-          {catCounts.map((c, idx) => (
-            <button
-              key={c.key}
-              onClick={() => handleCatChange(c.key as any)}
-              className={`flex items-center justify-between w-full text-left text-text-body text-base font-sans py-[9px] border-b border-divider transition-all hover:text-brand hover:pl-1 cursor-pointer bg-transparent border-x-0 border-t-0 ${idx === catCounts.length - 1 ? "border-b-0" : ""}`}
+          {/* Featured post */}
+          {featured && (
+            <Link
+              href={`/posts/${featured.slug}`}
+              className="group block no-underline relative rounded-2xl overflow-hidden shadow-md mb-7 cursor-pointer"
+              style={{ background: "#0b1530" }}
             >
-              <span>{c.label}</span>
-              <span className="bg-paper text-text-muted text-xs font-bold min-w-[26px] text-center py-0.5 px-2 rounded-full">
-                {c.count}
-              </span>
-            </button>
-          ))}
-        </div>
+              <div className="overflow-hidden" style={{ aspectRatio: "16/7" }}>
+                {featured.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={featured.coverUrl}
+                    alt={featured.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center p-8"
+                    style={{ background: getCat(featured.category).bg }}
+                  >
+                    <span className="font-khmer-serif font-bold text-3xl text-center leading-snug"
+                      style={{ color: getCat(featured.category).text }}>
+                      {featured.title}
+                    </span>
+                  </div>
+                )}
+              </div>
 
-        {/* Recent posts */}
-        <div className="bg-bg-surface border border-divider rounded-xl px-6 py-5 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="w-1 h-5 bg-amber-500 rounded-full shrink-0" />
-            <h3 className="font-khmer-serif font-bold text-text-heading text-lg m-0">{t('recentTitle')}</h3>
-          </div>
-          <div className="flex flex-col gap-4">
-            {posts.slice(0, 3).map((p) => (
-              <Link
-                key={p.id}
-                href={`/posts/${p.slug}`}
-                className="group grid grid-cols-[64px_1fr] gap-3 no-underline items-center"
-              >
-                <div
-                  className="w-16 h-16 rounded-lg shrink-0 overflow-hidden"
-                  style={p.coverUrl
-                    ? { backgroundImage: `url('${p.coverUrl}')`, backgroundSize: "cover", backgroundPosition: "center" }
-                    : { background: getCat(p.category).bg }}
-                />
-                <div>
-                  <div className="font-khmer-serif font-semibold text-text-heading text-sm leading-snug transition-colors group-hover:text-brand line-clamp-2">
-                    {p.title}
-                  </div>
-                  <div className="text-text-muted text-xs mt-1">
-                    {formatDate(p.createdAt, locale)}
-                  </div>
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: "linear-gradient(to top, rgba(11,21,48,.92) 0%, rgba(11,21,48,.45) 45%, transparent 100%)" }} />
+
+              {/* Content */}
+              <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wide px-3 py-1.5 rounded-full"
+                    style={{ background: "#f59e0b", color: "#0b1530" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    {t('featuredBadge')}
+                  </span>
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white/15 text-white/90">
+                    {t(`category${featured.category}` as any)}
+                  </span>
                 </div>
-              </Link>
-            ))}
-          </div>
+                <h2 className="font-khmer-serif font-bold text-white text-[clamp(20px,2.8vw,30px)] leading-snug m-0 mb-3 transition-colors group-hover:text-amber-200 max-w-[40ch]">
+                  {featured.title}
+                </h2>
+                <div className="flex items-center gap-3 text-blue-200/80 text-sm flex-wrap">
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                      <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                    </svg>
+                    {formatDate(featured.createdAt, locale)}
+                  </span>
+                  <span className="text-white/30">·</span>
+                  <span className="font-semibold text-white/75">{featured.author}</span>
+                </div>
+              </div>
+            </Link>
+          )}
+
+          {/* Empty state */}
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-20 text-center shadow-sm">
+              <div className="w-14 h-14 rounded-full bg-paper flex items-center justify-center mb-4">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+                </svg>
+              </div>
+              <h3 className="font-khmer-serif font-bold text-lg text-text-heading">{t('noPostsFound')}</h3>
+              <p className="mt-1 max-w-xs text-sm text-text-muted">
+                {query || activeCat !== "All" ? t('emptyHintSearch') : t('emptyHintEmpty')}
+              </p>
+            </div>
+          )}
+
+          {/* Posts grid */}
+          {pagePosts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {pagePosts.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/posts/${post.slug}`}
+                  className="group flex flex-col no-underline bg-bg-surface border border-divider rounded-2xl overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative overflow-hidden flex-none" style={{ aspectRatio: "16/9" }}>
+                    {post.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={post.coverUrl}
+                        alt={post.title}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-400 group-hover:scale-[1.06]"
+                      />
+                    ) : (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center p-5"
+                        style={{ background: getCat(post.category).bg }}
+                      >
+                        <span
+                          className="font-khmer-serif font-bold text-xl text-center leading-snug line-clamp-3"
+                          style={{ color: getCat(post.category).text }}
+                        >
+                          {post.title}
+                        </span>
+                      </div>
+                    )}
+                    {/* Category badge */}
+                    <span
+                      className="absolute top-3 left-3 text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full shadow-sm"
+                      style={{
+                        background: getCat(post.category).badge,
+                        color:      getCat(post.category).badgeText,
+                      }}
+                    >
+                      {t(`category${post.category}` as any)}
+                    </span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex flex-col flex-1 p-5">
+                    <h3 className="font-khmer-serif font-bold text-text-heading text-lg leading-snug m-0 mb-2 transition-colors group-hover:text-brand line-clamp-3">
+                      {post.title}
+                    </h3>
+                    {post.excerpt && (
+                      <p className="m-0 mb-3 text-sm leading-relaxed text-text-body line-clamp-2">
+                        {post.excerpt}
+                      </p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-3 border-t border-divider">
+                      <span className="inline-flex items-center gap-1.5 text-text-muted text-xs">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                        </svg>
+                        {formatDate(post.createdAt, locale)}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-brand text-xs font-bold transition-all group-hover:gap-2.5">
+                        {t('readMore')}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
+                        </svg>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-10">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-divider bg-bg-surface text-text-muted text-sm transition hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 6l-6 6 6 6"/>
+                </svg>
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                <button
+                  key={pg}
+                  onClick={() => setPage(pg)}
+                  className="inline-flex items-center justify-center min-w-[36px] h-9 px-2 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+                  style={{
+                    background:  pg === page ? "#1e3a8a" : "#fff",
+                    color:       pg === page ? "#fff" : "#475569",
+                    border:      pg === page ? "1px solid #1e3a8a" : "1px solid #e5e7eb",
+                    fontWeight:  pg === page ? 700 : 500,
+                  }}
+                >
+                  {pg}
+                </button>
+              ))}
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="inline-flex items-center justify-center w-9 h-9 rounded-lg border border-divider bg-bg-surface text-text-muted text-sm transition hover:border-brand hover:text-brand disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 6l6 6-6 6"/>
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Contact CTA */}
-        <div className="bg-[#0b1530] rounded-xl p-6 shadow-md">
-          <h3 className="font-khmer-serif font-bold text-white text-lg m-0 mb-3">{t('contactTitle')}</h3>
-          <p className="m-0 mb-4 text-sm leading-normal text-blue-200">
-            {locale === "km" ? PTEC.address.km : PTEC.address.en}
-          </p>
-          <div className="flex flex-col gap-2 text-sm text-blue-100">
-            <a href={PTEC.phoneTel} className="no-underline text-blue-100 hover:text-white transition-colors">
-              📞 {PTEC.phone}
-            </a>
-            <a href={`mailto:${PTEC.email}`} className="no-underline text-blue-100 hover:text-white transition-colors">
-              ✉ {PTEC.email}
-            </a>
-            <span>🕐 {locale === "km" ? PTEC.hours.km : PTEC.hours.en}</span>
+        {/* ── Sidebar ── */}
+        <aside className="flex flex-col gap-5 lg:sticky lg:top-[90px]">
+
+          {/* Search */}
+          <div className="bg-bg-surface border border-divider rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 bg-paper border border-divider rounded-lg px-3.5 py-2.5 transition-shadow focus-within:ring-2 focus-within:ring-brand/10 focus-within:border-brand/40">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="text-text-muted shrink-0">
+                <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>
+              </svg>
+              <input
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={t('searchSidebarPlaceholder')}
+                className="border-none outline-none bg-transparent font-sans text-sm text-text-heading w-full placeholder:text-text-muted"
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className="text-text-muted hover:text-text-heading cursor-pointer transition-colors shrink-0"
+                  aria-label="Clear search"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      </aside>
+
+          {/* Categories */}
+          <div className="bg-bg-surface border border-divider rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 pt-5 pb-3 flex items-center gap-2.5">
+              <span className="w-1 h-5 bg-accent rounded-full shrink-0" />
+              <h3 className="font-khmer-serif font-bold text-text-heading text-base m-0">{t('categoriesTitle')}</h3>
+            </div>
+            <div className="px-2 pb-2">
+              {catCounts.map((c) => {
+                const style = getCat(c.key);
+                const isActive = activeCat === c.key;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => handleCatChange(c.key as any)}
+                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2.5 text-sm font-sans transition-all cursor-pointer"
+                    style={{
+                      background: isActive ? style.badge : "transparent",
+                      color:      isActive ? style.badgeText : "#475569",
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: style.accent }} />
+                      {c.label}
+                    </span>
+                    <span
+                      className="text-[11px] font-bold min-w-[22px] text-center py-0.5 px-1.5 rounded-full"
+                      style={{
+                        background: isActive ? style.accent : "#f1f5f9",
+                        color:      isActive ? "#fff" : "#64748b",
+                      }}
+                    >
+                      {c.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent posts */}
+          <div className="bg-bg-surface border border-divider rounded-xl px-5 py-5 shadow-sm">
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="w-1 h-5 bg-accent rounded-full shrink-0" />
+              <h3 className="font-khmer-serif font-bold text-text-heading text-base m-0">{t('recentTitle')}</h3>
+            </div>
+            <div className="flex flex-col gap-3.5">
+              {posts.slice(0, 4).map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/posts/${p.slug}`}
+                  className="group flex items-start gap-3 no-underline cursor-pointer"
+                >
+                  <div
+                    className="w-14 h-14 rounded-lg shrink-0 flex-none overflow-hidden"
+                    style={p.coverUrl
+                      ? { backgroundImage: `url('${p.coverUrl}')`, backgroundSize: "cover", backgroundPosition: "center" }
+                      : { background: getCat(p.category).bg }}
+                  />
+                  <div className="min-w-0">
+                    <div className="font-khmer-serif font-semibold text-text-heading text-sm leading-snug transition-colors group-hover:text-brand line-clamp-2 mb-1">
+                      {p.title}
+                    </div>
+                    <div className="text-text-muted text-[11px]">
+                      {formatDate(p.createdAt, locale)}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact CTA */}
+          <div className="bg-[#0b1530] rounded-xl p-5 shadow-md">
+            <h3 className="font-khmer-serif font-bold text-white text-base m-0 mb-3">{t('contactTitle')}</h3>
+            <p className="m-0 mb-4 text-sm leading-relaxed text-blue-200/75">
+              {locale === "km" ? PTEC.address.km : PTEC.address.en}
+            </p>
+            <div className="flex flex-col gap-2.5">
+              <a href={PTEC.phoneTel} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l1.28-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+                {PTEC.phone}
+              </a>
+              <a href={`mailto:${PTEC.email}`} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                {PTEC.email}
+              </a>
+              <span className="text-blue-300/60 text-xs inline-flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="shrink-0">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+                </svg>
+                {locale === "km" ? PTEC.hours.km : PTEC.hours.en}
+              </span>
+            </div>
+          </div>
+
+        </aside>
+      </div>
     </div>
   );
 }

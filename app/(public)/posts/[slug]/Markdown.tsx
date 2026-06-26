@@ -42,7 +42,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
 
     if (token.startsWith("`")) {
       nodes.push(
-        <code key={key} className="rounded bg-paper px-1.5 py-0.5 font-mono text-[0.85em] text-text-heading">
+        <code key={key} className="rounded-md border border-brand/10 bg-brand/5 px-1.5 py-0.5 font-mono text-[0.85em] text-brand">
           {token.slice(1, -1)}
         </code>
       );
@@ -55,7 +55,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
             href={m[2].trim()}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-medium text-brand underline underline-offset-2 hover:text-text-heading"
+            className="font-semibold text-brand underline underline-offset-2 decoration-brand/40 transition-colors hover:text-accent hover:decoration-accent"
           >
             {m[1]}
           </a>
@@ -65,10 +65,10 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
         nodes.push(<React.Fragment key={key}>{m[1]}</React.Fragment>);
       }
     } else if (token.startsWith("**")) {
-      nodes.push(<strong key={key} className="font-bold text-text-heading">{token.slice(2, -2)}</strong>);
+      nodes.push(<strong key={key} className="font-bold text-brand">{token.slice(2, -2)}</strong>);
     } else {
       // *italic* or _italic_
-      nodes.push(<em key={key}>{token.slice(1, -1)}</em>);
+      nodes.push(<em key={key} className="text-text-body">{token.slice(1, -1)}</em>);
     }
 
     lastIndex = match.index + token.length;
@@ -125,7 +125,7 @@ export default function Markdown({ content }: { content: string }) {
       }
       i++; // skip closing fence
       blocks.push(
-        <pre key={key++} className="my-4 overflow-x-auto rounded-lg bg-blue-950 p-4 text-sm leading-relaxed text-slate-100">
+        <pre key={key++} className="my-5 overflow-x-auto rounded-xl border border-brand/20 bg-[#0B1530] p-5 text-sm leading-relaxed text-slate-100 shadow-sm">
           <code className="font-mono">{codeLines.join("\n")}</code>
         </pre>
       );
@@ -134,7 +134,7 @@ export default function Markdown({ content }: { content: string }) {
 
     // ── Horizontal rule ──
     if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) {
-      blocks.push(<hr key={key++} className="my-6 border-divider" />);
+      blocks.push(<hr key={key++} className="my-8 border-0 h-px bg-gradient-to-r from-brand/30 via-accent/50 to-brand/30" />);
       i++;
       continue;
     }
@@ -145,17 +145,39 @@ export default function Markdown({ content }: { content: string }) {
       const level = heading[1].length;
       const hText = heading[2];
       const content = renderInline(hText, `h-${key}`);
-      const cls = [
-        "mt-8 mb-3 font-title text-3xl text-text-heading",
-        "mt-7 mb-3 font-title text-2xl text-text-heading scroll-mt-24",
-        "mt-6 mb-2 font-title text-xl text-text-heading scroll-mt-24",
-        "mt-5 mb-2 font-title text-lg text-text-heading",
-        "mt-4 mb-2 font-title text-base text-text-body",
-        "mt-4 mb-2 font-title text-sm uppercase tracking-wide text-text-muted",
-      ][level - 1];
-      const Tag = (`h${level}` as keyof React.JSX.IntrinsicElements);
       const id = level >= 2 ? slugifyHeading(hText) : undefined;
-      blocks.push(<Tag key={key++} id={id} className={cls}>{content}</Tag>);
+
+      if (level === 1) {
+        // H1 — large PTEC navy with gold accent underline
+        blocks.push(
+          <h1 key={key++} className="mt-8 mb-4 font-title text-3xl text-brand pb-2 border-b-2 border-accent/40">
+            {content}
+          </h1>
+        );
+      } else if (level === 2) {
+        // H2 — flex with gold rounded pill bar (matching design spec)
+        blocks.push(
+          <h2 key={key++} id={id} className="mt-8 mb-4 flex items-center gap-3 font-title text-2xl text-brand scroll-mt-24">
+            <span className="w-1.5 h-7 rounded-full bg-accent shrink-0" aria-hidden="true" />
+            <span>{content}</span>
+          </h2>
+        );
+      } else {
+        const cls = [
+          "",  // H1 handled above
+          "",  // H2 handled above
+          // H3 — PTEC navy
+          "mt-6 mb-2 font-title text-xl text-brand scroll-mt-24",
+          // H4 — slightly muted
+          "mt-5 mb-2 font-title text-lg text-brand/80",
+          // H5
+          "mt-4 mb-2 font-title text-base text-text-body",
+          // H6 — uppercase label
+          "mt-4 mb-2 font-title text-sm uppercase tracking-widest text-text-muted",
+        ][level - 1];
+        const Tag = (`h${level}` as keyof React.JSX.IntrinsicElements);
+        blocks.push(<Tag key={key++} id={id} className={cls}>{content}</Tag>);
+      }
       i++;
       continue;
     }
@@ -168,7 +190,7 @@ export default function Markdown({ content }: { content: string }) {
         i++;
       }
       blocks.push(
-        <blockquote key={key++} className="my-4 border-l-4 border-brand bg-cyan-50/40 py-2 pl-4 pr-2 text-text-body italic">
+        <blockquote key={key++} className="my-5 rounded-r-lg border-l-4 border-accent bg-amber-50/60 py-3 pl-5 pr-3 text-text-body italic dark:bg-amber-950/20">
           {renderInline(quoteLines.join(" "), `q-${key}`)}
         </blockquote>
       );
@@ -183,9 +205,11 @@ export default function Markdown({ content }: { content: string }) {
         i++;
       }
       blocks.push(
-        <ul key={key++} className="my-4 list-disc space-y-1.5 pl-6 text-text-body">
+        <ul key={key++} className="my-4 space-y-2 pl-6 text-text-body" style={{ listStyleType: "none" }}>
           {items.map((it, idx) => (
-            <li key={idx} className="leading-relaxed">{renderInline(it, `ul-${key}-${idx}`)}</li>
+            <li key={idx} className="relative leading-relaxed pl-5 before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
+              {renderInline(it, `ul-${key}-${idx}`)}
+            </li>
           ))}
         </ul>
       );
@@ -200,9 +224,9 @@ export default function Markdown({ content }: { content: string }) {
         i++;
       }
       blocks.push(
-        <ol key={key++} className="my-4 list-decimal space-y-1.5 pl-6 text-text-body">
+        <ol key={key++} className="my-4 list-decimal space-y-2 pl-6 text-text-body marker:font-bold marker:text-brand">
           {items.map((it, idx) => (
-            <li key={idx} className="leading-relaxed">{renderInline(it, `ol-${key}-${idx}`)}</li>
+            <li key={idx} className="leading-relaxed pl-1">{renderInline(it, `ol-${key}-${idx}`)}</li>
           ))}
         </ol>
       );

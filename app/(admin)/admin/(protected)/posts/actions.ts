@@ -37,17 +37,17 @@ function deriveExcerpt(content: string, provided: string | null): string | null 
 
 function storagePathFromUrl(publicUrl: string): string | null {
   try {
-    const url = new URL(publicUrl);
-    const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
-    if (r2Base && publicUrl.startsWith(r2Base)) {
-      let path = publicUrl.slice(r2Base.length);
-      if (path.startsWith('/')) path = path.slice(1);
-      return decodeURIComponent(path);
-    }
-    const marker = "/object/public/post-files/";
-    const idx = url.pathname.indexOf(marker);
-    if (idx !== -1) {
-      return decodeURIComponent(url.pathname.slice(idx + marker.length));
+    // Try matching against both the private bucket CDN and the public covers CDN
+    const candidates = [
+      process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
+      process.env.NEXT_PUBLIC_R2_COVERS_URL,
+    ].filter(Boolean) as string[];
+
+    for (const base of candidates) {
+      const norm = base.replace(/\/$/, "");
+      if (publicUrl.startsWith(norm + "/")) {
+        return decodeURIComponent(publicUrl.slice(norm.length + 1));
+      }
     }
     return null;
   } catch {
@@ -71,17 +71,19 @@ async function uniqueSlug(
   }
 }
 
-/** Parse coverUrls JSON string from FormData → string[] */
-function parseCoverUrls(formData: FormData): string[] {
-  const raw = formData.get("coverUrls");
+function parseStringArray(formData: FormData, key: string): string[] {
+  const raw = formData.get(key);
   if (!raw || typeof raw !== "string") return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((u) => typeof u === "string" && u) : [];
+    return Array.isArray(parsed) ? parsed.filter((u): u is string => typeof u === "string" && !!u) : [];
   } catch {
     return [];
   }
 }
+
+const parseCoverUrls = (fd: FormData) => parseStringArray(fd, "coverUrls");
+const parseTags      = (fd: FormData) => parseStringArray(fd, "tags").slice(0, 10);
 
 // ── createPost ────────────────────────────────────────────────────
 export async function createPost(formData: FormData) {
@@ -93,6 +95,7 @@ export async function createPost(formData: FormData) {
   const excerpt  = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
   const isPublished = formData.get("isPublished")?.toString() === "true";
   const coverUrls   = parseCoverUrls(formData);
+  const tags        = parseTags(formData);
 
   const slug = await uniqueSlug(supabase, slugify(title));
 
@@ -103,9 +106,10 @@ export async function createPost(formData: FormData) {
       slug,
       content,
       excerpt,
-      cover_url:    coverUrls[0] ?? null,   // keep cover_url for backwards compat
-      cover_urls:   coverUrls,               // new array column
+      cover_url:    coverUrls[0] ?? null,
+      cover_urls:   coverUrls,
       category,
+      tags,
       author_id:    user.id,
       is_published: isPublished,
     })
@@ -131,6 +135,7 @@ export async function updatePost(postId: string, formData: FormData) {
   const excerpt  = deriveExcerpt(content, formData.get("excerpt")?.toString() ?? null);
   const isPublished = formData.get("isPublished")?.toString() === "true";
   const coverUrls   = parseCoverUrls(formData);
+  const tags        = parseTags(formData);
 
   // Fetch existing URLs so we can delete ones that were removed from storage
   const { data: existing } = await supabase
@@ -158,6 +163,7 @@ export async function updatePost(postId: string, formData: FormData) {
       content,
       excerpt,
       category,
+      tags,
       is_published: isPublished,
       cover_url:    coverUrls[0] ?? null,
       cover_urls:   coverUrls,

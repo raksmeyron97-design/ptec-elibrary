@@ -11,6 +11,12 @@ const s3Client = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
+  // AWS SDK v3 ≥ 3.600 calculates checksums by default, which adds
+  // x-amz-checksum-* query params to presigned URLs. The browser's fetch()
+  // cannot satisfy those headers, causing the PUT to fail. Setting both to
+  // WHEN_REQUIRED restores the pre-3.600 behaviour for presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 // Configure CORS once per server instance so browser PUT uploads work.

@@ -14,7 +14,7 @@ export default async function EditPostPage({
 
   const { data: post } = await supabase
     .from("posts")
-    .select("id, title, category, excerpt, content, cover_url, cover_urls, is_published, slug")
+    .select("id, title, category, excerpt, content, cover_url, cover_urls, is_published, slug, tags")
     .eq("id", id)
     .single();
 
@@ -34,8 +34,9 @@ export default async function EditPostPage({
     category:    post.category ?? "Other",
     excerpt:     post.excerpt ?? null,
     content:     post.content,
-    coverUrls,                        // ← array (replaces coverUrl)
+    coverUrls,
     isPublished: post.is_published,
+    tags:        Array.isArray(post.tags) ? (post.tags as string[]) : [],
   };
 
   return (
