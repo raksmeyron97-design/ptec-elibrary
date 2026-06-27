@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Avatar from "@/components/ui/Avatar";
 
 type LogType = "download" | "view";
 
@@ -13,6 +14,7 @@ export interface LogRow {
   book: string;
   time: string;
   isAnon: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface LogStats {
@@ -367,9 +369,7 @@ export default function SecurityLogsClient({
 
                   {/* User */}
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                    <div style={{ width: "32px", height: "32px", flexShrink: 0, borderRadius: "9px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 600, color: avColor, background: avBg }}>
-                      {inits}
-                    </div>
+                    <Avatar url={r.avatarUrl || null} name={r.name} email={r.email} size={32} className="!rounded-[9px]" />
                     <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
                       <span style={{ fontSize: "13.5px", fontWeight: 600, color: "#1a1d24", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>
                       <span style={{ fontSize: "11.5px", color: "#9aa1ad", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.email}</span>

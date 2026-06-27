@@ -7,13 +7,13 @@ export default async function AdminLogsPage() {
   const [{ data: downloadLogs }, { data: rawViewLogs }] = await Promise.all([
     supabase
       .from("download_logs")
-      .select(`id, downloaded_at, user:profiles(email, full_name)`)
+      .select(`id, downloaded_at, user:profiles(email, full_name, avatar_url)`)
       .order("downloaded_at", { ascending: false })
       .limit(200),
 
     supabase
       .from("view_logs")
-      .select(`id, viewed_at, content_id, content_type, user:profiles(email, full_name)`)
+      .select(`id, viewed_at, content_id, content_type, user:profiles(email, full_name, avatar_url)`)
       .eq("content_type", "book")
       .order("viewed_at", { ascending: false })
       .limit(200),
@@ -44,6 +44,7 @@ export default async function AdminLogsPage() {
     book: dlBookTitleMap.get(l.book_id) || "Unknown Book",
     time: l.downloaded_at,
     isAnon: !l.user,
+    avatarUrl: l.user?.avatar_url,
   }));
 
   // Normalize view logs
@@ -55,6 +56,7 @@ export default async function AdminLogsPage() {
     book: bookTitleMap.get(l.content_id) || "Unknown Book",
     time: l.viewed_at,
     isAnon: !l.user,
+    avatarUrl: l.user?.avatar_url,
   }));
 
   // Merge and sort by recency

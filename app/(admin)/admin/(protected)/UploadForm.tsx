@@ -266,8 +266,10 @@ export default function UploadForm() {
       {/* ── Phase progress ── */}
       <PhaseStepper phase={phase} />
 
-      {/* ── Files card ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+      <div className="grid gap-6 lg:grid-cols-[380px_1fr] items-start">
+        <div className="space-y-6">
+          {/* ── Files card ── */}
+          <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
         <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
           <span className="sec-chip sec-chip--files">
             <FileText className="h-[18px] w-[18px]" />
@@ -393,9 +395,11 @@ export default function UploadForm() {
           </div>
         </div>
       </div>
+        </div>
 
-      {/* ── Book details card ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+        <div className="space-y-6 min-w-0">
+          {/* ── Book details card ── */}
+          <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
         <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
           <span className="sec-chip sec-chip--details">
             <BookOpen className="h-[18px] w-[18px]" />
@@ -559,6 +563,8 @@ export default function UploadForm() {
           </>
         )}
       </button>
+        </div>
+      </div>
     </form>
   );
 }

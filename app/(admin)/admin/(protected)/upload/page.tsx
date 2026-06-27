@@ -15,11 +15,11 @@ export default async function AdminUploadPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-8">
-      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-8">
         {/* ── Client Component with Tab Switcher ── */}
         <UploadPageClient />
 
-        {/* ── Sidebar: Recent uploads ── */}
+        {/* ── Recent uploads ── */}
         <div className="h-fit overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
           {/* Header */}
           <div
