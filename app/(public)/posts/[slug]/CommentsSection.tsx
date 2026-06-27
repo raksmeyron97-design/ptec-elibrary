@@ -3,7 +3,7 @@
 import { useState, useCallback, useTransition, useRef, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { createComment, deleteComment } from "@/app/actions/post-comments";
+import { createComment, deleteComment, updateComment } from "@/app/actions/post-comments";
 
 /* ─── Types ─── */
 interface CommentAuthor {
@@ -16,6 +16,7 @@ interface Comment {
   created_at: string;
   user_id: string;
   parent_id: string | null;
+  is_edited?: boolean;
   author: CommentAuthor | null;
 }
 interface Props {
@@ -173,10 +174,53 @@ function TypingDots() {
   );
 }
 
+/* ─── Realtime typing presence hook ─── */
+function useTypingPresence(postId: string, currentUserId: string | null) {
+  const supabase = useMemo(() => createClient(), []);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const channel = supabase.channel(`comments:${postId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const typing: string[] = [];
+        for (const [uid, entries] of Object.entries(state)) {
+          if (uid !== currentUserId && Array.isArray(entries)) {
+            const isTyping = entries.some(
+              (e: Record<string, unknown>) => e.typing === true
+            );
+            if (isTyping) typing.push(uid);
+          }
+        }
+        setTypingUsers(typing);
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); };
+  }, [postId, currentUserId, supabase]);
+
+  const startTyping = useCallback(() => {
+    channelRef.current?.track({ typing: true });
+  }, []);
+
+  const stopTyping = useCallback(() => {
+    channelRef.current?.track({ typing: false });
+  }, []);
+
+  return { typingUsers, startTyping, stopTyping };
+}
+
 /* ─── Auto-grow textarea ─── */
-function AutoTextarea({ value, onChange, placeholder, disabled, maxLength, className }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
-  disabled?: boolean; maxLength?: number; className?: string;
+function AutoTextarea({ value, onChange, onFocus, onBlur, placeholder, disabled, maxLength, className }: {
+  value: string; onChange: (v: string) => void; onFocus?: () => void; onBlur?: () => void;
+  placeholder?: string; disabled?: boolean; maxLength?: number; className?: string;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -190,6 +234,8 @@ function AutoTextarea({ value, onChange, placeholder, disabled, maxLength, class
       ref={ref}
       value={value}
       onChange={e => onChange(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
       placeholder={placeholder}
       disabled={disabled}
       maxLength={maxLength}
@@ -202,10 +248,12 @@ function AutoTextarea({ value, onChange, placeholder, disabled, maxLength, class
 /* ─── Comment Form ─── */
 function CommentForm({
   postId, postSlug, parentId, initialBody, onSuccess, onCancel, placeholder, isEdit,
+  onTypingStart, onTypingStop,
 }: {
   postId: string; postSlug: string; parentId?: string | null;
   initialBody?: string; onSuccess: (body?: string) => void;
   onCancel?: () => void; placeholder?: string; isEdit?: boolean;
+  onTypingStart?: () => void; onTypingStop?: () => void;
 }) {
   const [body, setBody] = useState(initialBody ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +266,7 @@ function CommentForm({
     if (!body.trim()) return;
     setError(null);
     startTransition(async () => {
+      onTypingStop?.();
       if (isEdit) {
         // edit mode — just call onSuccess with new body, parent handles update
         onSuccess(body.trim());
@@ -236,6 +285,8 @@ function CommentForm({
         <AutoTextarea
           value={body}
           onChange={setBody}
+          onFocus={onTypingStart}
+          onBlur={onTypingStop}
           placeholder={placeholder ?? "Share your thoughts…"}
           disabled={isPending}
           maxLength={2000}
@@ -342,8 +393,8 @@ function CommentItem({
   const [isDeleting, startDeleting] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [editedBody, setEditedBody] = useState(comment.body);
+  const [editError, setEditError] = useState<string | null>(null);
   const { likes, liked, toggle: toggleLike } = useCommentLikes(comment.id, currentUserId);
-  const [someonTyping, setSomeoneTyping] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -352,18 +403,11 @@ function CommentItem({
   const canEdit   = comment.user_id === currentUserId;
   const isOwner   = comment.user_id === currentUserId;
 
-  // Simulate random typing indicator for demo (remove in prod / replace with realtime)
-  useEffect(() => {
-    if (replies.length === 0) return;
-    const t = setTimeout(() => setSomeoneTyping(false), 3000);
-    return () => clearTimeout(t);
-  }, [replies.length]);
-
   function handleDelete() {
     if (!confirm("Delete this comment?")) return;
     startDeleting(async () => {
       const res = await deleteComment(comment.id, postSlug);
-      if (!res.error) setDeleted(true);
+      if (!res.error) { setDeleted(true); onReplySuccess(); }
     });
   }
 
@@ -395,12 +439,20 @@ function CommentItem({
             <CommentForm
               postId={postId} postSlug={postSlug}
               initialBody={editedBody} isEdit
-              onSuccess={(newBody) => {
-                if (newBody) setEditedBody(newBody);
-                setIsEditing(false);
+              onSuccess={async (newBody) => {
+                if (!newBody) { setIsEditing(false); return; }
+                setEditError(null);
+                const res = await updateComment(comment.id, newBody, postSlug);
+                if (res.error) {
+                  setEditError(res.error);
+                } else {
+                  setEditedBody(newBody);
+                  setIsEditing(false);
+                }
               }}
-              onCancel={() => setIsEditing(false)}
+              onCancel={() => { setIsEditing(false); setEditError(null); }}
             />
+            {editError && <p className="text-xs text-red-500 font-sans px-1 mt-1">{editError}</p>}
           </div>
         ) : (
           <div className={`cmnt-bubble rounded-2xl rounded-tl-sm px-4 py-3
@@ -425,8 +477,8 @@ function CommentItem({
                 )}
                 <span className="text-text-muted text-xs font-sans">{timeAgo(comment.created_at)}</span>
               </div>
-              {/* edit indicator */}
-              {editedBody !== comment.body && (
+              {/* edit indicator — from DB is_edited flag or local edit */}
+              {(comment.is_edited || editedBody !== comment.body) && (
                 <span className="text-[9px] text-text-muted italic font-sans">(edited)</span>
               )}
             </div>
@@ -491,16 +543,6 @@ function CommentItem({
         {/* Replies */}
         {replies.length > 0 && showReplies && (
           <div className="mt-3 flex flex-col gap-3 pl-2">
-            {someonTyping && (
-              <div className="flex items-center gap-2 cmnt-fade-in">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#DDB022]/30 to-[#d97706]/30
-                                flex items-center justify-center text-[10px] text-[#806211] font-bold">?</div>
-                <div className="cmnt-bubble-reply rounded-2xl rounded-tl-sm px-3 py-2
-                                bg-bg-surface border border-divider/60">
-                  <TypingDots />
-                </div>
-              </div>
-            )}
             {replies.map(reply => (
               <ReplyItem key={reply.id} reply={reply}
                 currentUserId={currentUserId} isAdmin={isAdmin}
@@ -518,10 +560,11 @@ export default function CommentsSection({
   postId, postSlug, initialComments, currentUserId, isAdmin,
 }: Props) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [refreshKey, setRefreshKey] = useState(0);
   const [sort, setSort] = useState<"oldest" | "newest">("oldest");
+  const { typingUsers, startTyping, stopTyping } = useTypingPresence(postId, currentUserId);
 
   const topLevel = comments
     .filter(c => !c.parent_id)
@@ -536,13 +579,26 @@ export default function CommentsSection({
   const refresh = useCallback(async () => {
     const { data } = await supabase
       .from("post_comments")
-      .select("id, body, created_at, user_id, parent_id, author:profiles!user_id(full_name, email)")
+      .select("id, body, created_at, user_id, parent_id, is_edited, author:profiles!user_id(full_name, email)")
       .eq("post_id", postId)
       .eq("is_deleted", false)
       .order("created_at", { ascending: true });
     if (data) setComments(data as unknown as Comment[]);
     setRefreshKey(k => k + 1);
   }, [supabase, postId]);
+
+  // ── Realtime: auto-insert new comments from other users ──
+  useEffect(() => {
+    const channel = supabase
+      .channel(`post_comments:${postId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "post_comments", filter: `post_id=eq.${postId}` },
+        () => { refresh(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase, postId, refresh]);
 
   async function handleAddClick() {
     if (!currentUserId) {
@@ -604,8 +660,10 @@ export default function CommentsSection({
             សរសេរមតិយោបល់
           </p>
           <CommentForm
-            postId={postId} postSlug={postSlug} onSuccess={refresh}
+            postId={postId} postSlug={postSlug} onSuccess={() => { stopTyping(); refresh(); }}
             placeholder="Share your thoughts…"
+            onTypingStart={startTyping}
+            onTypingStop={stopTyping}
           />
         </div>
       ) : (
@@ -665,6 +723,26 @@ export default function CommentsSection({
               onReplySuccess={refresh}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Typing indicator from other users ── */}
+      {typingUsers.length > 0 && (
+        <div className="flex items-center gap-2 mt-4 cmnt-fade-in">
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#DDB022]/30 to-[#d97706]/30
+                          flex items-center justify-center text-[10px] text-[#806211] font-bold">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div className="cmnt-bubble-reply rounded-2xl rounded-tl-sm px-3.5 py-2
+                          bg-bg-surface border border-divider/60">
+            <TypingDots />
+          </div>
+          <span className="text-[10px] text-text-muted font-sans">
+            Someone is typing…
+          </span>
         </div>
       )}
 

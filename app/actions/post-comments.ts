@@ -73,3 +73,34 @@ export async function deleteComment(
     return { error: err instanceof Error ? err.message : "Failed to delete comment" };
   }
 }
+
+export async function updateComment(
+  commentId: string,
+  newBody: string,
+  postSlug: string,
+): Promise<{ error?: string }> {
+  const trimmed = newBody.trim();
+  if (!trimmed) return { error: "Comment cannot be empty" };
+  if (trimmed.length > 2000) return { error: "Comment is too long (max 2000 characters)" };
+
+  try {
+    const { supabase, user } = await getAuthUser();
+
+    const { error } = await supabase
+      .from("post_comments")
+      .update({
+        body: trimmed,
+        updated_at: new Date().toISOString(),
+        is_edited: true,
+      })
+      .eq("id", commentId)
+      .eq("user_id", user.id);
+
+    if (error) return { error: error.message };
+
+    revalidatePath(`/posts/${postSlug}`);
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update comment" };
+  }
+}

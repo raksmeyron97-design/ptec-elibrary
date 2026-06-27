@@ -1,12 +1,12 @@
-// proxy.ts  (root of project — Next.js 16 uses "proxy" instead of "middleware")
 import { createServerClient } from "@supabase/ssr";
+import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Paths that require an active session on the main domain
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID();
   const nonceB64 = Buffer.from(nonce).toString('base64');
   
@@ -67,7 +67,29 @@ export async function proxy(request: NextRequest) {
   );
 
   // Refresh session — must run before any route check
-  const { data: { user } } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error && error instanceof AuthApiError && error.code === 'refresh_token_not_found') {
+      // Stale / revoked refresh token — sign out and redirect to login
+      await supabase.auth.signOut();
+      const loginUrl = new URL('/auth/login', request.url);
+      const res = NextResponse.redirect(loginUrl);
+      // Copy any cookie changes (the signOut clears them)
+      response.cookies.getAll().forEach((c) => res.cookies.set(c));
+      return res;
+    }
+    user = data?.user ?? null;
+  } catch (err) {
+    if (err instanceof AuthApiError && err.code === 'refresh_token_not_found') {
+      await supabase.auth.signOut();
+      const loginUrl = new URL('/auth/login', request.url);
+      const res = NextResponse.redirect(loginUrl);
+      response.cookies.getAll().forEach((c) => res.cookies.set(c));
+      return res;
+    }
+    // Other auth errors — proceed with user = null
+  }
 
   // Helper to copy cookies from the refreshed response to a new response
   const copyCookies = (newRes: NextResponse) => {

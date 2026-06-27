@@ -162,7 +162,7 @@ export default async function PostDetailPage({
 
   const { data: rawComments } = await supabase
     .from("post_comments")
-    .select("id, body, created_at, user_id, parent_id, author:profiles!user_id(full_name, email)")
+    .select("id, body, created_at, user_id, parent_id, is_edited, author:profiles!user_id(full_name, email)")
     .eq("post_id", post.id)
     .eq("is_deleted", false)
     .order("created_at", { ascending: true });
@@ -316,7 +316,7 @@ export default async function PostDetailPage({
           {/* Multi-image gallery */}
           {coverUrls.length > 1 && (
             <div className="mt-10">
-              <ImageGallery urls={coverUrls} alt={post.title} />
+              <ImageGallery urls={coverUrls} alt={post.title} pageUrl={`${SITE_URL}/posts/${slug}`} postTitle={post.title} />
             </div>
           )}
 
