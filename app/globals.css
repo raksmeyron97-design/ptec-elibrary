@@ -211,6 +211,42 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   background: linear-gradient(160deg, #1E3A8A 0%, #162d70 60%, #0F2160 100%);
 }
 
+/* Sidebar nav-item tooltip (collapsed mode) */
+.admin-sidebar [data-tooltip] {
+  position: relative;
+}
+
+/* ── Admin dashboard stat card hover lift ───────────────────────── */
+@keyframes admin-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Welcome banner quick-action buttons */
+.admin-banner-btn {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+}
+.admin-banner-btn:hover {
+  background: rgba(255,255,255,0.20);
+  border-color: rgba(255,255,255,0.28);
+  transform: translateY(-1px);
+}
+
+/* Live pulse indicator */
+@keyframes admin-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15, 157, 107, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(15, 157, 107, 0); }
+}
+.admin-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ptec-emerald);
+  animation: admin-pulse 2.2s ease-in-out infinite;
+}
+
 /* ── Admin metric badge gradients ──────────────────────────────── */
 .metric-badge-books   { background: linear-gradient(135deg, var(--ptec-metric-books-from), var(--ptec-metric-books-to)); }
 .metric-badge-dl      { background: linear-gradient(135deg, var(--ptec-metric-dl-from), var(--ptec-metric-dl-to)); }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   BookOpen, Download, Eye, Users, Library, FileText,
   AlertTriangle, UserPlus, type LucideIcon,
+  Upload, GraduationCap, ArrowRight, Megaphone,
 } from "lucide-react";
 import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
@@ -12,6 +13,26 @@ import ViewsChart from "@/components/admin/ViewsChart";
 export const dynamic = "force-dynamic";
 
 const APP_TZ = "Asia/Phnom_Penh";
+
+function getGreeting(): string {
+  const hour = new Date().toLocaleString("en-US", {
+    timeZone: APP_TZ,
+    hour: "numeric",
+    hour12: false,
+  });
+  const h = parseInt(hour, 10);
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+const todayLabel = new Intl.DateTimeFormat("en-US", {
+  timeZone: APP_TZ,
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  year: "numeric",
+}).format(new Date());
 
 const dayKey = (d: Date) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -65,7 +86,10 @@ function buildUserGrowth(rows: { created_at: string }[], baseline: number, days 
 // ── Shared section card wrapper ──────────────────────────────────
 function SectionCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-divider bg-bg-surface shadow-sm ${className}`}>
+    <div
+      className={`rounded-2xl bg-bg-surface shadow-sm transition-shadow duration-200 hover:shadow-md ${className}`}
+      style={{ border: "1px solid var(--ptec-divider)" }}
+    >
       {children}
     </div>
   );
@@ -92,17 +116,37 @@ function StatCard({
   const s = METRIC_STYLE[metric];
   return (
     <div
-      className="rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+      className="relative overflow-hidden rounded-2xl p-5 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-default"
       style={{ background: s.cardBg, border: `1px solid ${s.cardBorder}` }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted leading-tight">{label}</span>
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${s.badgeClass}`}>
-          <Icon className="h-5 w-5 text-white" />
+      {/* Subtle decorative corner glow */}
+      <div
+        className="pointer-events-none absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-30"
+        style={{ background: `radial-gradient(circle, ${s.numColor} 0%, transparent 70%)` }}
+      />
+      <div className="relative flex items-start justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest leading-tight" style={{ color: s.numColor + "99" }}>
+          {label}
+        </span>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-md ${s.badgeClass}`}>
+          <Icon className="h-[18px] w-[18px] text-white" />
         </span>
       </div>
-      <div className="mt-4 text-3xl font-bold leading-none" style={{ color: s.numColor }}>{value}</div>
-      {sub && <div className="mt-2 text-xs text-text-muted">{sub}</div>}
+      <div className="relative mt-3 text-2xl font-bold leading-none tabular-nums" style={{ color: s.numColor }}>
+        {value}
+      </div>
+      {sub && (
+        <div className="relative mt-2 text-[11px]" style={{ color: s.numColor + "88" }}>
+          {sub}
+        </div>
+      )}
+      {/* Bottom accent bar */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-[3px] rounded-b-2xl"
+        style={{
+          background: `linear-gradient(90deg, ${s.numColor}44 0%, ${s.numColor} 50%, ${s.numColor}44 100%)`,
+        }}
+      />
     </div>
   );
 }
@@ -292,8 +336,87 @@ export default async function AdminDashboardPage() {
   const growth       = buildUserGrowth(userWindowRes.data ?? [], userBaseline);
   const newUsers90   = (userWindowRes.data ?? []).length;
 
+  const greeting = getGreeting();
+
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
+
+      {/* ── Welcome banner ── */}
+      <div
+        className="relative overflow-hidden rounded-2xl px-7 py-6"
+        style={{
+          background: "linear-gradient(135deg, #1E3A8A 0%, #162d70 55%, #0F2160 100%)",
+        }}
+      >
+        {/* decorative orbs */}
+        <div
+          className="pointer-events-none absolute -top-10 -right-10 w-48 h-48 rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, #DDB022 0%, transparent 70%)" }}
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 left-1/3 w-64 h-32 rounded-full opacity-10"
+          style={{ background: "radial-gradient(circle, #4f46e5 0%, transparent 70%)" }}
+        />
+
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "#DDB022" }}>
+              {todayLabel}
+            </p>
+            <h2 className="text-xl font-bold text-white leading-snug">
+              {greeting}, Admin
+            </h2>
+            <p className="mt-1 text-sm" style={{ color: "rgba(255,255,255,0.55)" }}>
+              {publishedBooks} books published &bull; {nf(totalUsers)} registered users
+            </p>
+          </div>
+
+          {/* Quick actions */}
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {[
+              { label: "Upload Book",  href: "/admin/upload" },
+              { label: "New Post",     href: "/admin/posts"  },
+              { label: "Manage Users", href: "/admin/users"  },
+            ].map(a => (
+              <Link
+                key={a.label}
+                href={a.href}
+                className="admin-banner-btn flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-all duration-200 cursor-pointer"
+              >
+                {a.label}
+                <ArrowRight className="w-3 h-3 opacity-70" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Quick-access shortcuts ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Upload Book",       href: "/admin/upload",           icon: Upload,          color: "#DDB022", bg: "#FFFBEB", border: "#FDE68A" },
+          { label: "Manage Books",      href: "/admin/manage",           icon: BookOpen,        color: "#4f46e5", bg: "#EEF2FF", border: "#C7D2FE" },
+          { label: "Research Reports",  href: "/admin/research-reports", icon: GraduationCap,   color: "#0e7490", bg: "#ECFEFF", border: "#A5F3FC" },
+          { label: "Announcements",     href: "/admin/announcements",    icon: Megaphone,       color: "#0f9d6b", bg: "#ECFDF5", border: "#A7F3D0" },
+        ].map(({ label, href, icon: Icon, color, bg, border }) => (
+          <Link
+            key={label}
+            href={href}
+            className="group flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-200 cursor-pointer hover:shadow-md hover:-translate-y-0.5"
+            style={{ background: bg, border: `1px solid ${border}` }}
+          >
+            <span
+              className="flex w-8 h-8 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 group-hover:scale-110"
+              style={{ background: color + "22" }}
+            >
+              <Icon className="w-4 h-4" style={{ color }} />
+            </span>
+            <span className="text-xs font-semibold leading-tight" style={{ color }}>
+              {label}
+            </span>
+          </Link>
+        ))}
+      </div>
 
       {/* ── KPI cards ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

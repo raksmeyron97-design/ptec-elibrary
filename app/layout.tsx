@@ -4,6 +4,7 @@ import "./globals.css";
 import { angkor, inter, hanuman, crimsonPro } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import CommandPalette from "@/components/ui/search/CommandPalette";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
@@ -156,6 +157,7 @@ export default async function RootLayout({
             Skip to content
           </a>
           {children}
+          <Analytics />
           <Suspense fallback={null}>
             <CommandPalette />
           </Suspense>

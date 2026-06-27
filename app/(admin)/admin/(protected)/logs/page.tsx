@@ -1,152 +1,91 @@
-// app/admin/(protected)/logs/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
+import SecurityLogsClient, { type LogRow, type LogStats } from "./SecurityLogsClient";
 
 export default async function AdminLogsPage() {
   const supabase = createServiceClient();
 
-  // Fetch recent download logs joined with profiles and books
-  const { data: downloadLogs } = await supabase
-    .from("download_logs")
-    .select(`
-      id,
-      downloaded_at,
-      user:profiles ( email, full_name ),
-      book:books ( title )
-    `)
-    .order("downloaded_at", { ascending: false })
-    .limit(50);
+  const [{ data: downloadLogs }, { data: rawViewLogs }] = await Promise.all([
+    supabase
+      .from("download_logs")
+      .select(`id, downloaded_at, user:profiles(email, full_name)`)
+      .order("downloaded_at", { ascending: false })
+      .limit(200),
 
-  // Fetch recent view logs joined with profiles and books
-  // Note: content_id might not always be a book, but we'll try to join with books.
-  const { data: rawViewLogs } = await supabase
-    .from("view_logs")
-    .select(`
-      id,
-      viewed_at,
-      content_id,
-      content_type,
-      user:profiles ( email, full_name )
-    `)
-    .eq("content_type", "book") // only show book views for now
-    .order("viewed_at", { ascending: false })
-    .limit(50);
+    supabase
+      .from("view_logs")
+      .select(`id, viewed_at, content_id, content_type, user:profiles(email, full_name)`)
+      .eq("content_type", "book")
+      .order("viewed_at", { ascending: false })
+      .limit(200),
+  ]);
 
-  // Fetch book titles for the view logs
-  const bookIds = Array.from(new Set(rawViewLogs?.map((log: any) => log.content_id) || []));
-  const { data: viewBooks } = await supabase
-    .from("books")
-    .select("id, title")
-    .in("id", bookIds);
+  // Fetch book titles for view logs
+  const bookIds = [...new Set((rawViewLogs ?? []).map((l: any) => l.content_id))];
+  const { data: viewBooks } = bookIds.length
+    ? await supabase.from("books").select("id, title").in("id", bookIds)
+    : { data: [] };
 
-  const bookTitleMap = new Map(viewBooks?.map((b: any) => [b.id, b.title]));
+  const bookTitleMap = new Map((viewBooks ?? []).map((b: any) => [b.id, b.title as string]));
 
-  const viewLogs = rawViewLogs?.map((log: any) => ({
-    ...log,
-    book: { title: bookTitleMap.get(log.content_id) || "Unknown Book" }
+  // Also fetch book titles for download_logs via a separate join
+  const dlBookIds = [...new Set((downloadLogs ?? []).map((l: any) => l.book_id).filter(Boolean))];
+  const { data: dlBooks } = dlBookIds.length
+    ? await supabase.from("books").select("id, title").in("id", dlBookIds)
+    : { data: [] };
+
+  const dlBookTitleMap = new Map((dlBooks ?? []).map((b: any) => [b.id, b.title as string]));
+
+  // Normalize download logs
+  const dlRows: LogRow[] = (downloadLogs ?? []).map((l: any) => ({
+    id: l.id,
+    type: "download",
+    name: l.user?.full_name || "Unknown",
+    email: l.user?.email || "",
+    book: dlBookTitleMap.get(l.book_id) || "Unknown Book",
+    time: l.downloaded_at,
+    isAnon: !l.user,
   }));
 
-  return (
-    <div className="mx-auto max-w-[1100px] space-y-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-text-heading">Security Logs</h1>
-        <p className="text-sm text-text-secondary">
-          Monitor recent book views and downloads.
-        </p>
-      </div>
+  // Normalize view logs
+  const vwRows: LogRow[] = (rawViewLogs ?? []).map((l: any) => ({
+    id: l.id,
+    type: "view",
+    name: l.user?.full_name || "Anonymous",
+    email: l.user?.email || "unauthenticated session",
+    book: bookTitleMap.get(l.content_id) || "Unknown Book",
+    time: l.viewed_at,
+    isAnon: !l.user,
+  }));
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Download Logs */}
-        <div className="bg-bg-surface border border-divider rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-divider bg-bg-surface/50">
-            <h2 className="font-semibold text-text-heading">Recent Downloads</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-bg-surface text-text-secondary">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Time</th>
-                  <th className="px-5 py-3 font-medium">User</th>
-                  <th className="px-5 py-3 font-medium">Book</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider">
-                {downloadLogs?.map((log: any) => (
-                  <tr key={log.id} className="hover:bg-bg-app/50 transition-colors">
-                    <td className="px-5 py-3 text-text-secondary whitespace-nowrap">
-                      {new Date(log.downloaded_at).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="font-medium text-text-heading">
-                        {log.user?.full_name || "Unknown"}
-                      </div>
-                      <div className="text-xs text-text-secondary">{log.user?.email}</div>
-                    </td>
-                    <td className="px-5 py-3 text-text-heading max-w-[200px] truncate" title={log.book?.title}>
-                      {log.book?.title || "Unknown Book"}
-                    </td>
-                  </tr>
-                ))}
-                {!downloadLogs?.length && (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-8 text-center text-text-secondary">
-                      No recent downloads.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* View Logs */}
-        <div className="bg-bg-surface border border-divider rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-5 py-4 border-b border-divider bg-bg-surface/50">
-            <h2 className="font-semibold text-text-heading">Recent Views</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-bg-surface text-text-secondary">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Time</th>
-                  <th className="px-5 py-3 font-medium">User</th>
-                  <th className="px-5 py-3 font-medium">Book</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-divider">
-                {viewLogs?.map((log: any) => (
-                  <tr key={log.id} className="hover:bg-bg-app/50 transition-colors">
-                    <td className="px-5 py-3 text-text-secondary whitespace-nowrap">
-                      {new Date(log.viewed_at).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3">
-                      {log.user ? (
-                        <>
-                          <div className="font-medium text-text-heading">
-                            {log.user.full_name || "Unknown"}
-                          </div>
-                          <div className="text-xs text-text-secondary">{log.user.email}</div>
-                        </>
-                      ) : (
-                        <span className="text-text-secondary italic">Anonymous / System</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-text-heading max-w-[200px] truncate" title={log.book?.title}>
-                      {log.book?.title || "Unknown Book"}
-                    </td>
-                  </tr>
-                ))}
-                {!viewLogs?.length && (
-                  <tr>
-                    <td colSpan={3} className="px-5 py-8 text-center text-text-secondary">
-                      No recent views.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+  // Merge and sort by recency
+  const allLogs = [...dlRows, ...vwRows].sort(
+    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
   );
+
+  // Compute 24h stats
+  const downloads24h = dlRows.filter(
+    (r) => new Date(r.time).getTime() > Date.now() - 86_400_000
+  ).length;
+
+  const views24h = vwRows.filter(
+    (r) => new Date(r.time).getTime() > Date.now() - 86_400_000
+  ).length;
+
+  const recentDlUserIds = new Set(
+    (downloadLogs ?? [])
+      .filter((l: any) => l.user && new Date(l.downloaded_at).getTime() > Date.now() - 86_400_000)
+      .map((l: any) => l.user?.email)
+      .filter(Boolean)
+  );
+  const recentVwUserIds = new Set(
+    (rawViewLogs ?? [])
+      .filter((l: any) => l.user && new Date(l.viewed_at).getTime() > Date.now() - 86_400_000)
+      .map((l: any) => l.user?.email)
+      .filter(Boolean)
+  );
+  const activeUsers = new Set([...recentDlUserIds, ...recentVwUserIds]).size;
+
+  const stats: LogStats = { downloads24h, views24h, activeUsers };
+
+  return <SecurityLogsClient logs={allLogs} stats={stats} />;
 }

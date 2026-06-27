@@ -10,6 +10,10 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
 import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
+import {
+  FileSpreadsheet, FolderOpen, Image as ImageIcon, Upload as UploadIcon,
+  CheckCircle, AlertCircle, RotateCcw, FileText,
+} from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -324,186 +328,228 @@ export default function BulkUploadForm() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
+  // ── File drop zone helper ─────────────────────────────────────
+  type DropZoneProps = {
+    ready: boolean;
+    readyLabel: string;
+    idleLabel: string;
+    icon: React.ReactNode;
+    checkedIcon: React.ReactNode;
+  };
+
+  function DropZoneDisplay({ ready, readyLabel, idleLabel, icon, checkedIcon }: DropZoneProps) {
+    return (
+      <div
+        className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all"
+        style={
+          ready
+            ? { borderColor: "#0f9d6b", background: "rgba(15,157,107,0.05)", color: "#0f9d6b" }
+            : { borderColor: "var(--ptec-divider)", background: "var(--ptec-paper)", color: "var(--ptec-text-muted)" }
+        }
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{
+          background: ready ? "rgba(15,157,107,0.12)" : "rgba(30,58,138,0.08)",
+        }}>
+          {ready ? checkedIcon : icon}
+        </span>
+        <span className="text-xs font-semibold">{ready ? readyLabel : idleLabel}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
-      {/* ── Step 1: CSV Template hint ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-bold text-text-heading">Step 1 — Prepare your CSV</h2>
-        <p className="mb-4 text-xs text-text-muted">
-          Download the template, fill in metadata for each book, and save as <code className="rounded bg-paper px-1 py-0.5 font-mono text-xs">.csv</code>.
-        </p>
-
-        {/* Inline CSV template preview */}
-        <div className="overflow-x-auto rounded-lg border border-divider bg-paper">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-divider bg-slate-50">
-                {["title*","author*","category*","department*","language*","pdf_file*","cover_file","keywords","isbn","year","pages","summary"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-semibold text-text-body">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="text-text-muted">
-                <td className="px-3 py-2">រឿងព្រេង</td>
-                <td className="px-3 py-2">សុខ ដារា</td>
-                <td className="px-3 py-2">Literature</td>
-                <td className="px-3 py-2">Khmer Studies</td>
-                <td className="px-3 py-2">Khmer</td>
-                <td className="px-3 py-2 font-mono text-brand">book-001.pdf</td>
-                <td className="px-3 py-2 font-mono">book-001.jpg</td>
-                <td className="px-3 py-2">legend, folk</td>
-                <td className="px-3 py-2"></td>
-                <td className="px-3 py-2">2022</td>
-                <td className="px-3 py-2">120</td>
-                <td className="px-3 py-2">...</td>
-              </tr>
-            </tbody>
-          </table>
+      {/* ── Step 1: CSV Template ── */}
+      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+          <span className="sec-chip sec-chip--files">
+            <FileSpreadsheet className="h-[18px] w-[18px]" />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-text-heading">Step 1 — Prepare your CSV</h2>
+            <p className="text-xs text-text-muted">
+              Fill in metadata for each book and save as{" "}
+              <code className="rounded bg-paper px-1 py-0.5 font-mono">.csv</code>
+            </p>
+          </div>
         </div>
 
-        <p className="mt-2 text-xs text-text-muted">
-          <span className="text-red-500">*</span> Required columns.{" "}
-          <code className="font-mono">pdf_file</code> and <code className="font-mono">cover_file</code> must match the exact filename in your folders.
-        </p>
+        <div className="p-6">
+          <div className="overflow-x-auto rounded-xl border border-divider bg-paper">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-divider bg-bg-surface">
+                  {["title*","author*","category*","department*","language*","pdf_file*","cover_file","keywords","isbn","year","pages","summary"].map((h) => (
+                    <th key={h} className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-text-muted">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="text-text-muted">
+                  <td className="px-3 py-2.5">រឿងព្រេង</td>
+                  <td className="px-3 py-2.5">សុខ ដារា</td>
+                  <td className="px-3 py-2.5">Literature</td>
+                  <td className="px-3 py-2.5">Khmer Studies</td>
+                  <td className="px-3 py-2.5">Khmer</td>
+                  <td className="px-3 py-2.5 font-mono text-brand">book-001.pdf</td>
+                  <td className="px-3 py-2.5 font-mono">book-001.jpg</td>
+                  <td className="px-3 py-2.5">legend, folk</td>
+                  <td className="px-3 py-2.5"></td>
+                  <td className="px-3 py-2.5">2022</td>
+                  <td className="px-3 py-2.5">120</td>
+                  <td className="px-3 py-2.5">…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2.5 text-[11px] text-text-muted">
+            <span className="text-rose-500">*</span> Required.{" "}
+            <code className="font-mono">pdf_file</code> and <code className="font-mono">cover_file</code>{" "}
+            must match the exact filenames in your folders.
+          </p>
+        </div>
       </div>
 
-      {/* ── Step 2: Upload files ── */}
-      <div className="rounded-xl border border-divider bg-bg-surface p-6 shadow-sm">
-        <h2 className="mb-4 text-sm font-bold text-text-heading">Step 2 — Select files</h2>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* CSV */}
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-text-body">
-              CSV metadata file <span className="text-red-500">*</span>
-            </span>
-            <div
-              className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
-                csvReady
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                  : "border-divider bg-paper text-text-muted hover:border-brand"
-              }`}
-            >
-              <span className="text-2xl">{csvReady ? "✓" : "📄"}</span>
-              <span className="text-xs font-medium">
-                {csvReady ? `${csvRows.length} rows parsed` : "Click to select CSV"}
-              </span>
-            </div>
-            <input
-              ref={csvInputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={handleCsvChange}
-              onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
-            />
-          </label>
-
-          {/* PDF folder */}
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-text-body">
-              PDF files <span className="text-red-500">*</span>
-            </span>
-            <div
-              className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
-                pdfReady
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                  : "border-divider bg-paper text-text-muted hover:border-brand"
-              }`}
-            >
-              <span className="text-2xl">{pdfReady ? "✓" : "📁"}</span>
-              <span className="text-xs font-medium">
-                {pdfReady ? `${pdfIndex.size} PDF files` : "Click to select PDFs"}
-              </span>
-            </div>
-            <input
-              ref={pdfInputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-              {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
-              className="hidden"
-              onChange={(e) => handleFolderChange(e, setPdfIndex, [".pdf"])}
-              onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
-            />
-          </label>
-
-          {/* Cover folder */}
-          <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-text-body">
-              Cover files{" "}
-              <span className="font-normal text-text-muted">(optional)</span>
-            </span>
-            <div
-              className={`flex h-24 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed transition ${
-                coverIndex.size > 0
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700"
-                  : "border-divider bg-paper text-text-muted hover:border-brand"
-              }`}
-            >
-              <span className="text-2xl">{coverIndex.size > 0 ? "✓" : "🖼️"}</span>
-              <span className="text-xs font-medium">
-                {coverIndex.size > 0 ? `${coverIndex.size} cover files` : "Click to select Covers"}
-              </span>
-            </div>
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
-              multiple
-              {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
-              className="hidden"
-              onChange={(e) => handleFolderChange(e, setCoverIndex, [".jpg", ".jpeg", ".png", ".webp", ".avif"])}
-              onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
-            />
-          </label>
+      {/* ── Step 2: Select files ── */}
+      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+          <span className="sec-chip sec-chip--details">
+            <FolderOpen className="h-[18px] w-[18px]" />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-text-heading">Step 2 — Select files</h2>
+            <p className="text-xs text-text-muted">CSV, PDF folder, and optional cover folder</p>
+          </div>
         </div>
 
-        {parseError && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            ⚠️ {parseError}
-          </div>
-        )}
+        <div className="p-6 space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* CSV */}
+            <label className="flex flex-col gap-2 cursor-pointer">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                CSV file <span className="text-rose-500">*</span>
+              </span>
+              <DropZoneDisplay
+                ready={csvReady}
+                readyLabel={`${csvRows.length} rows parsed`}
+                idleLabel="Click to select CSV"
+                icon={<FileSpreadsheet className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+              />
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleCsvChange}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+              />
+            </label>
 
-        {canPreview && !started && (
-          <div className="mt-4">
+            {/* PDFs */}
+            <label className="flex flex-col gap-2 cursor-pointer">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                PDF files <span className="text-rose-500">*</span>
+              </span>
+              <DropZoneDisplay
+                ready={pdfReady}
+                readyLabel={`${pdfIndex.size} PDF files`}
+                idleLabel="Click to select PDFs"
+                icon={<FileText className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+              />
+              <input
+                ref={pdfInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
+                className="hidden"
+                onChange={(e) => handleFolderChange(e, setPdfIndex, [".pdf"])}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+              />
+            </label>
+
+            {/* Covers */}
+            <label className="flex flex-col gap-2 cursor-pointer">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                Cover files{" "}
+                <span className="font-normal normal-case tracking-normal text-text-muted">(optional)</span>
+              </span>
+              <DropZoneDisplay
+                ready={coverIndex.size > 0}
+                readyLabel={`${coverIndex.size} cover files`}
+                idleLabel="Click to select covers"
+                icon={<ImageIcon className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+              />
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
+                multiple
+                {...({ webkitdirectory: "", mozdirectory: "" } as Record<string, unknown>)}
+                className="hidden"
+                onChange={(e) => handleFolderChange(e, setCoverIndex, [".jpg", ".jpeg", ".png", ".webp", ".avif"])}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+              />
+            </label>
+          </div>
+
+          {parseError && (
+            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+              <p className="text-sm text-red-700">{parseError}</p>
+            </div>
+          )}
+
+          {canPreview && !started && (
             <button
               type="button"
               onClick={handlePreview}
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-divider bg-paper px-4 text-sm font-semibold text-text-body transition hover:border-brand hover:text-brand"
+              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-divider bg-paper px-4 text-sm font-semibold text-text-body transition-all hover:border-brand hover:bg-bg-surface hover:text-brand"
             >
-              Preview matches
+              Preview file matches
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* ── Step 3: Preview & Progress table ── */}
+      {/* ── Step 3: Review & Upload ── */}
       {jobs.length > 0 && (
-        <div className="rounded-xl border border-divider bg-bg-surface shadow-sm">
-          <div className="flex items-center justify-between border-b border-divider px-6 py-4">
-            <div>
-              <h2 className="text-sm font-bold text-text-heading">
-                Step 3 — Review &amp; Upload
-              </h2>
-              <p className="text-xs text-text-muted">
-                {total} books · {done} done · {errors} errors
-                {missing > 0 && <span className="text-amber-600"> · {missing} PDF missing</span>}
-              </p>
+        <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+          <div className="flex items-center justify-between gap-4 border-b border-divider bg-paper/60 px-6 py-4">
+            <div className="flex items-center gap-3.5">
+              <span className="sec-chip sec-chip--summary">
+                <UploadIcon className="h-[18px] w-[18px]" />
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-text-heading">Step 3 — Review &amp; Upload</h2>
+                <p className="text-xs text-text-muted">
+                  {total} books · {done} done · {errors} errors
+                  {missing > 0 && (
+                    <span style={{ color: "#d97706" }}> · {missing} PDF missing</span>
+                  )}
+                </p>
+              </div>
             </div>
 
             {/* Progress bar */}
             {started && total > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
+              <div className="flex shrink-0 items-center gap-3">
+                <div className="h-2 w-36 overflow-hidden rounded-full bg-slate-100">
                   <div
-                    className="h-full rounded-full bg-brand transition-all duration-300"
-                    style={{ width: `${((done + errors) / total) * 100}%` }}
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${((done + errors) / total) * 100}%`,
+                      background: errors > 0
+                        ? "linear-gradient(90deg,#0f9d6b,#d97706)"
+                        : "#0f9d6b",
+                    }}
                   />
                 </div>
-                <span className="text-xs font-semibold text-text-muted">
+                <span className="text-xs font-bold" style={{ color: "#0f9d6b" }}>
                   {Math.round(((done + errors) / total) * 100)}%
                 </span>
               </div>
@@ -514,7 +560,10 @@ export default function BulkUploadForm() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-divider bg-slate-50 text-xs font-semibold text-text-muted">
+                <tr
+                  className="border-b border-divider text-[11px] font-bold uppercase tracking-wider text-text-muted"
+                  style={{ background: "var(--ptec-paper)" }}
+                >
                   <th className="px-4 py-2.5 text-left">#</th>
                   <th className="px-4 py-2.5 text-left">Title</th>
                   <th className="px-4 py-2.5 text-left">Author</th>
@@ -523,45 +572,44 @@ export default function BulkUploadForm() {
                   <th className="px-4 py-2.5 text-left">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-divider">
                 {jobs.map((job, i) => (
                   <tr
                     key={job.id}
-                    className={`transition ${
+                    className="transition-colors"
+                    style={
                       job.status === "done"
-                        ? "bg-emerald-50/40"
+                        ? { background: "rgba(15,157,107,0.04)" }
                         : job.status === "error"
-                        ? "bg-red-50/40"
-                        : ""
-                    }`}
+                        ? { background: "rgba(239,68,68,0.04)" }
+                        : undefined
+                    }
                   >
-                    <td className="px-4 py-2.5 text-xs text-text-muted">{i + 1}</td>
-                    <td className="max-w-[200px] px-4 py-2.5">
-                      <p className="truncate font-medium text-text-body">{job.row.title}</p>
+                    <td className="px-4 py-3 text-xs text-text-muted">{i + 1}</td>
+                    <td className="max-w-[200px] px-4 py-3">
+                      <p className="truncate text-sm font-medium text-text-body">{job.row.title}</p>
                       <p className="truncate text-xs text-text-muted">{job.row.category} · {job.row.department}</p>
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-text-muted">{job.row.author}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3 text-xs text-text-muted">{job.row.author}</td>
+                    <td className="px-4 py-3">
                       {job.pdfFile ? (
-                        <span className="text-xs text-emerald-600">✓ {job.row.pdf_file}</span>
+                        <span className="text-xs font-medium text-[#0f9d6b]">✓ {job.row.pdf_file}</span>
                       ) : (
                         <span className="text-xs font-semibold text-red-500">✗ {job.row.pdf_file}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-text-muted">
+                    <td className="px-4 py-3 text-xs">
                       {job.row.cover_file
                         ? job.coverFile
-                          ? <span className="text-emerald-600">✓ {job.row.cover_file}</span>
-                          : <span className="text-amber-600">✗ {job.row.cover_file}</span>
-                        : <span className="text-slate-400">—</span>
+                          ? <span className="text-[#0f9d6b]">✓ {job.row.cover_file}</span>
+                          : <span style={{ color: "#d97706" }}>✗ {job.row.cover_file}</span>
+                        : <span className="text-text-muted">—</span>
                       }
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <StatusBadge status={job.status} />
-                        {job.error && (
-                          <p className="text-xs text-red-600">{job.error}</p>
-                        )}
+                        {job.error && <p className="text-xs text-red-600">{job.error}</p>}
                         {job.slug && (
                           <a
                             href={`/books/${job.slug}`}
@@ -580,44 +628,46 @@ export default function BulkUploadForm() {
             </table>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 border-t border-divider px-6 py-4">
+          {/* Footer actions */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-divider px-6 py-4">
             {!started ? (
               <>
                 {missing > 0 && (
-                  <p className="text-xs text-amber-600">
-                    ⚠️ {missing} book(s) are missing PDF files and will be skipped.
+                  <p className="text-xs" style={{ color: "#d97706" }}>
+                    {missing} book(s) missing PDF files will be skipped.
                   </p>
                 )}
                 <button
                   type="button"
                   onClick={handleStart}
                   disabled={!canStart}
-                  className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-950 px-5 text-sm font-semibold text-white transition hover:bg-brand disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-brand-gradient inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  🚀 Start bulk upload ({jobs.filter((j) => j.pdfFile).length} books)
+                  <UploadIcon className="h-4 w-4" />
+                  Start bulk upload ({jobs.filter((j) => j.pdfFile).length} books)
                 </button>
               </>
             ) : running ? (
-              <p className="text-sm text-text-muted">
+              <div className="flex items-center gap-2 text-sm text-text-muted">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 Uploading {concurrency} books in parallel…
-              </p>
+              </div>
             ) : (
               <div className="flex items-center gap-4">
-                <p className="text-sm font-semibold text-emerald-700">
-                  ✓ Completed: {done} uploaded, {errors} failed
+                <p className="text-sm font-semibold" style={{ color: "#0f9d6b" }}>
+                  Completed: {done} uploaded{errors > 0 ? `, ${errors} failed` : ""}
                 </p>
                 {errors > 0 && (
                   <button
                     type="button"
                     onClick={() => {
-                      // Retry only failed jobs
                       const retryJobs = jobs.filter((j) => j.status === "error");
                       setRunning(true);
                       runQueue(retryJobs, concurrency, updateJob).then(() => setRunning(false));
                     }}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
                   >
+                    <RotateCcw className="h-3.5 w-3.5" />
                     Retry {errors} failed
                   </button>
                 )}

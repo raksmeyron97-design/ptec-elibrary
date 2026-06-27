@@ -20,32 +20,46 @@ export default async function AdminUploadPage() {
         <UploadPageClient />
 
         {/* ── Sidebar: Recent uploads ── */}
-        <div className="h-fit rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-slate-800">Recent uploads</h2>
+        <div className="h-fit overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+          {/* Header */}
+          <div
+            className="border-b border-divider px-5 py-4"
+            style={{ background: "linear-gradient(135deg,#1E3A8A,#0F2160)" }}
+          >
+            <h2 className="text-sm font-bold text-white">Recent uploads</h2>
+            <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+              Last 5 books added
+            </p>
+          </div>
+
           {recentBooks && recentBooks.length > 0 ? (
-            <ul className="space-y-3">
-              {recentBooks.map((book: any) => (
-                <li key={book.id} className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#1E3A8A]/10">
-                    <Icon name="pdf" className="text-sm text-[#1E3A8A]" />
+            <ul className="divide-y divide-divider">
+              {recentBooks.map((book: any, i: number) => (
+                <li key={book.id} className="flex items-start gap-3 px-5 py-3.5">
+                  <div
+                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg shadow-sm"
+                    style={{ background: "rgba(30,58,138,0.08)" }}
+                  >
+                    <Icon name="pdf" className="text-sm text-brand" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/books/${book.slug}`}
-                      className="block truncate text-sm font-semibold text-slate-800 transition hover:text-[#DDB022]"
+                      className="block truncate text-sm font-semibold text-text-heading transition-colors hover:text-[#DDB022]"
                     >
                       {book.title}
                     </Link>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-slate-400">
-                        {(book.authors as any)?.name} ·{" "}
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <p className="truncate text-[11px] text-text-muted">
+                        {(book.authors as any)?.name}
                         {book.book_files?.[0]?.file_size_kb
-                          ? `${(book.book_files[0].file_size_kb / 1024).toFixed(1)} MB`
-                          : "PDF"}
+                          ? ` · ${(book.book_files[0].file_size_kb / 1024).toFixed(1)} MB`
+                          : ""}
                       </p>
                       <Link
                         href={`/admin/edit/${book.id}`}
-                        className="text-xs font-semibold text-[#DDB022] hover:underline"
+                        className="shrink-0 text-[11px] font-semibold transition-colors hover:underline"
+                        style={{ color: "#DDB022" }}
                       >
                         Edit
                       </Link>
@@ -55,7 +69,7 @@ export default async function AdminUploadPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-400">No books uploaded yet.</p>
+            <p className="px-5 py-4 text-sm text-text-muted">No books uploaded yet.</p>
           )}
         </div>
       </div>
