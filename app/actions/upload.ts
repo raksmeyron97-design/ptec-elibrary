@@ -58,13 +58,13 @@ async function ensureCorsConfigured() {
   }
 }
 
-const ALLOWED_KEY_PREFIXES = ["books/", "posts/", "research/", "reports/"];
+const ALLOWED_KEY_PREFIXES = ["books/", "posts/", "research/", "reports/", "team/"];
 
 function validateR2Key(key: string): void {
   if (key.startsWith("/") || key.startsWith("\\")) throw new Error("Invalid file path");
   if (key.includes("..") || key.includes("\\")) throw new Error("Invalid file path");
   if (!ALLOWED_KEY_PREFIXES.some((p) => key.startsWith(p))) {
-    throw new Error("File path must start with books/, posts/, research/, or reports/");
+    throw new Error("File path must start with books/, posts/, research/, reports/, or team/");
   }
 }
 

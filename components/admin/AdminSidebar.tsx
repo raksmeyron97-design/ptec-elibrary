@@ -18,6 +18,7 @@ import {
   Shield,
   PanelLeftClose,
   PanelLeftOpen,
+  UserCircle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -46,6 +47,7 @@ const navGroups: { label: string; links: NavLink[] }[] = [
       { name: "Posts",            href: "/admin/posts",            icon: FileText     },
       { name: "Research Reports", href: "/admin/research-reports", icon: GraduationCap },
       { name: "Announcements",    href: "/admin/announcements",    icon: Megaphone    },
+      { name: "Library Team",     href: "/admin/team",             icon: UserCircle   },
     ],
   },
   {
