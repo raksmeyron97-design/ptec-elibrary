@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
+import { validateMimeType } from "@/lib/mime-validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
     if (!bucket) return NextResponse.json({ error: "Missing R2 bucket config" }, { status: 500 });
 
     const bytes = await file.arrayBuffer();
+
+    // Server-side MIME validation — verify magic bytes match declared type
+    if (!validateMimeType(bytes, file.type)) {
+      return NextResponse.json(
+        { error: `Invalid file: content does not match declared type (${file.type}). Only PDF, JPEG, PNG, WebP, and AVIF are allowed.` },
+        { status: 400 }
+      );
+    }
+
     await s3.send(
       new PutObjectCommand({
         Bucket: bucket,

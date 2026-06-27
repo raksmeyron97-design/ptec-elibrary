@@ -47,11 +47,6 @@ export async function generateMetadata({
     description: desc,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        en: canonicalUrl,
-        km: canonicalUrl,
-        'x-default': canonicalUrl,
-      },
     },
     openGraph: {
       title: book.title,
@@ -165,11 +160,11 @@ export default async function CatalogBookPage({
     '@context': 'https://schema.org',
     '@type': 'Book',
     name: b.title,
-    author: b.author ? { '@type': 'Person', name: b.author } : undefined,
+    author: b.author ? { '@type': 'Person', name: b.author } : { '@type': 'Organization', name: 'Unknown Author' },
     isbn: b.isbn || undefined,
-    inLanguage: b.language || undefined,
-    description: b.description || undefined,
-    image: b.cover_url || undefined,
+    inLanguage: b.language || "en",
+    description: b.description || b.title,
+    image: b.cover_url || `${SITE_URL}/og-image.jpg`,
     url: `${SITE_URL}/catalogs/${b.slug}`,
     publisher: {
       '@type': 'EducationalOrganization',

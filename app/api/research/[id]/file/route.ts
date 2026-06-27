@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createServiceClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const s3 = new S3Client({
   region: "auto",
@@ -25,6 +26,23 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // ── Rate-limit inline viewing to prevent scraping ────────────
+  const ip =
+    request.headers.get("x-real-ip")?.trim() ??
+    request.headers
+      .get("x-forwarded-for")
+      ?.split(",")
+      .pop()
+      ?.trim() ??
+    "unknown";
+  const rl = await rateLimit(`research-file:${ip}`, 30, 60_000); // 30 req/min per IP
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";

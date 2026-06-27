@@ -32,7 +32,7 @@ export default function EngagementBar({
   async function requireAuth(): Promise<boolean> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      router.push("/login");
+      router.push("/auth/login");
       return false;
     }
     return true;

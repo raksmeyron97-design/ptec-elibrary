@@ -302,7 +302,7 @@ export default async function HomePage() {
               <Link href="/books" className="w-full sm:w-auto">
                 <Button variant="gold" size="lg" className="w-full sm:w-auto">{t("ctaBrowse")}</Button>
               </Link>
-              <Link href="/signup" className="w-full sm:w-auto">
+              <Link href="/auth/signup" className="w-full sm:w-auto">
                 <Button
                   variant="secondary"
                   size="lg"

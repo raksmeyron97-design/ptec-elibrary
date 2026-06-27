@@ -82,7 +82,7 @@ function HeartButton({ count, liked, onToggle, disabled }: {
 }) {
   const [burst, setBurst] = useState(false);
   const handle = () => {
-    // Always fire onToggle — when not logged in it redirects to /login
+    // Always fire onToggle — when not logged in it redirects to /auth/login
     if (!liked && !disabled) { setBurst(true); setTimeout(() => setBurst(false), 600); }
     onToggle();
   };
@@ -139,7 +139,7 @@ function useCommentLikes(commentId: string, currentUserId: string | null) {
 
   const toggle = useCallback(async () => {
     if (!currentUserId) {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
     const wasLiked = liked;
@@ -414,7 +414,7 @@ function CommentItem({
   async function handleReplyClick() {
     if (!currentUserId) {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      if (!user) { router.push("/auth/login"); return; }
     }
     setShowReply(v => !v);
   }
@@ -603,7 +603,7 @@ export default function CommentsSection({
   async function handleAddClick() {
     if (!currentUserId) {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      if (!user) { router.push("/auth/login"); return; }
     }
   }
 

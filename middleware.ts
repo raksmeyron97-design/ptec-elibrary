@@ -106,6 +106,18 @@ export async function middleware(request: NextRequest) {
         const res = NextResponse.redirect(new URL("/admin/login", request.url));
         return copyCookies(res);
       }
+      
+      // Check role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+        
+      if (profile?.role !== 'admin') {
+        const res = NextResponse.redirect(new URL("/home", request.url));
+        return copyCookies(res);
+      }
     }
   }
 

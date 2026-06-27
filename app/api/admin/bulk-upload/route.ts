@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
+import { validateMimeType } from "@/lib/mime-validation";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -51,6 +52,14 @@ export async function POST(request: NextRequest) {
     if (body.byteLength === 0) return NextResponse.json({ error: "Empty file" }, { status: 400 });
     if (body.byteLength > MAX_UPLOAD_BYTES) {
       return NextResponse.json({ error: "File too large (max 100 MB)." }, { status: 413 });
+    }
+
+    // Server-side MIME validation — verify magic bytes match declared type
+    if (!validateMimeType(body, contentType)) {
+      return NextResponse.json(
+        { error: `Invalid file: content does not match declared type (${contentType}). Only PDF, JPEG, PNG, WebP, and AVIF are allowed.` },
+        { status: 400 }
+      );
     }
 
     await s3.send(new PutObjectCommand({

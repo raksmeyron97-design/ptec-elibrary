@@ -102,11 +102,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords: keywords.length > 0 ? keywords : undefined,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        en: canonicalUrl,
-        km: canonicalUrl,
-        'x-default': canonicalUrl,
-      },
     },
     openGraph: {
       title: report.title,
@@ -229,10 +224,12 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
     '@type': 'ScholarlyArticle',
     headline: report.title,
     abstract: report.abstract || undefined,
-    author: reportAuthors.map((name: string) => ({ '@type': 'Person', name })),
+    author: reportAuthors.length > 0
+      ? reportAuthors.map((name: string) => ({ '@type': 'Person', name }))
+      : { '@type': 'Organization', name: 'Unknown Author' },
     datePublished: report.published_at ?? report.created_at ?? undefined,
     keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
-    image: report.cover_url || undefined,
+    image: report.cover_url || `${SITE_URL}/og-image.jpg`,
     url: reportUrl,
     isAccessibleForFree: true,
     publisher: {

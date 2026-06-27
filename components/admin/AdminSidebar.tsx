@@ -15,6 +15,7 @@ import {
   X,
   GraduationCap,
   Megaphone,
+  Shield,
 } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
@@ -29,6 +30,7 @@ const navLinks = [
   { name: "Posts",             href: "/admin/posts",            icon: FileText },
   { name: "Research Reports",  href: "/admin/research-reports", icon: GraduationCap },
   { name: "Announcements",     href: "/admin/announcements",    icon: Megaphone },
+  { name: "Security Logs",     href: "/admin/logs",             icon: Shield },
   { name: "Users",             href: "/admin/users",            icon: Users },
 ];
 

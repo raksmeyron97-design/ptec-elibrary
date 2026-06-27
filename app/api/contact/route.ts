@@ -27,7 +27,10 @@ function getClientIP(req: NextRequest): string {
 // secret is set in the deployment.
 async function verifyTurnstile(token: string | undefined, ip: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret) return true;
+  if (!secret) {
+    console.error("[SECURITY] TURNSTILE_SECRET_KEY is not configured — blocking request");
+    return false;
+  }
   if (!token) return false;
   try {
     const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {

@@ -73,11 +73,6 @@ export async function generateMetadata({
     keywords: tags.length > 0 ? tags : undefined,
     alternates: {
       canonical: canonicalUrl,
-      languages: {
-        en: canonicalUrl,
-        km: canonicalUrl,
-        'x-default': canonicalUrl,
-      },
     },
     openGraph: {
       title: book.title,
@@ -189,13 +184,16 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     "@context": "https://schema.org",
     "@type": "Book",
     name: book.title,
-    author: {
+    author: book.author ? {
       "@type": "Person",
       name: book.author,
+    } : {
+      "@type": "Organization",
+      name: "Unknown Author",
     },
-    inLanguage: book.language,
-    description: book.summary,
-    image: book.coverUrl,
+    inLanguage: book.language || "en",
+    description: book.summary || book.title,
+    image: book.coverUrl || `${SITE_URL}/og-image.jpg`,
     url: bookUrl,
     bookFormat: "https://schema.org/EBook",
     isAccessibleForFree: true,
