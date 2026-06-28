@@ -43,3 +43,10 @@ next-env.d.ts
 
 /app/generated/prisma
 /public/pdf/
+
+# design-sync — build output and generated cache (NOT the config, previews, or converter scripts)
+/ds-bundle/
+/ds-entry.ts
+/.design-sync/.cache/
+/.design-sync/compiled-globals.css
+/.ds-sync/node_modules/

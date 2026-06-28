@@ -1,0 +1,32 @@
+{
+  "projectId": "90fa38b0-93dd-4d11-af0f-ce93e8cfdc8b",
+  "shape": "package",
+  "pkg": "ptec-e-library",
+  "globalName": "PTECLibrary",
+  "buildCmd": "node .ds-sync/compile-css.mjs && echo 'CSS compiled'",
+  "tsconfig": "./tsconfig.json",
+  "cssEntry": ".design-sync/compiled-globals.css",
+  "runtimeFontPrefixes": ["Inter", "Angkor", "Crimson Pro", "Suwannaphum"],
+  "extraFonts": [".design-sync/fonts.css"],
+  "componentSrcMap": {
+    "Badge":               "components/ui/core/Badge.tsx",
+    "Button":              "components/ui/core/Button.tsx",
+    "Card":                "components/ui/core/Card.tsx",
+    "CardHeader":          "components/ui/core/Card.tsx",
+    "CardContent":         "components/ui/core/Card.tsx",
+    "Icon":                "components/ui/core/Icon.tsx",
+    "SectionTitle":        "components/ui/core/SectionTitle.tsx",
+    "ThemeToggle":         "components/ui/core/ThemeToggle.tsx",
+    "RatingStars":         "components/ui/reviews/RatingStars.tsx",
+    "Avatar":              "components/ui/Avatar.tsx",
+    "BookCover":           "components/ui/books/BookCover.tsx",
+    "SkeletonBlock":       "components/ui/skeletons/SkeletonBlock.tsx",
+    "SkeletonText":        "components/ui/skeletons/SkeletonBlock.tsx",
+    "SkeletonCircle":      "components/ui/skeletons/SkeletonBlock.tsx",
+    "BookDetailSkeleton":  "components/ui/skeletons/BookDetailSkeleton.tsx",
+    "AuthSkeleton":        "components/ui/skeletons/AuthSkeleton.tsx",
+    "AdminFormSkeleton":   "components/ui/skeletons/AdminFormSkeleton.tsx",
+    "AdminTableSkeleton":  "components/ui/skeletons/AdminTableSkeleton.tsx",
+    "GenericPageSkeleton": "components/ui/skeletons/GenericPageSkeleton.tsx"
+  }
+}
