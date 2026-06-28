@@ -55,10 +55,19 @@ export default function OfflineSaveButton({
       // The SW only caches /api/books/*/file when ?offline=1 is present
       // (to avoid silently storing private PDFs without user intent).
       const offlinePdfUrl = pdfUrl.startsWith('/api/') ? `${pdfUrl}?offline=1` : pdfUrl;
-      const urlsToCache = [offlinePdfUrl];
-      if (coverUrl) urlsToCache.push(coverUrl);
 
-      await cache.addAll(urlsToCache);
+      await cache.add(offlinePdfUrl);
+
+      // Cover images are cross-origin (R2 CDN) — fetch with no-cors to avoid
+      // CORS rejection, then store the opaque response (img tags render it fine).
+      if (coverUrl) {
+        try {
+          const coverRes = await fetch(coverUrl, { mode: "no-cors" });
+          await cache.put(coverUrl, coverRes);
+        } catch {
+          // Not critical — PDF is already cached
+        }
+      }
       
       saveOfflineBookMeta({
         id: bookId,
