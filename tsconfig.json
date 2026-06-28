@@ -20,7 +20,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "ptec-e-library": ["./.design-sync/ptec-e-library.ts"]
     }
   },
   "include": [
@@ -29,7 +30,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
-, "lib/supabase/client.ts"  ],
+    "**/*.mts",
+    "lib/supabase/client.ts"
+  ],
   "exclude": ["node_modules"]
 }
