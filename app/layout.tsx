@@ -5,6 +5,7 @@ import { angkor, inter, hanuman, crimsonPro } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import CommandPalette from "@/components/ui/search/CommandPalette";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
@@ -158,6 +159,7 @@ export default async function RootLayout({
           </a>
           {children}
           <Analytics />
+          <SpeedInsights />
           <Suspense fallback={null}>
             <CommandPalette />
           </Suspense>

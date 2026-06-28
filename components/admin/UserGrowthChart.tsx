@@ -1,16 +1,34 @@
-"use client"
- 
-;
+"use client";
 /* eslint-disable react-hooks/exhaustive-deps */
-
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type GrowthPoint = { date: string; count: number; added: number };
 
-const LINE_COLOR = "#7C3AED"; // violet-600
-const FILL_COLOR = "#A78BFA"; // violet-400
-const TIP_BORDER = "#7C3AED";
+const LINE_COLOR = "#7C3AED";
+const FILL_COLOR = "#8B5CF6";
+const GLOW_COLOR = "#A78BFA";
+
+function smoothPath(pts: { x: number; y: number }[]): string {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M ${pts[0].x},${pts[0].y}`;
+  if (pts.length === 2)
+    return `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)} L ${pts[1].x.toFixed(2)},${pts[1].y.toFixed(2)}`;
+  const t = 0.38;
+  let d = `M ${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const p0 = pts[Math.max(0, i - 2)];
+    const p1 = pts[i - 1];
+    const p2 = pts[i];
+    const p3 = pts[Math.min(pts.length - 1, i + 1)];
+    const cp1x = p1.x + (p2.x - p0.x) * t;
+    const cp1y = p1.y + (p2.y - p0.y) * t;
+    const cp2x = p2.x - (p3.x - p1.x) * t;
+    const cp2y = p2.y - (p3.y - p1.y) * t;
+    d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
 
 function niceScale(min: number, max: number, ticks = 4) {
   if (min === max) { min = Math.max(0, min - 1); max = max + 1; }
@@ -31,9 +49,21 @@ export default function UserGrowthChart({ data }: { data: GrowthPoint[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
   const [hover, setHover] = useState<number | null>(null);
+  const [reducedMotion, setReducedMotion] = useState(
+    () => typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false
+  );
 
-  const height = 260;
-  const pad = { top: 20, right: 20, bottom: 32, left: 44 };
+  const height = 268;
+  const pad = { top: 24, right: 24, bottom: 38, left: 48 };
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const h = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -57,22 +87,26 @@ export default function UserGrowthChart({ data }: { data: GrowthPoint[] }) {
     const span = Math.max(1, niceMax - niceMin);
     const n = data.length;
 
-    const x = (i: number) => pad.left + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
+    const x = (i: number) =>
+      pad.left + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW);
     const y = (v: number) => pad.top + innerH - ((v - niceMin) / span) * innerH;
 
     const points = data.map((d, i) => ({ x: x(i), y: y(d.count), ...d }));
-    const linePath = points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
-      .join(" ");
+    const linePath = smoothPath(points);
 
     const baseY = pad.top + innerH;
     const areaPath = points.length
-      ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${baseY} L ${points[0].x.toFixed(2)} ${baseY} Z`
+      ? `${linePath} L ${points[points.length - 1].x.toFixed(2)},${baseY} L ${points[0].x.toFixed(2)},${baseY} Z`
       : "";
 
     const yTicks = ticks.map((v) => ({ v, y: y(v) }));
     return { linePath, areaPath, points, yTicks };
   }, [data, width]);
+
+  const animKey = useMemo(
+    () => data.map((d) => `${d.date}:${d.count}`).join("|"),
+    [data]
+  );
 
   const labelEvery = Math.max(1, Math.ceil(data.length / 6));
   const fmt = (iso: string) =>
@@ -89,68 +123,202 @@ export default function UserGrowthChart({ data }: { data: GrowthPoint[] }) {
     setHover(nearest);
   };
 
+  const hp = hover !== null ? points[hover] : null;
+
   return (
-    <div ref={wrapRef} className="relative w-full">
-      <svg width={width} height={height} className="block">
+    <div ref={wrapRef} className="relative w-full select-none">
+      <svg width={width} height={height} className="block overflow-visible">
         <defs>
           <linearGradient id="ugFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor={FILL_COLOR} stopOpacity={0.28} />
-            <stop offset="70%"  stopColor={FILL_COLOR} stopOpacity={0.06} />
+            <stop offset="0%"   stopColor={FILL_COLOR} stopOpacity={0.40} />
+            <stop offset="45%"  stopColor={FILL_COLOR} stopOpacity={0.11} />
             <stop offset="100%" stopColor={FILL_COLOR} stopOpacity={0} />
           </linearGradient>
+          <filter id="ugDotGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          {!reducedMotion && (
+            <style>{`
+              @keyframes ugDraw {
+                from { stroke-dashoffset: 1; }
+                to   { stroke-dashoffset: 0; }
+              }
+              @keyframes ugFadeIn {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+              }
+            `}</style>
+          )}
         </defs>
 
+        {/* Grid */}
         {yTicks.map((t, i) => (
           <g key={i}>
-            <line x1={pad.left} x2={width - pad.right} y1={t.y} y2={t.y}
-              stroke="#E2E8F0" strokeWidth={1} strokeDasharray={i > 0 ? "3 4" : undefined} />
-            <text x={pad.left - 8} y={t.y} textAnchor="end" dominantBaseline="middle"
-              fontSize={11} className="fill-slate-400">
+            <line
+              x1={pad.left} x2={width - pad.right} y1={t.y} y2={t.y}
+              stroke={i === 0 ? "#CBD5E1" : "#E2E8F0"}
+              strokeWidth={i === 0 ? 1 : 0.75}
+              strokeDasharray={i > 0 ? "4 6" : undefined}
+              strokeOpacity={0.9}
+            />
+            <text
+              x={pad.left - 10} y={t.y}
+              textAnchor="end" dominantBaseline="middle"
+              fontSize={10} fill="#94A3B8"
+              fontFamily="system-ui,-apple-system,sans-serif"
+            >
               {Math.round(t.v)}
             </text>
           </g>
         ))}
 
-        {areaPath && <path d={areaPath} fill="url(#ugFill)" />}
-        <path d={linePath} fill="none" stroke={LINE_COLOR} strokeWidth={3}
-          strokeLinejoin="round" strokeLinecap="round" />
+        {/* Area fill */}
+        {areaPath && (
+          <path
+            key={`ug-area-${animKey}`}
+            d={areaPath}
+            fill="url(#ugFill)"
+            style={
+              reducedMotion
+                ? undefined
+                : { opacity: 0, animation: "ugFadeIn 0.9s ease-out 0.5s forwards" }
+            }
+          />
+        )}
 
+        {/* Soft glow */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke={GLOW_COLOR}
+          strokeWidth={10}
+          strokeOpacity={0.13}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+
+        {/* Main line */}
+        <path
+          key={`ug-line-${animKey}`}
+          d={linePath}
+          fill="none"
+          stroke={LINE_COLOR}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          pathLength={reducedMotion ? undefined : 1}
+          style={
+            reducedMotion
+              ? undefined
+              : {
+                  strokeDasharray: 1,
+                  animation: "ugDraw 1.4s cubic-bezier(0.4,0,0.2,1) forwards",
+                }
+          }
+        />
+
+        {/* X-axis labels */}
         {points.map((p, i) =>
           i % labelEvery === 0 || i === points.length - 1 ? (
-            <text key={i} x={p.x} y={height - 10} textAnchor="middle"
-              fontSize={11} className="fill-slate-400">
+            <text
+              key={i} x={p.x} y={height - 8}
+              textAnchor="middle" fontSize={10} fill="#94A3B8"
+              fontFamily="system-ui,-apple-system,sans-serif"
+            >
               {fmt(p.date)}
             </text>
           ) : null
         )}
 
-        {hover !== null && points[hover] && (
+        {/* Hover state */}
+        {hp && (
           <g>
-            <line x1={points[hover].x} x2={points[hover].x}
-              y1={pad.top} y2={height - pad.bottom}
-              stroke={LINE_COLOR} strokeWidth={1} strokeDasharray="4 3" strokeOpacity={0.5} />
-            <circle cx={points[hover].x} cy={points[hover].y} r={5}
-              fill="#fff" stroke={LINE_COLOR} strokeWidth={2.5} />
+            <line
+              x1={hp.x} x2={hp.x} y1={pad.top} y2={height - pad.bottom}
+              stroke={LINE_COLOR} strokeWidth={1}
+              strokeDasharray="4 4" strokeOpacity={0.35}
+            />
+            <circle cx={hp.x} cy={hp.y} r={16} fill={LINE_COLOR} fillOpacity={0.07} />
+            <circle cx={hp.x} cy={hp.y} r={9}  fill={LINE_COLOR} fillOpacity={0.13} />
+            <circle
+              cx={hp.x} cy={hp.y} r={5.5}
+              fill={LINE_COLOR} stroke="#fff" strokeWidth={2.5}
+              filter="url(#ugDotGlow)"
+            />
+            <circle cx={hp.x} cy={hp.y} r={2} fill="#fff" />
           </g>
         )}
 
-        <rect x={pad.left} y={pad.top}
-          width={Math.max(0, width - pad.left - pad.right)} height={height - pad.top - pad.bottom}
-          fill="transparent" onMouseMove={handleMove} onMouseLeave={() => setHover(null)} />
+        {/* Hit area */}
+        <rect
+          x={pad.left} y={pad.top}
+          width={Math.max(0, width - pad.left - pad.right)}
+          height={height - pad.top - pad.bottom}
+          fill="transparent"
+          style={{ cursor: "crosshair" }}
+          onMouseMove={handleMove}
+          onMouseLeave={() => setHover(null)}
+        />
       </svg>
 
-      {hover !== null && points[hover] && (
+      {/* Tooltip */}
+      {hp && (
         <div
-          className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-xl px-3 py-2 text-xs text-white shadow-lg"
+          className="pointer-events-none absolute z-20"
           style={{
-            left: points[hover].x, top: points[hover].y - 12,
-            background: "#0F172A",
-            border: `1px solid ${TIP_BORDER}44`,
+            left: hp.x,
+            top: hp.y - 18,
+            transform: "translate(-50%, -100%)",
+            transition: reducedMotion ? "none" : "left 70ms ease-out, top 70ms ease-out",
           }}
         >
-          <div className="font-bold" style={{ color: LINE_COLOR }}>{points[hover].count} total users</div>
-          <div className="mt-0.5 text-slate-400">
-            {points[hover].added > 0 ? `+${points[hover].added} new · ` : ""}{fmt(points[hover].date)}
+          <div
+            className="rounded-xl px-3.5 py-2.5 text-xs"
+            style={{
+              background: "rgba(15,23,42,0.94)",
+              backdropFilter: "blur(10px)",
+              border: `1px solid ${LINE_COLOR}30`,
+              boxShadow: `0 16px 48px rgba(0,0,0,0.32), 0 0 0 1px ${LINE_COLOR}15, inset 0 1px 0 rgba(255,255,255,0.06)`,
+              minWidth: 136,
+            }}
+          >
+            <div
+              className="flex items-center gap-1.5 font-semibold leading-none mb-1.5"
+              style={{ color: LINE_COLOR }}
+            >
+              <span
+                className="inline-block rounded-full flex-shrink-0"
+                style={{
+                  width: 7, height: 7,
+                  background: LINE_COLOR,
+                  boxShadow: `0 0 6px ${LINE_COLOR}`,
+                }}
+              />
+              {hp.count} total users
+            </div>
+            <div className="text-slate-400 font-medium leading-none pl-[14px]">
+              {hp.added > 0 ? (
+                <span>
+                  <span className="text-emerald-400">+{hp.added} new</span>
+                  <span className="mx-1 opacity-40">·</span>
+                </span>
+              ) : null}
+              {fmt(hp.date)}
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <div
+              style={{
+                width: 0, height: 0,
+                borderLeft: "5px solid transparent",
+                borderRight: "5px solid transparent",
+                borderTop: "5px solid rgba(15,23,42,0.94)",
+              }}
+            />
           </div>
         </div>
       )}
