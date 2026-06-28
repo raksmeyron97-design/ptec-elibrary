@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useId } from "react";
 import Image from "next/image";
 import {
   Mail, Phone, GraduationCap, Briefcase,
@@ -86,22 +86,40 @@ const PALETTES: Palette[] = [
   },
 ];
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 export default function TeamGrid({ groups }: { groups: Group[] }) {
   const [selected, setSelected] = useState<{ member: Member; palette: Palette } | null>(null);
+  // The element that opened the modal, so focus can return to it on close.
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!selected) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setSelected(null); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [selected]);
 
   useEffect(() => {
     document.body.style.overflow = selected ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [selected]);
 
-  const close = useCallback(() => setSelected(null), []);
+  const openMember = useCallback((member: Member, palette: Palette, trigger: HTMLElement) => {
+    triggerRef.current = trigger;
+    setSelected({ member, palette });
+  }, []);
+
+  const close = useCallback(() => {
+    setSelected(null);
+    // Return focus to whatever card/button opened the modal.
+    triggerRef.current?.focus();
+  }, []);
 
   return (
     <>
@@ -109,7 +127,10 @@ export default function TeamGrid({ groups }: { groups: Group[] }) {
         {groups.map(({ section, members }, idx) => {
           const palette = PALETTES[idx % PALETTES.length];
           return (
-            <section key={section?.id ?? "unsectioned"}>
+            <section
+              key={section?.id ?? "unsectioned"}
+              aria-labelledby={section ? `section-heading-${section.id}` : "section-heading-other"}
+            >
               <SectionHeader section={section} palette={palette} count={members.length} />
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {members.map((member) => (
@@ -117,7 +138,7 @@ export default function TeamGrid({ groups }: { groups: Group[] }) {
                     key={member.id}
                     member={member}
                     palette={palette}
-                    onOpen={() => setSelected({ member, palette })}
+                    onOpen={(trigger) => openMember(member, palette, trigger)}
                   />
                 ))}
               </div>
@@ -143,6 +164,7 @@ function SectionHeader({
   palette: Palette;
   count: number;
 }) {
+  const headingId = section ? `section-heading-${section.id}` : "section-heading-other";
   return (
     <div className="mb-8">
       <div className="flex items-start justify-between gap-4 mb-4">
@@ -150,12 +172,17 @@ function SectionHeader({
           <div
             className="mt-1 h-9 w-1.5 shrink-0 rounded-full"
             style={{ background: palette.gradient }}
+            aria-hidden="true"
           />
           <div>
             {section ? (
               <>
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <h2 className="font-kh text-xl font-bold text-text-heading leading-tight">
+                  <h2
+                    id={headingId}
+                    className="font-kh text-xl font-bold text-text-heading leading-tight"
+                    lang="km"
+                  >
                     {section.name_km}
                   </h2>
                   <span className="text-sm font-semibold" style={{ color: palette.accent }}>
@@ -169,7 +196,9 @@ function SectionHeader({
                 )}
               </>
             ) : (
-              <h2 className="text-lg font-bold text-text-heading">Other Members</h2>
+              <h2 id={headingId} className="text-lg font-bold text-text-heading">
+                Other Members
+              </h2>
             )}
           </div>
         </div>
@@ -178,7 +207,7 @@ function SectionHeader({
           className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
           style={{ background: palette.badgeBg, color: palette.badgeText }}
         >
-          <Users className="h-3 w-3" />
+          <Users className="h-3 w-3" aria-hidden="true" />
           {count} {count === 1 ? "member" : "members"}
         </span>
       </div>
@@ -195,15 +224,39 @@ function TeamCard({
 }: {
   member: Member;
   palette: Palette;
-  onOpen: () => void;
+  onOpen: (trigger: HTMLElement) => void;
 }) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const detailLabelId = useId();
+
+  const handleOpen = () => {
+    if (cardRef.current) onOpen(cardRef.current);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleOpen();
+    }
+  };
+
+  const displayPosition = member.position_km || member.position_en;
+  const photoAlt = `Photo of ${member.name_en}${displayPosition ? `, ${displayPosition}` : ""}`;
+
   return (
     <article
-      className="group flex flex-col rounded-2xl bg-bg-surface overflow-hidden border border-divider cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
-      onClick={onOpen}
+      ref={cardRef as React.RefObject<HTMLElement>}
+      role="button"
+      tabIndex={0}
+      aria-labelledby={`${detailLabelId}-name`}
+      aria-describedby={`${detailLabelId}-hint`}
+      className="group flex flex-col rounded-2xl bg-bg-surface overflow-hidden border border-divider cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      style={{ "--tw-ring-color": palette.ring } as React.CSSProperties}
+      onClick={handleOpen}
+      onKeyDown={handleKeyDown}
     >
       {/* Colored header zone with dot-pattern */}
-      <div className="relative h-[88px] shrink-0" style={{ background: palette.gradient }}>
+      <div className="relative h-[88px] shrink-0" style={{ background: palette.gradient }} aria-hidden="true">
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
@@ -223,7 +276,7 @@ function TeamCard({
             {member.photo_url ? (
               <Image
                 src={member.photo_url}
-                alt={member.name_en}
+                alt={photoAlt}
                 fill
                 sizes="80px"
                 className="object-cover"
@@ -244,17 +297,21 @@ function TeamCard({
 
       {/* Card body */}
       <div className="flex flex-col flex-1 pt-12 pb-5 px-5 text-center">
-        <h3 className="font-kh text-base font-bold text-text-heading leading-snug">
+        <h3
+          id={`${detailLabelId}-name`}
+          className="font-kh text-base font-bold text-text-heading leading-snug"
+          lang="km"
+        >
           {member.name_km}
+          <span className="font-sans"> · {member.name_en}</span>
         </h3>
-        <p className="mt-0.5 text-xs text-text-muted">{member.name_en}</p>
 
-        {(member.position_km || member.position_en) && (
+        {displayPosition && (
           <span
             className="mx-auto mt-2 inline-block rounded-full px-3 py-0.5 text-[11px] font-semibold"
             style={{ background: palette.badgeBg, color: palette.badgeText }}
           >
-            {member.position_km || member.position_en}
+            {displayPosition}
           </span>
         )}
 
@@ -262,13 +319,13 @@ function TeamCard({
           <div className="mt-4 space-y-1.5 text-left">
             {member.education && (
               <div className="flex items-center gap-2 text-xs text-text-muted">
-                <GraduationCap className="h-3.5 w-3.5 shrink-0" style={{ color: palette.accent }} />
+                <GraduationCap className="h-3.5 w-3.5 shrink-0" style={{ color: palette.accent }} aria-hidden="true" />
                 <span className="truncate">{member.education}</span>
               </div>
             )}
             {member.years_experience && (
               <div className="flex items-center gap-2 text-xs text-text-muted">
-                <Briefcase className="h-3.5 w-3.5 shrink-0" style={{ color: palette.accent }} />
+                <Briefcase className="h-3.5 w-3.5 shrink-0" style={{ color: palette.accent }} aria-hidden="true" />
                 <span>{member.years_experience}</span>
               </div>
             )}
@@ -276,36 +333,46 @@ function TeamCard({
         )}
 
         {(member.bio_km || member.bio_en) && (
-          <p className="font-kh mt-3 flex-1 text-xs leading-relaxed text-text-body line-clamp-2 text-left">
+          <p className="font-kh mt-3 flex-1 text-xs leading-relaxed text-text-body line-clamp-2 text-left" lang="km">
             {member.bio_km || member.bio_en}
           </p>
         )}
+
+        <span id={`${detailLabelId}-hint`} className="sr-only">
+          Press Enter to view full profile, contact details, and biography.
+        </span>
 
         <div className="mt-auto pt-4 border-t border-divider space-y-2">
           {member.user_email && (
             <a
               href={`mailto:${member.user_email}`}
-              className="flex items-center gap-2 text-xs text-text-muted transition-colors hover:text-brand cursor-pointer"
+              className="flex items-center gap-2 text-xs text-text-muted transition-colors hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 rounded cursor-pointer"
+              style={{ "--tw-ring-color": palette.ring } as React.CSSProperties}
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Email ${member.name_en} at ${member.user_email}`}
             >
-              <Mail className="h-3.5 w-3.5 shrink-0" />
+              <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{member.user_email}</span>
             </a>
           )}
           {member.phone && (
             <a
               href={`tel:${member.phone.replace(/\s/g, "")}`}
-              className="flex items-center gap-2 text-xs text-text-muted transition-colors hover:text-brand cursor-pointer"
+              className="flex items-center gap-2 text-xs text-text-muted transition-colors hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 rounded cursor-pointer"
+              style={{ "--tw-ring-color": palette.ring } as React.CSSProperties}
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Call ${member.name_en} at ${member.phone}`}
             >
-              <Phone className="h-3.5 w-3.5 shrink-0" />
+              <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>{member.phone}</span>
             </a>
           )}
 
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onOpen(); }}
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={(e) => { e.stopPropagation(); handleOpen(); }}
             className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white cursor-pointer transition-opacity hover:opacity-90"
             style={{ background: palette.gradient }}
           >
@@ -328,6 +395,43 @@ function MemberModal({
   palette: Palette;
   onClose: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  // Move focus into the dialog on open, and trap Tab/Shift+Tab inside it
+  // while open. Restore-on-close focus is handled by the caller (TeamGrid).
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const closeButton = dialog.querySelector<HTMLElement>('[data-close-button]');
+    closeButton?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((el) => el.offsetParent !== null);
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    dialog.addEventListener("keydown", handleKeyDown);
+    return () => dialog.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
@@ -335,17 +439,22 @@ function MemberModal({
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="relative w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl bg-bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
         <button
           type="button"
+          data-close-button
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-full bg-black/20 p-1.5 text-white transition hover:bg-black/40 cursor-pointer"
-          aria-label="Close"
+          className="absolute right-4 top-4 z-10 rounded-full bg-black/20 p-1.5 text-white transition hover:bg-black/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+          aria-label="Close profile dialog"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5" aria-hidden="true" />
         </button>
 
         {/* Gradient header */}
@@ -359,6 +468,7 @@ function MemberModal({
               backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
               backgroundSize: "24px 24px",
             }}
+            aria-hidden="true"
           />
 
           <div
@@ -368,19 +478,19 @@ function MemberModal({
             {member.photo_url ? (
               <Image
                 src={member.photo_url}
-                alt={member.name_en}
+                alt={`Photo of ${member.name_en}`}
                 fill
                 sizes="112px"
                 className="object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-white/10">
-                <UserCircle className="h-16 w-16 text-white/60" />
+                <UserCircle className="h-16 w-16 text-white/60" aria-hidden="true" />
               </div>
             )}
           </div>
 
-          <h2 className="relative z-10 font-kh text-2xl font-bold text-white leading-snug">
+          <h2 id={titleId} className="relative z-10 font-kh text-2xl font-bold text-white leading-snug" lang="km">
             {member.name_km}
           </h2>
           <p className="relative z-10 mt-1 text-sm text-white/75">{member.name_en}</p>
@@ -393,7 +503,7 @@ function MemberModal({
 
           {member.section_name_km && (
             <span className="relative z-10 mt-2 inline-block rounded-full bg-white/10 px-3 py-0.5 text-xs font-semibold text-white/90 backdrop-blur-sm">
-              <span className="font-kh">{member.section_name_km}</span>
+              <span className="font-kh" lang="km">{member.section_name_km}</span>
               {member.section_name_en && (
                 <span className="ml-1 opacity-80">· {member.section_name_en}</span>
               )}
@@ -412,6 +522,7 @@ function MemberModal({
                     <div
                       className="flex h-6 w-6 items-center justify-center rounded-lg shrink-0"
                       style={{ background: palette.iconBg }}
+                      aria-hidden="true"
                     >
                       <GraduationCap className="h-3.5 w-3.5" style={{ color: palette.iconText }} />
                     </div>
@@ -430,6 +541,7 @@ function MemberModal({
                     <div
                       className="flex h-6 w-6 items-center justify-center rounded-lg shrink-0"
                       style={{ background: palette.iconBg }}
+                      aria-hidden="true"
                     >
                       <Briefcase className="h-3.5 w-3.5" style={{ color: palette.iconText }} />
                     </div>
@@ -451,7 +563,7 @@ function MemberModal({
                 ប្រវត្តិសង្ខេប · Biography
               </p>
               {member.bio_km && (
-                <p className="font-kh text-sm leading-relaxed text-text-body mb-2">
+                <p className="font-kh text-sm leading-relaxed text-text-body mb-2" lang="km">
                   {member.bio_km}
                 </p>
               )}
@@ -469,11 +581,14 @@ function MemberModal({
               {member.user_email && (
                 <a
                   href={`mailto:${member.user_email}`}
-                  className="flex items-center gap-3 text-sm text-text-body transition-colors hover:text-brand cursor-pointer"
+                  className="flex items-center gap-3 text-sm text-text-body transition-colors hover:text-brand focus:outline-none focus-visible:ring-2 rounded cursor-pointer"
+                  style={{ "--tw-ring-color": palette.ring } as React.CSSProperties}
+                  aria-label={`Email ${member.name_en} at ${member.user_email}`}
                 >
                   <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                     style={{ background: palette.iconBg }}
+                    aria-hidden="true"
                   >
                     <Mail className="h-4 w-4" style={{ color: palette.iconText }} />
                   </div>
@@ -483,11 +598,14 @@ function MemberModal({
               {member.phone && (
                 <a
                   href={`tel:${member.phone.replace(/\s/g, "")}`}
-                  className="flex items-center gap-3 text-sm text-text-body transition-colors hover:text-brand cursor-pointer"
+                  className="flex items-center gap-3 text-sm text-text-body transition-colors hover:text-brand focus:outline-none focus-visible:ring-2 rounded cursor-pointer"
+                  style={{ "--tw-ring-color": palette.ring } as React.CSSProperties}
+                  aria-label={`Call ${member.name_en} at ${member.phone}`}
                 >
                   <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
                     style={{ background: palette.iconBg }}
+                    aria-hidden="true"
                   >
                     <Phone className="h-4 w-4" style={{ color: palette.iconText }} />
                   </div>

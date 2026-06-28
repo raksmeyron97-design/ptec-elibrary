@@ -57,7 +57,7 @@ export default async function TeamPage() {
           {/* Label */}
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]"
             style={{ color: "#2A47A6" }}>
-            ក្រុមការងារ · Our People
+            <span lang="km">ក្រុមការងារ</span> · Our People
           </p>
 
           {/* Heading — "Library" navy gradient, "Team" gold */}
@@ -73,6 +73,7 @@ export default async function TeamPage() {
             <span
               className="font-kh ml-3 text-3xl md:text-4xl"
               style={{ color: "#3A5FC4" }}
+              lang="km"
             >
               ក្រុមការងារបណ្ណាល័យ
             </span>
@@ -118,8 +119,11 @@ export default async function TeamPage() {
         </div>
 
         {members.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-divider py-24 text-center">
-            <UserCircle className="mx-auto mb-4 h-16 w-16 text-text-muted/30" />
+          <div
+            role="status"
+            className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-divider py-24 text-center"
+          >
+            <UserCircle className="mx-auto mb-4 h-16 w-16 text-text-muted/30" aria-hidden="true" />
             <p className="text-lg font-semibold text-text-body">Coming soon</p>
             <p className="mt-1 text-sm text-text-muted">Team profiles will appear here shortly.</p>
           </div>
