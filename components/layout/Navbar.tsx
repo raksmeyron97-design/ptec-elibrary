@@ -115,12 +115,13 @@ export default async function Navbar() {
     href: "/about",
     icon: AboutIcon,
     subLinks: [
+      { label: t('ourJourney'),  href: "/about/our-journey" },
       { label: t('contact'),     href: "/contact" },
       { label: t('libraryRules'), href: "/about/rules" },
       { label: t('libraryTimings'), href: "/about/timings" },
       { label: t('libraryCollection'), href: "/about/collection" },
       { label: t('libraryCommittee'), href: "/about/committee" },
-      { label: t('libraryTeam'), href: "/about/team" },
+      { label: t('libraryTeam'), href: "/about/team/close" },
     ],
   };
 
@@ -132,12 +133,13 @@ export default async function Navbar() {
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },
     { label: t('about'),           href: "/about" },
+    { label: t('ourJourney'),      href: "/about/our-journey" },
     { label: t('contact'),         href: "/contact" },
     { label: t('libraryRules'), href: "/about/rules" },
     { label: t('libraryTimings'), href: "/about/timings" },
     { label: t('libraryCollection'), href: "/about/collection" },
     { label: t('libraryCommittee'), href: "/about/committee" },
-    { label: t('libraryTeam'), href: "/about/team" },
+    { label: t('libraryTeam'), href: "/about/team/close" },
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────

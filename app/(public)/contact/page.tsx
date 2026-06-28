@@ -7,54 +7,90 @@ import { PTEC } from "@/lib/ptec";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-const contactItems: [IconName, string][] = [
-  ["phone", PTEC.phone],
-  ["mail", PTEC.email],
-  ["clock", "Mon - Sat, 7 AM - 5 PM"],
-  ["map-pin", PTEC.address.en],
+// Library-specific phone (different from the main PTEC institution line)
+const LIBRARY_PHONE = "092 788 990";
+// NOTE: email confirmed as info@ptec.edu.kh
+const LIBRARY_EMAIL = PTEC.email;
+
+const contactItems: { icon: IconName; label_km: string; label_en: string; value: string; href?: string }[] = [
+  {
+    icon: "phone",
+    label_km: "ទូរស័ព្ទ",
+    label_en: "Phone",
+    value: LIBRARY_PHONE,
+    href: `tel:${LIBRARY_PHONE.replace(/\s/g, "")}`,
+  },
+  {
+    icon: "mail",
+    label_km: "អ៊ីម៉ែល",
+    label_en: "Email",
+    value: LIBRARY_EMAIL,
+    href: `mailto:${LIBRARY_EMAIL}`,
+  },
+  {
+    icon: "clock",
+    label_km: "ម៉ោងបើក",
+    label_en: "Hours",
+    value: "ច-សុ 7:00–17:00 · សៅ 8:00–16:00",
+  },
+  {
+    icon: "map-pin",
+    label_km: "អាសយដ្ឋាន",
+    label_en: "Address",
+    value: PTEC.address.en,
+  },
+];
+
+// Contact persons provided by the library
+const CONTACT_PERSONS: { km: string }[] = [
+  { km: "បណ្ឌិត ឡឹក ជំនោរ" },
+  { km: "លោក សុខ ធឿន" },
+  { km: "លោក សិត សិក្ខាភិរ័ត" },
+  { km: "លោក មុំ ចាន់ណា" },
+  { km: "លោកស្រី នួម វីរ៉ាដែត" },
 ];
 
 const socialLinks = [
-  {
-    name: "Telegram",
-    href: PTEC.links.telegram,
-    colorClass: "text-[#2AABEE]",
-    icon: (
-      <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
-        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
-      </svg>
-    )
-  },
   {
     name: "Facebook",
     href: PTEC.links.facebook,
     colorClass: "text-[#1877F2]",
     icon: (
-      <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
+      <svg fill="currentColor" viewBox="0 0 24 24" className="w-10 h-10">
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
       </svg>
-    )
+    ),
+  },
+  {
+    name: "Telegram",
+    href: PTEC.links.telegram,
+    colorClass: "text-[#2AABEE]",
+    icon: (
+      <svg fill="currentColor" viewBox="0 0 24 24" className="w-10 h-10">
+        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.94z"/>
+      </svg>
+    ),
   },
   {
     name: "Messenger",
     href: PTEC.links.messenger,
     colorClass: "text-[#00B2FF]",
     icon: (
-      <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
+      <svg fill="currentColor" viewBox="0 0 24 24" className="w-10 h-10">
         <path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.923 1.48 5.485 3.774 7.151.272.198.441.517.441.855v2.302c0 .546.602.875 1.066.578l2.671-1.706a1.006 1.006 0 0 1 .809-.133A10.3 10.3 0 0 0 12 20.52c5.523 0 10-4.145 10-9.26S17.523 2 12 2zm1.093 11.966l-2.427-2.593a.62.62 0 0 0-.898-.016l-3.328 3.518c-.461.486-1.22.022-.916-.593l2.846-5.748a.933.933 0 0 1 1.256-.411l2.433 1.233c.277.14.607.13.875-.028l3.415-2.022c.484-.287 1.037.3 1.037.3l-4.293 6.36z"/>
       </svg>
-    )
+    ),
   },
   {
-    name: "Youtube",
+    name: "YouTube",
     href: PTEC.links.youtube,
     colorClass: "text-[#FF0000]",
     icon: (
-      <svg fill="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
+      <svg fill="currentColor" viewBox="0 0 24 24" className="w-10 h-10">
         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
       </svg>
-    )
-  }
+    ),
+  },
 ];
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -83,35 +119,26 @@ export default function ContactPage() {
 
       const data = await res.json();
 
-      // Reset the widget so a fresh token is required for the next submission.
       turnstileRef.current?.reset();
       setCaptchaToken(undefined);
 
       if (!res.ok) {
         if (res.status === 429 && data.secondsLeft) {
           setCooldownSeconds(data.secondsLeft);
-
           const interval = setInterval(() => {
             setCooldownSeconds((prev) => {
-              if (prev <= 1) {
-                clearInterval(interval);
-                setStatus("idle");
-                return 0;
-              }
+              if (prev <= 1) { clearInterval(interval); setStatus("idle"); return 0; }
               return prev - 1;
             });
           }, 1000);
         }
-
         setErrorMsg(data.error || "Something went wrong. Please try again.");
         setStatus("error");
         return;
       }
 
       setStatus("success");
-      setName("");
-      setEmail("");
-      setMessage("");
+      setName(""); setEmail(""); setMessage("");
     } catch {
       setStatus("error");
       setErrorMsg("Network error. Please check your connection and try again.");
@@ -119,124 +146,331 @@ export default function ContactPage() {
   }
 
   const isDisabled = status === "loading" || status === "success";
-  // When Turnstile is configured, block submission until a token is obtained.
   const captchaPending = Boolean(TURNSTILE_SITE_KEY) && !captchaToken;
 
   return (
-    <section className="bg-paper px-6 py-10 md:px-12">
-      <div className="mx-auto grid max-w-[1100px] gap-6 lg:grid-cols-[.9fr_1.1fr]">
-        <div className="rounded-lg bg-brand dark:bg-blue-900 p-8 text-brand-contrast dark:text-white dark:border dark:border-divider">
-          <h1 className="text-3xl font-bold">Contact the library</h1>
-          <div className="mt-8 space-y-5">
-            {contactItems.map(([icon, text]) => (
-              <div key={text} className="flex items-center gap-4">
-                <Icon name={icon} className="text-2xl text-cyan-200" />
-                <span>{text}</span>
+    <div className="min-h-screen bg-paper">
+      {/* ── Hero ─────────────────────────────────────────── */}
+      <section
+        className="relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
+      >
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto max-w-3xl px-6 py-14 md:py-20 text-center">
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]" style={{ color: "#DDB022" }}>
+            ទំនាក់ទំនង · Get in Touch
+          </p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+            Contact the Library
+            <span className="font-kh ml-3 text-2xl md:text-3xl text-white/75" lang="km">ទំនាក់ទំនង</span>
+          </h1>
+          <p className="mt-3 text-sm text-white/60 max-w-sm mx-auto">
+            Reach out by phone, email, or visit us in person. We&apos;re here to help.
+          </p>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-[1100px] px-4 md:px-8 pb-20 mt-10 space-y-14">
+
+        {/* ── Contact info + form ───────────────────────────── */}
+        <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
+          {/* Info sidebar */}
+          <div
+            className="rounded-2xl p-7 text-white relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#122251 100%)" }}
+          >
+            <div
+              className="absolute inset-0 opacity-[0.06]"
+              style={{
+                backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
+                backgroundSize: "20px 20px",
+              }}
+              aria-hidden="true"
+            />
+            <h2 className="relative text-xl font-bold text-white mb-6">
+              <span className="font-kh" lang="km">ព័ត៌មានទំនាក់ទំនង</span>
+              <span className="block text-sm font-normal text-white/60 mt-0.5">Contact Information</span>
+            </h2>
+            <div className="relative space-y-5">
+              {contactItems.map((item) => (
+                <div key={item.label_en} className="flex items-start gap-4">
+                  <div
+                    className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10"
+                    aria-hidden="true"
+                  >
+                    <Icon name={item.icon} className="text-[16px]" style={{ color: "#DDB022" }} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/50 mb-0.5">
+                      <span className="font-kh" lang="km">{item.label_km}</span> · {item.label_en}
+                    </p>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        className="text-sm text-white/90 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {item.value}
+                      </a>
+                    ) : (
+                      <p className="font-kh text-sm text-white/90 leading-relaxed" lang="km">
+                        {item.value}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Website link */}
+            <div className="relative mt-6 pt-6 border-t border-white/10">
+              <a
+                href={PTEC.links.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                {PTEC.links.website.replace("https://", "")}
+              </a>
+              <a
+                href={PTEC.links.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                </svg>
+                facebook.com/ptec.edu
+              </a>
+            </div>
+          </div>
+
+          {/* Contact form */}
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-2xl border border-divider bg-bg-surface p-7 shadow-sm"
+          >
+            <h2 className="text-xl font-bold text-text-heading mb-1">Send a request</h2>
+            <p className="text-sm text-text-muted mb-6">
+              <span className="font-kh" lang="km">សូមផ្ញើសំណូមពររបស់អ្នក</span>
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="contact-name" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                  Full name
+                </label>
+                <input
+                  id="contact-name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isDisabled}
+                  className="h-11 w-full rounded-xl border border-divider px-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading"
+                  placeholder="Your full name"
+                />
               </div>
+              <div>
+                <label htmlFor="contact-email" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                  Email address
+                </label>
+                <input
+                  id="contact-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isDisabled}
+                  className="h-11 w-full rounded-xl border border-divider px-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading"
+                  placeholder="your@email.com"
+                />
+              </div>
+              <div>
+                <label htmlFor="contact-message" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                  Message
+                </label>
+                <textarea
+                  id="contact-message"
+                  required
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  disabled={isDisabled}
+                  className="min-h-32 w-full rounded-xl border border-divider p-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading resize-none"
+                  placeholder="How can the library help?"
+                />
+              </div>
+            </div>
+
+            {TURNSTILE_SITE_KEY && (
+              <div className="mt-4">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setCaptchaToken}
+                  onExpire={() => setCaptchaToken(undefined)}
+                  onError={() => setCaptchaToken(undefined)}
+                />
+              </div>
+            )}
+
+            {status === "success" && (
+              <p className="mt-4 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
+                Your message was sent successfully!
+              </p>
+            )}
+            {status === "error" && errorMsg && (
+              <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+                {errorMsg}
+                {cooldownSeconds > 0 && (
+                  <span className="ml-1 font-bold">({cooldownSeconds}s)</span>
+                )}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isDisabled || captchaPending}
+              className="mt-5 rounded-xl px-6 py-3 text-sm font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
+            >
+              {status === "loading" ? "Sending…" : "Submit message"}
+            </button>
+          </form>
+        </div>
+
+        {/* ── Google Maps + Contact Persons ──────────────────── */}
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          {/* Map */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-4">
+              <div
+                className="h-7 w-1.5 shrink-0 rounded-full"
+                style={{ background: "linear-gradient(135deg,#1E3A8A,#3A5FC4)" }}
+                aria-hidden="true"
+              />
+              <h2 className="text-lg font-bold text-text-heading">
+                <span className="font-kh" lang="km">ទីតាំង</span> · Find Us
+              </h2>
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-divider shadow-sm">
+              <iframe
+                src={PTEC.links.mapEmbed}
+                width="100%"
+                height="340"
+                style={{ border: 0, display: "block" }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="PTEC Library location on Google Maps"
+              />
+            </div>
+            <a
+              href={PTEC.links.mapPlace}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
+              style={{ background: "linear-gradient(135deg,#DDB022,#BE9412)" }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <span className="font-kh" lang="km">ទទួលការណែនាំ</span>
+              <span>· Get Directions</span>
+            </a>
+          </div>
+
+          {/* Contact persons */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div
+                className="h-7 w-1.5 shrink-0 rounded-full"
+                style={{ background: "linear-gradient(135deg,#DDB022,#BE9412)" }}
+                aria-hidden="true"
+              />
+              <h2 className="text-lg font-bold text-text-heading">
+                <span className="font-kh" lang="km">បុគ្គលទំនាក់ទំនង</span>
+                <span className="block text-xs font-normal text-text-muted mt-0.5">Contact Persons</span>
+              </h2>
+            </div>
+            <ul className="space-y-3" role="list">
+              {CONTACT_PERSONS.map((person, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3"
+                >
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold"
+                    style={{
+                      background:
+                        idx % 2 === 0
+                          ? "linear-gradient(135deg,#1E3A8A,#2A47A6)"
+                          : "linear-gradient(135deg,#DDB022,#BE9412)",
+                    }}
+                    aria-hidden="true"
+                  >
+                    {idx + 1}
+                  </div>
+                  <span className="font-kh text-sm font-semibold text-text-heading" lang="km">
+                    {person.km}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* ── Social links ───────────────────────────────────── */}
+        <div>
+          <div className="flex items-center gap-4 mb-6">
+            <h2 className="text-lg font-bold text-text-heading">
+              <span className="font-kh" lang="km">ចូលរួមជាមួយយើង</span> · Connect with us
+            </h2>
+            <div className="flex-1 h-px bg-divider" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {socialLinks.map((social) => (
+              <a
+                key={social.name}
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-3 p-4 rounded-2xl bg-bg-surface border border-divider shadow-sm hover:shadow-md hover:border-transparent hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
+              >
+                <div
+                  className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${social.colorClass.replace("text-", "bg-")}`}
+                  aria-hidden="true"
+                />
+                <div className={`transition-transform duration-300 group-hover:scale-110 ${social.colorClass}`}>
+                  {social.icon}
+                </div>
+                <span className="font-bold text-text-heading text-sm group-hover:translate-x-0.5 transition-transform duration-300">
+                  {social.name}
+                </span>
+              </a>
             ))}
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-lg border border-divider bg-bg-surface p-8 shadow-sm"
-        >
-          <h2 className="text-2xl font-bold text-text-heading">Send a request</h2>
-
-          <div className="mt-6 grid gap-4">
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isDisabled}
-              className="h-12 rounded-md border border-divider px-4 outline-none focus:border-brand disabled:opacity-50"
-              placeholder="Full name"
-            />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isDisabled}
-              className="h-12 rounded-md border border-divider px-4 outline-none focus:border-brand disabled:opacity-50"
-              placeholder="Email address"
-            />
-            <textarea
-              required
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={isDisabled}
-              className="min-h-36 rounded-md border border-divider p-4 outline-none focus:border-brand disabled:opacity-50"
-              placeholder="How can the library help?"
-            />
-          </div>
-
-          {TURNSTILE_SITE_KEY && (
-            <div className="mt-4">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={TURNSTILE_SITE_KEY}
-                onSuccess={setCaptchaToken}
-                onExpire={() => setCaptchaToken(undefined)}
-                onError={() => setCaptchaToken(undefined)}
-              />
-            </div>
-          )}
-
-          {status === "success" && (
-            <p className="mt-4 rounded-md border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
-              ✅ Your message was sent successfully!
-            </p>
-          )}
-
-          {status === "error" && errorMsg && (
-            <p className="mt-4 rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
-              ⚠️ {errorMsg}
-              {cooldownSeconds > 0 && (
-                <span className="ml-1 font-bold">({cooldownSeconds}s)</span>
-              )}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isDisabled || captchaPending}
-            className="mt-5 rounded-md bg-brand px-5 py-3 font-semibold text-brand-contrast transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {status === "loading" ? "Sending…" : "Submit message"}
-          </button>
-        </form>
-      </div>
-
-      <div className="mx-auto mt-16 max-w-[1100px]">
-        <div className="flex items-center gap-4 mb-8">
-          <h2 className="text-2xl font-bold text-text-heading">Connect with us</h2>
-          <div className="flex-1 h-px bg-divider"></div>
+        {/* Decorative divider */}
+        <div className="flex items-center justify-center gap-3" aria-hidden="true">
+          <div className="h-px w-16 bg-gradient-to-r from-transparent to-blue-700/40" />
+          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#DDB022" }} />
+          <div className="h-px w-16 bg-gradient-to-l from-transparent to-blue-700/40" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          {socialLinks.map((social) => (
-            <a
-              key={social.name}
-              href={social.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-4 p-5 rounded-2xl bg-bg-surface border border-divider shadow-sm hover:shadow-md hover:border-transparent hover:-translate-y-1 transition-all duration-300 relative overflow-hidden"
-            >
-              <div 
-                className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 ${social.colorClass.replace('text-', 'bg-')}`} 
-              />
-              
-              <div className={`transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6 ${social.colorClass}`}>
-                {social.icon}
-              </div>
-              
-              <span className="font-bold text-text-heading text-[17px] group-hover:translate-x-1 transition-transform duration-300">
-                {social.name}
-              </span>
-            </a>
-          ))}
-        </div>
+
       </div>
-    </section>
+    </div>
   );
 }
