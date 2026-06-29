@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
+import PushSubscribeButton from "@/components/ui/notifications/PushSubscribeButton";
 import { getTranslations } from "next-intl/server";
 
 export const metadata = {
@@ -110,6 +111,15 @@ export default async function SettingsPage() {
       </header>
 
       <SettingsClient user={userInfo} t={translations} />
+
+      {/* Notifications */}
+      <div className="mt-8 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
+        <h2 className="mb-1 text-[15px] font-bold text-text-heading">Push Notifications</h2>
+        <p className="mb-4 text-[12.5px] text-text-muted">
+          Receive browser/device notifications when new books or announcements are posted.
+        </p>
+        <PushSubscribeButton />
+      </div>
     </div>
   );
 }

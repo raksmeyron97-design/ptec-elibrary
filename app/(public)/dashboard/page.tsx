@@ -7,7 +7,9 @@ import BookCard from "@/components/ui/books/BookCard";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
+import { getMyReadingLists } from "@/app/actions/reading-lists";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
+import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";
 import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
 import { getTranslations } from "next-intl/server";
@@ -37,7 +39,7 @@ export default async function DashboardPage() {
 
   const db = supabase;
 
-  const [profileResult, savedBooks, progressResult] = await Promise.all([
+  const [profileResult, savedBooks, progressResult, readingLists] = await Promise.all([
     db
       .from("profiles")
       .select("full_name, email, role, avatar_url, created_at")
@@ -50,6 +52,7 @@ export default async function DashboardPage() {
       .eq("user_id", user.id)
       .gt("progress_pct", 0)
       .order("last_read_at", { ascending: false }),
+    getMyReadingLists(),
   ]);
 
   const profile  = profileResult.data;
@@ -262,6 +265,9 @@ export default async function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* ── Reading Lists ── */}
+        <ReadingListsSection initialLists={readingLists} />
 
         {/* ── Account info ── */}
         <div className="rounded-xl border border-divider bg-bg-surface p-4 sm:p-6 shadow-sm">

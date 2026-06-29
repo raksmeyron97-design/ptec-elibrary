@@ -9,6 +9,7 @@ import {
 import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
 import ViewsChart from "@/components/admin/ViewsChart";
+import DepartmentChart from "@/components/admin/DepartmentChart";
 
 export const dynamic = "force-dynamic";
 
@@ -269,6 +270,7 @@ export default async function AdminDashboardPage() {
     userBaselineRes, userWindowRes,
     postStatsRes, reportStatsRes,
     viewLogsRes,
+    deptBooksRes,
   ] = await Promise.all([
     supabase.from("books").select("*", { count: "exact", head: true }),
     supabase.from("books").select("*", { count: "exact", head: true }).eq("is_published", true),
@@ -286,6 +288,7 @@ export default async function AdminDashboardPage() {
     supabase.from("posts").select("views"),
     supabase.from("research_reports").select("view_count"),
     supabase.from("view_logs").select("viewed_at").gte("viewed_at", fetchFromDownloads),
+    supabase.from("books").select("department, download_count, view_count").eq("is_published", true),
   ]);
 
   const totalBooks     = totalBooksRes.count ?? 0;
@@ -335,6 +338,21 @@ export default async function AdminDashboardPage() {
   const userBaseline = userBaselineRes.count ?? 0;
   const growth       = buildUserGrowth(userWindowRes.data ?? [], userBaseline);
   const newUsers90   = (userWindowRes.data ?? []).length;
+
+  // Department breakdown
+  const deptMap = new Map<string, { downloads: number; views: number }>();
+  for (const b of deptBooksRes.data ?? []) {
+    const dept = (b as any).department ?? "General";
+    const prev = deptMap.get(dept) ?? { downloads: 0, views: 0 };
+    deptMap.set(dept, {
+      downloads: prev.downloads + ((b as any).download_count || 0),
+      views:     prev.views     + ((b as any).view_count     || 0),
+    });
+  }
+  const deptData = Array.from(deptMap.entries())
+    .map(([dept, v]) => ({ dept, ...v }))
+    .filter((d) => d.downloads > 0 || d.views > 0)
+    .sort((a, b) => b.downloads - a.downloads);
 
   const greeting = getGreeting();
 
@@ -488,6 +506,18 @@ export default async function AdminDashboardPage() {
           items={topViewed} accentColor="var(--ptec-metric-views-num)"
         />
       </div>
+
+      {/* ── Department breakdown ── */}
+      {deptData.length > 0 && (
+        <SectionCard className="p-6">
+          <ChartHeader
+            icon={BookOpen} title="By Department" subtitle="Downloads & views per department (all time)"
+            periodValue={String(deptData.length)} periodLabel="departments"
+            accentColor="#1E3A8A"
+          />
+          <DepartmentChart data={deptData} />
+        </SectionCard>
+      )}
 
       {/* ── Needs attention ── */}
       <SectionCard className="p-6">

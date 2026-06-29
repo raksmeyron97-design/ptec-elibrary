@@ -1,5 +1,6 @@
 import { getAnnouncementsForAdmin } from "@/app/actions/notifications";
 import AnnouncementsClient from "./AnnouncementsClient";
+import PushNotificationSender from "@/components/admin/PushNotificationSender";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Announcements — PTEC Admin" };
@@ -15,6 +16,7 @@ export default async function AnnouncementsPage() {
           Broadcast messages to all library users.
         </p>
       </div>
+      <PushNotificationSender />
       <AnnouncementsClient announcements={announcements} />
     </div>
   );

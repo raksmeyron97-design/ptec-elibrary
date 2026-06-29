@@ -38,7 +38,8 @@
     "react-dom": "^19.2.6",
     "react-parallax-tilt": "^1.7.331",
     "react-pdf": "^10.4.1",
-    "serwist": "^9.5.11"
+    "serwist": "^9.5.11",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
@@ -49,6 +50,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^6.0.2",
     "csv-parse": "^6.2.1",
     "dotenv": "^17.4.2",

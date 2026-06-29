@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/core/Pagination";
 import { getDepartments } from "@/app/actions/departments";
 import { getLanguages, getFormats } from "@/app/actions/filters";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
+import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
 import JsonLd from "@/components/seo/JsonLd";
@@ -136,6 +137,8 @@ export default async function BooksPage({
 }) {
   const t = await getTranslations('books');
   const params = await searchParams;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   const [{ books, total, page }, departments, languages, formats] = await Promise.all([
     fetchBooks(params),
     getDepartments(),
@@ -182,12 +185,15 @@ export default async function BooksPage({
               <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('title')}</h1>
               <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
             </div>
-            <p className="shrink-0 text-sm text-text-muted">
-              {total > 0
-                ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
-                : t('noResults')}
-              {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="shrink-0 text-sm text-text-muted">
+                {total > 0
+                  ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
+                  : t('noResults')}
+                {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
+              </p>
+              <BookRequestForm isLoggedIn={!!user} />
+            </div>
           </div>
           {/* Search bar */}
           <div className="mb-5">

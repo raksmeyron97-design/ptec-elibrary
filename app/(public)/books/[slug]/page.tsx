@@ -18,6 +18,7 @@ import { type Book, mapRowToBook } from "@/lib/books";
 
 import { createClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
+import { getListsContainingBook } from "@/app/actions/reading-lists";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
@@ -25,6 +26,8 @@ import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
+import CiteBook from "@/components/ui/books/CiteBook";
+import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import BookQuickNav from "@/components/ui/books/BookQuickNav";
 
@@ -153,7 +156,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
-  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies] = await Promise.all([
+  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds] = await Promise.all([
     book.dbId ? getReadingProgress(book.dbId) : Promise.resolve(null),
     book.dbId ? getReviews(book.dbId) : Promise.resolve([]),
     book.dbId && user ? getUserReview(book.dbId) : Promise.resolve(null),
@@ -167,6 +170,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           .order("created_at", { ascending: true })
           .then((res) => res.data || [])
       : Promise.resolve([]),
+    book.dbId && user ? getListsContainingBook(book.dbId) : Promise.resolve([]),
   ]);
 
   const avgRating =
@@ -422,6 +426,13 @@ allowDownload={true}
                   isLoggedIn={!!user}
                 />
               )}
+              {book.dbId && (
+                <ReadingListButton
+                  bookId={book.dbId}
+                  isLoggedIn={!!user}
+                  initialListIds={listIds}
+                />
+              )}
               <ShareButton url={`${SITE_URL}/books/${slug}`} />
             </div>
 
@@ -472,7 +483,7 @@ allowDownload={true}
 
             <div className="flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[1fr_360px]">
               <ReviewList reviews={reviews} totalCount={reviews.length} avgRating={avgRating} />
-              <div className="lg:sticky lg:top-6 lg:self-start">
+              <div className="lg:sticky lg:top-6 lg:self-start flex flex-col gap-4">
                 {user ? (
                   <ReviewForm
                     bookId={book.dbId}
@@ -496,16 +507,18 @@ allowDownload={true}
                     </Link>
                   </div>
                 )}
+                <CiteBook book={book} />
               </div>
             </div>
           </div>
         )}
 
         {/* Related Books */}
-        <RelatedBooks 
-          currentSlug={book.slug} 
-          department={book.department} 
-          category={book.category} 
+        <RelatedBooks
+          currentSlug={book.slug}
+          department={book.department}
+          category={book.category}
+          tags={book.tags ?? []}
         />
       </div>
     </section>
