@@ -37,11 +37,11 @@ export default function PushSubscribeButton() {
       if (perm !== "granted") { setBusy(false); return; }
 
       const reg = await navigator.serviceWorker.ready;
+      const rawKey = urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "");
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
-        ),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        applicationServerKey: rawKey as any,
       });
 
       const json = sub.toJSON();

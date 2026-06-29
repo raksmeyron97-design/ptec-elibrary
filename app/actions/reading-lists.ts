@@ -135,7 +135,8 @@ export async function getReadingList(id: string): Promise<{ list: ReadingList; b
     .eq("list_id", id)
     .order("added_at", { ascending: false });
 
-  return { list: list as ReadingList, books: (books ?? []) as ReadingListBook[] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { list: list as ReadingList, books: (books ?? []) as any as ReadingListBook[] };
 }
 
 // ── Add book to a list ────────────────────────────────────────

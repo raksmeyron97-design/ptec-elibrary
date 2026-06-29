@@ -1,20 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/dashboard/page.tsx
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import BookCard from "@/components/ui/books/BookCard";
-import Icon, { type IconName } from "@/components/ui/core/Icon";
+import {
+  Settings, Library, LogOut, ShieldCheck,
+  BookOpen, Bookmark, BookMarked, CheckCircle2,
+  CalendarDays, Mail, UserCircle, Hash, Zap,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import { getMyReadingLists } from "@/app/actions/reading-lists";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
-import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";
+import DashboardTabs from "@/components/ui/dashboard/DashboardTabs";
 import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
 import { getTranslations } from "next-intl/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+
 export const dynamic = "force-dynamic";
 
 type Profile = {
@@ -27,7 +29,7 @@ type Profile = {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
+    year: "numeric", month: "short", day: "numeric",
   });
 }
 
@@ -37,16 +39,18 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?callbackUrl=/dashboard");
 
-  const db = supabase;
+  const BOOK_FIELDS = `id, title, slug, description, cover_url, cover_color,
+    department, language, pages, rating,
+    authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`;
 
   const [profileResult, savedBooks, progressResult, readingLists] = await Promise.all([
-    db
+    supabase
       .from("profiles")
       .select("full_name, email, role, avatar_url, created_at")
       .eq("id", user.id)
       .single<Profile>(),
     getSavedBooks(),
-    db
+    supabase
       .from("reading_progress")
       .select("book_id, progress_pct, last_read_at")
       .eq("user_id", user.id)
@@ -60,249 +64,234 @@ export default async function DashboardPage() {
 
   const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
   const googleName   = user.user_metadata?.full_name  || user.user_metadata?.name;
-
-  const avatarUrl   = profile?.avatar_url ?? googleAvatar ?? null;
-  const displayName = profile?.full_name || googleName || profile?.email || user.email || "Reader";
-  const isAdmin     = ADMIN_PANEL_ROLES.includes(profile?.role as AppRole);
+  const avatarUrl    = profile?.avatar_url ?? googleAvatar ?? null;
+  const displayName  = profile?.full_name || googleName || profile?.email || user.email || "Reader";
+  const isAdmin      = ADMIN_PANEL_ROLES.includes(profile?.role as AppRole);
 
   const inProgress = progress.filter((p) => p.progress_pct < 100);
   const completed  = progress.filter((p) => p.progress_pct >= 100);
 
-  const BOOK_FIELDS = `id, title, slug, description, cover_url, cover_color,
-    department, language, pages, rating,
-    authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`;
-
-  // Fetch in-progress books
-  const inProgressIds = inProgress.slice(0, 6).map((p) => p.book_id);
+  const inProgressIds = inProgress.slice(0, 8).map((p) => p.book_id);
   let inProgressBooks: any[] = [];
   if (inProgressIds.length > 0) {
-    const { data: booksData } = await db.from("books").select(BOOK_FIELDS).in("id", inProgressIds);
-    inProgressBooks = (booksData ?? []).map((b: any) => {
+    const { data } = await supabase.from("books").select(BOOK_FIELDS).in("id", inProgressIds);
+    inProgressBooks = (data ?? []).map((b: any) => {
       const prog = progress.find((p) => p.book_id === b.id);
       return { ...mapRowToBook(b), progressPct: prog?.progress_pct ?? 0 };
     });
   }
 
-  // Fetch completed books
   const completedIds = completed.slice(0, 6).map((p) => p.book_id);
   let completedBooks: any[] = [];
   if (completedIds.length > 0) {
-    const { data: booksData } = await db.from("books").select(BOOK_FIELDS).in("id", completedIds);
-    completedBooks = (booksData ?? []).map((b: any) => ({ ...mapRowToBook(b), progressPct: 100 }));
+    const { data } = await supabase.from("books").select(BOOK_FIELDS).in("id", completedIds);
+    completedBooks = (data ?? []).map((b: any) => ({ ...mapRowToBook(b), progressPct: 100 }));
   }
 
-  const stats: { label: string; value: number; icon: IconName; href: string; color: string }[] = [
-    { label: t("statSaved"),      value: savedBooks.length, icon: "bookmark",   href: "#saved",       color: "text-brand"       },
-    { label: t("statInProgress"), value: inProgress.length, icon: "file-check", href: "#in-progress", color: "text-accent"      },
-    { label: t("statCompleted"),  value: completed.length,  icon: "calendar",   href: "#completed",   color: "text-emerald-600" },
+  const stats = [
+    { icon: <Bookmark    className="h-5 w-5" />, value: savedBooks.length,   label: t("statSaved"),      color: "text-brand",       bg: "bg-brand/20",       accent: "bg-brand"       },
+    { icon: <BookOpen    className="h-5 w-5" />, value: inProgress.length,   label: t("statInProgress"), color: "text-amber-300",   bg: "bg-amber-400/20",   accent: "bg-amber-400"   },
+    { icon: <CheckCircle2 className="h-5 w-5" />, value: completed.length,  label: t("statCompleted"),  color: "text-emerald-300", bg: "bg-emerald-400/20", accent: "bg-emerald-400" },
+    { icon: <BookMarked  className="h-5 w-5" />, value: readingLists.length, label: "Reading Lists",     color: "text-purple-300",  bg: "bg-purple-400/20",  accent: "bg-purple-400"  },
   ];
 
   const accountFields = [
-    { label: t("labelFullName"),    value: profile?.full_name || "—" },
-    { label: t("labelEmail"),       value: profile?.email ?? user.email ?? "—" },
-    { label: t("labelRole"),        value: profile?.role ?? "reader" },
-    { label: t("labelMemberSince"), value: profile?.created_at ? formatDate(profile.created_at) : "—" },
-    { label: t("labelUserId"),      value: user.id.slice(0, 8) + "…" },
-    { label: t("labelStatus"),      value: t("statusActive") },
+    { icon: <UserCircle   className="h-3.5 w-3.5" />, label: t("labelFullName"),    value: profile?.full_name || "—"                          },
+    { icon: <Mail         className="h-3.5 w-3.5" />, label: t("labelEmail"),       value: profile?.email ?? user.email ?? "—"                },
+    { icon: <ShieldCheck  className="h-3.5 w-3.5" />, label: t("labelRole"),        value: profile?.role ?? "reader"                          },
+    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: t("labelMemberSince"), value: profile?.created_at ? formatDate(profile.created_at) : "—" },
+    { icon: <Hash         className="h-3.5 w-3.5" />, label: t("labelUserId"),      value: user.id.slice(0, 8) + "…"                          },
+    { icon: <Zap          className="h-3.5 w-3.5" />, label: t("labelStatus"),      value: t("statusActive")                                  },
   ];
 
   return (
-    <section className="min-h-screen bg-paper px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <div className="mx-auto max-w-[1400px] space-y-5 sm:space-y-8">
+    <div className="min-h-screen bg-bg-body">
 
-        {/* ── Profile Hero Card ── */}
-        <div className="relative overflow-hidden rounded-2xl border-t-4 border-t-accent bg-gradient-to-br from-blue-900 to-blue-950 p-5 sm:p-8 text-white shadow-lg">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gold-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-10 left-1/3 h-48 w-48 rounded-full bg-bg-surface/5 blur-2xl" />
-          <div className="relative flex flex-col gap-4 sm:gap-6 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Hero Banner ─────────────────────────────────────── */}
+      <div
+        className="relative overflow-hidden px-4 pb-0 pt-8 sm:px-8 md:px-12"
+        style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%)" }}
+      >
+        {/* Decorative orbs */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, #DDB022 0%, transparent 70%)" }} />
+        <div className="pointer-events-none absolute bottom-0 left-1/4 h-64 w-64 rounded-full opacity-10"
+          style={{ background: "radial-gradient(circle, #6366f1 0%, transparent 70%)" }} />
+
+        <div className="relative mx-auto max-w-[1300px]">
+          {/* Top row: avatar + info + actions */}
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            {/* Left: avatar + info */}
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
                 <Avatar
                   url={avatarUrl}
                   name={displayName}
                   email={profile?.email ?? user.email ?? ""}
-                  size={80}
-                  className="ring-4 ring-white/20"
+                  size={72}
+                  className="ring-4 ring-white/15 shadow-xl"
                 />
-                <span className="absolute bottom-1 right-1 h-3.5 w-3.5 sm:h-4 sm:w-4 rounded-full border-2 border-blue-950 bg-emerald-400" />
+                <span className="absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-2 border-blue-900 bg-emerald-400 shadow" />
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="font-khmer-serif text-xl sm:text-2xl font-bold truncate">{displayName}</h1>
-                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    isAdmin ? "bg-gold-400/20 text-gold-200" : "bg-blue-400/20 text-blue-100"
+                  <h1 className="font-khmer-serif text-[22px] font-bold text-white leading-tight truncate">
+                    {displayName}
+                  </h1>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+                    isAdmin
+                      ? "bg-amber-400/20 text-amber-200 border border-amber-400/30"
+                      : "bg-white/10 text-blue-200 border border-white/15"
                   }`}>
-                    {isAdmin ? t("admin") : t("reader")}
+                    {isAdmin ? "Admin" : t("reader")}
                   </span>
                 </div>
-                <p className="mt-1 text-sm text-blue-200 truncate">{profile?.email ?? user.email}</p>
+                <p className="mt-0.5 text-[13px] text-blue-300 truncate">{profile?.email ?? user.email}</p>
                 {profile?.created_at && (
-                  <p className="mt-1 flex items-center gap-1.5 text-xs text-blue-300">
-                    <Icon name="calendar" className="text-sm shrink-0" />
-                    {t("memberSince")} {formatDate(profile.created_at)}
+                  <p className="mt-1 flex items-center gap-1.5 text-[12px] text-blue-400">
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                    Member since {formatDate(profile.created_at)}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex gap-2 sm:gap-3 sm:flex-wrap">
-              <Link
-                href="/books"
-                className="flex-1 sm:flex-none inline-flex h-9 sm:h-10 items-center justify-center gap-2 rounded-lg bg-bg-surface/10 px-3 sm:px-4 text-sm font-semibold text-white transition hover:bg-bg-surface/20"
-              >
-                <Icon name="library" className="text-base" />
-                <span>{t("browse")}</span>
+
+            {/* Right: quick actions */}
+            <div className="flex flex-wrap gap-2 sm:shrink-0">
+              <Link href="/books"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 border border-white/10">
+                <Library className="h-4 w-4" />
+                {t("browse")}
               </Link>
-              <Link
-                href="/dashboard/settings"
-                className="flex-1 sm:flex-none inline-flex h-9 sm:h-10 items-center justify-center gap-2 rounded-lg bg-bg-surface/10 px-3 sm:px-4 text-sm font-semibold text-white transition hover:bg-bg-surface/20"
-              >
-                <Icon name="settings" className="text-base" />
-                <span>{t("settings")}</span>
+              {isAdmin && (
+                <Link href="/admin"
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500/20 px-4 py-2 text-[13px] font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30 border border-amber-400/20">
+                  <ShieldCheck className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
+              <Link href="/dashboard/settings"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-[13px] font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 border border-white/10">
+                <Settings className="h-4 w-4" />
+                {t("settings")}
               </Link>
-              <form action="/auth/signout" method="POST" className="flex-1 sm:flex-none">
-                <button
-                  type="submit"
-                  className="w-full h-9 sm:h-10 inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 px-3 sm:px-4 text-sm font-semibold text-blue-200 transition hover:border-white/40 hover:text-white"
-                >
+              <form action="/auth/signout" method="POST">
+                <button type="submit"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-[13px] font-semibold text-blue-300 backdrop-blur-sm transition hover:border-white/30 hover:text-white">
+                  <LogOut className="h-4 w-4" />
                   {t("signOut")}
                 </button>
               </form>
             </div>
           </div>
-        </div>
 
-        {/* ── Stat cards ── */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          {stats.map(({ label, value, icon, href, color }) => (
-            <a
-              key={label}
-              href={href}
-              className="group relative overflow-hidden rounded-xl border border-divider bg-bg-surface p-3 sm:p-6 shadow-sm transition hover:border-brand/40 hover:shadow-md"
-            >
-              <span aria-hidden className="absolute inset-x-0 top-0 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100" />
-              <div className="flex items-center justify-between">
-                <Icon name={icon} className={`text-xl sm:text-3xl ${color}`} />
-                <span className="hidden sm:flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-text-muted transition group-hover:text-brand">
-                  {t("view")}
-                  <svg className="h-3 w-3 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                    <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </div>
-              <div className="mt-2 sm:mt-4 font-khmer-serif text-2xl sm:text-4xl font-bold text-text-heading">{value}</div>
-              <div className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-text-muted leading-tight">{label}</div>
-            </a>
-          ))}
-        </div>
-
-        {/* ── In Progress ── */}
-        <div id="in-progress" className="scroll-mt-6">
-          <div className="mb-4 sm:mb-5 flex items-center justify-between">
-            <h2 className="font-khmer-serif text-lg sm:text-xl font-bold text-text-heading">
-              {t("continueReading")}
-              {inProgressBooks.length > 0 && (
-                <span className="ml-2 text-sm sm:text-base font-normal text-text-muted">({inProgressBooks.length})</span>
-              )}
-            </h2>
-          </div>
-          {inProgressBooks.length === 0 ? (
-            <EmptySection icon="file-check" title={t("noInProgressTitle")} description={t("noInProgressDesc")} browseCatalogue={t("browseCatalogue")} />
-          ) : (
-            <div className="grid gap-4 sm:gap-5 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
-              {inProgressBooks.map((book) => <BookCard key={book.slug} book={book} />)}
-            </div>
-          )}
-        </div>
-
-        {/* ── Completed ── */}
-        <div id="completed" className="scroll-mt-6">
-          <div className="mb-4 sm:mb-5 flex items-center justify-between">
-            <h2 className="font-khmer-serif text-lg sm:text-xl font-bold text-text-heading">
-              {t("completedHeading")}
-              {completedBooks.length > 0 && (
-                <span className="ml-2 text-sm sm:text-base font-normal text-text-muted">({completedBooks.length})</span>
-              )}
-            </h2>
-          </div>
-          {completedBooks.length === 0 ? (
-            <EmptySection icon="calendar" title={t("noCompletedTitle")} description={t("noCompletedDesc")} browseCatalogue={t("browseCatalogue")} />
-          ) : (
-            <div className="grid gap-4 sm:gap-5 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
-              {completedBooks.map((book) => <BookCard key={book.slug} book={book} />)}
-            </div>
-          )}
-        </div>
-
-        {/* ── Saved books ── */}
-        <div id="saved" className="scroll-mt-6">
-          <div className="mb-4 sm:mb-5 flex items-center justify-between">
-            <h2 className="font-khmer-serif text-lg sm:text-xl font-bold text-text-heading">
-              {t("savedHeading")}
-              {savedBooks.length > 0 && (
-                <span className="ml-2 text-sm sm:text-base font-normal text-text-muted">({savedBooks.length})</span>
-              )}
-            </h2>
-            {savedBooks.length > 0 && (
-              <Link href="/books" className="shrink-0 ml-2 text-sm font-semibold text-brand hover:text-brand-hover hover:underline">
-                {t("browseMore")} →
-              </Link>
-            )}
-          </div>
-          {savedBooks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-10 sm:py-16 text-center px-4">
-              <Icon name="bookmark" className="mb-3 text-4xl sm:text-5xl text-text-muted/40" />
-              <h3 className="text-sm sm:text-base font-semibold text-text-heading">{t("noSavedTitle")}</h3>
-              <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-xs">{t("noSavedDesc")}</p>
-              <Link href="/books" className="mt-4 sm:mt-5 inline-flex h-10 items-center rounded-lg bg-brand px-5 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
-                {t("browseCatalogue")}
-              </Link>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:gap-5 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {savedBooks.map((book) => (
-                <BookCard key={book.slug} book={{ ...book, format: (book.format ?? "PDF") as "PDF" | "Print" | "Audio" | "Video" }} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Reading Lists ── */}
-        <ReadingListsSection initialLists={readingLists} />
-
-        {/* ── Account info ── */}
-        <div className="rounded-xl border border-divider bg-bg-surface p-4 sm:p-6 shadow-sm">
-          <h2 className="mb-3 sm:mb-4 font-khmer-serif text-base sm:text-lg font-bold text-text-heading">{t("accountInfo")}</h2>
-          <div className="grid gap-2 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
-            {accountFields.map(({ label, value }) => (
-              <div key={label} className="rounded-lg bg-paper border border-divider px-3 py-2 sm:px-4 sm:py-3">
-                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-text-muted">{label}</p>
-                <p className="mt-0.5 sm:mt-1 truncate text-xs sm:text-sm font-semibold text-text-heading">{value}</p>
+          {/* Stats bar — sits at the bottom of the hero, half overlapping */}
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 pb-0">
+            {stats.map((s, i) => (
+              <div key={i}
+                aria-label={`${s.value} ${s.label}`}
+                className="relative flex items-center gap-3 rounded-t-2xl border-x border-t border-white/15 bg-white/[0.12] px-4 py-4 backdrop-blur-md overflow-hidden">
+                {/* Colored top accent line */}
+                <div className={`absolute inset-x-0 top-0 h-[3px] ${s.accent} opacity-80`} />
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.bg} ${s.color}`}>
+                  {s.icon}
+                </div>
+                <div>
+                  <p className="font-khmer-serif text-[24px] font-bold text-white leading-none">{s.value}</p>
+                  <p className="mt-0.5 text-[11px] text-blue-200/80 font-medium">{s.label}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
-
       </div>
-    </section>
-  );
-}
 
-function EmptySection({
-  icon, title, description, browseCatalogue,
-}: {
-  icon: IconName;
-  title: string;
-  description: string;
-  browseCatalogue: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-divider bg-bg-surface py-8 sm:py-12 text-center px-4">
-      <Icon name={icon} className="mb-3 text-3xl sm:text-4xl text-text-muted/40" />
-      <h3 className="text-sm font-semibold text-text-heading">{title}</h3>
-      <p className="mt-1 mb-4 max-w-xs text-xs text-text-muted">{description}</p>
-      <Link href="/books" className="inline-flex h-9 items-center rounded-lg bg-brand px-4 text-xs font-semibold text-brand-contrast transition hover:bg-brand-hover">
-        {browseCatalogue}
-      </Link>
+      {/* ── Main content ────────────────────────────────────── */}
+      <div className="mx-auto max-w-[1300px] px-4 pt-4 pb-12 sm:px-8 md:px-12">
+        <div className="flex gap-6 lg:items-start">
+
+          {/* ── Left: tabs ── */}
+          <div className="min-w-0 flex-1">
+            <DashboardTabs
+              inProgressBooks={inProgressBooks}
+              completedBooks={completedBooks}
+              savedBooks={savedBooks as any}
+              readingLists={readingLists}
+              browseLabel={t("browseCatalogue")}
+              browseMoreLabel={t("browseMore")}
+              totalInProgress={inProgress.length}
+              totalCompleted={completed.length}
+            />
+          </div>
+
+          {/* ── Right: sticky sidebar ── */}
+          <aside className="hidden lg:block w-72 shrink-0">
+            <div className="sticky top-20 space-y-4">
+
+              {/* Quick links */}
+              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Quick Links</p>
+                <nav className="flex flex-col gap-1">
+                  {[
+                    { href: "/books",            icon: <Library className="h-4 w-4" />,     label: "Browse Library" },
+                    { href: "/research",          icon: <BookOpen className="h-4 w-4" />,    label: "Research Reports" },
+                    { href: "/dashboard/settings",icon: <Settings className="h-4 w-4" />,   label: "Settings" },
+                    ...(isAdmin ? [{ href: "/admin", icon: <ShieldCheck className="h-4 w-4" />, label: "Admin Panel" }] : []),
+                  ].map((l) => (
+                    <Link key={l.href} href={l.href}
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand">
+                      <span className="text-text-muted">{l.icon}</span>
+                      {l.label}
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Account info */}
+              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
+                <div className="flex flex-col gap-2.5">
+                  {accountFields.map(({ icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-2.5">
+                      <span className="mt-0.5 shrink-0 text-text-muted">{icon}</span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted/70">{label}</p>
+                        <p className="truncate text-[12.5px] font-semibold text-text-heading">{value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Download history */}
+              <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Recent Downloads</p>
+                <DownloadHistory />
+              </div>
+
+            </div>
+          </aside>
+        </div>
+
+        {/* Mobile: account info below content */}
+        <div className="mt-8 lg:hidden space-y-4">
+          <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
+            <div className="grid grid-cols-2 gap-2.5">
+              {accountFields.map(({ icon, label, value }) => (
+                <div key={label} className="rounded-xl border border-divider bg-paper px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+                  <p className="mt-0.5 truncate text-[12px] font-semibold text-text-heading">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Recent Downloads</p>
+            <DownloadHistory />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
