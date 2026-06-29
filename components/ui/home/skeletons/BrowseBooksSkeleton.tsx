@@ -1,8 +1,8 @@
 export default function BrowseBooksSkeleton() {
   return (
-    <section className="border-y border-divider bg-bg-surface">
-      <div className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-        <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
+        <div className="mb-6 sm:mb-9 flex flex-wrap items-end justify-between gap-4">
           <div className="h-10 w-48 rounded-full skeleton shadow-sm" />
           <div className="hidden h-5 w-32 rounded skeleton sm:block" />
         </div>

@@ -45,6 +45,18 @@ export async function middleware(request: NextRequest) {
     return res;
   }
 
+  // ── Fast-path for public routes ──────────────────────────────
+  // If the route doesn't need auth protection or redirection, return immediately
+  // to avoid a blocking Supabase network request (getUser) on every public page load.
+  const needsAuthCheck =
+    url.pathname.startsWith("/admin") ||
+    url.pathname.startsWith("/auth/login") ||
+    PROTECTED_PREFIXES.some((p) => url.pathname.startsWith(p));
+
+  if (!needsAuthCheck) {
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

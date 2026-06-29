@@ -1,8 +1,9 @@
 export default function CatalogsSkeleton() {
   return (
-    <section className="mx-auto max-w-[1400px] px-4 py-20 md:px-12">
-      <div className="mb-9 flex items-end justify-between gap-5">
-        <div className="h-8 w-48 rounded bg-bg-surface/60 skeleton" />
+    <section className="border-t border-divider/50 overflow-hidden">
+      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-16 md:px-12 md:py-20">
+        <div className="mb-9 flex items-end justify-between gap-5">
+          <div className="h-8 w-48 rounded bg-bg-surface/60 skeleton" />
         <div className="hidden h-5 w-32 rounded bg-bg-surface/60 skeleton sm:block" />
       </div>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:gap-4">
@@ -19,6 +20,7 @@ export default function CatalogsSkeleton() {
             </div>
           </div>
         ))}
+      </div>
       </div>
     </section>
   );

@@ -286,20 +286,6 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           </span>
         </nav>
 
-        {book.fromSupabase && book.pdfUrl && book.dbId && (
-          <div id="reader" className="mb-8 scroll-mt-24 w-full overflow-hidden">
-            <PDFViewer
-              title={book.title}
-              pdfUrl={fileSrc as string}
-              bookId={book.dbId}
-              totalPages={book.pages}
-              initialProgressPct={savedProgress?.progressPct ?? 0}
-              initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-allowDownload={true}
-              isLoggedIn={!!user}
-            />
-          </div>
-        )}
 
         {/* ── Hero card ── */}
         <div id="details" className="grid gap-6 sm:gap-10 rounded-[28px] border border-divider bg-bg-surface p-5 sm:p-6 shadow-md md:p-9 lg:grid-cols-[300px_1fr] scroll-mt-24">
@@ -456,6 +442,21 @@ allowDownload={true}
             )}
           </div>
         </div>
+
+        {book.fromSupabase && book.pdfUrl && book.dbId && (
+          <div id="reader" className="mt-8 sm:mt-12 mb-8 scroll-mt-24 w-full overflow-hidden">
+            <PDFViewer
+              title={book.title}
+              pdfUrl={fileSrc as string}
+              bookId={book.dbId}
+              totalPages={book.pages}
+              initialProgressPct={savedProgress?.progressPct ?? 0}
+              initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
+              allowDownload={true}
+              isLoggedIn={!!user}
+            />
+          </div>
+        )}
 
         {/* Physical Copies */}
         <PhysicalCopiesList copies={copies as any} />

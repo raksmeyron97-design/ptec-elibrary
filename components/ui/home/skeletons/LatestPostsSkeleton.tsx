@@ -1,6 +1,6 @@
 export default function LatestPostsSkeleton() {
   return (
-    <section className="bg-bg-surface py-20">
+    <section className="border-t border-divider/60 bg-paper py-10 sm:py-14 md:py-20">
       <div className="mx-auto max-w-[1400px] px-4 md:px-12">
         {/* Header */}
         <div className="mb-10 flex flex-col items-center text-center">
