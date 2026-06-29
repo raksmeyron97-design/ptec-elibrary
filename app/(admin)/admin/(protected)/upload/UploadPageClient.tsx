@@ -3,14 +3,17 @@
 import { useState } from "react";
 import UploadForm from "../UploadForm";
 import BulkUploadForm from "../BulkUploadForm";
+import ManageCategoriesModal from "@/components/admin/ManageCategoriesModal";
+import ManageDepartmentsModal from "@/components/admin/ManageDepartmentsModal";
 
-export default function UploadPageClient() {
+export default function UploadPageClient({ recentBooks = [] }: { recentBooks?: any[] }) {
   const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
 
   return (
     <div className="space-y-6">
-      {/* Tab switcher */}
-      <div className="flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 w-fit shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Tab switcher */}
+        <div className="flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 w-fit shadow-sm">
         {(["single", "bulk"] as const).map((tab) => {
           const active = activeTab === tab;
           return (
@@ -32,10 +35,17 @@ export default function UploadPageClient() {
             </button>
           );
         })}
+        </div>
+
+        {/* Manage Modals */}
+        <div className="flex items-center gap-2">
+          <ManageCategoriesModal />
+          <ManageDepartmentsModal />
+        </div>
       </div>
 
       <div className="min-h-[500px]">
-        {activeTab === "single" ? <UploadForm /> : <BulkUploadForm />}
+        {activeTab === "single" ? <UploadForm recentBooks={recentBooks} /> : <BulkUploadForm />}
       </div>
     </div>
   );

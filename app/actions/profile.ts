@@ -70,6 +70,7 @@ export async function updateProfile(formData: FormData) {
     }
 
     revalidatePath("/dashboard", "layout");
+    revalidatePath("/admin", "layout");
     return { success: true };
   } catch (err) {
     console.error("Error updating profile:", err);

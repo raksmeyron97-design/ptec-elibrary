@@ -27,12 +27,14 @@ export default async function AdminLayout({
   const supabaseService = createServiceClient();
   const { data: profile } = await supabaseService
     .from("profiles")
-    .select("role, is_super_admin")
+    .select("role, is_super_admin, full_name, avatar_url")
     .eq("id", user.id)
     .single();
 
   const role = (profile?.role ?? "reader") as AppRole;
   const isSuperAdmin = (profile?.is_super_admin ?? false) as boolean;
+  const fullName = (profile?.full_name ?? null) as string | null;
+  const avatarUrl = (profile?.avatar_url ?? null) as string | null;
 
   if (!ADMIN_PANEL_ROLES.includes(role)) {
     redirect("/admin/login");
@@ -65,6 +67,8 @@ export default async function AdminLayout({
   return (
     <AdminSidebar
       email={user.email}
+      fullName={fullName}
+      avatarUrl={avatarUrl}
       role={role}
       isSuperAdmin={isSuperAdmin}
       userPermissions={userPermissions}

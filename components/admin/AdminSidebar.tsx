@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Upload,
@@ -20,13 +20,16 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   UserCircle,
+  Search,
+  ChevronDown,
+  Settings,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import ManageCategoriesModal from "./ManageCategoriesModal";
-import ManageDepartmentsModal from "./ManageDepartmentsModal";
+import Avatar from "@/components/ui/Avatar";
+import NotificationBell from "@/components/admin/NotificationBell";
 
 type NavLink = {
   name: string;
@@ -148,31 +151,66 @@ function NavItem({
   );
 }
 
+function getRoleLabel(role: AppRole, isSuperAdmin: boolean): string {
+  if (isSuperAdmin || role === "super_admin") return "Super Admin";
+  if (role === "admin") return "Admin";
+  if (role === "librarian") return "Librarian";
+  if (role === "staff") return "Staff";
+  return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
 export default function AdminSidebar({
   children,
   email,
+  fullName = null,
+  avatarUrl = null,
   role = "admin",
   isSuperAdmin = false,
   userPermissions = {},
 }: {
   children: React.ReactNode;
   email: string | undefined;
+  fullName?: string | null;
+  avatarUrl?: string | null;
   role?: AppRole;
   isSuperAdmin?: boolean;
   userPermissions?: Record<string, PermLevel>;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const navGroups = getNavGroups(role, isSuperAdmin, userPermissions);
+  const roleLabel = getRoleLabel(role, isSuperAdmin);
 
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("admin-sidebar-collapsed");
     if (saved === "true") setCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function handleSearch(e: React.SyntheticEvent) {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/admin/manage?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery("");
+    }
+  }
 
   const toggleCollapsed = () => {
     setCollapsed(prev => {
@@ -413,26 +451,172 @@ export default function AdminSidebar({
 
         {/* Desktop topbar */}
         <header
-          className="hidden lg:flex h-14 bg-bg-surface border-b border-divider items-center justify-between shrink-0"
+          className="hidden lg:flex h-16 bg-bg-surface border-b border-divider items-center shrink-0 gap-4"
           style={{ padding: "0 28px" }}
         >
-          {/* Left: breadcrumb */}
-          <div className="flex items-center gap-2.5 min-w-0">
+          {/* Left: page title */}
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
               className="w-1.5 h-5 rounded-full shrink-0"
               style={{ background: "linear-gradient(to bottom, #DDB022, #4f46e5)" }}
             />
             <h1 className="text-sm font-semibold text-text-heading capitalize truncate">{pageLabel}</h1>
+
           </div>
 
-          {/* Right: context actions */}
+          {/* Center: search bar */}
+          <form onSubmit={handleSearch} className="hidden xl:flex flex-1 max-w-sm">
+            <div
+              className="flex items-center gap-2 w-full rounded-xl border px-3 py-2 transition-all duration-200 focus-within:ring-2"
+              style={{
+                background: "var(--color-bg-app, #F8FAFC)",
+                borderColor: "var(--color-divider, #E2E8F0)",
+                // @ts-ignore
+                "--tw-ring-color": "rgba(79,70,229,0.25)",
+              }}
+            >
+              <Search className="w-4 h-4 shrink-0" style={{ color: "#94A3B8" }} />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search books, reports…"
+                className="flex-1 bg-transparent text-sm outline-none text-text-heading placeholder:text-slate-400"
+                aria-label="Search admin"
+              />
+              {searchQuery && (
+                <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
+                  ↵
+                </kbd>
+              )}
+            </div>
+          </form>
+
+          {/* Right: actions + avatar */}
           <div className="flex items-center gap-2 shrink-0">
-            {pathname === "/admin/upload" && (
-              <>
-                <ManageCategoriesModal />
-                <ManageDepartmentsModal />
-              </>
-            )}
+
+            {/* Notification bell — self-contained with polling + slide panel */}
+            <NotificationBell />
+
+            {/* Profile settings shortcut */}
+            <button
+              type="button"
+              className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100"
+              style={{ color: "#64748B" }}
+              aria-label="My profile"
+              onClick={() => router.push("/admin/profile")}
+            >
+              <Settings style={{ width: "18px", height: "18px" }} />
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-divider mx-1" />
+
+            {/* Avatar profile dropdown */}
+            <div ref={profileRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setProfileOpen(prev => !prev)}
+                className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-slate-100"
+                aria-label="Open profile menu"
+                aria-expanded={profileOpen}
+              >
+                <Avatar url={avatarUrl} name={fullName} email={email ?? "admin"} size={32} />
+                {/* Name + role */}
+                <div className="hidden xl:flex flex-col items-start min-w-0 max-w-[140px]">
+                  <span className="text-xs font-semibold text-text-heading truncate leading-tight max-w-full">
+                    {fullName ?? email?.split("@")[0] ?? "Admin"}
+                  </span>
+                  <span className="text-[10px] leading-tight truncate max-w-full" style={{ color: "#94A3B8" }}>
+                    {roleLabel}
+                  </span>
+                </div>
+                <ChevronDown
+                  style={{ width: "14px", height: "14px", color: "#94A3B8" }}
+                  className={`transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {/* Dropdown panel */}
+              {profileOpen && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-64 rounded-2xl border shadow-xl z-50 overflow-hidden"
+                  style={{
+                    background: "var(--color-bg-surface, #fff)",
+                    borderColor: "var(--color-divider, #E2E8F0)",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  {/* User info header */}
+                  <div className="flex items-center gap-3 p-4 border-b border-divider">
+                    <Avatar url={avatarUrl} name={fullName} email={email ?? "admin"} size={40} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-text-heading truncate">
+                        {fullName ?? email?.split("@")[0] ?? "Admin"}
+                      </div>
+                      <div className="text-xs text-slate-500 truncate mt-0.5">{email}</div>
+                      <div className="mt-1.5">
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{
+                            background: isSuperAdmin || role === "super_admin"
+                              ? "rgba(147,51,234,0.1)"
+                              : role === "admin"
+                              ? "rgba(245,158,11,0.1)"
+                              : "rgba(16,185,129,0.1)",
+                            color: isSuperAdmin || role === "super_admin"
+                              ? "#7C3AED"
+                              : role === "admin"
+                              ? "#D97706"
+                              : "#059669",
+                          }}
+                        >
+                          {roleLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="p-2">
+                    <a
+                      href={
+                        process.env.NEXT_PUBLIC_ROOT_DOMAIN
+                          ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+                          : "https://library.ptec.edu.kh"
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                      style={{ color: "#475569" }}
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      <ExternalLink style={{ width: "15px", height: "15px" }} />
+                      <span>View public site</span>
+                    </a>
+
+                    <div className="my-1 mx-2 h-px bg-divider" />
+
+                    <form action="/admin/auth/signout" method="POST">
+                      <button
+                        type="submit"
+                        className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200"
+                        style={{ color: "#EF4444" }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.06)";
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLElement).style.background = "";
+                        }}
+                      >
+                        <LogOut style={{ width: "15px", height: "15px" }} />
+                        <span>Sign out</span>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
