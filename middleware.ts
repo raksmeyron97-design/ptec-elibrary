@@ -107,14 +107,15 @@ export async function middleware(request: NextRequest) {
         return copyCookies(res);
       }
       
-      // Check role
+      // Check role — allow any admin-panel role
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single();
-        
-      if (profile?.role !== 'admin') {
+
+      const adminPanelRoles = ['staff', 'librarian', 'admin', 'super_admin'];
+      if (!adminPanelRoles.includes(profile?.role ?? '')) {
         const res = NextResponse.redirect(new URL("/home", request.url));
         return copyCookies(res);
       }

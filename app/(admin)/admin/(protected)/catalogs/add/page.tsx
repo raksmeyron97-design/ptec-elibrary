@@ -12,7 +12,8 @@ export default async function AddCatalogBookPage() {
 
   const supabase = createServiceClient();
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin") redirect("/catalogs");
+  const librarianRoles = ["librarian", "admin", "super_admin"];
+  if (!librarianRoles.includes(profile?.role ?? "")) redirect("/catalogs");
 
   const { data: catRows } = await supabase
     .from("catalog_books")

@@ -1,7 +1,13 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-export { requireAdmin } from "@/lib/auth/requireAdmin";
+export {
+  requireAdmin,
+  requireStaff,
+  requireLibrarian,
+  requireSuperAdmin,
+  requirePermission,
+} from "@/lib/auth/requireAdmin";
 
 export async function requireUser() {
   const supabase = await createClient();

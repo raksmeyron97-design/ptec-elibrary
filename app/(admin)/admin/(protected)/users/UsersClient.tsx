@@ -1,26 +1,28 @@
 "use client";
 
-// app/admin/users/UsersClient.tsx
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toggleUserRole } from "@/app/(admin)/admin/(protected)/users/actions";
+import { setUserRole } from "@/app/(admin)/admin/(protected)/users/actions";
 import Pagination from "@/components/ui/core/Pagination";
 import Avatar from "@/components/ui/Avatar";
+import type { AppRole } from "@/lib/types/roles";
+import { ALL_ROLES, ROLE_META, ADMIN_ROLES } from "@/lib/types/roles";
 
 type UserRow = {
   id: string;
   fullName: string | null;
   email: string;
-  role: "reader" | "admin";
+  role: AppRole;
   createdAt: string;
   avatarUrl: string | null;
+  isSuperAdmin: boolean;
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
 export default function UsersClient({
   users,
   currentUserId,
-  isSuperAdmin,
+  callerRole,
+  callerIsSuperAdmin,
   totalItems,
   totalPages,
   currentPage,
@@ -28,7 +30,8 @@ export default function UsersClient({
 }: {
   users: UserRow[];
   currentUserId: string;
-  isSuperAdmin: boolean;
+  callerRole: AppRole;
+  callerIsSuperAdmin: boolean;
   totalItems: number;
   totalPages: number;
   currentPage: number;
@@ -36,10 +39,12 @@ export default function UsersClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-
   const [query, setQuery] = useState(searchParams?.q || "");
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [changingId, setChangingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const callerCanAssignAdmin =
+    callerIsSuperAdmin || callerRole === "super_admin";
 
   useEffect(() => {
     if (query === (searchParams?.q || "")) return;
@@ -51,32 +56,24 @@ export default function UsersClient({
     return () => clearTimeout(handler);
   }, [query, router, searchParams?.q]);
 
-  const filtered = users;
-
-  // ── Execute role change ────────────────────────────────────────────────────
-  async function executeToggle(u: UserRow) {
-    setTogglingId(u.id);
+  async function handleRoleChange(u: UserRow, newRole: AppRole) {
+    if (newRole === u.role) return;
+    setChangingId(u.id);
     setError(null);
     try {
-      await toggleUserRole(u.id, u.role);
+      await setUserRole(u.id, newRole);
       startTransition(() => router.refresh());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update role");
     } finally {
-      setTogglingId(null);
+      setChangingId(null);
     }
   }
 
-  // ── Click handler ─────────────────────────────────────────────────────────
-  function handleToggleClick(u: UserRow) {
-    if (u.id === currentUserId) return;
-
-    const isPromotion = u.role === "reader";
-    // Only super admins may promote. The button is disabled for others, but we
-    // guard here too so nothing slips through.
-    if (isPromotion && !isSuperAdmin) return;
-
-    executeToggle(u);
+  /** Returns true if the caller is allowed to assign `targetRole` */
+  function canAssign(targetRole: AppRole): boolean {
+    if (ADMIN_ROLES.includes(targetRole)) return callerCanAssignAdmin;
+    return true;
   }
 
   return (
@@ -89,7 +86,7 @@ export default function UsersClient({
         <input
           type="text"
           value={query}
-          onChange={(e) => { setQuery(e.target.value); }}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or email…"
           className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
         />
@@ -114,26 +111,28 @@ export default function UsersClient({
                 <th className="px-4 py-3 hidden md:table-cell">Email</th>
                 <th className="px-4 py-3 hidden lg:table-cell">Joined</th>
                 <th className="px-4 py-3 text-center">Role</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-4 py-3 text-right">Assign Role</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-sm text-text-muted">
                     No users found{query ? ` for "${query}"` : ""}.
                   </td>
                 </tr>
               ) : (
-                filtered.map((u, idx) => {
-                  const isMe          = u.id === currentUserId;
-                  const isToggling    = togglingId === u.id;
-                  const isPromotion   = u.role === "reader";
-                  // Regular admins cannot promote — only super admins can.
-                  const promoteBlocked = isPromotion && !isSuperAdmin;
+                users.map((u, idx) => {
+                  const isMe = u.id === currentUserId;
+                  const isChanging = changingId === u.id;
+                  const meta = ROLE_META[u.role];
+                  const targetIsSuperAdmin =
+                    u.isSuperAdmin || u.role === "super_admin";
+                  const canEditTarget =
+                    !isMe && (!targetIsSuperAdmin || callerCanAssignAdmin);
 
                   return (
-                    <tr key={u.id} className={`transition-colors hover:bg-paper/80 ${isToggling ? "opacity-50" : ""}`}>
+                    <tr key={u.id} className={`transition-colors hover:bg-paper/80 ${isChanging ? "opacity-50" : ""}`}>
                       {/* # */}
                       <td className="px-4 py-3 text-xs text-text-muted tabular-nums">{idx + 1}</td>
 
@@ -146,6 +145,9 @@ export default function UsersClient({
                               {u.fullName ?? <span className="text-text-muted italic">No name</span>}
                               {isMe && (
                                 <span className="ml-2 rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-bold text-cyan-700">You</span>
+                              )}
+                              {u.isSuperAdmin && (
+                                <span className="ml-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-700">SA</span>
                               )}
                             </p>
                             <p className="text-xs text-text-muted md:hidden">{u.email}</p>
@@ -165,35 +167,33 @@ export default function UsersClient({
 
                       {/* Role badge */}
                       <td className="px-4 py-3 text-center">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          u.role === "admin"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-paper text-text-muted"
-                        }`}>
-                          {u.role}
+                        <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.bgColor} ${meta.color} ${meta.borderColor}`}>
+                          {meta.label}
                         </span>
                       </td>
 
-                      {/* Action */}
+                      {/* Role dropdown */}
                       <td className="px-4 py-3 text-right">
                         {isMe ? (
                           <span className="text-xs text-text-muted italic">—</span>
+                        ) : !canEditTarget ? (
+                          <span className="text-xs text-text-muted italic" title="Only a super admin can edit this user">Protected</span>
                         ) : (
-                          <button type="button" onClick={() => handleToggleClick(u)}
-                            disabled={isToggling || !!togglingId || promoteBlocked}
-                            title={promoteBlocked ? "Only a super admin can promote users to admin" : undefined}
-                            className={`rounded px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                              u.role === "admin"
-                                ? "border border-divider bg-paper text-text-body hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                                : "border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                            }`}
+                          <select
+                            value={u.role}
+                            disabled={isChanging || !!changingId}
+                            onChange={(e) => handleRoleChange(u, e.target.value as AppRole)}
+                            className="rounded border border-divider bg-bg-surface px-2 py-1 text-xs text-text-body shadow-sm outline-none transition hover:border-text-muted focus:border-brand disabled:cursor-not-allowed disabled:opacity-50"
                           >
-                            {isToggling
-                              ? "…"
-                              : u.role === "admin"
-                              ? "Demote to Reader"
-                              : "Promote to Admin"}
-                          </button>
+                            {ALL_ROLES.map((r) => {
+                              const assignable = canAssign(r);
+                              return (
+                                <option key={r} value={r} disabled={!assignable}>
+                                  {ROLE_META[r].label}{!assignable ? " (super admin only)" : ""}
+                                </option>
+                              );
+                            })}
+                          </select>
                         )}
                       </td>
                     </tr>

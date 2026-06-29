@@ -1,48 +1,51 @@
 "use server";
 
-// app/admin/users/actions.ts
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_ROLES } from "@/lib/types/roles";
 
-export async function toggleUserRole(
+export async function setUserRole(
   targetUserId: string,
-  currentRole: "reader" | "admin"
-) {
+  newRole: AppRole,
+): Promise<void> {
   const { supabase, user } = await requireAdmin();
 
-  // Safety: can't change your own role
-  if (user.id === targetUserId) throw new Error("You cannot change your own role");
+  if (user.id === targetUserId) {
+    throw new Error("You cannot change your own role");
+  }
 
-  // Look up the caller's super-admin status
-  const { data: callerProfile, error: callerProfileError } = await supabase
+  // Fetch the caller's profile to check super-admin status
+  const { data: callerProfile, error: callerErr } = await supabase
     .from("profiles")
-    .select("is_super_admin")
+    .select("role, is_super_admin")
     .eq("id", user.id)
     .single();
 
-  if (callerProfileError || !callerProfile) {
-    throw new Error("Unable to verify super-admin status.");
+  if (callerErr || !callerProfile) {
+    throw new Error("Unable to verify caller permissions");
   }
 
-  const newRole = currentRole === "admin" ? "reader" : "admin";
-  const isPromotion = newRole === "admin";
+  const callerIsSuperAdmin =
+    callerProfile.is_super_admin || callerProfile.role === "super_admin";
 
-  // ── Only a super admin can promote a user to admin ──────────────────────────
-  // This is the security boundary. The UI also disables the button for regular
-  // admins, but this check is what actually enforces the rule.
-  if (isPromotion && !callerProfile.is_super_admin) {
-    throw new Error("Only a super admin can promote a user to admin.");
+  // Only super_admin may assign admin or super_admin roles
+  if (ADMIN_ROLES.includes(newRole) && !callerIsSuperAdmin) {
+    throw new Error("Only a super admin can assign admin or super_admin roles");
   }
 
-  // Protect super admins: only a super admin may change another super admin's
-  // role. Without this, a regular admin could demote (lock out) a super admin.
+  // Protect super admins: only a super admin may change a super admin's role
   const { data: targetProfile } = await supabase
     .from("profiles")
-    .select("is_super_admin")
+    .select("role, is_super_admin")
     .eq("id", targetUserId)
     .single();
-  if (targetProfile?.is_super_admin && !callerProfile.is_super_admin) {
-    throw new Error("Only a super admin can change a super admin's role.");
+
+  if (
+    (targetProfile?.is_super_admin || targetProfile?.role === "super_admin") &&
+    !callerIsSuperAdmin
+  ) {
+    throw new Error("Only a super admin can change a super admin's role");
   }
 
   const { error } = await supabase
@@ -52,5 +55,27 @@ export async function toggleUserRole(
 
   if (error) throw new Error(`Role update failed: ${error.message}`);
 
+  // Log the role change
+  await supabase.from("admin_audit_log").insert({
+    admin_id: user.id,
+    action: "setUserRole",
+    target_table: "profiles",
+    target_id: targetUserId,
+    metadata: {
+      from: targetProfile?.role ?? "unknown",
+      to: newRole,
+    },
+  });
+
   revalidatePath("/admin/users");
+  revalidatePath("/admin/roles");
+}
+
+/** Backward-compatible wrapper — kept so any external call doesn't break. */
+export async function toggleUserRole(
+  targetUserId: string,
+  currentRole: "reader" | "admin",
+): Promise<void> {
+  const newRole: AppRole = currentRole === "admin" ? "reader" : "admin";
+  return setUserRole(targetUserId, newRole);
 }

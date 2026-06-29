@@ -3,7 +3,7 @@
 // app/admin/posts/actions.ts
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { deleteR2File } from "@/app/actions/upload";
 import { logAdminAction } from "@/app/actions/audit";
 
@@ -56,7 +56,7 @@ function storagePathFromUrl(publicUrl: string): string | null {
 }
 
 async function uniqueSlug(
-  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
   base: string,
   ignoreId?: string
 ): Promise<string> {
@@ -87,7 +87,7 @@ const parseTags      = (fd: FormData) => parseStringArray(fd, "tags").slice(0, 1
 
 // ── createPost ────────────────────────────────────────────────────
 export async function createPost(formData: FormData) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("posts", "write");
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -127,7 +127,7 @@ export async function createPost(formData: FormData) {
 
 // ── updatePost ────────────────────────────────────────────────────
 export async function updatePost(postId: string, formData: FormData) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("posts", "write");
 
   const title    = requiredText(formData, "title");
   const content  = requiredText(formData, "content");
@@ -183,7 +183,7 @@ export async function updatePost(postId: string, formData: FormData) {
 
 // ── deletePost ────────────────────────────────────────────────────
 export async function deletePost(postId: string) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("posts", "write");
 
   const { data: postData } = await supabase
     .from("posts")
@@ -213,7 +213,7 @@ export async function deletePost(postId: string) {
 
 // ── togglePublish ─────────────────────────────────────────────────
 export async function togglePublish(postId: string, nextState: boolean) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("posts", "write");
 
   const { data: post, error } = await supabase
     .from("posts")

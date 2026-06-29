@@ -2,6 +2,10 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import { MFA_ENROLL_PATH, MFA_VERIFY_PATH } from "@/lib/auth/requireAdmin";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+import type { AppRole } from "@/lib/types/roles";
+import { getPermissionsForRole } from "@/lib/permissions";
+import type { PermLevel } from "@/lib/types/roles";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -23,16 +27,18 @@ export default async function AdminLayout({
   const supabaseService = createServiceClient();
   const { data: profile } = await supabaseService
     .from("profiles")
-    .select("role")
+    .select("role, is_super_admin")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
+  const role = (profile?.role ?? "reader") as AppRole;
+  const isSuperAdmin = (profile?.is_super_admin ?? false) as boolean;
+
+  if (!ADMIN_PANEL_ROLES.includes(role)) {
     redirect("/admin/login");
   }
 
   // ── MFA / AAL2 enforcement ──────────────────────────────────────────────
-  // Admins must complete TOTP verification before accessing any admin page.
   const { data: aalData } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
@@ -41,20 +47,29 @@ export default async function AdminLayout({
       aalData.nextLevel === "aal2" || aalData.currentLevel === "aal2";
 
     if (hasEnrolledFactors && aalData.currentLevel !== "aal2") {
-      // User has MFA enrolled but hasn't verified in this session
       redirect(MFA_VERIFY_PATH);
     }
 
     if (!hasEnrolledFactors) {
-      // User has no MFA factors enrolled — force enrollment
       redirect(MFA_ENROLL_PATH);
     }
   }
 
+  // Fetch the DB-stored permissions for this role (falls back to hardcoded defaults)
+  const effectiveRole = (isSuperAdmin || role === "super_admin") ? "super_admin" : role;
+  const userPermissions: Record<string, PermLevel> = await getPermissionsForRole(
+    effectiveRole,
+    supabaseService,
+  );
+
   return (
-    <AdminSidebar email={user.email}>
+    <AdminSidebar
+      email={user.email}
+      role={role}
+      isSuperAdmin={isSuperAdmin}
+      userPermissions={userPermissions}
+    >
       {children}
     </AdminSidebar>
   );
 }
-

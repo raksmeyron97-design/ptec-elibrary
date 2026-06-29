@@ -6,6 +6,8 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 
 export const runtime = "nodejs";
@@ -98,7 +100,7 @@ export async function POST(req: Request) {
     .select("role")
     .eq("id", userId)
     .single();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
 
   // ── 5. Per-user daily quota ──────────────────────────────────────────────────────
   if (!isAdmin) {

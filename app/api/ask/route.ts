@@ -5,6 +5,8 @@
 import { GoogleGenAI, Content, FunctionDeclaration } from "@google/genai";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { LIBRARY_INFO, LibraryInfoTopic } from "@/lib/library-info";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 export const runtime = "nodejs";
 
 // ── Cost-control constants ────────────────────────────────────────────────────
@@ -320,7 +322,7 @@ export async function POST(req: Request) {
     .select("role")
     .eq("id", userId)
     .single();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
 
   // ── 5. Per-user daily quota (skip for admins) ────────────────────────────────
   // Quota is incremented BEFORE the Gemini call — a failed AI call still costs

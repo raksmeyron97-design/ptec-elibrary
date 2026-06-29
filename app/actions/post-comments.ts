@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 
 async function getAuthUser() {
   const supabase = await createClient();
@@ -52,7 +54,7 @@ export async function deleteComment(
       .eq("id", user.id)
       .single();
 
-    const isAdmin = profile?.role === "admin";
+    const isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
 
     // Soft-delete: admins can delete any comment; users only their own
     let query = supabase

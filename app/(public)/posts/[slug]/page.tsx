@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
@@ -105,7 +107,7 @@ export default async function PostDetailPage({
   let isAdmin = false;
   if (user) {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    isAdmin = profile?.role === "admin";
+    isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
   }
 
   const { data: post, error: postError } = await supabase

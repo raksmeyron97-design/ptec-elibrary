@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
 import { getResearchReportById } from "@/app/actions/research";
 import ResearchViewPing from "@/components/ui/research/ResearchViewPing";
@@ -139,7 +141,7 @@ export default async function ResearchReportDetailPage({ params }: PageProps) {
         .select("role")
         .eq("id", user.id)
         .single();
-      isAdmin = profile?.role === "admin";
+      isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
     }
   } catch { /* non-fatal */ }
 

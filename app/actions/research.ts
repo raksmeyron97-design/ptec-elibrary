@@ -4,7 +4,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { deleteR2File } from "@/app/actions/upload";
 import { createAdminNotification } from "@/lib/admin-notifications";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 
 function storagePathFromUrl(publicUrl: string): string | null {
   try {
@@ -195,9 +195,9 @@ export async function incrementResearchDownloadCount(id: string) {
 }
 
 export async function toggleReportPublishStatus(id: string, isPublished: boolean) {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -226,9 +226,9 @@ export async function toggleReportPublishStatus(id: string, isPublished: boolean
 }
 
 export async function createResearchReport(formData: ResearchReportData) {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -249,9 +249,9 @@ export async function createResearchReport(formData: ResearchReportData) {
 }
 
 export async function deleteResearchReport(id: string) {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -286,9 +286,9 @@ export async function deleteResearchReport(id: string) {
 }
 
 export async function updateResearchReport(id: string, formData: ResearchReportData) {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -334,9 +334,9 @@ export async function addResearchCohort({
   number: number;
   label?: string;
 }): Promise<{ data: ResearchCohort | null; error: string | null }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { data: null, error: errorMessage(error) };
   }
@@ -380,9 +380,9 @@ export async function updateResearchCohort(
   id: string,
   updates: { number?: number; label?: string | null; sort_order?: number },
 ): Promise<{ success: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -398,9 +398,9 @@ export async function updateResearchCohort(
 }
 
 export async function deleteResearchCohort(id: string): Promise<{ success: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -440,9 +440,9 @@ export async function addResearchAcademicYear({
   cohortId: string;
   label: string;
 }): Promise<{ data: ResearchAcademicYear | null; error: string | null }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { data: null, error: errorMessage(error) };
   }
@@ -494,9 +494,9 @@ export async function updateResearchAcademicYear(
   id: string,
   updates: { label?: string; sort_order?: number },
 ): Promise<{ success: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }
@@ -520,9 +520,9 @@ export async function updateResearchAcademicYear(
 }
 
 export async function deleteResearchAcademicYear(id: string): Promise<{ success: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("research", "write");
   } catch (error) {
     return { success: false, error: errorMessage(error) };
   }

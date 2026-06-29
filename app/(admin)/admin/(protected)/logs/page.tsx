@@ -1,7 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import SecurityLogsClient, { type LogRow, type LogStats } from "./SecurityLogsClient";
 
 export default async function AdminLogsPage() {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   const [{ data: downloadLogs }, { data: rawViewLogs }] = await Promise.all([

@@ -1,10 +1,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import Link from "next/link";
 import { Users, FolderOpen } from "lucide-react";
 import TeamClient from "./TeamClient";
 import type { TeamMemberRow, TeamSection } from "./actions";
 
 export default async function TeamPage() {
+  await requireAdmin();
   const supabase = createServiceClient();
 
   const [{ data: membersRaw, error }, { data: sectionsRaw }] = await Promise.all([

@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from 'next-intl';
+import type { AppRole } from "@/lib/types/roles";
+import { ROLE_META } from "@/lib/types/roles";
 
 type UserInfo = {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: "reader" | "admin";
+  role: AppRole;
 };
 
 type NavbarClientProps = {
@@ -120,13 +122,9 @@ export default function NavbarClient({ user }: NavbarClientProps) {
             </p>
             <p className="truncate text-xs text-text-muted">{user.email}</p>
             <span
-              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                user.role === "admin"
-                  ? "bg-gold-50 text-warning"
-                  : "bg-brand/5 text-brand"
-              }`}
+              className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${ROLE_META[user.role].bgColor} ${ROLE_META[user.role].color}`}
             >
-              {user.role}
+              {ROLE_META[user.role].label}
             </span>
           </div>
         </div>

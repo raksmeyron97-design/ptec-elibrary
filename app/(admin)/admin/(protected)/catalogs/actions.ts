@@ -5,7 +5,7 @@
 // All other actions (updateCatalogBook, deleteCatalogBook, etc.) remain unchanged.
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { catalogSlugify, pickCatalogColor, parseCatalogCsv } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";
 
@@ -32,7 +32,7 @@ function opt(fd: FormData, key: string) {
 // After saving, redirects to /admin/catalogs/add-copies/[bookId]
 // so the admin can immediately add physical copy records.
 export async function addCatalogBook(formData: FormData) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
 
   const title    = req(formData, "title");
   const author   = req(formData, "author");
@@ -79,7 +79,7 @@ export async function addCatalogBook(formData: FormData) {
 
 // ── updateCatalogBook ──────────────────────────────────────────────────────────
 export async function updateCatalogBook(bookId: string, formData: FormData) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
 
   const title    = req(formData, "title");
   const author   = req(formData, "author");
@@ -127,7 +127,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
 
 // ── deleteCatalogBook ──────────────────────────────────────────────────────────
 export async function deleteCatalogBook(bookId: string) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
   const { error } = await supabase
     .from("catalog_books")
     .update({ is_active: false })
@@ -139,7 +139,7 @@ export async function deleteCatalogBook(bookId: string) {
 }
 
 export async function hardDeleteCatalogBook(bookId: string) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
   const { error } = await supabase.from("catalog_books").delete().eq("id", bookId);
   if (error) throw new Error(`Hard delete failed: ${error.message}`);
   await logAdminAction(userId, "hardDeleteCatalogBook", "catalog_books", bookId);
@@ -154,7 +154,7 @@ export async function adjustCopies(
   delta: number,
   note?: string
 ) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
   const { data: book } = await supabase
     .from("catalog_books")
     .select("copies_available, copies_total")
@@ -175,7 +175,7 @@ export async function adjustCopies(
 }
 
 export async function importCatalogCsv(formData: FormData) {
-  const { supabase, userId } = await requireAdmin();
+  const { supabase, userId } = await requirePermission("books", "write");
   const csvText = formData.get("csv_text")?.toString();
   if (!csvText) throw new Error("No CSV data provided");
   const rows = parseCatalogCsv(csvText);

@@ -11,12 +11,14 @@ import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
 import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
 import { getTranslations } from "next-intl/server";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 export const dynamic = "force-dynamic";
 
 type Profile = {
   full_name: string | null;
   email: string;
-  role: "reader" | "admin";
+  role: AppRole;
   avatar_url: string | null;
   created_at: string;
 };
@@ -58,7 +60,7 @@ export default async function DashboardPage() {
 
   const avatarUrl   = profile?.avatar_url ?? googleAvatar ?? null;
   const displayName = profile?.full_name || googleName || profile?.email || user.email || "Reader";
-  const isAdmin     = profile?.role === "admin";
+  const isAdmin     = ADMIN_PANEL_ROLES.includes(profile?.role as AppRole);
 
   const inProgress = progress.filter((p) => p.progress_pct < 100);
   const completed  = progress.filter((p) => p.progress_pct >= 100);

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_PANEL_ROLES, ROLE_META } from "@/lib/types/roles";
 
 // ── Icons ──────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -90,7 +92,7 @@ type UserInfo = {
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: "reader" | "admin";
+  role: AppRole;
 };
 
 type MobileBottomNavProps = {
@@ -273,9 +275,9 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                   {user.full_name && (
                    <p className="truncate text-xs text-text-muted">{user.email}</p>
                   )}
-                  {user.role === "admin" && (
-                    <span className="inline-flex items-center mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand/10 text-brand">
-                      Admin
+                  {ADMIN_PANEL_ROLES.includes(user.role) && (
+                    <span className={`inline-flex items-center mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${ROLE_META[user.role].bgColor} ${ROLE_META[user.role].color}`}>
+                      {ROLE_META[user.role].label}
                     </span>
                   )}
                 </div>

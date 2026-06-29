@@ -16,10 +16,13 @@ import {
   GraduationCap,
   Megaphone,
   Shield,
+  ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
   UserCircle,
 } from "lucide-react";
+import type { AppRole, PermLevel } from "@/lib/types/roles";
+import { ADMIN_ROLES } from "@/lib/types/roles";
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import ManageCategoriesModal from "./ManageCategoriesModal";
@@ -31,33 +34,45 @@ type NavLink = {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 };
 
-const navGroups: { label: string; links: NavLink[] }[] = [
-  {
-    label: "Overview",
-    links: [
-      { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    ],
-  },
-  {
-    label: "Content",
-    links: [
-      { name: "Upload Book",      href: "/admin/upload",           icon: Upload       },
-      { name: "Manage Books",     href: "/admin/manage",           icon: BookOpen     },
-      { name: "Catalog",          href: "/admin/catalogs",         icon: Library      },
-      { name: "Posts",            href: "/admin/posts",            icon: FileText     },
-      { name: "Research Reports", href: "/admin/research-reports", icon: GraduationCap },
-      { name: "Announcements",    href: "/admin/announcements",    icon: Megaphone    },
-      { name: "Library Team",     href: "/admin/team",             icon: UserCircle   },
-    ],
-  },
-  {
-    label: "System",
-    links: [
-      { name: "Security Logs", href: "/admin/logs",   icon: Shield },
-      { name: "Users",         href: "/admin/users",  icon: Users  },
-    ],
-  },
-];
+function perm(perms: Record<string, PermLevel>, resource: string, minLevel: "read" | "write"): boolean {
+  const level = perms[resource] ?? "none";
+  return minLevel === "write" ? level === "write" : level !== "none";
+}
+
+function getNavGroups(
+  role: AppRole,
+  isSuperAdmin: boolean,
+  userPermissions: Record<string, PermLevel>,
+): { label: string; links: NavLink[] }[] {
+  const isSA    = isSuperAdmin || role === "super_admin";
+  const isAdmin = ADMIN_ROLES.includes(role) || isSA;
+  const p = userPermissions;
+
+  // Content — driven entirely by the DB permission matrix
+  const contentLinks: NavLink[] = [];
+  if (perm(p, "books",         "write")) contentLinks.push({ name: "Upload Book",      href: "/admin/upload",           icon: Upload        });
+  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Manage Books",     href: "/admin/manage",           icon: BookOpen      });
+  if (perm(p, "catalog",       "read"))  contentLinks.push({ name: "Catalog",          href: "/admin/catalogs",         icon: Library       });
+  if (perm(p, "posts",         "read"))  contentLinks.push({ name: "Posts",            href: "/admin/posts",            icon: FileText      });
+  if (perm(p, "research",      "read"))  contentLinks.push({ name: "Research Reports", href: "/admin/research-reports", icon: GraduationCap });
+  if (perm(p, "announcements", "read"))  contentLinks.push({ name: "Announcements",    href: "/admin/announcements",    icon: Megaphone     });
+  if (perm(p, "users",         "write")) contentLinks.push({ name: "Library Team",     href: "/admin/team",             icon: UserCircle    });
+
+  // System — role-gated (security-sensitive, not overridable via permission matrix)
+  const systemLinks: NavLink[] = [];
+  if (isAdmin) systemLinks.push({ name: "Security Logs", href: "/admin/logs",  icon: Shield      });
+  if (perm(p, "users", "write")) systemLinks.push({ name: "Users", href: "/admin/users", icon: Users });
+  if (perm(p, "roles", "write") || isSA) systemLinks.push({ name: "Roles", href: "/admin/roles", icon: ShieldCheck });
+
+  const groups: { label: string; links: NavLink[] }[] = [
+    { label: "Overview", links: [{ name: "Dashboard", href: "/admin", icon: LayoutDashboard }] },
+    { label: "Content", links: contentLinks },
+  ];
+  if (systemLinks.length > 0) {
+    groups.push({ label: "System", links: systemLinks });
+  }
+  return groups;
+}
 
 function NavItem({
   link,
@@ -136,14 +151,22 @@ function NavItem({
 export default function AdminSidebar({
   children,
   email,
+  role = "admin",
+  isSuperAdmin = false,
+  userPermissions = {},
 }: {
   children: React.ReactNode;
   email: string | undefined;
+  role?: AppRole;
+  isSuperAdmin?: boolean;
+  userPermissions?: Record<string, PermLevel>;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const navGroups = getNavGroups(role, isSuperAdmin, userPermissions);
 
   useEffect(() => {
     setMounted(true);

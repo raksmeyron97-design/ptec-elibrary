@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireAdmin, requireUser } from "@/lib/auth-guards";
+import { requireAdmin, requirePermission, requireUser } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ export async function createAnnouncement(payload: {
   link?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const { supabase } = await requireAdmin();
+    const { supabase } = await requirePermission("announcements", "write");
     const { error } = await supabase.from("notifications").insert({
       type: "announcement",
       title_en: payload.title_en,
@@ -153,7 +153,7 @@ export async function getAnnouncementsForAdmin(): Promise<{
   data: Notification[];
   error: string | null;
 }> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requirePermission("announcements", "read");
   const { data, error } = await supabase
     .from("notifications")
     .select("id, type, title_en, title_km, body_en, body_km, link, target_role, created_at")

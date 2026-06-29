@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/admin/users/page.tsx
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import UsersClient from "./UsersClient";
+import type { AppRole } from "@/lib/types/roles";
 
 const PAGE_SIZE = 20;
 
@@ -19,7 +19,7 @@ export default async function AdminUsersPage({
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at, avatar_url", { count: "exact" });
+    .select("id, full_name, email, role, created_at, avatar_url, is_super_admin", { count: "exact" });
 
   if (q) {
     query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
@@ -36,12 +36,13 @@ export default async function AdminUsersPage({
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   const rows = (users ?? []).map((u: any) => ({
-    id:        u.id as string,
-    fullName:  u.full_name as string | null,
-    email:     u.email as string,
-    role:      u.role as "reader" | "admin",
-    createdAt: u.created_at as string,
-    avatarUrl: u.avatar_url as string | null,
+    id:           u.id as string,
+    fullName:     u.full_name as string | null,
+    email:        u.email as string,
+    role:         u.role as AppRole,
+    createdAt:    u.created_at as string,
+    avatarUrl:    u.avatar_url as string | null,
+    isSuperAdmin: u.is_super_admin as boolean,
   }));
 
   const authClient = await createClient();
@@ -49,7 +50,7 @@ export default async function AdminUsersPage({
 
   const { data: callerProfile } = await supabase
     .from("profiles")
-    .select("is_super_admin")
+    .select("role, is_super_admin")
     .eq("id", user?.id ?? "")
     .single();
 
@@ -58,7 +59,8 @@ export default async function AdminUsersPage({
       <UsersClient
         users={rows}
         currentUserId={user?.id ?? ""}
-        isSuperAdmin={callerProfile?.is_super_admin ?? false}
+        callerRole={(callerProfile?.role ?? "admin") as AppRole}
+        callerIsSuperAdmin={callerProfile?.is_super_admin ?? false}
         totalItems={totalItems}
         totalPages={totalPages}
         currentPage={safePage}

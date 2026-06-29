@@ -2,6 +2,9 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import type { AppRole } from "@/lib/types/roles";
+import { ADMIN_ROLES, ADMIN_PANEL_ROLES, LIBRARIAN_ROLES } from "@/lib/types/roles";
+import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
 
 export type AdminAuthStatus = 401 | 403 | 500;
 
@@ -26,24 +29,21 @@ export interface RequiredAdmin {
   supabase: ReturnType<typeof createServiceClient>;
   user: User;
   userId: string;
-  role: "admin";
+  role: AppRole;
 }
 
 export function isAdminAuthError(error: unknown): error is AdminAuthError {
   return error instanceof AdminAuthError;
 }
 
-/**
- * Gate every admin Server Action / Route Handler.
- *
- * Checks (in order):
- *  1. User is authenticated (has a valid session)
- *  2. User has `role === "admin"` in the profiles table
- *  3. User has completed MFA verification (AAL2) if they have enrolled factors
- *
- * Throws `AdminAuthError` with an appropriate status code on failure.
- */
-export async function requireAdmin(): Promise<RequiredAdmin> {
+/** Shared auth + MFA verification logic used by all guards below. */
+async function verifyAuthAndMFA(): Promise<{
+  authClient: Awaited<ReturnType<typeof createClient>>;
+  supabase: ReturnType<typeof createServiceClient>;
+  user: User;
+  role: AppRole;
+  isSuperAdmin: boolean;
+}> {
   const authClient = await createClient();
   const {
     data: { user },
@@ -54,25 +54,21 @@ export async function requireAdmin(): Promise<RequiredAdmin> {
     throw new AdminAuthError("Not authenticated", 401);
   }
 
-  // ── Role check ──────────────────────────────────────────────────────────
   const supabase = createServiceClient();
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, is_super_admin")
     .eq("id", user.id)
     .maybeSingle();
 
   if (profileError) {
-    throw new AdminAuthError("Unable to verify admin role", 500);
+    throw new AdminAuthError("Unable to verify role", 500);
   }
 
-  if (profile?.role !== "admin") {
-    throw new AdminAuthError("Forbidden", 403);
-  }
+  const role = (profile?.role ?? "reader") as AppRole;
+  const isSuperAdmin = (profile?.is_super_admin ?? false) as boolean;
 
-  // ── MFA / AAL2 check ────────────────────────────────────────────────────
-  // If the admin has enrolled TOTP factors, require AAL2 (i.e. they must
-  // have completed the TOTP challenge in this session).
+  // MFA / AAL2 check — required for any admin-panel role
   const { data: aalData, error: aalError } =
     await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
 
@@ -91,11 +87,89 @@ export async function requireAdmin(): Promise<RequiredAdmin> {
         MFA_VERIFY_PATH,
       );
     }
-
-    // If admin has NO enrolled factors, they should enroll.
-    // We don't block actions here (they need to enroll first via the layout),
-    // but this check exists so the layout can enforce enrollment.
   }
 
-  return { supabase, user, userId: user.id, role: "admin" };
+  return { authClient, supabase, user, role, isSuperAdmin };
+}
+
+/**
+ * Gate every admin Server Action / Route Handler.
+ * Accepts role: admin | super_admin, OR the legacy is_super_admin flag.
+ */
+export async function requireAdmin(): Promise<RequiredAdmin> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+
+  if (!ADMIN_ROLES.includes(role) && !isSuperAdmin) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
+
+  return { supabase, user, userId: user.id, role };
+}
+
+/**
+ * Gate actions accessible to staff and above
+ * (staff, librarian, admin, super_admin), OR the legacy is_super_admin flag.
+ */
+export async function requireStaff(): Promise<RequiredAdmin> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+
+  if (!ADMIN_PANEL_ROLES.includes(role) && !isSuperAdmin) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
+
+  return { supabase, user, userId: user.id, role };
+}
+
+/**
+ * Gate actions accessible to librarians and above
+ * (librarian, admin, super_admin), OR the legacy is_super_admin flag.
+ */
+export async function requireLibrarian(): Promise<RequiredAdmin> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+
+  if (!LIBRARIAN_ROLES.includes(role) && !isSuperAdmin) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
+
+  return { supabase, user, userId: user.id, role };
+}
+
+/**
+ * Gate actions accessible to super_admin only.
+ * Accepts role === "super_admin" OR the legacy is_super_admin flag.
+ */
+export async function requireSuperAdmin(): Promise<RequiredAdmin> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+
+  if (role !== "super_admin" && !isSuperAdmin) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
+
+  return { supabase, user, userId: user.id, role };
+}
+
+/**
+ * Gate access by checking the `role_permissions` table for a specific resource.
+ * Super admins always pass. Falls back to hardcoded defaults if the table has no data.
+ *
+ * @param resource  - e.g. "books", "posts", "announcements", "research", "catalog"
+ * @param minLevel  - "read" (any non-none access) or "write" (must be "write")
+ */
+export async function requirePermission(
+  resource: string,
+  minLevel: "read" | "write" = "write",
+): Promise<RequiredAdmin> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+
+  if (isSuperAdmin || role === "super_admin") {
+    return { supabase, user, userId: user.id, role };
+  }
+
+  const perms = await getPermissionsForRole(role, supabase);
+
+  if (!hasPermission(perms, resource, minLevel)) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
+
+  return { supabase, user, userId: user.id, role };
 }

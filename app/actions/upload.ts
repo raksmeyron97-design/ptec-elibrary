@@ -2,7 +2,7 @@
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -85,7 +85,7 @@ export async function getPresignedUrl(
   target: "private" | "public" = "private",
 ) {
   try {
-    await requireAdmin();
+    await requirePermission("books", "write");
 
     validateR2Key(filePath);
 
@@ -127,7 +127,7 @@ export async function deleteR2File(
   filePath: string,
   target: "private" | "public" = "private",
 ) {
-  await requireAdmin();
+  await requirePermission("books", "write");
 
   try {
     const bucketName =
