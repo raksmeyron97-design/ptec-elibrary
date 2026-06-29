@@ -89,10 +89,50 @@ export default async function DashboardPage() {
   }
 
   const stats = [
-    { icon: <Bookmark    className="h-5 w-5" />, value: savedBooks.length,   label: t("statSaved"),      color: "text-brand",       bg: "bg-brand/20",       accent: "bg-brand"       },
-    { icon: <BookOpen    className="h-5 w-5" />, value: inProgress.length,   label: t("statInProgress"), color: "text-amber-300",   bg: "bg-amber-400/20",   accent: "bg-amber-400"   },
-    { icon: <CheckCircle2 className="h-5 w-5" />, value: completed.length,  label: t("statCompleted"),  color: "text-emerald-300", bg: "bg-emerald-400/20", accent: "bg-emerald-400" },
-    { icon: <BookMarked  className="h-5 w-5" />, value: readingLists.length, label: "Reading Lists",     color: "text-purple-300",  bg: "bg-purple-400/20",  accent: "bg-purple-400"  },
+    {
+      icon: <Bookmark className="h-5 w-5" />,
+      value: savedBooks.length,
+      label: t("statSaved"),
+      iconColor: "text-sky-300",
+      iconBg: "bg-sky-500/20",
+      glow: "shadow-sky-500/20",
+      border: "border-sky-500/25",
+      bar: "from-sky-500 to-blue-500",
+      ring: "ring-sky-500/30",
+    },
+    {
+      icon: <BookOpen className="h-5 w-5" />,
+      value: inProgress.length,
+      label: t("statInProgress"),
+      iconColor: "text-amber-300",
+      iconBg: "bg-amber-500/20",
+      glow: "shadow-amber-500/20",
+      border: "border-amber-500/25",
+      bar: "from-amber-400 to-orange-500",
+      ring: "ring-amber-500/30",
+    },
+    {
+      icon: <CheckCircle2 className="h-5 w-5" />,
+      value: completed.length,
+      label: t("statCompleted"),
+      iconColor: "text-emerald-300",
+      iconBg: "bg-emerald-500/20",
+      glow: "shadow-emerald-500/20",
+      border: "border-emerald-500/25",
+      bar: "from-emerald-400 to-teal-500",
+      ring: "ring-emerald-500/30",
+    },
+    {
+      icon: <BookMarked className="h-5 w-5" />,
+      value: readingLists.length,
+      label: "Reading Lists",
+      iconColor: "text-violet-300",
+      iconBg: "bg-violet-500/20",
+      glow: "shadow-violet-500/20",
+      border: "border-violet-500/25",
+      bar: "from-violet-400 to-purple-500",
+      ring: "ring-violet-500/30",
+    },
   ];
 
   const accountFields = [
@@ -185,20 +225,39 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Stats bar — sits at the bottom of the hero, half overlapping */}
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 pb-0">
+          {/* Stats bar */}
+          <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3 pb-6">
             {stats.map((s, i) => (
               <div key={i}
                 aria-label={`${s.value} ${s.label}`}
-                className="relative flex items-center gap-3 rounded-t-2xl border-x border-t border-white/15 bg-white/[0.12] px-4 py-4 backdrop-blur-md overflow-hidden">
-                {/* Colored top accent line */}
-                <div className={`absolute inset-x-0 top-0 h-[3px] ${s.accent} opacity-80`} />
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.bg} ${s.color}`}>
-                  {s.icon}
+                className={`group relative overflow-hidden rounded-2xl border ${s.border} bg-white/[0.08] backdrop-blur-md shadow-lg ring-1 ${s.ring} transition-all duration-200 hover:bg-white/[0.13] hover:scale-[1.02] cursor-default`}
+              >
+                {/* Top gradient bar */}
+                <div className={`absolute inset-x-0 top-0 h-[2.5px] bg-gradient-to-r ${s.bar}`} />
+
+                {/* Background glow orb */}
+                <div className={`absolute -right-3 -top-3 h-16 w-16 rounded-full bg-gradient-to-br ${s.bar} opacity-[0.12] blur-xl`} />
+
+                {/* ── Mobile: vertical (icon → number → label) ── */}
+                <div className="relative flex flex-col gap-2 px-3.5 py-3.5 sm:hidden">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${s.iconBg} ${s.iconColor}`}>
+                    {s.icon}
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[30px] font-bold text-white leading-none tracking-tight">{s.value}</span>
+                  </div>
+                  <p className="text-[11.5px] font-medium text-blue-200/75 leading-tight">{s.label}</p>
                 </div>
-                <div>
-                  <p className="font-khmer-serif text-[24px] font-bold text-white leading-none">{s.value}</p>
-                  <p className="mt-0.5 text-[11px] text-blue-200/80 font-medium">{s.label}</p>
+
+                {/* ── Desktop: horizontal (icon | number + label) ── */}
+                <div className="relative hidden sm:flex items-center gap-3 px-4 py-4">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.iconBg} ${s.iconColor} ring-1 ${s.ring}`}>
+                    {s.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[28px] font-bold text-white leading-none tracking-tight">{s.value}</p>
+                    <p className="mt-1 text-[11px] font-medium text-blue-200/70 leading-tight truncate">{s.label}</p>
+                  </div>
                 </div>
               </div>
             ))}

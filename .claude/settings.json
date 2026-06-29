@@ -18,5 +18,8 @@
     "additionalDirectories": [
       "/private/tmp"
     ]
+  },
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true
   }
 }

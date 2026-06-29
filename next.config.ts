@@ -117,6 +117,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "api.storage-ptec.online",
       },
+      // Zima Storage
+      {
+        protocol: "https",
+        hostname: "storage-ptec.online",
+      },
     ],
   },
 };

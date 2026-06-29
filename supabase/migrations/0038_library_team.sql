@@ -100,7 +100,9 @@ create trigger team_members_updated_at
   for each row execute function public.touch_updated_at();
 
 -- ── 4. Helpful view: members with section name + profile email ──────────
-create or replace view public.team_members_with_email as
+create or replace view public.team_members_with_email
+  with (security_invoker = true)
+as
   select
     tm.*,
     p.email              as user_email,

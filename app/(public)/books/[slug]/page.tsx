@@ -24,6 +24,7 @@ import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
 import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
@@ -43,17 +44,26 @@ type BookDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+const getBookMeta = unstable_cache(
+  async (slug: string) => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("books")
+      .select("title, description, cover_url, language, published_at, tags, authors(name)")
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .maybeSingle();
+    return data;
+  },
+  ["book-meta"],
+  { revalidate: 3600, tags: ["books"] }
+);
+
 export async function generateMetadata({
   params,
 }: BookDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createClient();
-  const { data: book } = await supabase
-    .from("books")
-    .select("title, description, cover_url, language, published_at, tags, authors(name)")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
+  const book = await getBookMeta(slug);
 
   if (!book) {
     return { title: "Book not found" };
