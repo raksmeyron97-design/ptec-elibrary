@@ -1,10 +1,23 @@
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_MAILTO ?? "mailto:info@ptec.edu.kh",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
-  process.env.VAPID_PRIVATE_KEY ?? "",
-);
+let vapidInitialized = false;
+
+function ensureVapid() {
+  if (vapidInitialized) return;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) {
+    throw new Error(
+      "VAPID keys are not configured. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY environment variables.",
+    );
+  }
+  webpush.setVapidDetails(
+    process.env.VAPID_MAILTO ?? "mailto:info@ptec.edu.kh",
+    publicKey,
+    privateKey,
+  );
+  vapidInitialized = true;
+}
 
 export { webpush };
 
@@ -19,6 +32,7 @@ export async function sendPush(
   subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
   payload: PushPayload,
 ) {
+  ensureVapid();
   try {
     await webpush.sendNotification(
       {
