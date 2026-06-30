@@ -24,6 +24,26 @@ export async function updateOwnTeamMember(formData: FormData) {
     if (!nameKm) return { error: "Khmer name is required." };
     if (!nameEn) return { error: "Latin name is required." };
 
+    // Validate photo_url is from our own R2 public bucket (or empty).
+    const rawPhotoUrl = (formData.get("photo_url") as string)?.trim() || null;
+    if (rawPhotoUrl) {
+      const publicBase = process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.replace(/\/$/, "");
+      if (!publicBase || !rawPhotoUrl.startsWith(publicBase + "/")) {
+        return { error: "Invalid photo URL." };
+      }
+    }
+
+    // Validate section_id exists before accepting it (prevents orphaned FK or spoofed IDs).
+    const rawSectionId = (formData.get("section_id") as string)?.trim() || null;
+    if (rawSectionId) {
+      const { data: section } = await supabase
+        .from("team_sections")
+        .select("id")
+        .eq("id", rawSectionId)
+        .maybeSingle();
+      if (!section) return { error: "Invalid section." };
+    }
+
     const { error } = await supabase
       .from("team_members")
       .update({
@@ -31,13 +51,13 @@ export async function updateOwnTeamMember(formData: FormData) {
         name_en:          nameEn,
         position_km:      (formData.get("position_km") as string)?.trim() || null,
         position_en:      (formData.get("position_en") as string)?.trim() || null,
-        section_id:       (formData.get("section_id") as string)?.trim() || null,
+        section_id:       rawSectionId,
         education:        (formData.get("education") as string)?.trim() || null,
         years_experience: (formData.get("years_experience") as string)?.trim() || null,
         phone:            (formData.get("phone") as string)?.trim() || null,
         bio_km:           (formData.get("bio_km") as string)?.trim() || null,
         bio_en:           (formData.get("bio_en") as string)?.trim() || null,
-        photo_url:        (formData.get("photo_url") as string)?.trim() || null,
+        photo_url:        rawPhotoUrl,
       })
       .eq("id", member.id);
 

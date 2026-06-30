@@ -208,7 +208,8 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
     if (photoFile) {
       setTeamPhase("uploading");
       try {
-        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const MIME_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+        const ext  = MIME_EXT[photoFile.type] ?? "jpg";
         const slug = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-");
         const key  = `team/${slug}-${Date.now()}.${ext}`;
         const res  = await getPresignedUrl(key, photoFile.type, "public");
