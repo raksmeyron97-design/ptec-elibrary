@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { updateProfile, updatePassword } from "@/app/actions/profile";
+import { updateOwnTeamMember } from "@/app/actions/team-profile";
+import { getPresignedUrl } from "@/app/actions/upload";
 import {
   Camera,
   Lock,
@@ -13,7 +16,32 @@ import {
   User,
   Shield,
   KeyRound,
+  Users,
+  Upload,
+  X,
 } from "lucide-react";
+
+// ── Exported types (used by the server page) ──────────────────────────
+export type TeamMemberData = {
+  id: string;
+  name_km: string;
+  name_en: string;
+  position_km: string | null;
+  position_en: string | null;
+  section_id:  string | null;
+  education:   string | null;
+  years_experience: string | null;
+  phone:   string | null;
+  bio_km:  string | null;
+  bio_en:  string | null;
+  photo_url: string | null;
+};
+
+export type TeamSectionData = {
+  id:      string;
+  name_km: string;
+  name_en: string;
+};
 
 type Props = {
   user: {
@@ -22,11 +50,14 @@ type Props = {
     full_name: string | null;
     avatar_url: string | null;
   };
+  teamMember: TeamMemberData | null;
+  sections:   TeamSectionData[];
 };
 
-type Tab = "profile" | "security";
+type Tab = "profile" | "security" | "team";
 
 const MAX_AVATAR = 5 * 1024 * 1024;
+const PHOTO_ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
 const scorePassword = (pw: string) => {
   let s = 0;
@@ -45,14 +76,12 @@ const STRENGTH = [
   { label: "Strong", bar: "bg-emerald-500", text: "text-emerald-600"},
 ];
 
-export default function AdminProfileClient({ user }: Props) {
+export default function AdminProfileClient({ user, teamMember, sections }: Props) {
   const [tab, setTab] = useState<Tab>("profile");
 
+  // ── Profile tab ──────────────────────────────────────────────────────
   const [profilePending, startProfile] = useTransition();
-  const [passwordPending, startPassword] = useTransition();
-
   const [profileMsg, setProfileMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(user.avatar_url);
@@ -60,29 +89,45 @@ export default function AdminProfileClient({ user }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [showCf, setShowCf] = useState(false);
+  // ── Security tab ─────────────────────────────────────────────────────
+  const [passwordPending, startPassword] = useTransition();
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const score = scorePassword(password);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm]   = useState("");
+  const [showPw, setShowPw]     = useState(false);
+  const [showCf, setShowCf]     = useState(false);
+
+  const score    = scorePassword(password);
   const strength = STRENGTH[score];
   const reqs = [
-    { ok: password.length >= 8, label: "At least 8 characters" },
-    { ok: /[A-Z]/.test(password), label: "One uppercase letter" },
-    { ok: /[0-9]/.test(password), label: "One number" },
-    { ok: /[^A-Za-z0-9]/.test(password), label: "One symbol" },
+    { ok: password.length >= 8,           label: "At least 8 characters" },
+    { ok: /[A-Z]/.test(password),         label: "One uppercase letter"  },
+    { ok: /[0-9]/.test(password),         label: "One number"            },
+    { ok: /[^A-Za-z0-9]/.test(password),  label: "One symbol"            },
   ];
   const passwordsMatch = confirm.length > 0 && password === confirm;
-  const canSubmitPw = password.length >= 8 && passwordsMatch;
+  const canSubmitPw    = password.length >= 8 && passwordsMatch;
+
+  // ── Team tab ──────────────────────────────────────────────────────────
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [teamPending, startTeam] = useTransition();
+  const [teamMsg, setTeamMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [teamPhase, setTeamPhase] = useState<"idle" | "uploading" | "saving">("idle");
+
+  const [photoPreview, setPhotoPreview] = useState<string | null>(teamMember?.photo_url ?? null);
+  const [photoFile,    setPhotoFile]    = useState<File | null>(null);
+  const [photoUrl,     setPhotoUrl]     = useState<string>(teamMember?.photo_url ?? "");
+  const [photoError,   setPhotoError]   = useState<string | null>(null);
+
+  const teamBusy = teamPhase !== "idle";
+
+  // ── Handlers ─────────────────────────────────────────────────────────
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_AVATAR) {
-      setAvatarError("Image must be under 5 MB.");
-      return;
-    }
+    if (file.size > MAX_AVATAR) { setAvatarError("Image must be under 5 MB."); return; }
     setAvatarError(null);
     setAvatarFile(file);
     setPreview(URL.createObjectURL(file));
@@ -129,12 +174,90 @@ export default function AdminProfileClient({ user }: Props) {
     });
   };
 
+  const handlePhotoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!PHOTO_ALLOWED.includes(file.type)) { setPhotoError("Photo must be JPEG, PNG, or WebP."); return; }
+    if (file.size > MAX_AVATAR) { setPhotoError("Photo must be under 5 MB."); return; }
+    setPhotoError(null);
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoUrl("");
+    setPhotoError(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
+  };
+
+  const onTeamSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setTeamMsg(null);
+    setPhotoError(null);
+
+    const raw = new FormData(e.currentTarget);
+    const nameKm = (raw.get("name_km") as string)?.trim();
+    const nameEn = (raw.get("name_en") as string)?.trim();
+    if (!nameKm) { setTeamMsg({ ok: false, text: "Khmer name is required." }); return; }
+    if (!nameEn) { setTeamMsg({ ok: false, text: "Latin name is required." }); return; }
+
+    let finalPhotoUrl = photoUrl;
+
+    if (photoFile) {
+      setTeamPhase("uploading");
+      try {
+        const ext  = photoFile.name.split(".").pop() ?? "jpg";
+        const slug = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const key  = `team/${slug}-${Date.now()}.${ext}`;
+        const res  = await getPresignedUrl(key, photoFile.type, "public");
+        if ("error" in res) throw new Error(res.error);
+        const upRes = await fetch(res.presignedUrl, {
+          method: "PUT",
+          body: photoFile,
+          headers: { "Content-Type": photoFile.type },
+        });
+        if (!upRes.ok) throw new Error(`Photo upload failed (${upRes.status})`);
+        finalPhotoUrl = res.publicUrl;
+        setPhotoUrl(finalPhotoUrl);
+        setPhotoFile(null);
+      } catch (err) {
+        setTeamPhase("idle");
+        setTeamMsg({ ok: false, text: err instanceof Error ? err.message : "Photo upload failed." });
+        return;
+      }
+    }
+
+    setTeamPhase("saving");
+
+    const payload = new FormData();
+    for (const f of ["name_km", "name_en", "position_km", "position_en", "section_id",
+                      "education", "years_experience", "phone", "bio_km", "bio_en"]) {
+      payload.set(f, (raw.get(f) as string) ?? "");
+    }
+    payload.set("photo_url", finalPhotoUrl);
+
+    startTeam(async () => {
+      const res = await updateOwnTeamMember(payload);
+      setTeamPhase("idle");
+      if (res?.error) {
+        setTeamMsg({ ok: false, text: res.error });
+      } else {
+        setTeamMsg({ ok: true, text: "Team profile updated successfully." });
+      }
+    });
+  };
+
+  // ── Tabs config ───────────────────────────────────────────────────────
+
   const tabs: { id: Tab; label: string; sub: string; icon: React.ReactNode }[] = [
-    { id: "profile",  label: "Profile",  sub: "Name & avatar", icon: <User   style={{ width: "16px", height: "16px" }} /> },
-    { id: "security", label: "Security", sub: "Password",       icon: <Shield style={{ width: "16px", height: "16px" }} /> },
+    { id: "profile",  label: "Profile",      sub: "Name & avatar",  icon: <User  style={{ width: "16px", height: "16px" }} /> },
+    { id: "security", label: "Security",     sub: "Password",       icon: <Shield style={{ width: "16px", height: "16px" }} /> },
+    { id: "team",     label: "Library Team", sub: "Public profile", icon: <Users  style={{ width: "16px", height: "16px" }} /> },
   ];
 
-  const input =
+  const inputCls =
     "w-full h-11 px-3.5 rounded-xl bg-bg-surface border border-divider text-text-body placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition text-sm";
 
   return (
@@ -261,7 +384,7 @@ export default function AdminProfileClient({ user }: Props) {
                     name="full_name"
                     defaultValue={user.full_name ?? ""}
                     placeholder="Your full name"
-                    className={input}
+                    className={inputCls}
                   />
                 </div>
               </div>
@@ -399,6 +522,257 @@ export default function AdminProfileClient({ user }: Props) {
             </div>
           </div>
         </section>
+
+        {/* ── Library Team tab ── */}
+        <section className={tab === "team" ? "block" : "hidden"}>
+          {!teamMember ? (
+            /* No linked team record */
+            <div className="bg-white border border-divider rounded-2xl shadow-sm p-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                <Users className="w-6 h-6 text-slate-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-text-heading">No team profile linked</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                Your account is not linked to a Library Team profile yet. Ask an admin to create your team entry and link it to your account.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white border border-divider rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-6 pt-6 pb-5">
+                <h2 className="text-base font-bold text-text-heading">Library Team Profile</h2>
+                <p className="text-sm text-slate-500 mt-0.5">This information appears on the public team page.</p>
+              </div>
+              <div className="border-t border-divider" />
+
+              <form id="admin-team-form" onSubmit={onTeamSubmit} className="px-6 py-6">
+                <div className="grid gap-5 md:grid-cols-2">
+
+                  {/* Photo */}
+                  <div className="md:col-span-2">
+                    <span className="mb-2 block text-sm font-semibold text-text-body">
+                      Profile Photo
+                      <span className="ml-2 font-normal text-slate-400 text-xs">
+                        optional · JPEG / PNG / WebP · max 5 MB
+                      </span>
+                    </span>
+                    <div className="flex items-start gap-4">
+                      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-divider bg-slate-50">
+                        {photoPreview ? (
+                          <>
+                            <Image src={photoPreview} alt="Team photo" fill className="object-cover" unoptimized />
+                            <button
+                              type="button"
+                              onClick={removePhoto}
+                              disabled={teamBusy}
+                              className="absolute right-0 top-0 rounded-full bg-red-500 p-0.5 text-white shadow cursor-pointer disabled:opacity-50"
+                              aria-label="Remove photo"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Users className="h-8 w-8 text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          ref={photoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          onChange={handlePhotoPick}
+                          disabled={teamBusy}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => photoInputRef.current?.click()}
+                          disabled={teamBusy}
+                          className="flex items-center gap-2 rounded-lg border-2 border-dashed border-divider bg-slate-50 px-5 py-3 text-sm font-semibold text-text-body transition hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          <Upload className="h-4 w-4" />
+                          {photoPreview ? "Replace photo" : "Choose photo"}
+                        </button>
+                        <p className="mt-1.5 text-xs text-slate-400">Square crop recommended (400×400 px or larger).</p>
+                        {photoError && (
+                          <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0" />{photoError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Names */}
+                  <div>
+                    <label htmlFor="tm-name-km" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      ឈ្មោះពេញ ខ្មែរ <span className="text-slate-400 font-normal">(Full Name Khmer)</span>
+                      <span className="text-red-500"> *</span>
+                    </label>
+                    <input
+                      id="tm-name-km" name="name_km" required
+                      defaultValue={teamMember.name_km}
+                      disabled={teamBusy}
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm font-kh outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="tm-name-en" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      Full Name Latin <span className="text-slate-400 font-normal">(ឈ្មោះពេញ ឡាតាំង)</span>
+                      <span className="text-red-500"> *</span>
+                    </label>
+                    <input
+                      id="tm-name-en" name="name_en" required
+                      defaultValue={teamMember.name_en}
+                      disabled={teamBusy}
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Position */}
+                  <div>
+                    <label htmlFor="tm-pos-km" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      មុខតំណែង <span className="text-slate-400 font-normal">(Position Khmer)</span>
+                    </label>
+                    <input
+                      id="tm-pos-km" name="position_km"
+                      defaultValue={teamMember.position_km ?? ""}
+                      disabled={teamBusy}
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm font-kh outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="tm-pos-en" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      Position <span className="text-slate-400 font-normal">(English)</span>
+                    </label>
+                    <input
+                      id="tm-pos-en" name="position_en"
+                      defaultValue={teamMember.position_en ?? ""}
+                      disabled={teamBusy}
+                      placeholder="e.g. Head Librarian"
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Section */}
+                  <div className="md:col-span-2">
+                    <label htmlFor="tm-section" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      ផ្នែក / Section
+                    </label>
+                    <select
+                      id="tm-section" name="section_id"
+                      defaultValue={teamMember.section_id ?? ""}
+                      disabled={teamBusy}
+                      className="h-11 w-full rounded-xl border border-divider bg-bg-surface px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:opacity-60"
+                    >
+                      <option value="">— No section —</option>
+                      {sections.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name_km} · {s.name_en}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Education + Experience */}
+                  <div>
+                    <label htmlFor="tm-edu" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      កម្រិតវប្បធម៌ <span className="text-slate-400 font-normal">(Education)</span>
+                    </label>
+                    <input
+                      id="tm-edu" name="education"
+                      defaultValue={teamMember.education ?? ""}
+                      disabled={teamBusy}
+                      placeholder="e.g. Master's in Library Science"
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="tm-exp" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      បទពិសោធន៍ <span className="text-slate-400 font-normal">(Years of Experience)</span>
+                    </label>
+                    <input
+                      id="tm-exp" name="years_experience"
+                      defaultValue={teamMember.years_experience ?? ""}
+                      disabled={teamBusy}
+                      placeholder="e.g. 8 years"
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="tm-phone" className="mb-1.5 block text-sm font-semibold text-text-body">
+                      ទូរស័ព្ទ <span className="text-slate-400 font-normal">(Phone)</span>
+                    </label>
+                    <input
+                      id="tm-phone" name="phone" type="tel"
+                      defaultValue={teamMember.phone ?? ""}
+                      disabled={teamBusy}
+                      placeholder="0XX XXX XXX"
+                      className="h-11 w-full rounded-xl border border-divider px-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                    />
+                  </div>
+
+                  {/* Bios */}
+                  <div className="md:col-span-2 grid md:grid-cols-2 gap-5">
+                    <div>
+                      <label htmlFor="tm-bio-km" className="mb-1.5 block text-sm font-semibold text-text-body">
+                        ប្រវត្តិសង្ខេប <span className="text-slate-400 font-normal">(Short Bio — Khmer)</span>
+                      </label>
+                      <textarea
+                        id="tm-bio-km" name="bio_km" rows={4}
+                        defaultValue={teamMember.bio_km ?? ""}
+                        disabled={teamBusy}
+                        className="w-full resize-none rounded-xl border border-divider p-3.5 text-sm font-kh outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="tm-bio-en" className="mb-1.5 block text-sm font-semibold text-text-body">
+                        Short Bio <span className="text-slate-400 font-normal">(English)</span>
+                      </label>
+                      <textarea
+                        id="tm-bio-en" name="bio_en" rows={4}
+                        defaultValue={teamMember.bio_en ?? ""}
+                        disabled={teamBusy}
+                        placeholder="Brief professional background…"
+                        className="w-full resize-none rounded-xl border border-divider p-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:bg-slate-50 disabled:opacity-60"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Upload progress */}
+                  {teamBusy && (
+                    <div className="md:col-span-2 flex items-center gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      {teamPhase === "uploading" ? "Uploading photo…" : "Saving team profile…"}
+                    </div>
+                  )}
+                </div>
+              </form>
+
+              <div className="border-t border-divider bg-slate-50 px-6 py-4 flex items-center justify-between gap-3">
+                <InlineMsg msg={teamMsg} />
+                <button
+                  type="submit"
+                  form="admin-team-form"
+                  disabled={teamPending || teamBusy}
+                  className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
+                  style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
+                >
+                  {(teamPending || teamBusy) && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {teamPending || teamBusy ? "Saving…" : "Save team profile"}
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
       </div>
     </div>
   );
