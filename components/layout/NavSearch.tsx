@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Icon from "@/components/ui/core/Icon";
+
+const GoogleColoredSearch = () => (
+  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px] flex-shrink-0">
+    <circle cx="8.5" cy="8.5" r="5" stroke="#4285F4" strokeWidth="1.75" strokeLinecap="round"/>
+    <path d="M13 13L17 17" stroke="#EA4335" strokeWidth="1.75" strokeLinecap="round"/>
+  </svg>
+);
+
+const GoogleWordmark = () => (
+  <svg viewBox="0 0 74 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[13px] w-auto flex-shrink-0">
+    <path d="M9.24 8.19v2.46h5.88c-.18 1.38-.64 2.39-1.34 3.1-.86.86-2.2 1.8-4.54 1.8-3.62 0-6.45-2.92-6.45-6.54s2.83-6.54 6.45-6.54c1.95 0 3.38.77 4.43 1.76L15.4 2.5C13.94 1.08 11.98 0 9.24 0 4.28 0 .11 4.04.11 9s4.17 9 9.13 9c2.68 0 4.7-.88 6.28-2.52 1.62-1.62 2.13-3.91 2.13-5.75 0-.57-.04-1.1-.13-1.54H9.24z" fill="#4285F4"/>
+    <path d="M25 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52s1.52-3.52 3.28-3.52 3.28 1.46 3.28 3.52-1.52 3.52-3.28 3.52z" fill="#EA4335"/>
+    <path d="M53.58 7.49h-.09c-.57-.68-1.67-1.3-3.06-1.3C47.53 6.19 45 8.72 45 12c0 3.26 2.53 5.81 5.43 5.81 1.39 0 2.49-.62 3.06-1.32h.09v.81c0 2.22-1.19 3.41-3.1 3.41-1.56 0-2.53-1.12-2.93-2.07l-2.22.92c.64 1.54 2.33 3.43 5.15 3.43 2.99 0 5.52-1.76 5.52-6.05V6.49h-2.42v1zm-2.93 8.03c-1.76 0-3.1-1.5-3.1-3.52s1.34-3.52 3.1-3.52c1.74 0 3.1 1.52 3.1 3.54s-1.36 3.5-3.1 3.5z" fill="#4285F4"/>
+    <path d="M38 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52s1.52-3.52 3.28-3.52 3.28 1.46 3.28 3.52-1.52 3.52-3.28 3.52z" fill="#FBBC05"/>
+    <path d="M58 .24h2.51v17.57H58z" fill="#34A853"/>
+    <path d="M63.93 14.85c-1.3 0-2.22-.59-2.82-1.76l7.77-3.21-.26-.66c-.48-1.29-1.96-3.68-4.97-3.68-2.99 0-5.48 2.35-5.48 5.81 0 3.26 2.46 5.81 5.76 5.81 2.66 0 4.2-1.63 4.84-2.57l-1.98-1.32c-.66.96-1.56 1.58-2.86 1.58zm-.18-7.15c1.03 0 1.91.53 2.2 1.28l-5.25 2.17c0-2.44 1.73-3.45 3.05-3.45z" fill="#EA4335"/>
+  </svg>
+);
 
 export default function NavSearch() {
-  const [isMac, setIsMac] = useState(true);
-
-  useEffect(() => {
-    setIsMac(navigator.userAgent.indexOf("Mac OS X") !== -1);
-  }, []);
-
   function openCommandPalette() {
     document.dispatchEvent(
       new KeyboardEvent("keydown", { key: "k", metaKey: true })
@@ -23,34 +33,31 @@ export default function NavSearch() {
         type="button"
         onClick={openCommandPalette}
         aria-label="Search"
-        className="sm:hidden flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-all duration-300 hover:border-brand/40 hover:text-brand hover:shadow-md hover:bg-brand/5 active:scale-95"
+        className="sm:hidden flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-all duration-200 hover:shadow-md active:scale-95"
       >
-        <Icon name="search" className="text-[18px]" />
+        <GoogleColoredSearch />
       </button>
 
-      {/* sm+: full premium search bar */}
+      {/* sm+: Google-style search button */}
       <button
         type="button"
         onClick={openCommandPalette}
-        className="hidden sm:flex group relative h-[42px] w-[260px] lg:w-[300px] items-center justify-between rounded-full border border-divider bg-bg-surface shadow-sm pl-11 pr-2.5 text-sm text-text-muted transition-all duration-300 hover:border-brand/40 hover:ring-4 hover:ring-brand/5 hover:bg-bg-surface overflow-hidden active:scale-[0.98]"
+        aria-label="Search with Google"
+        className="hidden sm:flex group items-center gap-0 h-[40px] rounded-full border border-divider bg-bg-surface shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+        style={{ minWidth: 0 }}
       >
-        {/* Shimmer effect on hover */}
-        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-brand/[0.04] to-transparent group-hover:translate-x-full transition-transform duration-[1500ms] ease-in-out opacity-0 group-hover:opacity-100" />
-        
-        <Icon 
-          name="search" 
-          className="absolute left-4 text-[18px] text-text-muted/70 group-hover:text-brand group-hover:scale-110 transition-all duration-300 z-10" 
-        />
-        
-        <span className="whitespace-nowrap overflow-hidden text-ellipsis text-left flex-1 mr-2 font-medium z-10 group-hover:text-text-heading transition-colors duration-300">
-          Search global...
+        {/* Left: search icon */}
+        <span className="flex items-center justify-center pl-3 pr-2.5 h-full">
+          <GoogleColoredSearch />
         </span>
-        
-        <div className="relative z-10 flex items-center">
-          <kbd className="inline-flex items-center gap-1 rounded-[6px] border border-divider bg-black/[0.03] dark:bg-white/[0.05] px-2 py-1 font-sans text-[11px] font-bold text-text-muted transition-all duration-300 group-hover:border-brand/30 group-hover:text-brand group-hover:bg-brand/10 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-            <span className="text-[11px] opacity-80">{isMac ? "⌘" : "Ctrl"}</span>K
-          </kbd>
-        </div>
+
+        {/* Divider */}
+        <span className="w-px h-5 bg-divider flex-shrink-0" />
+
+        {/* Right: Google wordmark */}
+        <span className="flex items-center px-3 h-full">
+          <GoogleWordmark />
+        </span>
       </button>
     </>
   );

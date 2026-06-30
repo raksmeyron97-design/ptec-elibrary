@@ -177,7 +177,7 @@ export default function GoogleSearchModal() {
     else                            router.push(`/books?q=${encodeURIComponent(s.label)}`);
   }, [router]);
 
-  // ── Full Google search → dedicated /search page ───────────────────────────
+  // ── Full text search → Google CSE on /search page ───────────────────────
   const goSearch = useCallback((q: string) => {
     if (!q.trim()) return;
     pushRecentSearch(q.trim());
@@ -349,7 +349,7 @@ export default function GoogleSearchModal() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <kbd className="rounded border px-1.5 py-0.5 font-sans text-[10px] font-medium shadow-sm" style={{ borderColor: "var(--ptec-border)", background: "var(--ptec-bg-surface)" }}>↵</kbd>
-                  <span>select · or search with <span className="font-semibold" style={{ color: "var(--ptec-brand)" }}>Google</span></span>
+                  <span>select · or view all results</span>
                 </span>
               </div>
             </div>
@@ -395,7 +395,7 @@ export default function GoogleSearchModal() {
           {/* Hint */}
           <div className="flex items-center justify-center gap-2 mt-6 opacity-50 text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
             <Icon name="search" className="text-[14px]" />
-            <span>Type to search PTEC books · press <kbd className="rounded px-1 font-sans font-bold">↵</kbd> for Google results</span>
+            <span>Type to search PTEC books · press <kbd className="rounded px-1 font-sans font-bold">↵</kbd> to search Google</span>
           </div>
         </div>
 
