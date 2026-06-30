@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getListsContainingBook } from "@/app/actions/reading-lists";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
@@ -46,7 +46,7 @@ type BookDetailPageProps = {
 
 const getBookMeta = unstable_cache(
   async (slug: string) => {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { data } = await supabase
       .from("books")
       .select("title, description, cover_url, language, published_at, tags, authors(name)")
