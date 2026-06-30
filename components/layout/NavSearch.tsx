@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 
 const GoogleColoredSearch = () => (
   <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px] flex-shrink-0">
@@ -20,28 +21,20 @@ const GoogleWordmark = () => (
 );
 
 export default function NavSearch() {
-  function openCommandPalette() {
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "k", metaKey: true })
-    );
-  }
-
   return (
     <>
       {/* Mobile: icon only */}
-      <button
-        type="button"
-        onClick={openCommandPalette}
+      <Link
+        href="/search"
         aria-label="Search"
         className="sm:hidden flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-all duration-200 hover:shadow-md active:scale-95"
       >
         <GoogleColoredSearch />
-      </button>
+      </Link>
 
       {/* sm+: Google-style search button */}
-      <button
-        type="button"
-        onClick={openCommandPalette}
+      <Link
+        href="/search"
         aria-label="Search with Google"
         className="hidden sm:flex group items-center gap-0 h-[40px] rounded-full border border-divider bg-bg-surface shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md active:scale-[0.98]"
         style={{ minWidth: 0 }}
@@ -58,7 +51,7 @@ export default function NavSearch() {
         <span className="flex items-center px-3 h-full">
           <GoogleWordmark />
         </span>
-      </button>
+      </Link>
     </>
   );
 }
