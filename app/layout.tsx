@@ -6,7 +6,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import CommandPalette from "@/components/ui/search/CommandPalette";
+import GoogleSearchModal from "@/components/ui/search/GoogleSearchModal";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
@@ -161,7 +161,7 @@ export default async function RootLayout({
           <Analytics />
           <SpeedInsights />
           <Suspense fallback={null}>
-            <CommandPalette />
+            <GoogleSearchModal />
           </Suspense>
         </IntlProvider>
       </body>

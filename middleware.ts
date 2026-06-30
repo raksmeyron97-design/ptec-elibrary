@@ -13,12 +13,12 @@ export async function middleware(request: NextRequest) {
     const isDev = process.env.NODE_ENV === 'development';
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'nonce-${nonceB64}'${isDev ? " 'unsafe-eval'" : ''} https://challenges.cloudflare.com;
+      script-src 'self' 'nonce-${nonceB64}'${isDev ? " 'unsafe-eval'" : ''} https://challenges.cloudflare.com https://cse.google.com https://www.google.com;
       style-src 'self' 'unsafe-inline';
-      img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.flagcounter.com;
-      font-src 'self' data:;
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online;
-      frame-src https://challenges.cloudflare.com https://www.google.com;
+      img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.flagcounter.com https://*.gstatic.com https://www.google.com https://encrypted-tbn0.gstatic.com;
+      font-src 'self' data: https://fonts.gstatic.com;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online https://cse.google.com https://www.googleapis.com https://customsearch.googleapis.com;
+      frame-src https://challenges.cloudflare.com https://www.google.com https://cse.google.com;
       frame-ancestors 'none';
       object-src 'none';
       base-uri 'self';

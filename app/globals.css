@@ -434,3 +434,295 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   color: #fff;
   border-color: var(--ptec-brand);
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Google Custom Search Engine — PTEC Brand Override
+   Scope: .ptec-gsc-container (wraps the gcse-search div in GoogleSearchModal)
+   Tokens: --ptec-brand (#1E3A8A), --ptec-accent (#DDB022)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Reset Google's own shell ──────────────────────────────────── */
+.ptec-gsc-container .gsc-control-cse,
+.ptec-gsc-container .gsc-control-cse.gsc-control-cse-en {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+}
+.ptec-gsc-container table,
+.ptec-gsc-container td,
+.ptec-gsc-container tr,
+.ptec-gsc-container tbody {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── Search input wrapper ──────────────────────────────────────── */
+.ptec-gsc-container .gsc-input-box {
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 12px !important;
+  padding: 4px 6px !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+}
+.ptec-gsc-container .gsc-input-box:focus-within {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12) !important;
+}
+:root.dark .ptec-gsc-container .gsc-input-box:focus-within {
+  box-shadow: 0 0 0 3px rgba(138, 164, 228, 0.18) !important;
+}
+
+/* ── Text input ────────────────────────────────────────────────── */
+.ptec-gsc-container input.gsc-input,
+.ptec-gsc-container .gsc-input input {
+  background: transparent !important;
+  color: var(--ptec-text-heading) !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  padding: 10px 12px !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.ptec-gsc-container input.gsc-input::placeholder {
+  color: var(--ptec-text-muted) !important;
+}
+
+/* ── Search button ─────────────────────────────────────────────── */
+.ptec-gsc-container .gsc-search-button,
+.ptec-gsc-container .gsc-search-button-v2 {
+  background: var(--ptec-brand) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 10px 22px !important;
+  cursor: pointer !important;
+  transition: background 0.15s !important;
+  min-width: 52px !important;
+}
+.ptec-gsc-container .gsc-search-button:hover,
+.ptec-gsc-container .gsc-search-button-v2:hover {
+  background: var(--ptec-brand-hover) !important;
+}
+.ptec-gsc-container .gsc-search-button-v2 svg,
+.ptec-gsc-container .gsc-search-button-v2 svg path {
+  fill: #ffffff !important;
+}
+
+/* ── Results meta bar (count + sort) ──────────────────────────── */
+.ptec-gsc-container .gsc-above-wrapper-area,
+.ptec-gsc-container .gsc-resultsHeader {
+  background: transparent !important;
+  border: none !important;
+  padding: 8px 0 4px !important;
+}
+.ptec-gsc-container .gsc-result-info,
+.ptec-gsc-container .gsc-result-info-container {
+  color: var(--ptec-text-muted) !important;
+  font-size: 12px !important;
+}
+
+/* ── Results wrapper ───────────────────────────────────────────── */
+.ptec-gsc-container .gsc-results-wrapper-overlay,
+.ptec-gsc-container .gsc-results-wrapper-nooverlay,
+.ptec-gsc-container .gsc-results {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.ptec-gsc-container .gsc-expansionArea {
+  padding: 0 !important;
+}
+
+/* ── Individual result card ────────────────────────────────────── */
+.ptec-gsc-container .gsc-webResult.gsc-result,
+.ptec-gsc-container .gs-result {
+  background: var(--ptec-bg-app) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 14px !important;
+  margin-bottom: 10px !important;
+  padding: 16px 18px !important;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s !important;
+  cursor: pointer !important;
+}
+.ptec-gsc-container .gsc-webResult.gsc-result:hover,
+.ptec-gsc-container .gs-result:hover {
+  border-color: var(--ptec-brand) !important;
+  background: var(--ptec-bg-surface) !important;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.10) !important;
+}
+
+/* ── Result title ──────────────────────────────────────────────── */
+.ptec-gsc-container a.gs-title,
+.ptec-gsc-container .gs-title,
+.ptec-gsc-container .gs-title b {
+  color: var(--ptec-brand) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  line-height: 1.4 !important;
+}
+.ptec-gsc-container a.gs-title:hover {
+  color: var(--ptec-brand-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* ── Result URL breadcrumb ─────────────────────────────────────── */
+.ptec-gsc-container .gsc-url-top,
+.ptec-gsc-container .gsc-url-bottom,
+.ptec-gsc-container .gs-visibleUrl,
+.ptec-gsc-container .gs-visibleUrl-breadcrumb {
+  color: var(--ptec-accent-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* ── Result snippet ────────────────────────────────────────────── */
+.ptec-gsc-container .gs-snippet {
+  color: var(--ptec-text-body) !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+  margin-top: 4px !important;
+}
+.ptec-gsc-container .gs-snippet b {
+  color: var(--ptec-text-heading) !important;
+  font-weight: 700 !important;
+  background: rgba(221, 176, 34, 0.12) !important;
+  border-radius: 3px !important;
+  padding: 0 2px !important;
+}
+
+/* ── Tabs (Web / Image) ────────────────────────────────────────── */
+.ptec-gsc-container .gsc-tabsArea {
+  border-bottom: 2px solid var(--ptec-border) !important;
+  margin-bottom: 14px !important;
+}
+.ptec-gsc-container .gsc-tabHeader {
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 16px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  transition: color 0.15s !important;
+}
+.ptec-gsc-container .gsc-tabHeader:hover {
+  color: var(--ptec-brand) !important;
+}
+.ptec-gsc-container .gsc-tabHeader.gsc-tabhActive,
+.ptec-gsc-container .gsc-tabHeader.gsc-tabhActive:hover {
+  color: var(--ptec-brand) !important;
+  border-bottom: 2px solid var(--ptec-brand) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Pagination ────────────────────────────────────────────────── */
+.ptec-gsc-container .gsc-cursor-box {
+  text-align: center !important;
+  padding: 12px 0 4px !important;
+}
+.ptec-gsc-container .gsc-cursor-page {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  margin: 3px !important;
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 8px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+}
+.ptec-gsc-container .gsc-cursor-page:hover {
+  border-color: var(--ptec-brand) !important;
+  color: var(--ptec-brand) !important;
+  background: var(--ptec-bg-app) !important;
+}
+.ptec-gsc-container .gsc-cursor-current-page {
+  background: var(--ptec-brand) !important;
+  border-color: var(--ptec-brand) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ── No-results state ──────────────────────────────────────────── */
+.ptec-gsc-container .gs-no-results-result .gs-snippet,
+.ptec-gsc-container .gs-error-result .gs-snippet {
+  background: var(--ptec-bg-app) !important;
+  border: 1.5px dashed var(--ptec-border) !important;
+  border-radius: 12px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 14px !important;
+  padding: 20px 24px !important;
+  text-align: center !important;
+}
+
+/* ── Sort dropdown ─────────────────────────────────────────────── */
+.ptec-gsc-container .gsc-orderby-container,
+.ptec-gsc-container .gsc-orderby-label {
+  color: var(--ptec-text-muted) !important;
+  font-size: 12px !important;
+}
+.ptec-gsc-container .gsc-selected-option {
+  color: var(--ptec-brand) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ── Hide Google branding / promo links ────────────────────────── */
+.ptec-gsc-container .gcsc-find-more-on-google-root,
+.ptec-gsc-container .gcsc-branding,
+.ptec-gsc-container .gcsc-find-more-on-google,
+.ptec-gsc-container .gs-promoted-header,
+.ptec-gsc-container .gsc-adBlock {
+  display: none !important;
+}
+
+/* ── Image results grid ────────────────────────────────────────── */
+.ptec-gsc-container .gsc-imageResult {
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+.ptec-gsc-container .gsc-imageResult:hover {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.12) !important;
+}
+
+/* ── Dark-mode adjustments ─────────────────────────────────────── */
+:root.dark .ptec-gsc-container .gsc-input-box {
+  background: var(--ptec-bg-body) !important;
+  border-color: var(--ptec-border) !important;
+}
+:root.dark .ptec-gsc-container .gsc-webResult.gsc-result {
+  background: var(--ptec-bg-body) !important;
+}
+:root.dark .ptec-gsc-container .gsc-webResult.gsc-result:hover {
+  background: var(--ptec-bg-surface) !important;
+}
+:root.dark .ptec-gsc-container .gs-snippet b {
+  background: rgba(244, 222, 138, 0.15) !important;
+}
+:root.dark .ptec-gsc-container .gsc-cursor-page {
+  background: var(--ptec-bg-surface) !important;
+  border-color: var(--ptec-border) !important;
+}
+:root.dark .ptec-gsc-container .gsc-cursor-page:hover {
+  background: var(--ptec-bg-body) !important;
+}
+
+/* ── Prefers-reduced-motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ptec-gsc-container * {
+    transition: none !important;
+  }
+}
