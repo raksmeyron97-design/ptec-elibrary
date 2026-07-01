@@ -52,7 +52,7 @@ export default async function DashboardPage() {
     getSavedBooks(),
     supabase
       .from("reading_progress")
-      .select("book_id, progress_pct, last_read_at")
+      .select(`book_id, progress_pct, last_read_at, books ( ${BOOK_FIELDS} )`)
       .eq("user_id", user.id)
       .gt("progress_pct", 0)
       .order("last_read_at", { ascending: false }),
@@ -71,22 +71,15 @@ export default async function DashboardPage() {
   const inProgress = progress.filter((p) => p.progress_pct < 100);
   const completed  = progress.filter((p) => p.progress_pct >= 100);
 
-  const inProgressIds = inProgress.slice(0, 8).map((p) => p.book_id);
-  let inProgressBooks: any[] = [];
-  if (inProgressIds.length > 0) {
-    const { data } = await supabase.from("books").select(BOOK_FIELDS).in("id", inProgressIds);
-    inProgressBooks = (data ?? []).map((b: any) => {
-      const prog = progress.find((p) => p.book_id === b.id);
-      return { ...mapRowToBook(b), progressPct: prog?.progress_pct ?? 0 };
-    });
-  }
+  const inProgressBooks: any[] = inProgress.slice(0, 8).flatMap((p) => {
+    if (!p.books) return [];
+    return [{ ...mapRowToBook(p.books as any), progressPct: p.progress_pct }];
+  });
 
-  const completedIds = completed.slice(0, 6).map((p) => p.book_id);
-  let completedBooks: any[] = [];
-  if (completedIds.length > 0) {
-    const { data } = await supabase.from("books").select(BOOK_FIELDS).in("id", completedIds);
-    completedBooks = (data ?? []).map((b: any) => ({ ...mapRowToBook(b), progressPct: 100 }));
-  }
+  const completedBooks: any[] = completed.slice(0, 6).flatMap((p) => {
+    if (!p.books) return [];
+    return [{ ...mapRowToBook(p.books as any), progressPct: 100 }];
+  });
 
   const stats = [
     {

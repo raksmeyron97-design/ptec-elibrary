@@ -20,18 +20,18 @@ async function getRecentlyAdded() {
   return (data ?? []).map(mapRowToBook);
 }
 
-export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
-  const [recentlyAdded, t, locale] = await Promise.all([
-    getRecentlyAdded(),
-    getTranslations("home"),
-    getLocale(),
-  ]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
+async function getDeptBooks() {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("books")
+    .select(BOOK_SELECT)
+    .eq("is_published", true)
+    .order("download_count", { ascending: false })
+    .limit(60);
+  const books = (data ?? []).map(mapRowToBook);
 
-  // Group the pre-fetched trending books by department (max 6 depts × 10 books).
-  // trendingBooks comes from page.tsx with a limit of 60 for this purpose.
   const deptMap = new Map<string, BookCardData[]>();
-  for (const book of trendingBooks) {
+  for (const book of books) {
     const dept = book.department;
     if (dept && dept !== "General") {
       if (!deptMap.has(dept)) deptMap.set(dept, []);
@@ -39,8 +39,20 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
       if (arr.length < 12) arr.push(book);
     }
   }
-  const depts = [...deptMap.keys()].slice(0, 6);
-  const deptBooks = Object.fromEntries(deptMap.entries());
+  return {
+    depts: [...deptMap.keys()].slice(0, 6),
+    deptBooks: Object.fromEntries(deptMap.entries()),
+  };
+}
+
+export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
+  const [recentlyAdded, { depts, deptBooks }, t, locale] = await Promise.all([
+    getRecentlyAdded(),
+    getDeptBooks(),
+    getTranslations("home"),
+    getLocale(),
+  ]);
+  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
   const trending12 = trendingBooks.slice(0, 12);
 

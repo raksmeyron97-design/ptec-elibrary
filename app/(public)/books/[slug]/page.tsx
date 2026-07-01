@@ -117,45 +117,48 @@ export async function generateMetadata({
 
 type BookWithSource = Book & { fromSupabase: boolean; dbId: string | null };
 
-async function getBook(slug: string): Promise<BookWithSource | null> {
-  const supabase = await createClient();
+const getBook = unstable_cache(
+  async (slug: string): Promise<BookWithSource | null> => {
+    const supabase = createServiceClient();
 
-  // Use ANON client so is_published = true RLS is enforced
-  const { data, error } = await supabase
-    .from("books")
-    .select(`
-      id, title, slug, description,
-      cover_color, cover_url,
-      language, department, pages, published_at, isbn, rating, tags,
-      download_count,
-      authors ( name, bio ),
-      categories ( name ),
-      departments ( name )
-    `)
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("books")
+      .select(`
+        id, title, slug, description,
+        cover_color, cover_url,
+        language, department, pages, published_at, isbn, rating, tags,
+        download_count,
+        authors ( name, bio ),
+        categories ( name ),
+        departments ( name )
+      `)
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .maybeSingle();
 
-  if (error) {
-    console.error("[getBook] Supabase error:", error.message);
-  }
+    if (error) {
+      console.error("[getBook] Supabase error:", error.message);
+    }
 
-  if (data) {
-    const [{ data: files }, { data: revs }] = await Promise.all([
-      supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
-      supabase.from("reviews").select("rating").eq("book_id", data.id),
-    ]);
+    if (data) {
+      const [{ data: files }, { data: revs }] = await Promise.all([
+        supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
+        supabase.from("reviews").select("rating").eq("book_id", data.id),
+      ]);
 
-    const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: revs ?? [] });
-    return {
-      ...mapped,
-      fromSupabase: true,
-      dbId: data.id,
-    } as BookWithSource;
-  }
+      const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: revs ?? [] });
+      return {
+        ...mapped,
+        fromSupabase: true,
+        dbId: data.id,
+      } as BookWithSource;
+    }
 
-  return null;
-}
+    return null;
+  },
+  ["book-detail"],
+  { revalidate: 3600, tags: ["books"] }
+);
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const t = await getTranslations("bookDetail");
