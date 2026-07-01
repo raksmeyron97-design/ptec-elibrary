@@ -3,9 +3,14 @@
 import Link from "next/link";
 
 const GoogleColoredSearch = () => (
-  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-[18px] h-[18px] flex-shrink-0">
-    <circle cx="8.5" cy="8.5" r="5" stroke="#4285F4" strokeWidth="1.75" strokeLinecap="round"/>
-    <path d="M13 13L17 17" stroke="#EA4335" strokeWidth="1.75" strokeLinecap="round"/>
+  <svg
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className="h-[18px] w-[18px] flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-6 group-active:scale-90 group-active:rotate-0 motion-reduce:transition-none motion-reduce:transform-none"
+  >
+    <circle cx="8.5" cy="8.5" r="5" stroke="#4285F4" strokeWidth="1.75" strokeLinecap="round" />
+    <path d="M13 13L17 17" stroke="#EA4335" strokeWidth="1.75" strokeLinecap="round" />
   </svg>
 );
 
@@ -27,29 +32,51 @@ export default function NavSearch() {
       <Link
         href="/search"
         aria-label="Search"
-        className="sm:hidden flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-all duration-200 hover:shadow-md active:scale-95"
+        className="group sm:hidden relative flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-all duration-300 ease-out hover:border-brand/30 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
       >
+        {/* Glow: pre-rendered shadow, faded in/out via opacity only (compositor, no repaint) */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 rounded-full opacity-0 shadow-[0_4px_16px_rgba(30,58,138,0.12)] transition-opacity duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+        />
         <GoogleColoredSearch />
       </Link>
 
-      {/* sm+: Google-style search button */}
+      {/* sm+: Google-style search button — expands on hover/focus to state its purpose */}
       <Link
         href="/search"
         aria-label="Search with Google"
-        className="hidden sm:flex group items-center gap-0 h-[40px] rounded-full border border-divider bg-bg-surface shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+        className="group hidden sm:flex relative items-center h-10 rounded-full border border-divider bg-bg-surface shadow-sm overflow-hidden transition-all duration-300 ease-out hover:border-brand/30 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
         style={{ minWidth: 0 }}
       >
+        {/* Glow: pre-rendered shadow, faded in/out via opacity only (compositor, no repaint) */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 rounded-full opacity-0 shadow-[0_4px_16px_rgba(30,58,138,0.12)] transition-opacity duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+        />
+
         {/* Left: search icon */}
-        <span className="flex items-center justify-center pl-3 pr-2.5 h-full">
+        <span className="flex items-center justify-center h-full pl-3.5 pr-2.5">
           <GoogleColoredSearch />
+        </span>
+
+        {/* Reveal: purpose text, only takes up space once expanded */}
+        <span className="max-w-0 overflow-hidden transition-[max-width] duration-300 ease-out group-hover:max-w-[160px] group-focus-visible:max-w-[160px] motion-reduce:transition-none">
+          <span className="whitespace-nowrap pr-3 text-sm text-text-muted">
+            Search the library
+          </span>
         </span>
 
         {/* Divider */}
         <span className="w-px h-5 bg-divider flex-shrink-0" />
 
         {/* Right: Google wordmark */}
-        <span className="flex items-center px-3 h-full">
+        <span className="relative flex items-center overflow-hidden px-3 h-full">
           <GoogleWordmark />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-6 -translate-x-[150%] skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[420%] group-focus-visible:translate-x-[420%] motion-reduce:hidden"
+          />
         </span>
       </Link>
     </>

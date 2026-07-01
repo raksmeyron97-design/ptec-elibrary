@@ -7,6 +7,7 @@ import Icon from "@/components/ui/core/Icon";
 
 declare global {
   interface Window {
+    __gcse?: any;
     google?: {
       search?: {
         cse?: {
@@ -20,6 +21,8 @@ declare global {
 }
 
 const GNAME = "ptec-search";
+const RECENT_KEY = "ptec-recent-searches";
+const MAX_RECENT = 6;
 
 const SUGGESTIONS = [
   "ភាសាខ្មែរ",
@@ -37,23 +40,105 @@ export default function SearchPageClient() {
 
   const [input, setInput] = useState(q);
   const [focused, setFocused] = useState(false);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const lastRan = useRef("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setInput(q); }, [q]);
 
+  // Load recent searches once, client-side only.
   useEffect(() => {
-    if (!q || lastRan.current === q) return;
+    try {
+      const raw = window.localStorage.getItem(RECENT_KEY);
+      if (raw) setRecentSearches(JSON.parse(raw));
+    } catch {
+      /* localStorage unavailable — recent searches simply won't persist */
+    }
+  }, []);
+
+  // Global "/" shortcut to jump into the search box, like most modern search UIs.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target?.isContentEditable) return;
+      e.preventDefault();
+      inputRef.current?.focus();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const saveRecent = (next: string[]) => {
+    setRecentSearches(next);
+    try {
+      window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore write failures (private mode, quota, etc.) */
+    }
+  };
+
+  const addRecentSearch = (term: string) => {
+    const t = term.trim();
+    if (!t) return;
+    const next = [t, ...recentSearches.filter((s) => s.toLowerCase() !== t.toLowerCase())].slice(0, MAX_RECENT);
+    saveRecent(next);
+  };
+
+  const removeRecentSearch = (term: string) => {
+    saveRecent(recentSearches.filter((s) => s !== term));
+  };
+
+  const clearRecentSearches = () => saveRecent([]);
+
+  // Setup Google CSE callbacks to handle loading state
+  useEffect(() => {
+    window.__gcse = window.__gcse || {};
+    window.__gcse.searchCallbacks = {
+      web: {
+        starting: () => {
+          setResultsLoading(true);
+        },
+        rendered: () => {
+          setResultsLoading(false);
+        },
+      },
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!q) {
+      setResultsLoading(false);
+      return;
+    }
+    if (lastRan.current === q) return;
+
+    setResultsLoading(true);
+
     const run = (n = 0) => {
       const el = window.google?.search?.cse?.element?.getElement(GNAME);
       if (el) {
-        el.execute(q);
-        lastRan.current = q;
+        try {
+          el.execute(q);
+          lastRan.current = q;
+          addRecentSearch(q);
+        } catch (e) {
+          if (n < 50) setTimeout(() => run(n + 1), 150);
+          else setResultsLoading(false);
+        }
       } else if (n < 50) {
         setTimeout(() => run(n + 1), 150);
+      } else {
+        setResultsLoading(false);
       }
     };
-    setTimeout(() => run(), 300);
+    const kickoff = setTimeout(() => run(), 300);
+
+    return () => clearTimeout(kickoff);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -61,7 +146,18 @@ export default function SearchPageClient() {
     const t = input.trim();
     if (!t) return;
     if (t === q) {
-      window.google?.search?.cse?.element?.getElement(GNAME)?.execute(t);
+      setResultsLoading(true);
+      const el = window.google?.search?.cse?.element?.getElement(GNAME);
+      if (el) {
+        try {
+          el.execute(t);
+          addRecentSearch(t);
+        } catch (err) {
+          setResultsLoading(false);
+        }
+      } else {
+        setResultsLoading(false);
+      }
     } else {
       router.push(`/search?q=${encodeURIComponent(t)}`);
     }
@@ -260,6 +356,7 @@ export default function SearchPageClient() {
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             placeholder="Search books, authors, research…"
+            aria-label="Search the PTEC Library"
             autoFocus
             className="flex-1 min-w-0 h-full bg-transparent text-[15px] font-medium outline-none placeholder:font-normal"
             style={{
@@ -267,12 +364,27 @@ export default function SearchPageClient() {
             }}
           />
 
+          {/* Keyboard-shortcut hint — desktop only, hidden once typing or focused */}
+          {!focused && !input && (
+            <kbd
+              aria-hidden="true"
+              className="hidden sm:inline-flex flex-shrink-0 items-center justify-center h-5 min-w-[20px] px-1.5 mr-1 rounded-md text-[11px] font-semibold"
+              style={{
+                color: "var(--ptec-text-muted)",
+                border: "1px solid var(--ptec-border)",
+                background: "var(--ptec-bg-body)",
+              }}
+            >
+              /
+            </kbd>
+          )}
+
           {/* Clear */}
           {input && (
             <button
               type="button"
               onClick={clearInput}
-              aria-label="Clear"
+              aria-label="Clear search input"
               className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full mx-1 cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
               style={{ color: "var(--ptec-text-muted)" }}
             >
@@ -285,21 +397,23 @@ export default function SearchPageClient() {
             type="submit"
             disabled={!input.trim()}
             aria-label="Search"
-            className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-offset-1"
+            className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-3.5 sm:px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-offset-1"
             style={{
               background: "var(--ptec-brand)",
               color: "#fff",
             }}
           >
             <Icon name="search" className="text-[12px]" />
-            <span>Search</span>
+            <span className="hidden sm:inline">Search</span>
           </button>
         </div>
 
         {/* Query tag when searching */}
         {q && (
           <div className="flex items-center gap-2 mt-3 px-1">
-            <span className="text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>Results for</span>
+            <span className="text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
+              {resultsLoading ? "Searching for" : "Results for"}
+            </span>
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
               style={{
@@ -310,12 +424,48 @@ export default function SearchPageClient() {
             >
               {q}
             </span>
+            {resultsLoading && (
+              <span
+                aria-hidden="true"
+                className="inline-block w-3 h-3 rounded-full animate-spin"
+                style={{ border: "2px solid var(--ptec-border)", borderTopColor: "var(--ptec-brand)" }}
+              />
+            )}
           </div>
         )}
       </form>
 
+      {/* Screen-reader announcement for search state changes */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {q ? (resultsLoading ? `Searching for ${q}` : `Showing results for ${q}`) : ""}
+      </div>
+
+      {/* ── Loading skeleton ────────────────────────────────────────── */}
+      {q && resultsLoading && (
+        <div className="space-y-3" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="rounded-[14px] p-[18px_20px] animate-pulse"
+              style={{ background: "var(--ptec-bg-surface)", border: "1px solid var(--ptec-border)" }}
+            >
+              <div className="h-4 w-2/5 rounded mb-3" style={{ background: "var(--ptec-border)" }} />
+              <div className="h-2.5 w-1/4 rounded mb-3" style={{ background: "var(--ptec-border)" }} />
+              <div className="h-3 w-full rounded mb-1.5" style={{ background: "var(--ptec-border)" }} />
+              <div className="h-3 w-5/6 rounded" style={{ background: "var(--ptec-border)" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── Google CSE results ──────────────────────────────────────── */}
-      <div className="gcse-searchresults-only" data-gname={GNAME} />
+      <div style={{ opacity: resultsLoading ? 0 : 1, transition: "opacity 0.2s ease" }}>
+        <div
+          ref={resultsRef}
+          className="gcse-searchresults-only"
+          data-gname={GNAME}
+        />
+      </div>
 
       {/* ── Empty / idle state ──────────────────────────────────────── */}
       {!q && (
@@ -355,6 +505,58 @@ export default function SearchPageClient() {
               </p>
             </div>
 
+            {/* Recent searches */}
+            {recentSearches.length > 0 && (
+              <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+                <div className="flex items-center justify-between w-full">
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.12em]"
+                    style={{ color: "var(--ptec-text-muted)" }}
+                  >
+                    Recent searches
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearRecentSearches}
+                    className="text-[10px] font-semibold cursor-pointer hover:underline underline-offset-2"
+                    style={{ color: "var(--ptec-text-muted)" }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {recentSearches.map((s) => (
+                    <span
+                      key={s}
+                      className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full text-[12.5px] font-medium"
+                      style={{
+                        background: "var(--ptec-bg-body)",
+                        color: "var(--ptec-text-body)",
+                        border: "1px solid var(--ptec-border)",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/search?q=${encodeURIComponent(s)}`)}
+                        aria-label={`Search recent term: ${s}`}
+                        className="cursor-pointer"
+                      >
+                        {s}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRecentSearch(s)}
+                        aria-label={`Remove ${s} from recent searches`}
+                        className="flex items-center justify-center w-4 h-4 rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
+                      >
+                        <Icon name="x" className="text-[9px]" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Suggestion chips */}
             <div className="flex flex-col items-center gap-3 w-full max-w-sm">
               <p
@@ -369,6 +571,7 @@ export default function SearchPageClient() {
                     key={s}
                     type="button"
                     onClick={() => router.push(`/search?q=${encodeURIComponent(s)}`)}
+                    aria-label={`Search for ${s}`}
                     className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-all duration-150 cursor-pointer active:scale-95"
                     style={{
                       background: "color-mix(in srgb, var(--ptec-brand) 7%, transparent)",
