@@ -4,7 +4,9 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { zimaFetch } from "@/lib/zima";
 
+// Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -14,12 +16,8 @@ const s3 = new S3Client({
   },
 });
 
-// NOTE: this limiter is in-memory and resets on every cold start. On Vercel
-// serverless that means the window can reset between requests on different
-// instances. Migrate to Upstash Redis or Vercel KV for true distributed
-// rate limiting in production.
 const DOWNLOAD_LIMIT = 5;
-const DOWNLOAD_WINDOW_MS = 60 * 1000; // 1 minute
+const DOWNLOAD_WINDOW_MS = 60 * 1000;
 
 export async function GET(
   _req: Request,
@@ -27,14 +25,12 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  // Require authentication
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // Rate-limit per user: 5 downloads / minute
   const rl = await rateLimit(user.id, DOWNLOAD_LIMIT, DOWNLOAD_WINDOW_MS);
   if (!rl.success) {
     return new NextResponse("Too Many Requests", {
@@ -49,7 +45,6 @@ export async function GET(
 
   const supabase = createServiceClient();
 
-  // Resolve book + file
   const { data: book, error } = await supabase
     .from("books")
     .select("id, title, book_files(id, file_url, format)")
@@ -68,7 +63,7 @@ export async function GET(
     return new NextResponse("File not found", { status: 404 });
   }
 
-  // Fire log + counter in parallel — neither result gates the presigned URL
+  // Log download + increment counter (non-blocking)
   await Promise.all([
     supabase.from("download_logs").insert({
       user_id: user.id,
@@ -77,27 +72,38 @@ export async function GET(
     supabase.rpc("increment_download_count", { book_id: book.id }),
   ]);
 
-  // Derive the R2 object key from the stored URL.
-  const publicBase = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").replace(/\/$/, "");
-  let objectKey = pdfFile.file_url as string;
-  if (publicBase && objectKey.startsWith(publicBase + "/")) {
-    objectKey = objectKey.slice(publicBase.length + 1);
-  } else if (objectKey.startsWith("https://")) {
-    try {
-      objectKey = new URL(objectKey).pathname.replace(/^\//, "");
-    } catch {
-      return new NextResponse("Invalid file URL", { status: 500 });
+  const fileUrl = pdfFile.file_url as string;
+  const safeTitle = encodeURIComponent(`${book.title}.pdf`);
+  const disposition = `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
+
+  // ── Zima CDN or any full HTTP(S) URL — proxy download server-side ─
+  if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
+    const upstream = await zimaFetch(fileUrl);
+    if (!upstream.ok) {
+      return new NextResponse("File not found in storage", { status: 404 });
     }
+    const headers = new Headers();
+    headers.set("Content-Type", "application/pdf");
+    headers.set("Content-Disposition", disposition);
+    headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
+    const contentLength = upstream.headers.get("content-length");
+    if (contentLength) headers.set("Content-Length", contentLength);
+    return new NextResponse(upstream.body, { headers });
   }
 
-  // Issue a short-lived presigned GET URL (5 minutes)
+  // ── Legacy: bare R2 object key (private bucket) — presigned redirect ──
+  const publicBase = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+  let objectKey = fileUrl;
+  if (publicBase && objectKey.startsWith(publicBase + "/")) {
+    objectKey = objectKey.slice(publicBase.length + 1);
+  }
+
   const command = new GetObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME!,
     Key: objectKey,
-    ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(book.title + ".pdf")}`,
+    ResponseContentDisposition: disposition,
   });
 
   const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
-
   return NextResponse.redirect(presignedUrl, 302);
 }

@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition, useMemo } from "react";
 import Image from "next/image";
 import { UserCircle, Upload, X, Search, Link as LinkIcon } from "lucide-react";
-import { getPresignedUrl } from "@/app/actions/upload";
+import { uploadToZima } from "@/app/actions/upload";
 import { createTeamMember, updateTeamMember } from "./actions";
 import type { TeamMemberRow, TeamSection, ProfileOption } from "./actions";
 
@@ -92,19 +92,10 @@ export default function TeamForm({
 
       if (photoFile) {
         setPhase("uploading");
-        const ext  = photoFile.name.split(".").pop() ?? "jpg";
-        const slug = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        const key  = `team/${slug}-${Date.now()}.${ext}`;
-
-        const res = await getPresignedUrl(key, photoFile.type, "public");
-        if ("error" in res) throw new Error(`Upload URL error: ${res.error}`);
-
-        const upRes = await fetch(res.presignedUrl, {
-          method: "PUT",
-          body: photoFile,
-          headers: { "Content-Type": photoFile.type },
-        });
-        if (!upRes.ok) throw new Error(`Photo upload failed (${upRes.status})`);
+        const fd = new FormData();
+        fd.append("file", photoFile);
+        const res = await uploadToZima(fd, "team");
+        if ("error" in res) throw new Error(`Photo upload failed: ${res.error}`);
         finalPhotoUrl = res.publicUrl;
       }
 
@@ -144,7 +135,7 @@ export default function TeamForm({
         </h2>
         <p className="mt-0.5 text-xs text-text-muted">
           Fields marked <span className="text-red-500">*</span> are required.
-          Photo is stored in Cloudflare R2. Email is linked from the staff&apos;s account.
+          Photo is stored in Zima Storage. Email is linked from the staff&apos;s account.
         </p>
       </div>
 
@@ -155,13 +146,13 @@ export default function TeamForm({
           <span className="mb-2 block text-sm font-semibold text-text-body">
             Profile Photo
             <span className="ml-2 font-normal text-text-muted">
-              (optional · square · JPEG / PNG / WebP · max 5 MB · stored in Cloudflare R2)
+              (optional · square · JPEG / PNG / WebP · max 5 MB · stored in Zima Storage)
             </span>
           </span>
           <div className="flex items-start gap-4">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-divider bg-paper">
               {photoPreview ? (
-                <Image src={photoPreview} alt="Preview" fill className="object-cover" />
+                <Image src={photoPreview} alt="Preview" fill className="object-cover" unoptimized={true} />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
                   <UserCircle className="h-10 w-10 text-text-muted/40" />
@@ -464,7 +455,7 @@ export default function TeamForm({
         {busy && (
           <div className="md:col-span-2 flex items-center gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
-            {phase === "uploading" ? "Uploading photo to Cloudflare R2…" : "Saving…"}
+            {phase === "uploading" ? "Uploading photo to Zima Storage…" : "Saving…"}
           </div>
         )}
 

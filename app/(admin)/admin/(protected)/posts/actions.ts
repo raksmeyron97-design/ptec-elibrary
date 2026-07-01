@@ -4,7 +4,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/requireAdmin";
-import { deleteR2File } from "@/app/actions/upload";
+import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
 
 function requiredText(formData: FormData, key: string) {
@@ -35,25 +35,6 @@ function deriveExcerpt(content: string, provided: string | null): string | null 
   return plain.length > 150 ? `${plain.slice(0, 150).trimEnd()}…` : plain;
 }
 
-function storagePathFromUrl(publicUrl: string): string | null {
-  try {
-    // Try matching against both the private bucket CDN and the public covers CDN
-    const candidates = [
-      process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
-      process.env.NEXT_PUBLIC_R2_COVERS_URL,
-    ].filter(Boolean) as string[];
-
-    for (const base of candidates) {
-      const norm = base.replace(/\/$/, "");
-      if (publicUrl.startsWith(norm + "/")) {
-        return decodeURIComponent(publicUrl.slice(norm.length + 1));
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 async function uniqueSlug(
   supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
@@ -150,10 +131,7 @@ export async function updatePost(postId: string, formData: FormData) {
   // Delete storage objects that are no longer in the new list
   const removedUrls = oldUrls.filter((u) => !coverUrls.includes(u));
   for (const u of removedUrls) {
-    const p = storagePathFromUrl(u);
-    if (p) {
-      await deleteR2File(p);
-    }
+    await zimaDelete(u).catch(() => null);
   }
 
   const { data: post, error: postError } = await supabase
@@ -201,8 +179,7 @@ export async function deletePost(postId: string) {
   const urls: string[] = (postData?.cover_urls as string[] | null) ??
     (postData?.cover_url ? [postData.cover_url] : []);
   for (const u of urls) {
-    const p = storagePathFromUrl(u);
-    if (p) await deleteR2File(p);
+    await zimaDelete(u).catch(() => null);
   }
 
   await logAdminAction(user.id, "deletePost", "posts", postId);

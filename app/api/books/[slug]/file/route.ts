@@ -5,7 +5,9 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { get } from "@vercel/blob";
 import { rateLimit } from "@/lib/rate-limit";
+import { zimaFetch } from "@/lib/zima";
 
+// Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -32,20 +34,15 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";
 
-  // ── Rate-limit inline viewing to prevent scraping ────────────
   const ip =
     request.headers.get("x-real-ip")?.trim() ??
-    request.headers
-      .get("x-forwarded-for")
-      ?.split(",")
-      .pop()
-      ?.trim() ??
+    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
     "unknown";
-  const rl = await rateLimit(`book-file:${ip}`, 30, 60_000); // 30 req/min per IP
+  const rl = await rateLimit(`book-file:${ip}`, 30, 60_000);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -81,12 +78,9 @@ export async function GET(
     ? `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`
     : `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
 
-  // Forward the incoming Range header so PDF.js can lazy-load chunks instead
-  // of downloading the entire file. Without this the reader must buffer the
-  // whole PDF before rendering page 1.
   const rangeHeader = request.headers.get("range");
 
-  // ── Vercel Blob ───────────────────────────────────────────────
+  // ── Vercel Blob ────────────────────────────────────────────────
   const isBlob =
     fileUrl.includes(".private.blob.vercel-storage.com") ||
     fileUrl.includes(".public.blob.vercel-storage.com");
@@ -107,10 +101,25 @@ export async function GET(
     return new NextResponse(blobResult.stream as any, { headers, status: blobResult.statusCode });
   }
 
-  // ── Cloudflare R2 (private bucket — server-side proxy) ───────
-  // We must NOT redirect to the presigned URL because react-pdf's fetch()
-  // would be blocked by CORS. Instead, generate the presigned URL server-side,
-  // fetch R2 privately, and stream the bytes back through this same-origin route.
+  // ── Zima CDN or any full HTTP(S) URL — fetch & proxy server-side ─
+  if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
+    const upstream = await zimaFetch(fileUrl, rangeHeader);
+    if (!upstream.ok && upstream.status !== 206) {
+      return new NextResponse("File not found in storage", { status: 404 });
+    }
+    const headers = new Headers();
+    headers.set("Content-Type", "application/pdf");
+    headers.set("Content-Disposition", disposition);
+    headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
+    headers.set("Accept-Ranges", "bytes");
+    const contentLength = upstream.headers.get("content-length");
+    if (contentLength) headers.set("Content-Length", contentLength);
+    const contentRange = upstream.headers.get("content-range");
+    if (contentRange) headers.set("Content-Range", contentRange);
+    return new NextResponse(upstream.body, { headers, status: upstream.status });
+  }
+
+  // ── Legacy: bare R2 object key (private bucket) ────────────────
   const key = r2ObjectKey(fileUrl);
   const command = new GetObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME!,
@@ -135,7 +144,6 @@ export async function GET(
   const contentLength = r2Res.headers.get("content-length");
   if (contentLength) headers.set("Content-Length", contentLength);
 
-  // Pass through range response headers so the browser / PDF.js can track progress
   const contentRange = r2Res.headers.get("content-range");
   if (contentRange) headers.set("Content-Range", contentRange);
 

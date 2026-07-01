@@ -49,6 +49,7 @@ export default function CatalogCard({ book }: Props) {
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover transition-transform duration-300 group-hover:scale-105"
+            unoptimized={true}
           />
         ) : (
           /* Fallback gradient cover */

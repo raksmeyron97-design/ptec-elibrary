@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import { updateProfile, updatePassword } from "@/app/actions/profile";
 import { updateOwnTeamMember } from "@/app/actions/team-profile";
-import { getPresignedUrl } from "@/app/actions/upload";
+import { uploadToZima } from "@/app/actions/upload";
 import {
   Camera,
   Lock,
@@ -208,18 +208,10 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
     if (photoFile) {
       setTeamPhase("uploading");
       try {
-        const MIME_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-        const ext  = MIME_EXT[photoFile.type] ?? "jpg";
-        const slug = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        const key  = `team/${slug}-${Date.now()}.${ext}`;
-        const res  = await getPresignedUrl(key, photoFile.type, "public");
+        const fd = new FormData();
+        fd.append("file", photoFile);
+        const res = await uploadToZima(fd, "team");
         if ("error" in res) throw new Error(res.error);
-        const upRes = await fetch(res.presignedUrl, {
-          method: "PUT",
-          body: photoFile,
-          headers: { "Content-Type": photoFile.type },
-        });
-        if (!upRes.ok) throw new Error(`Photo upload failed (${upRes.status})`);
         finalPhotoUrl = res.publicUrl;
         setPhotoUrl(finalPhotoUrl);
         setPhotoFile(null);

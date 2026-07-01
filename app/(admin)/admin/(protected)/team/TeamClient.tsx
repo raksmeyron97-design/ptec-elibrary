@@ -195,6 +195,7 @@ function MemberRow({
             width={48}
             height={48}
             className="h-full w-full object-cover"
+            unoptimized={true}
           />
         ) : (
           <div

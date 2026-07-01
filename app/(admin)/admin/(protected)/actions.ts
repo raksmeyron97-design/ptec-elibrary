@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
-import { deleteR2File } from "@/app/actions/upload";
+import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 
@@ -39,29 +39,6 @@ function pickCoverColor(title: string): string {
   return coverColors[Math.abs(hash) % coverColors.length];
 }
 
-// ── Helper: extract Storage path from a public URL ────────────────
-// e.g. "https://pub-xxxxxx.r2.dev/covers/123.jpg"
-// → "covers/123.jpg"
-function storagePathFromUrl(publicUrl: string): string | null {
-  try {
-    const url = new URL(publicUrl);
-    const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
-    if (r2Base && publicUrl.startsWith(r2Base)) {
-      let path = publicUrl.slice(r2Base.length);
-      if (path.startsWith('/')) path = path.slice(1);
-      return decodeURIComponent(path);
-    }
-    // Fallback for old supabase URLs if they still exist in DB
-    const marker = "/object/public/book-files/";
-    const idx = url.pathname.indexOf(marker);
-    if (idx !== -1) {
-      return decodeURIComponent(url.pathname.slice(idx + marker.length));
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 // ── saveBookRecord ────────────────────────────────────────────────
 export interface BookInput {
@@ -268,20 +245,12 @@ export async function deleteBook(bookId: string) {
     .eq("id", bookId)
     .single();
 
-  // ── 2. Collect Storage paths to delete ───────────────────────
-  const storagePaths: string[] = [];
-
+  // ── 2. Collect file URLs to delete from storage ──────────────
+  const fileUrls: string[] = [];
   for (const f of bookFiles ?? []) {
-    if (f.file_url) {
-      const p = storagePathFromUrl(f.file_url);
-      if (p) storagePaths.push(p);
-    }
+    if (f.file_url) fileUrls.push(f.file_url);
   }
-
-  if (bookData?.cover_url) {
-    const p = storagePathFromUrl(bookData.cover_url);
-    if (p) storagePaths.push(p);
-  }
+  if (bookData?.cover_url) fileUrls.push(bookData.cover_url);
 
   // ── 3. Delete DB records ──────────────────────────────────────
   // Clear dependent logs and relations first to avoid foreign key errors
@@ -289,7 +258,7 @@ export async function deleteBook(bookId: string) {
   if (bookFileIds.length > 0) {
     await supabase.from("download_logs").delete().in("book_file_id", bookFileIds);
   }
-  
+
   await Promise.all([
     supabase.from("view_logs").delete().eq("content_type", "book").eq("content_id", bookId),
     supabase.from("reviews").delete().eq("book_id", bookId),
@@ -301,11 +270,9 @@ export async function deleteBook(bookId: string) {
   const { error } = await supabase.from("books").delete().eq("id", bookId);
   if (error) throw new Error(`Delete failed: ${error.message}`);
 
-  // ── 4. Delete files from R2 (non-fatal if they fail) ────
-  if (storagePaths.length > 0) {
-    for (const p of storagePaths) {
-      await deleteR2File(p);
-    }
+  // ── 4. Delete files from Zima (non-fatal; no-ops for legacy R2 URLs) ──
+  for (const url of fileUrls) {
+    await zimaDelete(url).catch(() => null);
   }
 
   await logAdminAction(user.id, "deleteBook", "books", bookId);

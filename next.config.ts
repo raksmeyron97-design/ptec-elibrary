@@ -49,6 +49,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    unoptimized: true,
     qualities: [70, 75],
     remotePatterns: [
       // Supabase Storage
@@ -112,15 +113,30 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.r2.dev",
       },
-      // PTEC custom storage API (HTTPS only)
+      // Zima Storage API — allow both http and https since the server may serve either
       {
         protocol: "https",
         hostname: "api.storage-ptec.online",
       },
-      // Zima Storage
+      {
+        protocol: "http",
+        hostname: "api.storage-ptec.online",
+      },
       {
         protocol: "https",
         hostname: "storage-ptec.online",
+      },
+      {
+        protocol: "http",
+        hostname: "storage-ptec.online",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.storage-ptec.online",
+      },
+      {
+        protocol: "http",
+        hostname: "cdn.storage-ptec.online",
       },
     ],
   },

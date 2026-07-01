@@ -3,7 +3,9 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { zimaFetch } from "@/lib/zima";
 
+// Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -26,20 +28,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // ── Rate-limit inline viewing to prevent scraping ────────────
   const ip =
     request.headers.get("x-real-ip")?.trim() ??
-    request.headers
-      .get("x-forwarded-for")
-      ?.split(",")
-      .pop()
-      ?.trim() ??
+    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
     "unknown";
-  const rl = await rateLimit(`research-file:${ip}`, 30, 60_000); // 30 req/min per IP
+  const rl = await rateLimit(`research-file:${ip}`, 30, 60_000);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -59,12 +56,29 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const key = r2ObjectKey(report.file_url as string);
+  const fileUrl = report.file_url as string;
   const safeTitle = encodeURIComponent(`${report.title}.pdf`);
   const disposition = download
     ? `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`
     : `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
 
+  // ── Zima CDN or any full HTTP(S) URL — fetch & proxy server-side ─
+  if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
+    const upstream = await zimaFetch(fileUrl);
+    if (!upstream.ok) {
+      return new NextResponse("File not found in storage", { status: 404 });
+    }
+    const headers = new Headers();
+    headers.set("Content-Type", "application/pdf");
+    headers.set("Content-Disposition", disposition);
+    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    const contentLength = upstream.headers.get("content-length");
+    if (contentLength) headers.set("Content-Length", contentLength);
+    return new NextResponse(upstream.body, { headers });
+  }
+
+  // ── Legacy: bare R2 object key ─────────────────────────────────
+  const key = r2ObjectKey(fileUrl);
   const command = new GetObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME!,
     Key: key,

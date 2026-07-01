@@ -5,8 +5,7 @@
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/actions";
-import { getPresignedUrl } from "@/app/actions/upload";
-import { makeUid, postFolder, postCoverPath } from "@/lib/book-utils";
+import { uploadToZima } from "@/app/actions/upload";
 import Icon from "@/components/ui/core/Icon";
 import MarkdownEditor from "@/app/(admin)/admin/(protected)/posts/MarkdownEditor";
 
@@ -173,7 +172,7 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
     if (!contentVal)  { setError("Content is required");  return; }
 
     try {
-      // ── 1. Upload new images to Cloudflare R2 via Presigned URLs ───────────────
+      // ── 1. Upload new images to Zima Storage via Server Action ───
       const newPreviews = previews.filter((p): p is Extract<PreviewItem, { kind: "new" }> =>
         p.kind === "new"
       );
@@ -181,34 +180,16 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       const uploadedUrls: string[] = [];
       if (newPreviews.length > 0) {
         setPhase("uploading");
-        const folder = postFolder(titleVal, makeUid());
         for (let i = 0; i < newPreviews.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${newPreviews.length}…`);
           const { file } = newPreviews[i];
-          const path = postCoverPath(folder, i, file.name);
-
-          // ── Step A: get presigned URL from server ────────────────
-          const presignedRes = await getPresignedUrl(path, file.type, "public");
-          if ("error" in presignedRes) {
-            throw new Error(`Could not get upload URL: ${presignedRes.error}`);
+          const fd = new FormData();
+          fd.append("file", file);
+          const res = await uploadToZima(fd, "posts");
+          if ("error" in res) {
+            throw new Error(`Image upload failed: ${res.error}`);
           }
-          const { presignedUrl, publicUrl } = presignedRes;
-
-          // ── Step B: PUT file directly to Cloudflare R2 ──────────
-          const upRes = await fetch(presignedUrl, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": file.type },
-          });
-
-          if (!upRes.ok) {
-            throw new Error(
-              `Upload to Cloudflare R2 failed (${upRes.status} ${upRes.statusText}). ` +
-              `Check that your R2 bucket has CORS enabled (AllowedOrigins: ["*"], AllowedMethods: ["PUT"]).`
-            );
-          }
-
-          uploadedUrls.push(publicUrl);
+          uploadedUrls.push(res.publicUrl);
         }
       }
 

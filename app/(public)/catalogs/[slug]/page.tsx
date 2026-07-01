@@ -260,6 +260,7 @@ export default async function CatalogBookPage({
                     sizes="(max-width: 768px) 200px, 260px"
                     className="object-cover"
                     priority
+                    unoptimized={true}
                   />
                 ) : (
                   <div

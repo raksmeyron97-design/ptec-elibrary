@@ -2,23 +2,10 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { deleteR2File } from "@/app/actions/upload";
+import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 
-function storagePathFromUrl(publicUrl: string): string | null {
-  try {
-    const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
-    if (r2Base && publicUrl.startsWith(r2Base)) {
-      let path = publicUrl.slice(r2Base.length);
-      if (path.startsWith("/")) path = path.slice(1);
-      return decodeURIComponent(path);
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 const REVALIDATE_PATHS = [
   "/admin/research-reports",
@@ -272,13 +259,9 @@ export async function deleteResearchReport(id: string) {
     return { success: false, error: error.message };
   }
 
-  // Best-effort R2 cleanup (non-fatal — DB row is already gone)
-  const toDelete: (string | null | undefined)[] = [row?.file_url, row?.cover_url];
-  for (const url of toDelete) {
-    if (url) {
-      const path = storagePathFromUrl(url);
-      if (path) await deleteR2File(path).catch(() => null);
-    }
+  // Best-effort Zima cleanup (non-fatal — DB row is already gone)
+  for (const url of [row?.file_url, row?.cover_url]) {
+    if (url) await zimaDelete(url as string).catch(() => null);
   }
 
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
