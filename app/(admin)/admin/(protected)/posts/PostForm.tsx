@@ -180,12 +180,17 @@ export default function PostForm({ initial }: { initial?: PostInitial }) {
       const uploadedUrls: string[] = [];
       if (newPreviews.length > 0) {
         setPhase("uploading");
+        const postSlug = slugify(titleVal) || "post";
+        const postUid = Date.now().toString(36).slice(-6);
+        const postFolder = `posts/${postSlug}-${postUid}`;
         for (let i = 0; i < newPreviews.length; i++) {
           setUploadProgress(`Uploading image ${i + 1} of ${newPreviews.length}…`);
           const { file } = newPreviews[i];
+          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+          const imageFile = new File([file], `image-${String(i + 1).padStart(2, "0")}.${ext}`, { type: file.type });
           const fd = new FormData();
-          fd.append("file", file);
-          const res = await uploadToZima(fd, "posts");
+          fd.append("file", imageFile);
+          const res = await uploadToZima(fd, postFolder);
           if ("error" in res) {
             throw new Error(`Image upload failed: ${res.error}`);
           }

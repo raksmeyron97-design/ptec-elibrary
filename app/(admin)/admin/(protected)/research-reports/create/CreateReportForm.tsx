@@ -13,6 +13,7 @@ import AbstractInput from "../_components/AbstractInput";
 import ReferencesInput from "../_components/ReferencesInput";
 import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
 import TagInput from "@/components/ui/core/TagInput";
+import { slugify, makeUid } from "@/lib/book-utils";
 
 export default function CreateReportForm() {
   const router = useRouter();
@@ -86,7 +87,10 @@ export default function CreateReportForm() {
       const formData = new FormData(e.currentTarget);
 
       // Upload PDF via server-side proxy (avoids CORS issues with R2)
-      const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const uid = makeUid();
+      const titleSlug = slugify((formData.get("title") as string) || "report");
+      const coverExt = coverFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const pdfPath = `reports/${titleSlug}-${uid}/report.pdf`;
       const pdfPayload = new FormData();
       pdfPayload.set("file", pdfFile);
       pdfPayload.set("key", pdfPath);
@@ -99,7 +103,7 @@ export default function CreateReportForm() {
       const { url: finalPdfUrl } = await pdfRes.json();
 
       // Upload Cover via server-side proxy
-      const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const coverPath = `reports/${titleSlug}-${uid}/cover.${coverExt}`;
       const coverPayload = new FormData();
       coverPayload.set("file", coverFile);
       coverPayload.set("key", coverPath);

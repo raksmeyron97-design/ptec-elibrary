@@ -42,11 +42,8 @@ export async function zimaUpload(
   const { apiUrl, apiKey } = zimaConfig();
 
   const form = new FormData();
-  if (file instanceof File) {
-    form.append("file", file);
-  } else {
-    form.append("file", new File([file], filename ?? "upload", { type: file.type }));
-  }
+  const name = filename ?? (file instanceof File ? file.name : "upload");
+  form.append("file", new File([file], name, { type: file.type }));
 
   const res = await fetch(`${apiUrl}/api/upload`, {
     method: "POST",

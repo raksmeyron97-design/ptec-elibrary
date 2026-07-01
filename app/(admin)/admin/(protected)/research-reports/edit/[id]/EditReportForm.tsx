@@ -14,6 +14,7 @@ import ProgramCohortFields, { type CascadeValues } from "../../_components/Progr
 import AbstractInput from "../../_components/AbstractInput";
 import ReferencesInput from "../../_components/ReferencesInput";
 import { getProgram, getSubjectsForFaculty } from "@/lib/research/programs";
+import { slugify, makeUid } from "@/lib/book-utils";
 
 export default function EditReportForm({ report }: { report: any }) {
   const router = useRouter();
@@ -84,7 +85,9 @@ export default function EditReportForm({ report }: { report: any }) {
 
       // Upload new PDF via server-side proxy if selected (avoids CORS issues with R2)
       if (pdfFile) {
-        const pdfPath = `reports/pdfs/${Date.now()}-${pdfFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const uid = makeUid();
+        const titleSlug = slugify((formData.get("title") as string) || "report");
+        const pdfPath = `reports/${titleSlug}-${uid}/report.pdf`;
         const pdfPayload = new FormData();
         pdfPayload.set("file", pdfFile);
         pdfPayload.set("key", pdfPath);
@@ -101,7 +104,10 @@ export default function EditReportForm({ report }: { report: any }) {
 
       // Upload new Cover via server-side proxy if selected (overrides remove)
       if (coverFile) {
-        const coverPath = `reports/covers/${Date.now()}-${coverFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const coverUid = makeUid();
+        const coverTitleSlug = slugify((formData.get("title") as string) || "report");
+        const coverExt = coverFile.name.split(".").pop()?.toLowerCase() || "jpg";
+        const coverPath = `reports/${coverTitleSlug}-${coverUid}/cover.${coverExt}`;
         const coverPayload = new FormData();
         coverPayload.set("file", coverFile);
         coverPayload.set("key", coverPath);

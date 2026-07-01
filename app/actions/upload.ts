@@ -6,9 +6,10 @@ import { zimaUpload, zimaDelete } from "@/lib/zima";
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars"];
 
 function validateFolder(folder: string): void {
-  if (!ALLOWED_FOLDERS.includes(folder)) {
+  const topLevel = folder.split("/")[0];
+  if (!ALLOWED_FOLDERS.includes(topLevel ?? "")) {
     throw new Error(
-      `Folder must be one of: ${ALLOWED_FOLDERS.join(", ")}`,
+      `Folder must start with one of: ${ALLOWED_FOLDERS.join(", ")}`,
     );
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { validateMimeType } from "@/lib/mime-validation";
-import { zimaUpload, folderFromKey } from "@/lib/zima";
+import { zimaUpload } from "@/lib/zima";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -47,10 +47,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const filename = key.split("/").pop() ?? "upload";
-    const folder = folderFromKey(key);
+    const lastSlash = key.lastIndexOf("/");
+    const subfolder = lastSlash > 0 ? key.slice(0, lastSlash) : key;
+    const filename = lastSlash > 0 ? key.slice(lastSlash + 1) : (key.split("/").pop() ?? "upload");
     const file = new File([body], filename, { type: contentType });
-    const url = await zimaUpload(file, folder, filename);
+    const url = await zimaUpload(file, subfolder, filename);
 
     return NextResponse.json({ url });
   } catch (err) {
