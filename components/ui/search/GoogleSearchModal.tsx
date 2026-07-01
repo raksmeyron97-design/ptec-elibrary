@@ -23,25 +23,6 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
 
 const TRENDING = ["ការអប់រំ", "Research", "PDF ឯកសារ", "Pedagogy", "Mathematics"];
 
-// ── Google logo ────────────────────────────────────────────────────────────────
-const GoogleLogo = () => (
-  <svg viewBox="0 0 74 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[15px] w-auto inline-block align-middle">
-    <path d="M9.24 8.19v2.46h5.88c-.18 1.38-.64 2.39-1.34 3.1-.86.86-2.2 1.8-4.54 1.8-3.62 0-6.45-2.92-6.45-6.54s2.83-6.54 6.45-6.54c1.95 0 3.38.77 4.43 1.76L15.4 2.5C13.94 1.08 11.98 0 9.24 0 4.28 0 .11 4.04.11 9s4.17 9 9.13 9c2.68 0 4.7-.88 6.28-2.52 1.62-1.62 2.13-3.91 2.13-5.75 0-.57-.04-1.1-.13-1.54H9.24z" fill="#4285F4"/>
-    <path d="M25 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52s1.52-3.52 3.28-3.52 3.28 1.46 3.28 3.52-1.52 3.52-3.28 3.52z" fill="#EA4335"/>
-    <path d="M53.58 7.49h-.09c-.57-.68-1.67-1.3-3.06-1.3C47.53 6.19 45 8.72 45 12c0 3.26 2.53 5.81 5.43 5.81 1.39 0 2.49-.62 3.06-1.32h.09v.81c0 2.22-1.19 3.41-3.1 3.41-1.56 0-2.53-1.12-2.93-2.07l-2.22.92c.64 1.54 2.33 3.43 5.15 3.43 2.99 0 5.52-1.76 5.52-6.05V6.49h-2.42v1zm-2.93 8.03c-1.76 0-3.1-1.5-3.1-3.52s1.34-3.52 3.1-3.52c1.74 0 3.1 1.52 3.1 3.54s-1.36 3.5-3.1 3.5z" fill="#4285F4"/>
-    <path d="M38 6.19c-3.21 0-5.83 2.44-5.83 5.81 0 3.34 2.62 5.81 5.83 5.81s5.83-2.46 5.83-5.81c0-3.37-2.62-5.81-5.83-5.81zm0 9.33c-1.76 0-3.28-1.45-3.28-3.52s1.52-3.52 3.28-3.52 3.28 1.46 3.28 3.52-1.52 3.52-3.28 3.52z" fill="#FBBC05"/>
-    <path d="M58 .24h2.51v17.57H58z" fill="#34A853"/>
-    <path d="M63.93 14.85c-1.3 0-2.22-.59-2.82-1.76l7.77-3.21-.26-.66c-.48-1.29-1.96-3.68-4.97-3.68-2.99 0-5.48 2.35-5.48 5.81 0 3.26 2.46 5.81 5.76 5.81 2.66 0 4.2-1.63 4.84-2.57l-1.98-1.32c-.66.96-1.56 1.58-2.86 1.58zm-.18-7.15c1.03 0 1.91.53 2.2 1.28l-5.25 2.17c0-2.44 1.73-3.45 3.05-3.45z" fill="#EA4335"/>
-  </svg>
-);
-
-const SearchBrandIcon = () => (
-  <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
-    <circle cx="8.5" cy="8.5" r="5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
-    <path d="M13 13L17 17" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
-  </svg>
-);
-
 // ── Suggestion row ─────────────────────────────────────────────────────────────
 function SuggestionRow({
   s, isActive, onHover, onPick,
@@ -58,33 +39,43 @@ function SuggestionRow({
       aria-selected={isActive}
       onMouseEnter={onHover}
       onMouseDown={(e) => { e.preventDefault(); onPick(); }}
-      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 border-l-2 cursor-pointer
-        ${isActive ? "border-brand bg-brand/5" : "border-transparent hover:bg-paper"}`}
+      className={`group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-100 cursor-pointer
+        ${isActive
+          ? "bg-[color-mix(in_srgb,var(--ptec-brand)_8%,transparent)]"
+          : "hover:bg-[color-mix(in_srgb,var(--ptec-brand)_4%,transparent)]"
+        }`}
     >
-      {/* Thumbnail or icon */}
+      {/* Cover or icon */}
       <div
-        className="h-9 w-[26px] flex-shrink-0 rounded-md overflow-hidden flex items-center justify-center"
-        style={{ background: "var(--ptec-bg-app)", border: "1px solid var(--ptec-border)" }}
+        className="h-9 w-[26px] flex-shrink-0 rounded-[6px] overflow-hidden flex items-center justify-center"
+        style={{
+          background: "var(--ptec-bg-app)",
+          border: "1px solid var(--ptec-border)",
+        }}
       >
         {"coverUrl" in s && s.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={s.coverUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <Icon name={TYPE_ICON[s.type]} className="text-[13px] text-text-muted" />
+          <Icon name={TYPE_ICON[s.type]} className="text-[13px]" style={{ color: "var(--ptec-text-muted)" } as React.CSSProperties} />
         )}
       </div>
 
       {/* Text */}
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium text-text-heading">{s.label}</span>
+        <span className="block truncate text-[13px] font-medium" style={{ color: "var(--ptec-text-heading)" }}>
+          {s.label}
+        </span>
         {"sub" in s && s.sub && (
-          <span className="block truncate text-[11px] text-text-muted mt-0.5">{s.sub}</span>
+          <span className="block truncate text-[11px] mt-0.5" style={{ color: "var(--ptec-text-muted)" }}>
+            {s.sub}
+          </span>
         )}
       </div>
 
       {/* Type badge */}
       <span
-        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-150"
         style={{
           background: "var(--ptec-bg-app)",
           color: "var(--ptec-text-muted)",
@@ -93,7 +84,40 @@ function SuggestionRow({
       >
         {TYPE_LABEL[s.type]}
       </span>
+
+      {/* Arrow indicator on active */}
+      {isActive && (
+        <Icon name="chevron-right" className="text-[12px] shrink-0" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} />
+      )}
     </button>
+  );
+}
+
+// ── Kbd helper ─────────────────────────────────────────────────────────────────
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd
+      className="rounded-md border px-1.5 py-0.5 font-sans text-[10px] font-semibold shadow-sm leading-none"
+      style={{
+        borderColor: "var(--ptec-border)",
+        background: "var(--ptec-bg-surface)",
+        color: "var(--ptec-text-muted)",
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+// ── Section label ──────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="px-4 pt-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.12em]"
+      style={{ color: "var(--ptec-text-muted)" }}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -101,18 +125,18 @@ function SuggestionRow({
 export default function GoogleSearchModal() {
   const router = useRouter();
 
-  const [isOpen, setIsOpen]                   = useState(false);
-  const [query, setQuery]                     = useState("");
-  const [suggestions, setSuggestions]         = useState<Suggestion[]>([]);
-  const [suggestLoading, setSuggestLoading]   = useState(false);
-  const [activeIdx, setActiveIdx]             = useState(-1);
-  const [recent, setRecent]                   = useState<string[]>([]);
+  const [isOpen, setIsOpen]                 = useState(false);
+  const [query, setQuery]                   = useState("");
+  const [suggestions, setSuggestions]       = useState<Suggestion[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [activeIdx, setActiveIdx]           = useState(-1);
+  const [recent, setRecent]                 = useState<string[]>([]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef     = useRef<HTMLInputElement>(null);
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Fetch PTEC book suggestions as user types ──────────────────────────────
+  // ── Debounced PTEC suggestions ────────────────────────────────────────────
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.length < 2) { setSuggestions([]); setActiveIdx(-1); return; }
@@ -128,11 +152,11 @@ export default function GoogleSearchModal() {
       } finally {
         setSuggestLoading(false);
       }
-    }, 280);
+    }, 260);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
-  // ── Cmd+K / Ctrl+K toggle ─────────────────────────────────────────────────
+  // ── Cmd+K / Ctrl+K toggle ────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setIsOpen((v) => !v); }
@@ -142,17 +166,22 @@ export default function GoogleSearchModal() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // ── Scroll-lock + load recent searches ────────────────────────────────────
+  // ── Scroll-lock + load recents on open ───────────────────────────────────
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "";
-    if (isOpen) setRecent(readRecent().slice(0, 4));
+    if (isOpen) {
+      setQuery("");
+      setSuggestions([]);
+      setActiveIdx(-1);
+      setRecent(readRecent().slice(0, 5));
+    }
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  // ── Auto-focus on open ────────────────────────────────────────────────────
+  // ── Auto-focus input on open ──────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return;
-    const id = setTimeout(() => inputRef.current?.focus(), 80);
+    const id = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(id);
   }, [isOpen]);
 
@@ -166,18 +195,15 @@ export default function GoogleSearchModal() {
     return () => document.removeEventListener("mousedown", onDown);
   }, [isOpen]);
 
-  // ── Navigate to a PTEC resource ───────────────────────────────────────────
+  // ── Navigation helpers ────────────────────────────────────────────────────
   const pickSuggestion = useCallback((s: Suggestion) => {
     pushRecentSearch(s.label);
     setIsOpen(false);
-    setQuery(s.label);
-    setSuggestions([]);
     if (s.type === "book")          router.push(`/books/${s.slug}`);
     else if (s.type === "research") router.push(`/research/${s.id}`);
     else                            router.push(`/books?q=${encodeURIComponent(s.label)}`);
   }, [router]);
 
-  // ── Full text search → Google CSE on /search page ───────────────────────
   const goSearch = useCallback((q: string) => {
     if (!q.trim()) return;
     pushRecentSearch(q.trim());
@@ -192,238 +218,300 @@ export default function GoogleSearchModal() {
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1)); }
-    else if (e.key === "ArrowUp")  { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, -1)); }
+    const total = suggestions.length;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % total); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i <= 0 ? total - 1 : i - 1)); }
     else if (e.key === "Enter" && activeIdx >= 0 && suggestions[activeIdx]) {
       e.preventDefault();
       pickSuggestion(suggestions[activeIdx]);
     }
   };
 
-  const handleClear = () => {
-    setQuery(""); setSuggestions([]); setActiveIdx(-1);
-    inputRef.current?.focus();
-  };
-
   const showSuggestions = query.length >= 2 && (suggestions.length > 0 || suggestLoading);
+  const showIdle        = !showSuggestions;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Global Search"
-      aria-hidden={!isOpen}
-      className={`fixed inset-0 z-[100] flex items-start justify-center pt-[7vh] px-4 pb-8
-        bg-black/60 backdrop-blur-md transition-opacity duration-200
-        ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-    >
-      {/* ── Modal card ──────────────────────────────────────────────── */}
+    <>
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          .ptec-modal-card { transition: none !important; }
+        }
+      `}</style>
+
+      {/* ── Backdrop ──────────────────────────────────────────────────────── */}
       <div
-        ref={containerRef}
-        className={`relative w-full max-w-[660px] rounded-2xl overflow-hidden flex flex-col
-          transition-all duration-[220ms] ease-out
-          ${isOpen ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-[0.96] -translate-y-3"}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search"
+        aria-hidden={!isOpen}
+        className="fixed inset-0 z-[100] flex items-start justify-center pt-[8vh] px-4 pb-8"
         style={{
-          background: "var(--ptec-bg-surface)",
-          border: "1px solid var(--ptec-border)",
-          boxShadow: "0 32px 80px -12px rgba(11,21,48,0.45), 0 0 0 1px rgba(11,21,48,0.06)",
+          background: "rgba(11,21,48,0.65)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          transition: "opacity 200ms ease",
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? "auto" : "none",
         }}
       >
-        {/* Top gradient accent */}
+        {/* ── Modal card ──────────────────────────────────────────────── */}
         <div
-          className="absolute top-0 inset-x-0 h-[3px] z-10"
-          style={{ background: "linear-gradient(90deg, var(--ptec-brand) 0%, #3A5FC4 50%, var(--ptec-accent) 100%)" }}
-        />
-
-        {/* ── Header ────────────────────────────────────────────────── */}
-        <div
-          className="relative flex flex-col items-center gap-1.5 px-6 pt-7 pb-5"
-          style={{ background: "var(--ptec-bg-app)", borderBottom: "1px solid var(--ptec-border)" }}
+          ref={containerRef}
+          className="ptec-modal-card relative w-full max-w-[640px] rounded-2xl overflow-hidden flex flex-col"
+          style={{
+            background: "var(--ptec-bg-surface)",
+            border: "1px solid var(--ptec-border)",
+            boxShadow: "0 24px 64px -8px rgba(11,21,48,0.5), 0 0 0 1px rgba(11,21,48,0.08)",
+            transform: isOpen ? "scale(1) translateY(0)" : "scale(0.96) translateY(-8px)",
+            opacity: isOpen ? 1 : 0,
+            transition: "transform 220ms cubic-bezier(0.16,1,0.3,1), opacity 180ms ease",
+          }}
         >
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            aria-label="Close search"
-            className="group absolute top-3.5 right-3.5 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/40 border-divider bg-bg-surface text-text-muted hover:border-brand/40 hover:text-brand hover:bg-brand/5"
-          >
-            <Icon name="x" className="text-[12px] transition-transform duration-150 group-hover:rotate-90" />
-            <span className="hidden sm:inline">ESC</span>
-          </button>
-
+          {/* Top accent bar */}
           <div
-            className="flex items-center justify-center w-10 h-10 rounded-[10px] mb-0.5"
-            style={{
-              background: "linear-gradient(135deg, var(--ptec-brand) 0%, #27499f 100%)",
-              boxShadow: "0 8px 20px -6px rgba(30,58,138,0.55)",
-            }}
-          >
-            <SearchBrandIcon />
-          </div>
+            className="absolute top-0 inset-x-0 h-[2px]"
+            style={{ background: "linear-gradient(90deg, var(--ptec-brand), #3A5FC4 50%, var(--ptec-accent))" }}
+          />
 
-          <h2 className="text-[20px] font-bold tracking-tight" style={{ color: "var(--ptec-text-heading)" }}>
-            Global Search
-          </h2>
-
-          <div className="flex items-center gap-2 text-[10px] font-semibold tracking-[0.1em] uppercase" style={{ color: "var(--ptec-text-muted)" }}>
-            <span className="h-px w-7 rounded" style={{ background: "var(--ptec-border)" }} />
-            <span>Powered by</span>
-            <GoogleLogo />
-            <span className="h-px w-7 rounded" style={{ background: "var(--ptec-border)" }} />
-          </div>
-        </div>
-
-        {/* ── Search input ──────────────────────────────────────────── */}
-        <div style={{ background: "var(--ptec-bg-surface)", borderBottom: showSuggestions ? "none" : "1px solid var(--ptec-border)" }}>
-          <form onSubmit={handleSubmit} className="px-5 pt-4 pb-3">
-            <div className="relative flex items-center">
-              <div className="absolute left-4 pointer-events-none flex items-center">
-                {suggestLoading ? (
-                  <div className="w-[18px] h-[18px] rounded-full border-2 animate-spin" style={{ borderColor: "var(--ptec-border)", borderTopColor: "var(--ptec-brand)" }} />
-                ) : (
-                  <Icon name="search" className="text-[18px] text-text-muted" />
-                )}
-              </div>
-
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                placeholder="Search books, authors, categories…"
-                aria-label="Search query"
-                aria-autocomplete="list"
-                aria-expanded={showSuggestions}
-                autoComplete="off"
-                spellCheck={false}
-                className="w-full h-[50px] pl-11 pr-[96px] rounded-xl text-[15px] font-medium outline-none"
-                style={{
-                  background: "var(--ptec-bg-app)",
-                  border: "1.5px solid var(--ptec-border)",
-                  color: "var(--ptec-text-heading)",
-                  transition: "border-color 0.15s, box-shadow 0.15s",
-                }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--ptec-brand)"; e.target.style.boxShadow = "0 0 0 3px rgba(30,58,138,0.10)"; }}
-                onBlur={(e)  => { e.target.style.borderColor = "var(--ptec-border)"; e.target.style.boxShadow = "none"; }}
-              />
-
-              {query && (
-                <button type="button" onClick={handleClear} aria-label="Clear" className="absolute right-[58px] flex items-center justify-center w-6 h-6 rounded-full cursor-pointer transition-all duration-150 text-text-muted hover:text-text-heading hover:bg-bg-app">
-                  <Icon name="x" className="text-[13px]" />
-                </button>
+          {/* ── Search input row ──────────────────────────────────────── */}
+          <form onSubmit={handleSubmit} className="relative flex items-center px-4 pt-3.5 pb-3">
+            {/* Search icon or spinner */}
+            <div className="absolute left-[28px] flex items-center pointer-events-none">
+              {suggestLoading ? (
+                <div
+                  className="w-4 h-4 rounded-full border-2 animate-spin"
+                  style={{ borderColor: "var(--ptec-border)", borderTopColor: "var(--ptec-brand)" }}
+                />
+              ) : (
+                <Icon
+                  name="search"
+                  className="text-[17px]"
+                  style={{ color: query ? "var(--ptec-brand)" : "var(--ptec-text-muted)" } as React.CSSProperties}
+                />
               )}
-
-              <button
-                type="submit"
-                disabled={!query.trim()}
-                aria-label="Search"
-                className="absolute right-2 flex items-center justify-center h-[38px] w-[42px] rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
-                style={{ background: "var(--ptec-brand)", color: "#fff" }}
-              >
-                <Icon name="search" className="text-[15px]" />
-              </button>
             </div>
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              placeholder="Search books, authors, categories…"
+              aria-label="Search query"
+              aria-autocomplete="list"
+              aria-expanded={showSuggestions}
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 h-[46px] pl-9 pr-3 text-[15px] font-medium bg-transparent outline-none"
+              style={{ color: "var(--ptec-text-heading)" }}
+            />
+
+            {/* Clear */}
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(""); setSuggestions([]); setActiveIdx(-1); inputRef.current?.focus(); }}
+                aria-label="Clear search"
+                className="flex items-center justify-center w-6 h-6 rounded-full cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)] mr-2"
+                style={{ color: "var(--ptec-text-muted)" }}
+              >
+                <Icon name="x" className="text-[12px]" />
+              </button>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={!query.trim()}
+              aria-label="Search"
+              className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[12px] font-semibold cursor-pointer transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-1"
+              style={{
+                background: "var(--ptec-brand)",
+                color: "#fff",
+              }}
+            >
+              <Icon name="search" className="text-[12px]" />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+
+            {/* ESC close */}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close"
+              className="hidden sm:flex items-center gap-1 ml-2 h-7 px-2 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_60%,transparent)]"
+              style={{ color: "var(--ptec-text-muted)", border: "1px solid var(--ptec-border)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em" }}
+            >
+              ESC
+            </button>
           </form>
 
-          {/* ── PTEC suggestion dropdown ──────────────────────────── */}
+          {/* Divider */}
+          <div style={{ height: "1px", background: "var(--ptec-border)" }} />
+
+          {/* ── Suggestions ───────────────────────────────────────────── */}
           {showSuggestions && (
-            <div role="listbox" aria-label="Search suggestions" style={{ borderTop: "1px solid var(--ptec-border)", borderBottom: "1px solid var(--ptec-border)" }}>
-              <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest" style={{ background: "var(--ptec-bg-app)", color: "var(--ptec-text-muted)" }}>
-                Suggestions
-              </div>
+            <div
+              role="listbox"
+              aria-label="Search suggestions"
+              className="max-h-[320px] overflow-y-auto overscroll-contain"
+            >
+              <SectionLabel>PTEC Library</SectionLabel>
 
-              {suggestions.slice(0, 8).map((s, i) => (
-                <SuggestionRow
-                  key={`${s.type}-${s.label}-${i}`}
-                  s={s}
-                  isActive={i === activeIdx}
-                  onHover={() => setActiveIdx(i)}
-                  onPick={() => pickSuggestion(s)}
-                />
-              ))}
+              {suggestLoading && suggestions.length === 0 ? (
+                <div className="flex items-center gap-3 px-4 py-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-8 rounded-lg flex-1 animate-pulse" style={{ background: "var(--ptec-border)" }} />
+                  ))}
+                </div>
+              ) : (
+                suggestions.slice(0, 7).map((s, i) => (
+                  <SuggestionRow
+                    key={`${s.type}-${s.label}-${i}`}
+                    s={s}
+                    isActive={i === activeIdx}
+                    onHover={() => setActiveIdx(i)}
+                    onPick={() => pickSuggestion(s)}
+                  />
+                ))
+              )}
 
-              <div className="flex items-center justify-between px-4 py-2 text-[11px]" style={{ background: "var(--ptec-bg-app)", color: "var(--ptec-text-muted)", borderTop: "1px solid var(--ptec-border)" }}>
-                <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 font-sans text-[10px] font-medium shadow-sm" style={{ borderColor: "var(--ptec-border)", background: "var(--ptec-bg-surface)" }}>↑↓</kbd>
-                  navigate
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <kbd className="rounded border px-1.5 py-0.5 font-sans text-[10px] font-medium shadow-sm" style={{ borderColor: "var(--ptec-border)", background: "var(--ptec-bg-surface)" }}>↵</kbd>
-                  <span>select · or view all results</span>
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ── Idle / empty state ────────────────────────────────────── */}
-        <div className="px-5 py-5" style={{ display: showSuggestions ? "none" : "" }}>
-          {/* Recent */}
-          {recent.length > 0 && (
-            <div className="mb-5">
-              <p className="text-[10.5px] font-bold uppercase tracking-widest mb-2.5" style={{ color: "var(--ptec-text-muted)" }}>Recent</p>
-              <div className="flex flex-wrap gap-2">
-                {recent.map((term) => (
-                  <button key={term} type="button" onClick={() => goSearch(term)}
-                    className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-all duration-150 cursor-pointer hover:border-brand/40 hover:text-brand hover:bg-brand/5"
-                    style={{ border: "1px solid var(--ptec-border)", color: "var(--ptec-text-heading)", background: "var(--ptec-bg-app)" }}
+              {/* Search Google option */}
+              {query.length >= 2 && (
+                <>
+                  <div style={{ height: "1px", background: "var(--ptec-border)", margin: "4px 16px" }} />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); goSearch(query); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors duration-100 hover:bg-[color-mix(in_srgb,var(--ptec-brand)_4%,transparent)]"
                   >
-                    <Icon name="clock" className="text-[12px] opacity-60" />
-                    {term}
+                    <div
+                      className="w-[26px] h-9 flex-shrink-0 rounded-[6px] flex items-center justify-center"
+                      style={{ background: "var(--ptec-bg-app)", border: "1px solid var(--ptec-border)" }}
+                    >
+                      <Icon name="search" className="text-[13px]" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} />
+                    </div>
+                    <span className="text-[13px] font-medium" style={{ color: "var(--ptec-text-heading)" }}>
+                      Search for <span style={{ color: "var(--ptec-brand)" }}>&ldquo;{query}&rdquo;</span> on Google
+                    </span>
+                    <span
+                      className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                      style={{ background: "var(--ptec-bg-app)", color: "var(--ptec-text-muted)", border: "1px solid var(--ptec-border)" }}
+                    >
+                      Web
+                    </span>
                   </button>
-                ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Idle state ────────────────────────────────────────────── */}
+          {showIdle && (
+            <div className="px-4 py-4 max-h-[340px] overflow-y-auto overscroll-contain">
+              {/* Recent searches */}
+              {recent.length > 0 && (
+                <div className="mb-5">
+                  <SectionLabel>Recent</SectionLabel>
+                  <div className="flex flex-wrap gap-2 px-4 pb-1">
+                    {recent.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => goSearch(term)}
+                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium cursor-pointer transition-all duration-150"
+                        style={{
+                          border: "1px solid var(--ptec-border)",
+                          background: "var(--ptec-bg-app)",
+                          color: "var(--ptec-text-body)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "color-mix(in srgb, var(--ptec-brand) 40%, transparent)";
+                          e.currentTarget.style.color = "var(--ptec-brand)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "var(--ptec-border)";
+                          e.currentTarget.style.color = "var(--ptec-text-body)";
+                        }}
+                      >
+                        <Icon name="clock" className="text-[11px] opacity-50" />
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trending */}
+              <div>
+                <SectionLabel>Trending</SectionLabel>
+                <div className="flex flex-wrap gap-2 px-4 pb-2">
+                  {TRENDING.map((term, i) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => goSearch(term)}
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium cursor-pointer transition-all duration-150"
+                      style={{
+                        border: "1px solid color-mix(in srgb, var(--ptec-brand) 20%, transparent)",
+                        background: "color-mix(in srgb, var(--ptec-brand) 5%, transparent)",
+                        color: "var(--ptec-brand)",
+                        opacity: 1 - i * 0.1,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.background = "color-mix(in srgb, var(--ptec-brand) 10%, transparent)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = String(1 - i * 0.1); e.currentTarget.style.background = "color-mix(in srgb, var(--ptec-brand) 5%, transparent)"; }}
+                    >
+                      <Icon name="star" className="text-[11px]" />
+                      {term}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {/* Trending */}
-          <div>
-            <p className="text-[10.5px] font-bold uppercase tracking-widest mb-2.5" style={{ color: "var(--ptec-text-muted)" }}>Trending</p>
-            <div className="flex flex-wrap gap-2">
-              {TRENDING.map((term) => (
-                <button key={term} type="button" onClick={() => goSearch(term)}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition-all duration-150 cursor-pointer hover:border-brand/40 hover:text-brand hover:bg-brand/5"
-                  style={{ border: "1px solid var(--ptec-border)", color: "var(--ptec-text-muted)", background: "var(--ptec-bg-app)" }}
-                >
-                  <Icon name="star" className="text-[11px] opacity-70" />
-                  {term}
-                </button>
-              ))}
+          {/* ── Footer ────────────────────────────────────────────────── */}
+          <div
+            className="hidden sm:flex items-center justify-between px-5 py-2.5 text-[11px]"
+            style={{
+              borderTop: "1px solid var(--ptec-border)",
+              background: "var(--ptec-bg-app)",
+              color: "var(--ptec-text-muted)",
+            }}
+          >
+            {/* Live indicator */}
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              <span>
+                <span className="font-semibold" style={{ color: "var(--ptec-text-body)" }}>ptec.edu.kh</span>
+                {" "}· Powered by Google
+              </span>
             </div>
-          </div>
 
-          {/* Hint */}
-          <div className="flex items-center justify-center gap-2 mt-6 opacity-50 text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
-            <Icon name="search" className="text-[14px]" />
-            <span>Type to search PTEC books · press <kbd className="rounded px-1 font-sans font-bold">↵</kbd> to search Google</span>
-          </div>
-        </div>
-
-        {/* ── Footer ────────────────────────────────────────────────── */}
-        <div
-          className="hidden sm:flex items-center justify-between px-5 py-2.5 text-[11px]"
-          style={{ borderTop: "1px solid var(--ptec-border)", background: "var(--ptec-bg-app)", color: "var(--ptec-text-muted)" }}
-        >
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            <span>Searching <span className="font-semibold" style={{ color: "var(--ptec-brand)" }}>ptec.edu.kh</span></span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <kbd className="rounded-md border px-1.5 py-0.5 font-sans font-medium text-[10px] shadow-sm" style={{ borderColor: "var(--ptec-border)", background: "var(--ptec-bg-surface)" }}>↵</kbd>
-              search
-            </span>
-            <span className="w-px h-3 rounded" style={{ background: "var(--ptec-border)" }} />
-            <span className="flex items-center gap-1.5">
-              <kbd className="rounded-md border px-1.5 py-0.5 font-sans font-medium text-[10px] shadow-sm" style={{ borderColor: "var(--ptec-border)", background: "var(--ptec-bg-surface)" }}>ESC</kbd>
-              close
-            </span>
+            {/* Keyboard hints */}
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5">
+                <Kbd>↑↓</Kbd>
+                <span>navigate</span>
+              </span>
+              <span className="w-px h-3 rounded" style={{ background: "var(--ptec-border)" }} />
+              <span className="flex items-center gap-1.5">
+                <Kbd>↵</Kbd>
+                <span>select</span>
+              </span>
+              <span className="w-px h-3 rounded" style={{ background: "var(--ptec-border)" }} />
+              <span className="flex items-center gap-1.5">
+                <Kbd>ESC</Kbd>
+                <span>close</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
