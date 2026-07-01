@@ -122,7 +122,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ── Main modal ─────────────────────────────────────────────────────────────────
-export default function GoogleSearchModal() {
+export default function SearchModal() {
   const router = useRouter();
 
   const [isOpen, setIsOpen]                 = useState(false);
@@ -393,7 +393,7 @@ export default function GoogleSearchModal() {
                       <Icon name="search" className="text-[13px]" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} />
                     </div>
                     <span className="text-[13px] font-medium" style={{ color: "var(--ptec-text-heading)" }}>
-                      Search for <span style={{ color: "var(--ptec-brand)" }}>&ldquo;{query}&rdquo;</span> on Google
+                      Search for <span style={{ color: "var(--ptec-brand)" }}>&ldquo;{query}&rdquo;</span> in Library
                     </span>
                     <span
                       className="ml-auto shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
@@ -488,7 +488,7 @@ export default function GoogleSearchModal() {
               </span>
               <span>
                 <span className="font-semibold" style={{ color: "var(--ptec-text-body)" }}>ptec.edu.kh</span>
-                {" "}· Powered by Google
+                {" "}· PTEC Library
               </span>
             </div>
 
