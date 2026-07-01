@@ -21,7 +21,7 @@ const GoogleLogo = () => (
 export default function SearchPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)]" style={{ background: "var(--ptec-bg-app)" }}>
-      <div className="mx-auto max-w-3xl px-4 pt-14 pb-24">
+      <div className="ptec-gcse-page mx-auto max-w-3xl px-4 pt-14 pb-24">
 
         {/* ── Page header ───────────────────────────────────────────── */}
         <div className="mb-10 text-center">

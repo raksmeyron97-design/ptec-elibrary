@@ -115,7 +115,7 @@ export default async function PostDetailPage({
     .select(`
       id, title, slug, content, excerpt, cover_url, cover_urls, category, tags,
       is_published, views, like_count, save_count, created_at, updated_at,
-      author:profiles!author_id ( full_name, email )
+      author:profiles!author_id ( full_name, email, role )
     `)
     .eq("slug", slug)
     .single();
@@ -127,6 +127,15 @@ export default async function PostDetailPage({
 
   const author = (post.author as any)?.full_name ?? (post.author as any)?.email ?? "PTEC Library";
   const authorInitial = getInitial(author);
+  const rawRole = (post.author as any)?.role ?? "staff";
+
+  let khmerRole = "បុគ្គលិក";
+  if (rawRole === "super_admin") khmerRole = "អ្នកគ្រប់គ្រងជាន់ខ្ពស់";
+  else if (rawRole === "admin") khmerRole = "អ្នកគ្រប់គ្រង";
+  else if (rawRole === "librarian") khmerRole = "បណ្ណារក្ស";
+  else if (rawRole === "staff") khmerRole = "បុគ្គលិក";
+  
+  const authorTitle = `${khmerRole}របស់បណ្ណាល័យ វ.គ.ភ. — Phnom Penh Teacher Education College`;
 
   // Fetch user's like/save state for this post
   let initialLiked = false;
@@ -357,7 +366,7 @@ export default async function PostDetailPage({
               <div className="text-text-muted text-[11px] tracking-widest uppercase mb-1 font-sans">សរសេរដោយ</div>
               <div className="text-text-heading font-bold text-lg font-khmer-serif">{author}</div>
               <p className="m-0 mt-2 text-sm leading-relaxed text-text-body font-sans">
-                បុគ្គលិករបស់បណ្ណាល័យ វ.គ.ភ. — Phnom Penh Teacher Education College
+                {authorTitle}
               </p>
             </div>
           </div>

@@ -834,7 +834,6 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 /* ── Results spacing ───────────────────────────────────────────── */
-/* Results are always inline (gcse-searchresults-only never overlays) */
 .ptec-gcse-page .gsc-results-wrapper-nooverlay,
 .ptec-gcse-page .gsc-results-wrapper-overlay,
 .ptec-gcse-page .gsc-results {
@@ -1002,3 +1001,56 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 :root.dark .ptec-gcse-page .gsc-webResult.gsc-result { background: var(--ptec-bg-body) !important; }
 :root.dark .ptec-gcse-page .gsc-webResult.gsc-result:hover { background: var(--ptec-bg-surface) !important; }
 :root.dark .ptec-gcse-page .gs-snippet b { background: rgba(244, 222, 138, 0.15) !important; }
+
+/* ── CRITICAL: force Google CSE overlay → inline ──────────────────
+   Google appends .gsc-positioningWrapper and its children DIRECTLY
+   to <body>, outside .ptec-gcse-page.  Scoped selectors never match.
+   These rules must be GLOBAL (no ancestor selector).               */
+
+/* Hide the modal backdrop and close button everywhere */
+.gsc-modal-background-image {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+.gsc-close-button { display: none !important; }
+
+/* Collapse the positioning shell Google uses for its modal */
+.gsc-positioningWrapper {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+/* Flatten the overlay wrapper so it flows in the document */
+.gsc-results-wrapper-overlay {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+}
+
+/* Expand the inner clip-box Google uses to scroll within the modal */
+.gsc-overflow {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  position: relative !important;
+}
