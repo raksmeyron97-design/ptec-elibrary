@@ -60,10 +60,10 @@ export default async function FeaturedBooksSection({ books }: { books: FeatBook[
           </div>
           <Link
             href="/books"
-            className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-brand transition-colors hover:text-gold-700 sm:inline-flex"
+            className="group hidden shrink-0 items-center gap-2 rounded-full border border-brand/30 bg-brand/[0.06] px-4 py-[7px] text-[13px] font-semibold text-brand transition-all duration-200 hover:border-brand hover:bg-brand hover:text-white hover:shadow-sm hover:shadow-brand/25 active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:inline-flex"
           >
             Browse all books
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <svg className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </Link>

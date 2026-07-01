@@ -28,6 +28,7 @@ export default function SearchableSelect({
   // Sync when options load asynchronously (e.g. from useEffect)
   useEffect(() => {
     if (options.length > 0 && !selected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelected(defaultValue ?? options[0]);
     }
   }, [options, selected, defaultValue]);
