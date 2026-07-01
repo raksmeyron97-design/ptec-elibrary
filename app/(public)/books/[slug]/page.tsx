@@ -18,6 +18,7 @@ import { type Book, mapRowToBook } from "@/lib/books";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getReadingProgress } from "@/app/actions/reading-progress";
+import { getBookNote } from "@/app/actions/book-notes";
 import { getListsContainingBook } from "@/app/actions/reading-lists";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
@@ -28,6 +29,7 @@ import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
+import BookNotes from "@/components/ui/books/BookNotes";
 import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import BookQuickNav from "@/components/ui/books/BookQuickNav";
@@ -166,7 +168,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
-  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds] = await Promise.all([
+  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds, initialNote] = await Promise.all([
     book.dbId ? getReadingProgress(book.dbId) : Promise.resolve(null),
     book.dbId ? getReviews(book.dbId) : Promise.resolve([]),
     book.dbId && user ? getUserReview(book.dbId) : Promise.resolve(null),
@@ -181,6 +183,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           .then((res) => res.data || [])
       : Promise.resolve([]),
     book.dbId && user ? getListsContainingBook(book.dbId) : Promise.resolve([]),
+    book.dbId && user ? getBookNote(book.dbId) : Promise.resolve(""),
   ]);
 
   const avgRating =
@@ -519,6 +522,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   </div>
                 )}
                 <CiteBook book={book} />
+                {book.dbId && (
+                  <BookNotes
+                    bookId={book.dbId}
+                    initialContent={initialNote}
+                    isLoggedIn={!!user}
+                    bookSlug={book.slug}
+                  />
+                )}
               </div>
             </div>
           </div>

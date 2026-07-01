@@ -17,6 +17,12 @@ import Icon from "@/components/ui/core/Icon";
 import { useTranslations, useLocale } from "next-intl";
 import { saveReadingProgress } from "@/app/actions/reading-progress";
 import { incrementDownloadCount } from "@/app/actions/download";
+import {
+  getBookAnnotations,
+  addAnnotation,
+  deleteAnnotation,
+  type Annotation,
+} from "@/app/actions/book-annotations";
 
 /* ──────────────────────────────────────────────────────────────────
    Worker — SELF-HOSTED for true offline support.
@@ -55,7 +61,14 @@ type PDFViewerProps = {
 type FitMode = "width" | "page";
 type ViewMode = "single" | "scroll";
 type Theme = "light" | "sepia" | "dark";
-type PanelTab = "outline" | "bookmarks" | "search" | null;
+type PanelTab = "outline" | "bookmarks" | "search" | "annotations" | null;
+
+type SelectionPopup = {
+  text: string;
+  page: number;
+  x: number;
+  y: number;
+} | null;
 type OutlineNode = {
   title: string;
   dest: string | unknown[] | null;
@@ -367,6 +380,13 @@ export default function PDFViewer({
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
 
+  /* ── Annotations ────────────────────────────────────────────── */
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [selectionPopup, setSelectionPopup] = useState<SelectionPopup>(null);
+  const [annotationNote, setAnnotationNote] = useState("");
+  const [annotationColor, setAnnotationColor] = useState<"yellow" | "green" | "blue" | "pink">("yellow");
+  const [savingAnnotation, setSavingAnnotation] = useState(false);
+
   /* ── Refs ───────────────────────────────────────────────────── */
   const docAreaRef = useRef<HTMLDivElement>(null); // touch target + fullscreen box
   const containerRef = useRef<HTMLDivElement>(null); // scroll viewport (measured)
@@ -447,6 +467,55 @@ export default function PDFViewer({
     () => lsSet(`ebook:bm:${bookId}`, JSON.stringify(bookmarks)),
     [bookmarks, bookId],
   );
+
+  /* ── Load annotations on mount (logged-in users only) ──────── */
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    getBookAnnotations(bookId).then(setAnnotations);
+  }, [bookId, isLoggedIn]);
+
+  /* ── Text selection → annotation popup ─────────────────────── */
+  useEffect(() => {
+    const el = docAreaRef.current;
+    if (!el || !isLoggedIn) return;
+
+    const onMouseUp = (e: MouseEvent) => {
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? "";
+      if (!text || text.length < 3) {
+        setSelectionPopup(null);
+        return;
+      }
+
+      // Walk up from the anchor node to find data-page or data-page-number
+      let node: Node | null = sel?.anchorNode ?? null;
+      let page: number | null = null;
+      while (node) {
+        const el2 = node instanceof Element ? node : node.parentElement;
+        if (!el2) break;
+        const p =
+          el2.getAttribute("data-page-number") ||
+          el2.getAttribute("data-page");
+        if (p) { page = parseInt(p, 10); break; }
+        node = el2.parentElement;
+      }
+
+      if (!page) page = currentPageRef.current;
+
+      const rect = el.getBoundingClientRect();
+      setSelectionPopup({
+        text,
+        page,
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+      setAnnotationNote("");
+      setAnnotationColor("yellow");
+    };
+
+    el.addEventListener("mouseup", onMouseUp);
+    return () => el.removeEventListener("mouseup", onMouseUp);
+  }, [isLoggedIn]);
 
   /* ── Measure the scroll viewport (ResizeObserver also catches
         fullscreen + panel open/close, not just window resize) ──── */
@@ -617,17 +686,33 @@ export default function PDFViewer({
     });
   }
 
-  /* ── Search ─────────────────────────────────────────────────── */
+  /* ── Search + annotation text renderer ─────────────────────── */
   const highlight = useCallback(
     (item: { str: string }) => {
-      if (!searchQuery) return item.str;
-      const q = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return item.str.replace(
-        new RegExp(q, "gi"),
-        (m) => `<mark class="ebook-mark">${m}</mark>`,
-      );
+      let result = item.str;
+      // Annotation highlights (page-specific, best-effort text match)
+      const pageAnns = annotations.filter((a) => a.page_number === currentPage);
+      for (const ann of pageAnns) {
+        const safeText = ann.selected_text
+          .substring(0, 40)
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (!safeText) continue;
+        result = result.replace(
+          new RegExp(safeText, "gi"),
+          (m) => `<mark class="ann-${ann.highlight_color}">${m}</mark>`,
+        );
+      }
+      // Search highlight (higher priority — applied last so it renders on top)
+      if (searchQuery) {
+        const q = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        result = result.replace(
+          new RegExp(q, "gi"),
+          (m) => `<mark class="ebook-mark">${m}</mark>`,
+        );
+      }
+      return result;
     },
-    [searchQuery],
+    [searchQuery, annotations, currentPage],
   );
 
   async function runSearch(raw: string) {
@@ -899,6 +984,32 @@ export default function PDFViewer({
     setIsPageInputFocused(false);
   }
 
+  /* ── Save annotation ────────────────────────────────────────── */
+  async function handleSaveAnnotation() {
+    if (!selectionPopup || savingAnnotation) return;
+    setSavingAnnotation(true);
+    const result = await addAnnotation(
+      bookId,
+      selectionPopup.page,
+      selectionPopup.text,
+      annotationNote,
+      annotationColor
+    );
+    setSavingAnnotation(false);
+    if (result.success && result.annotation) {
+      setAnnotations((prev) => [...prev, result.annotation!]);
+      window.getSelection()?.removeAllRanges();
+    }
+    setSelectionPopup(null);
+    setAnnotationNote("");
+  }
+
+  /* ── Delete annotation ──────────────────────────────────────── */
+  async function handleDeleteAnnotation(id: string) {
+    await deleteAnnotation(id);
+    setAnnotations((prev) => prev.filter((a) => a.id !== id));
+  }
+
   /* ── Download ───────────────────────────────────────────────── */
   async function handleDownload() {
     if (downloading || !pdfUrl || !allowDownload) return;
@@ -946,8 +1057,14 @@ export default function PDFViewer({
 
   return (
     <>
-      {/* search-highlight color (scoped) */}
-      <style>{`.ebook-mark{background:#fde047;color:#000;border-radius:2px;}`}</style>
+      {/* search + annotation highlight colors (scoped) */}
+      <style>{`
+        .ebook-mark{background:#fde047;color:#000;border-radius:2px;}
+        .ann-yellow{background:#fef08a80;border-radius:2px;}
+        .ann-green{background:#bbf7d080;border-radius:2px;}
+        .ann-blue{background:#bfdbfe80;border-radius:2px;}
+        .ann-pink{background:#fbcfe880;border-radius:2px;}
+      `}</style>
       
       {/* Aria-live region for screen readers */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
@@ -1010,6 +1127,25 @@ export default function PDFViewer({
                     <path d="m21 21-4.3-4.3" />
                   </svg>
                 </ToolButton>
+
+                {isLoggedIn && (
+                  <ToolButton
+                    onClick={() => setPanelTab((p) => (p === "annotations" ? null : "annotations"))}
+                    active={panelTab === "annotations"}
+                    label={locale === "km" ? "ចំណារ" : "Annotations"}
+                    className="relative hidden h-8 w-8 sm:inline-flex"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    {annotations.length > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500 text-[9px] font-bold text-white">
+                        {annotations.length > 9 ? "9+" : annotations.length}
+                      </span>
+                    )}
+                  </ToolButton>
+                )}
 
                 {/* ── Mobile overflow (⋯) — secondary controls live here ── */}
                 <div className="relative sm:hidden">
@@ -1490,6 +1626,63 @@ export default function PDFViewer({
               : { height: "76vh", minHeight: 560 }
           }
         >
+          {/* ── Annotation selection popup ─────────────────────── */}
+          {selectionPopup && isLoggedIn && (
+            <div
+              className="absolute z-50 w-64 rounded-xl border border-white/20 bg-slate-900 p-3 shadow-2xl"
+              style={{
+                left: Math.min(selectionPopup.x, (containerRef.current?.clientWidth ?? 400) - 270),
+                top: Math.max(selectionPopup.y - 170, 8),
+              }}
+            >
+              <p className="mb-2 line-clamp-2 text-[11px] italic text-slate-300">
+                &ldquo;{selectionPopup.text.slice(0, 120)}{selectionPopup.text.length > 120 ? "…" : ""}&rdquo;
+              </p>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[11px] text-text-muted">Color:</span>
+                {(["yellow", "green", "blue", "pink"] as const).map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setAnnotationColor(c)}
+                    className={`h-5 w-5 rounded-full transition-transform ${
+                      annotationColor === c ? "scale-125 ring-2 ring-white" : "hover:scale-110"
+                    } ${
+                      c === "yellow" ? "bg-yellow-300" :
+                      c === "green" ? "bg-green-300" :
+                      c === "blue" ? "bg-blue-300" : "bg-pink-300"
+                    }`}
+                    aria-label={c}
+                  />
+                ))}
+              </div>
+              <input
+                type="text"
+                value={annotationNote}
+                onChange={(e) => setAnnotationNote(e.target.value)}
+                placeholder={locale === "km" ? "ចំណាំ (ស្រេចចិត្ត)…" : "Note (optional)…"}
+                className="mb-2 w-full rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-[12px] text-white outline-none placeholder:text-text-muted focus:border-cyan-400"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveAnnotation}
+                  disabled={savingAnnotation}
+                  className="flex-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-60"
+                >
+                  {savingAnnotation ? "…" : locale === "km" ? "រក្សា" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectionPopup(null)}
+                  className="rounded-lg border border-white/20 px-3 py-1.5 text-[12px] text-slate-300 transition hover:bg-white/10"
+                >
+                  {locale === "km" ? "បោះបង់" : "Cancel"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Offline / cached-copy badge */}
           {(fromCache || isOffline) && (
             <div className="pointer-events-none absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur">
@@ -1537,7 +1730,7 @@ export default function PDFViewer({
               <aside className="absolute left-0 top-0 z-30 flex h-full w-[85%] max-w-[300px] flex-col border-r border-white/10 bg-slate-900 text-white shadow-2xl">
                 <div className="flex items-center justify-between border-b border-white/10 px-3 py-2.5">
                   <span className="text-sm font-semibold">
-                    {panelTab === "outline" ? t("outline") : panelTab === "bookmarks" ? t("bookmarks") : t("search")}
+                    {panelTab === "outline" ? t("outline") : panelTab === "bookmarks" ? t("bookmarks") : panelTab === "annotations" ? (locale === "km" ? "ចំណារ" : "Annotations") : t("search")}
                   </span>
                   <button type="button" onClick={() => setPanelTab(null)} aria-label={t("close")} className="rounded p-1 text-text-muted hover:bg-white/10 hover:text-white">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -1633,6 +1826,81 @@ export default function PDFViewer({
                       </ul>
                     </div>
                   )}
+
+                  {panelTab === "annotations" && (
+                    <div className="flex h-full flex-col">
+                      {annotations.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
+                          <svg className="h-8 w-8 text-white/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          <p className="text-[11px] text-text-muted">
+                            {locale === "km"
+                              ? "គ្មានចំណារ។ ជ្រើសអត្ថបទ ហើយចុចប៊ូតុង \"ចំណារ\"។"
+                              : "No annotations yet. Select any text in the PDF to add one."}
+                          </p>
+                        </div>
+                      ) : (
+                        <ul className="flex-1 space-y-1.5 overflow-y-auto p-2">
+                          {annotations.map((ann) => {
+                            const colorMap = {
+                              yellow: "bg-yellow-300/20 border-yellow-300/40",
+                              green: "bg-green-300/20 border-green-300/40",
+                              blue: "bg-blue-300/20 border-blue-300/40",
+                              pink: "bg-pink-300/20 border-pink-300/40",
+                            };
+                            const dotMap = {
+                              yellow: "bg-yellow-300",
+                              green: "bg-green-300",
+                              blue: "bg-blue-300",
+                              pink: "bg-pink-300",
+                            };
+                            return (
+                              <li
+                                key={ann.id}
+                                className={`rounded-lg border p-2.5 ${colorMap[ann.highlight_color]}`}
+                              >
+                                <div className="flex items-start justify-between gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigateToPage(ann.page_number);
+                                      if (window.innerWidth < 768) setPanelTab(null);
+                                    }}
+                                    className="flex items-center gap-1.5 text-left"
+                                  >
+                                    <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${dotMap[ann.highlight_color]}`} />
+                                    <span className="text-[10px] font-semibold text-cyan-300">
+                                      {locale === "km" ? "ទំព័រ" : "Page"} {fmtNum(ann.page_number)}
+                                    </span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAnnotation(ann.id)}
+                                    aria-label="Delete annotation"
+                                    className="shrink-0 rounded p-0.5 text-text-muted hover:bg-white/10 hover:text-red-400"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                                      <path d="M18 6 6 18M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <p className="mt-1 line-clamp-3 text-[11px] italic text-slate-300">
+                                  &ldquo;{ann.selected_text}&rdquo;
+                                </p>
+                                {ann.note_content && (
+                                  <p className="mt-1 text-[11px] text-slate-400">
+                                    {ann.note_content}
+                                  </p>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </div>
               </aside>
             </>
@@ -1680,7 +1948,7 @@ export default function PDFViewer({
                       estHeight={estHeight}
                       render={Math.abs(p - currentPage) <= RENDER_WINDOW}
                       filter={filter}
-                      customTextRenderer={searchQuery ? highlight : undefined}
+                      customTextRenderer={(searchQuery || annotations.some((a) => a.page_number === currentPage)) ? highlight : undefined}
                       registerRef={registerPageRef}
                     />
                   ))}
@@ -1701,7 +1969,7 @@ export default function PDFViewer({
                         onLoadSuccess={!aspectRatio ? onFirstPageLoad : undefined}
                         renderTextLayer
                         renderAnnotationLayer
-                        customTextRenderer={searchQuery ? highlight : undefined}
+                        customTextRenderer={(searchQuery || annotations.some((a) => a.page_number === currentPage)) ? highlight : undefined}
                         loading={
                           <div style={{ height: estHeight, width: pageWidth }} className="animate-pulse rounded bg-paper/60" />
                         }
