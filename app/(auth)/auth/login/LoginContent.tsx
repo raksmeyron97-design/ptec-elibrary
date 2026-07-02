@@ -178,7 +178,7 @@ export default function LoginContent({ stats }: Props) {
           {/* TOP: Logo */}
           <Link href="/" className="flex items-center gap-3.5 group w-fit">
             <div className="flex h-13 w-13 items-center justify-center rounded-xl bg-white/10 backdrop-blur-md border border-white/20 transition group-hover:bg-white/20 p-2">
-              <Image src="/logo_footer.png" alt="PTEC" width={36} height={36} className="object-contain" />
+              <Image src="/logo_footer.webp" alt="PTEC" width={36} height={36} className="object-contain" />
             </div>
             <div>
               <span className="block text-lg font-bold text-white tracking-wide drop-shadow">

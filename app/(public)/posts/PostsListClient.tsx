@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations, useLocale } from 'next-intl';
 import { PTEC } from "@/lib/ptec";
 
@@ -134,11 +135,11 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
             >
               <div className="overflow-hidden" style={{ aspectRatio: "16/7" }}>
                 {featured.coverUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={featured.coverUrl}
                     alt={featured.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                    fill
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                   />
                 ) : (
                   <div
@@ -217,11 +218,11 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                   {/* Thumbnail */}
                   <div className="relative overflow-hidden flex-none" style={{ aspectRatio: "16/9" }}>
                     {post.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={post.coverUrl}
                         alt={post.title}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-400 group-hover:scale-[1.06]"
+                        fill
+                        className="object-cover transition-transform duration-400 group-hover:scale-[1.06]"
                       />
                     ) : (
                       <div

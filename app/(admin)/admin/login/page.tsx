@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
           
           <div className="flex flex-col items-center justify-center bg-brand p-8 text-white">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-bg-surface p-1.5 shadow-sm">
-              <Image src="/logo_footer.png" alt="PTEC Logo" width={56} height={56} className="object-contain" />
+              <Image src="/logo_footer.webp" alt="PTEC Logo" width={56} height={56} className="object-contain" />
             </div>
             <h2 className="text-2xl font-bold leading-tight">Admin Sign In</h2>
             <p className="mt-2 text-sm text-white/80">

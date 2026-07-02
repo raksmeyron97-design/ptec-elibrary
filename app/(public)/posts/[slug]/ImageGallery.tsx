@@ -6,6 +6,7 @@
 // Fix: outer Tile is <div> not <button> — avoids illegal button-in-button nesting.
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import Image from "next/image";
 
 interface ImageGalleryProps {
   urls: string[];
@@ -168,15 +169,15 @@ function Tile({ url, index, alt, featured, pageUrl, postTitle, onOpen }: TilePro
       {/* skeleton */}
       {!loaded && <Skeleton />}
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={url}
         alt={`${alt} – photo ${index + 1}`}
         onLoad={() => setLoaded(true)}
-        className={`h-full w-full object-cover transition-all duration-500
+        fill
+        className={`object-cover transition-all duration-500
                     group-hover:scale-105 group-hover:brightness-75
                     ${loaded ? "opacity-100" : "opacity-0"}`}
-        loading={index < 4 ? "eager" : "lazy"}
+        priority={index < 4}
       />
 
       {/* gold accent ring on featured */}
@@ -479,12 +480,13 @@ export default function ImageGallery({
           onTouchEnd={onTouchEnd}
         >
           {/* Image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={urls[lightboxIdx]}
             alt={`${alt} – photo ${lightboxIdx + 1}`}
+            width={1920}
+            height={1080}
             onClick={(e) => e.stopPropagation()}
-            className={`max-h-[88vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl
+            className={`max-h-[88vh] max-w-[90vw] w-auto h-auto rounded-2xl object-contain shadow-2xl
                         transition-all duration-300
                         ${lightboxVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}`}
           />

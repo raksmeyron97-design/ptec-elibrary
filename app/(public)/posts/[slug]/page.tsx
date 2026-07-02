@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
@@ -210,11 +211,12 @@ export default async function PostDetailPage({
         style={{ minHeight: "clamp(360px, 50vh, 540px)" }}
       >
         {coverUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={coverUrl}
             alt={post.title}
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            priority
+            className="object-cover"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-blue-950/20 via-blue-950/55 to-blue-950/96" />

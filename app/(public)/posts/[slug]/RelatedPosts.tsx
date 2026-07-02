@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 
 interface RelatedPost {
@@ -56,12 +57,14 @@ export default async function RelatedPosts({ posts, category }: { posts: Related
                 {/* Thumbnail */}
                 <div className="h-[150px] overflow-hidden flex-none">
                   {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={thumb}
-                      alt={post.title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
+                    <div className="relative w-full h-full">
+                      <Image
+                        src={thumb}
+                        alt={post.title}
+                        fill
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
                   ) : (
                     <div className="w-full h-full bg-brand flex items-center justify-center">
                       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

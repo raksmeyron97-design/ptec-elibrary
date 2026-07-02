@@ -10,7 +10,7 @@ interface SealProps {
 
 export function Seal({ size = 64, className = '', watermark = false, variant = 'default' }: SealProps) {
   const opacity = watermark ? 'opacity-5' : 'opacity-100';
-  const logoSrc = variant === 'footer' ? '/logo_footer.png' : '/logo.png';
+  const logoSrc = variant === 'footer' ? '/logo_footer.webp' : '/logo.webp';
   return (
     <div className={`relative flex-shrink-0 ${opacity} ${className}`} style={{ width: size, height: size }}>
       <Image

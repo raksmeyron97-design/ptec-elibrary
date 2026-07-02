@@ -167,21 +167,21 @@ export default async function CatalogsPage({
 
             {/* Category pills */}
             <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <a href={buildHref(params, { category: undefined, page: undefined })}
-                 className={pillClass(!params.category)}>{t('all')}</a>
+              <Link href={buildHref(params, { category: undefined, page: undefined })}
+                 className={pillClass(!params.category)}>{t('all')}</Link>
               {categories.map((cat) => (
-                <a key={cat}
+                <Link key={cat}
                    href={buildHref(params, { category: cat, page: undefined })}
                    className={pillClass(params.category === cat)}>
                   {cat}
-                </a>
+                </Link>
               ))}
             </div>
 
             {/* Right: availability toggle + sort */}
             <div className="flex shrink-0 items-center gap-3">
               {/* Available only (green = semantic availability) */}
-              <a
+              <Link
                 href={
                   params.availability === "available"
                     ? buildHref(params, { availability: undefined, page: undefined })
@@ -196,7 +196,7 @@ export default async function CatalogsPage({
               >
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
                 {t('availableOnly')}
-              </a>
+              </Link>
 
               {/* Sort */}
               <span className="hidden text-[12px] font-medium text-text-muted sm:inline">{t('sort')}</span>
@@ -204,7 +204,7 @@ export default async function CatalogsPage({
                 { key: "newest",    label: t('sortNewest') },
                 { key: "title_asc", label: t('sortTitleAsc') },
               ].map(({ key, label }) => (
-                <a
+                <Link
                   key={key}
                   href={buildHref(params, { sort: key, page: undefined })}
                   className={`hidden rounded-full border px-3 py-1 text-[11px] font-semibold transition-all sm:block ${
@@ -214,7 +214,7 @@ export default async function CatalogsPage({
                   }`}
                 >
                   {label}
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -223,25 +223,25 @@ export default async function CatalogsPage({
           {hasFilters && (
             <div className="flex flex-wrap items-center gap-2">
               {params.q && (
-                <a href={buildHref(params, { q: undefined, page: undefined })}
+                <Link href={buildHref(params, { q: undefined, page: undefined })}
                    className="inline-flex items-center gap-1.5 rounded-full bg-brand/5 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-brand/10">
                   &ldquo;{params.q}&rdquo;
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
-                </a>
+                </Link>
               )}
               {params.category && (
-                <a href={buildHref(params, { category: undefined, page: undefined })}
+                <Link href={buildHref(params, { category: undefined, page: undefined })}
                    className="inline-flex items-center gap-1.5 rounded-full bg-brand/5 py-1 pl-3 pr-2 text-[12px] font-semibold text-brand transition hover:bg-brand/10">
                   {params.category}
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand/15 text-[11px]">×</span>
-                </a>
+                </Link>
               )}
               {params.availability && (
-                <a href={buildHref(params, { availability: undefined, page: undefined })}
+                <Link href={buildHref(params, { availability: undefined, page: undefined })}
                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 py-1 pl-3 pr-2 text-[12px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
                   {t('availableOnly')}
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-200 text-[11px]">×</span>
-                </a>
+                </Link>
               )}
             </div>
           )}

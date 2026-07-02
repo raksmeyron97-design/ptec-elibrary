@@ -249,7 +249,7 @@ export default function AdminSidebar({
             className="w-8 h-8 rounded-lg flex items-center justify-center p-0.5"
             style={{ background: "rgba(255,255,255,0.15)" }}
           >
-            <Image src="/logo_footer.png" alt="PTEC" width={24} height={24} className="object-contain" />
+            <Image src="/logo_footer.webp" alt="PTEC" width={24} height={24} className="object-contain" />
           </div>
           <span className="font-bold text-white text-sm tracking-tight">PTEC Admin</span>
         </div>
@@ -296,7 +296,7 @@ export default function AdminSidebar({
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 p-1 transition-all duration-200"
             style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}
           >
-            <Image src="/logo_footer.png" alt="PTEC Logo" width={32} height={32} className="object-contain" />
+            <Image src="/logo_footer.webp" alt="PTEC Logo" width={32} height={32} className="object-contain" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
