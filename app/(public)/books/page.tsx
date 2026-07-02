@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import InfiniteBookGrid from "@/components/ui/books/InfiniteBookGrid";
+import BookCard from "@/components/ui/books/BookCard";
+import Pagination from "@/components/ui/core/Pagination";
 import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
 import {
@@ -64,7 +64,7 @@ export default async function BooksPage({
   };
   const requestedPage = Math.max(1, Number(params.page) || 1);
 
-  const [{ books, total, nextCursor }, departments, languages, formats] = await Promise.all([
+  const [{ books, total }, departments, languages, formats] = await Promise.all([
     getBooksPage(listParams, requestedPage),
     getDepartmentsCached(),
     getLanguagesCached(),
@@ -227,13 +227,21 @@ export default async function BooksPage({
         {books.length === 0 ? (
           <EmptyState hasFilters={hasFilters} query={params.q} t={t} />
         ) : (
-          <InfiniteBookGrid
-            // Remount when filters/sort/page change so client state resets.
-            key={JSON.stringify({ ...listParams, page: requestedPage })}
-            initialBooks={books}
-            initialCursor={nextCursor}
-            params={listParams}
-          />
+          <>
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
+              {books.map((book, i) => (
+                <BookCard key={book.slug} book={book} priority={i < 6} />
+              ))}
+            </div>
+            <Pagination
+              currentPage={requestedPage}
+              totalPages={Math.ceil(total / BOOKS_PAGE_SIZE)}
+              totalItems={total}
+              pageSize={BOOKS_PAGE_SIZE}
+              searchParams={params}
+              basePath="/books"
+            />
+          </>
         )}
       </div>
     </div>
