@@ -473,7 +473,7 @@ export default function AdminSidebar({
               style={{
                 background: "var(--color-bg-app, #F8FAFC)",
                 borderColor: "var(--color-divider, #E2E8F0)",
-                // @ts-ignore
+                // @ts-expect-error: custom property
                 "--tw-ring-color": "rgba(79,70,229,0.25)",
               }}
             >

@@ -10,7 +10,6 @@ export async function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID();
   const nonceB64 = Buffer.from(nonce).toString('base64');
   
-    const isDev = process.env.NODE_ENV === 'development';
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'nonce-${nonceB64}' 'unsafe-eval' https://challenges.cloudflare.com;
