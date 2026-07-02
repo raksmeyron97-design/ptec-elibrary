@@ -49,6 +49,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    unoptimized: true,
     formats: ["image/avif", "image/webp"],
     // Covers change rarely; cache transformed variants for 31 days.
     minimumCacheTTL: 2678400,

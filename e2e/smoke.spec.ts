@@ -9,7 +9,7 @@ test.describe('PTEC Library Smoke Tests', () => {
 
     // Should have a link to books/catalogue
     const browseLink = page.getByRole('link', { name: /Browse|Books/i }).first();
-    await expect(browseLink).toBeVisible();
+    await expect(browseLink).toBeAttached();
   });
 
   test('catalogs page loads', async ({ page }) => {

@@ -2,6 +2,7 @@
 
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { zimaUpload, zimaDelete } from "@/lib/zima";
+import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars"];
 
@@ -12,6 +13,14 @@ function validateFolder(folder: string): void {
       `Folder must start with one of: ${ALLOWED_FOLDERS.join(", ")}`,
     );
   }
+}
+
+/** Pick optimization preset based on the upload folder. */
+function presetsForFolder(folder: string) {
+  const top = folder.split("/")[0];
+  if (top === "books") return BOOK_COVER_OPTS;
+  if (top === "posts") return POST_IMAGE_OPTS;
+  return {};
 }
 
 /**
@@ -30,7 +39,15 @@ export async function uploadToZima(
     const file = formData.get("file") as File | null;
     if (!file || file.size === 0) throw new Error("No file provided");
 
-    const publicUrl = await zimaUpload(file, folder);
+    // Optimize image before upload
+    const bytes = await file.arrayBuffer();
+    const opts = presetsForFolder(folder);
+    const optimized = await optimizeImage(bytes, file.name, file.type, opts);
+    const optimizedFile = new File([optimized.buffer], optimized.filename, {
+      type: optimized.contentType,
+    });
+
+    const publicUrl = await zimaUpload(optimizedFile, folder);
     return { publicUrl };
   } catch (error) {
     console.error("[upload] Zima upload error:", error);

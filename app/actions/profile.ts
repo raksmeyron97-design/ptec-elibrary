@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { zimaUpload } from "@/lib/zima";
+import { optimizeImage, AVATAR_OPTS } from "@/lib/image-optimize";
 
 export async function updateProfile(formData: FormData) {
   try {
@@ -29,7 +30,14 @@ export async function updateProfile(formData: FormData) {
         return { error: "Avatar image must be less than 5MB" };
       }
 
-      avatarUrl = await zimaUpload(avatarFile, "avatars");
+      // Optimize avatar before upload (resize + convert to WebP)
+      const bytes = await avatarFile.arrayBuffer();
+      const optimized = await optimizeImage(bytes, avatarFile.name, avatarFile.type, AVATAR_OPTS);
+      const optimizedFile = new File([optimized.buffer], optimized.filename, {
+        type: optimized.contentType,
+      });
+
+      avatarUrl = await zimaUpload(optimizedFile, "avatars");
     }
 
     const updates: { full_name?: string; avatar_url?: string } = {};
