@@ -124,6 +124,23 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
 
   // ── Handlers ─────────────────────────────────────────────────────────
 
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let newIndex = index;
+    if (e.key === "ArrowRight") {
+      newIndex = (index + 1) % 3;
+    } else if (e.key === "ArrowLeft") {
+      newIndex = (index - 1 + 3) % 3;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    tabRefs.current[newIndex]?.focus();
+    const nextTab: Tab = newIndex === 0 ? "profile" : newIndex === 1 ? "security" : "team";
+    setTab(nextTab);
+  };
+
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -150,6 +167,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
       const res = await updateProfile(fd);
       if (res?.error) {
         setProfileMsg({ ok: false, text: res.error });
+        setTab("profile");
       } else {
         setProfileMsg({ ok: true, text: "Profile updated successfully." });
         setAvatarFile(null);
@@ -165,6 +183,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
       const res = await updatePassword(new FormData(form));
       if (res?.error) {
         setPasswordMsg({ ok: false, text: res.error });
+        setTab("security");
       } else {
         setPasswordMsg({ ok: true, text: "Password updated successfully." });
         form.reset();
@@ -200,8 +219,8 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
     const raw = new FormData(e.currentTarget);
     const nameKm = (raw.get("name_km") as string)?.trim();
     const nameEn = (raw.get("name_en") as string)?.trim();
-    if (!nameKm) { setTeamMsg({ ok: false, text: "Khmer name is required." }); return; }
-    if (!nameEn) { setTeamMsg({ ok: false, text: "Latin name is required." }); return; }
+    if (!nameKm) { setTeamMsg({ ok: false, text: "Khmer name is required." }); setTab("team"); return; }
+    if (!nameEn) { setTeamMsg({ ok: false, text: "Latin name is required." }); setTab("team"); return; }
 
     let finalPhotoUrl = photoUrl;
 
@@ -218,6 +237,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
       } catch (err) {
         setTeamPhase("idle");
         setTeamMsg({ ok: false, text: err instanceof Error ? err.message : "Photo upload failed." });
+        setTab("team");
         return;
       }
     }
@@ -236,6 +256,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
       setTeamPhase("idle");
       if (res?.error) {
         setTeamMsg({ ok: false, text: res.error });
+        setTab("team");
       } else {
         setTeamMsg({ ok: true, text: "Team profile updated successfully." });
       }
@@ -254,53 +275,78 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
     "w-full h-11 px-3.5 rounded-xl bg-bg-surface border border-divider text-text-body placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition text-sm";
 
   return (
-    <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-6">
+    <div className="max-w-3xl mx-auto">
+      {/* Top Banners */}
+      <div className="mb-6 space-y-3 empty:hidden">
+        <TopBanner msg={profileMsg} onDismiss={() => setProfileMsg(null)} />
+        <TopBanner msg={passwordMsg} onDismiss={() => setPasswordMsg(null)} />
+        <TopBanner msg={teamMsg} onDismiss={() => setTeamMsg(null)} />
+      </div>
 
-      {/* Side nav */}
-      <nav className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible -mx-1 px-1 md:mx-0 md:px-0 md:sticky md:top-6 md:self-start">
-        {tabs.map(({ id, label, sub, icon }) => {
-          const active = tab === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={[
-                "group flex items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
-                active
-                  ? "bg-white border border-divider shadow-sm text-text-heading"
-                  : "text-slate-500 hover:text-text-heading hover:bg-white/60",
-              ].join(" ")}
-            >
-              <span
-                className={[
-                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
-                  active ? "text-white" : "text-slate-400 group-hover:text-slate-600",
-                ].join(" ")}
-                style={active ? { background: "linear-gradient(135deg,#4f46e5,#DDB022)" } : { background: "#F1F5F9" }}
+      <div className="bg-white border border-divider rounded-2xl shadow-sm flex flex-col">
+        {/* Tablist */}
+        <div
+          role="tablist"
+          aria-label="Admin Settings"
+          className="flex overflow-x-auto border-b border-divider bg-slate-50/50 px-2 pt-2 scrollbar-hide"
+        >
+          {tabs.map(({ id, label, icon }, index) => {
+            const active = tab === id;
+            const hasError =
+              (id === "profile" && profileMsg?.ok === false) ||
+              (id === "security" && passwordMsg?.ok === false) ||
+              (id === "team" && teamMsg?.ok === false);
+
+            return (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={active}
+                aria-controls={`panel-${id}`}
+                id={`tab-${id}`}
+                tabIndex={active ? 0 : -1}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                onClick={() => setTab(id)}
+                className={`
+                  relative flex items-center gap-2.5 px-5 py-3 text-sm font-semibold transition-all outline-none border-b-2
+                  ${
+                    active
+                      ? "border-indigo-500 text-indigo-600 bg-white"
+                      : "border-transparent text-slate-500 hover:text-text-heading hover:bg-slate-100"
+                  }
+                  rounded-t-lg
+                `}
               >
                 {icon}
-              </span>
-              <span>
-                <span className="block text-sm font-semibold leading-tight">{label}</span>
-                <span className="block text-xs text-slate-400 leading-tight">{sub}</span>
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+                {label}
+                {hasError && (
+                  <span
+                    className="absolute top-2.5 right-2 w-2 h-2 rounded-full bg-red-500 shadow-sm"
+                    aria-label="Has error"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Content */}
-      <div className="min-w-0">
-
-        {/* ── Profile tab ── */}
-        <section className={tab === "profile" ? "block" : "hidden"}>
-          <div className="bg-white border border-divider rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-5">
+        {/* Tab Panels */}
+        <div className="p-0">
+          {/* ── Profile tab ── */}
+          <section
+            role="tabpanel"
+            id="panel-profile"
+            aria-labelledby="tab-profile"
+            hidden={tab !== "profile"}
+            className="focus:outline-none"
+          >
+            <div className="px-6 pt-6 pb-5 border-b border-divider">
               <h2 className="text-base font-bold text-text-heading">Profile Information</h2>
               <p className="text-sm text-slate-500 mt-0.5">Update your name and profile picture.</p>
             </div>
-            <div className="border-t border-divider" />
 
             <form id="admin-profile-form" onSubmit={onProfileSubmit} className="px-6 py-6 space-y-6">
               {/* Avatar */}
@@ -382,31 +428,20 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
                 </div>
               </div>
             </form>
+          </section>
 
-            <div className="border-t border-divider bg-slate-50 px-6 py-4 flex items-center justify-between gap-3">
-              <InlineMsg msg={profileMsg} />
-              <button
-                type="submit"
-                form="admin-profile-form"
-                disabled={profilePending}
-                className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
-                style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
-              >
-                {profilePending && <Loader2 className="w-4 h-4 animate-spin" />}
-                {profilePending ? "Saving…" : "Save changes"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Security tab ── */}
-        <section className={tab === "security" ? "block" : "hidden"}>
-          <div className="bg-white border border-divider rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-5">
+          {/* ── Security tab ── */}
+          <section
+            role="tabpanel"
+            id="panel-security"
+            aria-labelledby="tab-security"
+            hidden={tab !== "security"}
+            className="focus:outline-none"
+          >
+            <div className="px-6 pt-6 pb-5 border-b border-divider">
               <h2 className="text-base font-bold text-text-heading">Change Password</h2>
               <p className="text-sm text-slate-500 mt-0.5">Choose a strong password to keep your account safe.</p>
             </div>
-            <div className="border-t border-divider" />
 
             <form id="admin-pw-form" onSubmit={onPasswordSubmit} className="px-6 py-6 space-y-5">
               {/* New password */}
@@ -499,45 +534,34 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
                 </p>
               </div>
             </form>
+          </section>
 
-            <div className="border-t border-divider bg-slate-50 px-6 py-4 flex items-center justify-between gap-3">
-              <InlineMsg msg={passwordMsg} />
-              <button
-                type="submit"
-                form="admin-pw-form"
-                disabled={passwordPending || !canSubmitPw}
-                className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
-                style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
-              >
-                {passwordPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                {passwordPending ? "Updating…" : "Update password"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Library Team tab ── */}
-        <section className={tab === "team" ? "block" : "hidden"}>
-          {!teamMember ? (
-            /* No linked team record */
-            <div className="bg-white border border-divider rounded-2xl shadow-sm p-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                <Users className="w-6 h-6 text-slate-400" />
+          {/* ── Library Team tab ── */}
+          <section
+            role="tabpanel"
+            id="panel-team"
+            aria-labelledby="tab-team"
+            hidden={tab !== "team"}
+            className="focus:outline-none"
+          >
+            {!teamMember ? (
+              <div className="p-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                  <Users className="w-6 h-6 text-slate-400" />
+                </div>
+                <h3 className="text-sm font-semibold text-text-heading">No team profile linked</h3>
+                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                  Your account is not linked to a Library Team profile yet. Ask an admin to create your team entry and link it to your account.
+                </p>
               </div>
-              <h3 className="text-sm font-semibold text-text-heading">No team profile linked</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                Your account is not linked to a Library Team profile yet. Ask an admin to create your team entry and link it to your account.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white border border-divider rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-6 pt-6 pb-5">
-                <h2 className="text-base font-bold text-text-heading">Library Team Profile</h2>
-                <p className="text-sm text-slate-500 mt-0.5">This information appears on the public team page.</p>
-              </div>
-              <div className="border-t border-divider" />
+            ) : (
+              <>
+                <div className="px-6 pt-6 pb-5 border-b border-divider">
+                  <h2 className="text-base font-bold text-text-heading">Library Team Profile</h2>
+                  <p className="text-sm text-slate-500 mt-0.5">This information appears on the public team page.</p>
+                </div>
 
-              <form id="admin-team-form" onSubmit={onTeamSubmit} className="px-6 py-6">
+                <form id="admin-team-form" onSubmit={onTeamSubmit} className="px-6 py-6">
                 <div className="grid gap-5 md:grid-cols-2">
 
                   {/* Photo */}
@@ -747,38 +771,69 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
                     </div>
                   )}
                 </div>
-              </form>
+                </form>
+              </>
+            )}
+          </section>
+        </div>
 
-              <div className="border-t border-divider bg-slate-50 px-6 py-4 flex items-center justify-between gap-3">
-                <InlineMsg msg={teamMsg} />
-                <button
-                  type="submit"
-                  form="admin-team-form"
-                  disabled={teamPending || teamBusy}
-                  className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
-                  style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
-                >
-                  {(teamPending || teamBusy) && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {teamPending || teamBusy ? "Saving…" : "Save team profile"}
-                </button>
-              </div>
-            </div>
+        {/* Unified Footer */}
+        <div className="border-t border-divider bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 rounded-b-2xl">
+          {tab === "profile" && (
+            <button
+              type="submit"
+              form="admin-profile-form"
+              disabled={profilePending}
+              className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
+            >
+              {profilePending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {profilePending ? "Saving…" : "Save changes"}
+            </button>
           )}
-        </section>
-
+          {tab === "security" && (
+            <button
+              type="submit"
+              form="admin-pw-form"
+              disabled={passwordPending || !canSubmitPw}
+              className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
+            >
+              {passwordPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {passwordPending ? "Updating…" : "Update password"}
+            </button>
+          )}
+          {tab === "team" && (
+            <button
+              type="submit"
+              form="admin-team-form"
+              disabled={teamPending || teamBusy || !teamMember}
+              className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2 cursor-pointer shrink-0"
+              style={{ background: "linear-gradient(135deg,#4f46e5,#6366f1)" }}
+            >
+              {(teamPending || teamBusy) && <Loader2 className="w-4 h-4 animate-spin" />}
+              {teamPending || teamBusy ? "Saving…" : "Save team profile"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function InlineMsg({ msg }: { msg: { ok: boolean; text: string } | null }) {
-  if (!msg) return <span className="hidden sm:block" />;
+function TopBanner({ msg, onDismiss }: { msg: { ok: boolean; text: string } | null, onDismiss: () => void }) {
+  if (!msg) return null;
   return (
-    <p className={`text-sm font-medium flex items-center gap-2 ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>
-      <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${msg.ok ? "bg-emerald-100" : "bg-red-100"}`}>
-        {msg.ok ? <Check className="w-3 h-3 text-emerald-700" /> : <AlertCircle className="w-3.5 h-3.5 text-red-600" />}
-      </span>
-      {msg.text}
-    </p>
+    <div className={`p-4 rounded-xl border flex items-center justify-between shadow-sm ${msg.ok ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
+      <div className={`text-sm font-medium flex items-center gap-3 ${msg.ok ? "text-emerald-800" : "text-red-800"}`}>
+        <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.ok ? "bg-emerald-200/50" : "bg-red-200/50"}`}>
+          {msg.ok ? <Check className="w-4 h-4 text-emerald-700" /> : <AlertCircle className="w-4 h-4 text-red-700" />}
+        </span>
+        {msg.text}
+      </div>
+      <button type="button" onClick={onDismiss} className={`p-2 rounded-lg transition hover:bg-black/5 cursor-pointer ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>
+        <X className="w-4 h-4" />
+      </button>
+    </div>
   );
 }
