@@ -23,6 +23,8 @@ import { getListsContainingBook } from "@/app/actions/reading-lists";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
 import { getDownloadCount } from "@/app/actions/download";
+import { isSubscribed } from "@/app/actions/subscriptions";
+import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -171,7 +173,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
 
-  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds, initialNote] = await Promise.all([
+  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds, initialNote, isSubDept, isSubCat] = await Promise.all([
     book.dbId ? getReadingProgress(book.dbId) : Promise.resolve(null),
     book.dbId ? getReviews(book.dbId) : Promise.resolve([]),
     book.dbId && user ? getUserReview(book.dbId) : Promise.resolve(null),
@@ -187,6 +189,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       : Promise.resolve([]),
     book.dbId && user ? getListsContainingBook(book.dbId) : Promise.resolve([]),
     book.dbId && user ? getBookNote(book.dbId) : Promise.resolve(""),
+    user && book.department ? isSubscribed("department", book.department) : Promise.resolve(false),
+    user && book.category   ? isSubscribed("category",   book.category)   : Promise.resolve(false),
   ]);
 
   const avgRating =
@@ -333,6 +337,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <Badge variant="neutral">{book.category}</Badge>
               <Badge variant="success">● {book.availability}</Badge>
               <DownloadCount count={downloadCount} />
+              {user && book.department && (
+                <SubscribeButton
+                  filterType="department"
+                  filterValue={book.department}
+                  displayLabel={book.department}
+                  initialSubscribed={isSubDept}
+                />
+              )}
             </div>
 
             <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading break-words">

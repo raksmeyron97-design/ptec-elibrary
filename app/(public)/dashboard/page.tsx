@@ -9,8 +9,14 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getSavedBooks } from "@/app/actions/saved-books";
 import { getMyReadingLists } from "@/app/actions/reading-lists";
+import { getReadingStats } from "@/app/actions/reading-analytics";
+import { getNewContentForSubscriptions } from "@/app/actions/subscriptions";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
 import DashboardTabs from "@/components/ui/dashboard/DashboardTabs";
+import ReadingStats from "@/components/ui/dashboard/ReadingStats";
+import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
+import ExportMyLibrary from "@/components/ui/dashboard/ExportMyLibrary";
+import NewForYou from "@/components/ui/dashboard/NewForYou";
 import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
 import { getTranslations } from "next-intl/server";
@@ -43,7 +49,7 @@ export default async function DashboardPage() {
     department, language, pages, rating,
     authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`;
 
-  const [profileResult, savedBooks, progressResult, readingLists] = await Promise.all([
+  const [profileResult, savedBooks, progressResult, readingLists, readingStats, subAlerts] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, email, role, avatar_url, created_at")
@@ -57,6 +63,8 @@ export default async function DashboardPage() {
       .gt("progress_pct", 0)
       .order("last_read_at", { ascending: false }),
     getMyReadingLists(),
+    getReadingStats(),
+    getNewContentForSubscriptions(),
   ]);
 
   const profile  = profileResult.data;
@@ -258,11 +266,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* ── New for You (subscription alerts) ───────────────── */}
+      <NewForYou alerts={subAlerts} />
+
       {/* ── Main content ────────────────────────────────────── */}
       <div className="mx-auto max-w-[1300px] px-4 pt-4 pb-12 sm:px-8 md:px-12">
         <div className="flex gap-6 lg:items-start">
 
-          {/* ── Left: tabs ── */}
+          {/* ── Left: tabs + recommendations ── */}
           <div className="min-w-0 flex-1">
             <DashboardTabs
               inProgressBooks={inProgressBooks}
@@ -274,11 +285,15 @@ export default async function DashboardPage() {
               totalInProgress={inProgress.length}
               totalCompleted={completed.length}
             />
+            <RecommendedBooks />
           </div>
 
           {/* ── Right: sticky sidebar ── */}
           <aside className="hidden lg:block w-72 shrink-0">
             <div className="sticky top-20 space-y-4">
+
+              {/* Reading Stats */}
+              <ReadingStats stats={readingStats} />
 
               {/* Quick links */}
               <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
@@ -296,6 +311,7 @@ export default async function DashboardPage() {
                       {l.label}
                     </Link>
                   ))}
+                  <ExportMyLibrary />
                 </nav>
               </div>
 
