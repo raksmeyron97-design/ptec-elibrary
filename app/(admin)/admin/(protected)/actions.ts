@@ -1,7 +1,7 @@
 "use server";
 
 // app/admin/actions.ts
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
@@ -220,6 +220,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title });
   await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
 
+  revalidateTag("books", "max");
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);
@@ -277,6 +278,7 @@ export async function deleteBook(bookId: string) {
 
   await logAdminAction(user.id, "deleteBook", "books", bookId);
 
+  revalidateTag("books", "max");
   revalidatePath("/books");
   revalidatePath("/admin");
   revalidatePath("/admin/manage");
@@ -404,6 +406,7 @@ export async function updateBook(bookId: string, formData: FormData) {
 
   await logAdminAction(user.id, "updateBook", "books", bookId, { title });
 
+  revalidateTag("books", "max");
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);

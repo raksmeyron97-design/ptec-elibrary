@@ -1,18 +1,26 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { BookPlus, X, CheckCircle, AlertCircle } from "lucide-react";
 import { submitBookRequest } from "@/app/actions/book-requests";
+import { createClient } from "@/lib/supabase/client";
 
-interface Props {
-  isLoggedIn: boolean;
-}
-
-export default function BookRequestForm({ isLoggedIn }: Props) {
+export default function BookRequestForm() {
   const [open, setOpen]     = useState(false);
   const [busy, setBusy]     = useState(false);
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Resolved client-side (local session read, no network) so the server page
+  // stays free of cookie reads and its data can be cached for all users.
+  // null = unknown yet; only show the sign-in prompt once we KNOW it's false —
+  // the Server Action re-checks auth on submit regardless.
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data }) => setIsLoggedIn(!!data.session));
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,7 +63,7 @@ export default function BookRequestForm({ isLoggedIn }: Props) {
             </div>
 
             <div className="px-6 py-5">
-              {!isLoggedIn ? (
+              {isLoggedIn === false ? (
                 <div className="rounded-xl border border-divider bg-paper p-4 text-center">
                   <p className="text-[13px] text-text-muted">
                     Please{" "}

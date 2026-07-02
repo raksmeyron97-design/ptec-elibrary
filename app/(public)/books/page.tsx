@@ -2,21 +2,26 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
-import { type Book, mapRowToBook } from "@/lib/books";
-import BookCard from "@/components/ui/books/BookCard";
+import InfiniteBookGrid from "@/components/ui/books/InfiniteBookGrid";
 import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
-import Pagination from "@/components/ui/core/Pagination";
-import { getDepartments } from "@/app/actions/departments";
-import { getLanguages, getFormats } from "@/app/actions/filters";
+import {
+  getBooksPage,
+  getDepartmentsCached,
+  getLanguagesCached,
+  getFormatsCached,
+  BOOKS_PAGE_SIZE,
+  type BooksListParams,
+} from "@/lib/books-data";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
 import JsonLd from "@/components/seo/JsonLd";
 
-export const revalidate = 3600;
+// The route renders per-request (it reads searchParams), but every Supabase
+// read is served from unstable_cache in lib/books-data.ts (tag: "books"),
+// invalidated by admin mutations via revalidateTag.
 
 export const metadata: Metadata = {
   title: "Books",
@@ -41,95 +46,6 @@ type SearchParams = {
   sort?: string;
 };
 
-const PAGE_SIZE = 18;
-
-async function fetchBooks(params: SearchParams) {
-  const supabase = await createClient();
-  const page = Math.max(1, Number(params.page) || 1);
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-  const rawQ = params.q?.trim();
-  // Also strip ILIKE wildcards so user input can't alter the %q% wrapping below
-  const q = rawQ ? rawQ.replace(/[(),.\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
-  const dept = params.dept?.trim();
-  const language = params.language?.trim();
-  const format = params.format?.trim();
-
-  type SortOrder = { ascending: boolean; nullsFirst?: boolean };
-  const sortMap: Record<string, { column: string; opts: SortOrder }> = {
-    newest: { column: "published_at", opts: { ascending: false } },
-    oldest: { column: "published_at", opts: { ascending: true } },
-    downloads: { column: "download_count", opts: { ascending: false } },
-    rating: { column: "rating", opts: { ascending: false } },
-    title_asc: { column: "title", opts: { ascending: true } },
-  };
-  const sortKey =
-    params.sort && sortMap[params.sort] ? params.sort : "newest";
-  const { column: sortCol, opts: sortOpts } = sortMap[sortKey];
-
-  // books_with_stats is a view that adds pre-aggregated review_count and
-  // avg_rating to each book row, avoiding the N-row reviews(rating) embed.
-  // mapRowToBook handles both shapes; the view shape is cheaper on the wire.
-  let query = supabase
-    .from("books_with_stats")
-    .select(
-      `id, title, slug, description, cover_color, cover_url, language,
-       published_at, department, pages, isbn, rating, download_count,
-       view_count, tags, review_count, avg_rating,
-       authors(name), categories(name),
-       ${dept ? "departments!inner(name)" : "departments(name)"},
-       book_files(format, file_url, file_size_kb)`,
-      { count: "exact" }
-    )
-    .eq("is_published", true)
-    .order(sortCol, sortOpts)
-    .range(from, to);
-
-  if (q) {
-    // FTS with 'english' config fails for Khmer (no tokenizer). Use ILIKE instead —
-    // backed by pg_trgm GIN indexes on title + description (migration 0007).
-    // Also search department and category names so clicking "ស្រាវជ្រាវ" finds results.
-    const [deptRes, catRes] = await Promise.all([
-      supabase.from("departments").select("id").ilike("name", `%${q}%`),
-      supabase.from("categories").select("id").ilike("name", `%${q}%`),
-    ]);
-    const deptIds = (deptRes.data ?? []).map((d: { id: string }) => d.id);
-    const catIds  = (catRes.data  ?? []).map((c: { id: string }) => c.id);
-
-    const orParts = [
-      `title.ilike.%${q}%`,
-      `description.ilike.%${q}%`,
-      ...(deptIds.length ? [`department_id.in.(${deptIds.join(",")})`] : []),
-      ...(catIds.length  ? [`category_id.in.(${catIds.join(",")})`]  : []),
-    ];
-    query = query.or(orParts.join(","));
-  }
-  if (dept) query = query.eq("departments.name", dept);
-  if (language) query = query.eq("language", language);
-  if (format) {
-    const { data: bf } = await supabase
-      .from("book_files")
-      .select("book_id")
-      .eq("format", format);
-    const formatBookIds = bf?.map((f) => f.book_id) ?? [];
-    if (formatBookIds.length > 0) {
-      query = query.in("id", formatBookIds);
-    } else {
-      query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-    }
-  }
-
-  const { data, error, count } = await query;
-  if (error) {
-    // PGRST103 = page offset beyond dataset size; not a real error
-    if ((error as any).code !== 'PGRST103') {
-      console.error("Supabase error:", error.message);
-    }
-    return { books: [], total: 0, page };
-  }
-  return { books: (data ?? []).map(mapRowToBook), total: count ?? 0, page };
-}
-
 export default async function BooksPage({
   searchParams,
 }: {
@@ -137,16 +53,24 @@ export default async function BooksPage({
 }) {
   const t = await getTranslations('books');
   const params = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const [{ books, total, page }, departments, languages, formats] = await Promise.all([
-    fetchBooks(params),
-    getDepartments(),
-    getLanguages(),
-    getFormats(),
+
+  // Fixed key order → stable unstable_cache key.
+  const listParams: BooksListParams = {
+    q: params.q,
+    dept: params.dept,
+    format: params.format,
+    language: params.language,
+    sort: params.sort,
+  };
+  const requestedPage = Math.max(1, Number(params.page) || 1);
+
+  const [{ books, total, nextCursor }, departments, languages, formats] = await Promise.all([
+    getBooksPage(listParams, requestedPage),
+    getDepartmentsCached(),
+    getLanguagesCached(),
+    getFormatsCached(),
   ]);
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasFilters = !!(
     params.q ||
     params.dept ||
@@ -192,7 +116,7 @@ export default async function BooksPage({
                   : t('noResults')}
                 {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
               </p>
-              <BookRequestForm isLoggedIn={!!user} />
+              <BookRequestForm />
             </div>
           </div>
           {/* Search bar */}
@@ -303,20 +227,13 @@ export default async function BooksPage({
         {books.length === 0 ? (
           <EmptyState hasFilters={hasFilters} query={params.q} t={t} />
         ) : (
-          <>
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
-              {books.map((book) => (
-                <BookCard key={book.slug} book={book} />
-              ))}
-            </div>
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              totalItems={total}
-              pageSize={PAGE_SIZE}
-              searchParams={params as Record<string, string | undefined>}
-            />
-          </>
+          <InfiniteBookGrid
+            // Remount when filters/sort/page change so client state resets.
+            key={JSON.stringify({ ...listParams, page: requestedPage })}
+            initialBooks={books}
+            initialCursor={nextCursor}
+            params={listParams}
+          />
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 // components/ui/books/BookCard.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Book } from "@/lib/books";
@@ -24,6 +24,8 @@ type BookCardProps = {
   };
   /** "browse" (default) = standard card; "continue" = in-progress reading card */
   variant?: "browse" | "continue";
+  /** Eagerly load the cover (use for above-the-fold cards only). */
+  priority?: boolean;
 };
 
 const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
@@ -35,13 +37,12 @@ const formatCount = (n: number) =>
       ? `${(n / 1_000).toFixed(1)}K`
       : String(n);
 
-export default function BookCard({ book, variant = "browse" }: BookCardProps) {
+export default function BookCard({ book, variant = "browse", priority = false }: BookCardProps) {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), []);
 
   const t = useTranslations("home");
   const tc = useTranslations("bookCard");
-  const router = useRouter();
 
   const isContinue = variant === "continue";
   const progress = book.progressPct ?? 0;
@@ -63,10 +64,9 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
 
 
 
-  async function handleClick(e: React.MouseEvent) {
-    e.preventDefault();
+  // Fire-and-forget analytics; Link handles navigation (and viewport prefetch).
+  function handleClick() {
     if (book.dbId) incrementViewCount(book.dbId).catch(() => {});
-    router.push(`/books/${book.slug}`);
   }
 
   return (
@@ -78,7 +78,7 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
         className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-brand transition-transform duration-250 group-hover:scale-x-100"
       />
 
-      <a
+      <Link
         href={`/books/${book.slug}`}
         onClick={handleClick}
         className="flex h-full flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
@@ -90,7 +90,8 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
               src={book.coverUrl}
               alt={`Cover of ${book.title}`}
               fill
-              sizes="(max-width:768px) 50vw, 25vw"
+              sizes="(max-width:640px) 50vw, (max-width:768px) 33vw, (max-width:1024px) 25vw, (max-width:1280px) 20vw, 220px"
+              priority={priority}
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
@@ -214,7 +215,7 @@ export default function BookCard({ book, variant = "browse" }: BookCardProps) {
 
           </div>
         </div>
-      </a>
+      </Link>
     </article>
   );
 }

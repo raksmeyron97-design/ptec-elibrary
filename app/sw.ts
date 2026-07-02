@@ -51,6 +51,24 @@ const customCaching: RuntimeCaching[] = [
     }),
   },
 
+  // Cache Next.js-optimized images (/_next/image?url=...). With the image
+  // optimizer enabled, covers are fetched through this endpoint rather than
+  // directly from the R2/CDN hosts matched above.
+  {
+    matcher: ({ url }) =>
+      url.origin === self.location.origin && url.pathname === '/_next/image',
+    handler: new CacheFirst({
+      cacheName: 'next-image',
+      plugins: [
+        new ExpirationPlugin({
+          maxEntries: 120,
+          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          purgeOnQuotaError: true,
+        }),
+      ],
+    }),
+  },
+
   // Cache public Supabase REST GET responses for non-personalized tables only.
   // SKIP any request that carries an Authorization header — those are RLS-filtered
   // and serving one user's data to another on a shared device is a privacy violation.

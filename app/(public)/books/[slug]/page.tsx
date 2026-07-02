@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Suspense, cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
@@ -22,7 +22,6 @@ import { getBookNote } from "@/app/actions/book-notes";
 import { getListsContainingBook } from "@/app/actions/reading-lists";
 import { getReviews, getUserReview } from "@/app/actions/reviews";
 import { isBookSaved } from "@/app/actions/saved-books";
-import { getDownloadCount } from "@/app/actions/download";
 import { isSubscribed } from "@/app/actions/subscriptions";
 import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import { getTranslations } from "next-intl/server";
@@ -36,11 +35,11 @@ import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import BookQuickNav from "@/components/ui/books/BookQuickNav";
 
-// NOTE: User-specific server data (saved status, reading progress, user review)
-// is baked into the cache on first render after TTL. Most ISR generations will
-// be from anonymous crawlers, so the "no user" state is correct for 99% of hits.
-// Move those three fetches to client components if per-user accuracy is needed.
-export const revalidate = 3600;
+// The public book shell (title, cover, description, metadata) is served from
+// unstable_cache (tag: "books") and renders immediately. User-specific data
+// (saved status, reading progress, reviews, notes) is fetched inside
+// Suspense-wrapped async components below and streams in after the shell —
+// nothing personal is ever baked into a shared cache.
 
 import { SITE_URL } from "@/lib/seo/site";
 
@@ -162,44 +161,50 @@ const getBook = unstable_cache(
   { revalidate: 3600, tags: ["books"] }
 );
 
+// Per-request memoization: several streamed sections below need the current
+// user / reading progress; cache() ensures the network call happens once.
+const getSessionUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+});
+
+const getProgressOnce = cache((bookId: string) => getReadingProgress(bookId));
+
+// Physical copies are public, admin-managed data — cache with the book shell.
+const getCopies = unstable_cache(
+  async (bookId: string) => {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("catalog_copies")
+      .select("*")
+      .eq("catalog_book_id", bookId)
+      .order("created_at", { ascending: true });
+    return data ?? [];
+  },
+  ["book-copies"],
+  { revalidate: 300, tags: ["books"] }
+);
+
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const t = await getTranslations("bookDetail");
-  const tPhys = await getTranslations("physical");
-  
+
   const { slug } = await params;
   const book = await getBook(slug);
   if (!book) notFound();
 
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
+  // Both fetches above/below are unstable_cache-backed — the shell renders
+  // without touching cookies or per-user tables.
+  const copies = book.dbId ? await getCopies(book.dbId) : [];
 
-  const [savedProgress, reviews, userReview, isSaved, downloadCount, copies, listIds, initialNote, isSubDept, isSubCat] = await Promise.all([
-    book.dbId ? getReadingProgress(book.dbId) : Promise.resolve(null),
-    book.dbId ? getReviews(book.dbId) : Promise.resolve([]),
-    book.dbId && user ? getUserReview(book.dbId) : Promise.resolve(null),
-    book.dbId ? isBookSaved(book.dbId) : Promise.resolve(false),
-    book.dbId ? getDownloadCount(book.dbId) : Promise.resolve(0),
-    book.dbId
-      ? authClient
-          .from("catalog_copies")
-          .select("*")
-          .eq("catalog_book_id", book.dbId)
-          .order("created_at", { ascending: true })
-          .then((res) => res.data || [])
-      : Promise.resolve([]),
-    book.dbId && user ? getListsContainingBook(book.dbId) : Promise.resolve([]),
-    book.dbId && user ? getBookNote(book.dbId) : Promise.resolve(""),
-    user && book.department ? isSubscribed("department", book.department) : Promise.resolve(false),
-    user && book.category   ? isSubscribed("category",   book.category)   : Promise.resolve(false),
-  ]);
-
-  const avgRating =
-    reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : 0;
+  // getBook embeds review ratings; mapRowToBook already computed the real
+  // average and count from them.
+  const reviewCount: number = (book as any).reviewCount ?? 0;
+  const avgRating = reviewCount > 0 ? book.rating : 0;
 
   const showPdfCover = book.fromSupabase && !!book.pdfUrl;
-  const resuming = !!(savedProgress && savedProgress.progressPct > 0);
 
   const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
 
@@ -245,7 +250,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       aggregateRating: {
         "@type": "AggregateRating",
         ratingValue: avgRating.toFixed(1),
-        reviewCount: reviews.length,
+        reviewCount,
       }
     } : {}),
   };
@@ -336,14 +341,11 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <Badge variant="brand">{book.department}</Badge>
               <Badge variant="neutral">{book.category}</Badge>
               <Badge variant="success">● {book.availability}</Badge>
-              <DownloadCount count={downloadCount} />
-              {user && book.department && (
-                <SubscribeButton
-                  filterType="department"
-                  filterValue={book.department}
-                  displayLabel={book.department}
-                  initialSubscribed={isSubDept}
-                />
+              <DownloadCount count={book.downloadCount ?? 0} />
+              {book.department && (
+                <Suspense fallback={null}>
+                  <HeroSubscribeBadge department={book.department} />
+                </Suspense>
               )}
             </div>
 
@@ -355,39 +357,10 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               <RatingStars rating={avgRating || book.rating} />
             </div>
 
-            {resuming && (
-              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5 min-w-0">
-                <div className="min-w-0 flex-1 w-full">
-                  <p className="text-[13px] sm:text-[13.5px] font-bold text-brand truncate max-w-full">
-                    {t("continueReading")} — {savedProgress!.progressPct}% {t("complete")}
-                  </p>
-                  <p className="mt-0.5 text-[11px] sm:text-[12px] text-brand/70 font-medium">
-                    {t("lastRead")} {" "}
-                    {savedProgress!.lastReadAt
-                      ? new Date(savedProgress!.lastReadAt).toLocaleDateString()
-                      : t("recently")}
-                  </p>
-                  {/* Progress bar — visible on all sizes */}
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-brand/10 border border-divider sm:hidden">
-                    <div
-                      className="h-full rounded-full bg-brand"
-                      style={{ width: `${savedProgress!.progressPct}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-brand/10 sm:block border border-divider">
-                  <div
-                    className="h-full rounded-full bg-brand"
-                    style={{ width: `${savedProgress!.progressPct}%` }}
-                  />
-                </div>
-                <a
-                  href="#reader"
-                  className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
-                >
-                  {t("resume")}
-                </a>
-              </div>
+            {book.dbId && (
+              <Suspense fallback={null}>
+                <ResumeBanner bookId={book.dbId} />
+              </Suspense>
             )}
 
             <p className="mt-4 sm:mt-6 font-sans text-[15px] sm:text-[15.5px] leading-7 sm:leading-8 text-text-body">{book.summary}</p>
@@ -407,47 +380,16 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             </dl>
 
             <div className="mt-5 sm:mt-7 flex flex-col gap-3 sm:flex-row">
-              {book.pdfUrl ? (
-                <a
-                  href="#reader"
-                  className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
-                >
-                  <Icon name="pdf" className="text-[20px]" />
-                  {resuming ? t("continueReading") : t("readOnline")}
-                </a>
-              ) : (
-                <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
-                  {t("pdfNotAvailable")}
-                </span>
-              )}
-              {book.pdfUrl && (
-                <OfflineSaveButton 
-                  bookId={book.dbId || book.slug} 
-                  bookSlug={book.slug}
-                  title={book.title}
-                  author={book.author}
-                  coverUrl={book.coverUrl || null}
-                  coverColor={book.cover}
-                  pdfUrl={fileSrc as string}
-                  isLoggedIn={!!user}
-                />
-              )}
-              {book.dbId && (
-                <SaveButton
-                  bookId={book.dbId}
-                  bookSlug={book.slug}
-                  initialSaved={isSaved}
-                  isLoggedIn={!!user}
-                />
-              )}
-              {book.dbId && (
-                <ReadingListButton
-                  bookId={book.dbId}
-                  isLoggedIn={!!user}
-                  initialListIds={listIds}
-                />
-              )}
-              <ShareButton url={`${SITE_URL}/books/${slug}`} />
+              <Suspense
+                fallback={
+                  <>
+                    <span className="inline-flex h-[52px] w-full sm:w-44 animate-pulse rounded-[14px] bg-paper" aria-hidden />
+                    <span className="hidden sm:inline-flex h-[52px] w-32 animate-pulse rounded-[14px] bg-paper" aria-hidden />
+                  </>
+                }
+              >
+                <ActionButtons book={book} fileSrc={fileSrc as string | null} slug={slug} />
+              </Suspense>
             </div>
 
             {book.tags && book.tags.length > 0 && (
@@ -473,91 +415,271 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
         {book.fromSupabase && book.pdfUrl && book.dbId && (
           <div id="reader" className="mt-8 sm:mt-12 mb-8 scroll-mt-24 w-full overflow-hidden">
-            <PDFViewer
-              title={book.title}
-              pdfUrl={fileSrc as string}
-              bookId={book.dbId}
-              totalPages={book.pages}
-              initialProgressPct={savedProgress?.progressPct ?? 0}
-              initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-              allowDownload={true}
-              isLoggedIn={!!user}
-            />
+            <Suspense
+              fallback={
+                <div className="aspect-[3/4] w-full animate-pulse rounded-[20px] bg-paper sm:aspect-video" aria-hidden />
+              }
+            >
+              <ReaderSection book={book} fileSrc={fileSrc as string} />
+            </Suspense>
           </div>
         )}
 
         {/* Physical Copies */}
         <PhysicalCopiesList copies={copies as any} />
 
-        {/* Reviews */}
+        {/* Reviews — streamed (needs per-user data: own review, notes) */}
         {book.dbId && (
-          <div id="reviews" className="mt-8 sm:mt-12 scroll-mt-24">
-            <div className="mb-5 sm:mb-6 flex items-center justify-between">
-              <h2 className="font-khmer-serif text-[22px] sm:text-[28px] font-bold text-text-heading">
-                {t("readerReviews")}
-                {reviews.length > 0 && (
-                  <span className="ml-2 sm:ml-2.5 text-sm sm:text-base font-semibold text-text-muted">({reviews.length})</span>
-                )}
-              </h2>
-              {reviews.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <svg viewBox="0 0 24 24" className="h-5 w-5 fill-accent stroke-accent" strokeWidth={1}>
-                    <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
-                  </svg>
-                  <span className="text-sm font-bold text-text-heading">{avgRating.toFixed(1)}</span>
-                  <span className="text-sm text-text-muted">{t("average")}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[1fr_360px]">
-              <ReviewList reviews={reviews} totalCount={reviews.length} avgRating={avgRating} />
-              <div className="lg:sticky lg:top-6 lg:self-start flex flex-col gap-4">
-                {user ? (
-                  <ReviewForm
-                    bookId={book.dbId}
-                    bookSlug={book.slug}
-                    existingRating={userReview?.rating}
-                    existingContent={userReview?.content}
-                  />
-                ) : (
-                  <div className="rounded-[20px] border border-divider bg-bg-surface p-6 text-center shadow-sm">
-                    <Icon name="star" className="mb-3 text-4xl text-accent" />
-                    <h3 className="text-base font-bold text-text-heading">{t("leaveAReview")}</h3>
-                    <p className="mt-2 text-sm text-text-muted font-sans">
-                      {t("signInToReview")}
-                    </p>
-                    <Link
-                      href={`/auth/login?callbackUrl=/books/${book.slug}#reviews`}
-                      className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
-                    >
-                      <Icon name="account" className="text-base" />
-                      {t("signInToReview")}
-                    </Link>
-                  </div>
-                )}
-                <CiteBook book={book} />
-                {book.dbId && (
-                  <BookNotes
-                    bookId={book.dbId}
-                    initialContent={initialNote}
-                    isLoggedIn={!!user}
-                    bookSlug={book.slug}
-                  />
-                )}
+          <Suspense
+            fallback={
+              <div className="mt-8 sm:mt-12">
+                <div className="mb-6 h-8 w-56 animate-pulse rounded-lg bg-paper" aria-hidden />
+                <div className="h-48 animate-pulse rounded-[20px] bg-paper" aria-hidden />
               </div>
-            </div>
-          </div>
+            }
+          >
+            <ReviewsSection book={book} />
+          </Suspense>
         )}
 
-        {/* Related Books */}
-        <RelatedBooks
-          currentSlug={book.slug}
-          department={book.department}
-          category={book.category}
-          tags={book.tags ?? []}
-        />
+        {/* Related Books — self-fetching; stream after the main content */}
+        <Suspense fallback={null}>
+          <RelatedBooks
+            currentSlug={book.slug}
+            department={book.department}
+            category={book.category}
+            tags={book.tags ?? []}
+          />
+        </Suspense>
       </div>
     </section>
+  );
+}
+
+// ── Streamed sections ─────────────────────────────────────────────────────────
+// Each of these is an async Server Component rendered inside <Suspense>. They
+// are the only place this route reads cookies/user state, so the shell above
+// renders (and caches) independently of them.
+
+async function HeroSubscribeBadge({ department }: { department: string }) {
+  const user = await getSessionUser();
+  if (!user) return null;
+  const subscribed = await isSubscribed("department", department);
+  return (
+    <SubscribeButton
+      filterType="department"
+      filterValue={department}
+      displayLabel={department}
+      initialSubscribed={subscribed}
+    />
+  );
+}
+
+async function ResumeBanner({ bookId }: { bookId: string }) {
+  const savedProgress = await getProgressOnce(bookId);
+  if (!savedProgress || savedProgress.progressPct <= 0) return null;
+  const t = await getTranslations("bookDetail");
+
+  return (
+    <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 rounded-[14px] border border-divider bg-brand/5 px-4 py-3 sm:py-3.5 min-w-0">
+      <div className="min-w-0 flex-1 w-full">
+        <p className="text-[13px] sm:text-[13.5px] font-bold text-brand truncate max-w-full">
+          {t("continueReading")} — {savedProgress.progressPct}% {t("complete")}
+        </p>
+        <p className="mt-0.5 text-[11px] sm:text-[12px] text-brand/70 font-medium">
+          {t("lastRead")} {" "}
+          {savedProgress.lastReadAt
+            ? new Date(savedProgress.lastReadAt).toLocaleDateString()
+            : t("recently")}
+        </p>
+        {/* Progress bar — visible on all sizes */}
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-brand/10 border border-divider sm:hidden">
+          <div
+            className="h-full rounded-full bg-brand"
+            style={{ width: `${savedProgress.progressPct}%` }}
+          />
+        </div>
+      </div>
+      <div className="hidden h-2 w-32 shrink-0 overflow-hidden rounded-full bg-brand/10 sm:block border border-divider">
+        <div
+          className="h-full rounded-full bg-brand"
+          style={{ width: `${savedProgress.progressPct}%` }}
+        />
+      </div>
+      <a
+        href="#reader"
+        className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
+      >
+        {t("resume")}
+      </a>
+    </div>
+  );
+}
+
+async function ActionButtons({
+  book,
+  fileSrc,
+  slug,
+}: {
+  book: BookWithSource;
+  fileSrc: string | null;
+  slug: string;
+}) {
+  const t = await getTranslations("bookDetail");
+  const user = await getSessionUser();
+
+  const [savedProgress, isSaved, listIds] = await Promise.all([
+    book.dbId ? getProgressOnce(book.dbId) : Promise.resolve(null),
+    book.dbId ? isBookSaved(book.dbId) : Promise.resolve(false),
+    book.dbId && user ? getListsContainingBook(book.dbId) : Promise.resolve([]),
+  ]);
+  const resuming = !!(savedProgress && savedProgress.progressPct > 0);
+
+  return (
+    <>
+      {book.pdfUrl ? (
+        <a
+          href="#reader"
+          className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
+        >
+          <Icon name="pdf" className="text-[20px]" />
+          {resuming ? t("continueReading") : t("readOnline")}
+        </a>
+      ) : (
+        <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
+          {t("pdfNotAvailable")}
+        </span>
+      )}
+      {book.pdfUrl && (
+        <OfflineSaveButton
+          bookId={book.dbId || book.slug}
+          bookSlug={book.slug}
+          title={book.title}
+          author={book.author}
+          coverUrl={book.coverUrl || null}
+          coverColor={book.cover}
+          pdfUrl={fileSrc as string}
+          isLoggedIn={!!user}
+        />
+      )}
+      {book.dbId && (
+        <SaveButton
+          bookId={book.dbId}
+          bookSlug={book.slug}
+          initialSaved={isSaved}
+          isLoggedIn={!!user}
+        />
+      )}
+      {book.dbId && (
+        <ReadingListButton
+          bookId={book.dbId}
+          isLoggedIn={!!user}
+          initialListIds={listIds}
+        />
+      )}
+      <ShareButton url={`${SITE_URL}/books/${slug}`} />
+    </>
+  );
+}
+
+async function ReaderSection({
+  book,
+  fileSrc,
+}: {
+  book: BookWithSource;
+  fileSrc: string;
+}) {
+  const [user, savedProgress] = await Promise.all([
+    getSessionUser(),
+    getProgressOnce(book.dbId!),
+  ]);
+
+  return (
+    <PDFViewer
+      title={book.title}
+      pdfUrl={fileSrc}
+      bookId={book.dbId!}
+      totalPages={book.pages}
+      initialProgressPct={savedProgress?.progressPct ?? 0}
+      initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
+      allowDownload={true}
+      isLoggedIn={!!user}
+    />
+  );
+}
+
+async function ReviewsSection({ book }: { book: BookWithSource }) {
+  const t = await getTranslations("bookDetail");
+  const user = await getSessionUser();
+
+  const [reviews, userReview, initialNote] = await Promise.all([
+    getReviews(book.dbId!),
+    user ? getUserReview(book.dbId!) : Promise.resolve(null),
+    user ? getBookNote(book.dbId!) : Promise.resolve(""),
+  ]);
+
+  const avgRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+
+  return (
+    <div id="reviews" className="mt-8 sm:mt-12 scroll-mt-24">
+      <div className="mb-5 sm:mb-6 flex items-center justify-between">
+        <h2 className="font-khmer-serif text-[22px] sm:text-[28px] font-bold text-text-heading">
+          {t("readerReviews")}
+          {reviews.length > 0 && (
+            <span className="ml-2 sm:ml-2.5 text-sm sm:text-base font-semibold text-text-muted">({reviews.length})</span>
+          )}
+        </h2>
+        {reviews.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-accent stroke-accent" strokeWidth={1}>
+              <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
+            </svg>
+            <span className="text-sm font-bold text-text-heading">{avgRating.toFixed(1)}</span>
+            <span className="text-sm text-text-muted">{t("average")}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[1fr_360px]">
+        <ReviewList reviews={reviews} totalCount={reviews.length} avgRating={avgRating} />
+        <div className="lg:sticky lg:top-6 lg:self-start flex flex-col gap-4">
+          {user ? (
+            <ReviewForm
+              bookId={book.dbId!}
+              bookSlug={book.slug}
+              existingRating={userReview?.rating}
+              existingContent={userReview?.content}
+            />
+          ) : (
+            <div className="rounded-[20px] border border-divider bg-bg-surface p-6 text-center shadow-sm">
+              <Icon name="star" className="mb-3 text-4xl text-accent" />
+              <h3 className="text-base font-bold text-text-heading">{t("leaveAReview")}</h3>
+              <p className="mt-2 text-sm text-text-muted font-sans">
+                {t("signInToReview")}
+              </p>
+              <Link
+                href={`/auth/login?callbackUrl=/books/${book.slug}#reviews`}
+                className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
+              >
+                <Icon name="account" className="text-base" />
+                {t("signInToReview")}
+              </Link>
+            </div>
+          )}
+          <CiteBook book={book} />
+          {book.dbId && (
+            <BookNotes
+              bookId={book.dbId}
+              initialContent={initialNote}
+              isLoggedIn={!!user}
+              bookSlug={book.slug}
+            />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
