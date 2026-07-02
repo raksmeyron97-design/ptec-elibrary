@@ -37,4 +37,8 @@ jobs:
       run: npx playwright install --with-deps
       
     - name: Run E2E Tests
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: "https://your-project-id.supabase.co"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "your_supabase_anon_key"
+        NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
       run: npx playwright test
