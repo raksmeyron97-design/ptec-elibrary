@@ -4,7 +4,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createPublicClient } from "@/lib/supabase/public";
 import type { CatalogBook } from "@/lib/catalog";
 import { getAvailability } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
@@ -41,8 +42,9 @@ type SearchParams = {
 const PAGE_SIZE = 18;
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
-async function fetchCatalogBooks(params: SearchParams) {
-  const supabase = await createClient();
+const fetchCatalogBooks = unstable_cache(
+  async (params: SearchParams) => {
+    const supabase = createPublicClient();
   const page   = Math.max(1, Number(params.page) || 1);
   const from   = (page - 1) * PAGE_SIZE;
   const to     = from + PAGE_SIZE - 1;
@@ -86,20 +88,27 @@ async function fetchCatalogBooks(params: SearchParams) {
   if (avail === "available") query = query.gt("copies_available", 0);
 
   const { data, error, count } = await query;
-  if (error) { console.error(error.message); return { books: [] as CatalogBook[], total: 0, page }; }
-  return { books: (data ?? []) as CatalogBook[], total: count ?? 0, page };
-}
+    if (error) { console.error(error.message); return { books: [] as CatalogBook[], total: 0, page }; }
+    return { books: (data ?? []) as CatalogBook[], total: count ?? 0, page };
+  },
+  ["catalog-books-query"],
+  { revalidate: 3600, tags: ["catalog_books"] }
+);
 
-async function fetchCategories(): Promise<string[]> {
-  const supabase = await createClient();
+const fetchCategories = unstable_cache(
+  async (): Promise<string[]> => {
+    const supabase = createPublicClient();
   const { data } = await supabase
     .from("catalog_books")
     .select("category")
     .eq("is_active", true)
     .not("category", "is", null);
-  const unique = [...new Set((data ?? []).map((r: any) => r.category).filter(Boolean))];
-  return unique.sort() as string[];
-}
+    const unique = [...new Set((data ?? []).map((r: any) => r.category).filter(Boolean))];
+    return unique.sort() as string[];
+  },
+  ["catalog-categories"],
+  { revalidate: 3600, tags: ["catalog_books"] }
+);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function buildHref(sp: SearchParams, overrides: Partial<SearchParams>) {

@@ -9,7 +9,7 @@
 import { Angkor, Inter, Hanuman, Crimson_Pro } from "next/font/google";
 
 export const crimsonPro = Crimson_Pro({
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "700"],
   subsets: ["latin"],
   display: "swap",
   variable: "--font-var-serif",

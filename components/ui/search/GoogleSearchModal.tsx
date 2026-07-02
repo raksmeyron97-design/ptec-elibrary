@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Icon, { IconName } from "@/components/ui/core/Icon";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { pushRecentSearch, readRecent } from "@/components/ui/home/SearchSuggestions";
+import "@/app/gcse.css";
 
 // ── Static config ──────────────────────────────────────────────────────────────
 const TYPE_ICON: Record<Suggestion["type"], IconName> = {

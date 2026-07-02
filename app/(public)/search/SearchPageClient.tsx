@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Icon from "@/components/ui/core/Icon";
 import type { SearchResult, SearchCounts, SearchResultType } from "@/app/api/search/native/route";
+import "@/app/gcse.css";
 
 const RECENT_KEY = "ptec-recent-searches";
 const MAX_RECENT = 6;

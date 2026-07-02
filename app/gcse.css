@@ -1,0 +1,619 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Google Custom Search Engine — PTEC Brand Override
+   Scope: .ptec-gsc-container (wraps the gcse-search div in GoogleSearchModal)
+   Tokens: --ptec-brand (#1E3A8A), --ptec-accent (#DDB022)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Reset Google's own shell ──────────────────────────────────── */
+.ptec-gsc-container .gsc-control-cse,
+.ptec-gsc-container .gsc-control-cse.gsc-control-cse-en {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+}
+.ptec-gsc-container table,
+.ptec-gsc-container td,
+.ptec-gsc-container tr,
+.ptec-gsc-container tbody {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── Hide Google's injected input/button — we use our own native React input ── */
+.ptec-gsc-container .gsc-input-box,
+.ptec-gsc-container .gsc-search-button,
+.ptec-gsc-container .gsc-search-button-v2,
+.ptec-gsc-container .gsc-search-form {
+  display: none !important;
+}
+
+/* ── Results meta bar (count + sort) ──────────────────────────── */
+.ptec-gsc-container .gsc-above-wrapper-area,
+.ptec-gsc-container .gsc-resultsHeader {
+  background: transparent !important;
+  border: none !important;
+  padding: 8px 0 4px !important;
+}
+.ptec-gsc-container .gsc-result-info,
+.ptec-gsc-container .gsc-result-info-container {
+  color: var(--ptec-text-muted) !important;
+  font-size: 12px !important;
+}
+
+/* ── Results wrapper ───────────────────────────────────────────── */
+.ptec-gsc-container .gsc-results-wrapper-overlay,
+.ptec-gsc-container .gsc-results-wrapper-nooverlay,
+.ptec-gsc-container .gsc-results {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.ptec-gsc-container .gsc-expansionArea {
+  padding: 0 !important;
+}
+
+/* ── Individual result card ────────────────────────────────────── */
+.ptec-gsc-container .gsc-webResult.gsc-result,
+.ptec-gsc-container .gs-result {
+  background: var(--ptec-bg-app) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 14px !important;
+  margin-bottom: 10px !important;
+  padding: 16px 18px !important;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s !important;
+  cursor: pointer !important;
+}
+.ptec-gsc-container .gsc-webResult.gsc-result:hover,
+.ptec-gsc-container .gs-result:hover {
+  border-color: var(--ptec-brand) !important;
+  background: var(--ptec-bg-surface) !important;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.10) !important;
+}
+
+/* ── Result title ──────────────────────────────────────────────── */
+.ptec-gsc-container a.gs-title,
+.ptec-gsc-container .gs-title,
+.ptec-gsc-container .gs-title b {
+  color: var(--ptec-brand) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  line-height: 1.4 !important;
+}
+.ptec-gsc-container a.gs-title:hover {
+  color: var(--ptec-brand-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* ── Result URL breadcrumb ─────────────────────────────────────── */
+.ptec-gsc-container .gsc-url-top,
+.ptec-gsc-container .gsc-url-bottom,
+.ptec-gsc-container .gs-visibleUrl,
+.ptec-gsc-container .gs-visibleUrl-breadcrumb {
+  color: var(--ptec-accent-text) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* ── Result snippet ────────────────────────────────────────────── */
+.ptec-gsc-container .gs-snippet {
+  color: var(--ptec-text-body) !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+  margin-top: 4px !important;
+}
+.ptec-gsc-container .gs-snippet b {
+  color: var(--ptec-text-heading) !important;
+  font-weight: 700 !important;
+  background: rgba(221, 176, 34, 0.12) !important;
+  border-radius: 3px !important;
+  padding: 0 2px !important;
+}
+
+/* ── Tabs (Web / Image) ────────────────────────────────────────── */
+.ptec-gsc-container .gsc-tabsArea {
+  border-bottom: 2px solid var(--ptec-border) !important;
+  margin-bottom: 14px !important;
+}
+.ptec-gsc-container .gsc-tabHeader {
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 16px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  transition: color 0.15s !important;
+}
+.ptec-gsc-container .gsc-tabHeader:hover {
+  color: var(--ptec-brand) !important;
+}
+.ptec-gsc-container .gsc-tabHeader.gsc-tabhActive,
+.ptec-gsc-container .gsc-tabHeader.gsc-tabhActive:hover {
+  color: var(--ptec-brand) !important;
+  border-bottom: 2px solid var(--ptec-brand) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Pagination ────────────────────────────────────────────────── */
+.ptec-gsc-container .gsc-cursor-box {
+  text-align: center !important;
+  padding: 12px 0 4px !important;
+}
+.ptec-gsc-container .gsc-cursor-page {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  margin: 3px !important;
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 8px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+}
+.ptec-gsc-container .gsc-cursor-page:hover {
+  border-color: var(--ptec-brand) !important;
+  color: var(--ptec-brand) !important;
+  background: var(--ptec-bg-app) !important;
+}
+.ptec-gsc-container .gsc-cursor-current-page {
+  background: var(--ptec-brand) !important;
+  border-color: var(--ptec-brand) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ── No-results state ──────────────────────────────────────────── */
+.ptec-gsc-container .gs-no-results-result .gs-snippet,
+.ptec-gsc-container .gs-error-result .gs-snippet {
+  background: var(--ptec-bg-app) !important;
+  border: 1.5px dashed var(--ptec-border) !important;
+  border-radius: 12px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 14px !important;
+  padding: 20px 24px !important;
+  text-align: center !important;
+}
+
+/* ── Sort dropdown ─────────────────────────────────────────────── */
+.ptec-gsc-container .gsc-orderby-container,
+.ptec-gsc-container .gsc-orderby-label {
+  color: var(--ptec-text-muted) !important;
+  font-size: 12px !important;
+}
+.ptec-gsc-container .gsc-selected-option {
+  color: var(--ptec-brand) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ── Hide Google branding / promo links ────────────────────────── */
+.ptec-gsc-container .gcsc-find-more-on-google-root,
+.ptec-gsc-container .gcsc-branding,
+.ptec-gsc-container .gcsc-find-more-on-google,
+.ptec-gsc-container .gs-promoted-header,
+.ptec-gsc-container .gsc-adBlock {
+  display: none !important;
+}
+
+/* ── Image results grid ────────────────────────────────────────── */
+.ptec-gsc-container .gsc-imageResult {
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+.ptec-gsc-container .gsc-imageResult:hover {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.12) !important;
+}
+
+/* ── Dark-mode adjustments ─────────────────────────────────────── */
+:root.dark .ptec-gsc-container .gsc-webResult.gsc-result {
+  background: var(--ptec-bg-body) !important;
+}
+:root.dark .ptec-gsc-container .gsc-webResult.gsc-result:hover {
+  background: var(--ptec-bg-surface) !important;
+}
+:root.dark .ptec-gsc-container .gs-snippet b {
+  background: rgba(244, 222, 138, 0.15) !important;
+}
+:root.dark .ptec-gsc-container .gsc-cursor-page {
+  background: var(--ptec-bg-surface) !important;
+  border-color: var(--ptec-border) !important;
+}
+:root.dark .ptec-gsc-container .gsc-cursor-page:hover {
+  background: var(--ptec-bg-body) !important;
+}
+
+/* ── Prefers-reduced-motion ────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ptec-gsc-container * {
+    transition: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Google CSE — Search Page (full gcse-search widget)
+   Scope: .ptec-gcse-page on /search
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Shell reset + force full width ────────────────────────────── */
+.ptec-gcse-page .gsc-control-cse,
+.ptec-gcse-page .gsc-control-cse.gsc-control-cse-en {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  font-family: inherit !important;
+  width: 100% !important;
+}
+.ptec-gcse-page table,
+.ptec-gcse-page td,
+.ptec-gcse-page tr,
+.ptec-gcse-page tbody {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* ── Search box container — full width ─────────────────────────── */
+.ptec-gcse-page .gsc-search-box,
+.ptec-gcse-page .gsc-search-box-tools,
+.ptec-gcse-page form.gsc-search-box {
+  width: 100% !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+}
+/* The outer table that holds input + button cells */
+.ptec-gcse-page table.gsc-search-box {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+/* Input cell — flex-grows to fill available space */
+.ptec-gcse-page td.gsc-input {
+  width: 100% !important;
+  padding: 0 !important;
+}
+/* Button cell — fixed width */
+.ptec-gcse-page td.gsc-search-button {
+  width: 64px !important;
+  min-width: 64px !important;
+  padding: 0 !important;
+}
+/* Inner input-box table also full width */
+.ptec-gcse-page .gsc-input-box table,
+.ptec-gcse-page .gsc-input-box table.gsc-search-box {
+  width: 100% !important;
+  table-layout: auto !important;
+}
+.ptec-gcse-page .gsc-search-box td {
+  padding: 0 !important;
+}
+
+/* ── Input container ───────────────────────────────────────────── */
+.ptec-gcse-page .gsc-input-box {
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 14px 0 0 14px !important;
+  background: var(--ptec-bg-surface) !important;
+  height: 54px !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+.ptec-gcse-page .gsc-input-box:focus-within {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.10) !important;
+}
+
+/* ── Actual input field ────────────────────────────────────────── */
+.ptec-gcse-page .gsc-input {
+  background: transparent !important;
+  color: var(--ptec-text-heading) !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  font-family: inherit !important;
+  padding: 0 18px !important;
+  height: 54px !important;
+  line-height: 54px !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.ptec-gcse-page .gsc-input::placeholder {
+  color: var(--ptec-text-muted) !important;
+  font-weight: 400 !important;
+}
+/* Hide Google's search icon inside input */
+.ptec-gcse-page .gsib_a {
+  padding: 0 !important;
+}
+.ptec-gcse-page .gsib_b {
+  padding-right: 12px !important;
+}
+
+/* ── Search button ─────────────────────────────────────────────── */
+.ptec-gcse-page .gsc-search-button,
+.ptec-gcse-page .gsc-search-button-v2 {
+  background: var(--ptec-brand) !important;
+  border: none !important;
+  border-radius: 0 14px 14px 0 !important;
+  height: 54px !important;
+  width: 64px !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: opacity 0.15s !important;
+}
+.ptec-gcse-page .gsc-search-button-v2:hover {
+  opacity: 0.88 !important;
+}
+.ptec-gcse-page .gsc-search-button-v2 svg {
+  fill: #ffffff !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* ── Autocomplete dropdown (native Google suggestions) ─────────── */
+.ptec-gcse-page .gsc-completion-container {
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 14px !important;
+  margin-top: 6px !important;
+  background: var(--ptec-bg-surface) !important;
+  box-shadow: 0 8px 32px -8px rgba(11, 21, 48, 0.18) !important;
+  overflow: hidden !important;
+}
+.ptec-gcse-page .gsc-completion-container table,
+.ptec-gcse-page .gsc-completion-container td,
+.ptec-gcse-page .gsc-completion-container tr {
+  background: transparent !important;
+}
+.ptec-gcse-page .gsc-completion-title,
+.ptec-gcse-page .gsc-completion-snippet {
+  padding: 10px 16px !important;
+  color: var(--ptec-text-heading) !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  cursor: pointer !important;
+}
+.ptec-gcse-page .gsc-completion-selected .gsc-completion-title,
+.ptec-gcse-page .gsc-completion-selected .gsc-completion-snippet {
+  background: color-mix(in srgb, var(--ptec-brand) 6%, transparent) !important;
+  color: var(--ptec-brand) !important;
+}
+/* "Enhanced by Google" branding in autocomplete */
+.ptec-gcse-page .gsc-branding {
+  padding: 8px 16px !important;
+  border-top: 1px solid var(--ptec-border) !important;
+}
+.ptec-gcse-page .gsc-branding-text {
+  color: var(--ptec-text-muted) !important;
+  font-size: 11px !important;
+}
+
+/* ── Results spacing ───────────────────────────────────────────── */
+.ptec-gcse-page .gsc-results-wrapper-nooverlay,
+.ptec-gcse-page .gsc-results-wrapper-overlay,
+.ptec-gcse-page .gsc-results {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-top: 24px !important;
+}
+.ptec-gcse-page .gsc-expansionArea {
+  padding: 0 !important;
+}
+
+/* ── Tabs (Web / Image) ────────────────────────────────────────── */
+.ptec-gcse-page .gsc-tabsArea {
+  border-bottom: 2px solid var(--ptec-border) !important;
+  margin-bottom: 16px !important;
+}
+.ptec-gcse-page .gsc-tabHeader {
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 18px !important;
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  transition: color 0.15s !important;
+}
+.ptec-gcse-page .gsc-tabHeader:hover  { color: var(--ptec-brand) !important; }
+.ptec-gcse-page .gsc-tabHeader.gsc-tabhActive,
+.ptec-gcse-page .gsc-tabHeader.gsc-tabhActive:hover {
+  color: var(--ptec-brand) !important;
+  border-bottom: 2px solid var(--ptec-brand) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Result count + sort ───────────────────────────────────────── */
+.ptec-gcse-page .gsc-above-wrapper-area,
+.ptec-gcse-page .gsc-resultsHeader {
+  background: transparent !important;
+  border: none !important;
+  padding: 4px 0 12px !important;
+}
+.ptec-gcse-page .gsc-result-info,
+.ptec-gcse-page .gsc-result-info-container { color: var(--ptec-text-muted) !important; font-size: 12px !important; }
+.ptec-gcse-page .gsc-orderby-container,
+.ptec-gcse-page .gsc-orderby-label        { color: var(--ptec-text-muted) !important; font-size: 12px !important; }
+.ptec-gcse-page .gsc-selected-option      { color: var(--ptec-brand) !important; font-size: 12px !important; font-weight: 600 !important; }
+
+/* ── Individual result card ────────────────────────────────────── */
+.ptec-gcse-page .gsc-webResult.gsc-result,
+.ptec-gcse-page .gs-result {
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 14px !important;
+  margin-bottom: 10px !important;
+  padding: 16px 20px !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+  cursor: pointer !important;
+}
+.ptec-gcse-page .gsc-webResult.gsc-result:hover,
+.ptec-gcse-page .gs-result:hover {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.10) !important;
+}
+
+/* ── Title ─────────────────────────────────────────────────────── */
+.ptec-gcse-page a.gs-title,
+.ptec-gcse-page .gs-title,
+.ptec-gcse-page .gs-title b {
+  color: var(--ptec-brand) !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+.ptec-gcse-page a.gs-title:hover { text-decoration: underline !important; }
+
+/* ── URL breadcrumb ────────────────────────────────────────────── */
+.ptec-gcse-page .gsc-url-top,
+.ptec-gcse-page .gs-visibleUrl,
+.ptec-gcse-page .gs-visibleUrl-breadcrumb {
+  color: var(--ptec-accent-text, #2e7d32) !important;
+  font-size: 12px !important;
+}
+
+/* ── Snippet ───────────────────────────────────────────────────── */
+.ptec-gcse-page .gs-snippet {
+  color: var(--ptec-text-body) !important;
+  font-size: 13.5px !important;
+  line-height: 1.65 !important;
+  margin-top: 4px !important;
+}
+.ptec-gcse-page .gs-snippet b {
+  color: var(--ptec-text-heading) !important;
+  font-weight: 700 !important;
+  background: rgba(221, 176, 34, 0.12) !important;
+  border-radius: 3px !important;
+  padding: 0 2px !important;
+}
+
+/* ── Pagination ────────────────────────────────────────────────── */
+.ptec-gcse-page .gsc-cursor-box { text-align: center !important; padding: 16px 0 4px !important; }
+.ptec-gcse-page .gsc-cursor-page {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  padding: 0 10px !important;
+  margin: 3px !important;
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 8px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: all 0.15s !important;
+}
+.ptec-gcse-page .gsc-cursor-page:hover {
+  border-color: var(--ptec-brand) !important;
+  color: var(--ptec-brand) !important;
+}
+.ptec-gcse-page .gsc-cursor-current-page {
+  background: var(--ptec-brand) !important;
+  border-color: var(--ptec-brand) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+
+/* ── No results ────────────────────────────────────────────────── */
+.ptec-gcse-page .gs-no-results-result .gs-snippet,
+.ptec-gcse-page .gs-error-result .gs-snippet {
+  background: var(--ptec-bg-surface) !important;
+  border: 1.5px dashed var(--ptec-border) !important;
+  border-radius: 12px !important;
+  color: var(--ptec-text-muted) !important;
+  font-size: 14px !important;
+  padding: 24px !important;
+  text-align: center !important;
+}
+
+/* ── Image results ─────────────────────────────────────────────── */
+.ptec-gcse-page .gsc-imageResult {
+  border: 1.5px solid var(--ptec-border) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+.ptec-gcse-page .gsc-imageResult:hover {
+  border-color: var(--ptec-brand) !important;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.12) !important;
+}
+
+/* ── Hide ads / promo ──────────────────────────────────────────── */
+.ptec-gcse-page .gcsc-find-more-on-google-root,
+.ptec-gcse-page .gcsc-branding,
+.ptec-gcse-page .gs-promoted-header,
+.ptec-gcse-page .gsc-adBlock { display: none !important; }
+
+/* ── Dark mode ─────────────────────────────────────────────────── */
+:root.dark .ptec-gcse-page .gsc-input-box,
+:root.dark .ptec-gcse-page .gsc-completion-container {
+  background: var(--ptec-bg-body) !important;
+}
+:root.dark .ptec-gcse-page .gsc-webResult.gsc-result { background: var(--ptec-bg-body) !important; }
+:root.dark .ptec-gcse-page .gsc-webResult.gsc-result:hover { background: var(--ptec-bg-surface) !important; }
+:root.dark .ptec-gcse-page .gs-snippet b { background: rgba(244, 222, 138, 0.15) !important; }
+
+/* ── CRITICAL: force Google CSE overlay → inline ──────────────────
+   Google appends .gsc-positioningWrapper and its children DIRECTLY
+   to <body>, outside .ptec-gcse-page.  Scoped selectors never match.
+   These rules must be GLOBAL (no ancestor selector).               */
+
+/* Hide the modal backdrop and close button everywhere */
+.gsc-modal-background-image {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+.gsc-close-button { display: none !important; }
+
+/* Collapse the positioning shell Google uses for its modal */
+.gsc-positioningWrapper {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  transform: none !important;
+  pointer-events: auto !important;
+}
+
+/* Flatten the overlay wrapper so it flows in the document */
+.gsc-results-wrapper-overlay {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+}
+
+/* Expand the inner clip-box Google uses to scroll within the modal */
+.gsc-overflow {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  position: relative !important;
+}

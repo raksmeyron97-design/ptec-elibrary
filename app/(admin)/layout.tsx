@@ -1,4 +1,5 @@
 import AdminThemeEnforcer from "@/components/layout/AdminThemeEnforcer";
+import "@/app/admin.css";
 
 export default function AdminLayout({
   children,

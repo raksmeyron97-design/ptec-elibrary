@@ -1,0 +1,106 @@
+/* ── Admin sidebar ─────────────────────────────────────────────── */
+.admin-sidebar {
+  background: linear-gradient(160deg, #1E3A8A 0%, #162d70 60%, #0F2160 100%);
+}
+
+/* Sidebar nav-item tooltip (collapsed mode) */
+.admin-sidebar [data-tooltip] {
+  position: relative;
+}
+
+/* ── Admin dashboard stat card hover lift ───────────────────────── */
+@keyframes admin-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Welcome banner quick-action buttons */
+.admin-banner-btn {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+}
+.admin-banner-btn:hover {
+  background: rgba(255,255,255,0.20);
+  border-color: rgba(255,255,255,0.28);
+  transform: translateY(-1px);
+}
+
+/* Live pulse indicator */
+@keyframes admin-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(15, 157, 107, 0.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(15, 157, 107, 0); }
+}
+.admin-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ptec-emerald);
+  animation: admin-pulse 2.2s ease-in-out infinite;
+}
+
+/* ── Admin metric badge gradients ──────────────────────────────── */
+.metric-badge-books   { background: linear-gradient(135deg, var(--ptec-metric-books-from), var(--ptec-metric-books-to)); }
+.metric-badge-dl      { background: linear-gradient(135deg, var(--ptec-metric-dl-from), var(--ptec-metric-dl-to)); }
+.metric-badge-views   { background: linear-gradient(135deg, var(--ptec-metric-views-from), var(--ptec-metric-views-to)); }
+.metric-badge-users   { background: linear-gradient(135deg, var(--ptec-metric-users-from), var(--ptec-metric-users-to)); }
+.metric-badge-catalog { background: linear-gradient(135deg, var(--ptec-metric-cat-from), var(--ptec-metric-cat-to)); }
+
+/* ── Admin form card & chips ───────────────────────────────────── */
+.form-card-accent { position: relative; }
+.form-card-accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(90deg, var(--ptec-brand), var(--ptec-indigo), var(--ptec-cyan), var(--ptec-emerald), var(--ptec-amber), var(--ptec-accent));
+}
+
+.sec-chip {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: none;
+  box-shadow: 0 8px 16px -8px rgba(0,0,0,.35);
+}
+.sec-chip--files { background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950)); }
+.sec-chip--details { background: linear-gradient(135deg, var(--ptec-violet), var(--ptec-indigo)); }
+.sec-chip--summary { background: linear-gradient(135deg, var(--ptec-emerald), #0c7a55); }
+
+.dz-chip {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex: none;
+  transition: transform .2s;
+}
+.dz-chip--pdf { background: linear-gradient(135deg, #d23f57, #a01f33); }
+.dz-chip--img { background: linear-gradient(135deg, var(--ptec-violet), var(--ptec-indigo)); }
+
+/* ── Enhance gradient button ────────────────────────────────────── */
+.btn-brand-gradient {
+  background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950));
+  box-shadow: 0 12px 24px -12px rgba(21, 41, 107, .75);
+  transition: transform .2s, box-shadow .2s;
+}
+.btn-brand-gradient:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -12px rgba(21, 41, 107, .8), 0 0 0 3px rgba(221, 176, 34, .28);
+}
+.btn-brand-gradient:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@keyframes ptecFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.ptec-reveal { animation: ptecFadeUp .5s both; }
