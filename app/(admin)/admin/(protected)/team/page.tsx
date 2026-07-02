@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import Link from "next/link";
-import { Users, FolderOpen } from "lucide-react";
+import { UserPlus, FolderOpen, Users, Eye, EyeOff, LayoutGrid } from "lucide-react";
 import TeamClient from "./TeamClient";
 import type { TeamMemberRow, TeamSection } from "./actions";
 
@@ -24,6 +24,16 @@ export default async function TeamPage() {
   const members  = (membersRaw  ?? []) as TeamMemberRow[];
   const sections = (sectionsRaw ?? []) as TeamSection[];
 
+  const publishedCount = members.filter((m) => m.is_published).length;
+  const draftCount     = members.length - publishedCount;
+
+  const stats = [
+    { label: "Total members", value: members.length,  icon: Users,      tone: "text-blue-600 bg-blue-50" },
+    { label: "Published",     value: publishedCount,  icon: Eye,        tone: "text-emerald-600 bg-emerald-50" },
+    { label: "Drafts",        value: draftCount,      icon: EyeOff,     tone: "text-amber-600 bg-amber-50" },
+    { label: "Sections",      value: sections.length, icon: LayoutGrid, tone: "text-violet-600 bg-violet-50" },
+  ];
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
 
@@ -32,8 +42,7 @@ export default async function TeamPage() {
         <div>
           <h1 className="text-xl font-bold text-text-heading">Library Team</h1>
           <p className="mt-0.5 text-sm text-text-muted">
-            {members.length} member{members.length !== 1 ? "s" : ""} across{" "}
-            {sections.length} section{sections.length !== 1 ? "s" : ""}
+            Manage the people shown on the public Library Team page
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -48,29 +57,33 @@ export default async function TeamPage() {
             href="/admin/team/new"
             className="inline-flex items-center gap-2 rounded-lg bg-blue-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand cursor-pointer"
           >
-            <Users className="w-4 h-4" />
+            <UserPlus className="w-4 h-4" />
             Add member
           </Link>
         </div>
       </div>
 
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map(({ label, value, icon: Icon, tone }) => (
+          <div
+            key={label}
+            className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm"
+          >
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+              <Icon className="h-4.5 w-4.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-lg font-bold leading-tight text-text-heading">{value}</p>
+              <p className="truncate text-xs text-text-muted">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <strong>Database error:</strong> {error.message}
-        </div>
-      )}
-
-      {/* Sections legend */}
-      {sections.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {sections.map((s) => (
-            <span
-              key={s.id}
-              className="rounded-full border border-divider bg-paper px-3 py-1 text-xs font-medium text-text-muted"
-            >
-              {s.name_km} · {s.name_en}
-            </span>
-          ))}
         </div>
       )}
 

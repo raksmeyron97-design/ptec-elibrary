@@ -15,7 +15,8 @@ export default async function AdminUsersPage({
 
   const page = parseInt(params.page as string || "1", 10);
   const safePage = isNaN(page) || page < 1 ? 1 : page;
-  const q = (params.q as string || "").trim();
+  const q    = (params.q    as string || "").trim();
+  const role = (params.role as string || "").trim();
 
   let query = supabase
     .from("profiles")
@@ -23,6 +24,9 @@ export default async function AdminUsersPage({
 
   if (q) {
     query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
+  }
+  if (role) {
+    query = query.eq("role", role);
   }
 
   const from = (safePage - 1) * PAGE_SIZE;
@@ -65,6 +69,7 @@ export default async function AdminUsersPage({
         totalPages={totalPages}
         currentPage={safePage}
         searchParams={params as Record<string, string | undefined>}
+        activeRole={(role as AppRole) || "all"}
       />
     </div>
   );

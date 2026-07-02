@@ -134,6 +134,21 @@ export async function deleteTeamMember(id: string) {
   revalidatePath("/about/team");
 }
 
+export async function toggleTeamMemberPublished(id: string, isPublished: boolean) {
+  await requireAdmin();
+  const supabase = createServiceClient();
+
+  const { error } = await supabase
+    .from("team_members")
+    .update({ is_published: isPublished })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/team");
+  revalidatePath("/about/team");
+}
+
 export async function reorderTeamMember(id: string, direction: "up" | "down") {
   await requireAdmin();
   const supabase = createServiceClient();
@@ -167,16 +182,74 @@ export async function createTeamSection(data: FormData) {
   await requireAdmin();
   const supabase = createServiceClient();
 
+  // Auto-append to the end of the list
+  const { data: last } = await supabase
+    .from("team_sections")
+    .select("display_order")
+    .order("display_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   const { error } = await supabase.from("team_sections").insert({
     name_km:       (data.get("name_km") as string)?.trim() ?? "",
     name_en:       (data.get("name_en") as string)?.trim() ?? "",
     description_km: (data.get("description_km") as string)?.trim() || null,
     description_en: (data.get("description_en") as string)?.trim() || null,
-    display_order: Number(data.get("display_order") ?? 99),
+    display_order: (last?.display_order ?? 0) + 1,
   });
 
   if (error) throw new Error(error.message);
   revalidatePath("/admin/team");
+  revalidatePath("/admin/team/sections");
+  revalidatePath("/about/team");
+}
+
+export async function updateTeamSection(id: string, data: FormData) {
+  await requireAdmin();
+  const supabase = createServiceClient();
+
+  const { error } = await supabase
+    .from("team_sections")
+    .update({
+      name_km:       (data.get("name_km") as string)?.trim() ?? "",
+      name_en:       (data.get("name_en") as string)?.trim() ?? "",
+      description_km: (data.get("description_km") as string)?.trim() || null,
+      description_en: (data.get("description_en") as string)?.trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/team");
+  revalidatePath("/admin/team/sections");
+  revalidatePath("/about/team");
+}
+
+export async function reorderTeamSection(id: string, direction: "up" | "down") {
+  await requireAdmin();
+  const supabase = createServiceClient();
+
+  const { data: sections } = await supabase
+    .from("team_sections")
+    .select("id, display_order")
+    .order("display_order", { ascending: true });
+
+  if (!sections) return;
+
+  const idx = sections.findIndex((s) => s.id === id);
+  if (idx === -1) return;
+
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= sections.length) return;
+
+  const a = sections[idx];
+  const b = sections[swapIdx];
+
+  await supabase.from("team_sections").update({ display_order: b.display_order }).eq("id", a.id);
+  await supabase.from("team_sections").update({ display_order: a.display_order }).eq("id", b.id);
+
+  revalidatePath("/admin/team");
+  revalidatePath("/admin/team/sections");
+  revalidatePath("/about/team");
 }
 
 export async function deleteTeamSection(id: string) {
@@ -185,4 +258,6 @@ export async function deleteTeamSection(id: string) {
   const { error } = await supabase.from("team_sections").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/team");
+  revalidatePath("/admin/team/sections");
+  revalidatePath("/about/team");
 }

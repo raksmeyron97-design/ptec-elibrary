@@ -8,6 +8,14 @@ import Avatar from "@/components/ui/Avatar";
 import type { AppRole } from "@/lib/types/roles";
 import { ALL_ROLES, ROLE_META, ADMIN_ROLES } from "@/lib/types/roles";
 
+const ROLE_FILTER_COLORS: Record<AppRole, { active: string; activeBg: string }> = {
+  reader:      { active: "#475569", activeBg: "#F1F5F9" },
+  staff:       { active: "#1D4ED8", activeBg: "#EFF6FF" },
+  librarian:   { active: "#047857", activeBg: "#ECFDF5" },
+  admin:       { active: "#B45309", activeBg: "#FFFBEB" },
+  super_admin: { active: "#7C3AED", activeBg: "#F5F3FF" },
+};
+
 type UserRow = {
   id: string;
   fullName: string | null;
@@ -27,6 +35,7 @@ export default function UsersClient({
   totalPages,
   currentPage,
   searchParams,
+  activeRole,
 }: {
   users: UserRow[];
   currentUserId: string;
@@ -36,9 +45,10 @@ export default function UsersClient({
   totalPages: number;
   currentPage: number;
   searchParams: Record<string, string | undefined>;
+  activeRole: AppRole | "all";
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [query, setQuery] = useState(searchParams?.q || "");
   const [changingId, setChangingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,15 +56,26 @@ export default function UsersClient({
   const callerCanAssignAdmin =
     callerIsSuperAdmin || callerRole === "super_admin";
 
+  function buildUrl(overrides: Record<string, string>) {
+    const p = new URLSearchParams();
+    if (query)                           p.set("q",    query);
+    if (activeRole && activeRole !== "all") p.set("role", activeRole);
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (v) p.set(k, v); else p.delete(k);
+    });
+    return `/admin/users?${p.toString()}`;
+  }
+
   useEffect(() => {
     if (query === (searchParams?.q || "")) return;
     const handler = setTimeout(() => {
       const p = new URLSearchParams();
       if (query) p.set("q", query);
+      if (activeRole && activeRole !== "all") p.set("role", activeRole);
       router.push(`/admin/users?${p.toString()}`);
     }, 300);
     return () => clearTimeout(handler);
-  }, [query, router, searchParams?.q]);
+  }, [query, router, searchParams?.q, activeRole]);
 
   async function handleRoleChange(u: UserRow, newRole: AppRole) {
     if (newRole === u.role) return;
@@ -78,6 +99,32 @@ export default function UsersClient({
 
   return (
     <div className="space-y-4">
+
+      {/* Role filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(["all", ...ALL_ROLES] as const).map((r) => {
+          const isActive = r === activeRole;
+          const colors = r !== "all" ? ROLE_FILTER_COLORS[r as AppRole] : null;
+          return (
+            <button
+              key={r}
+              type="button"
+              onClick={() => startTransition(() => router.push(buildUrl({ role: r === "all" ? "" : r, page: "" })))}
+              className="rounded-full border px-3.5 py-1 text-[12px] font-semibold transition-all duration-150"
+              style={
+                isActive && colors
+                  ? { background: colors.activeBg, borderColor: colors.active + "55", color: colors.active }
+                  : isActive
+                  ? { background: "#1E3A8A", borderColor: "#1E3A8A", color: "#fff" }
+                  : { background: "transparent", borderColor: "var(--ptec-divider)", color: "var(--ptec-text-muted)" }
+              }
+            >
+              {r === "all" ? "All users" : ROLE_META[r as AppRole].label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Search */}
       <div className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm">
         <svg className="h-4 w-4 shrink-0 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>

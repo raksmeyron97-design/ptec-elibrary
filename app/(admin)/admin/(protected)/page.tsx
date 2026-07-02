@@ -5,6 +5,7 @@ import {
   BookOpen, Download, Eye, Users, Library, FileText,
   AlertTriangle, UserPlus, type LucideIcon,
   Upload, GraduationCap, ArrowRight, Megaphone,
+  BookPlus, Bell, Activity,
 } from "lucide-react";
 import DownloadsChart from "@/components/admin/DownloadsChart";
 import UserGrowthChart from "@/components/admin/UserGrowthChart";
@@ -271,6 +272,7 @@ export default async function AdminDashboardPage() {
     postStatsRes, reportStatsRes,
     viewLogsRes,
     deptBooksRes,
+    pendingRequestsRes, contentSubsRes, recentDlRes,
   ] = await Promise.all([
     supabase.from("books").select("*", { count: "exact", head: true }),
     supabase.from("books").select("*", { count: "exact", head: true }).eq("is_published", true),
@@ -289,6 +291,13 @@ export default async function AdminDashboardPage() {
     supabase.from("research_reports").select("view_count"),
     supabase.from("view_logs").select("viewed_at").gte("viewed_at", fetchFromDownloads),
     supabase.from("books").select("department, download_count, view_count").eq("is_published", true),
+    supabase.from("book_requests").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("content_subscriptions").select("*", { count: "exact", head: true }),
+    supabase
+      .from("download_logs")
+      .select("id, downloaded_at, user:profiles(full_name, email, avatar_url), book:books(title, slug)")
+      .order("downloaded_at", { ascending: false })
+      .limit(8),
   ]);
 
   const totalBooks     = totalBooksRes.count ?? 0;
@@ -353,6 +362,19 @@ export default async function AdminDashboardPage() {
     .map(([dept, v]) => ({ dept, ...v }))
     .filter((d) => d.downloads > 0 || d.views > 0)
     .sort((a, b) => b.downloads - a.downloads);
+
+  const pendingRequests  = pendingRequestsRes.count ?? 0;
+  const contentSubsCount = contentSubsRes.count    ?? 0;
+
+  type RecentDl = { id: string; name: string; email: string; avatarUrl: string | null; bookTitle: string; time: string };
+  const recentActivity: RecentDl[] = (recentDlRes.data ?? []).map((l: any) => ({
+    id:        l.id,
+    name:      l.user?.full_name || "Unknown",
+    email:     l.user?.email     || "",
+    avatarUrl: l.user?.avatar_url ?? null,
+    bookTitle: l.book?.title     || "Unknown Book",
+    time:      l.downloaded_at,
+  }));
 
   const greeting = getGreeting();
 
@@ -519,6 +541,58 @@ export default async function AdminDashboardPage() {
         </SectionCard>
       )}
 
+      {/* ── Recent Activity ── */}
+      {recentActivity.length > 0 && (
+        <SectionCard className="p-6">
+          <div className="mb-5 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
+                <Activity className="h-4 w-4 text-indigo-600" />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-text-heading">Recent Activity</h2>
+                <p className="text-xs text-text-muted">Latest book downloads</p>
+              </div>
+            </div>
+            <Link
+              href="/admin/logs"
+              className="text-xs font-semibold text-brand hover:underline"
+            >
+              View all logs →
+            </Link>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {recentActivity.map((item) => {
+              const diff = (Date.now() - new Date(item.time).getTime()) / 1000;
+              const rel = diff < 60 ? "just now"
+                : diff < 3600 ? `${Math.floor(diff / 60)}m ago`
+                : diff < 86400 ? `${Math.floor(diff / 3600)}h ago`
+                : `${Math.floor(diff / 86400)}d ago`;
+              const initials = item.name
+                .trim()
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((w: string) => w[0] ?? "")
+                .join("")
+                .toUpperCase() || "?";
+              return (
+                <li key={item.id} className="flex items-center gap-3 py-2.5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-xs font-bold text-indigo-600">
+                    {initials}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-text-body">{item.name}</p>
+                    <p className="truncate text-xs text-text-muted">Downloaded &ldquo;{item.bookTitle}&rdquo;</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-text-muted tabular-nums">{rel}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </SectionCard>
+      )}
+
       {/* ── Needs attention ── */}
       <SectionCard className="p-6">
         {/* Header */}
@@ -530,15 +604,15 @@ export default async function AdminDashboardPage() {
           <h2 className="text-base font-bold text-text-heading">Needs attention</h2>
         </div>
 
-        {/* Draft chips */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* Draft / action chips */}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/admin/manage"
             className="group flex items-center justify-between rounded-xl border border-divider bg-paper px-4 py-3 transition-all duration-150 hover:border-amber-200 hover:bg-amber-50"
           >
             <span className="flex items-center gap-2.5 text-sm text-text-body">
               <BookOpen className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
-              Unpublished book drafts
+              Book drafts
             </span>
             <span className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
               style={{ background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }}>
@@ -552,11 +626,45 @@ export default async function AdminDashboardPage() {
           >
             <span className="flex items-center gap-2.5 text-sm text-text-body">
               <FileText className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
-              Unpublished post drafts
+              Post drafts
             </span>
             <span className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
               style={{ background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }}>
               {nf(draftPosts)}
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/book-requests"
+            className="group flex items-center justify-between rounded-xl border border-divider bg-paper px-4 py-3 transition-all duration-150 hover:border-amber-200 hover:bg-amber-50"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-text-body">
+              <BookPlus className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
+              Pending requests
+            </span>
+            <span
+              className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
+              style={
+                pendingRequests > 0
+                  ? { background: "#FEF3C7", color: "#B45309" }
+                  : { background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }
+              }
+            >
+              {nf(pendingRequests)}
+            </span>
+          </Link>
+
+          <Link
+            href="/admin/users"
+            className="group flex items-center justify-between rounded-xl border border-divider bg-paper px-4 py-3 transition-all duration-150 hover:border-amber-200 hover:bg-amber-50"
+          >
+            <span className="flex items-center gap-2.5 text-sm text-text-body">
+              <Bell className="h-4 w-4 text-text-muted group-hover:text-amber-500 transition-colors" />
+              Subscriptions
+            </span>
+            <span className="rounded-lg px-2.5 py-0.5 text-sm font-bold"
+              style={{ background: "rgba(30,58,138,0.08)", color: "var(--ptec-brand)" }}>
+              {nf(contentSubsCount)}
             </span>
           </Link>
         </div>
