@@ -43,6 +43,21 @@ export default function AbstractInput({ defaultValue = "" }: { defaultValue?: st
     }
   }, [value]);
 
+  // Recalculate height once the textarea actually becomes visible — it mounts inside a
+  // tab panel that starts hidden, so the mount-time scrollHeight read above is 0 until
+  // the tab is opened. A ResizeObserver catches that hidden→visible transition, which a
+  // [value] dependency alone would miss.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const words = value.trim() ? value.trim().split(/\s+/).length : 0;
   const chars = value.length;
 
