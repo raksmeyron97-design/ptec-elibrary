@@ -22,6 +22,9 @@ const GLOBAL_SENTINEL = "00000000-0000-0000-0000-000000000000";
 
 const MODEL = "gemini-3.5-flash";
 
+// Public covers CDN — research/post covers are stored as R2 keys and need this prefix.
+const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
+
 // ── In-memory cooldown tracker (per-user, resets on cold start — that's OK) ──
 // Daily quota is NOT in-memory; it lives in Supabase.
 const cooldownMap = new Map<string, number>();
@@ -32,11 +35,34 @@ interface InboundMessage {
   text: string;
 }
 
+type ResultKind = "book" | "research" | "post";
+
+// A single result card shown in the widget. `slug` is only a stable React key;
+// `url` is the real destination so books, research reports, and posts each link
+// to their correct route.
 interface BookResult {
   slug: string;
   title: string;
   author: string;
   coverUrl: string | null;
+  url: string;
+  type: ResultKind;
+}
+
+// Strip PostgREST filter metacharacters so a model-supplied query can't break
+// out of the `.or(...)` / `.ilike(...)` filter strings.
+function sanitizeQuery(raw: string): string {
+  return raw
+    .replace(/[%,()\\*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
+// Book covers are stored as full URLs; research/post covers may be bare R2 keys.
+function coverUrlOf(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return raw.startsWith("http") ? raw : `${COVERS_URL}/${raw}`;
 }
 
 // ── Gemini client ─────────────────────────────────────────────────────────────
@@ -47,26 +73,35 @@ function getAI() {
 }
 
 // ── System instruction ────────────────────────────────────────────────────────
-const SYSTEM_INSTRUCTION = `You are the PTEC Library assistant for Phnom Penh Teacher Education College.
+const SYSTEM_INSTRUCTION = `You are the PTEC Library assistant for Phnom Penh Teacher Education College (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ).
 
 SCOPE — you MAY help with:
-• Finding and recommending books from the PTEC digital catalog.
-• Answering questions about the library: opening hours, location, contact info, borrowing, rules.
-• Summarizing or explaining a book based on its title, description, category, and department metadata.
-  You do NOT have access to PDF contents — if asked for chapter-level detail, say so and link to the book page.
+• Finding and recommending e-books from the PTEC digital catalog (use search_books).
+• Finding student-teacher research reports, theses, and action-research papers (use search_research).
+• Finding library news, announcements, and blog posts (use search_posts).
+• Answering questions about the library itself using get_library_info: opening hours, location,
+  contact, borrowing, rules, membership, the collection (2,766 titles / 45,085 copies, DDC, 6 languages),
+  mission, vision, values, history (founded 2017, PTEC Library Press), and services.
+• Summarizing or explaining a book/report from its title, description/abstract, subject, and department metadata.
+  You do NOT have access to PDF contents — if asked for chapter-level detail, say so and link to the item's page.
 
 SCOPE — you MUST politely decline:
-• Writing essays, homework, or assignments for students.
-• Answering general questions unrelated to the library or its collection.
-• Discussing anything outside the library's scope.
+• Writing essays, homework, or assignments for students (you may suggest relevant materials instead).
+• Questions unrelated to the library, its collection, or teacher education.
+
+TOOL SELECTION:
+• Choose the right search tool for what the user wants: books → search_books, research/theses → search_research,
+  news/announcements → search_posts. When intent is broad ("anything on X"), you may call more than one.
+• For facts about the library (hours, borrowing, mission, collection size, etc.), ALWAYS call get_library_info —
+  never guess. Give the answer in the user's language and, when useful, mention the relevant page path.
 
 BEHAVIOR RULES:
-• Always ground book recommendations in search tool results. Never invent books.
-• If search_books returns nothing, say so graciously and suggest broader search terms.
-• Recommend at most 5 books per response.
-• Keep answers concise (2–5 sentences) unless summarizing a specific book.
+• Always ground recommendations in tool results. Never invent titles, authors, or facts.
+• If a search returns nothing, say so graciously and suggest broader or alternative terms.
+• Recommend at most 5 items per response; lead with the most relevant.
+• Be warm, clear, and concise (2–5 sentences) unless summarizing a specific item.
 • Reply in the user's language: if the user writes in Khmer (ភាសាខ្មែរ), respond entirely in Khmer.
-• When recommending books, always mention the book title and author from the tool result.`;
+• When recommending an item, mention its title and author (or program/subject for research) from the tool result.`;
 
 // ── Supabase book search ──────────────────────────────────────────────────────
 async function searchBooks(args: {
@@ -77,13 +112,7 @@ async function searchBooks(args: {
 }): Promise<BookResult[]> {
   const db = createServiceClient();
   const limit = Math.min(args.limit ?? 5, 8);
-  // Strip PostgREST filter metacharacters so the model-supplied query can't
-  // break out of the `.or(...)` / `.ilike(...)` filter strings below.
-  const q = args.query
-    .replace(/[%,()\\*]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 200);
+  const q = sanitizeQuery(args.query);
   if (!q) return [];
 
   let query = db
@@ -140,7 +169,73 @@ async function searchBooks(args: {
     department: b.department ?? "",
     language: b.language ?? "",
     description: String(b.description ?? "").slice(0, 300),
-    coverUrl: b.cover_url ?? null,
+    coverUrl: coverUrlOf(b.cover_url),
+    url: `/books/${b.slug}`,
+    type: "book" as const,
+  }));
+}
+
+// ── Research report search ────────────────────────────────────────────────────
+async function searchResearch(args: {
+  query: string;
+  limit?: number;
+}): Promise<BookResult[]> {
+  const db = createServiceClient();
+  const limit = Math.min(args.limit ?? 4, 6);
+  const q = sanitizeQuery(args.query);
+  if (!q) return [];
+
+  const { data } = await db
+    .from("research_reports")
+    .select("id, title, cover_url, abstract, author_names, program, subject, academic_year, keywords")
+    .eq("is_published", true)
+    .or(`title.ilike.%${q}%,abstract.ilike.%${q}%,author_names.ilike.%${q}%`)
+    .order("view_count", { ascending: false })
+    .limit(limit);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r: any) => ({
+    slug: r.id,
+    title: r.title,
+    author: r.author_names ?? "Unknown",
+    program: r.program ?? "",
+    subject: r.subject ?? "",
+    academicYear: r.academic_year ?? "",
+    description: String(r.abstract ?? "").slice(0, 300),
+    coverUrl: coverUrlOf(r.cover_url),
+    url: `/research/${r.id}`,
+    type: "research" as const,
+  }));
+}
+
+// ── Post / news search ────────────────────────────────────────────────────────
+async function searchPosts(args: {
+  query: string;
+  limit?: number;
+}): Promise<BookResult[]> {
+  const db = createServiceClient();
+  const limit = Math.min(args.limit ?? 4, 6);
+  const q = sanitizeQuery(args.query);
+  if (!q) return [];
+
+  const { data } = await db
+    .from("posts")
+    .select("id, slug, title, cover_url, excerpt, category, created_at")
+    .eq("is_published", true)
+    .or(`title.ilike.%${q}%,excerpt.ilike.%${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((r: any) => ({
+    slug: r.slug,
+    title: r.title,
+    author: r.category ?? "News",
+    category: r.category ?? "News",
+    description: String(r.excerpt ?? "").slice(0, 200),
+    coverUrl: coverUrlOf(r.cover_url),
+    url: `/posts/${r.slug}`,
+    type: "post" as const,
   }));
 }
 
@@ -171,13 +266,22 @@ async function getBookDetails(args: { slug: string }): Promise<Record<string, un
 }
 
 function getLibraryInfo(args: { topic: LibraryInfoTopic }): Record<string, unknown> {
+  const L = LIBRARY_INFO;
   switch (args.topic) {
-    case "hours":    return { en: LIBRARY_INFO.hours.en,    km: LIBRARY_INFO.hours.km };
-    case "location": return { en: LIBRARY_INFO.location.en, km: LIBRARY_INFO.location.km, phone: LIBRARY_INFO.phone, email: LIBRARY_INFO.email };
-    case "contact":  return { phone: LIBRARY_INFO.phone, email: LIBRARY_INFO.email, en: LIBRARY_INFO.location.en };
-    case "borrowing": return { en: LIBRARY_INFO.borrowing.en, km: LIBRARY_INFO.borrowing.km };
-    case "rules":    return { en: LIBRARY_INFO.rules.en, km: LIBRARY_INFO.rules.km, rulesPage: LIBRARY_INFO.links.rules };
-    default:         return { error: "Unknown topic." };
+    case "hours":      return { en: L.hours.en, km: L.hours.km, timingsPage: L.links.timings };
+    case "location":   return { en: L.location.en, km: L.location.km, phone: L.phone, email: L.email };
+    case "contact":    return { phone: L.phone, email: L.email, website: L.website, en: L.location.en };
+    case "borrowing":  return { en: L.borrowing.en, km: L.borrowing.km, rulesPage: L.links.rules };
+    case "rules":      return { en: L.rules.en, km: L.rules.km, rulesPage: L.links.rules };
+    case "membership": return { en: L.membership.en, km: L.membership.km, rulesPage: L.links.rules };
+    case "about":      return { en: L.about.en, km: L.about.km, aboutPage: L.links.about };
+    case "mission":    return { en: L.mission.en, km: L.mission.km };
+    case "vision":     return { en: L.vision.en, km: L.vision.km };
+    case "values":     return { en: L.values.en, km: L.values.km };
+    case "collection": return { en: L.collection.en, km: L.collection.km, collectionPage: L.links.collection };
+    case "history":    return { en: L.history.en, km: L.history.km, journeyPage: L.links.journey };
+    case "services":   return { en: L.services.en, km: L.services.km };
+    default:           return { error: "Unknown topic." };
   }
 }
 
@@ -198,6 +302,30 @@ const toolDeclarations: FunctionDeclaration[] = [
     },
   },
   {
+    name: "search_research",
+    description: "Search student-teacher research reports, theses, dissertations, and action-research papers in the PTEC library by keyword, topic, subject, or author name.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search term — research topic, subject, title, or author." },
+        limit: { type: "number", description: "Max number of results (1–6)." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "search_posts",
+    description: "Search PTEC library news, announcements, events, and blog posts by keyword.",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search term — a topic, event, or keyword." },
+        limit: { type: "number", description: "Max number of results (1–6)." },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "get_book_details",
     description: "Get full details of a specific book by its slug.",
     parametersJsonSchema: {
@@ -208,13 +336,16 @@ const toolDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "get_library_info",
-    description: "Get factual library information: opening hours, location, contact, borrowing rules, or library rules.",
+    description: "Get factual information about the PTEC Library itself — hours, location, contact, borrowing, rules, membership, the collection (size, DDC, languages), mission, vision, values, history, or services.",
     parametersJsonSchema: {
       type: "object",
       properties: {
         topic: {
           type: "string",
-          enum: ["hours", "location", "contact", "borrowing", "rules"],
+          enum: [
+            "hours", "location", "contact", "borrowing", "rules", "membership",
+            "about", "mission", "vision", "values", "collection", "history", "services",
+          ],
           description: "The topic to retrieve information about.",
         },
       },
@@ -235,10 +366,25 @@ async function executeFunction(
     const found = await searchBooks(args as Parameters<typeof searchBooks>[0]);
     books = found;
     result = { books: found };
+  } else if (name === "search_research") {
+    const found = await searchResearch(args as Parameters<typeof searchResearch>[0]);
+    books = found;
+    result = { research: found };
+  } else if (name === "search_posts") {
+    const found = await searchPosts(args as Parameters<typeof searchPosts>[0]);
+    books = found;
+    result = { posts: found };
   } else if (name === "get_book_details") {
     result = await getBookDetails(args as { slug: string });
     if (!result.error) {
-      books = [{ slug: String(result.slug), title: String(result.title), author: String(result.author), coverUrl: null }];
+      books = [{
+        slug: String(result.slug),
+        title: String(result.title),
+        author: String(result.author),
+        coverUrl: null,
+        url: `/books/${String(result.slug)}`,
+        type: "book",
+      }];
     }
   } else if (name === "get_library_info") {
     result = getLibraryInfo(args as { topic: LibraryInfoTopic });
@@ -402,8 +548,9 @@ export async function POST(req: Request) {
 
       for (const { books } of execResults) {
         for (const b of books) {
-          if (!seenSlugs.has(b.slug)) {
-            seenSlugs.add(b.slug);
+          const key = `${b.type}:${b.slug}`;
+          if (!seenSlugs.has(key)) {
+            seenSlugs.add(key);
             allBooks.push(b);
           }
         }

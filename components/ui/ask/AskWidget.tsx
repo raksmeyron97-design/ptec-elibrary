@@ -11,7 +11,16 @@ interface Book {
   title: string;
   author: string;
   coverUrl: string | null;
+  url?: string;
+  type?: "book" | "research" | "post";
 }
+
+// Per-type badge styling for result cards (label + Tailwind classes)
+const TYPE_META: Record<NonNullable<Book["type"]>, { label: string; badge: string }> = {
+  book: { label: "e-Book", badge: "bg-blue-400/15 text-blue-200/90 ring-blue-300/20" },
+  research: { label: "Research", badge: "bg-gold-400/15 text-gold-300 ring-gold-400/25" },
+  post: { label: "News", badge: "bg-emerald-400/15 text-emerald-300 ring-emerald-300/20" },
+};
 
 type MessageRole = "user" | "assistant";
 
@@ -34,14 +43,26 @@ function SparkleIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+// ── AI avatar chip (assistant sender identity) ───────────────────────────────
+function AiAvatar() {
+  return (
+    <div
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-blue-950 shadow-sm shadow-black/30 ring-1 ring-white/20"
+      aria-hidden="true"
+    >
+      <SparkleIcon className="h-4 w-4" />
+    </div>
+  );
+}
+
 // ── Bouncing dots loading indicator ─────────────────────────────────────────
 function ThinkingDots() {
   return (
-    <div className="flex items-center gap-1 px-4 py-3" aria-label="Thinking…" role="status">
+    <div className="flex items-center gap-1.5 px-4 py-3" aria-label="Thinking…" role="status">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="h-2 w-2 rounded-full bg-blue-300/60"
+          className="h-2 w-2 rounded-full bg-gradient-to-br from-gold-300 to-blue-300/70"
           style={{
             animation: "ask-bounce 1.2s ease-in-out infinite",
             animationDelay: `${i * 0.2}s`,
@@ -54,28 +75,35 @@ function ThinkingDots() {
 
 // ── Book card row ────────────────────────────────────────────────────────────
 function BookCard({ book, onNavigate }: { book: Book; onNavigate: () => void }) {
+  const href = book.url ?? `/books/${book.slug}`;
+  const meta = book.type ? TYPE_META[book.type] : TYPE_META.book;
   return (
     <Link
-      href={`/books/${book.slug}`}
+      href={href}
       onClick={onNavigate}
-      className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 transition-colors hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+      className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-2.5 py-2 transition-all duration-200 hover:border-gold-400/40 hover:bg-white/[0.09] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
     >
-      <div className="relative h-[60px] w-[40px] shrink-0 overflow-hidden rounded-md bg-blue-900">
+      <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-blue-900 ring-1 ring-white/10 shadow-md shadow-black/30">
         {book.coverUrl ? (
-          <Image src={book.coverUrl} alt={book.title} fill sizes="40px" className="object-cover" />
+          <Image src={book.coverUrl} alt={book.title} fill sizes="44px" className="object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-800 to-blue-950">
             <SparkleIcon className="h-4 w-4 text-gold-400/60" />
           </div>
         )}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
+        <span className={`mb-1 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ring-1 ${meta.badge}`}>
+          {meta.label}
+        </span>
         <p className="line-clamp-1 text-[13px] font-semibold text-white">{book.title}</p>
         <p className="line-clamp-1 text-[11px] text-blue-300/70">{book.author}</p>
       </div>
-      <svg className="ml-auto h-3.5 w-3.5 shrink-0 text-blue-300/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M5 12h14M13 6l6 6-6 6" />
-      </svg>
+      <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-blue-300/50 transition-all duration-200 group-hover:bg-gold-400/20 group-hover:text-gold-300">
+        <svg className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      </span>
     </Link>
   );
 }
@@ -262,6 +290,14 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
         @media (prefers-reduced-motion: reduce) {
           [style*="ask-bounce"] { animation: none !important; opacity: 0.6; }
         }
+        .ask-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent; }
+        .ask-scroll::-webkit-scrollbar { width: 6px; }
+        .ask-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ask-scroll::-webkit-scrollbar-thumb {
+          background: rgba(148,163,184,0.28);
+          border-radius: 9999px;
+        }
+        .ask-scroll::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.5); }
       `}</style>
 
       {/* ── Chat panel ──────────────────────────────────────────────── */}
@@ -287,16 +323,20 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
 
           {/* Header */}
           <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.08] px-4 py-3">
-            <span className="text-gold-400">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 text-blue-950 shadow-sm shadow-black/30 ring-1 ring-white/20">
               <SparkleIcon className="h-5 w-5" />
-            </span>
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0B1226] bg-emerald-400" aria-hidden="true" />
+            </div>
             <div className="min-w-0 flex-1">
-              <h2 id={headingId} className="text-[14px] font-bold text-white">{t("title")}</h2>
-              <p className="text-[11px] text-blue-300/70">{t("subtitle")}</p>
+              <h2 id={headingId} className="truncate text-[14px] font-bold text-white">{t("title")}</h2>
+              <p className="flex items-center gap-1 text-[11px] text-blue-300/70">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
+                <span className="truncate">{t("subtitle")}</span>
+              </p>
             </div>
             {/* Remaining quota badge — hidden for admins (remaining === null) */}
             {isLoggedIn && remaining !== null && !quotaExhausted && (
-              <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-blue-300/60">
+              <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-blue-300/70 ring-1 ring-white/10">
                 {t("remaining", { count: remaining })}
               </span>
             )}
@@ -331,53 +371,72 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
           ) : (
             <>
               {/* Messages area */}
-              <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3" aria-live="polite" aria-label="Conversation">
+              <div className="ask-scroll flex-1 overflow-y-auto px-3 py-3 space-y-3" aria-live="polite" aria-label="Conversation">
                 {messages.length === 0 ? (
-                  <div className="flex flex-col gap-3 py-2">
-                    <p className="text-center text-[12px] text-blue-300/60">{t("subtitle")}</p>
+                  <div className="flex flex-col gap-4 py-3">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400/20 to-gold-500/5 text-gold-400 ring-1 ring-gold-400/20">
+                        <SparkleIcon className="h-6 w-6" />
+                      </div>
+                      <p className="text-[12px] text-blue-300/70 max-w-[240px] leading-relaxed">{t("subtitle")}</p>
+                    </div>
                     <div className="flex flex-col gap-2">
                       {starters.map((s, i) => (
                         <button key={i} type="button" onClick={() => sendMessage(s)}
                           disabled={inputDisabled}
-                          className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-left text-[13px] text-blue-100 transition-colors hover:border-gold-400/40 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:pointer-events-none disabled:opacity-40"
+                          className="group flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left text-[13px] text-blue-100 transition-all duration-200 hover:border-gold-400/40 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:pointer-events-none disabled:opacity-40"
                         >
-                          {s}
+                          <SparkleIcon className="h-3.5 w-3.5 shrink-0 text-gold-400/60 transition-colors group-hover:text-gold-400" />
+                          <span className="flex-1">{s}</span>
+                          <svg className="h-3.5 w-3.5 shrink-0 text-blue-300/30 transition-all duration-200 group-hover:translate-x-0.5 group-hover:text-gold-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                          </svg>
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  messages.map((m) => (
-                    <div key={m.id} className={`flex flex-col gap-1.5 ${m.role === "user" ? "items-end" : "items-start"}`}>
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap ${
-                          m.role === "user"
-                            ? "rounded-br-md bg-brand text-white"
-                            : m.errorKind === "quota"
-                            ? "rounded-bl-md bg-amber-950/50 text-amber-300 ring-1 ring-amber-500/20"
-                            : m.errorKind === "global_limit"
-                            ? "rounded-bl-md bg-slate-800/80 text-blue-300 ring-1 ring-white/10"
-                            : m.isError
-                            ? "rounded-bl-md bg-red-950/50 text-red-300 ring-1 ring-red-500/20"
-                            : "rounded-bl-md bg-white/[0.06] text-blue-50"
-                        }`}
-                      >
-                        {m.text}
-                      </div>
-                      {m.role === "assistant" && m.books && m.books.length > 0 && (
-                        <div className="w-full max-w-[92%] space-y-1.5">
-                          {m.books.map((book) => (
-                            <BookCard key={book.slug} book={book} onNavigate={() => setOpen(false)} />
-                          ))}
+                  messages.map((m) =>
+                    m.role === "user" ? (
+                      <div key={m.id} className="flex justify-end">
+                        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-brand px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap text-white shadow-sm shadow-black/20">
+                          {m.text}
                         </div>
-                      )}
-                    </div>
-                  ))
+                      </div>
+                    ) : (
+                      <div key={m.id} className="flex items-start gap-2">
+                        <AiAvatar />
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5 items-start">
+                          <div
+                            className={`max-w-full rounded-2xl rounded-tl-md px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap ${
+                              m.errorKind === "quota"
+                                ? "bg-amber-950/50 text-amber-300 ring-1 ring-amber-500/20"
+                                : m.errorKind === "global_limit"
+                                ? "bg-slate-800/80 text-blue-300 ring-1 ring-white/10"
+                                : m.isError
+                                ? "bg-red-950/50 text-red-300 ring-1 ring-red-500/20"
+                                : "bg-white/[0.06] text-blue-50 ring-1 ring-white/[0.06]"
+                            }`}
+                          >
+                            {m.text}
+                          </div>
+                          {m.books && m.books.length > 0 && (
+                            <div className="w-full space-y-1.5 pt-0.5">
+                              {m.books.map((book) => (
+                                <BookCard key={`${book.type ?? "book"}-${book.slug}`} book={book} onNavigate={() => setOpen(false)} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )
                 )}
 
                 {loading && (
-                  <div className="flex items-start">
-                    <div className="rounded-2xl rounded-bl-md bg-white/[0.06]">
+                  <div className="flex items-start gap-2">
+                    <AiAvatar />
+                    <div className="rounded-2xl rounded-tl-md bg-white/[0.06] ring-1 ring-white/[0.06]">
                       <ThinkingDots />
                     </div>
                   </div>
@@ -399,7 +458,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                     {t("slowDown")}
                   </p>
                 )}
-                <div className={`flex items-center gap-2 rounded-xl border px-3 pr-1.5 py-1 transition-colors ${inputDisabled ? "border-white/5 bg-white/[0.02]" : "border-white/10 bg-white/[0.04]"}`}>
+                <div className={`flex items-center gap-2 rounded-xl border px-3 pr-1.5 py-1 transition-all duration-200 focus-within:border-gold-400/50 focus-within:bg-white/[0.06] focus-within:ring-2 focus-within:ring-gold-400/15 ${inputDisabled ? "border-white/5 bg-white/[0.02]" : "border-white/10 bg-white/[0.04]"}`}>
                   <input
                     ref={inputRef}
                     type="text"
