@@ -108,6 +108,63 @@ function BookCard({ book, onNavigate }: { book: Book; onNavigate: () => void }) 
   );
 }
 
+// ── Book carousel card ───────────────────────────────────────────────────────
+function BookCarouselCard({ book, onNavigate }: { book: Book; onNavigate: () => void }) {
+  const href = book.url ?? `/books/${book.slug}`;
+  const meta = book.type ? TYPE_META[book.type] : TYPE_META.book;
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="group relative flex w-32 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-white/10 bg-white/[0.045] p-2.5 transition-all duration-300 hover:border-gold-400/40 hover:bg-white/[0.09] hover:-translate-y-1 hover:shadow-lg hover:shadow-gold-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+    >
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-blue-900 ring-1 ring-white/10 shadow-md shadow-black/30">
+        {book.coverUrl ? (
+          <Image src={book.coverUrl} alt={book.title} fill sizes="120px" className="object-cover transition-transform duration-500 group-hover:scale-110" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-800 to-blue-950">
+            <SparkleIcon className="h-6 w-6 text-gold-400/60" />
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 pt-6">
+          <span className={`inline-block rounded-full px-1.5 py-px text-[8px] font-bold uppercase tracking-wider ring-1 backdrop-blur-md ${meta.badge}`}>
+            {meta.label}
+          </span>
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-between pt-1">
+        <div>
+          <p className="line-clamp-2 text-[12px] font-semibold leading-tight text-white transition-colors group-hover:text-gold-300">{book.title}</p>
+        </div>
+        <p className="mt-1.5 line-clamp-1 text-[10px] text-blue-300/70">{book.author}</p>
+      </div>
+    </Link>
+  );
+}
+
+// ── Basic markdown parser ───────────────────────────────────────────────────
+function parseMarkdown(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(\[.*?\]\(.*?\)|\*\*.*?\*\*|\n)/g);
+  return parts.map((part, i) => {
+    if (part === "\n") return <br key={i} />;
+    if (part.startsWith("[") && part.includes("](")) {
+      const match = part.match(/\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        return (
+          <Link key={i} href={match[2]} className="text-gold-400 hover:underline">
+            {match[1]}
+          </Link>
+        );
+      }
+    }
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 // ── Main widget ──────────────────────────────────────────────────────────────
 export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
   const t = useTranslations("ask");
@@ -418,12 +475,12 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                                 : "bg-white/[0.06] text-blue-50 ring-1 ring-white/[0.06]"
                             }`}
                           >
-                            {m.text}
+                            {parseMarkdown(m.text)}
                           </div>
                           {m.books && m.books.length > 0 && (
-                            <div className="w-full space-y-1.5 pt-0.5">
+                            <div className="ask-scroll -mx-4 mt-1.5 flex w-[calc(100%+32px)] snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 pt-1">
                               {m.books.map((book) => (
-                                <BookCard key={`${book.type ?? "book"}-${book.slug}`} book={book} onNavigate={() => setOpen(false)} />
+                                <BookCarouselCard key={`${book.type ?? "book"}-${book.slug}`} book={book} onNavigate={() => setOpen(false)} />
                               ))}
                             </div>
                           )}

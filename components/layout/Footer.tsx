@@ -22,18 +22,24 @@ const footerStyles = `
     border-radius: 8px;
   }
 
-  /* ── Twinkling starfield (2 out-of-phase groups) ── */
+  /* ── Twinkling starfield (3 out-of-phase groups) ── */
   @keyframes ptec-twinkle-a {
-    0%,100% { opacity: 0.10; }
-    50%      { opacity: 0.55; }
+    0%,100% { opacity: 0.12; }
+    50%      { opacity: 0.85; }
   }
   @keyframes ptec-twinkle-b {
-    0%,100% { opacity: 0.45; }
-    50%      { opacity: 0.06; }
+    0%,100% { opacity: 0.65; }
+    50%      { opacity: 0.08; }
+  }
+  @keyframes ptec-twinkle-c {
+    0%,33%  { opacity: 0.25; }
+    66%     { opacity: 0.90; }
+    100%    { opacity: 0.25; }
   }
   @media (prefers-reduced-motion: no-preference) {
-    .ptec-stars-a { animation: ptec-twinkle-a 4.2s ease-in-out infinite; }
-    .ptec-stars-b { animation: ptec-twinkle-b 5.6s ease-in-out infinite; animation-delay: -2.1s; }
+    .ptec-stars-a { animation: ptec-twinkle-a 3.0s ease-in-out infinite; }
+    .ptec-stars-b { animation: ptec-twinkle-b 4.4s ease-in-out infinite; animation-delay: -1.6s; }
+    .ptec-stars-c { animation: ptec-twinkle-c 5.8s ease-in-out infinite; animation-delay: -3.1s; }
   }
 
   /* ── Aurora orbs ── */
@@ -47,28 +53,33 @@ const footerStyles = `
     33%     { transform: translate(-11%,-16%) scale(1.09); }
     66%     { transform: translate(13%,11%) scale(0.93); }
   }
+  @keyframes ptec-orb3 {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50%     { transform: translate(7%,-13%) scale(1.11); }
+  }
   @media (prefers-reduced-motion: no-preference) {
-    .ptec-orb-1 { animation: ptec-orb1 22s ease-in-out infinite; }
-    .ptec-orb-2 { animation: ptec-orb2 27s ease-in-out infinite; animation-delay: -9s; }
+    .ptec-orb-1 { animation: ptec-orb1 20s ease-in-out infinite; }
+    .ptec-orb-2 { animation: ptec-orb2 25s ease-in-out infinite; animation-delay: -9s; }
+    .ptec-orb-3 { animation: ptec-orb3 17s ease-in-out infinite; animation-delay: -5s; }
   }
 
-  /* ── Animated gradient top hairline ── */
+  /* ── Animated gradient top border ── */
   @keyframes ptec-flow {
     0%   { background-position: 0% 50%; }
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
   .ptec-gradient-top {
-    height: 1px;
+    height: 2px;
     background: linear-gradient(
       90deg,
-      transparent 0%, #3B82F6 22%, #FBBF24 44%,
-      #F59E0B 50%, #FBBF24 56%, #3B82F6 78%, transparent 100%
+      #1E3A8A 0%, #3B82F6 18%, #FBBF24 36%,
+      #F59E0B 50%, #FBBF24 64%, #3B82F6 82%, #1E3A8A 100%
     );
-    background-size: 250% 100%;
+    background-size: 300% 100%;
   }
   @media (prefers-reduced-motion: no-preference) {
-    .ptec-gradient-top { animation: ptec-flow 7s ease infinite; }
+    .ptec-gradient-top { animation: ptec-flow 6s ease infinite; }
   }
 
   /* ── Shimmer gold text ── */
@@ -87,14 +98,7 @@ const footerStyles = `
     -webkit-text-fill-color: transparent;
   }
   @media (prefers-reduced-motion: no-preference) {
-    .ptec-shimmer { animation: ptec-shimmer 3.5s linear infinite; }
-  }
-
-  /* ── Heading accent bar ── */
-  .ptec-accent {
-    width: 3px; height: 15px; border-radius: 3px;
-    background: linear-gradient(180deg, #F4DE8A, #DDB022);
-    box-shadow: 0 0 10px rgba(221,176,34,.5);
+    .ptec-shimmer { animation: ptec-shimmer 3s linear infinite; }
   }
 
   /* ── Social icons ── */
@@ -102,37 +106,56 @@ const footerStyles = `
     transition: transform .28s cubic-bezier(.2,.8,.2,1),
                 background-color .25s ease,
                 border-color .25s ease,
-                box-shadow .28s ease,
-                color .25s ease;
+                box-shadow .28s ease;
   }
-  .ptec-social:hover { transform: translateY(-3px); }
-  .ptec-social-fb:hover  { box-shadow: 0 8px 22px -6px rgba(24,119,242,.6); }
-  .ptec-social-yt:hover  { box-shadow: 0 8px 22px -6px rgba(255,0,0,.55); }
-  .ptec-social-web:hover { box-shadow: 0 8px 22px -6px rgba(251,191,36,.55); }
+  .ptec-social:hover { transform: translateY(-4px) scale(1.08); }
+  .ptec-social-fb:hover  { box-shadow: 0 8px 22px -4px rgba(24,119,242,.55); }
+  .ptec-social-yt:hover  { box-shadow: 0 8px 22px -4px rgba(255,0,0,.55); }
+  .ptec-social-web:hover { box-shadow: 0 8px 22px -4px rgba(251,191,36,.55); }
 
-  /* ── Info rows ── */
-  .ptec-info-icon {
+  /* ── Info cards (glassmorphism on hover) ── */
+  .ptec-card {
     transition: background-color .3s ease, border-color .3s ease,
-                color .3s ease, box-shadow .3s ease, transform .3s ease;
+                transform .3s ease, box-shadow .3s ease;
   }
-  .ptec-row:hover .ptec-info-icon {
-    background-color: rgba(251,191,36,.14);
-    border-color: rgba(251,191,36,.45);
-    color: #FDE68A;
-    box-shadow: 0 0 14px rgba(251,191,36,.22);
+  .ptec-row:hover .ptec-card {
+    background-color: rgba(251,191,36,.12);
+    border-color: rgba(251,191,36,.48);
     transform: translateY(-1px);
+    box-shadow: 0 0 14px rgba(251,191,36,.22);
+  }
+
+  /* ── Column glass panels ── */
+  .ptec-col {
+    border-radius: 16px;
+    padding: 20px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid rgba(255,255,255,.06);
+    transition: background-color .35s ease,
+                border-color .35s ease,
+                box-shadow .35s ease;
+  }
+  .ptec-col:hover {
+    background: rgba(255,255,255,.05);
+    border-color: rgba(251,191,36,.2);
+    box-shadow: 0 0 32px rgba(251,191,36,.06) inset;
   }
 
   /* ── Quick links ── */
-  .ptec-link { transition: color .2s ease, transform .2s ease; }
+  .ptec-link {
+    transition: color .2s ease, transform .2s ease;
+  }
   .ptec-link:hover { transform: translateX(5px); }
   .ptec-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-    background: rgba(251,191,36,.4); flex-shrink: 0;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(251,191,36,.4);
+    flex-shrink: 0;
     transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
   }
   .ptec-link:hover .ptec-dot {
-    background: #FBBF24; transform: scale(1.7);
+    background: #FBBF24;
+    transform: scale(1.7);
     box-shadow: 0 0 7px rgba(251,191,36,.65);
   }
 
@@ -141,52 +164,39 @@ const footerStyles = `
     transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
   }
   .ptec-mapwrap:hover {
-    border-color: rgba(251,191,36,.5);
-    box-shadow: 0 0 26px -6px rgba(251,191,36,.22),
-                0 14px 34px -18px rgba(0,0,0,.7);
+    border-color: rgba(251,191,36,.52);
+    box-shadow: 0 0 26px -4px rgba(251,191,36,.22),
+                0 14px 34px -16px rgba(0,0,0,.7);
     transform: translateY(-2px);
   }
-  .ptec-mapwrap:hover .ptec-map-pill {
-    background: rgba(221,176,34,.95); color: #0B1530; border-color: transparent;
-  }
-  .ptec-map-pill { transition: background-color .3s ease, color .3s ease, border-color .3s ease; }
 
   /* ── Seal ── */
   .ptec-seal {
     display: inline-flex;
     transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .5s ease;
-    transform-origin: center;
+    transform-origin: center bottom;
   }
   .ptec-seal:hover {
-    transform: scale(1.06) rotate(-2deg);
-    filter: drop-shadow(0 0 14px rgba(251,191,36,.55));
+    transform: scale(1.08) rotate(-2deg);
+    filter: drop-shadow(0 0 14px rgba(251,191,36,.58));
   }
 
   /* ── Gradient divider ── */
   .ptec-divider {
     height: 1px;
     background: linear-gradient(
-      90deg, transparent,
-      rgba(251,191,36,.22) 30%, rgba(255,255,255,.10) 50%,
-      rgba(251,191,36,.22) 70%, transparent
+      90deg,
+      transparent,
+      rgba(251,191,36,.28) 30%,
+      rgba(255,255,255,.08) 50%,
+      rgba(251,191,36,.28) 70%,
+      transparent
     );
-  }
-
-  /* ── Back-to-top ── */
-  .ptec-top {
-    transition: background-color .25s ease, border-color .25s ease,
-                color .25s ease, transform .25s ease;
-  }
-  .ptec-top:hover {
-    background: rgba(251,191,36,.14);
-    border-color: rgba(251,191,36,.4);
-    color: #FDE68A;
-    transform: translateY(-2px);
   }
 
   /* ── Scroll-reveal (progressive enhancement) ── */
   @keyframes ptec-rise {
-    from { opacity: 0; transform: translateY(24px); }
+    from { opacity: 0; transform: translateY(28px); }
     to   { opacity: 1; transform: translateY(0);    }
   }
   @media (prefers-reduced-motion: no-preference) {
@@ -205,15 +215,6 @@ const footerStyles = `
     }
   }
 `;
-
-function Heading({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="flex items-center gap-2.5 text-[13px] font-semibold uppercase tracking-[0.14em] text-white">
-      <span className="ptec-accent" aria-hidden />
-      {children}
-    </h3>
-  );
-}
 
 export default async function Footer() {
   const t = await getTranslations("footer");
@@ -249,21 +250,28 @@ export default async function Footer() {
     ["Library Rules", "/rules"],
   ];
 
+  const headingClass =
+    "text-white font-khmer-serif font-bold text-[15px] flex items-center gap-3 " +
+    "after:content-[''] after:flex-1 after:h-px " +
+    "after:bg-gradient-to-r after:from-amber-400/40 after:to-white/5";
+
   return (
     <footer className="ptec-footer relative w-full mt-auto font-sans overflow-hidden bg-blue-950 dark:bg-bg-surface">
       <style dangerouslySetInnerHTML={{ __html: footerStyles }} />
 
-      {/* ── Animated gradient top hairline ── */}
+      {/* ── Animated gradient top border ── */}
       <div className="ptec-gradient-top" />
 
-      {/* ── Background: aurora orbs ── */}
+      {/* ── Background layer: aurora orbs ── */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="ptec-orb-1 absolute -top-1/3 -left-1/4 w-[55%] h-[55%] rounded-full bg-blue-700/10 blur-[90px]" />
-        <div className="ptec-orb-2 absolute -bottom-1/3 -right-1/4 w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[90px]" />
+        <div className="ptec-orb-1 absolute -top-1/3 -left-1/4 w-[55%] h-[55%] rounded-full bg-blue-700/10 blur-[80px]" />
+        <div className="ptec-orb-2 absolute -bottom-1/3 -right-1/4 w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[80px]" />
+        <div className="ptec-orb-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[35%] h-[35%] rounded-full bg-amber-500/5 blur-[60px]" />
       </div>
 
-      {/* ── Background: twinkling starfield ── */}
+      {/* ── Background layer: twinkling starfield (3 groups) ── */}
       <div className="pointer-events-none absolute inset-0 z-0">
+        {/* Group A — fades in */}
         <div
           className="ptec-stars-a absolute inset-0"
           style={{
@@ -276,6 +284,7 @@ export default async function Footer() {
             `,
           }}
         />
+        {/* Group B — fades out */}
         <div
           className="ptec-stars-b absolute inset-0"
           style={{
@@ -288,47 +297,60 @@ export default async function Footer() {
             `,
           }}
         />
+        {/* Group C — phase-shifted */}
+        <div
+          className="ptec-stars-c absolute inset-0"
+          style={{
+            backgroundImage: `
+              radial-gradient(1.5px 1.5px at 60% 50%, #fff 0%, transparent 100%),
+              radial-gradient(1px 1px at 75% 60%, #fff 0%, transparent 100%),
+              radial-gradient(1px 1px at 90% 20%, #fff 0%, transparent 100%),
+              radial-gradient(1px 1px at 48% 75%, #fff 0%, transparent 100%),
+              radial-gradient(1.5px 1.5px at 85% 70%, #fff 0%, transparent 100%)
+            `,
+          }}
+        />
       </div>
 
-      {/* ── Vignette overlay ── */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-blue-950/60 via-blue-950/40 to-blue-950/90" />
+      {/* ── Gradient vignette overlay ── */}
+      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-blue-950/70 via-blue-950/50 to-blue-950/92" />
 
-      {/* ── Footer content ── */}
+      {/* ── Footer Content ── */}
       <div className="relative z-10">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pt-14 sm:pt-16 pb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-8 gap-y-11">
+        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pt-12 sm:pt-16 pb-10 sm:pb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 pb-10">
 
-            {/* ── Brand ── */}
-            <div className="ptec-reveal lg:col-span-4 flex flex-col gap-5">
-              <div className="flex items-center gap-4">
+            {/* ── Brand column ── */}
+            <div className="ptec-reveal ptec-col flex flex-col gap-5">
+              <div className="flex flex-col items-start gap-3">
                 <span className="ptec-seal">
-                  <Seal size={60} variant="footer" />
+                  <Seal size={72} variant="footer" />
                 </span>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-200/90 mb-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-200 mb-1">
                     បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
                   </p>
-                  <h2 className="font-khmer-serif font-bold text-xl tracking-wide leading-none">
+                  <h2 className="font-khmer-serif font-bold text-xl tracking-wide">
                     <span className="text-white">PTEC </span>
                     <span className="ptec-shimmer">Library</span>
                   </h2>
                 </div>
               </div>
 
-              <p className="text-blue-100/75 text-[13px] leading-relaxed max-w-sm">
+              <p className="text-blue-100/85 text-[13px] leading-relaxed max-w-xs">
                 {t("description")}
               </p>
 
               {/* Social icons */}
-              <div className="flex flex-wrap items-center gap-2.5 mt-1">
+              <div className="flex flex-wrap gap-2.5 mt-1">
                 <a
                   href={PTEC.links.facebook}
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Facebook"
-                  className="ptec-social ptec-social-fb w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-[#1877F2] hover:border-[#1877F2] text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-fb w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#1877F2] hover:border-[#1877F2] text-blue-100 hover:text-white cursor-pointer"
                 >
-                  <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                   </svg>
                 </a>
@@ -337,9 +359,9 @@ export default async function Footer() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="YouTube"
-                  className="ptec-social ptec-social-yt w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-[#FF0000] hover:border-[#FF0000] text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-yt w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#FF0000] hover:border-[#FF0000] text-blue-100 hover:text-white cursor-pointer"
                 >
-                  <svg className="w-[18px] h-[18px]" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
                   </svg>
                 </a>
@@ -348,50 +370,48 @@ export default async function Footer() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Website"
-                  className="ptec-social ptec-social-web w-10 h-10 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-web w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 text-blue-100 hover:text-white cursor-pointer"
                 >
-                  <Icon name="globe" className="text-[18px]" />
+                  <Icon name="globe" className="text-[16px]" />
                 </a>
-                <div className="ml-1">
-                  <InstallPWA />
-                </div>
+                <InstallPWA />
               </div>
             </div>
 
             {/* ── Information ── */}
-            <div className="ptec-reveal r2 lg:col-span-3 flex flex-col gap-5">
-              <Heading>{t("information")}</Heading>
+            <div className="ptec-reveal r2 ptec-col flex flex-col gap-6">
+              <h3 className={headingClass}>{t("information")}</h3>
 
-              <ul className="flex flex-col gap-4">
+              <ul className="flex flex-col gap-5">
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-info-icon w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
                     <Icon name="map-pin" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-blue-300/80 uppercase tracking-wider mb-0.5">{t("locationLabel")}</p>
-                    <p className="text-blue-50/90 text-[13px] leading-snug">{t("locationValue")}</p>
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("locationLabel")}</p>
+                    <p className="text-blue-50 text-[13px] leading-snug">{t("locationValue")}</p>
                   </div>
                 </li>
 
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-info-icon w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
                     <Icon name="phone" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-blue-300/80 uppercase tracking-wider mb-0.5">{t("phoneLabel")}</p>
-                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50/90 text-[13px] hover:text-gold-300 inline-block cursor-pointer">
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("phoneLabel")}</p>
+                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50 text-[13px] hover:text-gold-300 inline-block cursor-pointer">
                       {PTEC.phone}
                     </a>
                   </div>
                 </li>
 
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-info-icon w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
                     <Icon name="clock" className="text-[14px]" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-blue-300/80 uppercase tracking-wider mb-0.5">{t("hoursLabel")}</p>
-                    <p className="text-blue-50/90 text-[13px] leading-snug">
+                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("hoursLabel")}</p>
+                    <p className="text-blue-50 text-[13px] leading-snug">
                       {t("hoursValue")}
                       <br />
                       <span className="text-gold-400 text-[12px]">{t("hoursClosed")}</span>
@@ -402,15 +422,15 @@ export default async function Footer() {
             </div>
 
             {/* ── Quick Links ── */}
-            <div className="ptec-reveal r3 lg:col-span-2 flex flex-col gap-5">
-              <Heading>{t("quickLinks")}</Heading>
+            <div className="ptec-reveal r3 ptec-col flex flex-col gap-6">
+              <h3 className={headingClass}>{t("quickLinks")}</h3>
 
-              <ul className="flex flex-col gap-3">
+              <ul className="flex flex-col gap-3.5">
                 {quickLinks.map(([label, href]) => (
                   <li key={href}>
                     <Link
                       href={href}
-                      className="ptec-link group flex items-center gap-2.5 text-[13px] text-blue-100/85 hover:text-gold-300"
+                      className="ptec-link group flex items-center gap-2.5 text-[13px] text-blue-100 hover:text-gold-300"
                     >
                       <span className="ptec-dot" />
                       {label}
@@ -421,10 +441,10 @@ export default async function Footer() {
             </div>
 
             {/* ── Find PTEC ── */}
-            <div className="ptec-reveal r4 lg:col-span-3 flex flex-col gap-5">
-              <Heading>{t("findPtec")}</Heading>
+            <div className="ptec-reveal r4 ptec-col flex flex-col gap-6 h-full">
+              <h3 className={headingClass}>{t("findPtec")}</h3>
 
-              <div className="ptec-mapwrap group relative w-full flex-1 min-h-[190px] rounded-xl overflow-hidden border border-white/10">
+              <div className="ptec-mapwrap relative w-full flex-1 min-h-[180px] sm:min-h-[160px] rounded-xl overflow-hidden border border-white/10">
                 <iframe
                   src={PTEC.links.mapEmbed}
                   width="100%"
@@ -436,12 +456,6 @@ export default async function Footer() {
                   title="PTEC Location Map"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-                {/* subtle gradient so the pill stays legible */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-blue-950/80 to-transparent" />
-                <span className="ptec-map-pill pointer-events-none absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-blue-950/70 px-2.5 py-1.5 text-[11px] font-medium text-white backdrop-blur-sm">
-                  <Icon name="map-pin" className="text-[13px]" />
-                  {t("findPtec")}
-                </span>
                 <Link
                   href={PTEC.links.mapPlace}
                   target="_blank"
@@ -452,55 +466,36 @@ export default async function Footer() {
               </div>
 
               {/* Flag Counter Widget */}
-              <a
-                href="https://info.flagcounter.com/19Xs"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Visitor flag counter"
-                className="cursor-pointer self-start"
-              >
-                <img
-                  src="https://s11.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/"
-                  alt="Flag Counter"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="rounded-md opacity-75 hover:opacity-100 transition-opacity duration-300"
-                />
-              </a>
+              <div className="flex justify-start">
+                <a
+                  href="https://info.flagcounter.com/19Xs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visitor flag counter"
+                  className="cursor-pointer"
+                >
+                  <img
+                    src="https://s11.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/"
+                    alt="Flag Counter"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="rounded-md opacity-80 hover:opacity-100 transition-opacity duration-300"
+                  />
+                </a>
+              </div>
             </div>
 
           </div>
+
+          {/* Gradient divider */}
+          <div className="ptec-divider" />
         </div>
 
-        {/* ── Bottom bar ── */}
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12">
-          <div className="ptec-divider" />
-          <div className="ptec-reveal rb flex flex-col-reverse sm:flex-row items-center justify-between gap-4 py-6 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-6">
-            <p className="text-[12px] text-blue-200/55 text-center sm:text-left">
-              {t("copyright", { year: new Date().getFullYear() })}
-            </p>
-
-            <a
-              href="#"
-              aria-label="Back to top"
-              className="ptec-top group inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[12px] font-medium text-blue-100/80 cursor-pointer"
-            >
-              <svg
-                className="w-3.5 h-3.5 transition-transform group-hover:-translate-y-0.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                aria-hidden
-              >
-                <path d="M12 19V5" />
-                <path d="m5 12 7-7 7 7" />
-              </svg>
-              Back to top
-            </a>
-          </div>
+        {/* Copyright */}
+        <div className="ptec-reveal rb relative z-10 text-center px-6 pt-5 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-5">
+          <p className="text-[12px] text-blue-200/60">
+            {t("copyright", { year: new Date().getFullYear() })}
+          </p>
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { LIBRARY_INFO, LibraryInfoTopic } from "@/lib/library-info";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+import { generateEmbedding } from "@/lib/gemini-embeddings";
 export const runtime = "nodejs";
 
 // ── Cost-control constants ────────────────────────────────────────────────────
@@ -76,38 +77,31 @@ function getAI() {
 const SYSTEM_INSTRUCTION = `You are the PTEC Library assistant for Phnom Penh Teacher Education College (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ).
 
 SCOPE — you MAY help with:
-• Finding and recommending e-books from the PTEC digital catalog (use search_books).
+• Finding and recommending e-books from the PTEC digital catalog (use search_books or get_related_books).
 • Finding student-teacher research reports, theses, and action-research papers (use search_research).
 • Finding library news, announcements, and blog posts (use search_posts).
-• Answering questions about the library itself using get_library_info: opening hours, location,
-  contact, borrowing, rules, membership, the collection (2,766 titles / 45,085 copies, DDC, 6 languages),
-  mission, vision, values, history (founded 2017, PTEC Library Press), and services.
+• Answering questions about the library itself using get_library_info: opening hours, location, contact, borrowing, rules, membership, etc.
 • Summarizing or explaining a book/report from its title, description/abstract, subject, and department metadata.
-  You do NOT have access to PDF contents — if asked for chapter-level detail, say so and link to the item's page.
 
-SCOPE — you MUST politely decline:
-• Writing essays, homework, or assignments for students (you may suggest relevant materials instead).
-• Questions unrelated to the library, its collection, or teacher education.
-
-TOOL SELECTION:
-• Choose the right search tool for what the user wants: books → search_books, research/theses → search_research,
-  news/announcements → search_posts. When intent is broad ("anything on X"), you may call more than one.
-• For facts about the library (hours, borrowing, mission, collection size, etc.), ALWAYS call get_library_info —
-  never guess. Give the answer in the user's language and, when useful, mention the relevant page path.
+CONVERSATIONAL FLOW & RECOMMENDATIONS:
+• Be highly interactive. If a user says "I want to read a book" or asks for recommendations without specifying a topic, DO NOT just guess. Ask follow-up questions like: "តើអ្នកចាប់អារម្មណ៍លើប្រធានបទអ្វីដែរ? (ឧទាហរណ៍៖ គរុកោសល្យ វិទ្យាសាស្ត្រ ឬប្រលោមលោក?)" to narrow down their preference.
+• If they give a broad topic, use search_books to find matching titles. You can now use the 'sort' parameter in search_books to find "latest", "popular", or "top_rated" books.
+• If a user asks for books similar to one they just mentioned, use get_related_books.
+• Give the answer in the user's language and, when useful, mention the relevant page path.
 
 BEHAVIOR RULES:
 • Always ground recommendations in tool results. Never invent titles, authors, or facts.
 • If a search returns nothing, say so graciously and suggest broader or alternative terms.
 • Recommend at most 5 items per response; lead with the most relevant.
 • Be warm, clear, and concise (2–5 sentences) unless summarizing a specific item.
-• Reply in the user's language: if the user writes in Khmer (ភាសាខ្មែរ), respond entirely in Khmer.
-• When recommending an item, mention its title and author (or program/subject for research) from the tool result.`;
+• Reply in the user's language: if the user writes in Khmer (ភាសាខ្មែរ), respond entirely in Khmer.`;
 
 // ── Supabase book search ──────────────────────────────────────────────────────
 async function searchBooks(args: {
   query: string;
   language?: string;
   department?: string;
+  sort?: "latest" | "popular" | "top_rated";
   limit?: number;
 }): Promise<BookResult[]> {
   const db = createServiceClient();
@@ -115,13 +109,54 @@ async function searchBooks(args: {
   const q = sanitizeQuery(args.query);
   if (!q) return [];
 
+  // Try Semantic Search first
+  try {
+    const queryEmbedding = await generateEmbedding(args.query);
+    const { data: vectorResults, error: vectorError } = await db.rpc("match_books", {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.2, // Adjust based on sensitivity needed
+      match_count: limit,
+    });
+
+    if (!vectorError && vectorResults && vectorResults.length > 0) {
+      // If we got results, map them. We might need to filter by language/department manually or in RPC.
+      // For simplicity, we filter the returned results here.
+      let filtered = (vectorResults as any[]).filter(b => b.slug);
+      if (args.language) filtered = filtered.filter(b => b.language === args.language);
+      if (args.department) filtered = filtered.filter(b => b.department === args.department);
+
+      return filtered.slice(0, limit).map((b: any) => ({
+        slug: b.slug,
+        title: b.title,
+        author: b.author_name ?? "Unknown",
+        category: b.category_name ?? "",
+        department: b.department ?? "",
+        language: b.language ?? "",
+        description: String(b.description ?? "").slice(0, 300),
+        coverUrl: coverUrlOf(b.cover_url),
+        url: `/books/${b.slug}`,
+        type: "book" as const,
+      }));
+    }
+  } catch (err) {
+    console.warn("[/api/ask] Semantic search failed, falling back to keyword search:", err);
+  }
+
+  // Fallback to Keyword Search
   let query = db
     .from("books")
     .select("slug, title, cover_url, description, department, language, authors(name), categories(name)")
     .eq("is_published", true)
-    .or(`title.ilike.%${q}%,description.ilike.%${q}%`)
-    .order("download_count", { ascending: false })
-    .limit(limit);
+    .or(`title.ilike.%${q}%,description.ilike.%${q}%`);
+
+  if (args.sort === "latest") {
+    query = query.order("published_at", { ascending: false });
+  } else if (args.sort === "top_rated") {
+    query = query.order("rating", { ascending: false });
+  } else {
+    query = query.order("download_count", { ascending: false });
+  }
+  query = query.limit(limit);
 
   if (args.language) query = query.eq("language", args.language);
   if (args.department) query = query.eq("department", args.department);
@@ -162,6 +197,56 @@ async function searchBooks(args: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return results.slice(0, limit).map((b: any) => ({
+    slug: b.slug,
+    title: b.title,
+    author: b.authors?.name ?? "Unknown",
+    category: b.categories?.name ?? "",
+    department: b.department ?? "",
+    language: b.language ?? "",
+    description: String(b.description ?? "").slice(0, 300),
+    coverUrl: coverUrlOf(b.cover_url),
+    url: `/books/${b.slug}`,
+    type: "book" as const,
+  }));
+}
+
+// ── Related books search ──────────────────────────────────────────────────────
+async function getRelatedBooks(args: {
+  slug: string;
+  limit?: number;
+}): Promise<BookResult[]> {
+  const db = createServiceClient();
+  const limit = Math.min(args.limit ?? 4, 6);
+
+  const { data: book } = await db
+    .from("books")
+    .select("id, slug, categories(name), authors(name)")
+    .eq("slug", args.slug)
+    .single();
+
+  if (!book) return [];
+
+  const categoryName = (book as any).categories?.name;
+  const authorName = (book as any).authors?.name;
+
+  let query = db
+    .from("books")
+    .select("slug, title, cover_url, description, department, language, authors(name), categories(name)")
+    .eq("is_published", true)
+    .neq("slug", args.slug)
+    .order("download_count", { ascending: false })
+    .limit(limit);
+
+  if (categoryName && authorName) {
+    query = query.or(`categories.name.ilike.%${categoryName}%,authors.name.ilike.%${authorName}%`);
+  } else if (categoryName) {
+    query = query.eq("categories.name", categoryName);
+  } else if (authorName) {
+    query = query.eq("authors.name", authorName);
+  }
+
+  const { data } = await query;
+  return ((data ?? []) as any[]).map((b: any) => ({
     slug: b.slug,
     title: b.title,
     author: b.authors?.name ?? "Unknown",
@@ -296,9 +381,22 @@ const toolDeclarations: FunctionDeclaration[] = [
         query:      { type: "string", description: "Search term — title, topic, author, or category." },
         language:   { type: "string", description: "Filter by language, e.g. 'English' or 'Khmer'." },
         department: { type: "string", description: "Filter by department or faculty." },
+        sort:       { type: "string", enum: ["latest", "popular", "top_rated"], description: "Sort order for the results." },
         limit:      { type: "number", description: "Max number of results (1–8)." },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "get_related_books",
+    description: "Get books related to a specific book slug (e.g., same author or category).",
+    parametersJsonSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The slug of the book to find related books for." },
+        limit: { type: "number", description: "Max number of results (1–6)." },
+      },
+      required: ["slug"],
     },
   },
   {
@@ -370,6 +468,10 @@ async function executeFunction(
     const found = await searchResearch(args as Parameters<typeof searchResearch>[0]);
     books = found;
     result = { research: found };
+  } else if (name === "get_related_books") {
+    const found = await getRelatedBooks(args as Parameters<typeof getRelatedBooks>[0]);
+    books = found;
+    result = { related_books: found };
   } else if (name === "search_posts") {
     const found = await searchPosts(args as Parameters<typeof searchPosts>[0]);
     books = found;
