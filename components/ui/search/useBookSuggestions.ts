@@ -67,7 +67,7 @@ export function useBookSuggestions({ initialQuery = "", onClose }: UseBookSugges
       pushRecentSearch(s.label);
       setOpen(false);
       if (onClose) onClose();
-      router.push(`/research/${s.id}`);
+      router.push(`/theses/${s.id}`);
     } else {
       setQuery(s.label);
       navigate(s.label);

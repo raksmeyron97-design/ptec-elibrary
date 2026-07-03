@@ -105,7 +105,7 @@ export default async function Navbar() {
     icon: EResourcesIcon,
     subLinks: [
       { label: t('eBooks'), href: "/books", icon: EResourcesIcon },
-      { label: t('researchReports'), href: "/research", icon: ResearchIcon },
+      { label: t('theses'), href: "/theses", icon: ResearchIcon },
       { label: "SVA Library", href: "https://svacamelib.org/", icon: ExternalLinkIcon, target: "_blank" }
     ]
   };
@@ -128,7 +128,7 @@ export default async function Navbar() {
   const mobileNavLinks = [
     { label: t('home'),            href: "/home" },
     { label: t('eResources'),      href: "/books" },
-    { label: t('researchReports'), href: "/research" },
+    { label: t('theses'), href: "/theses" },
     { label: "SVA Library",        href: "https://svacamelib.org/" },
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },

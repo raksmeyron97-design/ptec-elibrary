@@ -34,8 +34,8 @@ const nextConfig: NextConfig = {
         // Allow Google Scholar to fetch PDFs from a .pdf-suffixed URL
         // while the in-app viewer keeps using /file (no suffix needed there).
         {
-          source: "/api/research/:id/file.pdf",
-          destination: "/api/research/:id/file",
+          source: "/api/theses/:id/file.pdf",
+          destination: "/api/theses/:id/file",
         },
       ],
     };

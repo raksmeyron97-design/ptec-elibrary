@@ -301,7 +301,7 @@ export default async function DashboardPage() {
                 <nav className="flex flex-col gap-1">
                   {[
                     { href: "/books",            icon: <Library className="h-4 w-4" />,     label: "Browse Library" },
-                    { href: "/research",          icon: <BookOpen className="h-4 w-4" />,    label: "Research Reports" },
+                    { href: "/theses",            icon: <BookOpen className="h-4 w-4" />,    label: "Theses" },
                     { href: "/dashboard/settings",icon: <Settings className="h-4 w-4" />,   label: "Settings" },
                     ...(isAdmin ? [{ href: "/admin", icon: <ShieldCheck className="h-4 w-4" />, label: "Admin Panel" }] : []),
                   ].map((l) => (

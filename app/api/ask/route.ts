@@ -78,7 +78,7 @@ const SYSTEM_INSTRUCTION = `You are the PTEC Library assistant for Phnom Penh Te
 
 SCOPE — you MAY help with:
 • Finding and recommending e-books from the PTEC digital catalog (use search_books or get_related_books).
-• Finding student-teacher research reports, theses, and action-research papers (use search_research).
+• Finding student-teacher theses and action-research papers (use search_theses).
 • Finding library news, announcements, and blog posts (use search_posts).
 • Answering questions about the library itself using get_library_info: opening hours, location, contact, borrowing, rules, membership, etc.
 • Summarizing or explaining a book/report from its title, description/abstract, subject, and department metadata.
@@ -260,8 +260,8 @@ async function getRelatedBooks(args: {
   }));
 }
 
-// ── Research report search ────────────────────────────────────────────────────
-async function searchResearch(args: {
+// ── Thesis search ──────────────────────────────────────────────────────────────
+async function searchTheses(args: {
   query: string;
   limit?: number;
 }): Promise<BookResult[]> {
@@ -288,7 +288,7 @@ async function searchResearch(args: {
     academicYear: r.academic_year ?? "",
     description: String(r.abstract ?? "").slice(0, 300),
     coverUrl: coverUrlOf(r.cover_url),
-    url: `/research/${r.id}`,
+    url: `/theses/${r.id}`,
     type: "research" as const,
   }));
 }
@@ -400,8 +400,8 @@ const toolDeclarations: FunctionDeclaration[] = [
     },
   },
   {
-    name: "search_research",
-    description: "Search student-teacher research reports, theses, dissertations, and action-research papers in the PTEC library by keyword, topic, subject, or author name.",
+    name: "search_theses",
+    description: "Search student-teacher theses, dissertations, and action-research papers in the PTEC library by keyword, topic, subject, or author name.",
     parametersJsonSchema: {
       type: "object",
       properties: {
@@ -464,8 +464,8 @@ async function executeFunction(
     const found = await searchBooks(args as Parameters<typeof searchBooks>[0]);
     books = found;
     result = { books: found };
-  } else if (name === "search_research") {
-    const found = await searchResearch(args as Parameters<typeof searchResearch>[0]);
+  } else if (name === "search_theses") {
+    const found = await searchTheses(args as Parameters<typeof searchTheses>[0]);
     books = found;
     result = { research: found };
   } else if (name === "get_related_books") {

@@ -1,6 +1,6 @@
 /**
  * Shared "rows per page" options for the public listing pages (books,
- * catalogs, research). Kept in one place so the selector in
+ * catalogs, theses). Kept in one place so the selector in
  * `components/ui/core/Pagination.tsx` and the server pages agree on the
  * allowed sizes — an unlisted `?size=` value falls back to the default.
  */

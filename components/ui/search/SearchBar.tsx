@@ -26,14 +26,14 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   book:     "Book",
   author:   "Author",
   category: "Category",
-  research: "Research Report",
+  research: "Thesis",
 };
 
 const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
   book:     "Books",
   author:   "Authors",
   category: "Categories",
-  research: "Research Reports",
+  research: "Theses",
 };
 
 const TYPE_COLOR: Record<Suggestion["type"], string> = {

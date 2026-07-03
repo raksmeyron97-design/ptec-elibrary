@@ -62,7 +62,7 @@
     "myDashboard": "My Dashboard",
     "savedBooks": "Saved Books",
     "appearance": "Appearance",
-    "researchReports": "Research Reports",
+    "theses": "Theses",
     "summaryIndex": "Summary Index",
     "settings": "Settings"
   },
@@ -114,9 +114,9 @@
     "viewResources": "View resources",
     "prompt1": "Find a book about teaching methods…",
     "prompt2": "Khmer literature for grade 9…",
-    "prompt3": "Research reports on early-childhood education…",
+    "prompt3": "Theses on early-childhood education…",
     "askButton": "Ask",
-    "askHint": "Search e-books, physical books, and research — or press / to start typing.",
+    "askHint": "Search e-books, physical books, and theses — or press / to start typing.",
     "recent": "Recent",
     "clear": "Clear",
     "forYou": "For you",
@@ -374,11 +374,11 @@
     "updating": "Updating...",
     "passwordUpdated": "Password updated successfully. Redirecting to login..."
   },
-  "researchSummary": {
-    "title": "Research Reports Summary Index",
-    "description": "Complete index of all student research reports, categorized by academic year and cohort.",
-    "emptyState": "No research reports available yet.",
-    "groupHeader": "12+4 Student Teachers Research Report - Cohort {cohort} ({year})",
+  "thesisSummary": {
+    "title": "Theses Summary Index",
+    "description": "Complete index of all student theses, categorized by academic year and cohort.",
+    "emptyState": "No theses available yet.",
+    "groupHeader": "12+4 Student Teachers Thesis - Cohort {cohort} ({year})",
     "byAuthor": "By: {authors}"
   },
   "dashboard": {

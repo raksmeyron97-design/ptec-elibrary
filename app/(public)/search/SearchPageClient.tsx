@@ -25,14 +25,14 @@ type ActiveType = "all" | SearchResultType;
 const TABS: { id: ActiveType; label: string }[] = [
   { id: "all",      label: "All" },
   { id: "book",     label: "Books" },
-  { id: "research", label: "Research" },
+  { id: "research", label: "Theses" },
   { id: "catalog",  label: "Catalog" },
   { id: "post",     label: "Posts" },
 ];
 
 const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }> = {
   book:     { label: "E-Book",   className: "bg-blue-500/15 text-blue-500 border-blue-500/20" },
-  research: { label: "Research", className: "bg-green-600/15 text-green-600 border-green-600/20" },
+  research: { label: "Thesis", className: "bg-green-600/15 text-green-600 border-green-600/20" },
   catalog:  { label: "Physical", className: "bg-amber-500/15 text-amber-600 border-amber-500/20" },
   post:     { label: "Post",     className: "bg-purple-500/15 text-purple-500 border-purple-500/20" },
 };
@@ -347,7 +347,7 @@ export default function SearchPageClient() {
             onChange={(e) => setInput(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            placeholder="Search books, authors, research…"
+            placeholder="Search books, authors, theses…"
             aria-label="Search the PTEC Library"
             autoFocus
             className="flex-1 min-w-0 h-full bg-transparent text-[15px] font-medium outline-none placeholder:font-normal"
@@ -525,7 +525,7 @@ export default function SearchPageClient() {
                 const totalForType = counts?.[type] ?? group.length;
                 const labels: Record<SearchResultType, string> = {
                   book:     "E-Books",
-                  research: "Research Reports",
+                  research: "Theses",
                   catalog:  "Physical Books",
                   post:     "Posts & News",
                 };
@@ -609,7 +609,7 @@ export default function SearchPageClient() {
                 Search the PTEC Library
               </p>
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--ptec-text-muted)" }}>
-                Books, research reports, physical catalog, and news — all searchable in one place.
+                Books, theses, physical catalog, and news — all searchable in one place.
               </p>
             </div>
 

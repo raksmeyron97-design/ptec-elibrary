@@ -78,7 +78,7 @@ export const LIBRARY_INFO = {
   links: {
     catalog: "/catalogs",
     ebooks: "/books",
-    research: "/research",
+    theses: "/theses",
     posts: "/posts",
     about: "/about",
     collection: "/about/collection",

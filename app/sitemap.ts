@@ -56,7 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const reportUrls: MetadataRoute.Sitemap = (reports ?? []).map((r) => ({
-    url: `${SITE_URL}/research/${r.id}`,
+    url: `${SITE_URL}/theses/${r.id}`,
     lastModified: r.published_at ?? r.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.9,
@@ -83,7 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/research`,
+      url: `${SITE_URL}/theses`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,

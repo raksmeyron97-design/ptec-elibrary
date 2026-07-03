@@ -436,7 +436,7 @@ export default async function AdminDashboardPage() {
         {[
           { label: "Upload Book",       href: "/admin/upload",           icon: Upload,          color: "#DDB022", bg: "#FFFBEB", border: "#FDE68A" },
           { label: "Manage Books",      href: "/admin/manage",           icon: BookOpen,        color: "#4f46e5", bg: "#EEF2FF", border: "#C7D2FE" },
-          { label: "Research Reports",  href: "/admin/research-reports", icon: GraduationCap,   color: "#0e7490", bg: "#ECFEFF", border: "#A5F3FC" },
+          { label: "Theses",            href: "/admin/theses",           icon: GraduationCap,   color: "#0e7490", bg: "#ECFEFF", border: "#A5F3FC" },
           { label: "Announcements",     href: "/admin/announcements",    icon: Megaphone,       color: "#0f9d6b", bg: "#ECFDF5", border: "#A7F3D0" },
         ].map(({ label, href, icon: Icon, color, bg, border }) => (
           <Link

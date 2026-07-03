@@ -1,5 +1,5 @@
 import type { Book } from "@/lib/book-utils";
-import { REPOSITORY } from "@/lib/research/citation";
+import { REPOSITORY } from "@/lib/theses/citation";
 
 export type CiteFormat = "apa" | "bibtex" | "ris";
 

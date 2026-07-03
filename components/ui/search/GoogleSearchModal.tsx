@@ -19,10 +19,10 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   book:     "Book",
   author:   "Author",
   category: "Category",
-  research: "Research",
+  research: "Thesis",
 };
 
-const TRENDING = ["ការអប់រំ", "Research", "PDF ឯកសារ", "Pedagogy", "Mathematics"];
+const TRENDING = ["ការអប់រំ", "Thesis", "PDF ឯកសារ", "Pedagogy", "Mathematics"];
 
 // ── Suggestion row ─────────────────────────────────────────────────────────────
 function SuggestionRow({
@@ -201,7 +201,7 @@ export default function SearchModal() {
     pushRecentSearch(s.label);
     setIsOpen(false);
     if (s.type === "book")          router.push(`/books/${s.slug}`);
-    else if (s.type === "research") router.push(`/research/${s.id}`);
+    else if (s.type === "research") router.push(`/theses/${s.id}`);
     else                            router.push(`/books?q=${encodeURIComponent(s.label)}`);
   }, [router]);
 

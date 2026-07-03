@@ -67,7 +67,7 @@ async function smoke() {
     '/books',
     '/catalogs',
     '/posts',
-    '/research',
+    '/theses',
   ];
 
   console.log(`Running smoke test against ${BASE_URL}`);

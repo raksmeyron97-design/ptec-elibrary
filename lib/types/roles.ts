@@ -16,7 +16,7 @@ export const ADMIN_PANEL_ROLES: AppRole[] = [
   "super_admin",
 ];
 
-/** Roles that can manage books, catalog, research reports, and uploads */
+/** Roles that can manage books, catalog, theses, and uploads */
 export const LIBRARIAN_ROLES: AppRole[] = [
   "librarian",
   "admin",
@@ -61,7 +61,7 @@ export const ROLE_META: Record<
   },
   librarian: {
     label: "Librarian",
-    description: "Can manage books, catalog, research reports, and uploads",
+    description: "Can manage books, catalog, theses, and uploads",
     color: "text-emerald-700",
     bgColor: "bg-emerald-50",
     borderColor: "border-emerald-200",

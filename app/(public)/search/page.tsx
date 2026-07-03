@@ -4,7 +4,7 @@ import SearchPageClient from "./SearchPageClient";
 
 export const metadata: Metadata = {
   title: "Search",
-  description: "Search PTEC Library — find books, research reports, physical catalog, and posts all in one place.",
+  description: "Search PTEC Library — find books, theses, physical catalog, and posts all in one place.",
 };
 
 export default function SearchPage() {
@@ -21,7 +21,7 @@ export default function SearchPage() {
             Library Search
           </h1>
           <p className="text-[13px]" style={{ color: "var(--ptec-text-muted)" }}>
-            Books · Research Reports · Physical Catalog · Posts
+            Books · Theses · Physical Catalog · Posts
           </p>
         </div>
 

@@ -18,7 +18,7 @@ interface Book {
 // Per-type badge styling for result cards (label + Tailwind classes)
 const TYPE_META: Record<NonNullable<Book["type"]>, { label: string; badge: string }> = {
   book: { label: "e-Book", badge: "bg-blue-400/15 text-blue-200/90 ring-blue-300/20" },
-  research: { label: "Research", badge: "bg-gold-400/15 text-gold-300 ring-gold-400/25" },
+  research: { label: "Thesis", badge: "bg-gold-400/15 text-gold-300 ring-gold-400/25" },
   post: { label: "News", badge: "bg-emerald-400/15 text-emerald-300 ring-emerald-300/20" },
 };
 

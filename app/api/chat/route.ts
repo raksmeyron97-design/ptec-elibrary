@@ -147,7 +147,7 @@ export async function POST(req: Request) {
   const libraryContext = `
 Library Search Results for "${query}":
 Books: ${JSON.stringify(books ?? [])}
-Research: ${JSON.stringify(research ?? [])}
+Theses: ${JSON.stringify(research ?? [])}
 `;
 
   // ── 8. Stream the model response ─────────────────────────────────────────────────

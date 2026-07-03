@@ -53,7 +53,7 @@ function coverUrlOf(raw: string | null): string | null {
 }
 
 function urlFor(source: string, ref: string): string {
-  if (source === "research") return `/research/${ref}`;
+  if (source === "research") return `/theses/${ref}`;
   if (source === "catalog") return `/catalogs/${ref}`;
   return `/books/${ref}`;
 }
@@ -171,9 +171,9 @@ async function keywordSearch(
       slug: (r as any).id,
       title: (r as any).title,
       author: (r as any).author_names ?? "Unknown",
-      category: "Research Report",
+      category: "Thesis",
       coverUrl: coverUrlOf((r as any).cover_url ?? null),
-      url: `/research/${(r as any).id}`,
+      url: `/theses/${(r as any).id}`,
     });
   for (const c of catalog ?? [])
     out.push({

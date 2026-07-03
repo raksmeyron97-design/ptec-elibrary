@@ -176,7 +176,7 @@ async function searchResearch(
       title: r.title,
       author: r.author_names ?? "Unknown",
       coverUrl: coverUrlOf(r.cover_url),
-      url: `/research/${r.id}`,
+      url: `/theses/${r.id}`,
       year,
       category: r.program ?? null,
       excerpt: makeExcerpt(r.abstract),

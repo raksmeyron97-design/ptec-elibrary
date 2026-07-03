@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
     const cohortYear = [r.cohort ? `C${r.cohort}` : null, r.academic_year]
       .filter(Boolean)
       .join(" · ");
-    const sub: string = (r.author_names as string | null) ?? (cohortYear || "Research Report");
+    const sub: string = (r.author_names as string | null) ?? (cohortYear || "Thesis");
     results.push({ type: "research", id: r.id, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
   }
 

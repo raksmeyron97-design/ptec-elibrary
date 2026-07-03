@@ -58,7 +58,7 @@ function getNavGroups(
   if (perm(p, "books",         "read"))  contentLinks.push({ name: "Manage Books",     href: "/admin/manage",           icon: BookOpen      });
   if (perm(p, "catalog",       "read"))  contentLinks.push({ name: "Catalog",          href: "/admin/catalogs",         icon: Library       });
   if (perm(p, "posts",         "read"))  contentLinks.push({ name: "Posts",            href: "/admin/posts",            icon: FileText      });
-  if (perm(p, "research",      "read"))  contentLinks.push({ name: "Research Reports", href: "/admin/research-reports", icon: GraduationCap });
+  if (perm(p, "research",      "read"))  contentLinks.push({ name: "Theses",           href: "/admin/theses",            icon: GraduationCap });
   if (perm(p, "announcements", "read"))  contentLinks.push({ name: "Announcements",    href: "/admin/announcements",    icon: Megaphone     });
   if (perm(p, "books",         "read"))  contentLinks.push({ name: "Book Requests",    href: "/admin/book-requests",    icon: BookPlus      });
   if (perm(p, "users",         "write")) contentLinks.push({ name: "Library Team",     href: "/admin/team",             icon: UserCircle    });
