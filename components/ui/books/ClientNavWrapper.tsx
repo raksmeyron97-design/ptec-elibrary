@@ -111,6 +111,61 @@ export function FilterSelect({
   );
 }
 
+/**
+ * Rows-per-page selector. Generic over the current route — preserves every
+ * existing search param, sets `param` to the chosen size, and resets to page 1.
+ */
+export function RowsPerPageSelect({
+  value,
+  options,
+  param = "size",
+  basePath,
+  id,
+}: {
+  value: number;
+  options: number[];
+  param?: string;
+  basePath: string;
+  id?: string;
+}) {
+  const { navigate } = useClientNav();
+  const searchParams = useSearchParams();
+
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set(param, e.target.value);
+    // Changing page size shifts the offsets — always return to the first page.
+    p.delete("page");
+    const qs = p.toString();
+    navigate(`${basePath}${qs ? `?${qs}` : ""}`);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor={id} className="whitespace-nowrap text-[13.5px] text-text-muted">
+        Rows per page
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={handleChange}
+        aria-label="Rows per page"
+        className="h-9 cursor-pointer appearance-none rounded-[10px] border border-divider bg-bg-surface bg-[length:16px] bg-[right_0.5rem_center] bg-no-repeat pl-3 pr-8 text-[13.5px] font-medium tabular-nums text-text-body transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+        }}
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function SortSelect({
   value,
   options,

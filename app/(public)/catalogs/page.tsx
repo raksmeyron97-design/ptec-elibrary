@@ -11,6 +11,8 @@ import { getAvailability } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import Pagination from "@/components/ui/core/Pagination";
+import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
+import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
 
@@ -37,17 +39,17 @@ type SearchParams = {
   availability?:string;   // "available" | "all"
   page?:        string;
   sort?:        string;
+  size?:        string;
 };
-
-const PAGE_SIZE = 18;
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 const fetchCatalogBooks = unstable_cache(
   async (params: SearchParams) => {
     const supabase = createPublicClient();
-  const page   = Math.max(1, Number(params.page) || 1);
-  const from   = (page - 1) * PAGE_SIZE;
-  const to     = from + PAGE_SIZE - 1;
+  const page     = Math.max(1, Number(params.page) || 1);
+  const pageSize = resolvePageSize(params.size);
+  const from     = (page - 1) * pageSize;
+  const to       = from + pageSize - 1;
   const rawQ = params.q?.trim();
   const q = rawQ ? rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim() : undefined;
   const avail  = params.availability;
@@ -140,12 +142,14 @@ export default async function CatalogsPage({
     fetchCategories(),
   ]);
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pageSize   = resolvePageSize(params.size);
+  const totalPages = Math.ceil(total / pageSize);
   const hasFilters = !!(params.q || params.category || params.language || params.availability);
 
   const availOnlyCount = books.filter((b) => getAvailability(b) === "available").length;
 
   return (
+    <ClientNavWrapper>
     <div className="min-h-screen bg-paper">
 
       {/* ── Header ── */}
@@ -287,13 +291,15 @@ export default async function CatalogsPage({
               currentPage={page}
               totalPages={totalPages}
               totalItems={total}
-              pageSize={PAGE_SIZE}
+              pageSize={pageSize}
               searchParams={params as Record<string, string | undefined>}
               basePath="/catalogs"
+              pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
             />
           </>
         )}
       </div>
     </div>
+    </ClientNavWrapper>
   );
 }

@@ -142,9 +142,10 @@ async function buildListingQuery(
 function buildCursor(
   rawRows: any[],
   sortColumn: string,
-  offsetSoFar: number
+  offsetSoFar: number,
+  pageSize: number = BOOKS_PAGE_SIZE
 ): BookCursor | null {
-  if (rawRows.length < BOOKS_PAGE_SIZE) return null; // last page
+  if (rawRows.length < pageSize) return null; // last page
   const last = rawRows[rawRows.length - 1];
   return {
     v: last?.[sortColumn] ?? null,
@@ -160,12 +161,14 @@ function buildCursor(
 export const getBooksPage = unstable_cache(
   async (
     params: BooksListParams,
-    page: number
+    page: number,
+    pageSize: number = BOOKS_PAGE_SIZE
   ): Promise<BooksSlice & { total: number; page: number }> => {
     const supabase = createPublicClient();
     const safePage = Math.max(1, Number(page) || 1);
-    const from = (safePage - 1) * BOOKS_PAGE_SIZE;
-    const to = from + BOOKS_PAGE_SIZE - 1;
+    const size = pageSize > 0 ? pageSize : BOOKS_PAGE_SIZE;
+    const from = (safePage - 1) * size;
+    const to = from + size - 1;
     const { def } = resolveSort(params.sort);
 
     // "estimated" = exact count for small result sets, planner estimate for
@@ -186,7 +189,7 @@ export const getBooksPage = unstable_cache(
       books: rows.map(mapRowToBook),
       total: count ?? 0,
       page: safePage,
-      nextCursor: buildCursor(rows, def.column, from),
+      nextCursor: buildCursor(rows, def.column, from, size),
     };
   },
   ["books-page"],

@@ -10,9 +10,9 @@ import {
   getDepartmentsCached,
   getLanguagesCached,
   getFormatsCached,
-  BOOKS_PAGE_SIZE,
   type BooksListParams,
 } from "@/lib/books-data";
+import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import { getTranslations } from 'next-intl/server';
@@ -44,6 +44,7 @@ type SearchParams = {
   language?: string;
   page?: string;
   sort?: string;
+  size?: string;
 };
 
 export default async function BooksPage({
@@ -63,9 +64,10 @@ export default async function BooksPage({
     sort: params.sort,
   };
   const requestedPage = Math.max(1, Number(params.page) || 1);
+  const pageSize = resolvePageSize(params.size);
 
   const [{ books, total }, departments, languages, formats] = await Promise.all([
-    getBooksPage(listParams, requestedPage),
+    getBooksPage(listParams, requestedPage, pageSize),
     getDepartmentsCached(),
     getLanguagesCached(),
     getFormatsCached(),
@@ -235,11 +237,12 @@ export default async function BooksPage({
             </div>
             <Pagination
               currentPage={requestedPage}
-              totalPages={Math.ceil(total / BOOKS_PAGE_SIZE)}
+              totalPages={Math.ceil(total / pageSize)}
               totalItems={total}
-              pageSize={BOOKS_PAGE_SIZE}
+              pageSize={pageSize}
               searchParams={params}
               basePath="/books"
+              pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
             />
           </>
         )}

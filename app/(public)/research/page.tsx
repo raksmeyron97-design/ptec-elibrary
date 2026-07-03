@@ -7,6 +7,9 @@ import ResearchListItem from "@/components/ui/research/ResearchListItem";
 import ResearchSidebar from "@/components/ui/research/ResearchSidebar";
 import SearchBar from "@/components/ui/search/SearchBar";
 import Icon from "@/components/ui/core/Icon";
+import Pagination from "@/components/ui/core/Pagination";
+import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
+import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { List, LayoutGrid, Rows3 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { PROGRAMS, getFacultiesForProgram } from "@/lib/research/programs";
@@ -35,6 +38,8 @@ type SP = {
   program?: string;
   faculty?: string;
   view?: string;
+  page?: string;
+  size?: string;
 };
 
 export default async function ResearchReportsPage({
@@ -62,6 +67,12 @@ export default async function ResearchReportsPage({
   const total   = reports.length;
   const isGrid  = params.view === "grid";
 
+  // Reports are fetched in full, so paginate the slice in-page.
+  const pageSize   = resolvePageSize(params.size);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page       = Math.min(Math.max(1, Number(params.page) || 1), totalPages);
+  const pagedReports = reports.slice((page - 1) * pageSize, page * pageSize);
+
   const allDbCohorts = cohortRes.data ?? [];
   const allDbYears   = yearRes.data   ?? [];
 
@@ -86,6 +97,7 @@ export default async function ResearchReportsPage({
   const hasFilters = !!(params.cohort || params.year || params.q || params.program || params.faculty);
 
   return (
+    <ClientNavWrapper>
     <div className="min-h-screen bg-bg-body">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
         <div className="flex gap-6 items-start">
@@ -175,22 +187,35 @@ export default async function ResearchReportsPage({
               </div>
             ) : isGrid ? (
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-                {reports.map((report) => (
+                {pagedReports.map((report) => (
                   <ResearchCard key={report.id} report={report} />
                 ))}
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {reports.map((report) => (
+                {pagedReports.map((report) => (
                   <ResearchListItem key={report.id} report={report} />
                 ))}
               </div>
+            )}
+
+            {reports.length > 0 && (
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                searchParams={params as Record<string, string | undefined>}
+                basePath="/research"
+                pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
+              />
             )}
           </div>
 
         </div>
       </div>
     </div>
+    </ClientNavWrapper>
   );
 }
 
