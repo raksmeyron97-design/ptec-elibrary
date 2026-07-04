@@ -11,9 +11,12 @@ import { isThesisBookmarked, toggleThesisBookmark } from "@/lib/theses/local-boo
 export default function BookmarkButton({
   reportId,
   className = "",
+  label,
 }: {
   reportId: string;
   className?: string;
+  /** When set, renders as a labeled button instead of an icon-only control. */
+  label?: { saved: string; unsaved: string };
 }) {
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -41,10 +44,11 @@ export default function BookmarkButton({
       } ${mounted ? "" : "opacity-0"} ${className}`}
     >
       <Bookmark
-        className={`h-4 w-4 transition-transform duration-200 ${saved ? "scale-110" : "scale-100"}`}
+        className={`h-4 w-4 shrink-0 transition-transform duration-200 ${saved ? "scale-110" : "scale-100"}`}
         fill={saved ? "currentColor" : "none"}
         strokeWidth={2}
       />
+      {label && (saved ? label.saved : label.unsaved)}
     </button>
   );
 }

@@ -10,6 +10,8 @@
  * empties, so it works whether `keywords` is `text[]`, a comma list, or null.
  */
 
+import { getFacultiesForProgram } from "./programs";
+
 export type ResearchReport = Record<string, any>;
 
 const firstDefined = (...vals: any[]) =>
@@ -46,12 +48,18 @@ export function getDoi(report: ResearchReport): string | null {
 }
 
 export function getDepartment(report: ResearchReport): string | null {
+  // The last-resort fallback is a faculty *code* (e.g. "primary"), not a
+  // display label — resolve it through the program config before falling
+  // back to the raw string, otherwise the UI ends up showing a bare slug.
+  const facultyLabel = getFacultiesForProgram(report.program).find((f) => f.code === report.faculty)?.nameEn;
+
   return (
     (firstDefined(
       report.department,
       report.department_name,
       report.departments?.name, // Added for Supabase join: select("*, departments(name)")
       report.faculty_name,
+      facultyLabel,
       report.faculty,
     ) as string) ?? null
   );

@@ -8,6 +8,8 @@ interface ShareButtonProps {
   url: string;
   title?: string;
   className?: string;
+  /** When set, renders "Share" text next to the icon instead of icon-only. */
+  label?: string;
 }
 
 /* ── Brand glyphs (inline — Icon component has no brand logos) ─────────────── */
@@ -54,7 +56,7 @@ const TARGETS: Target[] = [
   { key: "linkedin", label: "LinkedIn", bg: "bg-[#0A66C2]", href: (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
 ];
 
-export default function ShareButton({ url, title = "PTEC Library", className }: ShareButtonProps) {
+export default function ShareButton({ url, title = "PTEC Library", className, label }: ShareButtonProps) {
   const t = useTranslations('share');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -103,6 +105,7 @@ export default function ShareButton({ url, title = "PTEC Library", className }: 
         }
       >
         <Icon name="share" className={className ? "text-[15px] text-text-muted" : "text-[20px] text-text-muted"} />
+        {label}
       </button>
 
       {/* Modal */}

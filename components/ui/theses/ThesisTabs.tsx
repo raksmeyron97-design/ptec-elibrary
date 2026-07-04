@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { onThesisTabActivate } from "@/lib/theses/tab-bus";
 
 export interface ThesisTab {
   id: string;
@@ -30,19 +31,24 @@ export default function ThesisTabs({
     setMounted((m) => (m[id] ? m : { ...m, [id]: true }));
   };
 
+  // Let sibling components (Hero/Sidebar action buttons) switch tabs without
+  // needing a page-wide client context — see lib/theses/tab-bus.ts.
+  useEffect(() => onThesisTabActivate(activate), []);
+
   return (
-    <div className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
-      {/* Tab bar */}
+    <div id="thesis-tabs" className="scroll-mt-4 rounded-2xl border border-divider bg-bg-surface shadow-sm">
+      {/* Tab bar — sticky while scrolling through the document */}
       <div
         role="tablist"
         aria-label="Thesis sections"
-        className="flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-divider bg-bg-app/60 px-2 sm:px-3"
+        className="sticky top-4 z-10 flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-divider bg-bg-app/80 px-2 backdrop-blur-sm sm:px-3"
       >
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
-            <button key={t.id} type="button" onClick={() => activate(t.id)}
-              className={`relative shrink-0 cursor-pointer px-3 py-3.5 text-[13.5px] font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/40 sm:px-4 sm:text-[14px] ${
+            <button key={t.id} id={`tab-${t.id}`} type="button" onClick={() => activate(t.id)}
+              role="tab" aria-selected={isActive} aria-controls={`panel-${t.id}`}
+              className={`relative shrink-0 cursor-pointer rounded-t-lg px-3 py-3.5 text-[13.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring sm:px-4 sm:text-[14px] ${
                 isActive ? "text-brand" : "text-text-muted hover:text-text-body"
               }`}
             >

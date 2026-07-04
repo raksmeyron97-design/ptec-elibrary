@@ -11,7 +11,7 @@ export const REPOSITORY = {
   baseUrl: "https://library.ptec.edu.kh",
 };
 
-export type CiteFormat = "apa" | "bibtex" | "ris";
+export type CiteFormat = "apa" | "mla" | "chicago" | "ieee" | "bibtex" | "ris";
 
 /** Public-facing link to a report (used inside citations when there is no DOI). */
 export function reportUrl(reportId: string): string {
@@ -44,6 +44,30 @@ export function toAPA(report: ResearchReport, reportId: string): string {
   const link = doiOrUrl(report, reportId);
   // Author, A. (Year). Title [Research report]. Repository. link
   return `${authors} (${year}). ${title} [Research report]. ${REPOSITORY.name}. ${link}`;
+}
+
+export function toMLA(report: ResearchReport, reportId: string): string {
+  const authors = safeAuthors(report);
+  const year = getYear(report) || "n.d.";
+  const title = (report.title || "").toString().trim();
+  const link = doiOrUrl(report, reportId);
+  return `${authors}. "${title}." ${REPOSITORY.name}, ${year}, ${link}.`;
+}
+
+export function toChicago(report: ResearchReport, reportId: string): string {
+  const authors = safeAuthors(report);
+  const year = getYear(report) || "n.d.";
+  const title = (report.title || "").toString().trim();
+  const link = doiOrUrl(report, reportId);
+  return `${authors}. ${year}. "${title}." ${REPOSITORY.name}. ${link}.`;
+}
+
+export function toIEEE(report: ResearchReport, reportId: string): string {
+  const authors = safeAuthors(report);
+  const year = getYear(report) || "n.d.";
+  const title = (report.title || "").toString().trim();
+  const link = doiOrUrl(report, reportId);
+  return `${authors}, "${title}," ${REPOSITORY.name}, ${year}. [Online]. Available: ${link}`;
 }
 
 export function toBibTeX(report: ResearchReport, reportId: string): string {
@@ -85,6 +109,9 @@ export function toRIS(report: ResearchReport, reportId: string): string {
 }
 
 export function buildCitation(format: CiteFormat, report: ResearchReport, reportId: string): string {
+  if (format === "mla") return toMLA(report, reportId);
+  if (format === "chicago") return toChicago(report, reportId);
+  if (format === "ieee") return toIEEE(report, reportId);
   if (format === "bibtex") return toBibTeX(report, reportId);
   if (format === "ris") return toRIS(report, reportId);
   return toAPA(report, reportId);

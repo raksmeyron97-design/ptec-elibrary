@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
@@ -8,11 +7,15 @@ import { getThesisById } from "@/app/actions/theses";
 import ThesisViewPing from "@/components/ui/theses/ThesisViewPing";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
-import ShareButton from "@/components/ui/books/ShareButton";
 import RelatedTheses from "@/components/ui/theses/RelatedTheses";
 import ThesisTabs, { type ThesisTab } from "@/components/ui/theses/ThesisTabs";
 import ReferenceList from "@/components/ui/theses/ReferenceList";
-import CiteThis from "@/components/ui/theses/CiteThis";
+import PublicationHero from "@/components/ui/theses/detail/PublicationHero";
+import PublicationMetadata from "@/components/ui/theses/detail/PublicationMetadata";
+import StickySidebar from "@/components/ui/theses/detail/StickySidebar";
+import AbstractSection from "@/components/ui/theses/detail/AbstractSection";
+import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
+import ReadingProgress from "@/components/ui/theses/detail/ReadingProgress";
 import JsonLd from "@/components/seo/JsonLd";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -20,18 +23,9 @@ import {
   getReferences,
   getDoi,
   getDepartment,
-  formatPublicationDate,
 } from "@/lib/theses/report-fields";
 import { SITE_URL } from "@/lib/seo/site";
-import {
-  Download,
-  Eye,
-  Pencil,
-  Building2,
-  CalendarDays,
-  Layers,
-  GraduationCap,
-} from "lucide-react";
+import { Pencil, FileX2 } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -150,63 +144,46 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   const references = getReferences(report);
   const doi = getDoi(report);
   const department = getDepartment(report);
-  const publishedOn = formatPublicationDate(report);
   const fileHref = `/api/theses/${id}/file`;
   const shareUrl = `${SITE_URL}/theses/${id}`;
 
   // ── Tab content ───────────────────────────────────────────────────────────
-  const abstractPanel = (
-    <div className="max-w-3xl">
-      <h2 className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-        Abstract
-      </h2>
-      <p className="font-sans text-[15px] leading-8 text-text-body sm:text-[15.5px]">
-        {report.abstract || "No abstract provided."}
-      </p>
+  const tabs: ThesisTab[] = [
+    {
+      id: "abstract",
+      label: "Abstract",
+      content: <AbstractSection abstract={report.abstract || ""} keywords={keywords} />,
+    },
+  ];
 
-      {keywords.length > 0 && (
-        <div className="mt-7 border-t border-divider pt-5">
-          <h3 className="mb-2.5 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-            Keywords
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {keywords.map((kw) => (
-              <Link
-                key={kw}
-                href={`/theses?q=${encodeURIComponent(kw)}`}
-                className="rounded-full border border-divider bg-paper px-3 py-1 text-[12.5px] font-medium text-text-body transition-colors hover:border-brand/40 hover:bg-brand/5 hover:text-brand"
-              >
-                {kw}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  const tabs: ThesisTab[] = [{ id: "abstract", label: "Abstract", content: abstractPanel }];
-
-  if (report.file_url) {
-    tabs.push({
-      id: "fulltext",
-      label: "Full Text",
-      lazy: true,
-      content: (
-        <div className="-m-1">
-          <PDFViewer
-            title={report.title}
-            pdfUrl={fileHref}
-            bookId={id}
-            totalPages={100}
-            initialProgressPct={0}
-            initialMaxProgressPct={0}
-            allowDownload={true}
-          />
-        </div>
-      ),
-    });
-  }
+  tabs.push({
+    id: "fulltext",
+    label: "Full Text",
+    lazy: true,
+    content: report.file_url ? (
+      <div className="-m-1">
+        <PDFViewer
+          title={report.title}
+          pdfUrl={fileHref}
+          bookId={id}
+          totalPages={100}
+          initialProgressPct={0}
+          initialMaxProgressPct={0}
+          allowDownload={true}
+        />
+      </div>
+    ) : (
+      <div className="fade-rise-in flex flex-col items-center gap-3 py-14 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-bg-app">
+          <FileX2 className="h-7 w-7 text-text-muted/50" />
+        </span>
+        <p className="text-[14px] font-medium text-text-heading">No PDF available yet</p>
+        <p className="max-w-xs text-[13px] text-text-muted">
+          The full text for this thesis hasn&apos;t been uploaded to the repository.
+        </p>
+      </div>
+    ),
+  });
 
   tabs.push({
     id: "references",
@@ -214,7 +191,6 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     badge: references.length || undefined,
     content: <ReferenceList references={references} />,
   });
-
 
   const reportAuthors = report.author_names
     ? (report.author_names as string).split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -258,6 +234,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={scholarlyArticleSchema} />
       <ThesisViewPing id={id} />
+      <ReadingProgress />
       <div className="mx-auto max-w-[1200px]">
         {/* ── Breadcrumb + admin ── */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
@@ -265,9 +242,9 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             aria-label="Breadcrumb"
             className="flex flex-wrap items-center gap-1.5 overflow-hidden text-[13px] font-medium text-text-muted sm:gap-2 sm:text-[14.5px]"
           >
-            <Link href="/" className="transition-colors hover:text-brand">Home</Link>
+            <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">Home</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
-            <Link href="/theses" className="transition-colors hover:text-brand">Theses</Link>
+            <Link href="/theses" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">Theses</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
             <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[340px]" title={report.title}>
               {report.title}
@@ -276,7 +253,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           {isAdmin && (
             <Link
               href={`/admin/theses/edit/${id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:border-brand hover:text-brand"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-xs font-medium text-text-muted transition-colors duration-150 hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             >
               <Pencil className="h-3.5 w-3.5" />
               Edit thesis
@@ -284,145 +261,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* ── Article header ── */}
-        <header className="gradient-top-border mb-7 overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
-          <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
-              Thesis
-            </span>
-            {doi && (
-              <a
-                href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[11.5px] text-text-muted transition-colors hover:text-brand"
-              >
-                DOI: {doi.replace(/^https?:\/\/doi\.org\//, "")}
-              </a>
-            )}
-          </div>
+        {/* ── Hero ── */}
+        <PublicationHero report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} />
 
-          <h1 className="mt-3 font-khmer-serif text-[clamp(24px,4vw,36px)] font-bold leading-[1.28] text-text-heading">
-            {report.title}
-          </h1>
-
-          {report.author_names && (
-            <p className="mt-4 text-[15px] text-text-body sm:text-[16.5px]">
-              <span className="text-text-muted">Author(s): </span>
-              <span className="font-semibold text-text-heading">{report.author_names}</span>
-            </p>
-          )}
-          {report.advisor_name && (
-            <p className="mt-1 text-[14px] text-text-muted sm:text-[15px]">
-              Advisor: <span className="font-medium text-text-heading">{report.advisor_name}</span>
-            </p>
-          )}
-
-          {/* Meta chips */}
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            {report.cohort && (
-              <MetaChip icon={<Layers className="h-3.5 w-3.5" />}>Cohort {report.cohort}</MetaChip>
-            )}
-            {report.academic_year && (
-              <MetaChip icon={<GraduationCap className="h-3.5 w-3.5" />}>{report.academic_year}</MetaChip>
-            )}
-            {department && (
-              <MetaChip icon={<Building2 className="h-3.5 w-3.5" />}>{department}</MetaChip>
-            )}
-            {publishedOn && (
-              <MetaChip icon={<CalendarDays className="h-3.5 w-3.5" />}>{publishedOn}</MetaChip>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <a
-              href={fileHref}
-              className="btn-brand-gradient inline-flex items-center justify-center gap-2 rounded-[14px] px-6 py-3 text-[15px] font-bold text-white"
-            >
-              <Download className="h-[18px] w-[18px]" />
-              Download PDF
-            </a>
-            <ShareButton url={shareUrl} />
-          </div>
-        </header>
-
-        {/* ── Body: sections + sidebar ── */}
+        {/* ── Body: tabs + sidebar ── */}
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          {/* Main */}
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-5">
+            <PublicationMetadata report={report} />
             <ThesisTabs tabs={tabs} defaultTab="abstract" />
           </div>
-
-          {/* Sidebar */}
-          <aside className="space-y-5">
-            {/* Cover */}
-            <div className="overflow-hidden rounded-2xl border border-divider/60 bg-paper shadow-sm">
-              <div className="relative aspect-[3/4] w-full">
-                {report.cover_url ? (
-                  <Image src={report.cover_url} alt={report.title} fill sizes="(max-width: 768px) 100vw, 240px" className="object-cover" />
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand/5 to-brand/10">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14 text-brand/25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    <span className="text-[11px] font-medium text-brand/30">No Cover</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Cite this */}
-            <CiteThis report={report} reportId={id} />
-
-            {/* Metrics */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-center shadow-sm dark:border-emerald-800/30 dark:bg-emerald-950/20">
-                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-                  <Eye className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
-                </div>
-                <div className="text-[20px] font-bold text-emerald-800 dark:text-emerald-300">{(report.view_count || 0) + 1}</div>
-                <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-500">Views</div>
-              </div>
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm dark:border-amber-800/30 dark:bg-amber-950/20">
-                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                  <Download className="h-4 w-4 text-amber-700 dark:text-amber-400" />
-                </div>
-                <div className="text-[20px] font-bold text-amber-800 dark:text-amber-300">{report.download_count || 0}</div>
-                <div className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-500">Downloads</div>
-              </div>
-            </div>
-
-            {/* Article information */}
-            <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-              <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-                Article information
-              </h3>
-              <dl className="space-y-2.5 text-[13px]">
-                <InfoRow label="Type" value="Thesis" />
-                {report.cohort && <InfoRow label="Cohort" value={`Cohort ${report.cohort}`} />}
-                {report.academic_year && <InfoRow label="Academic year" value={report.academic_year} />}
-                {department && <InfoRow label="Department" value={department} />}
-                {publishedOn && <InfoRow label="Published" value={publishedOn} />}
-                {doi && (
-                  <InfoRow
-                    label="DOI"
-                    value={
-                      <a
-                        href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="break-all font-mono text-brand hover:underline"
-                      >
-                        {doi.replace(/^https?:\/\/doi\.org\//, "")}
-                      </a>
-                    }
-                  />
-                )}
-              </dl>
-            </div>
-          </aside>
+          <StickySidebar report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} />
         </div>
 
         {/* ── Related ── */}
@@ -432,30 +280,12 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           academicYear={report.academic_year}
           department={department ?? undefined}
         />
+
+        {/* ── More from this author ── */}
+        {report.author_names && (
+          <AuthorCard currentId={id} authorNames={report.author_names} />
+        )}
       </div>
     </section>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="shrink-0 text-text-muted">{label}</dt>
-    </div>
-  );
-}
-
-function MetaChip({
-  icon,
-  children,
-}: {
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] font-medium text-text-body">
-      <span className="text-text-muted">{icon}</span>
-      {children}
-    </span>
   );
 }

@@ -11,6 +11,13 @@ interface RelatedThesesProps {
   department?: string;
 }
 
+const REASON_LABEL: Record<string, string> = {
+  cohort: "Same Cohort",
+  department: "Same Department",
+  academic_year: "Same Year",
+  popular: "Popular",
+};
+
 export default async function RelatedTheses({
   currentId,
   cohort,
@@ -22,6 +29,7 @@ export default async function RelatedTheses({
 
   const seen = new Set<string>([currentId]);
   const collected: any[] = [];
+  const reasons = new Map<string, string>();
 
   // Pull a batch matching an optional equality filter, de-duped, until we hit TARGET.
   async function pull(column?: string, value?: string) {
@@ -42,6 +50,7 @@ export default async function RelatedTheses({
         if (seen.has(r.id)) continue;
         seen.add(r.id);
         collected.push(r);
+        reasons.set(r.id, column ?? "popular");
       }
     } catch {
       /* unknown column or query error — skip this relatedness signal */
@@ -53,8 +62,6 @@ export default async function RelatedTheses({
   await pull("department", department);
   await pull("academic_year", academicYear);
   await pull(); // fill remaining slots with most-viewed theses
-
-  if (collected.length === 0) return null;
 
   return (
     <section className="mt-16">
@@ -76,17 +83,44 @@ export default async function RelatedTheses({
         </div>
         <Link
           href="/theses"
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-body shadow-sm transition-colors hover:border-brand/40 hover:text-brand"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
           Browse all
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {collected.map((report) => (
-          <ThesisCard key={report.id} report={report} />
-        ))}
-      </div>
+
+      {collected.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-divider bg-bg-surface py-14 text-center">
+          <GraduationCapIcon />
+          <p className="text-[14px] text-text-muted">No related theses found yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {collected.map((report) => {
+            const reason = reasons.get(report.id);
+            const label = reason ? REASON_LABEL[reason] : undefined;
+            return (
+              <div key={report.id} className="relative">
+                {label && (
+                  <span className="pointer-events-none absolute left-3 top-3 z-30 rounded-full bg-brand/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm backdrop-blur-sm">
+                    {label}
+                  </span>
+                )}
+                <ThesisCard report={report} />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
+  );
+}
+
+function GraduationCapIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-text-muted/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
   );
 }
