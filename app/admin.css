@@ -84,20 +84,8 @@
 .dz-chip--pdf { background: linear-gradient(135deg, #d23f57, #a01f33); }
 .dz-chip--img { background: linear-gradient(135deg, var(--ptec-violet), var(--ptec-indigo)); }
 
-/* ── Enhance gradient button ────────────────────────────────────── */
-.btn-brand-gradient {
-  background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950));
-  box-shadow: 0 12px 24px -12px rgba(21, 41, 107, .75);
-  transition: transform .2s, box-shadow .2s;
-}
-.btn-brand-gradient:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 30px -12px rgba(21, 41, 107, .8), 0 0 0 3px rgba(221, 176, 34, .28);
-}
-.btn-brand-gradient:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
+/* .btn-brand-gradient moved to globals.css — it is used on public pages
+   (publications/theses detail, search bar) which never load admin.css. */
 
 @keyframes ptecFadeUp {
   from { opacity: 0; transform: translateY(12px); }

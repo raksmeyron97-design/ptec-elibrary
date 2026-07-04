@@ -328,3 +328,19 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   color: #fff;
   border-color: var(--ptec-brand);
 }
+
+/* ── Brand gradient CTA (publications/theses download, search) ───── */
+/* Lives here (not admin.css) because public pages use it too.        */
+.btn-brand-gradient {
+  background: linear-gradient(135deg, var(--ptec-navy-700), var(--ptec-navy-950));
+  box-shadow: 0 12px 24px -12px rgba(21, 41, 107, .75);
+  transition: transform .2s, box-shadow .2s;
+}
+.btn-brand-gradient:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -12px rgba(21, 41, 107, .8), 0 0 0 3px rgba(221, 176, 34, .28);
+}
+.btn-brand-gradient:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
