@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import { zimaUpload, zimaDelete } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
-const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars"];
+const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications"];
 
 function validateFolder(folder: string): void {
   const topLevel = folder.split("/")[0];

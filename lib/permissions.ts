@@ -5,13 +5,13 @@ import type { AppRole, PermLevel } from "./types/roles";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseService = { from: (table: string) => any };
 
-/** Hardcoded fallback — matches the migration seed in 0041_role_permissions.sql */
+/** Hardcoded fallback — matches the migration seeds in 0041_role_permissions.sql + 0052_publications.sql */
 export const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PermLevel>> = {
-  reader:      { books: "read",  catalog: "read",  research: "read",  posts: "read",  announcements: "read",  users: "none",  roles: "none" },
-  staff:       { books: "read",  catalog: "read",  research: "read",  posts: "write", announcements: "write", users: "none",  roles: "none" },
-  librarian:   { books: "write", catalog: "write", research: "write", posts: "read",  announcements: "read",  users: "none",  roles: "none" },
-  admin:       { books: "write", catalog: "write", research: "write", posts: "write", announcements: "write", users: "write", roles: "none" },
-  super_admin: { books: "write", catalog: "write", research: "write", posts: "write", announcements: "write", users: "write", roles: "write" },
+  reader:      { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "read",  announcements: "read",  users: "none",  roles: "none" },
+  staff:       { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "write", announcements: "write", users: "none",  roles: "none" },
+  librarian:   { books: "write", catalog: "write", research: "write", publications: "write", posts: "read",  announcements: "read",  users: "none",  roles: "none" },
+  admin:       { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", users: "write", roles: "none" },
+  super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", users: "write", roles: "write" },
 };
 
 /**
