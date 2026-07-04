@@ -69,11 +69,13 @@ export function FilterSelect({
   options,
   defaultLabel,
   paramKey,
+  basePath = "/books",
 }: {
   value: string;
   options: string[];
   defaultLabel: string;
   paramKey: string;
+  basePath?: string;
 }) {
   const { navigate } = useClientNav();
   const searchParams = useSearchParams();
@@ -81,18 +83,18 @@ export function FilterSelect({
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     const p = new URLSearchParams(searchParams.toString());
-    
+
     if (val) {
       p.set(paramKey, val);
     } else {
       p.delete(paramKey);
     }
-    
+
     // Always reset to page 1 when changing filters
     p.delete("page");
-    
+
     const qs = p.toString();
-    navigate(`/books${qs ? `?${qs}` : ""}`);
+    navigate(`${basePath}${qs ? `?${qs}` : ""}`);
   };
 
   return (
@@ -171,11 +173,13 @@ export function SortSelect({
   options,
   defaultLabel,
   paramKey,
+  basePath = "/books",
 }: {
   value: string;
   options: { value: string; label: string }[];
   defaultLabel: string;
   paramKey: string;
+  basePath?: string;
 }) {
   const { navigate } = useClientNav();
   const searchParams = useSearchParams();
@@ -183,17 +187,17 @@ export function SortSelect({
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     const p = new URLSearchParams(searchParams.toString());
-    
+
     if (val) {
       p.set(paramKey, val);
     } else {
       p.delete(paramKey);
     }
-    
+
     p.delete("page");
-    
+
     const qs = p.toString();
-    navigate(`/books${qs ? `?${qs}` : ""}`);
+    navigate(`${basePath}${qs ? `?${qs}` : ""}`);
   };
 
   return (

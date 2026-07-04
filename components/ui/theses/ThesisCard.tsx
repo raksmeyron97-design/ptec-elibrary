@@ -1,8 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import Image from "next/image";
+import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/core/Badge";
-import { getKeywords } from "@/lib/theses/report-fields";
+import { getKeywords, getYear, getDepartment } from "@/lib/theses/report-fields";
+import { getProgram } from "@/lib/theses/programs";
+import BookmarkButton from "@/components/ui/theses/BookmarkButton";
+import ShareButton from "@/components/ui/books/ShareButton";
+import { SITE_URL } from "@/lib/seo/site";
 
 export default function ThesisCard({ report }: { report: any }) {
   const formatCount = (n: number) =>
@@ -14,17 +19,38 @@ export default function ThesisCard({ report }: { report: any }) {
 
   const downloads = report.download_count || 0;
   const views = report.view_count || 0;
-  const keywords = getKeywords(report).slice(0, 2);
+  const keywords = getKeywords(report).slice(0, 3);
+  const year = getYear(report);
+  const department = getDepartment(report);
+  const programLabel = getProgram(report.program)?.nameEn;
+  const metaLine = [programLabel, department, year].filter(Boolean).join(" · ");
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30">
       {/* Gold top-rule accent on hover */}
       <span
         aria-hidden
-        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
       />
 
-      <Link href={`/theses/${report.id}`} className="flex h-full flex-col">
+      {/* Whole-card link — a stretched overlay so nested buttons/links below can
+          still receive their own clicks without nesting <a> inside <a>. The
+          focus ring is inset because the article clips overflow. */}
+      <Link
+        href={`/theses/${report.id}`}
+        aria-label={report.title}
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+      />
+
+      {/* Bookmark floats above everything */}
+      <BookmarkButton
+        reportId={report.id}
+        className="absolute right-5 top-5 z-30 h-8 w-8 shadow-sm backdrop-blur-sm"
+      />
+
+      {/* Visible content — pointer-events disabled by default so clicks fall
+          through to the card link; re-enabled only on the real controls. */}
+      <div className="relative z-10 flex h-full flex-col pointer-events-none">
         {/* ── Cover — the dominant visual element ── */}
         <div className="relative mx-3 mt-3 overflow-hidden rounded-xl sm:mx-3.5 sm:mt-3.5 border border-divider/60 shadow-sm ring-1 ring-black/[0.03]">
           <div className="relative aspect-[3/4] w-full bg-paper">
@@ -38,18 +64,7 @@ export default function ThesisCard({ report }: { report: any }) {
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-brand/5 to-brand/10">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-10 w-10 text-brand/25"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
+                <GraduationCap className="h-10 w-10 text-brand/25" strokeWidth={1.5} />
               </div>
             )}
 
@@ -83,80 +98,76 @@ export default function ThesisCard({ report }: { report: any }) {
             </p>
           )}
 
-          {/* Keywords */}
+          {/* Program / Department / Year */}
+          {metaLine && (
+            <p className="mt-1 text-[10.5px] text-text-muted line-clamp-1">{metaLine}</p>
+          )}
+
+          {/* Abstract preview */}
+          {report.abstract && (
+            <p className="mt-2 line-clamp-2 text-[11.5px] leading-relaxed text-text-muted">
+              {report.abstract}
+            </p>
+          )}
+
+          {/* Keywords — real links, so they need pointer events re-enabled */}
           {keywords.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className="pointer-events-auto mt-2 flex flex-wrap gap-1">
               {keywords.map((kw) => (
-                <span
+                <Link
                   key={kw}
-                  className="rounded bg-bg-app px-1.5 py-0.5 text-[9px] font-medium text-text-muted line-clamp-1"
+                  href={`/theses?keyword=${encodeURIComponent(kw)}`}
+                  className="relative z-10 rounded bg-bg-app px-1.5 py-0.5 text-[9px] font-medium text-text-muted line-clamp-1 transition-colors duration-150 hover:bg-brand/10 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
                 >
                   {kw}
-                </span>
+                </Link>
               ))}
             </div>
           )}
 
           {/* ── Footer ── */}
           <div className="mt-auto pt-4">
-            {/* Meta row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {/* Downloads */}
-                {downloads > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                    <svg
-                      className="h-3 w-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 3v13m0 0-4-4m4 4 4-4" />
-                      <path d="M4 20h16" />
-                    </svg>
-                    {formatCount(downloads)}
-                  </span>
-                )}
-
-                {/* Views */}
+            {/* Metrics row */}
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
+                <Eye className="h-3 w-3" />
+                {formatCount(views)}
+              </span>
+              {downloads > 0 && (
                 <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                  <svg
-                    className="h-3 w-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  {formatCount(views)}
+                  <Download className="h-3 w-3" />
+                  {formatCount(downloads)}
                 </span>
-              </div>
+              )}
+            </div>
 
-              {/* CTA */}
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast sm:px-2.5 sm:py-1 sm:text-[10px]">
+            {/* Actions row — real controls, pointer events re-enabled */}
+            <div className="pointer-events-auto mt-2.5 flex items-center gap-1.5">
+              <span className="inline-flex flex-1 items-center justify-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-all duration-150 group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast group-active:scale-[0.97]">
                 View
-                <svg
-                  className="h-3 w-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                >
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
+                <ArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" strokeWidth={2.5} />
+              </span>
+
+              <a
+                href={`/api/theses/${report.id}/file?download=1`}
+                aria-label="Download PDF"
+                title="Download PDF"
+                className="relative z-10 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </a>
+
+              <span className="relative z-10 shrink-0">
+                <ShareButton
+                  url={`${SITE_URL}/theses/${report.id}`}
+                  title={report.title}
+                  className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                />
               </span>
             </div>
           </div>
         </div>
-      </Link>
+      </div>
     </article>
   );
 }

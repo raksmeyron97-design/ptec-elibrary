@@ -55,7 +55,7 @@ export default function CiteThis({
   if (compact && !open) {
     return (
       <button type="button" onClick={() => setOpen(true)}
-        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
       >
         <Quote className="h-3.5 w-3.5" />
         Cite
@@ -72,7 +72,7 @@ export default function CiteThis({
           return (
             <button key={f.id} type="button" onClick={() => setFormat(f.id)}
               aria-pressed={active}
-              className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
+              className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
                 active
                   ? "bg-brand text-white shadow-sm"
                   : "text-text-muted hover:bg-bg-surface hover:text-text-body"
@@ -91,11 +91,19 @@ export default function CiteThis({
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2">
-        <button type="button">
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        >
+          {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy"}
         </button>
-        <button type="button">
+        <button
+          type="button"
+          onClick={download}
+          className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        >
           <Download className="h-4 w-4" />
           {format === "apa" ? "TXT" : format.toUpperCase()}
         </button>
@@ -113,7 +121,7 @@ export default function CiteThis({
           </span>
           <button type="button" onClick={() => setOpen(false)}
             aria-label="Close citation panel"
-            className="cursor-pointer text-[12px] font-medium text-text-muted transition-colors hover:text-brand"
+            className="cursor-pointer rounded-sm text-[12px] font-medium text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
             Close
           </button>

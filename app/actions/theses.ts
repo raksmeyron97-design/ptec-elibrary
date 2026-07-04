@@ -115,7 +115,7 @@ export async function getTheses({
 
     const kwIds = kwMatches?.map(r => r.id) ?? [];
 
-    let orStr = `title.ilike.%${q}%`;
+    let orStr = `title.ilike.%${q}%,author_names.ilike.%${q}%,advisor_name.ilike.%${q}%,doi.ilike.%${q}%`;
     if (kwIds.length > 0) {
       orStr += `,id.in.(${kwIds.join(",")})`;
     }

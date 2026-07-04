@@ -1,8 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, Download, ArrowRight } from "lucide-react";
+import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import CiteThis from "@/components/ui/theses/CiteThis";
+import BookmarkButton from "@/components/ui/theses/BookmarkButton";
+import ShareButton from "@/components/ui/books/ShareButton";
+import { SITE_URL } from "@/lib/seo/site";
 import {
   getKeywords,
   getDoi,
@@ -15,10 +18,12 @@ export default function ThesisListItem({ report }: { report: any }) {
   const source = getSourceLine(report);
 
   return (
-    <article className="group flex gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-all duration-200 hover:border-brand/30 hover:shadow-md sm:gap-5 sm:p-5">
+    <article className="group relative flex gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-all duration-200 hover:border-brand/30 hover:shadow-md sm:gap-5 sm:p-5">
       {/* Thumbnail */}
       <Link
         href={`/theses/${report.id}`}
+        tabIndex={-1}
+        aria-hidden="true"
         className="relative hidden h-[132px] w-[99px] shrink-0 overflow-hidden rounded-xl border border-divider/60 bg-paper sm:block"
       >
         {report.cover_url ? (
@@ -31,34 +36,26 @@ export default function ThesisListItem({ report }: { report: any }) {
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-brand/5 to-brand/10">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-8 w-8 text-brand/25"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
+            <GraduationCap className="h-8 w-8 text-brand/25" strokeWidth={1.5} />
           </div>
         )}
       </Link>
 
       {/* Body */}
       <div className="min-w-0 flex-1">
-        {source && (
-          <p className="text-[11.5px] font-medium uppercase tracking-wider text-text-muted">
-            {source}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-3">
+          {source && (
+            <p className="text-[11.5px] font-medium uppercase tracking-wider text-text-muted">
+              {source}
+            </p>
+          )}
+          <BookmarkButton reportId={report.id} className="h-8 w-8 shrink-0" />
+        </div>
 
         <h3 className="mt-1">
           <Link
             href={`/theses/${report.id}`}
-            className="font-khmer-serif text-[16px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[18px]"
+            className="rounded-sm font-khmer-serif text-[16px] font-bold leading-snug text-text-heading transition-colors duration-150 group-hover:text-brand sm:text-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
             {report.title}
           </Link>
@@ -71,7 +68,7 @@ export default function ThesisListItem({ report }: { report: any }) {
         )}
 
         {report.abstract && (
-          <p className="mt-2 line-clamp-2 text-[13.5px] leading-relaxed text-text-muted">
+          <p className="mt-2 line-clamp-3 text-[13.5px] leading-relaxed text-text-muted">
             {report.abstract}
           </p>
         )}
@@ -79,12 +76,13 @@ export default function ThesisListItem({ report }: { report: any }) {
         {keywords.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {keywords.map((kw) => (
-              <span
+              <Link
                 key={kw}
-                className="rounded-full border border-divider bg-bg-app px-2.5 py-0.5 text-[11px] font-medium text-text-muted"
+                href={`/theses?keyword=${encodeURIComponent(kw)}`}
+                className="rounded-full border border-divider bg-bg-app px-2.5 py-0.5 text-[11px] font-medium text-text-muted transition-colors duration-150 hover:border-brand/40 hover:bg-brand/10 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 {kw}
-              </span>
+              </Link>
             ))}
           </div>
         )}
@@ -104,7 +102,7 @@ export default function ThesisListItem({ report }: { report: any }) {
               href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[11.5px] text-text-muted transition-colors hover:text-brand"
+              className="rounded-sm font-mono text-[11.5px] text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             >
               {doi.replace(/^https?:\/\/doi\.org\//, "")}
             </a>
@@ -112,9 +110,22 @@ export default function ThesisListItem({ report }: { report: any }) {
 
           <div className="ml-auto flex items-center gap-2">
             <CiteThis report={report} reportId={report.id} compact />
+            <ShareButton
+              url={`${SITE_URL}/theses/${report.id}`}
+              title={report.title}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+            />
+            <a
+              href={`/api/theses/${report.id}/file?download=1`}
+              aria-label="Download PDF"
+              title="Download PDF"
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+            >
+              <Download className="h-4 w-4" />
+            </a>
             <Link
               href={`/theses/${report.id}`}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 focus-visible:ring-offset-1"
             >
               View
               <ArrowRight className="h-3.5 w-3.5" />

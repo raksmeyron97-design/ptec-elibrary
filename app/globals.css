@@ -254,6 +254,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
   .animate-float-orb, .animate-float-orb-slow, .skeleton, .ptec-reveal { animation: none !important; }
+  .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in { animation: none !important; }
 }
 
 /* Gradient top-border card — use as parent wrapper */
@@ -295,6 +296,25 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   background-size: 1200px 100%;
   animation: skeleton-shimmer 1.8s ease-in-out infinite;
 }
+
+/* ── Shared enter animations (modals, drawers, empty/error states) ─ */
+@keyframes modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes fade-rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.modal-backdrop-in { animation: modal-backdrop-in .15s ease-out both; }
+.modal-pop-in { animation: modal-pop-in .18s cubic-bezier(.22,1,.36,1) both; }
+.drawer-slide-in { animation: drawer-slide-in .22s cubic-bezier(.22,1,.36,1) both; }
+.fade-rise-in { animation: fade-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
 
 /* ── Navigation progress bar ────────────────────────────────────── */
 @keyframes nav-progress-indeterminate {

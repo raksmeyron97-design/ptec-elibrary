@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 interface ShareButtonProps {
   url: string;
   title?: string;
+  className?: string;
 }
 
 /* ── Brand glyphs (inline — Icon component has no brand logos) ─────────────── */
@@ -53,7 +54,7 @@ const TARGETS: Target[] = [
   { key: "linkedin", label: "LinkedIn", bg: "bg-[#0A66C2]", href: (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
 ];
 
-export default function ShareButton({ url, title = "PTEC Library" }: ShareButtonProps) {
+export default function ShareButton({ url, title = "PTEC Library", className }: ShareButtonProps) {
   const t = useTranslations('share');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -96,22 +97,25 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
         onClick={() => setOpen(true)}
         title="Share"
         aria-label="Share"
-        className="inline-flex h-full min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-divider bg-bg-surface px-4 py-2 font-bold text-text-heading transition-colors hover:border-brand/30 hover:bg-brand/5 focus:outline-none"
+        className={
+          className ??
+          "inline-flex h-full min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-divider bg-bg-surface px-4 py-2 font-bold text-text-heading transition-colors duration-150 hover:border-brand/30 hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        }
       >
-        <Icon name="share" className="text-[20px] text-text-muted" />
+        <Icon name="share" className={className ? "text-[15px] text-text-muted" : "text-[20px] text-text-muted"} />
       </button>
 
       {/* Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          className="modal-backdrop-in fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={close}
           role="dialog"
           aria-modal="true"
           aria-label="Share this resource"
         >
           <div
-            className="w-full max-w-md rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
+            className="modal-pop-in w-full max-w-md rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -121,7 +125,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <Icon name="x" className="text-[20px]" />
               </button>
@@ -134,7 +138,7 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
                   key={t.key}
                   type="button"
                   onClick={() => openShare(t)}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-2xl ${t.bg} py-5 text-white transition-transform hover:-translate-y-0.5 hover:opacity-95 focus:outline-none`}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl ${t.bg} py-5 text-white transition-transform duration-150 hover:-translate-y-0.5 hover:opacity-95 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface`}
                 >
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-bg-surface/20">
                     {Glyph[t.key]}
@@ -152,12 +156,12 @@ export default function ShareButton({ url, title = "PTEC Library" }: ShareButton
                   readOnly
                   value={url}
                   onFocus={(e) => e.currentTarget.select()}
-                  className="min-w-0 flex-1 truncate rounded-xl border border-divider bg-paper px-4 py-2.5 text-sm text-text-body outline-none"
+                  className="min-w-0 flex-1 truncate rounded-xl border border-divider bg-paper px-4 py-2.5 text-sm text-text-body outline-none focus:ring-2 focus:ring-focus-ring/30 focus:border-brand"
                 />
                 <button
                   type="button"
                   onClick={copyLink}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-brand-contrast transition-colors hover:bg-brand-hover"
+                  className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
                 >
                   <Icon name={copied ? "check" : "external-link"} className="text-base" />
                   {copied ? t('copied') : t('copy')}
