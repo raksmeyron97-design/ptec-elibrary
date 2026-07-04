@@ -1,6 +1,6 @@
 /* scripts/embed-library.ts
  *
- * Backfill embeddings for books, research_reports, and catalog_books.
+ * Backfill embeddings for books, research_reports, publications, and catalog_books.
  *
  * Setup:
  *   npm i -D dotenv tsx
@@ -104,6 +104,20 @@ const JOBS: TableJob[] = [
         clean(r.department),
         clean(r.abstract),
         Array.isArray(r.keywords) ? r.keywords.map(clean).join(" ") : "",
+      ]
+        .filter(Boolean)
+        .join(" — "),
+  },
+  {
+    table: "publications",
+    select: "id, title, title_km, journal_name, abstract, keywords, embedding",
+    toText: (p) =>
+      [
+        clean(p.title),
+        clean(p.title_km),
+        clean(p.journal_name),
+        clean(p.abstract),
+        Array.isArray(p.keywords) ? p.keywords.map(clean).join(" ") : "",
       ]
         .filter(Boolean)
         .join(" — "),

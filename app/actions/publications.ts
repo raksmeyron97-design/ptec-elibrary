@@ -6,6 +6,7 @@ import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
+import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
 import {
   mapRowToPublication,
   PUBLICATION_DETAIL_SELECT,
@@ -76,12 +77,41 @@ export interface PublicationFileInput {
   sort_order?: number;
 }
 
-// Phase 3 will embed title + abstract + keywords via lib/gemini-embeddings
-// (gemini-embedding-001, 768-dim) on create/update. Stubbed until the
-// backfill script lands so Phase 1 has a single call site ready to wire.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function queuePublicationEmbedding(_publicationId: string): Promise<void> {
-  // no-op (Phase 3)
+// Embed title + abstract + keywords so the article is findable via
+// /api/search (match_library). Best-effort: an embedding failure must never
+// fail the admin save — the backfill script (scripts/embed-library.ts)
+// catches any rows left with a null embedding.
+async function queuePublicationEmbedding(publicationId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: row } = await supabase
+      .from("publications")
+      .select("title, title_km, journal_name, abstract, keywords")
+      .eq("id", publicationId)
+      .single();
+    if (!row) return;
+
+    const text = [
+      row.title,
+      row.title_km,
+      row.journal_name,
+      row.abstract,
+      Array.isArray(row.keywords) ? row.keywords.join(" ") : "",
+    ]
+      .map((s) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : ""))
+      .filter(Boolean)
+      .join(" — ");
+    if (!text) return;
+
+    const embedding = await generateDocumentEmbedding(text);
+    const { error } = await supabase
+      .from("publications")
+      .update({ embedding })
+      .eq("id", publicationId);
+    if (error) console.error("[publications] embedding update failed:", error.message);
+  } catch (e) {
+    console.error("[publications] embedding generation failed:", errorMessage(e));
+  }
 }
 
 // ── Public queries ─────────────────────────────────────────────────────────────
