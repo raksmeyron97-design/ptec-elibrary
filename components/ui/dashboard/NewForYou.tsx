@@ -27,7 +27,7 @@ export default function NewForYou({ alerts }: { alerts: NewContentAlert[] }) {
             return (
               <Link
                 key={alert.book_id}
-                href={`/books/${alert.slug}`}
+                href={alert.url ?? `/books/${alert.slug}`}
                 className="flex-none flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-3 py-2.5 hover:border-brand/30 hover:shadow-sm transition-all max-w-[240px] min-w-[180px]"
               >
                 <div className="h-10 w-7 rounded-md overflow-hidden flex-none bg-brand/10 flex items-center justify-center">

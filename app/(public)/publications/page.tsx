@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import type { Metadata } from "next";
+import { createClient } from "@/lib/supabase/server";
 import { getPublications } from "@/app/actions/publications";
+import { isSubscribed } from "@/app/actions/subscriptions";
+import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
@@ -45,6 +49,26 @@ function matchesQ(pub: Publication, q: string): boolean {
     .some((field) => field?.toLowerCase().includes(needle));
 }
 
+// Streamed after the shell — the only place this route reads user state.
+// Hidden for anonymous visitors (mirrors HeroSubscribeBadge on books).
+async function SubscribeBadge() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const subscribed = await isSubscribed("publications", "all");
+  return (
+    <SubscribeButton
+      filterType="publications"
+      filterValue="all"
+      displayLabel="Publications"
+      initialSubscribed={subscribed}
+      tooltipSubscribed="ឈប់ទទួលការជូនដំណឹងអំពីអត្ថបទសិក្សាថ្មីៗ"
+      tooltipUnsubscribed="ទទួលបានការជូនដំណឹងពេលមានអត្ថបទសិក្សាថ្មីៗ"
+    />
+  );
+}
+
 export default async function PublicationsPage({
   searchParams,
 }: {
@@ -86,9 +110,14 @@ export default async function PublicationsPage({
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
           {/* ── Page header ── */}
           <div className="mb-6">
-            <h1 className="font-khmer-serif text-2xl font-bold text-text-heading sm:text-3xl">
-              {t("title")}
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading sm:text-3xl">
+                {t("title")}
+              </h1>
+              <Suspense fallback={null}>
+                <SubscribeBadge />
+              </Suspense>
+            </div>
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-text-muted">
               {t("subtitle")}
             </p>

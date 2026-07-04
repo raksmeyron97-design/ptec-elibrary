@@ -7,6 +7,7 @@ import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
+import { broadcastPush } from "@/lib/push";
 import {
   mapRowToPublication,
   PUBLICATION_DETAIL_SELECT,
@@ -111,6 +112,35 @@ async function queuePublicationEmbedding(publicationId: string): Promise<void> {
     if (error) console.error("[publications] embedding update failed:", error.message);
   } catch (e) {
     console.error("[publications] embedding generation failed:", errorMessage(e));
+  }
+}
+
+// Web-push everyone subscribed to the 'publications' channel (migration 0054).
+// Best-effort: a push failure must never fail the publish itself.
+async function notifyPublicationSubscribers(publicationId: string): Promise<void> {
+  try {
+    const supabase = createServiceClient();
+    const { data: pub } = await supabase
+      .from("publications")
+      .select("title, slug")
+      .eq("id", publicationId)
+      .single();
+    if (!pub) return;
+
+    const { data: subs } = await supabase
+      .from("content_subscriptions")
+      .select("user_id")
+      .eq("filter_type", "publications");
+    const userIds = [...new Set((subs ?? []).map((s) => s.user_id as string))];
+    if (userIds.length === 0) return;
+
+    await broadcastPush(userIds, {
+      title: "New publication",
+      body: pub.title,
+      url: `/publications/${pub.slug}`,
+    });
+  } catch (e) {
+    console.error("[publications] subscriber push failed:", errorMessage(e));
   }
 }
 
@@ -362,10 +392,12 @@ export async function togglePublicationPublishStatus(id: string, isPublished: bo
 
   const updatePayload: { is_published: boolean; published_at?: string } = { is_published: isPublished };
 
+  let firstPublish = false;
   if (isPublished) {
     const { data } = await supabase.from("publications").select("published_at").eq("id", id).single();
     if (data && !data.published_at) {
       updatePayload.published_at = new Date().toISOString();
+      firstPublish = true;
     }
   }
 
@@ -380,7 +412,11 @@ export async function togglePublicationPublishStatus(id: string, isPublished: bo
     "publications",
     id,
   );
-  // Phase 3: fire content-subscription web push on first publish (lib/push.ts).
+  // Only the FIRST publish notifies subscribers — re-publishing after an
+  // unpublish/fix cycle must not spam them (published_at is set once).
+  if (firstPublish) {
+    await notifyPublicationSubscribers(id);
+  }
   revalidateAll();
   return { success: true as const };
 }

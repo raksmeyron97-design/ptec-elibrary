@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { createServiceClient } from "@/lib/supabase/server";
 
 let vapidInitialized = false;
 
@@ -47,4 +48,42 @@ export async function sendPush(
     const status = (err as { statusCode?: number }).statusCode;
     return { ok: false, expired: status === 410 || status === 404 };
   }
+}
+
+/**
+ * Push a payload to every push subscription of the given users, pruning
+ * expired endpoints (mirrors /api/push/send). Server-to-server only — callers
+ * must already be authorized. Returns the number of notifications delivered.
+ */
+export async function broadcastPush(
+  userIds: string[],
+  payload: PushPayload,
+): Promise<number> {
+  if (userIds.length === 0) return 0;
+
+  const db = createServiceClient();
+  const { data: subs } = await db
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth_key")
+    .in("user_id", userIds);
+  if (!subs?.length) return 0;
+
+  let sent = 0;
+  const expired: string[] = [];
+
+  await Promise.allSettled(
+    subs.map(async (sub) => {
+      const res = await sendPush(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
+        payload,
+      );
+      if (res.ok) sent++;
+      else if (res.expired) expired.push(sub.endpoint);
+    }),
+  );
+
+  if (expired.length > 0) {
+    await db.from("push_subscriptions").delete().in("endpoint", expired);
+  }
+  return sent;
 }

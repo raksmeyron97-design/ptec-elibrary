@@ -3,9 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
+// 'department'/'category' filter books; 'publications' is a content-type-level
+// channel (filter_value 'all') for new journal articles (migration 0054).
+export type SubscriptionFilterType = "department" | "category" | "publications";
+
 export type Subscription = {
   id:            string;
-  filter_type:   "department" | "category";
+  filter_type:   SubscriptionFilterType;
   filter_value:  string;
   display_label: string | null;
   created_at:    string;
@@ -18,6 +22,8 @@ export type NewContentAlert = {
   cover_url:     string | null;
   created_at:    string;
   matched_label: string;
+  /** Detail-page link; defaults to /books/[slug] when absent. */
+  url?:          string;
 };
 
 export async function getMySubscriptions(): Promise<Subscription[]> {
@@ -36,7 +42,7 @@ export async function getMySubscriptions(): Promise<Subscription[]> {
 }
 
 export async function toggleSubscription(
-  filterType:   "department" | "category",
+  filterType:   SubscriptionFilterType,
   filterValue:  string,
   displayLabel: string,
 ): Promise<{ subscribed: boolean }> {
@@ -70,7 +76,7 @@ export async function toggleSubscription(
 }
 
 export async function isSubscribed(
-  filterType:  "department" | "category",
+  filterType:  SubscriptionFilterType,
   filterValue: string,
 ): Promise<boolean> {
   const auth = await createClient();
@@ -157,6 +163,28 @@ export async function getNewContentForSubscriptions(): Promise<NewContentAlert[]
           cover_url:     b.cover_url,
           created_at:    b.created_at,
           matched_label: sub.display_label ?? sub.filter_value,
+        });
+      }
+    } else if (sub.filter_type === "publications") {
+      const { data } = await db
+        .from("publications")
+        .select("id, title, slug, cover_url, published_at")
+        .eq("is_published", true)
+        .gte("published_at", sinceISO)
+        .order("published_at", { ascending: false })
+        .limit(3);
+
+      for (const p of data ?? []) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        alerts.push({
+          book_id:       p.id,
+          title:         p.title,
+          slug:          p.slug,
+          cover_url:     p.cover_url,
+          created_at:    p.published_at,
+          matched_label: sub.display_label ?? "Publications",
+          url:           `/publications/${p.slug}`,
         });
       }
     }

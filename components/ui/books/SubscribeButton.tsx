@@ -2,17 +2,21 @@
 
 import { useState, useTransition } from "react";
 import { Bell } from "lucide-react";
-import { toggleSubscription } from "@/app/actions/subscriptions";
+import { toggleSubscription, type SubscriptionFilterType } from "@/app/actions/subscriptions";
 
 type Props = {
-  filterType:         "department" | "category";
+  filterType:         SubscriptionFilterType;
   filterValue:        string;
   displayLabel:       string;
   initialSubscribed:  boolean;
+  tooltipSubscribed?:   string;
+  tooltipUnsubscribed?: string;
 };
 
 export default function SubscribeButton({
   filterType, filterValue, displayLabel, initialSubscribed,
+  tooltipSubscribed = "ឈប់ទទួលការជូនដំណឹងពីផ្នែកនេះ",
+  tooltipUnsubscribed = "ទទួលបានការជូនដំណឹងពេលមានសៀវភៅថ្មីៗក្នុងផ្នែកនេះ",
 }: Props) {
   const [subscribed, setSubscribed] = useState(initialSubscribed);
   const [flash, setFlash]           = useState<string | null>(null);
@@ -44,9 +48,7 @@ export default function SubscribeButton({
 
       {!flash && (
         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-max max-w-[220px] whitespace-normal rounded-[8px] bg-gray-900 px-3 py-2 text-center text-[11.5px] leading-[1.4] font-medium text-white shadow-xl opacity-0 transition-opacity duration-150 pointer-events-none group-hover:opacity-100 dark:bg-gray-800">
-          {subscribed
-            ? "ឈប់ទទួលការជូនដំណឹងពីផ្នែកនេះ"
-            : "ទទួលបានការជូនដំណឹងពេលមានសៀវភៅថ្មីៗក្នុងផ្នែកនេះ"}
+          {subscribed ? tooltipSubscribed : tooltipUnsubscribed}
           <div className="absolute -top-[4px] left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-gray-900 dark:border-b-gray-800"></div>
         </div>
       )}
