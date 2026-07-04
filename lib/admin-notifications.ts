@@ -8,7 +8,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function createAdminNotification(
-  type: "new_user" | "new_book" | "new_report",
+  type: "new_user" | "new_book" | "new_report" | "new_publication",
   title_en: string,
   body_en?: string,
   link?: string,
