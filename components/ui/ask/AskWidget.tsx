@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useId } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { getRemainingAiQuota } from "@/app/actions/ai-usage";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Book {
@@ -184,6 +185,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUserMsg = useRef<string>("");
+  const quotaFetched = useRef(false);
 
   const reduceMotion =
     typeof window !== "undefined"
@@ -219,6 +221,18 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open]);
+
+  // Fetch today's remaining quota on first open so the badge shows before
+  // the first message (remaining stays null for admins — unlimited).
+  useEffect(() => {
+    if (!open || !isLoggedIn || quotaFetched.current) return;
+    quotaFetched.current = true;
+    getRemainingAiQuota().then(({ remaining: left, error }) => {
+      if (error || left === null) return;
+      setRemaining(left);
+      if (left <= 0) setQuotaExhausted(true);
+    });
+  }, [open, isLoggedIn]);
 
   // Clean up cooldown timer on unmount
   useEffect(() => {

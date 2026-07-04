@@ -1,6 +1,6 @@
 // lib/home-stats.ts
-// Homepage statistics fetched with four parallel Supabase queries — no RPC needed.
-// view/download sums are aggregated client-side (fine until books exceeds ~20k rows).
+// Homepage statistics fetched via the get_home_stats() RPC (migration 0024) —
+// a single DB round-trip that aggregates counts/sums server-side.
 import { createServiceClient } from "@/lib/supabase/server";
 
 export type HomeStats = {
@@ -12,31 +12,25 @@ export type HomeStats = {
 
 import { unstable_cache } from "next/cache";
 
+const EMPTY_STATS: HomeStats = { resources: 0, views: 0, downloads: 0, members: 0 };
+
 export const getHomeStats = unstable_cache(
   async (): Promise<HomeStats> => {
     const db = createServiceClient();
     try {
-      const [ebooks, physical, members, rows] = await Promise.all([
-        db.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
-        db.from("catalog_books").select("id", { count: "exact", head: true }).eq("is_active", true),
-        db.from("profiles").select("id", { count: "exact", head: true }),
-        db.from("books").select("view_count, download_count").eq("is_published", true),
-      ]);
+      const { data, error } = await db.rpc("get_home_stats");
+      if (error) throw error;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const views     = (rows.data ?? []).reduce((s, r: any) => s + (r.view_count     ?? 0), 0);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const downloads = (rows.data ?? []).reduce((s, r: any) => s + (r.download_count ?? 0), 0);
-
+      const stats = data as Partial<HomeStats> | null;
       return {
-        resources: (ebooks.count ?? 0) + (physical.count ?? 0),
-        views,
-        downloads,
-        members: members.count ?? 0,
+        resources: Number(stats?.resources ?? 0),
+        views: Number(stats?.views ?? 0),
+        downloads: Number(stats?.downloads ?? 0),
+        members: Number(stats?.members ?? 0),
       };
     } catch (e) {
       console.error("[home-stats]", e);
-      return { resources: 0, views: 0, downloads: 0, members: 0 };
+      return EMPTY_STATS;
     }
   },
   ["home-stats-counts"],

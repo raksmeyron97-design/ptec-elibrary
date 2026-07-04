@@ -76,6 +76,50 @@ export async function deleteComment(
   }
 }
 
+export async function toggleCommentLike(
+  commentId: string,
+): Promise<{ liked?: boolean; error?: string }> {
+  try {
+    const { supabase } = await getAuthUser();
+
+    const { data, error } = await supabase.rpc("toggle_comment_like", {
+      p_comment_id: commentId,
+    });
+
+    if (error) return { error: error.message };
+
+    return { liked: data as boolean };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to toggle like" };
+  }
+}
+
+export async function getCommentLikes(
+  commentId: string,
+): Promise<{ likeCount: number; likedByMe: boolean; error?: string }> {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.rpc("get_comment_likes", {
+      p_comment_id: commentId,
+    });
+
+    if (error) return { likeCount: 0, likedByMe: false, error: error.message };
+
+    const row = (data as { like_count: number; liked_by_me: boolean }[] | null)?.[0];
+    return {
+      likeCount: Number(row?.like_count ?? 0),
+      likedByMe: row?.liked_by_me ?? false,
+    };
+  } catch (err) {
+    return {
+      likeCount: 0,
+      likedByMe: false,
+      error: err instanceof Error ? err.message : "Failed to load likes",
+    };
+  }
+}
+
 export async function updateComment(
   commentId: string,
   newBody: string,

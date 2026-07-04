@@ -10,10 +10,14 @@ import { useChat, type UIMessage } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { getRemainingAiQuota } from "@/app/actions/ai-usage";
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
+  // Remaining daily AI quota (null = unlimited/admin or not yet loaded)
+  const [quota, setQuota] = useState<{ remaining: number; limit: number } | null>(null);
+  const quotaFetched = useRef(false);
   const { messages, status, sendMessage } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   });
@@ -24,6 +28,16 @@ export default function FloatingChat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Load remaining daily quota on first open (admins get remaining === null → no badge)
+  useEffect(() => {
+    if (!isOpen || quotaFetched.current) return;
+    quotaFetched.current = true;
+    getRemainingAiQuota().then(({ remaining, limit, error }) => {
+      if (error || remaining === null) return;
+      setQuota({ remaining, limit });
+    });
+  }, [isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
@@ -45,6 +59,11 @@ export default function FloatingChat() {
             <div className="flex items-center gap-2">
               <Bot size={20} />
               <h3 className="font-semibold">ជំនួយការបណ្ណាល័យ AI</h3>
+              {quota && (
+                <span className="text-[10px] font-medium bg-black/15 rounded-full px-2 py-0.5">
+                  {quota.remaining}/{quota.limit}
+                </span>
+              )}
             </div>
             <button type="button" onClick={() => setIsOpen(false)}
               className="p-1 hover:bg-black/10 rounded-md transition-colors"

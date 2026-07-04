@@ -2,6 +2,7 @@
 import { useState, useCallback, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { togglePostLike, togglePostSave } from "@/app/actions/post-engagement";
 
 interface EngagementBarProps {
   postId: string;
@@ -41,9 +42,8 @@ export default function EngagementBar({
   const onLike = useCallback(() => {
     startTransition(async () => {
       if (!(await requireAuth())) return;
-      const { data, error } = await supabase.rpc("toggle_post_like", { p_post_id: postId });
-      if (error) return;
-      const nowLiked = data as boolean;
+      const { liked: nowLiked, error } = await togglePostLike(postId);
+      if (error || nowLiked === undefined) return;
       setLiked(nowLiked);
       setLikeCount((c) => nowLiked ? c + 1 : Math.max(0, c - 1));
     });
@@ -53,9 +53,8 @@ export default function EngagementBar({
   const onSave = useCallback(() => {
     startTransition(async () => {
       if (!(await requireAuth())) return;
-      const { data, error } = await supabase.rpc("toggle_post_save", { p_post_id: postId });
-      if (error) return;
-      const nowSaved = data as boolean;
+      const { saved: nowSaved, error } = await togglePostSave(postId);
+      if (error || nowSaved === undefined) return;
       setSaved(nowSaved);
       setSaveCount((c) => nowSaved ? c + 1 : Math.max(0, c - 1));
     });

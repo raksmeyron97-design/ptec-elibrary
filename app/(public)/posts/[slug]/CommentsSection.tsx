@@ -3,7 +3,7 @@
 import { useState, useCallback, useTransition, useRef, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { createComment, deleteComment, updateComment } from "@/app/actions/post-comments";
+import { createComment, deleteComment, updateComment, toggleCommentLike, getCommentLikes } from "@/app/actions/post-comments";
 
 /* ─── Types ─── */
 interface CommentAuthor {
@@ -118,24 +118,21 @@ function HeartButton({ count, liked, onToggle, disabled }: {
   );
 }
 
-/* ─── Comment likes — real Supabase calls ─── */
+/* ─── Comment likes — via Server Actions ─── */
 function useCommentLikes(commentId: string, currentUserId: string | null) {
-  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [likes, setLikes] = useState(0);
   const [liked, setLiked] = useState(false);
 
   useEffect(() => {
-    supabase
-      .rpc("get_comment_likes", { p_comment_id: commentId })
-      .then(({ data }) => {
-        const row = (data as { like_count: number; liked_by_me: boolean }[] | null)?.[0];
-        if (row) {
-          setLikes(Number(row.like_count));
-          setLiked(row.liked_by_me ?? false);
-        }
-      });
-  }, [commentId, supabase]);
+    let cancelled = false;
+    getCommentLikes(commentId).then(({ likeCount, likedByMe, error }) => {
+      if (cancelled || error) return;
+      setLikes(likeCount);
+      setLiked(likedByMe);
+    });
+    return () => { cancelled = true; };
+  }, [commentId]);
 
   const toggle = useCallback(async () => {
     if (!currentUserId) {
@@ -147,17 +144,16 @@ function useCommentLikes(commentId: string, currentUserId: string | null) {
     // optimistic
     setLiked(!wasLiked);
     setLikes(wasLiked ? wasCount - 1 : wasCount + 1);
-    const { data, error } = await supabase.rpc("toggle_comment_like", { p_comment_id: commentId });
-    if (error) {
+    const { liked: serverLiked, error } = await toggleCommentLike(commentId);
+    if (error || serverLiked === undefined) {
       setLiked(wasLiked);
       setLikes(wasCount);
     } else {
       // reconcile with server truth
-      const serverLiked = data as boolean;
       setLiked(serverLiked);
       setLikes(serverLiked ? wasCount + 1 : wasCount - 1);
     }
-  }, [commentId, currentUserId, liked, likes, router, supabase]);
+  }, [commentId, currentUserId, liked, likes, router]);
 
   return { likes, liked, toggle };
 }
