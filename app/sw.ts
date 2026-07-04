@@ -125,9 +125,9 @@ const customCaching: RuntimeCaching[] = [
     matcher: ({ url }) => {
       if (url.pathname.endsWith('.pdf')) return true;
       if (url.pathname.includes('/storage/v1/object/public/')) return true;
-      // Proxy route: only when the offline-save flag is present
+      // Proxy routes: only when the offline-save flag is present
       if (
-        /^\/api\/books\/[^/]+\/file$/.test(url.pathname) &&
+        /^\/api\/(books|publications)\/[^/]+\/file$/.test(url.pathname) &&
         url.searchParams.get('offline') === '1'
       ) return true;
       return false;
