@@ -63,6 +63,7 @@
     "savedBooks": "Saved Books",
     "appearance": "Appearance",
     "theses": "Theses",
+    "publications": "Publications",
     "summaryIndex": "Summary Index",
     "settings": "Settings"
   },
@@ -380,6 +381,26 @@
     "emptyState": "No theses available yet.",
     "groupHeader": "12+4 Student Teachers Thesis - Cohort {cohort} ({year})",
     "byAuthor": "By: {authors}"
+  },
+  "publications": {
+    "title": "Publications",
+    "subtitle": "Academic journal articles published through the Phnom Penh Teacher Education College — browse by journal, year, keyword, and article type.",
+    "searchPlaceholder": "Search title, author, or abstract…",
+    "allTypes": "All types",
+    "allJournals": "All journals",
+    "allYears": "All years",
+    "allLanguages": "All languages",
+    "clearFilters": "Clear filters",
+    "typeArticle": "Article",
+    "typeReview": "Review",
+    "typeAccount": "Account",
+    "typeEditorial": "Editorial",
+    "filteredByKeyword": "Filtered by keyword:",
+    "resultCount": "{count, plural, one {# publication} other {# publications}}",
+    "resultsFor": "for “{q}”",
+    "noResults": "No publications found",
+    "noResultsFiltered": "No publications match your selected filters.",
+    "noResultsEmpty": "No publications are currently available."
   },
   "dashboard": {
     "admin": "Admin",

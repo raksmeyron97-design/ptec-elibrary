@@ -77,6 +77,16 @@ const ResearchIcon = (
   </svg>
 );
 
+const PublicationsIcon = (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l6 6v8a2 2 0 0 1-2 2z"/>
+    <path d="M15 4v6h6"/>
+    <line x1="8" y1="13" x2="16" y2="13"/>
+    <line x1="8" y1="17" x2="13" y2="17"/>
+  </svg>
+);
+
 const ExternalLinkIcon = (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -106,6 +116,7 @@ export default async function Navbar() {
     subLinks: [
       { label: t('eBooks'), href: "/books", icon: EResourcesIcon },
       { label: t('theses'), href: "/theses", icon: ResearchIcon },
+      { label: t('publications'), href: "/publications", icon: PublicationsIcon },
       { label: "SVA Library", href: "https://svacamelib.org/", icon: ExternalLinkIcon, target: "_blank" }
     ]
   };
@@ -129,6 +140,7 @@ export default async function Navbar() {
     { label: t('home'),            href: "/home" },
     { label: t('eResources'),      href: "/books" },
     { label: t('theses'), href: "/theses" },
+    { label: t('publications'),    href: "/publications" },
     { label: "SVA Library",        href: "https://svacamelib.org/" },
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },
