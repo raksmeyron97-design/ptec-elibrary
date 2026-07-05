@@ -13,6 +13,7 @@ import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from 'next-intl';
 import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 type NavItem = { label: string; href: string };
 
@@ -59,14 +60,18 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
     };
   }, [open]);
 
-  // Close on Escape.
+  // Close on Escape — listener only while the drawer is open.
   useEffect(() => {
+    if (!open) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, []);
+  }, [open]);
+
+  // Keep keyboard focus inside the drawer while it is open; restore on close.
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   return (
     <div className="lg:hidden">
@@ -110,9 +115,12 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={trapRef}
             role="dialog"
             aria-modal="true"
-            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)]"
+            aria-label="Menu"
+            tabIndex={-1}
+            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] outline-none"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -163,17 +171,12 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
                 <Link
                   href="/dashboard#saved"
                   onClick={() => setOpen(false)}
-                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
-                    pathname === "/dashboard#saved"
-                      ? "bg-brand/10 text-brand"
-                      : "text-text-body hover:bg-paper hover:text-brand-hover"
-                  }`}
+                  className="flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium text-text-body transition-colors hover:bg-paper hover:text-brand-hover"
                 >
                   <div className="flex items-center gap-3">
                     <Icon name="bookmark" className="text-[18px] text-text-muted" />
                     {t('savedBooks')}
                   </div>
-                  {pathname === "/dashboard#saved" && <span className="h-2 w-2 rounded-full bg-brand" />}
                 </Link>
                 <div className="my-2 h-px w-full bg-divider" />
               </>

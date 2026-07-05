@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 interface Props {
   currentQ: string;
@@ -47,10 +49,12 @@ export default function SearchAdvancedModal({
   departments,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("search");
   const [open, setOpen] = useState(false);
   const headingId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   const [q, setQ] = useState(currentQ);
   const [author, setAuthor] = useState(currentAuthor);
@@ -115,11 +119,12 @@ export default function SearchAdvancedModal({
         className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 text-[12.5px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        Advanced search
+        {t("advancedSearch")}
       </button>
 
       {open && (
         <div
+          ref={trapRef}
           className="modal-backdrop-in fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setOpen(false)}
           role="dialog"
@@ -133,12 +138,12 @@ export default function SearchAdvancedModal({
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 id={headingId} className="text-lg font-bold text-text-heading">
-                Advanced search
+                {t("advancedSearch")}
               </h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label={t("advClose")}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors duration-150 hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <X className="h-5 w-5" />
@@ -146,65 +151,65 @@ export default function SearchAdvancedModal({
             </div>
 
             <div className="space-y-4">
-              <Field label="Keyword or title">
+              <Field label={t("advFieldKeyword")}>
                 <input
                   ref={firstFieldRef}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search title, description..."
+                  placeholder={t("advPlaceholderKeyword")}
                   className={inputClass}
                 />
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Author">
+                <Field label={t("advFieldAuthor")}>
                   <input
                     value={author}
                     onChange={(e) => setAuthor(e.target.value)}
-                    placeholder="Any author"
+                    placeholder={t("advAnyAuthor")}
                     className={inputClass}
                   />
                 </Field>
 
-                <Field label="Publisher">
+                <Field label={t("advFieldPublisher")}>
                   <input
                     value={publisher}
                     onChange={(e) => setPublisher(e.target.value)}
-                    placeholder="Any publisher"
+                    placeholder={t("advAnyPublisher")}
                     className={inputClass}
                   />
                 </Field>
 
-                <Field label="ISBN">
+                <Field label={t("advFieldIsbn")}>
                   <input
                     value={isbn}
                     onChange={(e) => setIsbn(e.target.value)}
-                    placeholder="Any ISBN"
+                    placeholder={t("advAnyIsbn")}
                     className={inputClass}
                   />
                 </Field>
 
-                <Field label="Category">
+                <Field label={t("advFieldCategory")}>
                   <select value={category} onChange={(e) => setCategory(e.target.value)} className={selectClass}>
-                    <option value="">Any category</option>
+                    <option value="">{t("advAnyCategory")}</option>
                     {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
                 </Field>
 
-                <Field label="Language">
+                <Field label={t("advFieldLanguage")}>
                   <select value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
-                    <option value="">Any language</option>
+                    <option value="">{t("advAnyLanguage")}</option>
                     {languages.map((l) => (
                       <option key={l} value={l}>{l}</option>
                     ))}
                   </select>
                 </Field>
 
-                <Field label="Department">
+                <Field label={t("advFieldDepartment")}>
                   <select value={department} onChange={(e) => setDepartment(e.target.value)} className={selectClass}>
-                    <option value="">Any department</option>
+                    <option value="">{t("advAnyDepartment")}</option>
                     {departments.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
@@ -227,13 +232,13 @@ export default function SearchAdvancedModal({
                 }}
                 className="cursor-pointer rounded-sm text-[13px] font-semibold text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
-                Clear all
+                {t("advClearAll")}
               </button>
               <button
                 type="submit"
                 className="ml-auto inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
               >
-                Search
+                {t("searchButton")}
               </button>
             </div>
           </form>

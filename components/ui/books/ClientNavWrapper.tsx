@@ -101,7 +101,8 @@ export function FilterSelect({
     <select
       value={value}
       onChange={handleChange}
-      className="appearance-none cursor-pointer bg-paper text-text-muted border border-divider rounded-full px-3 py-[5px] text-[11px] font-medium transition-all sm:text-[12px] hover:border-brand/30 hover:bg-brand/5 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+      aria-label={defaultLabel}
+      className="appearance-none cursor-pointer bg-paper text-text-muted border border-divider rounded-full px-3 py-[7px] text-[11px] font-medium transition-all sm:text-[12px] hover:border-brand/30 hover:bg-brand/5 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
     >
       <option value="">{defaultLabel}</option>
       {options.map((opt) => (
@@ -123,12 +124,14 @@ export function RowsPerPageSelect({
   param = "size",
   basePath,
   id,
+  label = "Rows per page",
 }: {
   value: number;
   options: number[];
   param?: string;
   basePath: string;
   id?: string;
+  label?: string;
 }) {
   const { navigate } = useClientNav();
   const searchParams = useSearchParams();
@@ -145,13 +148,12 @@ export function RowsPerPageSelect({
   return (
     <div className="flex items-center gap-2">
       <label htmlFor={id} className="whitespace-nowrap text-[13.5px] text-text-muted">
-        Rows per page
+        {label}
       </label>
       <select
         id={id}
         value={value}
         onChange={handleChange}
-        aria-label="Rows per page"
         className="h-9 cursor-pointer appearance-none rounded-[10px] border border-divider bg-bg-surface bg-[length:16px] bg-[right_0.5rem_center] bg-no-repeat pl-3 pr-8 text-[13.5px] font-medium tabular-nums text-text-body transition-colors hover:border-brand hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page"
         style={{
           backgroundImage:
@@ -204,7 +206,8 @@ export function SortSelect({
     <select
       value={value}
       onChange={handleChange}
-      className="appearance-none cursor-pointer bg-paper text-text-muted border border-divider rounded-full px-3 py-[5px] text-[11px] font-medium transition-all sm:text-[12px] hover:border-brand/30 hover:bg-brand/5 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+      aria-label={defaultLabel}
+      className="appearance-none cursor-pointer bg-paper text-text-muted border border-divider rounded-full px-3 py-[7px] text-[11px] font-medium transition-all sm:text-[12px] hover:border-brand/30 hover:bg-brand/5 hover:text-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
     >
       <option value="">{defaultLabel}</option>
       {options.map((opt) => (

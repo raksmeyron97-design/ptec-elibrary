@@ -104,18 +104,7 @@ function ResultCard({ result }: { result: SearchResult }) {
   return (
     <Link
       href={result.url}
-      className="group flex gap-3.5 rounded-[14px] border p-4 transition-all duration-150 hover:shadow-sm"
-      style={{
-        background: "var(--ptec-bg-surface)",
-        borderColor: "var(--ptec-border)",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor =
-          "color-mix(in srgb, var(--ptec-brand) 30%, transparent)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = "var(--ptec-border)";
-      }}
+      className="group flex gap-3.5 rounded-[14px] border border-divider bg-bg-surface p-4 transition-all duration-150 hover:border-brand/30 hover:shadow-sm focus-visible:border-brand/30"
     >
       {/* Cover */}
       <div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg">
@@ -278,6 +267,13 @@ export default function SearchPageClient({ departments, languages, categories }:
   // Reset to "all" tab when query changes
   useEffect(() => { setActiveType("all"); setPage(1); }, [q]);
 
+  // Persist to recent searches only when the committed query (URL param)
+  // changes — not on every tab/page/filter refetch, which polluted recents
+  // with duplicates.
+  useEffect(() => {
+    if (q.trim()) setRecentSearches(pushRecentSearch(q));
+  }, [q]);
+
   // Load recent searches (client-only)
   useEffect(() => {
     setRecentSearches(readRecentSearches());
@@ -375,9 +371,6 @@ export default function SearchPageClient({ departments, languages, categories }:
         setCounts(data.counts ?? null);
         setHasMore(data.hasMore ?? false);
         setLoading(false);
-
-        // Persist to recent searches
-        if (query.trim()) setRecentSearches(pushRecentSearch(query));
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
         setError(t("errorGeneric"));
@@ -515,6 +508,7 @@ export default function SearchPageClient({ departments, languages, categories }:
             aria-expanded={suggestOpen}
             aria-haspopup="listbox"
             aria-controls="search-page-listbox"
+            aria-activedescendant={suggestOpen && activeIdx >= 0 ? `search-suggestion-${activeIdx}` : undefined}
             className="flex-1 min-w-0 h-full bg-transparent text-[15px] font-medium outline-none placeholder:font-normal"
             style={{ color: "var(--ptec-text-heading)" }}
           />
@@ -652,6 +646,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                       return (
                         <button
                           key={`${type}-${localIdx}`}
+                          id={`search-suggestion-${globalIdx}`}
                           type="button"
                           role="option"
                           aria-selected={isActive}
@@ -724,10 +719,10 @@ export default function SearchPageClient({ departments, languages, categories }:
           departments={departments}
         />
         {([
-          ["author", filterAuthor, "Author"],
-          ["isbn", filterIsbn, "ISBN"],
-          ["publisher", filterPublisher, "Publisher"],
-          ["dept", filterDept, "Department"],
+          ["author", filterAuthor, t("advFieldAuthor")],
+          ["isbn", filterIsbn, t("advFieldIsbn")],
+          ["publisher", filterPublisher, t("advFieldPublisher")],
+          ["dept", filterDept, t("advFieldDepartment")],
         ] as const).map(([key, value, label]) =>
           value ? (
             <span

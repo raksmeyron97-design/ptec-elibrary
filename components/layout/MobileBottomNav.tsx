@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES, ROLE_META } from "@/lib/types/roles";
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 // ── Icons ──────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -52,6 +53,14 @@ const PersonIcon = () => (
   </svg>
 );
 
+const SearchIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="7"/>
+    <path d="m21 21-4.35-4.35"/>
+  </svg>
+);
+
 // ── Nav link (desktop uses separate component; this is mobile-only) ──
 function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC; label: string, pathname: string }) {
   const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -68,7 +77,7 @@ function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC
       >
         <Icon />
       </motion.span>
-      <span className="text-[10px] tracking-wide whitespace-nowrap overflow-visible">
+      <span className="text-[11px] tracking-wide whitespace-nowrap overflow-visible">
         {label}
       </span>
       <AnimatePresence>
@@ -120,13 +129,14 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = !!user?.avatar_url && !avatarFailed;
 
+  // Search owns the center slot — it is the #1 task of a library. The profile
+  // sheet trigger moves to the right edge.
   const leftNav = [
     { label: t("home"),        href: "/home",  Icon: HomeIcon  },
     { label: t("eResources"),  href: "/books", Icon: BookIcon  },
   ];
   const rightNav = [
-    { label: t("posts"), href: "/posts", Icon: PostsIcon },
-    { label: t("about"), href: "/about", Icon: AboutIcon },
+    { label: t("postsShort"), href: "/posts", Icon: PostsIcon },
   ];
 
   const sheetLinks = [
@@ -153,6 +163,17 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   // Close sheet on route change
   useEffect(() => { closeSheet(); }, [pathname, closeSheet]);
 
+  // Close on Escape while open; trap focus inside the sheet.
+  useEffect(() => {
+    if (!sheetOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setSheetOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sheetOpen]);
+  const sheetTrapRef = useFocusTrap<HTMLDivElement>(sheetOpen);
+
   // Lock body scroll when sheet is open
   useEffect(() => {
     document.body.style.overflow = sheetOpen ? "hidden" : "";
@@ -168,15 +189,37 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} pathname={pathname} />
           ))}
 
-          <motion.button
+          {/* Center: Search — the primary library task gets the prime slot. */}
+          <Link
+            href="/search"
+            aria-label={t("searchLibrary")}
+            className="relative z-10 -mt-5 flex flex-col items-center gap-[3px]"
+          >
+            <span
+              className={`flex h-[50px] w-[50px] items-center justify-center rounded-full shadow-[0_2px_10px_rgba(30,58,138,0.35)] transition-transform active:scale-95 ${
+                pathname.startsWith("/search") ? "bg-brand-hover" : "bg-brand"
+              } text-white`}
+            >
+              <SearchIcon />
+            </span>
+            <span className={`text-[11px] tracking-wide whitespace-nowrap ${pathname.startsWith("/search") ? "text-brand font-bold" : "text-text-muted font-medium"}`}>
+              {t("searchShort")}
+            </span>
+          </Link>
+
+          {rightNav.map((item) => (
+            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} pathname={pathname} />
+          ))}
+
+          {/* Right edge: profile sheet trigger */}
+          <button
+            type="button"
             onClick={() => setSheetOpen(true)}
             aria-label="Open profile menu"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.94 }}
-            transition={{ type: "spring", stiffness: 420, damping: 20 }}
-            className="relative flex items-center justify-center w-[46px] h-[46px] rounded-full shadow-[0_2px_8px_rgba(30,58,138,0.3)] bg-brand text-white z-10"
+            aria-expanded={sheetOpen}
+            className="relative flex min-w-[52px] flex-col items-center gap-[3px] py-1.5 text-text-muted"
           >
-            <div className="flex items-center justify-center w-full h-full overflow-hidden rounded-full">
+            <span className="flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-full">
               {showAvatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -187,20 +230,17 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                   className="h-full w-full object-cover"
                 />
               ) : user ? (
-                <div className="flex items-center justify-center w-full h-full bg-brand text-brand-contrast text-[13px] font-bold tracking-wider">
+                <span className="flex h-full w-full items-center justify-center rounded-full bg-brand text-[9px] font-bold tracking-wider text-brand-contrast">
                   {getInitials(user.full_name, user.email)}
-                </div>
+                </span>
               ) : (
-                <div className="flex items-center justify-center w-full h-full bg-brand text-white">
-                  <PersonIcon />
-                </div>
+                <PersonIcon />
               )}
-            </div>
-          </motion.button>
-
-          {rightNav.map((item) => (
-            <NavLink key={item.href} href={item.href} Icon={item.Icon} label={item.label} pathname={pathname} />
-          ))}
+            </span>
+            <span className="text-[11px] font-medium tracking-wide whitespace-nowrap">
+              {t("profile")}
+            </span>
+          </button>
         </div>
 
         <div className="h-[env(safe-area-inset-bottom)]" />
@@ -236,10 +276,12 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
         {sheetOpen && (
           <motion.div
             key="sheet"
+            ref={sheetTrapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Profile menu"
-            className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-6px_32px_rgba(0,0,0,0.12)]"
+            tabIndex={-1}
+            className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-6px_32px_rgba(0,0,0,0.12)] outline-none"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}

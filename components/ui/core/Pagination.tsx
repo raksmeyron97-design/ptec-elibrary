@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { FilterLink, RowsPerPageSelect } from "@/components/ui/books/ClientNavWrapper";
 
 type PaginationProps = {
@@ -74,10 +75,10 @@ function pageRange(current: number, total: number): (number | "ellipsis")[] {
   return pages;
 }
 
-const ArrowLeftIcon = () => (
+const ChevronLeftIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M19 12H5m0 0 7 7m-7-7 7-7" />
+    <path d="M15 18l-6-6 6-6" />
   </svg>
 );
 
@@ -108,6 +109,9 @@ export default function Pagination({
   pageSizeOptions,
   pageSizeParam = "size",
 }: PaginationProps) {
+  // useTranslations works in both Server and Client components — Pagination is
+  // consumed from both (listing pages are RSC, admin UsersClient is client).
+  const t = useTranslations("pagination");
   const showRowsPerPage = !!pageSizeOptions?.length;
 
   // Nothing to page through and no size selector to show → render nothing.
@@ -128,7 +132,7 @@ export default function Pagination({
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t("paginationLabel")}
       className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-divider pt-7 sm:flex-row"
     >
       {/* Left cluster: rows-per-page selector + results summary */}
@@ -140,14 +144,11 @@ export default function Pagination({
             param={pageSizeParam}
             basePath={basePath}
             id="pagination-rows-per-page"
+            label={t("rowsPerPage")}
           />
         )}
-        <p className="text-[13.5px] text-text-muted" aria-live="polite">
-          Showing{" "}
-          <span className="font-semibold text-text-body tabular-nums">{from}</span>–
-          <span className="font-semibold text-text-body tabular-nums">{to}</span> of{" "}
-          <span className="font-semibold text-text-body tabular-nums">{totalItems}</span>{" "}
-          result{totalItems !== 1 ? "s" : ""}
+        <p className="text-[13.5px] text-text-muted tabular-nums" aria-live="polite">
+          {t("showing", { from, to, total: totalItems })}
         </p>
       </div>
 
@@ -159,24 +160,23 @@ export default function Pagination({
           <FilterLink
             href={prevHref}
             rel="prev"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${interactive}`}
-            aria-label="Previous page"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-[10px] ${interactive}`}
+            aria-label={t("previousPage")}
           >
-            <ArrowLeftIcon />
+            <ChevronLeftIcon />
           </FilterLink>
         ) : (
           <span
             aria-disabled="true"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${disabled}`}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-[10px] ${disabled}`}
           >
-            <ArrowLeftIcon />
+            <ChevronLeftIcon />
           </span>
         )}
 
         {/* Compact current/total indicator — mobile only */}
         <span className="px-2 text-[13.5px] text-text-muted tabular-nums sm:hidden">
-          Page <span className="font-semibold text-text-body">{page}</span> of{" "}
-          <span className="font-semibold text-text-body">{totalPages}</span>
+          {t("pageOf", { page, total: totalPages })}
         </span>
 
         {/* Numbered pages — sm and up */}
@@ -186,7 +186,7 @@ export default function Pagination({
               <span
                 key={`ellipsis-${i}`}
                 aria-hidden="true"
-                className="inline-flex h-9 w-9 items-center justify-center text-text-muted"
+                className="inline-flex h-10 w-10 items-center justify-center text-text-muted"
               >
                 …
               </span>
@@ -194,8 +194,8 @@ export default function Pagination({
               <span
                 key={p}
                 aria-current="page"
-                aria-label={`Page ${p}, current page`}
-                className="inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] bg-brand px-3 text-[13.5px] font-semibold tabular-nums text-brand-contrast shadow-sm shadow-brand/25"
+                aria-label={t("currentPage", { page: p })}
+                className="inline-flex h-10 min-w-10 items-center justify-center rounded-[10px] bg-brand px-3 text-[13.5px] font-semibold tabular-nums text-brand-contrast shadow-sm shadow-brand/25"
               >
                 {p}
               </span>
@@ -203,8 +203,8 @@ export default function Pagination({
               <FilterLink
                 key={p}
                 href={pageHref(searchParams, p, basePath)}
-                aria-label={`Go to page ${p}`}
-                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-[10px] px-3 text-[13.5px] font-medium tabular-nums ${interactive}`}
+                aria-label={t("goToPage", { page: p })}
+                className={`inline-flex h-10 min-w-10 items-center justify-center rounded-[10px] px-3 text-[13.5px] font-medium tabular-nums ${interactive}`}
               >
                 {p}
               </FilterLink>
@@ -217,15 +217,15 @@ export default function Pagination({
           <FilterLink
             href={nextHref}
             rel="next"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${interactive}`}
-            aria-label="Next page"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-[10px] ${interactive}`}
+            aria-label={t("nextPage")}
           >
             <ChevronRightIcon />
           </FilterLink>
         ) : (
           <span
             aria-disabled="true"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-[10px] ${disabled}`}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-[10px] ${disabled}`}
           >
             <ChevronRightIcon />
           </span>
