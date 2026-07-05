@@ -124,7 +124,7 @@ async function searchBooks(
   let q: any = db
     .from("books")
     .select(
-      `id, slug, title, cover_url, description, language, published_at, rating, download_count, department, isbn, publisher, ${authorsJoin}, ${categoriesJoin}`,
+      `id, slug, title, cover_url, description, language, published_at, rating, download_count, department, isbn, publisher, reviews(count), ${authorsJoin}, ${categoriesJoin}`,
       { count: "exact" }
     )
     .eq("is_published", true)
@@ -160,7 +160,9 @@ async function searchBooks(
     category: r.categories?.name ?? null,
     isbn: r.isbn ?? null,
     publisher: r.publisher ?? null,
-    rating: r.rating ? Number(r.rating) : null,
+    // Only surface a rating when real reviews exist — the column default (5)
+    // must never render as social proof for an unreviewed book.
+    rating: (r.reviews?.[0]?.count ?? 0) > 0 && r.rating ? Number(r.rating) : null,
     excerpt: makeExcerpt(r.description),
     downloadCount: r.download_count ?? 0,
   }));

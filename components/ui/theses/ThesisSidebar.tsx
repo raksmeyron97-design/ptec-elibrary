@@ -233,7 +233,11 @@ function FilterPanel({
             active={!currentProgram}
             onClick={() => onNav({ program: undefined, faculty: undefined, cohort: undefined })}
           />
-          {programs.map((p) => (
+          {/* Zero-count options are hidden (unless currently selected, so the
+              user can always unselect) — never offer a guaranteed dead end. */}
+          {programs
+            .filter((p) => (programCounts[p.code] ?? 0) > 0 || currentProgram === p.code)
+            .map((p) => (
             <FilterCheckboxRow
               key={p.code}
               label={p.name_en}
@@ -260,7 +264,9 @@ function FilterPanel({
               active={!currentFaculty}
               onClick={() => onNav({ faculty: undefined })}
             />
-            {facultyOptions.map((f) => (
+            {facultyOptions
+              .filter((f) => (facultyCounts[f.code] ?? 0) > 0 || currentFaculty === f.code)
+              .map((f) => (
               <FilterCheckboxRow
                 key={f.code}
                 label={f.name_en}
@@ -281,7 +287,9 @@ function FilterPanel({
             active={!currentCohort}
             onClick={() => onNav({ cohort: undefined })}
           />
-          {dedupeByNumber(visibleCohorts).map((c) => (
+          {dedupeByNumber(visibleCohorts)
+            .filter((c) => (cohortCounts[c.number.toString()] ?? 0) > 0 || currentCohort === c.number.toString())
+            .map((c) => (
             <FilterCheckboxRow
               key={c.id}
               label={c.label ?? `Cohort ${c.number}`}
@@ -304,7 +312,9 @@ function FilterPanel({
               active={!currentYear}
               onClick={() => onNav({ year: undefined })}
             />
-            {availableYears.map((y) => (
+            {availableYears
+              .filter((y) => (yearCounts[y] ?? 0) > 0 || currentYear === y)
+              .map((y) => (
               <FilterCheckboxRow
                 key={y}
                 label={y}

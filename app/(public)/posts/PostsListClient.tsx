@@ -92,6 +92,9 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
                 ? posts.length
                 : posts.filter(p => p.category === cat).length;
               const isActive = cat === activeCat;
+              // An empty category tab is a guaranteed dead end — hide it
+              // (unless it is somehow the active one, so it can be left).
+              if (count === 0 && !isActive) return null;
               return (
                 <button
                   key={cat}

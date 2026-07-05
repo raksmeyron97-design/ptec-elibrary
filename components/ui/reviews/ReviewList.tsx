@@ -87,41 +87,47 @@ export default function ReviewList({ reviews, totalCount, avgRating }: ReviewLis
 
   return (
     <div className="rounded-xl border border-divider bg-bg-surface shadow-sm">
-      {/* Header */}
-      <div className="flex flex-col gap-6 border-b border-divider p-6 sm:flex-row sm:items-center">
-        {/* Big average */}
-        <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-paper px-8 py-5">
-          <span className="text-5xl font-bold text-text-heading">
-            {totalCount > 0 ? avgRating.toFixed(1) : "—"}
-          </span>
-          <div className="mt-1.5 flex gap-0.5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <svg
-                key={i}
-                viewBox="0 0 24 24"
-                className={`h-5 w-5 ${
-                  i < Math.round(avgRating)
-                    ? "fill-amber-400 stroke-amber-400"
-                    : "fill-slate-200 stroke-slate-200"
-                }`}
-                strokeWidth={1}
-              >
-                <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
-              </svg>
-            ))}
+      {/* Header — the average tile and distribution bars only render once
+          reviews exist. A "—" tile beside five zero-bars is a wall of
+          emptiness that adds nothing over the invite text below. */}
+      {totalCount > 0 && (
+        <div className="flex flex-col gap-6 border-b border-divider p-6 sm:flex-row sm:items-center">
+          {/* Big average */}
+          <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-paper px-8 py-5">
+            <span className="text-5xl font-bold text-text-heading">
+              {avgRating.toFixed(1)}
+            </span>
+            <div className="mt-1.5 flex gap-0.5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <svg
+                  key={i}
+                  viewBox="0 0 24 24"
+                  className={`h-5 w-5 ${
+                    i < Math.round(avgRating)
+                      ? "fill-amber-400 stroke-amber-400"
+                      : "fill-slate-200 stroke-slate-200"
+                  }`}
+                  strokeWidth={1}
+                >
+                  <path d="m12 2 3 6.4 7 .8-5.2 4.8 1.4 6.9L12 17.4 5.8 21l1.4-6.9L2 9.2l7-.8L12 2Z" />
+                </svg>
+              ))}
+            </div>
+            <span className="mt-1 text-xs text-text-muted">
+              {totalCount} {totalCount === 1 ? "review" : "reviews"}
+            </span>
           </div>
-          <span className="mt-1 text-xs text-text-muted">
-            {totalCount} {totalCount === 1 ? "review" : "reviews"}
-          </span>
-        </div>
 
-        {/* Distribution bars */}
-        <div className="flex flex-1 flex-col gap-1.5">
-          {tally.map(({ star, count }) => (
-            <StarBar key={star} rating={star} count={count} total={totalCount} />
-          ))}
+          {/* Distribution bars — meaningful from a handful of reviews up */}
+          {totalCount >= 3 && (
+            <div className="flex flex-1 flex-col gap-1.5">
+              {tally.map(({ star, count }) => (
+                <StarBar key={star} rating={star} count={count} total={totalCount} />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Review list */}
       <div className="px-6 pb-2">

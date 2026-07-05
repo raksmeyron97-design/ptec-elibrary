@@ -76,6 +76,8 @@ function countBy(items: Report[], keyFn: (item: Report) => string | null | undef
 function toFacetOptions(counts: Record<string, number>): { value: string; label: string; count: number }[] {
   return Object.entries(counts)
     .map(([value, count]) => ({ value, label: value, count }))
+    // Never offer a filter that is guaranteed to return nothing.
+    .filter((opt) => opt.count > 0)
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 

@@ -367,8 +367,8 @@ export default async function HomePage() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold-400 opacity-60 motion-reduce:animate-none" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-gold-400" />
               </span>
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold-400">
-                Free for educators
+              <span className={`text-[11px] font-bold text-gold-400 ${latinEyebrow}`}>
+                {t("ctaEyebrow")}
               </span>
             </div>
 
@@ -422,12 +422,13 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            {/* Micro-stats strip */}
+            {/* Micro-stats strip — resource count comes from live stats, not a
+                hardcoded claim that can drift from reality. */}
             <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
               {[
-                { value: "500+", label: "Digital resources" },
-                { value: "Free", label: "Open access" },
-                { value: "EN / ខ្មែរ", label: "Bilingual" },
+                { value: `${homeStats.books}+`, label: t("ctaStatResources") },
+                { value: t("ctaStatFree"), label: t("ctaStatOpenAccess") },
+                { value: "EN / ខ្មែរ", label: t("ctaStatBilingual") },
               ].map(({ value, label }, i) => (
                 <div key={label} className="flex items-center gap-2">
                   {i > 0 && <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />}

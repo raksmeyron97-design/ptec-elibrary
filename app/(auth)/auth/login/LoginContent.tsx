@@ -54,10 +54,10 @@ const PROGRAMS = [
 // ── Props ────────────────────────────────────────────────────────────────────
 type Props = {
   stats: {
-    books: string;
-    downloads: string;
-    views: string;
-    users: string;
+    books: string | null;
+    downloads: string | null;
+    views: string | null;
+    users: string | null;
   };
 };
 
@@ -266,24 +266,32 @@ export default function LoginContent({ stats }: Props) {
               </div>
             </div>
 
-            {/* Stats — 4 columns, server-fetched */}
-            <div className="grid grid-cols-4 gap-3 border-t border-white/10 pt-6">
-              {[
-                { num: stats.books,     label: t('statResources') },
-                { num: stats.views,     label: t('statViews')     },
-                { num: stats.downloads, label: t('statDownloads') },
-                { num: stats.users,     label: t('statEducators') },
-              ].map(({ num, label }) => (
-                <div key={label}>
-                  <div className="text-xl font-bold text-white drop-shadow leading-none">
-                    {num}
+            {/* Stats — server-fetched; stats below the credibility floor
+                arrive as null and are simply not rendered. */}
+            {[
+              { num: stats.books,     label: t('statResources') },
+              { num: stats.views,     label: t('statViews')     },
+              { num: stats.downloads, label: t('statDownloads') },
+              { num: stats.users,     label: t('statEducators') },
+            ].filter(({ num }) => num).length > 0 && (
+              <div className="flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6">
+                {[
+                  { num: stats.books,     label: t('statResources') },
+                  { num: stats.views,     label: t('statViews')     },
+                  { num: stats.downloads, label: t('statDownloads') },
+                  { num: stats.users,     label: t('statEducators') },
+                ].filter(({ num }) => num).map(({ num, label }) => (
+                  <div key={label}>
+                    <div className="text-xl font-bold text-white drop-shadow leading-none">
+                      {num}
+                    </div>
+                    <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
+                      {label}
+                    </div>
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">
-                    {label}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* BOTTOM: Copyright + PTEC link */}

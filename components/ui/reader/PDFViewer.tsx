@@ -1525,9 +1525,14 @@ export default function PDFViewer({
                     </div>
                     <span className="text-xs font-semibold text-cyan-300">{fmtNum(progressPct)}%</span>
                   </div>
-                  <span className="text-[10px] text-text-muted">
-                    ≈ {fmtNum(Math.max(0, numPages - Math.round((maxProgressPct / 100) * numPages)))} {locale === "km" ? "នាទីនៅសល់" : "min left"}
-                  </span>
+                  {/* The value is pages remaining, so label it as pages — it
+                      was previously mislabeled "min left". Hidden until the
+                      reader has actually started ("≈ N left" at 0% is noise). */}
+                  {maxProgressPct > 0 && (
+                    <span className="text-[10px] text-text-muted">
+                      {fmtNum(Math.max(0, numPages - Math.round((maxProgressPct / 100) * numPages)))} {locale === "km" ? "ទំព័រនៅសល់" : "pages left"}
+                    </span>
+                  )}
                 </div>
               )}
 

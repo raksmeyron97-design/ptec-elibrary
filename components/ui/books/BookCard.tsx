@@ -156,34 +156,38 @@ export default function BookCard({ book, variant = "browse", priority = false }:
           {/* ── Footer ── */}
           <div className="mt-auto pt-2.5">
 
-            {/* Stats + Rating — browse variant only */}
-            {!isContinue && (
+            {/* Stats + Rating — browse variant only. Zero-value metrics are
+                hidden: "0 views · 0 downloads · No reviews yet" is anti-proof,
+                not information. */}
+            {!isContinue && ((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0 || reviews > 0) && (
               <div className="mb-2.5 flex flex-col gap-1.5">
-                {/* Views & downloads in one compact row */}
-                <div className="flex items-center gap-2 text-[11px] text-text-muted">
-                  <span className="flex items-center gap-1">
-                    <Icon name="eye" className="h-[13px] w-[13px]" />
-                    {formatCount(book.viewCount ?? 0)}
-                  </span>
-                  <span className="text-divider">·</span>
-                  <span className="flex items-center gap-1">
-                    <Icon name="download" className="h-[13px] w-[13px]" />
-                    {formatCount(book.downloadCount ?? 0)}
-                  </span>
-                </div>
+                {((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0) && (
+                  <div className="flex items-center gap-2 text-[11px] text-text-muted">
+                    {(book.viewCount ?? 0) > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="eye" className="h-[13px] w-[13px]" />
+                        {formatCount(book.viewCount ?? 0)}
+                      </span>
+                    )}
+                    {(book.viewCount ?? 0) > 0 && (book.downloadCount ?? 0) > 0 && (
+                      <span className="text-divider">·</span>
+                    )}
+                    {(book.downloadCount ?? 0) > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Icon name="download" className="h-[13px] w-[13px]" />
+                        {formatCount(book.downloadCount ?? 0)}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-                {/* Rating OR no-reviews fallback */}
-                {reviews > 0 ? (
+                {reviews > 0 && (
                   <div className="flex items-center gap-1.5">
                     <RatingStars rating={book.rating} compact />
                     <span className="text-[10px] text-text-muted">
                       · {formatCount(reviews)}
                     </span>
                   </div>
-                ) : (
-                  <p className="text-[10px] italic text-text-muted/70">
-                    {tc.has("noReviews") ? tc("noReviews") : "No reviews yet"}
-                  </p>
                 )}
               </div>
             )}

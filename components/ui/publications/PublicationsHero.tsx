@@ -147,36 +147,48 @@ export default function PublicationsHero({
           </div>
         )}
 
-        {/* Repository stats */}
-        <div className="mt-7 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-          <StatTile
-            icon={<BookOpen className="h-4 w-4" />}
-            value={compact(stats.publications)}
-            label={labels.statPublications}
-          />
-          <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-          <StatTile
-            icon={<Library className="h-4 w-4" />}
-            value={compact(stats.journals)}
-            label={labels.statJournals}
-          />
-          <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-          <StatTile
-            icon={<CalendarRange className="h-4 w-4" />}
-            value={compact(stats.years)}
-            label={labels.statYears}
-          />
-          {stats.downloads > 0 && (
-            <>
-              <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
-              <StatTile
-                icon={<Download className="h-4 w-4" />}
-                value={compact(stats.downloads)}
-                label={labels.statDownloads}
-              />
-            </>
-          )}
-        </div>
+        {/* Repository stats — hidden while the repository is small. A hero
+            announcing "1 Publications · 1 Journals" undermines credibility;
+            show the band only once the numbers are worth bragging about. */}
+        {stats.publications >= 10 && (
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            <StatTile
+              icon={<BookOpen className="h-4 w-4" />}
+              value={compact(stats.publications)}
+              label={labels.statPublications}
+            />
+            {stats.journals > 1 && (
+              <>
+                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
+                <StatTile
+                  icon={<Library className="h-4 w-4" />}
+                  value={compact(stats.journals)}
+                  label={labels.statJournals}
+                />
+              </>
+            )}
+            {stats.years > 1 && (
+              <>
+                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
+                <StatTile
+                  icon={<CalendarRange className="h-4 w-4" />}
+                  value={compact(stats.years)}
+                  label={labels.statYears}
+                />
+              </>
+            )}
+            {stats.downloads >= 10 && (
+              <>
+                <span aria-hidden className="hidden h-8 w-px bg-divider sm:block" />
+                <StatTile
+                  icon={<Download className="h-4 w-4" />}
+                  value={compact(stats.downloads)}
+                  label={labels.statDownloads}
+                />
+              </>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -45,10 +45,10 @@ export default function PublicationCard({ publication }: { publication: Publicat
                 className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-brand/5 to-brand/10">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-brand/5 to-brand/10 p-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-10 w-10 text-brand/25"
+                  className="h-8 w-8 text-brand/25"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -59,6 +59,9 @@ export default function PublicationCard({ publication }: { publication: Publicat
                   <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v8a2 2 0 01-2 2z" />
                   <path d="M15 4v6h6" />
                 </svg>
+                <p className="text-center font-khmer-serif text-[12px] font-bold leading-snug text-brand/60 line-clamp-4">
+                  {publication.title}
+                </p>
               </div>
             )}
 
@@ -138,21 +141,23 @@ export default function PublicationCard({ publication }: { publication: Publicat
                   </span>
                 )}
 
-                <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                  <svg
-                    className="h-3 w-3"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  {formatCount(views)}
-                </span>
+                {views > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    {formatCount(views)}
+                  </span>
+                )}
               </div>
 
               <span className="inline-flex items-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast sm:px-2.5 sm:py-1 sm:text-[10px]">

@@ -49,7 +49,9 @@ const formatCount = (n: number) =>
 
 export default async function TrendingResearch() {
   const theses = await getTrendingTheses();
-  if (theses.length === 0) return null;
+  // A "trending" list of one or two rows reads as emptiness, not popularity —
+  // hide the section until there is a real ranking to show.
+  if (theses.length < 3) return null;
 
   const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";

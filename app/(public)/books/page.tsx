@@ -212,6 +212,13 @@ export default async function BooksPage({
         {/* Active filter chips */}
         {hasFilters && (
           <div className="mb-5 flex flex-wrap items-center gap-2">
+            {params.dept && (
+              <ActiveChip
+                label={params.dept}
+                paramKey="dept"
+                searchParams={params}
+              />
+            )}
             {params.language && (
               <ActiveChip
                 label={t('activeFilterLanguage', { value: params.language })}

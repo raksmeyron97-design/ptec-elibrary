@@ -27,10 +27,13 @@ async function getLoginStats() {
   };
 }
 
-function formatStat(n: number): string {
+function formatStat(n: number): string | null {
+  // Small numbers are anti-proof ("9+ downloads" reads as "nobody uses this")
+  // — suppress the stat entirely until it clears a floor worth showing.
+  if (n < 10) return null;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M+`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K+`;
-  return n > 0 ? `${n}+` : "0";
+  return `${n}+`;
 }
 
 // ── Page (server) ────────────────────────────────────────────────────────────
