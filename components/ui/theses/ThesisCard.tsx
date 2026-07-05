@@ -4,12 +4,12 @@ import Image from "next/image";
 import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/core/Badge";
 import { getKeywords, getYear, getDepartment } from "@/lib/theses/report-fields";
-import { getProgram } from "@/lib/theses/programs";
+import { getThesisPrograms } from "@/app/actions/theses";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
 
-export default function ThesisCard({ report }: { report: any }) {
+export default async function ThesisCard({ report }: { report: any }) {
   const formatCount = (n: number) =>
     n >= 1_000_000
       ? `${(n / 1_000_000).toFixed(1)}M`
@@ -22,7 +22,8 @@ export default function ThesisCard({ report }: { report: any }) {
   const keywords = getKeywords(report).slice(0, 3);
   const year = getYear(report);
   const department = getDepartment(report);
-  const programLabel = getProgram(report.program)?.nameEn;
+  const { data: programs } = await getThesisPrograms();
+  const programLabel = programs?.find((p) => p.code === report.program)?.name_en;
   const metaLine = [programLabel, department, year].filter(Boolean).join(" · ");
 
   return (

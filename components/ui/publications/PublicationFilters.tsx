@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { SlidersHorizontal, X } from "lucide-react";
 
 export type PublicationFilterValues = {
   q: string;
@@ -12,6 +12,10 @@ export type PublicationFilterValues = {
   keyword: string;
 };
 
+/**
+ * Slim filter toolbar shown under the hero. Free-text search lives in the
+ * hero form; this bar only manages the structured facets.
+ */
 export default function PublicationFilters({
   filters,
   journals,
@@ -46,24 +50,25 @@ export default function PublicationFilters({
 
   const hasFilters = !!(filters.q || filters.type || filters.journal || filters.year || filters.language || filters.keyword);
 
-  const selectClass =
-    "h-10 rounded-lg border border-divider bg-bg-surface px-3 py-2 text-sm text-text-body outline-none transition focus:border-brand cursor-pointer";
+  const selectClass = (active: boolean) =>
+    `h-9 max-w-[180px] cursor-pointer rounded-full border px-3 text-[13px] outline-none transition focus:border-brand ${
+      active
+        ? "border-brand/40 bg-brand/5 font-medium text-brand"
+        : "border-divider bg-bg-surface text-text-body"
+    }`;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-divider bg-bg-surface p-4">
-      <div className="relative min-w-[220px] flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-        <input
-          type="search"
-          placeholder={labels.searchPlaceholder}
-          defaultValue={filters.q}
-          onBlur={(e) => update("q", e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && update("q", e.currentTarget.value)}
-          className="h-10 w-full rounded-lg border border-divider bg-transparent pl-9 pr-3 text-sm text-text-body outline-none transition focus:border-brand"
-        />
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-text-muted">
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+      </span>
 
-      <select value={filters.type} onChange={(e) => update("type", e.target.value)} className={selectClass} aria-label={labels.allTypes}>
+      <select
+        value={filters.type}
+        onChange={(e) => update("type", e.target.value)}
+        className={selectClass(!!filters.type)}
+        aria-label={labels.allTypes}
+      >
         <option value="">{labels.allTypes}</option>
         {Object.entries(labels.types).map(([value, label]) => (
           <option key={value} value={value}>{label}</option>
@@ -71,7 +76,12 @@ export default function PublicationFilters({
       </select>
 
       {journals.length > 0 && (
-        <select value={filters.journal} onChange={(e) => update("journal", e.target.value)} className={selectClass} aria-label={labels.allJournals}>
+        <select
+          value={filters.journal}
+          onChange={(e) => update("journal", e.target.value)}
+          className={selectClass(!!filters.journal)}
+          aria-label={labels.allJournals}
+        >
           <option value="">{labels.allJournals}</option>
           {journals.map((j) => (
             <option key={j} value={j}>{j}</option>
@@ -80,7 +90,12 @@ export default function PublicationFilters({
       )}
 
       {years.length > 0 && (
-        <select value={filters.year} onChange={(e) => update("year", e.target.value)} className={selectClass} aria-label={labels.allYears}>
+        <select
+          value={filters.year}
+          onChange={(e) => update("year", e.target.value)}
+          className={selectClass(!!filters.year)}
+          aria-label={labels.allYears}
+        >
           <option value="">{labels.allYears}</option>
           {years.map((y) => (
             <option key={y} value={y}>{y}</option>
@@ -88,7 +103,12 @@ export default function PublicationFilters({
         </select>
       )}
 
-      <select value={filters.language} onChange={(e) => update("language", e.target.value)} className={selectClass} aria-label={labels.allLanguages}>
+      <select
+        value={filters.language}
+        onChange={(e) => update("language", e.target.value)}
+        className={selectClass(!!filters.language)}
+        aria-label={labels.allLanguages}
+      >
         <option value="">{labels.allLanguages}</option>
         <option value="en">English</option>
         <option value="km">ខ្មែរ</option>
@@ -98,7 +118,7 @@ export default function PublicationFilters({
         <button
           type="button"
           onClick={() => router.push("/publications")}
-          className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-divider px-3 text-sm font-medium text-text-muted transition-colors hover:border-brand/40 hover:text-brand"
+          className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-divider px-3 text-[13px] font-medium text-text-muted transition-colors hover:border-danger/40 hover:text-danger"
         >
           <X className="h-3.5 w-3.5" />
           {labels.clear}

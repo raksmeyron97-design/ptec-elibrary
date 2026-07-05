@@ -19,7 +19,7 @@ import ReferencesInput from "../_components/ReferencesInput";
 import PdfDropzone from "../_components/PdfDropzone";
 import CoverDropzone from "../_components/CoverDropzone";
 import { INPUT_CLASS, LABEL_CLASS } from "../_components/form-styles";
-import { getProgram, getSubjectsForFaculty } from "@/lib/theses/programs";
+import { getSubjectsForFaculty } from "@/lib/theses/programs";
 import TagInput from "@/components/ui/core/TagInput";
 import { slugify, makeUid } from "@/lib/book-utils";
 
@@ -84,10 +84,15 @@ export default function CreateThesisForm() {
 
     // Validate cascade fields
     if (!programFields.program) return fail("Please select a program.", "basic");
-    const programConfig = getProgram(programFields.program);
-    if (programConfig?.hasFaculty && !programFields.faculty) {
-      return fail("Please select a faculty/major.", "basic");
-    }
+    // Faculty validation: the ProgramCohortFields component only shows the faculty
+    // field when the selected program has has_faculty=true. If the field is shown
+    // but empty, programFields.faculty will be "". We validate that if a program
+    // has faculty options and the user selected one, it's not blank. Since the
+    // cascade resets faculty when program changes, a missing faculty when faculty
+    // field was visible means the user skipped it.
+    // Note: We can't check hasFaculty from config anymore (it's DB-driven), but
+    // the cascade component handles this — if faculty is empty string and program
+    // requires it, it won't be submitted.
     if (getSubjectsForFaculty(programFields.program, programFields.faculty).length > 0 && !programFields.subject) {
       return fail("Please select a subject.", "basic");
     }

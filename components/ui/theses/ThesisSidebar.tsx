@@ -1,9 +1,9 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, X, SlidersHorizontal } from "lucide-react";
-import { PROGRAMS, getFacultiesForProgram } from "@/lib/theses/programs";
+import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
 import type { FacetOption } from "@/components/ui/theses/AdvancedSearchModal";
 
 type Cohort = {
@@ -189,11 +189,15 @@ function FilterPanel({
   keywords,
   hasFilters,
   onNav,
+  programs,
+  faculties,
 }: Omit<Props, "currentQ" | "currentView"> & {
   hasFilters: boolean;
   onNav: (overrides: Record<string, string | undefined>) => void;
+  programs: ThesisProgram[];
+  faculties: ThesisFaculty[];
 }) {
-  const facultyOptions = getFacultiesForProgram(currentProgram);
+  const facultyOptions = faculties.filter((f) => f.program_code === currentProgram);
 
   return (
     <div className="px-4">
@@ -229,10 +233,10 @@ function FilterPanel({
             active={!currentProgram}
             onClick={() => onNav({ program: undefined, faculty: undefined, cohort: undefined })}
           />
-          {PROGRAMS.map((p) => (
+          {programs.map((p) => (
             <FilterCheckboxRow
               key={p.code}
-              label={p.nameEn}
+              label={p.name_en}
               count={programCounts[p.code] ?? 0}
               active={currentProgram === p.code}
               onClick={() =>
@@ -259,7 +263,7 @@ function FilterPanel({
             {facultyOptions.map((f) => (
               <FilterCheckboxRow
                 key={f.code}
-                label={f.nameEn}
+                label={f.name_en}
                 count={facultyCounts[f.code] ?? 0}
                 active={currentFaculty === f.code}
                 onClick={() => onNav({ faculty: currentFaculty === f.code ? undefined : f.code })}
@@ -369,6 +373,14 @@ export default function ThesisSidebar({
   const [, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const [programs, setPrograms] = useState<ThesisProgram[]>([]);
+  const [faculties, setFaculties] = useState<ThesisFaculty[]>([]);
+
+  useEffect(() => {
+    getThesisPrograms().then(({ data }) => setPrograms(data ?? []));
+    getThesisFaculties().then(({ data }) => setFaculties(data ?? []));
+  }, []);
+
   const hasFilters = !!(
     currentProgram ||
     currentFaculty ||
@@ -431,6 +443,8 @@ export default function ThesisSidebar({
     keywords,
     hasFilters,
     onNav: nav,
+    programs,
+    faculties,
   };
 
   return (

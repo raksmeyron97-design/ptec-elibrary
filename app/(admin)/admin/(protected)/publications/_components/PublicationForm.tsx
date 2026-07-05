@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createPublication,
@@ -58,10 +58,18 @@ async function uploadViaAdminApi(file: File, key: string): Promise<string> {
 export default function PublicationForm({ initial }: { initial?: Publication }) {
   const router = useRouter();
   const isEdit = !!initial;
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [activeTab, setActiveTab] = useState<TabKey>("basic");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sectionDone, setSectionDone] = useState<Record<TabKey, boolean>>({
+    basic: false,
+    authors: false,
+    abstract: false,
+    references: false,
+    files: false,
+  });
 
   // ── Basic info ──
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -105,6 +113,40 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     if (!file) return;
     setNewSiFiles((prev) => [...prev, { label: file.name.replace(/\.[^.]+$/, ""), file }]);
   };
+
+  // ── Section completeness (drives tab dots + footer progress) ────────
+  const recomputeProgress = useCallback(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const fd = new FormData(form);
+    const has = (name: string) => !!(fd.get(name) as string | null)?.trim();
+    setSectionDone({
+      basic: !!title.trim() && has("journal_name"),
+      authors: authorRows.length > 0,
+      abstract: has("abstract") && has("keywords"),
+      references: has("references"),
+      files: !!pdfFile || !!initial?.pdf_url,
+    });
+  }, [title, authorRows, pdfFile, initial?.pdf_url]);
+
+  useEffect(() => {
+    recomputeProgress();
+  }, [recomputeProgress]);
+
+  const doneCount = Object.values(sectionDone).filter(Boolean).length;
+  const progressPct = Math.round((doneCount / TABS.length) * 100);
+
+  // ── Cmd/Ctrl+S saves from anywhere in the form ───────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!loading) formRef.current?.requestSubmit();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [loading]);
 
   // ── Tab keyboard nav (left/right arrows while a tab is focused) ─────
   function handleTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -232,7 +274,12 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-divider bg-bg-surface shadow-sm overflow-hidden flex flex-col">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onChange={recomputeProgress}
+      className="rounded-2xl border border-divider bg-bg-surface shadow-sm overflow-hidden flex flex-col"
+    >
       {error && (
         <div className="mx-6 mt-4 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
@@ -268,6 +315,12 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
               >
                 <t.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-brand" : "text-text-muted"}`} />
                 <span className="flex-1 whitespace-nowrap">{t.label}</span>
+                <span
+                  aria-hidden
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
+                    sectionDone[t.key] ? "bg-success" : "bg-divider"
+                  }`}
+                />
               </button>
             );
           })}
@@ -566,19 +619,36 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
             </div>
           </div>
 
-          {/* Footer — always visible, independent of active tab */}
-          <div className="flex justify-end border-t border-divider bg-paper/40 px-6 py-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-brand-gradient inline-flex items-center gap-2 text-white px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Saving…</>
-              ) : (
-                <><UploadCloud className="w-5 h-5" /> {isEdit ? "Save Changes" : "Save as Draft"}</>
-              )}
-            </button>
+          {/* Footer — sticky so Save is always reachable on long sections */}
+          <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-4 border-t border-divider bg-bg-surface/95 px-6 py-4 backdrop-blur-sm">
+            <div className="flex min-w-[160px] items-center gap-3" aria-label={`Completeness ${progressPct}%`}>
+              <div className="h-1.5 w-28 overflow-hidden rounded-full bg-paper">
+                <div
+                  className="h-full rounded-full bg-brand transition-all duration-300"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium tabular-nums text-text-muted">
+                {doneCount}/{TABS.length} sections
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="hidden items-center gap-1 text-[11px] text-text-muted sm:inline-flex">
+                <kbd className="rounded border border-divider bg-paper px-1.5 py-0.5 font-medium">⌘S</kbd>
+                to save
+              </span>
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-brand-gradient inline-flex items-center gap-2 text-white px-6 py-2.5 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Saving…</>
+                ) : (
+                  <><UploadCloud className="w-5 h-5" /> {isEdit ? "Save Changes" : "Save as Draft"}</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>

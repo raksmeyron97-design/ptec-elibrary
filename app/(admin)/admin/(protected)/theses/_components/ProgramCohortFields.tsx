@@ -1,19 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getSubjectsForFaculty, type SubjectOption } from "@/lib/theses/programs";
 import {
-  PROGRAMS,
-  getFacultiesForProgram,
-  getSubjectsForFaculty,
-  getProgram,
-  type FacultyOption,
-  type SubjectOption,
-} from "@/lib/theses/programs";
-import {
+  getThesisPrograms,
+  getThesisFaculties,
   getThesisCohorts,
   getThesisAcademicYears,
+  addThesisProgram,
+  addThesisFaculty,
   addThesisCohort,
   addThesisAcademicYear,
+  type ThesisProgram,
+  type ThesisFaculty,
   type ThesisCohort,
   type ThesisAcademicYear,
 } from "@/app/actions/theses";
@@ -43,6 +42,8 @@ const SELECT_CLASS =
 
 export default function ProgramCohortFields({ defaultValues, onChange }: Props) {
   // ── DB data (fetched once on mount) ─────────────────────────────────────────
+  const [allPrograms, setAllPrograms] = useState<ThesisProgram[]>([]);
+  const [allFaculties, setAllFaculties] = useState<ThesisFaculty[]>([]);
   const [allCohorts, setAllCohorts] = useState<ThesisCohort[]>([]);
   const [allYears, setAllYears] = useState<ThesisAcademicYear[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -59,12 +60,18 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
   // ── Fetch lookup data on mount ───────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      const [cohortRes, yearRes] = await Promise.all([
+      const [programRes, facultyRes, cohortRes, yearRes] = await Promise.all([
+        getThesisPrograms(),
+        getThesisFaculties(),
         getThesisCohorts(),
         getThesisAcademicYears(),
       ]);
+      const programs = programRes.data ?? [];
+      const faculties = facultyRes.data ?? [];
       const cohorts = cohortRes.data ?? [];
       const years = yearRes.data ?? [];
+      setAllPrograms(programs);
+      setAllFaculties(faculties);
       setAllCohorts(cohorts);
       setAllYears(years);
 
@@ -86,20 +93,36 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived option lists ─────────────────────────────────────────────────────
-  const programConfig = getProgram(program);
-  const hasFaculty = programConfig?.hasFaculty ?? false;
+  const programConfig = allPrograms.find((p) => p.code === program);
+  const hasFaculty = programConfig?.has_faculty ?? false;
 
-  const facultyOptions: FacultyOption[] = [
-    ...getFacultiesForProgram(program),
-    // Include legacy faculty not in config so existing data is never dropped
-    ...(faculty && !getFacultiesForProgram(program).find((f) => f.code === faculty)
-      ? [{ code: faculty, nameEn: `${faculty} (legacy)`, nameKm: faculty }]
-      : []),
-  ];
+  const programOptions: SelectOption[] = allPrograms.map((p) => ({
+    value: p.code,
+    label: `${p.name_km} — ${p.name_en}`,
+  }));
+  // Append legacy program if not in DB
+  if (program && !allPrograms.find((p) => p.code === program)) {
+    programOptions.push({ value: program, label: `${program} (legacy)` });
+  }
+
+  const facultyOptions: SelectOption[] = (() => {
+    const dbFaculties = allFaculties.filter((f) => f.program_code === program);
+    const opts = dbFaculties.map((f) => ({
+      value: f.code,
+      label: `${f.name_km} — ${f.name_en}`,
+    }));
+    // Include legacy faculty not in DB so existing data is never dropped
+    if (faculty && !dbFaculties.find((f) => f.code === faculty)) {
+      opts.push({ value: faculty, label: `${faculty} (legacy)` });
+    }
+    return opts;
+  })();
 
   const subjectOptions: SubjectOption[] = (() => {
-    const configSubjects = getSubjectsForFaculty(program, faculty);
     if (!faculty) return [];
+    const facultyConfig = allFaculties.find((f) => f.program_code === program && f.code === faculty);
+    if (!facultyConfig?.has_subject) return [];
+    const configSubjects = getSubjectsForFaculty(program, faculty);
     return [
       ...configSubjects,
       // Include a legacy subject code if it's not in the config list
@@ -180,6 +203,57 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
   }
 
   // ── Inline-add handlers ───────────────────────────────────────────────────────
+  async function handleAddProgram(input: string): Promise<SelectOption | null> {
+    // Input format: "code|nameEn|nameKm" or just "nameEn" (auto-generates code)
+    const parts = input.split("|").map((s) => s.trim());
+    const nameEn = parts[0];
+    const nameKm = parts[1] || nameEn;
+    const code = parts[2] || nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+
+    const { data, error } = await addThesisProgram({
+      code,
+      nameEn,
+      nameKm,
+      durationYears: 4,
+      hasFaculty: false,
+    });
+    if (error || !data) return null;
+
+    const res = await getThesisPrograms();
+    setAllPrograms(res.data ?? []);
+
+    return {
+      value: data.code,
+      label: `${data.name_km} — ${data.name_en}`,
+    };
+  }
+
+  async function handleAddFaculty(input: string): Promise<SelectOption | null> {
+    if (!program) return null;
+
+    // Input format: "nameEn|nameKm" or just "nameEn"
+    const parts = input.split("|").map((s) => s.trim());
+    const nameEn = parts[0];
+    const nameKm = parts[1] || nameEn;
+    const code = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+
+    const { data, error } = await addThesisFaculty({
+      programCode: program,
+      code,
+      nameEn,
+      nameKm,
+    });
+    if (error || !data) return null;
+
+    const res = await getThesisFaculties();
+    setAllFaculties(res.data ?? []);
+
+    return {
+      value: data.code,
+      label: `${data.name_km} — ${data.name_en}`,
+    };
+  }
+
   async function handleAddCohort(input: string): Promise<SelectOption | null> {
     const num = parseInt(input.trim(), 10);
     if (isNaN(num) || num < 1) return null;
@@ -216,42 +290,38 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
         <label className="block text-sm font-semibold text-text-body mb-1.5">
           កម្មវិធី (Program) <span className="text-red-500">*</span>
         </label>
-        <select
+        <AddableSelect
           value={program}
-          onChange={(e) => handleProgramChange(e.target.value)}
-          className={SELECT_CLASS}
-        >
-          <option value="">-- ជ្រើសរើសកម្មវិធី / Select Program --</option>
-          {PROGRAMS.map((p) => (
-            <option key={p.code} value={p.code}>
-              {p.nameKm} — {p.nameEn}
-            </option>
-          ))}
-        </select>
+          onChange={(code) => { handleProgramChange(code); }}
+          options={programOptions}
+          onAdd={handleAddProgram}
+          placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសកម្មវិធី / Select Program --"}
+          addPlaceholder="English Name | ឈ្មោះខ្មែរ"
+          addHint="Format: English Name | Khmer Name"
+          disabled={loadingData}
+        />
       </div>
 
-      {/* Faculty — only for b_ed_12_4 */}
+      {/* Faculty — only for programs with has_faculty */}
       {hasFaculty && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
             មហាវិទ្យាល័យ / ជំនាញ (Faculty/Major) <span className="text-red-500">*</span>
           </label>
-          <select
+          <AddableSelect
             value={faculty}
-            onChange={(e) => handleFacultyChange(e.target.value)}
-            className={SELECT_CLASS}
-          >
-            <option value="">-- ជ្រើសរើសជំនាញ / Select Faculty/Major --</option>
-            {facultyOptions.map((f) => (
-              <option key={f.code} value={f.code}>
-                {f.nameKm} — {f.nameEn}
-              </option>
-            ))}
-          </select>
+            onChange={(code) => { handleFacultyChange(code); }}
+            options={facultyOptions}
+            onAdd={program ? handleAddFaculty : undefined}
+            placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសជំនាញ / Select Faculty/Major --"}
+            addPlaceholder="English Name | ឈ្មោះខ្មែរ"
+            addHint="Format: English Name | Khmer Name"
+            disabled={!program || loadingData}
+          />
         </div>
       )}
 
-      {/* Subject — only for lower_secondary (or any faculty where hasSubject = true) */}
+      {/* Subject — only for faculties where has_subject = true */}
       {hasSubject && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">

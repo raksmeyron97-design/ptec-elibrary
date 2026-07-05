@@ -6,13 +6,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toggleThesisPublishStatus, deleteThesis } from "@/app/actions/theses";
+import { toggleThesisPublishStatus, deleteThesis, getThesisPrograms, type ThesisProgram } from "@/app/actions/theses";
 import { FileText, Eye, Download, CheckCircle2, XCircle } from "lucide-react";
 import Icon from "@/components/ui/core/Icon";
 import Link from "next/link";
-import { getProgram } from "@/lib/theses/programs";
 
 type ReportRow = {
   id: string;
@@ -47,6 +46,14 @@ export default function ThesesClient({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // DB-driven program lookup
+  const [allPrograms, setAllPrograms] = useState<ThesisProgram[]>([]);
+  useEffect(() => {
+    getThesisPrograms().then((res) => setAllPrograms(res.data ?? []));
+  }, []);
+  const getProgramName = (code: string | null) =>
+    allPrograms.find((p) => p.code === code)?.name_en ?? code;
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
     setLoadingId(id);
@@ -168,7 +175,7 @@ export default function ThesesClient({
                     <td className="px-4 py-3 text-text-body">
                       {report.program ? (
                         <span className="text-xs text-brand font-medium block mb-0.5">
-                          {getProgram(report.program)?.nameEn ?? report.program}
+                          {getProgramName(report.program) ?? report.program}
                         </span>
                       ) : (
                         <span className="text-xs text-text-muted italic block mb-0.5">No program</span>

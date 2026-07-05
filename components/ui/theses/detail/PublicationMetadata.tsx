@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { User, UserCheck, GraduationCap, Building2, Layers, CalendarDays, Hash } from "lucide-react";
 import { getDepartment, formatPublicationDate, getDoi, type ResearchReport } from "@/lib/theses/report-fields";
-import { getProgram, getFacultiesForProgram } from "@/lib/theses/programs";
+import { getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
 
 function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
@@ -23,17 +23,19 @@ function Row({ icon, label, value }: { icon: ReactNode; label: string; value: Re
  * belong to the books table), so this intentionally omits them rather than
  * showing fabricated placeholders.
  */
-export default function PublicationMetadata({ report }: { report: ResearchReport }) {
+export default async function PublicationMetadata({ report }: { report: ResearchReport }) {
   const publishedOn = formatPublicationDate(report);
   const doi = getDoi(report);
-  const program = getProgram(report.program);
-  const faculty = getFacultiesForProgram(report.program).find((f) => f.code === report.faculty);
+  const { data: programs } = await getThesisPrograms();
+  const { data: faculties } = await getThesisFaculties();
+  const program = programs?.find((p) => p.code === report.program);
+  const faculty = faculties?.find((f) => f.program_code === report.program && f.code === report.faculty);
 
   // getDepartment() falls back to the resolved faculty label when there's no
   // distinct department record — skip the row entirely rather than repeating
   // the Faculty row's value under a different heading.
   const department = getDepartment(report);
-  const showDepartment = department && department !== faculty?.nameEn;
+  const showDepartment = department && department !== faculty?.name_en;
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm sm:p-5">
@@ -43,8 +45,8 @@ export default function PublicationMetadata({ report }: { report: ResearchReport
       <dl className="divide-y divide-divider/60">
         {report.author_names && <Row icon={<User className="h-4 w-4" />} label="Author(s)" value={report.author_names} />}
         {report.advisor_name && <Row icon={<UserCheck className="h-4 w-4" />} label="Advisor" value={report.advisor_name} />}
-        {program && <Row icon={<GraduationCap className="h-4 w-4" />} label="Program" value={program.nameEn} />}
-        {faculty && <Row icon={<Layers className="h-4 w-4" />} label="Faculty" value={faculty.nameEn} />}
+        {program && <Row icon={<GraduationCap className="h-4 w-4" />} label="Program" value={program.name_en} />}
+        {faculty && <Row icon={<Layers className="h-4 w-4" />} label="Faculty" value={faculty.name_en} />}
         {showDepartment && <Row icon={<Building2 className="h-4 w-4" />} label="Department" value={department} />}
         {report.academic_year && <Row icon={<CalendarDays className="h-4 w-4" />} label="Academic Year" value={report.academic_year} />}
         {publishedOn && <Row icon={<CalendarDays className="h-4 w-4" />} label="Published" value={publishedOn} />}

@@ -12,6 +12,15 @@ type SP = {
   page?: string;
   status?: string; // live | draft | ""
   type?: string;   // article | review | account | editorial | ""
+  sort?: string;   // title | views | downloads | created
+  dir?: string;    // asc | desc
+};
+
+const SORT_COLUMNS: Record<string, string> = {
+  title: "title",
+  views: "view_count",
+  downloads: "download_count",
+  created: "created_at",
 };
 
 export default async function AdminPublicationsPage({
@@ -26,6 +35,8 @@ export default async function AdminPublicationsPage({
   const q      = (sp.q ?? "").trim();
   const status = sp.status ?? "";
   const type   = sp.type ?? "";
+  const sort   = SORT_COLUMNS[sp.sort ?? ""] ? (sp.sort as string) : "created";
+  const dir    = sp.dir === "asc" ? "asc" : "desc";
 
   const from = (page - 1) * PAGE_SIZE;
   const to   = from + PAGE_SIZE - 1;
@@ -60,10 +71,31 @@ export default async function AdminPublicationsPage({
   if (status === "draft") query = query.eq("is_published", false);
   if (type) query = query.eq("article_type", type);
 
-  query = query.order("created_at", { ascending: false });
+  query = query.order(SORT_COLUMNS[sort], { ascending: dir === "asc" });
+  if (sort !== "created") query = query.order("created_at", { ascending: false });
   query = query.range(from, to);
 
-  const { data: publications, count } = await query;
+  // Aggregate stats for the header cards (institutional-scale dataset)
+  const statsQuery = supabase
+    .from("publications_with_stats")
+    .select("is_published, view_count, download_count");
+
+  const [{ data: publications, count }, { data: statRows }] = await Promise.all([
+    query,
+    statsQuery,
+  ]);
+
+  const stats = (statRows ?? []).reduce(
+    (acc, r: any) => {
+      acc.total += 1;
+      if (r.is_published) acc.published += 1;
+      else acc.drafts += 1;
+      acc.views += r.view_count ?? 0;
+      acc.downloads += r.download_count ?? 0;
+      return acc;
+    },
+    { total: 0, published: 0, drafts: 0, views: 0, downloads: 0 },
+  );
 
   const rows = (publications ?? []).map((p: any) => ({
     id:            p.id as string,
@@ -115,6 +147,8 @@ export default async function AdminPublicationsPage({
       <PublicationsClient
         publications={rows}
         filters={{ q, status, type }}
+        sort={{ column: sort, dir }}
+        stats={stats}
       />
 
       <Pagination

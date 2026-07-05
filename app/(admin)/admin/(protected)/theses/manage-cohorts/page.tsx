@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
+import { getThesisPrograms, getThesisFaculties, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
 import ManageCohortsClient from "./ManageCohortsClient";
 
 export default async function ManageCohortsPage() {
-  const [cohortRes, yearRes] = await Promise.all([
+  const [programRes, facultyRes, cohortRes, yearRes] = await Promise.all([
+    getThesisPrograms(),
+    getThesisFaculties(),
     getThesisCohorts(),
     getThesisAcademicYears(),
   ]);
 
+  const programs = programRes.data ?? [];
+  const faculties = facultyRes.data ?? [];
   const cohorts = cohortRes.data ?? [];
   const years = yearRes.data ?? [];
 
@@ -23,14 +27,19 @@ export default async function ManageCohortsPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-text-heading">Manage Cohorts &amp; Academic Years</h1>
+          <h1 className="text-2xl font-bold text-text-heading">Manage Programs, Faculties &amp; Cohorts</h1>
           <p className="text-text-muted text-sm mt-1">
-            Add, edit, or remove cohorts and their academic year options. Changes appear immediately in upload forms.
+            Add, edit, or remove programs, faculties, cohorts, and their academic year options. Changes appear immediately in upload forms.
           </p>
         </div>
       </div>
 
-      <ManageCohortsClient initialCohorts={cohorts} initialYears={years} />
+      <ManageCohortsClient
+        initialPrograms={programs}
+        initialFaculties={faculties}
+        initialCohorts={cohorts}
+        initialYears={years}
+      />
     </div>
   );
 }

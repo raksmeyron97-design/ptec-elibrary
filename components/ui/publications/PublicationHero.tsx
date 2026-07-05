@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { CalendarDays, ScrollText, Scale, ShieldCheck } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import AuthorAffiliationPanel from "@/components/ui/publications/AuthorAffiliationPanel";
+import PublicationMetricsRow from "@/components/ui/publications/PublicationMetricsRow";
+import { citationYear } from "@/lib/citations";
 import type { Publication, PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -151,6 +153,20 @@ export default async function PublicationHero({
               }}
             />
           </div>
+
+          {/* Metrics strip */}
+          <PublicationMetricsRow
+            views={(pub.view_count || 0) + 1}
+            downloads={pub.download_count || 0}
+            referenceCount={pub.references.length}
+            year={citationYear(pub)}
+            labels={{
+              views: t("views"),
+              downloads: t("downloads"),
+              references: t("sectionReferences"),
+              year: t("fieldYear"),
+            }}
+          />
         </div>
       </div>
     </header>

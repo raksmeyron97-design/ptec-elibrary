@@ -9,6 +9,7 @@ import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import PublicationFilters from "@/components/ui/publications/PublicationFilters";
+import PublicationsHero from "@/components/ui/publications/PublicationsHero";
 import Icon from "@/components/ui/core/Icon";
 import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
@@ -96,6 +97,20 @@ export default async function PublicationsPage({
   const journals = [...new Set(all.map((p) => p.journal_name).filter(Boolean))] as string[];
   const years = [...new Set(all.map((p) => citationYear(p)).filter(Boolean))].sort().reverse() as string[];
 
+  // Hero: repository stats + most-used keywords across the published set
+  const totalDownloads = all.reduce((sum, p) => sum + (p.download_count || 0), 0);
+  const keywordCounts = new Map<string, number>();
+  for (const p of all) {
+    for (const kw of p.keywords ?? []) {
+      const key = kw.trim();
+      if (key) keywordCounts.set(key, (keywordCounts.get(key) ?? 0) + 1);
+    }
+  }
+  const popularKeywords = [...keywordCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([kw]) => kw);
+
   const total = publications.length;
   const pageSize = resolvePageSize(params.size);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -108,22 +123,43 @@ export default async function PublicationsPage({
     <ClientNavWrapper>
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
-          {/* ── Page header ── */}
-          <div className="mb-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading sm:text-3xl">
-                {t("title")}
-              </h1>
+          {/* ── Hero: search-first header (Scholar-style) ── */}
+          <PublicationsHero
+            stats={{
+              publications: all.length,
+              journals: journals.length,
+              years: years.length,
+              downloads: totalDownloads,
+            }}
+            popularKeywords={popularKeywords}
+            currentQuery={params.q ?? ""}
+            preservedParams={{
+              keyword: params.keyword,
+              type: params.type,
+              journal: params.journal,
+              year: params.year,
+              language: params.language,
+            }}
+            labels={{
+              eyebrow: t("heroEyebrow"),
+              title: t("title"),
+              subtitle: t("subtitle"),
+              searchPlaceholder: t("searchPlaceholder"),
+              searchButton: t("heroSearchButton"),
+              popular: t("heroPopular"),
+              statPublications: t("statPublications"),
+              statJournals: t("statJournals"),
+              statYears: t("statYears"),
+              statDownloads: t("statDownloads"),
+            }}
+            badge={
               <Suspense fallback={null}>
                 <SubscribeBadge />
               </Suspense>
-            </div>
-            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-text-muted">
-              {t("subtitle")}
-            </p>
-          </div>
+            }
+          />
 
-          <div className="space-y-4">
+          <div className="mt-5 space-y-4">
             <PublicationFilters
               filters={{
                 q: params.q ?? "",

@@ -400,7 +400,14 @@
     "resultsFor": "for “{q}”",
     "noResults": "No publications found",
     "noResultsFiltered": "No publications match your selected filters.",
-    "noResultsEmpty": "No publications are currently available."
+    "noResultsEmpty": "No publications are currently available.",
+    "heroEyebrow": "PTEC Research Repository",
+    "heroSearchButton": "Search",
+    "heroPopular": "Popular topics",
+    "statPublications": "Publications",
+    "statJournals": "Journals",
+    "statYears": "Years covered",
+    "statDownloads": "Downloads"
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",

@@ -56,6 +56,28 @@ export interface ThesisAcademicYear {
   created_at: string;
 }
 
+export interface ThesisProgram {
+  id: string;
+  code: string;
+  name_en: string;
+  name_km: string;
+  duration_years: number;
+  has_faculty: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ThesisFaculty {
+  id: string;
+  program_code: string;
+  code: string;
+  name_en: string;
+  name_km: string;
+  has_subject: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
 // ── Thesis queries ─────────────────────────────────────────────────────────────
 
 export async function getTheses({
@@ -512,6 +534,252 @@ export async function deleteThesisAcademicYear(id: string): Promise<{ success: b
   const { supabase } = admin;
 
   const { error } = await supabase.from("research_academic_years").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { success: true };
+}
+
+// ── Program lookup actions ────────────────────────────────────────────────────
+
+export async function getThesisPrograms(): Promise<{ data: ThesisProgram[] | null; error: string | null }> {
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("research_programs")
+    .select("id, code, name_en, name_km, duration_years, has_faculty, sort_order, created_at")
+    .order("sort_order", { ascending: true });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as ThesisProgram[], error: null };
+}
+
+export async function addThesisProgram({
+  code,
+  nameEn,
+  nameKm,
+  durationYears,
+  hasFaculty,
+}: {
+  code: string;
+  nameEn: string;
+  nameKm: string;
+  durationYears: number;
+  hasFaculty: boolean;
+}): Promise<{ data: ThesisProgram | null; error: string | null }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { data: null, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const trimmedCode = code.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!trimmedCode) return { data: null, error: "Program code is required" };
+  if (!nameEn.trim()) return { data: null, error: "English name is required" };
+
+  // Check for existing
+  const { data: existing } = await supabase
+    .from("research_programs")
+    .select("id, code, name_en, name_km, duration_years, has_faculty, sort_order, created_at")
+    .eq("code", trimmedCode)
+    .maybeSingle();
+
+  if (existing) return { data: existing as ThesisProgram, error: null };
+
+  // Sort order = next position
+  const { count } = await supabase
+    .from("research_programs")
+    .select("id", { count: "exact", head: true });
+
+  const { data: newRow, error: insertErr } = await supabase
+    .from("research_programs")
+    .insert({
+      code: trimmedCode,
+      name_en: nameEn.trim(),
+      name_km: nameKm.trim() || nameEn.trim(),
+      duration_years: durationYears,
+      has_faculty: hasFaculty,
+      sort_order: (count ?? 0) + 1,
+    })
+    .select("id, code, name_en, name_km, duration_years, has_faculty, sort_order, created_at")
+    .single();
+
+  if (insertErr) {
+    const { data: retry } = await supabase
+      .from("research_programs")
+      .select("id, code, name_en, name_km, duration_years, has_faculty, sort_order, created_at")
+      .eq("code", trimmedCode)
+      .single();
+    if (retry) return { data: retry as ThesisProgram, error: null };
+    return { data: null, error: insertErr.message };
+  }
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { data: newRow as ThesisProgram, error: null };
+}
+
+export async function updateThesisProgram(
+  id: string,
+  updates: { code?: string; name_en?: string; name_km?: string; duration_years?: number; has_faculty?: boolean; sort_order?: number },
+): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const { error } = await supabase.from("research_programs").update(updates).eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { success: true };
+}
+
+export async function deleteThesisProgram(id: string): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  // CASCADE will remove associated faculties
+  const { error } = await supabase.from("research_programs").delete().eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { success: true };
+}
+
+// ── Faculty lookup actions ────────────────────────────────────────────────────
+
+export async function getThesisFaculties(): Promise<{ data: ThesisFaculty[] | null; error: string | null }> {
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("research_faculties")
+    .select("id, program_code, code, name_en, name_km, has_subject, sort_order, created_at")
+    .order("program_code", { ascending: true })
+    .order("sort_order", { ascending: true });
+
+  if (error) return { data: null, error: error.message };
+  return { data: data as ThesisFaculty[], error: null };
+}
+
+export async function addThesisFaculty({
+  programCode,
+  code,
+  nameEn,
+  nameKm,
+  hasSubject,
+}: {
+  programCode: string;
+  code: string;
+  nameEn: string;
+  nameKm: string;
+  hasSubject?: boolean;
+}): Promise<{ data: ThesisFaculty | null; error: string | null }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { data: null, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const trimmedCode = code.trim().toLowerCase().replace(/\s+/g, "_");
+  if (!trimmedCode) return { data: null, error: "Faculty code is required" };
+  if (!nameEn.trim()) return { data: null, error: "English name is required" };
+
+  // Check for existing
+  const { data: existing } = await supabase
+    .from("research_faculties")
+    .select("id, program_code, code, name_en, name_km, has_subject, sort_order, created_at")
+    .eq("program_code", programCode)
+    .eq("code", trimmedCode)
+    .maybeSingle();
+
+  if (existing) return { data: existing as ThesisFaculty, error: null };
+
+  const { count } = await supabase
+    .from("research_faculties")
+    .select("id", { count: "exact", head: true })
+    .eq("program_code", programCode);
+
+  const { data: newRow, error: insertErr } = await supabase
+    .from("research_faculties")
+    .insert({
+      program_code: programCode,
+      code: trimmedCode,
+      name_en: nameEn.trim(),
+      name_km: nameKm.trim() || nameEn.trim(),
+      has_subject: hasSubject ?? false,
+      sort_order: (count ?? 0) + 1,
+    })
+    .select("id, program_code, code, name_en, name_km, has_subject, sort_order, created_at")
+    .single();
+
+  if (insertErr) {
+    const { data: retry } = await supabase
+      .from("research_faculties")
+      .select("id, program_code, code, name_en, name_km, has_subject, sort_order, created_at")
+      .eq("program_code", programCode)
+      .eq("code", trimmedCode)
+      .single();
+    if (retry) return { data: retry as ThesisFaculty, error: null };
+    return { data: null, error: insertErr.message };
+  }
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { data: newRow as ThesisFaculty, error: null };
+}
+
+export async function updateThesisFaculty(
+  id: string,
+  updates: { code?: string; name_en?: string; name_km?: string; has_subject?: boolean; sort_order?: number },
+): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const { error } = await supabase.from("research_faculties").update(updates).eq("id", id);
+  if (error) return { success: false, error: error.message };
+
+  revalidatePath("/admin/theses");
+  revalidatePath("/theses");
+
+  return { success: true };
+}
+
+export async function deleteThesisFaculty(id: string): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const { error } = await supabase.from("research_faculties").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
 
   revalidatePath("/admin/theses");

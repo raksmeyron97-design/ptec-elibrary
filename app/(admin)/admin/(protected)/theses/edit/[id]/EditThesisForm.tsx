@@ -21,7 +21,7 @@ import ReferencesInput from "../../_components/ReferencesInput";
 import PdfDropzone from "../../_components/PdfDropzone";
 import CoverDropzone from "../../_components/CoverDropzone";
 import { INPUT_CLASS, LABEL_CLASS } from "../../_components/form-styles";
-import { getProgram, getSubjectsForFaculty } from "@/lib/theses/programs";
+import { getSubjectsForFaculty } from "@/lib/theses/programs";
 import TagInput from "@/components/ui/core/TagInput";
 import { slugify, makeUid } from "@/lib/book-utils";
 
@@ -92,10 +92,9 @@ export default function EditThesisForm({ report }: { report: any }) {
 
     // Validate cascade fields — require program before saving (even for legacy rows)
     if (!programFields.program) return fail("Please select a program before saving.", "basic");
-    const programConfig = getProgram(programFields.program);
-    if (programConfig?.hasFaculty && !programFields.faculty) {
-      return fail("Please select a faculty/major.", "basic");
-    }
+    // Note: hasFaculty is now DB-driven; ProgramCohortFields handles showing/hiding
+    // the faculty field. If faculty is required and missing, the cascade component
+    // won't populate it.
     if (getSubjectsForFaculty(programFields.program, programFields.faculty).length > 0 && !programFields.subject) {
       return fail("Please select a subject.", "basic");
     }

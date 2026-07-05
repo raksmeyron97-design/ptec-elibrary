@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
-import { PROGRAMS, getFacultiesForProgram } from "@/lib/theses/programs";
+import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
 
 export type FacetOption = { value: string; label: string; count: number };
 
@@ -69,6 +69,14 @@ export default function AdvancedSearchModal({
   const [advisor, setAdvisor] = useState(currentAdvisor);
   const [keyword, setKeyword] = useState(currentKeyword);
 
+  const [programs, setPrograms] = useState<ThesisProgram[]>([]);
+  const [faculties, setFaculties] = useState<ThesisFaculty[]>([]);
+
+  useEffect(() => {
+    getThesisPrograms().then(({ data }) => setPrograms(data ?? []));
+    getThesisFaculties().then(({ data }) => setFaculties(data ?? []));
+  }, []);
+
   // Reset the draft form to the URL's current state each time the modal opens.
   useEffect(() => {
     if (!open) return;
@@ -99,7 +107,7 @@ export default function AdvancedSearchModal({
     };
   }, [open, currentQ, currentProgram, currentFaculty, currentCohort, currentYear, currentAuthor, currentAdvisor, currentKeyword]);
 
-  const facultyOptions = getFacultiesForProgram(program);
+  const facultyOptions = faculties.filter((f) => f.program_code === program);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,9 +189,9 @@ export default function AdvancedSearchModal({
                     className={selectClass}
                   >
                     <option value="">All Programs</option>
-                    {PROGRAMS.map((p) => (
+                    {programs.map((p) => (
                       <option key={p.code} value={p.code}>
-                        {p.nameEn}
+                        {p.name_en}
                       </option>
                     ))}
                   </select>
@@ -199,7 +207,7 @@ export default function AdvancedSearchModal({
                     <option value="">All Faculties</option>
                     {facultyOptions.map((f) => (
                       <option key={f.code} value={f.code}>
-                        {f.nameEn}
+                        {f.name_en}
                       </option>
                     ))}
                   </select>
