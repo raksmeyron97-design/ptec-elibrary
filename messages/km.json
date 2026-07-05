@@ -175,7 +175,23 @@
     "aboutFeatBilingualBody": "និក្ខេបបទ ការស្រាវជ្រាវប្រតិបត្តិ របាយការណ៍ និងទស្សនាវដ្ដីស្រាវជ្រាវអប់រំ សម្រាប់អ្នកស្រាវជ្រាវ។",
     "aboutFeatCampusTitle": "ចំណាត់ថ្នាក់ DDC",
     "aboutFeatCampusBody": "ធនធានត្រូវបានរៀបចំតាម Dewey Decimal Classification ដើម្បីងាយស្រួលស្វែងរក។",
-    "aboutMoreLink": "ស្វែងយល់បន្ថែមអំពីបណ្ណាល័យ"
+    "aboutMoreLink": "ស្វែងយល់បន្ថែមអំពីបណ្ណាល័យ",
+    "searchAdvanced": "ស្វែងរកលម្អិត",
+    "searchBrowseAll": "មើលសៀវភៅទាំងអស់",
+    "pubsEyebrow": "ពីទស្សនាវដ្ដីរបស់យើង",
+    "pubsTitle": "អត្ថបទសិក្សាលេចធ្លោ",
+    "pubsViewAll": "អត្ថបទសិក្សាទាំងអស់",
+    "pubsReadArticle": "អានអត្ថបទ",
+    "categoriesEyebrow": "ស្វែងយល់ពីបណ្ណាល័យ",
+    "categoriesSectionTitle": "រកមើលតាមមុខវិជ្ជា",
+    "categoriesItemCount": "{count, plural, other {ធនធាន #}}",
+    "categoriesAll": "មុខវិជ្ជាទាំងអស់",
+    "trendingResearchEyebrow": "អានច្រើនបំផុត",
+    "trendingResearchTitle": "ស្រាវជ្រាវពេញនិយម",
+    "trendingResearchViewAll": "មើលសារណាទាំងអស់",
+    "trendingResearchViews": "{count, plural, other {ការមើល #}}",
+    "trendingResearchDownloads": "{count, plural, other {ការទាញយក #}}",
+    "trendingResearchReads": "អាន"
   },
   "books": {
     "title": "ធនធានអេឡិចត្រូនិក",
@@ -531,7 +547,7 @@
     "loginRequired": "សូមចូលគណនីដើម្បីប្រើជំនួយការបណ្ណាល័យ",
     "loginButton": "ចូលគណនី",
     "remaining": "នៅសល់ {count} សារ",
-    "quotaReached": "អ្នកបានប្រើ 10 សារហើយ។ សូមវិល​មកម្ដង​ទៀតថ្ងៃស្អែក!", 
+    "quotaReached": "អ្នកបានប្រើ 10 សារហើយ។ សូមវិល​មកម្ដង​ទៀតថ្ងៃស្អែក!",
     "slowDown": "សូម​រង​ចាំ​បន្តិច​មុន​ផ្ញើ​ម្ដង​ទៀត",
     "busy": "ជំនួយការ​រវល់​ពេល​នេះ។ សូម​ព្យាយាម​ម្ដង​ទៀត​ ។"
   }

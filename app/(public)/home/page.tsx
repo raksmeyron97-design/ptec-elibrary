@@ -20,6 +20,9 @@ import CatalogsSection from "@/components/ui/home/CatalogsSection";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import HomeBento from "@/components/ui/home/HomeBento";
 import FeaturedBooksSection from "@/components/ui/home/FeaturedBooksSection";
+import FeaturedPublications from "@/components/ui/home/FeaturedPublications";
+import CategoryGrid from "@/components/ui/home/CategoryGrid";
+import TrendingResearch from "@/components/ui/home/TrendingResearch";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
@@ -196,7 +199,7 @@ export default async function HomePage() {
                 <AskLibraryHero
                   trending={trendingTerms}
                   prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
-                  askLabel={t("askButton")}
+                  askLabel={t("searchButton")}
                   hint={t("askHint")}
                 />
               </div>
@@ -230,6 +233,16 @@ export default async function HomePage() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
+      {/* ════════ FEATURED PUBLICATIONS — journal articles, slot 2 ════════ */}
+      <Suspense fallback={<div className="h-56 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <FeaturedPublications />
+      </Suspense>
+
+      {/* ════════ CATEGORIES — browse by subject, slot 3 ════════ */}
+      <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+        <CategoryGrid />
+      </Suspense>
+
       {/* ════════ FEATURED EDITORIAL ════════ */}
       <FeaturedBooksSection books={trendingBooks.slice(0, 4).map((b) => ({
         slug: b.slug,
@@ -253,6 +266,11 @@ export default async function HomePage() {
       {/* ════════ BROWSE: Trending / Recently Added + Dept chips ════════ */}
       <Suspense fallback={<BrowseBooksSkeleton />}>
         <BrowseBooksSection trendingBooks={trendingBooks} />
+      </Suspense>
+
+      {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
+      <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <TrendingResearch />
       </Suspense>
 
       {/* ════════ FROM THE LIBRARY (catalogs) ════════ */}

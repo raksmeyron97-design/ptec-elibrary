@@ -88,14 +88,15 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
   }, []);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  // Instant search: navigate straight to the books listing (fast, no AI round-trip).
+  // Search-first: submit to the unified library search (books + theses +
+  // publications + physical catalog) — no AI round-trip.
 
   const submit = useCallback(
     (term: string) => {
       const clean = term.trim();
       if (!clean) return;
       pushRecentSearch(clean);
-      router.push(`/books?q=${encodeURIComponent(clean)}`);
+      router.push(`/search?q=${encodeURIComponent(clean)}`);
     },
     [router]
   );
@@ -113,7 +114,14 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
     <div className="w-full max-w-xl">
 
       {/* ── Command bar ───────────────────────────────────────────────────── */}
-      <div className="relative z-[9999]">
+      <form
+        role="search"
+        className="relative z-[9999]"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(value);
+        }}
+      >
 
         {/* Ambient glow bed */}
         <motion.div
@@ -147,9 +155,6 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 onChange={(e) => setValue(e.target.value)}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submit(value);
-                }}
                 className="h-14 w-full bg-transparent text-[15px] text-white outline-none placeholder:text-transparent [&::-webkit-search-cancel-button]:appearance-none"
               />
               {!value && (
@@ -170,8 +175,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
 
             {/* Search button */}
             <button
-              type="button"
-              onClick={() => submit(value)}
+              type="submit"
               className="relative z-10 ml-1 h-10 shrink-0 cursor-pointer rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 text-[14px] font-bold text-blue-950 transition-all hover:brightness-110 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
               style={{ boxShadow: "0 2px 0 rgba(0,0,0,0.25), 0 0 28px -6px rgba(245,158,11,0.75)" }}
             >
@@ -179,12 +183,25 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
             </button>
           </div>
         </div>
-      </div>
+      </form>
 
-      {/* ── Hint line ── */}
-      <p className="mt-2 text-[12px] text-blue-300/70">
-        {hint}
-      </p>
+      {/* ── Hint + secondary paths ── */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <p className="text-[12px] text-blue-300/70">{hint}</p>
+        <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />
+        <Link
+          href="/search"
+          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+        >
+          {t("searchAdvanced")}
+        </Link>
+        <Link
+          href="/books"
+          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+        >
+          {t("searchBrowseAll")}
+        </Link>
+      </div>
 
       {/* ── Chips ── */}
       <AnimatePresence>
