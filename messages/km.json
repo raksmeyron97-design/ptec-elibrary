@@ -52,7 +52,7 @@
     "eResources": "ធនធានអេឡិចត្រូនិក",
     "eBooks": "សៀវភៅអេឡិចត្រូនិក",
     "booksInLibrary": "សៀវភៅក្នុងបណ្ណាល័យ",
-    "posts": "អត្ថបទ",
+    "posts": "ព័ត៌មាន និងព្រឹត្តិការណ៍",
     "about": "អំពីយើង",
     "contact": "ទំនាក់ទំនង",
     "libraryRules": "បទបញ្ជាបណ្ណាល័យ",
@@ -70,7 +70,11 @@
     "theses": "សារណា / និក្ខេបបទ",
     "publications": "អត្ថបទសិក្សា",
     "summaryIndex": "បញ្ជីសង្ខេប",
-    "settings": "ការកំណត់"
+    "settings": "ការកំណត់",
+    "searchLibrary": "ស្វែងរកក្នុងបណ្ណាល័យ",
+    "searchShort": "ស្វែងរក",
+    "profile": "គណនី",
+    "postsShort": "ព័ត៌មាន"
   },
   "bookCard": {
     "view": "មើល",
@@ -233,7 +237,12 @@
     "faqQ5": "តើមានឯកសារជាភាសាខ្មែរដែរឬទេ?",
     "faqA5": "មាន។ បណ្ណាល័យមានធនធានទាំងភាសាខ្មែរ និងអង់គ្លេស ហើយគេហទំព័រអាចប្រើបានទាំងពីរភាសា។",
     "faqQ6": "តើដាក់បញ្ជូនសារណា ឬស្នាដៃស្រាវជ្រាវរបស់ខ្ញុំដោយរបៀបណា?",
-    "faqA6": "សារណាត្រូវបានបញ្ចូលទៅក្នុងឃ្លាំងឯកសារ ដោយបុគ្គលិកបណ្ណាល័យ។ សូមទាក់ទងក្រុមការងារបណ្ណាល័យ ដើម្បីទទួលបានការណែនាំ។"
+    "faqA6": "សារណាត្រូវបានបញ្ចូលទៅក្នុងឃ្លាំងឯកសារ ដោយបុគ្គលិកបណ្ណាល័យ។ សូមទាក់ទងក្រុមការងារបណ្ណាល័យ ដើម្បីទទួលបានការណែនាំ។",
+    "ctaEyebrow": "ឥតគិតថ្លៃសម្រាប់អ្នកអប់រំ",
+    "ctaStatResources": "ធនធានឌីជីថល",
+    "ctaStatFree": "ឥតគិតថ្លៃ",
+    "ctaStatOpenAccess": "បើកចំហសម្រាប់គ្រប់គ្នា",
+    "ctaStatBilingual": "ពីរភាសា"
   },
   "books": {
     "title": "ធនធានអេឡិចត្រូនិក",
@@ -282,7 +291,10 @@
     "books": "សៀវភៅ",
     "byAuthor": "ដោយ {author}",
     "tags": "ប្រធានបទ",
-    "physicalCopies": "ច្បាប់ពុម្ភ"
+    "physicalCopies": "ច្បាប់ពុម្ភ",
+    "aboutHeading": "សៀវភៅនេះនិយាយអំពីអ្វី?",
+    "defaultSummary": "{title} គឺជាធនធានសាធារណៈក្នុងបណ្ណាល័យឌីជីថល វ.គ.ភ។",
+    "openFullReader": "បើកកម្មវិធីអានពេញអេក្រង់"
   },
   "physical": {
     "available": "មានស្តុក",
@@ -313,7 +325,9 @@
     "hoursClosed": "អាទិត្យ៖ ឈប់សម្រាក",
     "quickLinks": "តំណភ្ជាប់រហ័ស",
     "findPtec": "ស្វែងរកទីតាំង PTEC",
-    "copyright": "រក្សាសិទ្ធិគ្រប់យ៉ាង © {year} បណ្ណាល័យ PTEC។ — វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ។"
+    "copyright": "រក្សាសិទ្ធិគ្រប់យ៉ាង © {year} បណ្ណាល័យ PTEC។ — វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ។",
+    "getDirections": "មើលផែនទី",
+    "emailLabel": "អ៊ីមែល"
   },
   "catalogs": {
     "title": "សៀវភៅក្នុងបណ្ណាល័យ",
@@ -393,7 +407,7 @@
     "emailLabel": "អាសយដ្ឋានអ៊ីមែល",
     "emailPlaceholder": "you@ptec.edu.kh",
     "passwordLabel": "ពាក្យសម្ងាត់",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "បញ្ចូលពាក្យសម្ងាត់របស់អ្នក",
     "forgotPassword": "ភ្លេចពាក្យសម្ងាត់?",
     "signIn": "ចូលគណនី",
     "signingIn": "កំពុងចូលគណនី…",
@@ -434,7 +448,7 @@
     "newPasswordTitle": "កំណត់ពាក្យសម្ងាត់ថ្មី",
     "newPasswordSubtitle": "បញ្ចូលពាក្យសម្ងាត់ថ្មីរបស់អ្នកខាងក្រោម។",
     "newPasswordLabel": "ពាក្យសម្ងាត់ថ្មី",
-    "newPasswordPlaceholder": "••••••••",
+    "newPasswordPlaceholder": "បញ្ចូលពាក្យសម្ងាត់ថ្មី",
     "updatePassword": "ធ្វើបច្ចុប្បន្នភាពពាក្យសម្ងាត់",
     "updating": "កំពុងធ្វើបច្ចុប្បន្នភាព...",
     "passwordUpdated": "ពាក្យសម្ងាត់ត្រូវបានធ្វើបច្ចុប្បន្នភាពដោយជោគជ័យ។ កំពុងបញ្ជូនទៅកាន់ការចូលគណនី..."
@@ -651,6 +665,42 @@
     "suggestAuthors": "អ្នកនិពន្ធ",
     "suggestCategories": "ប្រភេទ",
     "suggestTheses": "សារណា / និក្ខេបបទ",
-    "downloadsCount": "ទាញយក {count} ដង"
+    "downloadsCount": "ទាញយក {count} ដង",
+    "advancedSearch": "ស្វែងរកកម្រិតខ្ពស់",
+    "advFieldKeyword": "ពាក្យគន្លឹះ ឬចំណងជើង",
+    "advPlaceholderKeyword": "ស្វែងរកចំណងជើង ការពិពណ៌នា…",
+    "advFieldAuthor": "អ្នកនិពន្ធ",
+    "advAnyAuthor": "អ្នកនិពន្ធណាមួយ",
+    "advFieldPublisher": "គ្រឹះស្ថានបោះពុម្ព",
+    "advAnyPublisher": "គ្រឹះស្ថានណាមួយ",
+    "advFieldIsbn": "ISBN",
+    "advAnyIsbn": "ISBN ណាមួយ",
+    "advFieldCategory": "ប្រភេទ",
+    "advAnyCategory": "ប្រភេទណាមួយ",
+    "advFieldLanguage": "ភាសា",
+    "advAnyLanguage": "ភាសាណាមួយ",
+    "advFieldDepartment": "ដេប៉ាតឺម៉ង់",
+    "advAnyDepartment": "ដេប៉ាតឺម៉ង់ណាមួយ",
+    "advClearAll": "សម្អាតទាំងអស់",
+    "advClose": "បិទ"
+  },
+  "pagination": {
+    "showing": "បង្ហាញ {from}–{to} នៃ {total, plural, other {# លទ្ធផល}}",
+    "pageOf": "ទំព័រ {page} នៃ {total}",
+    "previousPage": "ទំព័រមុន",
+    "nextPage": "ទំព័របន្ទាប់",
+    "goToPage": "ទៅទំព័រ {page}",
+    "currentPage": "ទំព័រ {page} ជាទំព័របច្ចុប្បន្ន",
+    "rowsPerPage": "ចំនួនក្នុងមួយទំព័រ",
+    "paginationLabel": "ការបែងចែកទំព័រ"
+  },
+  "notFound": {
+    "title": "រកមិនឃើញទំព័រនេះទេ",
+    "body": "ទំព័រនេះប្រហែលជាត្រូវបានផ្លាស់ទី ឬតំណភ្ជាប់ហួសសម័យ។ សូមសាកល្បងស្វែងរកក្នុងបណ្ណាល័យវិញ។",
+    "searchPlaceholder": "ស្វែងរកសៀវភៅ និក្ខេបបទ អត្ថបទ…",
+    "searchButton": "ស្វែងរក",
+    "goHome": "ទៅទំព័រដើម",
+    "browseBooks": "រកមើលសៀវភៅ",
+    "contact": "ទំនាក់ទំនងបណ្ណាល័យ"
   }
 }

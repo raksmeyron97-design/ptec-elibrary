@@ -7,8 +7,9 @@ import { PTEC } from "@/lib/ptec";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-// Library-specific phone (different from the main PTEC institution line)
-const LIBRARY_PHONE = "092 788 990";
+// Library-specific phone (different from the main PTEC institution line) —
+// single-sourced from lib/ptec.ts so the numbers can't drift between pages.
+const LIBRARY_PHONE = PTEC.phoneLibrary;
 // NOTE: email confirmed as info@ptec.edu.kh
 const LIBRARY_EMAIL = PTEC.email;
 

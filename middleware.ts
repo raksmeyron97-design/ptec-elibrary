@@ -12,9 +12,9 @@ export async function middleware(request: NextRequest) {
   
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'nonce-${nonceB64}' 'unsafe-eval' https://challenges.cloudflare.com;
+      script-src 'self' 'nonce-${nonceB64}' 'unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.flagcounter.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online;
+      img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online;
       font-src 'self' data: https://fonts.gstatic.com;
       connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online;
       frame-src https://challenges.cloudflare.com https://www.google.com;

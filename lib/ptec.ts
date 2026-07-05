@@ -14,6 +14,9 @@ export const PTEC = {
   // ── Contact ───────────────────────────────────────────────────────────────
   phone: "012 950 192",
   phoneTel: "tel:012950192",       // use in href="tel:..."
+  // Library front desk — a separate line from the main institution number.
+  phoneLibrary: "092 788 990",
+  phoneLibraryTel: "tel:092788990",
   email: "info@ptec.edu.kh",
 
   // ── Address ───────────────────────────────────────────────────────────────

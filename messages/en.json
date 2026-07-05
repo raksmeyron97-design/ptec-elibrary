@@ -47,7 +47,7 @@
     "eResources": "e-Resources",
     "eBooks": "e-Books",
     "booksInLibrary": "Books in Library",
-    "posts": "Posts",
+    "posts": "News & Events",
     "about": "About",
     "contact": "Contact",
     "libraryRules": "Library Rules",
@@ -65,7 +65,11 @@
     "theses": "Theses",
     "publications": "Publications",
     "summaryIndex": "Summary Index",
-    "settings": "Settings"
+    "settings": "Settings",
+    "searchLibrary": "Search the library",
+    "searchShort": "Search",
+    "profile": "Profile",
+    "postsShort": "News"
   },
   "bookCard": {
     "view": "View",
@@ -228,7 +232,12 @@
     "faqQ5": "Are materials available in Khmer?",
     "faqA5": "Yes. The collection includes resources in both Khmer and English, and the whole website can be used in either language.",
     "faqQ6": "How do I submit my thesis or research?",
-    "faqA6": "Theses are added to the repository by library staff. Contact the library team and they will guide you through submitting your work."
+    "faqA6": "Theses are added to the repository by library staff. Contact the library team and they will guide you through submitting your work.",
+    "ctaEyebrow": "Free for educators",
+    "ctaStatResources": "Digital resources",
+    "ctaStatFree": "Free",
+    "ctaStatOpenAccess": "Open access",
+    "ctaStatBilingual": "Bilingual"
   },
   "books": {
     "title": "e-Resources",
@@ -277,7 +286,10 @@
     "books": "Books",
     "byAuthor": "by {author}",
     "tags": "Topics",
-    "physicalCopies": "Physical Copies"
+    "physicalCopies": "Physical Copies",
+    "aboutHeading": "What is this book about?",
+    "defaultSummary": "{title} is a public resource in the PTEC Digital Library collection.",
+    "openFullReader": "Open full-screen reader"
   },
   "physical": {
     "available": "Available",
@@ -308,7 +320,9 @@
     "hoursClosed": "Sunday: Closed",
     "quickLinks": "Quick Links",
     "findPtec": "Find PTEC",
-    "copyright": "© {year} PTEC Library. All Rights Reserved. — Phnom Penh Teacher Education College."
+    "copyright": "© {year} PTEC Library. All Rights Reserved. — Phnom Penh Teacher Education College.",
+    "getDirections": "Get directions",
+    "emailLabel": "Email"
   },
   "catalogs": {
     "title": "Books In Library",
@@ -387,7 +401,7 @@
     "emailLabel": "Email address",
     "emailPlaceholder": "you@ptec.edu.kh",
     "passwordLabel": "Password",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "Enter your password",
     "forgotPassword": "Forgot password?",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
@@ -428,7 +442,7 @@
     "newPasswordTitle": "Set new password",
     "newPasswordSubtitle": "Enter your new password below.",
     "newPasswordLabel": "New password",
-    "newPasswordPlaceholder": "••••••••",
+    "newPasswordPlaceholder": "Enter a new password",
     "updatePassword": "Update password",
     "updating": "Updating...",
     "passwordUpdated": "Password updated successfully. Redirecting to login..."
@@ -645,6 +659,42 @@
     "suggestAuthors": "Authors",
     "suggestCategories": "Categories",
     "suggestTheses": "Theses",
-    "downloadsCount": "{count, plural, one {# download} other {# downloads}}"
+    "downloadsCount": "{count, plural, one {# download} other {# downloads}}",
+    "advancedSearch": "Advanced search",
+    "advFieldKeyword": "Keyword or title",
+    "advPlaceholderKeyword": "Search title, description…",
+    "advFieldAuthor": "Author",
+    "advAnyAuthor": "Any author",
+    "advFieldPublisher": "Publisher",
+    "advAnyPublisher": "Any publisher",
+    "advFieldIsbn": "ISBN",
+    "advAnyIsbn": "Any ISBN",
+    "advFieldCategory": "Category",
+    "advAnyCategory": "Any category",
+    "advFieldLanguage": "Language",
+    "advAnyLanguage": "Any language",
+    "advFieldDepartment": "Department",
+    "advAnyDepartment": "Any department",
+    "advClearAll": "Clear all",
+    "advClose": "Close"
+  },
+  "pagination": {
+    "showing": "Showing {from}–{to} of {total, plural, =1 {1 result} other {# results}}",
+    "pageOf": "Page {page} of {total}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "goToPage": "Go to page {page}",
+    "currentPage": "Page {page}, current page",
+    "rowsPerPage": "Rows per page",
+    "paginationLabel": "Pagination"
+  },
+  "notFound": {
+    "title": "We couldn’t find that page",
+    "body": "The page may have been moved or the link is out of date. Try searching the library instead.",
+    "searchPlaceholder": "Search books, theses, posts…",
+    "searchButton": "Search",
+    "goHome": "Go to homepage",
+    "browseBooks": "Browse books",
+    "contact": "Contact the library"
   }
 }
