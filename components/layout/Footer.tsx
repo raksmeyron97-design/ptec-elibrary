@@ -422,7 +422,7 @@ export default async function Footer() {
             </div>
 
             {/* ── Quick Links ── */}
-            <div className="ptec-reveal r3 ptec-col flex flex-col gap-6">
+            <nav aria-label="Footer" className="ptec-reveal r3 ptec-col flex flex-col gap-6">
               <h3 className={headingClass}>{t("quickLinks")}</h3>
 
               <ul className="flex flex-col gap-3.5">
@@ -438,7 +438,7 @@ export default async function Footer() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
 
             {/* ── Find PTEC ── */}
             <div className="ptec-reveal r4 ptec-col flex flex-col gap-6 h-full">

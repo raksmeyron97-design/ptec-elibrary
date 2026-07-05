@@ -9,7 +9,10 @@ function formatStat(n: number): string {
 }
 
 export default function AnimatedStat({ targetValue }: { targetValue: number }) {
-  const [value, setValue] = useState(0);
+  // Start at the real value so server HTML (crawlers, no-JS, screen readers)
+  // carries the true figure; the count-up runs from 0 only once JS + the
+  // IntersectionObserver kick in.
+  const [value, setValue] = useState(targetValue);
   const ref = useRef<HTMLSpanElement>(null);
   
   useEffect(() => {

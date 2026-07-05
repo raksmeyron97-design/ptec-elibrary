@@ -7,7 +7,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import HeroStats from "@/components/ui/home/HeroStats";
 import { Button } from "@/components/ui/core/Button";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getHomeStats as fetchHomeStats } from "@/lib/home-stats";
@@ -23,6 +22,14 @@ import FeaturedBooksSection from "@/components/ui/home/FeaturedBooksSection";
 import FeaturedPublications from "@/components/ui/home/FeaturedPublications";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
+import StatsBand from "@/components/ui/home/StatsBand";
+import ResearchCollections from "@/components/ui/home/ResearchCollections";
+import PopularAuthors from "@/components/ui/home/PopularAuthors";
+import RecentlyAdded from "@/components/ui/home/RecentlyAdded";
+import HowToUse from "@/components/ui/home/HowToUse";
+import Testimonials from "@/components/ui/home/Testimonials";
+import PartnerStrip from "@/components/ui/home/PartnerStrip";
+import FaqSection from "@/components/ui/home/FaqSection";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
@@ -209,9 +216,6 @@ export default async function HomePage() {
                 <MobileFeaturedStrip books={heroBooks} />
               </div>
 
-              {/* Ledger Rail stats — inside the dark hero */}
-              <HeroStats stats={homeStats} />
-
             </div>
 
             {/* ── Right column — desktop book stack ── */}
@@ -273,6 +277,24 @@ export default async function HomePage() {
         <TrendingResearch />
       </Suspense>
 
+      {/* ════════ LIBRARY STATISTICS — ink band (moved out of the hero) ════════ */}
+      <StatsBand stats={homeStats} />
+
+      {/* ════════ RESEARCH COLLECTIONS — curated entry points ════════ */}
+      <Suspense fallback={<div className="h-56 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+        <ResearchCollections />
+      </Suspense>
+
+      {/* ════════ POPULAR AUTHORS — wayfinding rail ════════ */}
+      <Suspense fallback={<div className="h-40 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <PopularAuthors />
+      </Suspense>
+
+      {/* ════════ RECENTLY ADDED — cross-content activity feed ════════ */}
+      <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+        <RecentlyAdded />
+      </Suspense>
+
       {/* ════════ FROM THE LIBRARY (catalogs) ════════ */}
       <Suspense fallback={<CatalogsSkeleton />}>
         <CatalogsSection />
@@ -282,6 +304,18 @@ export default async function HomePage() {
       <Suspense fallback={<LatestPostsSkeleton />}>
         <LatestPostsSection />
       </Suspense>
+
+      {/* ════════ HOW TO USE — 3-step orientation ════════ */}
+      <HowToUse />
+
+      {/* ════════ TESTIMONIALS — hidden until real quotes exist ════════ */}
+      <Testimonials />
+
+      {/* ════════ PARTNERS — hidden until logos are confirmed ════════ */}
+      <PartnerStrip />
+
+      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════ */}
+      <FaqSection />
 
       {/* ════════ CTA BANNER — logged-out visitors only ════════ */}
       {!user && (
