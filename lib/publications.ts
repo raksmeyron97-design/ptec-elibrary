@@ -10,6 +10,9 @@ export interface PublicationAuthor {
   full_name_km: string | null;
   orcid: string | null;
   email: string | null;
+  bio: string | null;
+  bio_km: string | null;
+  photo_url: string | null;
 }
 
 export interface PublicationAffiliation {
@@ -43,6 +46,17 @@ export interface PublicationReference {
   url?: string;
 }
 
+export interface PublicationTocEntry {
+  title: string;
+  title_km?: string | null;
+  page?: string | null;
+}
+
+export interface PublicationFaq {
+  question: string;
+  answer: string;
+}
+
 export type ArticleType = "article" | "review" | "account" | "editorial";
 
 export interface Publication {
@@ -62,6 +76,12 @@ export interface Publication {
   abstract: string | null;
   abstract_km: string | null;
   keywords: string[];
+  publisher: string | null;
+  isbn: string | null;
+  subjects: string[];
+  table_of_contents: PublicationTocEntry[];
+  learning_outcomes: string[];
+  faqs: PublicationFaq[];
   license: string | null;
   copyright: string | null;
   language: string;
@@ -90,6 +110,9 @@ function mapAuthorship(row: any): PublicationAuthorship {
       full_name_km: a.full_name_km ?? null,
       orcid: a.orcid ?? null,
       email: a.email ?? null,
+      bio: a.bio ?? null,
+      bio_km: a.bio_km ?? null,
+      photo_url: a.photo_url ?? null,
     },
     author_order: row.author_order ?? 1,
     is_corresponding: row.is_corresponding ?? false,
@@ -151,6 +174,12 @@ export function mapRowToPublication(row: any): Publication {
     abstract: row.abstract ?? null,
     abstract_km: row.abstract_km ?? null,
     keywords: row.keywords ?? [],
+    publisher: row.publisher ?? null,
+    isbn: row.isbn ?? null,
+    subjects: row.subjects ?? [],
+    table_of_contents: Array.isArray(row.table_of_contents) ? row.table_of_contents : [],
+    learning_outcomes: row.learning_outcomes ?? [],
+    faqs: Array.isArray(row.faqs) ? row.faqs : [],
     license: row.license ?? null,
     copyright: row.copyright ?? null,
     language: row.language ?? "en",
@@ -175,5 +204,5 @@ export function mapRowToPublication(row: any): Publication {
 /** Embedded select fragment for detail queries (authors + files in one round trip). */
 export const PUBLICATION_DETAIL_SELECT = `*,
   publication_authorships(author_order, is_corresponding, affiliation_ids,
-    publication_authors(id, full_name, full_name_km, orcid, email)),
+    publication_authors(id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url)),
   publication_files(id, label, file_url, file_type, size_bytes, sort_order)`;

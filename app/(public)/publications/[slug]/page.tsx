@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -15,6 +16,13 @@ import ReferencesSection from "@/components/ui/publications/ReferencesSection";
 import RelatedPublications from "@/components/ui/publications/RelatedPublications";
 import MoreFromJournal from "@/components/ui/publications/MoreFromJournal";
 import MoreFromAuthor from "@/components/ui/publications/MoreFromAuthor";
+import TableOfContentsSection from "@/components/ui/publications/TableOfContentsSection";
+import LearningOutcomesSection from "@/components/ui/publications/LearningOutcomesSection";
+import AuthorBiosSection from "@/components/ui/publications/AuthorBiosSection";
+import PublicationFAQ from "@/components/ui/publications/PublicationFAQ";
+import SimilarBooks from "@/components/ui/publications/SimilarBooks";
+import PublicationReviewsSection from "@/components/ui/publications/PublicationReviewsSection";
+import { getPublicationRatingStats } from "@/app/actions/publication-reviews";
 import AbstractSection from "@/components/ui/detail/AbstractSection";
 import KeywordList from "@/components/ui/detail/KeywordList";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
@@ -76,13 +84,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (pub.page_start) citationOther.citation_firstpage = pub.page_start;
   if (pub.page_end) citationOther.citation_lastpage = pub.page_end;
   if (pub.doi) citationOther.citation_doi = pub.doi;
+  if (pub.isbn) citationOther.citation_isbn = pub.isbn;
+  if (pub.publisher) citationOther.citation_publisher = pub.publisher;
   if (pub.abstract) citationOther.citation_abstract = pub.abstract;
-  if (pub.keywords.length > 0) citationOther.citation_keywords = pub.keywords.join("; ");
+  const allKeywords = [...new Set([...pub.keywords, ...pub.subjects])];
+  if (allKeywords.length > 0) citationOther.citation_keywords = allKeywords.join("; ");
 
   return {
     title: pub.title,
     description,
-    keywords: pub.keywords.length > 0 ? pub.keywords : undefined,
+    keywords: allKeywords.length > 0 ? allKeywords : undefined,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       title: pub.title,
@@ -150,6 +161,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const correspondingAuthors = authorships.filter((a) => a.is_corresponding);
   const primaryAuthor = authorships[0]?.author ?? null;
 
+  const ratingStats = await getPublicationRatingStats(pub.id);
   const citationLine = toCitationLine(pub);
   const publishedOn = formatDate(pub.publication_date ?? pub.published_at);
   const fileHref = `/api/publications/${slug}/file`;
@@ -164,8 +176,13 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const sections: QuickNavSection[] = [
     { id: "overview", label: t("sectionOverview") },
     { id: "abstract", label: t("sectionAbstract") },
+    ...(pub.table_of_contents.length > 0 ? [{ id: "toc", label: t("sectionToc") }] : []),
+    ...(pub.learning_outcomes.length > 0 ? [{ id: "outcomes", label: t("sectionOutcomes") }] : []),
     ...(pub.pdf_url ? [{ id: "fulltext", label: t("sectionFullText") }] : []),
     { id: "references", label: t("sectionReferences") },
+    ...(authorships.length > 0 ? [{ id: "authors", label: t("sectionAuthors") }] : []),
+    { id: "reviews", label: t("sectionReviews") },
+    ...(pub.faqs.length > 0 ? [{ id: "faq", label: t("sectionFaq") }] : []),
     { id: "cite-panel", label: t("sectionCitation"), track: false },
     { id: "related", label: t("sectionRelated") },
   ];
@@ -193,21 +210,46 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         }
       : {}),
     ...(pub.license ? { license: pub.license } : {}),
-    publisher: {
-      "@type": "EducationalOrganization",
-      name: "Phnom Penh Teacher Education College",
-      url: SITE_URL,
-    },
-    ...(pub.doi
+    publisher: pub.publisher
+      ? { "@type": "Organization", name: pub.publisher }
+      : {
+          "@type": "EducationalOrganization",
+          name: "Phnom Penh Teacher Education College",
+          url: SITE_URL,
+        },
+    ...(pub.doi || pub.isbn
       ? {
-          identifier: {
-            "@type": "PropertyValue",
-            propertyID: "DOI",
-            value: pub.doi,
+          identifier: [
+            ...(pub.doi ? [{ "@type": "PropertyValue", propertyID: "DOI", value: pub.doi }] : []),
+            ...(pub.isbn ? [{ "@type": "PropertyValue", propertyID: "ISBN", value: pub.isbn }] : []),
+          ],
+        }
+      : {}),
+    ...(ratingStats.count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: ratingStats.average,
+            reviewCount: ratingStats.count,
+            bestRating: 5,
+            worstRating: 1,
           },
         }
       : {}),
   };
+
+  const faqSchema =
+    pub.faqs.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: pub.faqs.map((f) => ({
+            "@type": "Question",
+            name: f.question,
+            acceptedAnswer: { "@type": "Answer", text: f.answer },
+          })),
+        }
+      : null;
 
   const pubBreadcrumbSchema = breadcrumbSchema([
     { name: "Home", path: "/home" },
@@ -219,6 +261,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={scholarlyArticleSchema} />
       <JsonLd data={pubBreadcrumbSchema} />
+      {faqSchema && <JsonLd data={faqSchema} />}
       <PublicationViewPing id={pub.id} />
       <ReadingProgress />
       <div className="mx-auto max-w-[1200px]">
@@ -270,11 +313,26 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               <h2 id="overview-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                 {t("sectionOverview")}
               </h2>
+              {pub.subjects.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="mb-2 text-[13px] font-semibold text-text-body">{t("subjectsHeading")}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {pub.subjects.map((subject) => (
+                      <span
+                        key={subject}
+                        className="inline-flex items-center rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[12.5px] font-medium text-brand"
+                      >
+                        {subject}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {pub.keywords.length > 0 ? (
                 <KeywordList keywords={pub.keywords} basePath="/publications" heading={t("researchAreasKeywords")} />
-              ) : (
+              ) : pub.subjects.length === 0 ? (
                 <p className="text-[13.5px] text-text-muted">{t("noKeywordsProvided")}</p>
-              )}
+              ) : null}
             </section>
 
             <section id="abstract" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="abstract-heading">
@@ -286,6 +344,24 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 heading={t("sectionAbstract")}
               />
             </section>
+
+            {pub.table_of_contents.length > 0 && (
+              <section id="toc" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="toc-heading">
+                <h2 id="toc-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionToc")}
+                </h2>
+                <TableOfContentsSection entries={pub.table_of_contents} />
+              </section>
+            )}
+
+            {pub.learning_outcomes.length > 0 && (
+              <section id="outcomes" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="outcomes-heading">
+                <h2 id="outcomes-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionOutcomes")}
+                </h2>
+                <LearningOutcomesSection outcomes={pub.learning_outcomes} intro={t("outcomesIntro")} />
+              </section>
+            )}
 
             <section id="fulltext" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="fulltext-heading">
               <h2 id="fulltext-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
@@ -311,6 +387,42 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               </h2>
               <ReferencesSection references={referenceStrings} />
             </section>
+
+            {authorships.length > 0 && (
+              <section id="authors" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="authors-heading">
+                <h2 id="authors-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionAuthors")}
+                </h2>
+                <AuthorBiosSection authorships={authorships} affiliations={affiliations} />
+              </section>
+            )}
+
+            <section id="reviews" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="reviews-heading">
+              <h2 id="reviews-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                {t("sectionReviews")}
+                {ratingStats.count > 0 && (
+                  <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
+                    {ratingStats.average.toFixed(1)} ★ · {ratingStats.count}
+                  </span>
+                )}
+              </h2>
+              <Suspense
+                fallback={
+                  <div className="h-48 animate-pulse rounded-2xl border border-divider bg-bg-surface" />
+                }
+              >
+                <PublicationReviewsSection publicationId={pub.id} slug={slug} />
+              </Suspense>
+            </section>
+
+            {pub.faqs.length > 0 && (
+              <section id="faq" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="faq-heading">
+                <h2 id="faq-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionFaq")}
+                </h2>
+                <PublicationFAQ faqs={pub.faqs} />
+              </section>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -330,6 +442,9 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           keywords={pub.keywords}
           firstAuthorId={primaryAuthor?.id ?? null}
         />
+
+        {/* ── Similar books / recommended reading from the library ── */}
+        <SimilarBooks keywords={pub.keywords} subjects={pub.subjects} />
       </div>
     </section>
   );

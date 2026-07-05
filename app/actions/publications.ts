@@ -15,6 +15,8 @@ import {
   type PublicationAuthor,
   type PublicationAffiliation,
   type PublicationReference,
+  type PublicationTocEntry,
+  type PublicationFaq,
 } from "@/lib/publications";
 
 const REVALIDATE_PATHS = ["/admin/publications", "/publications"];
@@ -54,6 +56,12 @@ export interface PublicationData {
   abstract?: string | null;
   abstract_km?: string | null;
   keywords?: string[];
+  publisher?: string | null;
+  isbn?: string | null;
+  subjects?: string[];
+  table_of_contents?: PublicationTocEntry[];
+  learning_outcomes?: string[];
+  faqs?: PublicationFaq[];
   license?: string | null;
   copyright?: string | null;
   language?: string;
@@ -282,6 +290,10 @@ export async function createPublication(
     .insert([{
       ...formData,
       keywords: (formData.keywords ?? []).slice(0, 20),
+      subjects: (formData.subjects ?? []).slice(0, 12),
+      table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
+      learning_outcomes: (formData.learning_outcomes ?? []).slice(0, 20),
+      faqs: (formData.faqs ?? []).slice(0, 20),
       references: formData.references ?? [],
       created_by: userId,
     }])
@@ -339,6 +351,10 @@ export async function updatePublication(
     .update({
       ...formData,
       keywords: (formData.keywords ?? []).slice(0, 20),
+      subjects: (formData.subjects ?? []).slice(0, 12),
+      table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
+      learning_outcomes: (formData.learning_outcomes ?? []).slice(0, 20),
+      faqs: (formData.faqs ?? []).slice(0, 20),
       references: formData.references ?? [],
     })
     .eq("id", id);
@@ -466,7 +482,7 @@ export async function searchPublicationAuthors(q: string): Promise<{
 
   let query = supabase
     .from("publication_authors")
-    .select("id, full_name, full_name_km, orcid, email")
+    .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
     .order("full_name", { ascending: true })
     .limit(20);
 
@@ -486,6 +502,9 @@ export async function upsertPublicationAuthor(author: {
   full_name_km?: string | null;
   orcid?: string | null;
   email?: string | null;
+  bio?: string | null;
+  bio_km?: string | null;
+  photo_url?: string | null;
 }): Promise<{ data: PublicationAuthor | null; error: string | null }> {
   let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
@@ -503,13 +522,18 @@ export async function upsertPublicationAuthor(author: {
     full_name_km: author.full_name_km?.trim() || null,
     orcid: author.orcid?.trim() || null,
     email: author.email?.trim() || null,
+    bio: author.bio?.trim() || null,
+    bio_km: author.bio_km?.trim() || null,
+    photo_url: author.photo_url?.trim() || null,
   };
 
   const query = author.id
     ? supabase.from("publication_authors").update(payload).eq("id", author.id)
     : supabase.from("publication_authors").insert(payload);
 
-  const { data, error } = await query.select("id, full_name, full_name_km, orcid, email").single();
+  const { data, error } = await query
+    .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
+    .single();
   if (error) return { data: null, error: error.message };
 
   await logAdminAction(

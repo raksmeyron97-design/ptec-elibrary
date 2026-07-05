@@ -19,6 +19,12 @@ const pub: Publication = {
   abstract: 'A study of   digital pedagogy\nacross programs.',
   abstract_km: null,
   keywords: ['pedagogy', 'STEM'],
+  publisher: null,
+  isbn: null,
+  subjects: [],
+  table_of_contents: [],
+  learning_outcomes: [],
+  faqs: [],
   license: 'CC BY 4.0',
   copyright: null,
   language: 'en',
@@ -42,7 +48,7 @@ describe('authorList', () => {
     const withAuthorships: Publication = {
       ...pub,
       authorships: [
-        { author: { id: 'a1', full_name: 'Only Author', full_name_km: null, orcid: null, email: null }, author_order: 1, is_corresponding: true, affiliation_ids: [] },
+        { author: { id: 'a1', full_name: 'Only Author', full_name_km: null, orcid: null, email: null, bio: null, bio_km: null, photo_url: null }, author_order: 1, is_corresponding: true, affiliation_ids: [] },
       ],
     };
     expect(authorList(withAuthorships)).toEqual(['Only Author']);

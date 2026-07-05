@@ -534,7 +534,22 @@
     "reasonPopular": "ពេញនិយម",
     "publicationsInRepo": "អត្ថបទ {count} នៅក្នុងបណ្ណាល័យនេះ",
     "searchGoogleScholar": "ស្វែងរកនៅ Google Scholar",
-    "backToTop": "ត្រឡប់ទៅលើ"
+    "backToTop": "ត្រឡប់ទៅលើ",
+    "sectionToc": "មាតិកា",
+    "sectionOutcomes": "លទ្ធផលនៃការសិក្សា",
+    "sectionAuthors": "អំពីអ្នកនិពន្ធ",
+    "sectionReviews": "ការវាយតម្លៃ និងមតិយោបល់",
+    "sectionFaq": "សំណួរញឹកញាប់",
+    "subjectsHeading": "មុខវិជ្ជា",
+    "outcomesIntro": "បន្ទាប់ពីអានអត្ថបទនេះ អ្នកអាននឹងអាច៖",
+    "correspondingAuthor": "អ្នកនិពន្ធទំនាក់ទំនង",
+    "recommendedReading": "សៀវភៅណែនាំ",
+    "similarBooks": "សៀវភៅស្រដៀងគ្នាពីបណ្ណាល័យ",
+    "similarBooksSubtitle": "សៀវភៅក្នុងបណ្ណាល័យ PTEC ដែលពាក់ព័ន្ធនឹងអត្ថបទនេះ",
+    "browseLibrary": "រកមើលបណ្ណាល័យ",
+    "leaveAReview": "ផ្តល់ការវាយតម្លៃ",
+    "signInToReview": "ចូលគណនីដើម្បីវាយតម្លៃ និងបញ្ចេញមតិ",
+    "fieldIsbn": "ISBN"
   },
   "dashboard": {
     "admin": "អ្នកគ្រប់គ្រង",

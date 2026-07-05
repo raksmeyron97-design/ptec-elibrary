@@ -18,6 +18,7 @@ import {
   Paperclip,
   Users,
   AlertCircle,
+  ListChecks,
   Plus,
   X,
   type LucideIcon,
@@ -29,15 +30,38 @@ import TagInput from "@/components/ui/core/TagInput";
 import { slugify, makeUid } from "@/lib/book-utils";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
 
-type TabKey = "basic" | "authors" | "abstract" | "references" | "files";
+type TabKey = "basic" | "authors" | "abstract" | "details" | "references" | "files";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "basic",      label: "Basic Info", icon: FileText },
   { key: "authors",    label: "Authors",    icon: Users },
   { key: "abstract",   label: "Abstract",   icon: AlignLeft },
+  { key: "details",    label: "Details",    icon: ListChecks },
   { key: "references", label: "References", icon: BookOpen },
   { key: "files",      label: "Files",      icon: Paperclip },
 ];
+
+/**
+ * Parse the FAQ textarea: a line starting with "Q:" opens a new item; every
+ * following line (optionally prefixed "A:") extends its answer.
+ */
+function parseFaqs(raw: string): { question: string; answer: string }[] {
+  const faqs: { question: string; answer: string }[] = [];
+  let current: { question: string; answer: string } | null = null;
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^q\s*[:.]/i.test(trimmed)) {
+      if (current?.question && current.answer) faqs.push(current);
+      current = { question: trimmed.replace(/^q\s*[:.]\s*/i, ""), answer: "" };
+    } else if (current) {
+      const text = trimmed.replace(/^a\s*[:.]\s*/i, "");
+      current.answer = current.answer ? `${current.answer} ${text}` : text;
+    }
+  }
+  if (current?.question && current.answer) faqs.push(current);
+  return faqs.slice(0, 20);
+}
 
 /** New supporting-information row queued for upload. */
 type NewSiFile = { label: string; file: File };
@@ -67,6 +91,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     basic: false,
     authors: false,
     abstract: false,
+    details: false,
     references: false,
     files: false,
   });
@@ -124,6 +149,9 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
       basic: !!title.trim() && has("journal_name"),
       authors: authorRows.length > 0,
       abstract: has("abstract") && has("keywords"),
+      details:
+        has("publisher") || has("isbn") || has("subjects") ||
+        has("table_of_contents") || has("learning_outcomes") || has("faqs"),
       references: has("references"),
       files: !!pdfFile || !!initial?.pdf_url,
     });
@@ -214,6 +242,26 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
         .filter(Boolean)
         .map((text, index) => ({ index: index + 1, text }));
 
+      const subjects = (formData.get("subjects") as string ?? "")
+        .split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12);
+
+      const learning_outcomes = (formData.get("learning_outcomes") as string ?? "")
+        .split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+
+      // "Chapter title :: page" per line — page is optional
+      const table_of_contents = (formData.get("table_of_contents") as string ?? "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 100)
+        .map((line) => {
+          const [titlePart, pagePart] = line.split("::").map((s) => s.trim());
+          return { title: titlePart, page: pagePart || null };
+        })
+        .filter((e) => e.title);
+
+      const faqs = parseFaqs((formData.get("faqs") as string) ?? "");
+
       const data: PublicationData = {
         slug: finalSlug,
         title: title.trim(),
@@ -230,6 +278,12 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
         abstract: (formData.get("abstract") as string)?.trim() || null,
         abstract_km: (formData.get("abstract_km") as string)?.trim() || null,
         keywords,
+        publisher: (formData.get("publisher") as string)?.trim() || null,
+        isbn: (formData.get("isbn") as string)?.trim() || null,
+        subjects,
+        table_of_contents,
+        learning_outcomes,
+        faqs,
         license: (formData.get("license") as string)?.trim() || null,
         copyright: (formData.get("copyright") as string)?.trim() || null,
         language: (formData.get("language") as string) || "en",
@@ -504,6 +558,85 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                   disabled={loading}
                 />
                 <p className="mt-1 text-[11px] text-text-muted">ចុច Enter ឬ , ដើម្បីបន្ថែម tag</p>
+              </div>
+            </div>
+
+            <div id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden={activeTab !== "details"} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className={LABEL_CLASS}>Publisher (optional)</label>
+                  <input
+                    name="publisher"
+                    defaultValue={initial?.publisher ?? ""}
+                    className={INPUT_CLASS}
+                    placeholder="Phnom Penh Teacher Education College"
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>ISBN (optional)</label>
+                  <input
+                    name="isbn"
+                    defaultValue={initial?.isbn ?? ""}
+                    className={`${INPUT_CLASS} font-mono text-xs`}
+                    placeholder="978-9924-XX-XXX-X"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Subjects (optional)</label>
+                <TagInput
+                  name="subjects"
+                  defaultTags={initial?.subjects ?? []}
+                  placeholder="e.g. Education, Pedagogy, STEM…"
+                  disabled={loading}
+                />
+                <p className="mt-1 text-[11px] text-text-muted">
+                  Broad subject areas shown as chips in the article Overview (max 12).
+                </p>
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Table of contents — one entry per line (optional)</label>
+                <textarea
+                  name="table_of_contents"
+                  rows={8}
+                  defaultValue={(initial?.table_of_contents ?? [])
+                    .map((e) => (e.page ? `${e.title} :: ${e.page}` : e.title))
+                    .join("\n")}
+                  className={`${INPUT_CLASS} h-auto py-3 font-mono text-xs leading-relaxed`}
+                  placeholder={"Introduction :: 1\nLiterature review :: 4\nMethodology :: 9"}
+                />
+                <p className="mt-1 text-[11px] text-text-muted">
+                  Format: <code>Section title :: page</code> — the page number is optional.
+                </p>
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>Learning outcomes — one per line (optional)</label>
+                <textarea
+                  name="learning_outcomes"
+                  rows={5}
+                  defaultValue={(initial?.learning_outcomes ?? []).join("\n")}
+                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
+                  placeholder={"Explain the drivers of digital pedagogy adoption\nApply the framework to lesson planning"}
+                />
+              </div>
+
+              <div>
+                <label className={LABEL_CLASS}>FAQ (optional)</label>
+                <textarea
+                  name="faqs"
+                  rows={8}
+                  defaultValue={(initial?.faqs ?? [])
+                    .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
+                    .join("\n\n")}
+                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
+                  placeholder={"Q: Who is this article for?\nA: Teacher educators and student teachers.\n\nQ: Can I reuse the figures?\nA: Yes, under the CC BY 4.0 license with attribution."}
+                />
+                <p className="mt-1 text-[11px] text-text-muted">
+                  Start each question with <code>Q:</code> and each answer with <code>A:</code>. Shown as an accordion and emitted as FAQ structured data for search engines.
+                </p>
               </div>
             </div>
 

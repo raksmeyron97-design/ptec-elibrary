@@ -5,6 +5,7 @@ import {
   Layers,
   FileText,
   Building2,
+  Barcode,
   Fingerprint,
   Globe,
   CalendarDays,
@@ -44,8 +45,7 @@ function Row({
 
 /**
  * Icon-per-row "Publication information" card. Every row is conditional on
- * the field actually existing — no ISSN/ISBN/research-area rows, since the
- * publications table has no such columns.
+ * the field actually existing.
  */
 export default async function PublicationMetadataCard({
   pub,
@@ -83,7 +83,10 @@ export default async function PublicationMetadataCard({
             value={pub.page_start ? [pub.page_start, pub.page_end].filter(Boolean).join("–") : pub.article_no}
           />
         )}
-        <Row icon={<Building2 className={iconClass} />} label={t("fieldPublisher")} value={PUBLISHER_NAME} />
+        <Row icon={<Building2 className={iconClass} />} label={t("fieldPublisher")} value={pub.publisher || PUBLISHER_NAME} />
+        {pub.isbn && (
+          <Row icon={<Barcode className={iconClass} />} label={t("fieldIsbn")} value={<span className="font-mono">{pub.isbn}</span>} />
+        )}
         {pub.doi && (
           <Row
             icon={<Fingerprint className={iconClass} />}

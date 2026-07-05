@@ -528,7 +528,22 @@
     "reasonPopular": "Popular",
     "publicationsInRepo": "{count, plural, one {# publication} other {# publications}} in this repository",
     "searchGoogleScholar": "Search Google Scholar",
-    "backToTop": "Back to top"
+    "backToTop": "Back to top",
+    "sectionToc": "Table of Contents",
+    "sectionOutcomes": "Learning Outcomes",
+    "sectionAuthors": "About the Authors",
+    "sectionReviews": "Ratings & Comments",
+    "sectionFaq": "FAQ",
+    "subjectsHeading": "Subjects",
+    "outcomesIntro": "After reading this publication, readers will be able to:",
+    "correspondingAuthor": "Corresponding author",
+    "recommendedReading": "Recommended Reading",
+    "similarBooks": "Similar Books from the Library",
+    "similarBooksSubtitle": "Books in the PTEC library related to this publication",
+    "browseLibrary": "Browse the library",
+    "leaveAReview": "Leave a review",
+    "signInToReview": "Sign in to rate and comment",
+    "fieldIsbn": "ISBN"
   },
   "dashboard": {
     "admin": "Admin",

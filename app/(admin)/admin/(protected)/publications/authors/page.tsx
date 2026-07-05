@@ -10,7 +10,7 @@ export default async function PublicationAuthorsPage() {
   const [{ data: authors }, { data: affiliations }] = await Promise.all([
     supabase
       .from("publication_authors")
-      .select("id, full_name, full_name_km, orcid, email")
+      .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
       .order("full_name", { ascending: true }),
     supabase
       .from("publication_affiliations")

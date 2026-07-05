@@ -133,6 +133,32 @@ describe('mapRowToPublication', () => {
     expect(pub.doi).toBeNull();
     expect(pub.cover_url).toBeNull();
     expect(pub.pdf_url).toBeNull();
+    // Detail-page enrichment fields (migration 0056)
+    expect(pub.publisher).toBeNull();
+    expect(pub.isbn).toBeNull();
+    expect(pub.subjects).toEqual([]);
+    expect(pub.table_of_contents).toEqual([]);
+    expect(pub.learning_outcomes).toEqual([]);
+    expect(pub.faqs).toEqual([]);
+  });
+
+  it('maps the enrichment fields when present', () => {
+    const pub = mapRowToPublication({
+      ...baseRow,
+      publisher: 'PTEC Press',
+      isbn: '978-9924-01-234-5',
+      subjects: ['Education'],
+      table_of_contents: [{ title: 'Introduction', page: '1' }],
+      learning_outcomes: ['Explain adoption drivers'],
+      faqs: [{ question: 'Who is this for?', answer: 'Teacher educators.' }],
+    });
+
+    expect(pub.publisher).toBe('PTEC Press');
+    expect(pub.isbn).toBe('978-9924-01-234-5');
+    expect(pub.subjects).toEqual(['Education']);
+    expect(pub.table_of_contents).toEqual([{ title: 'Introduction', page: '1' }]);
+    expect(pub.learning_outcomes).toEqual(['Explain adoption drivers']);
+    expect(pub.faqs).toEqual([{ question: 'Who is this for?', answer: 'Teacher educators.' }]);
   });
 
   it('normalises a non-array references value to an empty list', () => {

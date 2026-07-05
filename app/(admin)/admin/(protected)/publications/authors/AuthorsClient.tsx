@@ -12,7 +12,16 @@ import type { PublicationAuthor, PublicationAffiliation } from "@/lib/publicatio
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import { AlertCircle, Building2, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 
-const EMPTY_AUTHOR = { id: undefined as string | undefined, full_name: "", full_name_km: "", orcid: "", email: "" };
+const EMPTY_AUTHOR = {
+  id: undefined as string | undefined,
+  full_name: "",
+  full_name_km: "",
+  orcid: "",
+  email: "",
+  bio: "",
+  bio_km: "",
+  photo_url: "",
+};
 const EMPTY_AFFILIATION = { id: undefined as string | undefined, name: "", name_km: "", city: "", country: "" };
 
 export default function AuthorsClient({
@@ -137,6 +146,35 @@ export default function AuthorsClient({
                 className={INPUT_CLASS}
               />
             </div>
+            <div>
+              <label className={LABEL_CLASS}>Photo URL (optional)</label>
+              <input
+                value={authorForm.photo_url ?? ""}
+                onChange={(e) => setAuthorForm({ ...authorForm, photo_url: e.target.value })}
+                className={INPUT_CLASS}
+                placeholder="https://…"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className={LABEL_CLASS}>Biography (EN, optional)</label>
+              <textarea
+                rows={3}
+                value={authorForm.bio ?? ""}
+                onChange={(e) => setAuthorForm({ ...authorForm, bio: e.target.value })}
+                className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
+                placeholder="Short academic biography shown in the article's About the Authors section."
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className={LABEL_CLASS}>Biography (KH, optional)</label>
+              <textarea
+                rows={3}
+                value={authorForm.bio_km ?? ""}
+                onChange={(e) => setAuthorForm({ ...authorForm, bio_km: e.target.value })}
+                className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
+                placeholder="ប្រវត្តិរូបសង្ខេបជាភាសាខ្មែរ"
+              />
+            </div>
             <div className="md:col-span-2 flex justify-end gap-2">
               <button
                 type="button"
@@ -206,6 +244,9 @@ export default function AuthorsClient({
                                 full_name_km: a.full_name_km ?? "",
                                 orcid: a.orcid ?? "",
                                 email: a.email ?? "",
+                                bio: a.bio ?? "",
+                                bio_km: a.bio_km ?? "",
+                                photo_url: a.photo_url ?? "",
                               })
                             }
                             className="hover:text-brand transition cursor-pointer"
