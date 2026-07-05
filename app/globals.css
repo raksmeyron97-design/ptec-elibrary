@@ -79,17 +79,20 @@
 :root.dark {
   color-scheme: dark;
 
-  --ptec-paper: #182E6E;
-  --ptec-parchment: #122251;
-  --ptec-border: #2A47A6;
-  --ptec-border-strong: #3A5FC4;
+  /* Neutral ramp is desaturated (blue-tinted grays, not saturated navy):
+     saturated dark surfaces amplify chromatic aberration and make white
+     book covers glare. Navy stays reserved for interactive elements. */
+  --ptec-paper: #1C2334;
+  --ptec-parchment: #171D2B;
+  --ptec-border: #2B3347;
+  --ptec-border-strong: #3B4560;
 
-  --ptec-bg-app: #0B1530;
-  --ptec-bg-body: #0B1530;
-  --ptec-bg-surface: #122251;
+  --ptec-bg-app: #0E1220;
+  --ptec-bg-body: #0E1220;
+  --ptec-bg-surface: #161C2B;
   --ptec-text-heading: #EEF2FB;
   --ptec-text-body: #D9E2F7;
-  --ptec-text-muted: #B3C5EF;
+  --ptec-text-muted: #A9B6D4;
   --ptec-brand: #8AA4E4;
   --ptec-brand-hover: #B3C5EF;
   --ptec-brand-contrast: #0B1530;
@@ -97,7 +100,7 @@
   --ptec-accent-text: #FAEFC4;
   --ptec-accent-line: #F4DE8A;
   --ptec-focus-ring: #8AA4E4;
-  --ptec-divider: #2A47A6;
+  --ptec-divider: #2B3347;
   --ptec-success: #5EE9B5;
   --ptec-warning: #F4DE8A;
   --ptec-danger: #FF6568;
