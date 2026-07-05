@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { data: posts },
     { data: reports },
     { data: catalogBooks },
+    { data: publications },
   ] = await Promise.all([
     supabase
       .from('books')
@@ -37,6 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('catalog_books')
       .select('slug, updated_at, created_at')
       .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .range(0, 4999),
+    supabase
+      .from('publications')
+      .select('slug, updated_at, created_at')
+      .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(0, 4999),
   ]);
@@ -67,6 +74,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: b.updated_at ?? b.created_at ?? new Date(),
     changeFrequency: 'weekly',
     priority: 0.6,
+  }));
+
+  const publicationUrls: MetadataRoute.Sitemap = (publications ?? []).map((p) => ({
+    url: `${SITE_URL}/publications/${p.slug}`,
+    lastModified: p.updated_at ?? p.created_at ?? new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.9,
   }));
 
   const staticUrls: MetadataRoute.Sitemap = [
@@ -100,7 +114,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.8,
     },
+    {
+      url: `${SITE_URL}/publications`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    // Informational pages — rarely change
+    ...[
+      '/about',
+      '/about/collection',
+      '/about/committee',
+      '/about/our-journey',
+      '/about/rules',
+      '/about/team',
+      '/about/timings',
+      '/contact',
+      '/policy',
+    ].map((path) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.4,
+    })),
   ];
 
-  return [...staticUrls, ...reportUrls, ...bookUrls, ...postUrls, ...catalogUrls];
+  return [
+    ...staticUrls,
+    ...reportUrls,
+    ...publicationUrls,
+    ...bookUrls,
+    ...postUrls,
+    ...catalogUrls,
+  ];
 }

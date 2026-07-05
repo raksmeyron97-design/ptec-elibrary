@@ -17,25 +17,12 @@ import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/compon
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
+import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import JsonLd from "@/components/seo/JsonLd";
 
 // The route renders per-request (it reads searchParams), but every Supabase
 // read is served from unstable_cache in lib/books-data.ts (tag: "books"),
 // invalidated by admin mutations via revalidateTag.
-
-export const metadata: Metadata = {
-  title: "Books",
-  description: "Browse the PTEC digital library collection — teaching resources, textbooks, and educational materials available to read online or download.",
-  alternates: {
-    canonical: `${SITE_URL}/books`,
-  },
-  openGraph: {
-    title: "Books | PTEC Library",
-    description: "Browse the PTEC digital library collection of teaching resources and textbooks.",
-    url: `${SITE_URL}/books`,
-    type: "website",
-  },
-};
 
 type SearchParams = {
   q?: string;
@@ -46,6 +33,29 @@ type SearchParams = {
   sort?: string;
   size?: string;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  return buildListingMetadata({
+    path: "/books",
+    title: "Books",
+    description:
+      "Browse the PTEC digital library collection — teaching resources, textbooks, and educational materials available to read online or download.",
+    page: parsePageParam(params.page),
+    hasFilters: !!(
+      params.q ||
+      params.dept ||
+      params.format ||
+      params.language ||
+      params.sort ||
+      params.size
+    ),
+  });
+}
 
 export default async function BooksPage({
   searchParams,

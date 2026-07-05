@@ -21,6 +21,7 @@ import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/SectionQuickNav";
 import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/seo/site";
 import { Pencil } from "lucide-react";
@@ -180,7 +181,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       : { "@type": "Organization", name: "Unknown Author" },
     datePublished: pub.publication_date ?? pub.published_at ?? pub.created_at ?? undefined,
     keywords: pub.keywords.length > 0 ? pub.keywords.join(", ") : undefined,
-    image: pub.cover_url || `${SITE_URL}/og-image.jpg`,
+    image: pub.cover_url || `${SITE_URL}/og-default.png`,
     url: shareUrl,
     isAccessibleForFree: true,
     ...(pub.journal_name
@@ -208,9 +209,16 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       : {}),
   };
 
+  const pubBreadcrumbSchema = breadcrumbSchema([
+    { name: "Home", path: "/home" },
+    { name: "Publications", path: "/publications" },
+    { name: pub.title },
+  ]);
+
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={scholarlyArticleSchema} />
+      <JsonLd data={pubBreadcrumbSchema} />
       <PublicationViewPing id={pub.id} />
       <ReadingProgress />
       <div className="mx-auto max-w-[1200px]">

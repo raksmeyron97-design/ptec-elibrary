@@ -18,7 +18,7 @@ export default function DesktopNavLinks({
   aboutDropdown,
 }: DesktopNavLinksProps) {
   const [hoverStyle, setHoverStyle] = useState({ left: 0, width: 0, opacity: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
@@ -36,7 +36,8 @@ export default function DesktopNavLinks({
   };
 
   return (
-    <div
+    <nav
+      aria-label="Primary"
       ref={containerRef}
       className="hidden lg:flex items-center gap-0.5 xl:gap-1 h-full relative z-10"
       onMouseLeave={handleMouseLeave}
@@ -80,6 +81,6 @@ export default function DesktopNavLinks({
           subLinks={aboutDropdown.subLinks}
         />
       </div>
-    </div>
+    </nav>
   );
 }

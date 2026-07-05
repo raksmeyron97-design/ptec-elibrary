@@ -236,7 +236,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     },
     inLanguage: book.language || "en",
     description: book.summary || book.title,
-    image: book.coverUrl || `${SITE_URL}/og-image.jpg`,
+    image: book.coverUrl || `${SITE_URL}/og-default.png`,
     url: bookUrl,
     bookFormat: "https://schema.org/EBook",
     isAccessibleForFree: true,

@@ -14,23 +14,9 @@ import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
-import { SITE_URL } from "@/lib/seo/site";
+import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 
 export const revalidate = 3600;
-
-export const metadata: Metadata = {
-  title: "Books In Library",
-  description: "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
-  alternates: {
-    canonical: `${SITE_URL}/catalogs`,
-  },
-  openGraph: {
-    title: "Books In Library | PTEC Library",
-    description: "Browse physical books available in the PTEC library collection.",
-    url: `${SITE_URL}/catalogs`,
-    type: "website",
-  },
-};
 
 type SearchParams = {
   q?:           string;
@@ -41,6 +27,29 @@ type SearchParams = {
   sort?:        string;
   size?:        string;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  return buildListingMetadata({
+    path: "/catalogs",
+    title: "Books In Library",
+    description:
+      "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
+    page: parsePageParam(params.page),
+    hasFilters: !!(
+      params.q ||
+      params.category ||
+      params.language ||
+      params.availability ||
+      params.sort ||
+      params.size
+    ),
+  });
+}
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
 const fetchCatalogBooks = unstable_cache(

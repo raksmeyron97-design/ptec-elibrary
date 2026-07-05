@@ -12,23 +12,9 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import Pagination from "@/components/ui/core/Pagination";
 import { getTranslations } from "next-intl/server";
 import { getKeywords } from "@/lib/theses/report-fields";
-import { SITE_URL } from "@/lib/seo/site";
+import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "Theses | PTEC Library",
-  description:
-    "Browse student theses from the Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keywords.",
-  alternates: { canonical: `${SITE_URL}/theses` },
-  openGraph: {
-    title: "Theses | PTEC Library",
-    description:
-      "Browse student theses from PTEC. Search by program, cohort, and keywords.",
-    url: `${SITE_URL}/theses`,
-    type: "website",
-  },
-};
 
 type SP = {
   cohort?: string;
@@ -44,6 +30,34 @@ type SP = {
   page?: string;
   size?: string;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  return buildListingMetadata({
+    path: "/theses",
+    title: "Theses",
+    description:
+      "Browse student theses from the Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keywords.",
+    page: parsePageParam(params.page),
+    hasFilters: !!(
+      params.q ||
+      params.cohort ||
+      params.year ||
+      params.program ||
+      params.faculty ||
+      params.author ||
+      params.advisor ||
+      params.keyword ||
+      params.sort ||
+      params.view ||
+      params.size
+    ),
+  });
+}
 
 // ── Facet helpers ──────────────────────────────────────────────────────────────
 

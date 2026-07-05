@@ -36,9 +36,10 @@ export async function middleware(request: NextRequest) {
 
   const { nextUrl: url } = request;
 
-  // Fast-path redirect for main domain root to bypass Supabase network calls
+  // Fast-path redirect for main domain root to bypass Supabase network calls.
+  // 308 (permanent) so search engines consolidate signals onto /home.
   if (url.pathname === "/") {
-    const res = NextResponse.redirect(new URL("/home", request.url));
+    const res = NextResponse.redirect(new URL("/home", request.url), 308);
     res.headers.set('Content-Security-Policy', cspHeader);
     res.headers.set('x-nonce', nonceB64);
     return res;

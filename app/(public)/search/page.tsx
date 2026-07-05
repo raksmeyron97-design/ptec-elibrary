@@ -5,6 +5,9 @@ import SearchPageClient from "./SearchPageClient";
 export const metadata: Metadata = {
   title: "Search",
   description: "Search PTEC Library — find books, theses, physical catalog, and posts all in one place.",
+  alternates: { canonical: "/search" },
+  // Internal search results shouldn't be indexed, but links found there should be crawled.
+  robots: { index: false, follow: true },
 };
 
 export default function SearchPage() {

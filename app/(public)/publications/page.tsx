@@ -15,23 +15,9 @@ import Pagination from "@/components/ui/core/Pagination";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from "next-intl/server";
-import { SITE_URL } from "@/lib/seo/site";
+import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 
 export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: "Publications | PTEC Library",
-  description:
-    "Browse academic journal articles published through the Phnom Penh Teacher Education College (PTEC). Search by journal, year, keywords, and article type.",
-  alternates: { canonical: `${SITE_URL}/publications` },
-  openGraph: {
-    title: "Publications | PTEC Library",
-    description:
-      "Browse academic journal articles from PTEC. Search by journal, year, and keywords.",
-    url: `${SITE_URL}/publications`,
-    type: "website",
-  },
-};
 
 type SP = {
   q?: string;
@@ -43,6 +29,30 @@ type SP = {
   page?: string;
   size?: string;
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  return buildListingMetadata({
+    path: "/publications",
+    title: "Publications",
+    description:
+      "Browse academic journal articles published through the Phnom Penh Teacher Education College (PTEC). Search by journal, year, keywords, and article type.",
+    page: parsePageParam(params.page),
+    hasFilters: !!(
+      params.q ||
+      params.keyword ||
+      params.type ||
+      params.journal ||
+      params.year ||
+      params.language ||
+      params.size
+    ),
+  });
+}
 
 function matchesQ(pub: Publication, q: string): boolean {
   const needle = q.toLowerCase();

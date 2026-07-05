@@ -25,6 +25,7 @@ import {
   getDepartment,
 } from "@/lib/theses/report-fields";
 import { SITE_URL } from "@/lib/seo/site";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import { Pencil, FileX2 } from "lucide-react";
 
 export const revalidate = 3600;
@@ -207,7 +208,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       : { '@type': 'Organization', name: 'Unknown Author' },
     datePublished: report.published_at ?? report.created_at ?? undefined,
     keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
-    image: report.cover_url || `${SITE_URL}/og-image.jpg`,
+    image: report.cover_url || `${SITE_URL}/og-default.png`,
     url: reportUrl,
     isAccessibleForFree: true,
     publisher: {
@@ -230,9 +231,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     } : {}),
   };
 
+  const thesisBreadcrumbSchema = breadcrumbSchema([
+    { name: "Home", path: "/home" },
+    { name: "Theses", path: "/theses" },
+    { name: report.title },
+  ]);
+
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
       <JsonLd data={scholarlyArticleSchema} />
+      <JsonLd data={thesisBreadcrumbSchema} />
       <ThesisViewPing id={id} />
       <ReadingProgress />
       <div className="mx-auto max-w-[1200px]">

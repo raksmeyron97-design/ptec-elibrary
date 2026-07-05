@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import JsonLd from "@/components/seo/JsonLd";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import type { CatalogBook } from "@/lib/catalog";
 import {
@@ -164,7 +165,7 @@ export default async function CatalogBookPage({
     isbn: b.isbn || undefined,
     inLanguage: b.language || "en",
     description: b.description || b.title,
-    image: b.cover_url || `${SITE_URL}/og-image.jpg`,
+    image: b.cover_url || `${SITE_URL}/og-default.png`,
     url: `${SITE_URL}/catalogs/${b.slug}`,
     publisher: {
       '@type': 'EducationalOrganization',
@@ -191,9 +192,16 @@ export default async function CatalogBookPage({
     { label: "Total Copies",   value: b.copies_total != null ? String(b.copies_total) : null },
   ].filter(f => f.value);
 
+  const catalogBreadcrumbSchema = breadcrumbSchema([
+    { name: "Home", path: "/home" },
+    { name: "Books In Library", path: "/catalogs" },
+    { name: b.title },
+  ]);
+
   return (
     <div className="min-h-screen bg-paper">
       <JsonLd data={bookSchema} />
+      <JsonLd data={catalogBreadcrumbSchema} />
 
       {/* ── Hero band ── */}
       <div

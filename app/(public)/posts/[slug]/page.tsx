@@ -7,6 +7,7 @@ import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 import Markdown, { extractToc, computeReadingTime } from "./Markdown";
 import ViewTracker from "./ViewTracker";
 import ReadingProgress from "./ReadingProgress";
@@ -199,9 +200,16 @@ export default async function PostDetailPage({
     },
   };
 
+  const postBreadcrumbSchema = breadcrumbSchema([
+    { name: "Home", path: "/home" },
+    { name: "News & Events", path: "/posts" },
+    { name: post.title },
+  ]);
+
   return (
     <article className="min-h-screen bg-bg-app">
       <JsonLd data={postSchema} />
+      <JsonLd data={postBreadcrumbSchema} />
       <ViewTracker postId={post.id} />
       <ReadingProgress />
 

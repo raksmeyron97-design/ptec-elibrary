@@ -12,7 +12,7 @@ export default async function PublicLayout({
   return (
     <div className="flex min-h-screen flex-col overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <Navbar />
-      <main className="flex-grow">{children}</main>
+      <main id="main-content" className="flex-grow">{children}</main>
       <Footer />
       <AskWidget isLoggedIn={!!user} />
     </div>
