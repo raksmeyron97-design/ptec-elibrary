@@ -13,9 +13,9 @@ import ReferenceList from "@/components/ui/theses/ReferenceList";
 import PublicationHero from "@/components/ui/theses/detail/PublicationHero";
 import PublicationMetadata from "@/components/ui/theses/detail/PublicationMetadata";
 import StickySidebar from "@/components/ui/theses/detail/StickySidebar";
-import AbstractSection from "@/components/ui/theses/detail/AbstractSection";
+import AbstractSection from "@/components/ui/detail/AbstractSection";
 import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
-import ReadingProgress from "@/components/ui/theses/detail/ReadingProgress";
+import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import JsonLd from "@/components/seo/JsonLd";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -152,7 +152,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     {
       id: "abstract",
       label: "Abstract",
-      content: <AbstractSection abstract={report.abstract || ""} keywords={keywords} />,
+      content: <AbstractSection abstract={report.abstract || ""} keywords={keywords} basePath="/theses" />,
     },
   ];
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import CiteThis from "@/components/ui/theses/CiteThis";
-import BookmarkButton from "@/components/ui/theses/BookmarkButton";
+import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
 import {
@@ -49,7 +49,7 @@ export default function ThesisListItem({ report }: { report: any }) {
               {source}
             </p>
           )}
-          <BookmarkButton reportId={report.id} className="h-8 w-8 shrink-0" />
+          <BookmarkButton id={report.id} contentType="thesis" className="h-8 w-8 shrink-0" />
         </div>
 
         <h3 className="mt-1">

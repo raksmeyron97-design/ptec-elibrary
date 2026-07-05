@@ -5,7 +5,7 @@ import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/core/Badge";
 import { getKeywords, getYear, getDepartment } from "@/lib/theses/report-fields";
 import { getProgram } from "@/lib/theses/programs";
-import BookmarkButton from "@/components/ui/theses/BookmarkButton";
+import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
 
@@ -44,7 +44,8 @@ export default function ThesisCard({ report }: { report: any }) {
 
       {/* Bookmark floats above everything */}
       <BookmarkButton
-        reportId={report.id}
+        id={report.id}
+        contentType="thesis"
         className="absolute right-5 top-5 z-30 h-8 w-8 shadow-sm backdrop-blur-sm"
       />
 

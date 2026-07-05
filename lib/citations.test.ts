@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toAPA, toBibTeX, toRIS, toCitationLine, authorList } from './citations';
+import { toAPA, toMLA, toChicago, toIEEE, toBibTeX, toRIS, toCitationLine, authorList } from './citations';
 import type { Publication } from './publications';
 
 const pub: Publication = {
@@ -72,6 +72,38 @@ describe('toAPA', () => {
   it('falls back to the article URL when there is no DOI', () => {
     const noDoi = { ...pub, doi: null };
     expect(toAPA(noDoi)).toContain('/publications/digital-pedagogy-2026');
+  });
+});
+
+describe('toMLA', () => {
+  it('produces an MLA-style reference with venue, year, and pages', () => {
+    const mla = toMLA(pub);
+    expect(mla).toBe(
+      'Sok San, Chan Dara. "Digital Pedagogy Adoption in Cambodian Teacher Education." ' +
+      'PTEC Journal of Education, vol. 12, no. 3, 2026, pp. 101–118. ' +
+      'https://doi.org/10.1234/ptec.2026.001.',
+    );
+  });
+});
+
+describe('toChicago', () => {
+  it('produces a Chicago-style reference with venue and page range', () => {
+    const chicago = toChicago(pub);
+    expect(chicago).toBe(
+      'Sok San, Chan Dara. 2026. "Digital Pedagogy Adoption in Cambodian Teacher Education." ' +
+      'PTEC Journal of Education 12 (3): 101–118. https://doi.org/10.1234/ptec.2026.001.',
+    );
+  });
+});
+
+describe('toIEEE', () => {
+  it('produces an IEEE-style reference with an [Online] link', () => {
+    const ieee = toIEEE(pub);
+    expect(ieee).toBe(
+      'Sok San, Chan Dara, "Digital Pedagogy Adoption in Cambodian Teacher Education," ' +
+      'PTEC Journal of Education, vol. 12, no. 3, pp. 101–118, 2026. ' +
+      '[Online]. Available: https://doi.org/10.1234/ptec.2026.001',
+    );
   });
 });
 

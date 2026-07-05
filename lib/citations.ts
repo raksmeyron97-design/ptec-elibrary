@@ -6,7 +6,7 @@
 import { SITE_URL } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
 
-export type CiteFormat = "apa" | "bibtex" | "ris";
+export type CiteFormat = "apa" | "mla" | "chicago" | "ieee" | "bibtex" | "ris";
 
 /** Public-facing link to an article (used inside citations when there is no DOI). */
 export function publicationUrl(slug: string): string {
@@ -91,6 +91,65 @@ export function toAPA(pub: Publication): string {
   return segments.join(" ");
 }
 
+export function toMLA(pub: Publication): string {
+  const authors = authorList(pub).join(", ") || "Unknown author";
+  const year = citationYear(pub) ?? "n.d.";
+  const title = (pub.title || "").trim();
+  const segments = [`${authors}. "${title}."`];
+  if (pub.journal_name) {
+    let venue = pub.journal_name;
+    if (pub.volume) venue += `, vol. ${pub.volume}`;
+    if (pub.issue_no) venue += `, no. ${pub.issue_no}`;
+    venue += `, ${year}`;
+    const pages = pageRange(pub);
+    if (pages) venue += `, pp. ${pages}`;
+    segments.push(`${venue}.`);
+  } else {
+    segments.push(`${year}.`);
+  }
+  segments.push(doiOrUrl(pub) + ".");
+  return segments.join(" ");
+}
+
+export function toChicago(pub: Publication): string {
+  const authors = authorList(pub).join(", ") || "Unknown author";
+  const year = citationYear(pub) ?? "n.d.";
+  const title = (pub.title || "").trim();
+  const segments = [`${authors}. ${year}. "${title}."`];
+  if (pub.journal_name) {
+    let venue = pub.journal_name;
+    if (pub.volume) {
+      venue += ` ${pub.volume}`;
+      if (pub.issue_no) venue += ` (${pub.issue_no})`;
+    }
+    const pages = pageRange(pub);
+    if (pages) venue += `: ${pages}`;
+    segments.push(`${venue}.`);
+  }
+  segments.push(doiOrUrl(pub) + ".");
+  return segments.join(" ");
+}
+
+export function toIEEE(pub: Publication): string {
+  const authors = authorList(pub).join(", ") || "Unknown author";
+  const year = citationYear(pub) ?? "n.d.";
+  const title = (pub.title || "").trim();
+  const segments = [`${authors}, "${title},"`];
+  if (pub.journal_name) {
+    let venue = pub.journal_name;
+    if (pub.volume) venue += `, vol. ${pub.volume}`;
+    if (pub.issue_no) venue += `, no. ${pub.issue_no}`;
+    const pages = pageRange(pub);
+    if (pages) venue += `, pp. ${pages}`;
+    venue += `, ${year}`;
+    segments.push(`${venue}.`);
+  } else {
+    segments.push(`${year}.`);
+  }
+  segments.push(`[Online]. Available: ${doiOrUrl(pub)}`);
+  return segments.join(" ");
+}
+
 export function toBibTeX(pub: Publication): string {
   const fields: Array<[string, string | null]> = [
     ["author", authorList(pub).join(" and ") || "Unknown author"],
@@ -134,6 +193,9 @@ export function toRIS(pub: Publication): string {
 }
 
 export function buildPublicationCitation(format: CiteFormat, pub: Publication): string {
+  if (format === "mla") return toMLA(pub);
+  if (format === "chicago") return toChicago(pub);
+  if (format === "ieee") return toIEEE(pub);
   if (format === "bibtex") return toBibTeX(pub);
   if (format === "ris") return toRIS(pub);
   return toAPA(pub);

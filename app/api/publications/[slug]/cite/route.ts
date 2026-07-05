@@ -8,7 +8,7 @@ import {
   type CiteFormat,
 } from "@/lib/citations";
 
-const FORMATS: CiteFormat[] = ["apa", "bibtex", "ris"];
+const FORMATS: CiteFormat[] = ["apa", "mla", "chicago", "ieee", "bibtex", "ris"];
 
 export async function GET(
   request: NextRequest,

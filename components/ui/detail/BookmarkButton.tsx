@@ -3,17 +3,21 @@
 import { useEffect, useState } from "react";
 import { Bookmark } from "lucide-react";
 import { isThesisBookmarked, toggleThesisBookmark } from "@/lib/theses/local-bookmarks";
+import { isPublicationBookmarked, togglePublicationBookmark } from "@/lib/publications/local-bookmarks";
 
 /**
- * Saves a thesis locally (this browser only — see lib/theses/local-bookmarks.ts).
+ * Saves a thesis or publication locally (this browser only — see
+ * lib/theses/local-bookmarks.ts / lib/publications/local-bookmarks.ts).
  * Reads localStorage after mount to avoid an SSR/client markup mismatch.
  */
 export default function BookmarkButton({
-  reportId,
+  id,
+  contentType,
   className = "",
   label,
 }: {
-  reportId: string;
+  id: string;
+  contentType: "thesis" | "publication";
   className?: string;
   /** When set, renders as a labeled button instead of an icon-only control. */
   label?: { saved: string; unsaved: string };
@@ -21,10 +25,14 @@ export default function BookmarkButton({
   const [saved, setSaved] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const isBookmarked = contentType === "thesis" ? isThesisBookmarked : isPublicationBookmarked;
+  const toggleBookmark = contentType === "thesis" ? toggleThesisBookmark : togglePublicationBookmark;
+
   useEffect(() => {
-    setSaved(isThesisBookmarked(reportId));
+    setSaved(isBookmarked(id));
     setMounted(true);
-  }, [reportId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, contentType]);
 
   return (
     <button
@@ -32,10 +40,10 @@ export default function BookmarkButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setSaved(toggleThesisBookmark(reportId));
+        setSaved(toggleBookmark(id));
       }}
       aria-pressed={saved}
-      aria-label={saved ? "Remove from saved theses" : "Save thesis"}
+      aria-label={saved ? `Remove from saved ${contentType === "thesis" ? "theses" : "publications"}` : `Save ${contentType}`}
       title={saved ? "Saved" : "Save"}
       className={`inline-flex cursor-pointer items-center justify-center rounded-full border transition-all duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
         saved

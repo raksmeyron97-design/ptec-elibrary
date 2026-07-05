@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
 import { GraduationCap } from "lucide-react";
-import ActionButtons from "@/components/ui/theses/detail/ActionButtons";
-import MetricsPanel from "@/components/ui/theses/detail/MetricsPanel";
-import BackToTopButton from "@/components/ui/theses/detail/BackToTopButton";
+import ActionButtons from "@/components/ui/detail/ActionButtons";
+import MetricsPanel from "@/components/ui/detail/MetricsPanel";
+import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import CiteThis from "@/components/ui/theses/CiteThis";
 
 export default function StickySidebar({
@@ -43,7 +43,8 @@ export default function StickySidebar({
       <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
         <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">Quick Actions</h3>
         <ActionButtons
-          reportId={reportId}
+          id={reportId}
+          contentType="thesis"
           title={report.title}
           fileHref={fileHref}
           hasFile={!!report.file_url}

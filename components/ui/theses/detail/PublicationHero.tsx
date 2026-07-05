@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
 import { GraduationCap, Layers } from "lucide-react";
-import ActionButtons from "@/components/ui/theses/detail/ActionButtons";
+import ActionButtons from "@/components/ui/detail/ActionButtons";
 import { getDoi } from "@/lib/theses/report-fields";
 
 function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
@@ -99,7 +99,8 @@ export default function PublicationHero({
           {/* Actions */}
           <div className="mt-6">
             <ActionButtons
-              reportId={reportId}
+              id={reportId}
+              contentType="thesis"
               title={report.title}
               fileHref={fileHref}
               hasFile={!!report.file_url}

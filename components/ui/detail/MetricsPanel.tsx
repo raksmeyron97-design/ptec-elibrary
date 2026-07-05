@@ -7,16 +7,19 @@ function formatCount(n: number): string {
 }
 
 /**
- * Only Views and Downloads are real, tracked metrics on research_reports.
- * Citation count / bookmark count / share count aren't recorded anywhere in
- * the schema, so they're intentionally left out rather than shown as fake 0s.
+ * Only Views and Downloads are real, tracked metrics (research_reports and
+ * publications alike). Citation count / bookmark count / share count aren't
+ * recorded anywhere in either schema, so they're intentionally left out
+ * rather than shown as fake 0s.
  */
 export default function MetricsPanel({
   views,
   downloads,
+  labels,
 }: {
   views: number;
   downloads: number;
+  labels?: { views?: string; downloads?: string };
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -27,7 +30,9 @@ export default function MetricsPanel({
         <div className="text-[20px] font-bold tabular-nums text-emerald-800 dark:text-emerald-300">
           {formatCount(views)}
         </div>
-        <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-500">Views</div>
+        <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-500">
+          {labels?.views ?? "Views"}
+        </div>
       </div>
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center shadow-sm transition-transform duration-150 hover:-translate-y-0.5 dark:border-amber-800/30 dark:bg-amber-950/20">
         <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
@@ -36,7 +41,9 @@ export default function MetricsPanel({
         <div className="text-[20px] font-bold tabular-nums text-amber-800 dark:text-amber-300">
           {formatCount(downloads)}
         </div>
-        <div className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-500">Downloads</div>
+        <div className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-500">
+          {labels?.downloads ?? "Downloads"}
+        </div>
       </div>
     </div>
   );

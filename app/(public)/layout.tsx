@@ -10,7 +10,7 @@ export default async function PublicLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
+    <div className="flex min-h-screen flex-col overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
       <Navbar />
       <main className="flex-grow">{children}</main>
       <Footer />
