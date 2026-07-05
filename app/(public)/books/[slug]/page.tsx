@@ -349,9 +349,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               {book.title}
             </h1>
             <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">{t("byAuthor", { author: book.author })}</p>
-            <div className="mt-3 sm:mt-4">
-              <RatingStars rating={avgRating || book.rating} />
-            </div>
+            {/* A rating row only exists once someone has actually rated the
+                book — "★★★★★ 0.0" is noise, not information. */}
+            {reviewCount > 0 && (
+              <div className="mt-3 sm:mt-4">
+                <RatingStars rating={avgRating} />
+              </div>
+            )}
 
             {book.dbId && (
               <Suspense fallback={null}>
@@ -364,20 +368,24 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                 id="book-summary-heading"
                 className="text-[12px] font-bold uppercase tracking-[0.12em] text-text-muted"
               >
-                What is this book about?
+                {t("aboutHeading")}
               </h2>
               <p className="mt-2 font-sans text-[15px] leading-7 text-text-body sm:text-[15.5px] sm:leading-8">
-                {book.summary || `${book.title} is a public resource in the PTEC Digital Library collection.`}
+                {book.summary || t("defaultSummary", { title: book.title })}
               </p>
             </section>
 
+            {/* Metadata facts — suppress unknown/implausible values instead of
+                rendering "N/A", "Pages: 1", or a future publication year. */}
             <dl className="mt-5 sm:mt-7 grid grid-cols-2 gap-2 sm:gap-3">
-              {[
-                [t("isbn"),             book.isbn],
-                [t("language"),         book.language],
-                [t("publicationYear"),  String(book.year)],
-                [t("pages"),            String(book.pages)],
-              ].map(([label, value]) => (
+              {([
+                [t("isbn"),            book.isbn && book.isbn !== "N/A" ? book.isbn : null],
+                [t("language"),        book.language || null],
+                [t("publicationYear"), book.year && book.year <= new Date().getFullYear() + 1 ? String(book.year) : null],
+                [t("pages"),           book.pages && book.pages > 1 ? String(book.pages) : null],
+              ] as [string, string | null][])
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
                 <div key={label} className="rounded-[13px] bg-paper border border-divider px-3 py-2.5 sm:px-4 sm:py-3.5 min-w-0">
                   <dt className="text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.06em] text-text-muted">{label}</dt>
                   <dd className="mt-0.5 sm:mt-1 text-[13px] sm:text-[15px] font-semibold text-text-heading break-words min-w-0">{value}</dd>
@@ -404,10 +412,13 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   {t("tags")}
                 </p>
                 <div className="flex flex-wrap gap-2">
+                  {/* Tags route to /search (which matches title/description) —
+                      /books has no tag filter, so linking there was a silent
+                      dead end that returned the full unfiltered list. */}
                   {book.tags.map((tag: string) => (
                     <Link
                       key={tag}
-                      href={`/books?tag=${encodeURIComponent(tag)}`}
+                      href={`/search?q=${encodeURIComponent(tag)}`}
                       className="text-[12.5px] font-medium text-text-muted bg-paper border border-divider rounded-[7px] px-3 py-1 hover:bg-brand hover:text-brand-contrast hover:border-brand transition-colors"
                     >
                       {tag}
@@ -421,6 +432,16 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
         {book.fromSupabase && book.pdfUrl && book.dbId && (
           <div id="reader" className="mt-8 sm:mt-12 mb-8 scroll-mt-24 w-full overflow-hidden">
+            {/* Long reading sessions get a dedicated, chrome-light route. */}
+            <div className="mb-2.5 flex justify-end">
+              <Link
+                href={`/books/${slug}/read`}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+              >
+                <Icon name="external-link" className="text-[14px]" />
+                {t("openFullReader")}
+              </Link>
+            </div>
             <Suspense
               fallback={
                 <div className="aspect-[3/4] w-full animate-pulse rounded-[20px] bg-paper sm:aspect-video" aria-hidden />
