@@ -40,6 +40,7 @@ export async function addCatalogBook(formData: FormData) {
 
   const description      = opt(formData, "description");
   const isbn             = opt(formData, "isbn");
+  const publisher        = opt(formData, "publisher");
   const cover_url        = opt(formData, "cover_url");
   const category         = opt(formData, "category");
   const department       = opt(formData, "department");
@@ -54,7 +55,7 @@ export async function addCatalogBook(formData: FormData) {
   const { data: book, error } = await supabase
     .from("catalog_books")
     .insert({
-      title, author, slug, language, description, isbn, cover_url, cover_color,
+      title, author, slug, language, description, isbn, publisher, cover_url, cover_color,
       category, department, shelf_location, accession_number, year,
       copies_total: 0, copies_available: 0,
       keywords: parseTags(formData, "keywords"),
@@ -87,6 +88,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
 
   const description      = opt(formData, "description");
   const isbn             = opt(formData, "isbn");
+  const publisher        = opt(formData, "publisher");
   const category         = opt(formData, "category");
   const department       = opt(formData, "department");
   const shelf_location   = opt(formData, "shelf_location");
@@ -102,7 +104,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData) {
   const { data: book, error } = await supabase
     .from("catalog_books")
     .update({
-      title, author, language, description, isbn, category, department,
+      title, author, language, description, isbn, publisher, category, department,
       shelf_location, accession_number, year, copies_total,
       keywords: parseTags(formData, "keywords"),
       ...coverUpdate,
@@ -219,6 +221,7 @@ export async function importCatalogCsv(formData: FormData) {
       author: mainRow.author,
       slug,
       isbn: mainRow.isbn || null,
+      publisher: mainRow.publisher || null,
       year: mainRow.year ? Number(mainRow.year) : null,
       language: mainRow.language || "km",
       category: mainRow.category || null,

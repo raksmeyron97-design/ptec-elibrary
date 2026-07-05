@@ -4,24 +4,25 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
+import {
+  RECENT_SEARCHES_KEY,
+  readRecentSearches,
+  pushRecentSearch as pushRecentSearchShared,
+  clearRecentSearches,
+} from "@/lib/recent-searches";
 
-export const RECENT_KEY = "ptec.recentSearches";
-const MAX_RECENT = 5;
+const HOME_CHIP_LIMIT = 5;
+
+/** @deprecated import from "@/lib/recent-searches" instead. Kept so existing imports keep working. */
+export const RECENT_KEY = RECENT_SEARCHES_KEY;
 
 type Props = {
   /** Curated/computed popular terms, passed from the server. */
   trending?: string[];
 };
 
-/** Read recent searches saved by the search page (see helper below). */
-export function readRecent(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    return raw ? (JSON.parse(raw) as string[]).slice(0, MAX_RECENT) : [];
-  } catch {
-    return [];
-  }
-}
+/** @deprecated import { readRecentSearches } from "@/lib/recent-searches" instead. */
+export const readRecent = readRecentSearches;
 
 export default function SearchSuggestions({ trending = [] }: Props) {
   const router = useRouter();
@@ -30,18 +31,16 @@ export default function SearchSuggestions({ trending = [] }: Props) {
   const [recent, setRecent] = useState<string[]>([]);
 
   useEffect(() => {
-    setRecent(readRecent());
+    setRecent(readRecentSearches().slice(0, HOME_CHIP_LIMIT));
   }, []);
 
   const go = (term: string) => {
-    pushRecentSearch(term);
+    pushRecentSearchShared(term);
     router.push(`/books?q=${encodeURIComponent(term)}`);
   };
 
   const clearRecent = () => {
-    try {
-      localStorage.removeItem(RECENT_KEY);
-    } catch {}
+    clearRecentSearches();
     setRecent([]);
   };
 
@@ -62,7 +61,11 @@ export default function SearchSuggestions({ trending = [] }: Props) {
               {term}
             </button>
           ))}
-          <button type="button">
+          <button
+            type="button"
+            onClick={clearRecent}
+            className="text-[11px] font-medium text-blue-300/70 transition-colors hover:text-blue-100"
+          >
             Clear
           </button>
         </div>
@@ -87,19 +90,5 @@ export default function SearchSuggestions({ trending = [] }: Props) {
   );
 }
 
-/**
- * Call this from your search results page whenever a query is run,
- * e.g. inside SearchBar's submit handler or the /books page effect:
- *
- *   import { pushRecentSearch } from "@/components/ui/SearchSuggestions";
- *   pushRecentSearch(query);
- */
-export function pushRecentSearch(term: string) {
-  const clean = term.trim();
-  if (!clean) return;
-  try {
-    const prev = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]") as string[];
-    const next = [clean, ...prev.filter((t) => t.toLowerCase() !== clean.toLowerCase())].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
-  } catch {}
-}
+/** @deprecated import { pushRecentSearch } from "@/lib/recent-searches" instead. */
+export const pushRecentSearch = pushRecentSearchShared;

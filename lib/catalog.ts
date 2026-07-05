@@ -10,6 +10,7 @@ export type CatalogBook = {
   description:      string | null;
   cover_url:        string | null;
   isbn:             string | null;
+  publisher:        string | null;
   year:             number | null;
   language:         string;
   category:         string | null;
@@ -105,6 +106,7 @@ export type CsvCatalogRow = {
   title:             string;
   author:            string;
   isbn?:             string;
+  publisher?:        string;
   year?:             string;
   language?:         string;
   category?:         string;

@@ -28,12 +28,14 @@ import { getTranslations } from "next-intl/server";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
+import { BookJsonLd } from "@/components/seo/ResourceJsonLd";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
 import BookNotes from "@/components/ui/books/BookNotes";
 import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import BookQuickNav from "@/components/ui/books/BookQuickNav";
+import { breadcrumbSchema } from "@/lib/seo/schema";
 
 // The public book shell (title, cover, description, metadata) is served from
 // unstable_cache (tag: "books") and renders immediately. User-specific data
@@ -41,18 +43,33 @@ import BookQuickNav from "@/components/ui/books/BookQuickNav";
 // Suspense-wrapped async components below and streams in after the shell —
 // nothing personal is ever baked into a shared cache.
 
-import { SITE_URL } from "@/lib/seo/site";
+import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+function truncateMetaDescription(value: string | null | undefined, fallback: string) {
+  const text = value?.replace(/\s+/g, " ").trim() || fallback;
+  return text.length > 157 ? `${text.slice(0, 157)}...` : text;
+}
+
+function authorNamesFromRelation(authors: any): string[] {
+  const authorRows = Array.isArray(authors) ? authors : [authors];
+  const cleanNames = authorRows.flatMap((author) => {
+    const name = String(author?.name ?? "").trim();
+    return name ? [name] : [];
+  });
+
+  return cleanNames.length > 0 ? cleanNames : ["Unknown Author"];
+}
 
 const getBookMeta = unstable_cache(
   async (slug: string) => {
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("books")
-      .select("title, description, cover_url, language, published_at, tags, authors(name)")
+      .select("title, description, cover_url, language, published_at, isbn, department, tags, authors(name), categories(name), departments(name)")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle();
@@ -86,30 +103,37 @@ export async function generateMetadata({
     return { title: "Book not found" };
   }
 
-  const desc = book.description
-    ? (book.description.length > 157 ? book.description.substring(0, 157) + "..." : book.description)
-    : "Read this book on PTEC Library.";
-
-  const authorName = Array.isArray(book.authors)
-    ? book.authors.map((a: any) => a.name).join(", ")
-    : (book.authors as any)?.name ?? "Unknown Author";
+  const desc = truncateMetaDescription(book.description, "Read this book on PTEC Digital Library.");
+  const authorNames = authorNamesFromRelation(book.authors);
 
   const canonicalUrl = `${SITE_URL}/books/${slug}`;
   const tags: string[] = Array.isArray(book.tags) ? book.tags : [];
+  const section =
+    (book.departments as any)?.name ||
+    book.department ||
+    (book.categories as any)?.name ||
+    "Books";
 
   return {
     title: book.title,
     description: desc,
     keywords: tags.length > 0 ? tags : undefined,
+    authors: authorNames.map((name) => ({ name })),
+    publisher: PTEC_NAME,
+    category: section,
     alternates: {
       canonical: canonicalUrl,
     },
     openGraph: {
       title: book.title,
       description: desc,
-      type: "book",
+      type: "article",
       url: canonicalUrl,
-      authors: [authorName],
+      siteName: PTEC_LIBRARY_NAME,
+      authors: authorNames,
+      publishedTime: book.published_at ?? undefined,
+      section,
+      tags: tags.length > 0 ? tags : undefined,
       images: book.cover_url
         ? [
             {
@@ -126,6 +150,14 @@ export async function generateMetadata({
       title: book.title,
       description: desc,
       images: book.cover_url ? [book.cover_url] : undefined,
+    },
+    other: {
+      "citation_title": book.title,
+      "citation_author": authorNames,
+      ...(book.published_at ? { "citation_publication_date": book.published_at } : {}),
+      "citation_publisher": PTEC_NAME,
+      "dc.publisher": PTEC_NAME,
+      "dc.type": "Book",
     },
   };
 }
@@ -203,9 +235,10 @@ const getCopies = unstable_cache(
 );
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
-  const t = await getTranslations("bookDetail");
-
-  const { slug } = await params;
+  const [{ slug }, t] = await Promise.all([
+    params,
+    getTranslations("bookDetail"),
+  ]);
   const book = await getBook(slug);
   if (!book) notFound();
 
@@ -223,87 +256,36 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
 
   const bookUrl = `${SITE_URL}/books/${slug}`;
-  const bookSchema = {
-    "@context": "https://schema.org",
-    "@type": "Book",
-    name: book.title,
-    author: book.author ? {
-      "@type": "Person",
-      name: book.author,
-    } : {
-      "@type": "Organization",
-      name: "Unknown Author",
-    },
-    inLanguage: book.language || "en",
-    description: book.summary || book.title,
-    image: book.coverUrl || `${SITE_URL}/og-default.png`,
-    url: bookUrl,
-    bookFormat: "https://schema.org/EBook",
-    isAccessibleForFree: true,
-    keywords: book.tags?.length ? book.tags.join(", ") : undefined,
-    publisher: {
-      "@type": "EducationalOrganization",
-      name: "Phnom Penh Teacher Education College",
-      url: SITE_URL,
-    },
-    datePublished: (book as any).publishedAt || undefined,
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      availability: "https://schema.org/OnlineOnly",
-    },
-    readAction: {
-      "@type": "ReadAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: bookUrl,
-      },
-    },
-    ...(avgRating > 0 ? {
-      aggregateRating: {
-        "@type": "AggregateRating",
-        ratingValue: avgRating.toFixed(1),
-        reviewCount,
-      }
-    } : {}),
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: `${SITE_URL}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Books",
-        item: `${SITE_URL}/books`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: book.department,
-        item: `${SITE_URL}/books?dept=${encodeURIComponent(book.department)}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 4,
-        name: book.title,
-        item: `${SITE_URL}/books/${slug}`,
-      },
-    ],
-  };
+  const bookBreadcrumbSchema = breadcrumbSchema([
+    { name: "Home", path: "/home" },
+    { name: "Books", path: "/books" },
+    { name: book.department, path: `/books?dept=${encodeURIComponent(book.department)}` },
+    { name: book.title },
+  ]);
 
   return (
-    <section className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
-      <JsonLd data={bookSchema} />
-      <JsonLd data={breadcrumbSchema} />
+    <article className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
+      <BookJsonLd
+        title={book.title}
+        url={bookUrl}
+        author={book.author}
+        description={book.summary}
+        image={book.coverUrl}
+        language={book.language}
+        isbn={book.isbn}
+        datePublished={book.uploadedAt}
+        keywords={book.tags}
+        pages={book.pages}
+        aggregateRating={
+          avgRating > 0
+            ? {
+                ratingValue: avgRating.toFixed(1),
+                reviewCount,
+              }
+            : null
+        }
+      />
+      <JsonLd data={bookBreadcrumbSchema} />
       <div className="mx-auto max-w-[1200px]">
         <BookQuickNav
           hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId}
@@ -377,7 +359,17 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
               </Suspense>
             )}
 
-            <p className="mt-4 sm:mt-6 font-sans text-[15px] sm:text-[15.5px] leading-7 sm:leading-8 text-text-body">{book.summary}</p>
+            <section aria-labelledby="book-summary-heading" className="mt-4 sm:mt-6">
+              <h2
+                id="book-summary-heading"
+                className="text-[12px] font-bold uppercase tracking-[0.12em] text-text-muted"
+              >
+                What is this book about?
+              </h2>
+              <p className="mt-2 font-sans text-[15px] leading-7 text-text-body sm:text-[15.5px] sm:leading-8">
+                {book.summary || `${book.title} is a public resource in the PTEC Digital Library collection.`}
+              </p>
+            </section>
 
             <dl className="mt-5 sm:mt-7 grid grid-cols-2 gap-2 sm:gap-3">
               {[
@@ -466,7 +458,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           />
         </Suspense>
       </div>
-    </section>
+    </article>
   );
 }
 

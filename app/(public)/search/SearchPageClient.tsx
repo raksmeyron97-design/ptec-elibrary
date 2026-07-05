@@ -4,12 +4,51 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
 import type { SearchResult, SearchCounts, SearchResultType } from "@/app/api/search/native/route";
+import type { Suggestion } from "@/app/api/books/suggestions/route";
+import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
+import SearchAdvancedModal from "@/components/ui/search/SearchAdvancedModal";
+import {
+  readRecentSearches,
+  pushRecentSearch,
+  removeRecentSearch,
+  clearRecentSearches,
+} from "@/lib/recent-searches";
 import "@/app/gcse.css";
 
-const RECENT_KEY = "ptec-recent-searches";
-const MAX_RECENT = 6;
+const SUGGESTION_TYPE_ICON: Record<Suggestion["type"], "library" | "account" | "bookmark" | "school"> = {
+  book: "library",
+  author: "account",
+  category: "bookmark",
+  research: "school",
+};
+
+const SUGGESTION_TYPE_LABEL_KEY: Record<Suggestion["type"], "suggestBooks" | "suggestAuthors" | "suggestCategories" | "suggestTheses"> = {
+  book: "suggestBooks",
+  author: "suggestAuthors",
+  category: "suggestCategories",
+  research: "suggestTheses",
+};
+
+function highlightMatch(text: string, query: string) {
+  if (!query) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark
+        className="rounded-sm not-italic"
+        style={{ background: "color-mix(in srgb, var(--ptec-brand) 24%, transparent)", color: "var(--ptec-text-heading)" }}
+      >
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
 
 const SUGGESTIONS = [
   "ភាសាខ្មែរ",
@@ -22,19 +61,20 @@ const SUGGESTIONS = [
 
 type ActiveType = "all" | SearchResultType;
 
-const TABS: { id: ActiveType; label: string }[] = [
-  { id: "all",      label: "All" },
-  { id: "book",     label: "Books" },
-  { id: "research", label: "Theses" },
-  { id: "catalog",  label: "Catalog" },
-  { id: "post",     label: "Posts" },
-];
+const TAB_IDS: ActiveType[] = ["all", "book", "research", "catalog", "post"];
+const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "tabCatalog" | "tabPosts"> = {
+  all:      "tabAll",
+  book:     "tabBooks",
+  research: "tabTheses",
+  catalog:  "tabCatalog",
+  post:     "tabPosts",
+};
 
-const TYPE_BADGE: Record<SearchResultType, { label: string; className: string }> = {
-  book:     { label: "E-Book",   className: "bg-blue-500/15 text-blue-500 border-blue-500/20" },
-  research: { label: "Thesis", className: "bg-green-600/15 text-green-600 border-green-600/20" },
-  catalog:  { label: "Physical", className: "bg-amber-500/15 text-amber-600 border-amber-500/20" },
-  post:     { label: "Post",     className: "bg-purple-500/15 text-purple-500 border-purple-500/20" },
+const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgeCatalog" | "badgePost"; className: string }> = {
+  book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-500 border-blue-500/20" },
+  research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-600 border-green-600/20" },
+  catalog:  { labelKey: "badgeCatalog", className: "bg-amber-500/15 text-amber-600 border-amber-500/20" },
+  post:     { labelKey: "badgePost",   className: "bg-purple-500/15 text-purple-500 border-purple-500/20" },
 };
 
 // ── Cover placeholder ──────────────────────────────────────────────────────────
@@ -59,6 +99,7 @@ function CoverPlaceholder({ title, type }: { title: string; type: SearchResultTy
 
 // ── Single result card ─────────────────────────────────────────────────────────
 function ResultCard({ result }: { result: SearchResult }) {
+  const t = useTranslations("search");
   const badge = TYPE_BADGE[result.type];
   return (
     <Link
@@ -98,7 +139,7 @@ function ResultCard({ result }: { result: SearchResult }) {
           <span
             className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
           >
-            {badge.label}
+            {t(badge.labelKey)}
           </span>
           {result.department && (
             <span className="text-[10px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
@@ -150,7 +191,7 @@ function ResultCard({ result }: { result: SearchResult }) {
             </span>
             {result.downloadCount != null && result.downloadCount > 0 && (
               <span className="text-[11px]" style={{ color: "var(--ptec-text-muted)" }}>
-                · {result.downloadCount} downloads
+                · {t("downloadsCount", { count: result.downloadCount })}
               </span>
             )}
           </div>
@@ -161,12 +202,12 @@ function ResultCard({ result }: { result: SearchResult }) {
 }
 
 // ── Section heading inside "all" view ─────────────────────────────────────────
-function SectionHeading({ label, count, type, onSeeAll }: {
+function SectionHeading({ label, count, onSeeAll }: {
   label: string;
   count: number;
-  type: SearchResultType;
   onSeeAll: () => void;
 }) {
+  const t = useTranslations("search");
   return (
     <div className="mb-2 flex items-center justify-between">
       <h3 className="text-[12px] font-bold uppercase tracking-[0.08em]" style={{ color: "var(--ptec-text-muted)" }}>
@@ -179,20 +220,41 @@ function SectionHeading({ label, count, type, onSeeAll }: {
           className="text-[11px] font-semibold hover:underline underline-offset-2 cursor-pointer"
           style={{ color: "var(--ptec-brand)" }}
         >
-          See all →
+          {t("seeAll")}
         </button>
       )}
     </div>
   );
 }
 
+type SearchPageClientProps = {
+  departments: string[];
+  languages: string[];
+  categories: string[];
+};
+
 // ── Main component ─────────────────────────────────────────────────────────────
-export default function SearchPageClient() {
+export default function SearchPageClient({ departments, languages, categories }: SearchPageClientProps) {
+  const t = useTranslations("search");
   const params = useSearchParams();
   const router = useRouter();
   const q = params.get("q") ?? "";
 
-  const [input, setInput] = useState(q);
+  const {
+    query: input,
+    setQuery: setInput,
+    suggestions,
+    loading: suggestLoading,
+    open: suggestOpen,
+    setOpen: setSuggestOpen,
+    activeIdx,
+    setActiveIdx,
+    grouped,
+    groupOrder,
+    navigate: navigateToQuery,
+    pickSuggestion,
+  } = useBookSuggestions({ initialQuery: q, basePath: "/search" });
+
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
@@ -202,23 +264,57 @@ export default function SearchPageClient() {
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [trending, setTrending] = useState<string[]>([]);
+  const [popularSearches, setPopularSearches] = useState<string[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fetchedTrending = useRef(false);
 
-  // Sync input with URL param
-  useEffect(() => { setInput(q); }, [q]);
+  // Sync input with URL param (e.g. back/forward navigation, recent-chip clicks)
+  useEffect(() => { setInput(q); }, [q, setInput]);
 
   // Reset to "all" tab when query changes
   useEffect(() => { setActiveType("all"); setPage(1); }, [q]);
 
   // Load recent searches (client-only)
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(RECENT_KEY);
-      if (raw) setRecentSearches(JSON.parse(raw));
-    } catch { /* private mode or quota */ }
+    setRecentSearches(readRecentSearches());
   }, []);
+
+  // Popular searches — the actual top queries by all visitors (falls back to
+  // a curated list below when the site has no search history yet)
+  useEffect(() => {
+    fetch("/api/search/popular")
+      .then((res) => res.json())
+      .then((data) => { if (Array.isArray(data) && data.length > 0) setPopularSearches(data); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch trending terms once, the first time the suggestions dropdown opens
+  useEffect(() => {
+    if (!suggestOpen || fetchedTrending.current) return;
+    fetchedTrending.current = true;
+    fetch("/api/departments/trending")
+      .then((res) => res.json())
+      .then((data) => { if (Array.isArray(data) && data.length > 0) setTrending(data); })
+      .catch(() => {});
+  }, [suggestOpen]);
+
+  // Close suggestions dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        !inputRef.current?.contains(e.target as Node) &&
+        !dropdownRef.current?.contains(e.target as Node)
+      ) {
+        setSuggestOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [setSuggestOpen]);
 
   // Keyboard "/" shortcut
   useEffect(() => {
@@ -233,9 +329,24 @@ export default function SearchPageClient() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Run search whenever q or activeType or page changes
+  // Facet + advanced-search filters — derived straight from the URL, same as `q`
+  const filterLang = params.get("lang") ?? "";
+  const filterCategory = params.get("category") ?? "";
+  const filterDept = params.get("dept") ?? "";
+  const filterAuthor = params.get("author") ?? "";
+  const filterIsbn = params.get("isbn") ?? "";
+  const filterPublisher = params.get("publisher") ?? "";
+  const activeFilterCount = [filterLang, filterCategory, filterDept, filterAuthor, filterIsbn, filterPublisher].filter(Boolean).length;
+
+  type Filters = { lang: string; category: string; dept: string; author: string; isbn: string; publisher: string };
+  const currentFilters: Filters = {
+    lang: filterLang, category: filterCategory, dept: filterDept,
+    author: filterAuthor, isbn: filterIsbn, publisher: filterPublisher,
+  };
+
+  // Run search whenever q, activeType, page, or a filter changes
   const runSearch = useCallback(
-    async (query: string, type: ActiveType, pg: number) => {
+    async (query: string, type: ActiveType, pg: number, filters: Filters) => {
       if (!query) { setResults(null); setCounts(null); setLoading(false); return; }
 
       abortRef.current?.abort();
@@ -249,6 +360,12 @@ export default function SearchPageClient() {
         url.searchParams.set("q", query);
         url.searchParams.set("type", type);
         url.searchParams.set("page", String(pg));
+        if (filters.lang) url.searchParams.set("lang", filters.lang);
+        if (filters.category) url.searchParams.set("category", filters.category);
+        if (filters.dept) url.searchParams.set("dept", filters.dept);
+        if (filters.author) url.searchParams.set("author", filters.author);
+        if (filters.isbn) url.searchParams.set("isbn", filters.isbn);
+        if (filters.publisher) url.searchParams.set("publisher", filters.publisher);
 
         const res = await fetch(url.toString(), { signal: abortRef.current.signal });
         if (!res.ok) throw new Error("Search failed");
@@ -260,31 +377,46 @@ export default function SearchPageClient() {
         setLoading(false);
 
         // Persist to recent searches
-        const t = query.trim();
-        if (t) {
-          setRecentSearches((prev) => {
-            const next = [t, ...prev.filter((s) => s.toLowerCase() !== t.toLowerCase())].slice(0, MAX_RECENT);
-            try { window.localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-            return next;
-          });
-        }
+        if (query.trim()) setRecentSearches(pushRecentSearch(query));
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
-        setError("Search failed. Please try again.");
+        setError(t("errorGeneric"));
         setLoading(false);
       }
     },
-    [],
+    [t],
   );
 
   useEffect(() => {
-    runSearch(q, activeType, page);
+    runSearch(q, activeType, page, currentFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, activeType, page]);
+  }, [q, activeType, page, filterLang, filterCategory, filterDept, filterAuthor, filterIsbn, filterPublisher]);
 
-  const saveRecent = (next: string[]) => {
-    setRecentSearches(next);
-    try { window.localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  const applyFilter = (key: "lang" | "category", value: string) => {
+    const next = new URLSearchParams(params.toString());
+    if (next.get(key) === value) next.delete(key); // clicking the active chip toggles it off
+    else next.set(key, value);
+    next.delete("page");
+    router.replace(`/search?${next.toString()}`);
+  };
+
+  const removeFilter = (key: "lang" | "category" | "dept" | "author" | "isbn" | "publisher") => {
+    const next = new URLSearchParams(params.toString());
+    next.delete(key);
+    next.delete("page");
+    router.replace(`/search?${next.toString()}`);
+  };
+
+  const clearFilters = () => {
+    const next = new URLSearchParams(params.toString());
+    next.delete("lang");
+    next.delete("category");
+    next.delete("dept");
+    next.delete("author");
+    next.delete("isbn");
+    next.delete("publisher");
+    next.delete("page");
+    router.replace(`/search?${next.toString()}`);
   };
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -292,9 +424,27 @@ export default function SearchPageClient() {
     const t = input.trim();
     if (!t) return;
     if (t !== q) {
-      router.push(`/search?q=${encodeURIComponent(t)}`);
+      navigateToQuery(t);
     } else {
-      runSearch(t, activeType, 1);
+      setSuggestOpen(false);
+      runSearch(t, activeType, 1, currentFilters);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!suggestOpen) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => Math.max(i - 1, -1));
+    } else if (e.key === "Enter" && activeIdx >= 0) {
+      e.preventDefault();
+      pickSuggestion(suggestions[activeIdx]);
+    } else if (e.key === "Escape") {
+      setSuggestOpen(false);
+      setActiveIdx(-1);
     }
   };
 
@@ -303,7 +453,7 @@ export default function SearchPageClient() {
     setPage(1);
   };
 
-  const clearInput = () => { setInput(""); inputRef.current?.focus(); };
+  const clearInput = () => { setInput(""); setSuggestOpen(true); inputRef.current?.focus(); };
 
   // Grouped results for "all" view
   const byType = (type: SearchResultType) => (results ?? []).filter((r) => r.type === type);
@@ -317,6 +467,14 @@ export default function SearchPageClient() {
 
   const hasResults = results !== null && results.length > 0;
   const noResults = results !== null && results.length === 0 && !loading;
+
+  // Facet chips computed from the current result set
+  const availableCategories = Array.from(
+    new Set((results ?? []).map((r) => r.category).filter((v): v is string => !!v)),
+  );
+  const availableLanguages = Array.from(
+    new Set((results ?? []).map((r) => r.language).filter((v): v is string => !!v)),
+  );
 
   return (
     <>
@@ -344,12 +502,19 @@ export default function SearchPageClient() {
             ref={inputRef}
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onFocus={() => setFocused(true)}
+            onChange={(e) => { setInput(e.target.value); setSuggestOpen(true); }}
+            onFocus={() => { setFocused(true); setSuggestOpen(true); }}
             onBlur={() => setFocused(false)}
-            placeholder="Search books, authors, theses…"
-            aria-label="Search the PTEC Library"
+            onKeyDown={handleInputKeyDown}
+            placeholder={t("placeholder")}
+            aria-label={t("ariaLabel")}
             autoFocus
+            autoComplete="off"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={suggestOpen}
+            aria-haspopup="listbox"
+            aria-controls="search-page-listbox"
             className="flex-1 min-w-0 h-full bg-transparent text-[15px] font-medium outline-none placeholder:font-normal"
             style={{ color: "var(--ptec-text-heading)" }}
           />
@@ -368,7 +533,7 @@ export default function SearchPageClient() {
             <button
               type="button"
               onClick={clearInput}
-              aria-label="Clear search input"
+              aria-label={t("clearInput")}
               className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full mx-1 cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
               style={{ color: "var(--ptec-text-muted)" }}
             >
@@ -379,19 +544,149 @@ export default function SearchPageClient() {
           <button
             type="submit"
             disabled={!input.trim()}
-            aria-label="Search"
+            aria-label={t("searchButton")}
             className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-3.5 sm:px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-offset-1"
             style={{ background: "var(--ptec-brand)", color: "#fff" }}
           >
             <Icon name="search" className="text-[12px]" />
-            <span className="hidden sm:inline">Search</span>
+            <span className="hidden sm:inline">{t("searchButton")}</span>
           </button>
         </div>
+
+        {/* ── Instant suggestions dropdown ──────────────────────────────── */}
+        {suggestOpen && (input.length >= 2 || recentSearches.length > 0 || trending.length > 0) && (
+          <div
+            ref={dropdownRef}
+            id="search-page-listbox"
+            role="listbox"
+            aria-label={t("ariaLabel")}
+            className="relative z-40 mt-2 overflow-hidden rounded-2xl"
+            style={{
+              background: "var(--ptec-bg-surface)",
+              border: "1px solid var(--ptec-border)",
+              boxShadow: "0 12px 32px rgba(11,21,48,0.12)",
+            }}
+          >
+            {input.length < 2 ? (
+              <div className="space-y-4 p-4">
+                {recentSearches.length > 0 && (
+                  <div>
+                    <h4 className="mb-2.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
+                      {t("suggestRecent")}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {recentSearches.map((term) => (
+                        <button
+                          key={term}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); navigateToQuery(term); }}
+                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm cursor-pointer transition-colors"
+                          style={{ border: "1px solid var(--ptec-border)", color: "var(--ptec-text-body)" }}
+                        >
+                          <Icon name="clock" className="text-[12px] opacity-60" />
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {trending.length > 0 && (
+                  <div>
+                    <h4 className="mb-2.5 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
+                      {t("suggestTrending")}
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {trending.map((term) => (
+                        <button
+                          key={term}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); navigateToQuery(term); }}
+                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium cursor-pointer transition-colors"
+                          style={{
+                            border: "1px solid color-mix(in srgb, var(--ptec-brand) 25%, transparent)",
+                            background: "color-mix(in srgb, var(--ptec-brand) 8%, transparent)",
+                            color: "var(--ptec-brand)",
+                          }}
+                        >
+                          <Icon name="star" className="text-[11px] opacity-80" />
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : suggestLoading && suggestions.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 px-4 py-8 text-sm" style={{ color: "var(--ptec-text-muted)" }}>
+                <Icon name="spinner" className="h-4 w-4 animate-spin" />
+                {t("suggestSearching")}
+              </div>
+            ) : suggestions.length === 0 ? (
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); navigateToQuery(input); }}
+                className="flex w-full items-center gap-2 px-4 py-4 text-left text-sm cursor-pointer"
+                style={{ color: "var(--ptec-text-body)" }}
+              >
+                <Icon name="search" className="text-[14px] opacity-60" />
+                {t("suggestSearchAllFor", { query: input })}
+              </button>
+            ) : (
+              groupOrder.map((type) => {
+                const items = grouped[type];
+                if (!items?.length) return null;
+                return (
+                  <div key={type}>
+                    <div
+                      className="flex items-center gap-2 px-4 py-2"
+                      style={{ borderBottom: "1px solid var(--ptec-border)", background: "var(--ptec-bg-body)" }}
+                    >
+                      <Icon name={SUGGESTION_TYPE_ICON[type]} className="text-[12px]" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
+                        {t(SUGGESTION_TYPE_LABEL_KEY[type])}
+                      </span>
+                    </div>
+                    {items.map((s, localIdx) => {
+                      const globalIdx = suggestions.indexOf(s);
+                      const isActive = globalIdx === activeIdx;
+                      return (
+                        <button
+                          key={`${type}-${localIdx}`}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          onMouseEnter={() => setActiveIdx(globalIdx)}
+                          onMouseDown={(e) => { e.preventDefault(); pickSuggestion(s); }}
+                          className="flex w-full min-h-[48px] items-center gap-3 px-4 py-2.5 text-left cursor-pointer transition-colors"
+                          style={{
+                            borderLeft: isActive ? "2px solid var(--ptec-brand)" : "2px solid transparent",
+                            background: isActive ? "color-mix(in srgb, var(--ptec-brand) 6%, transparent)" : "transparent",
+                          }}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium" style={{ color: "var(--ptec-text-heading)" }}>
+                              {highlightMatch(s.label, input)}
+                            </span>
+                            {(s.type === "book" || s.type === "research") && s.sub && (
+                              <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--ptec-text-muted)" }}>
+                                {s.sub}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
         {q && (
           <div className="flex items-center gap-2 mt-3 px-1">
             <span className="text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
-              {loading ? "Searching for" : "Results for"}
+              {loading ? t("searchingFor") : t("resultsFor")}
             </span>
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-semibold"
@@ -414,8 +709,58 @@ export default function SearchPageClient() {
         )}
       </form>
 
+      {/* SearchAdvancedModal renders its own <form> — must stay outside the search-bar form above (nested forms are invalid HTML) */}
+      <div className="flex flex-wrap items-center gap-2 mb-6 px-1">
+        <SearchAdvancedModal
+          currentQ={q}
+          currentAuthor={filterAuthor}
+          currentIsbn={filterIsbn}
+          currentPublisher={filterPublisher}
+          currentCategory={filterCategory}
+          currentLanguage={filterLang}
+          currentDepartment={filterDept}
+          categories={categories}
+          languages={languages}
+          departments={departments}
+        />
+        {([
+          ["author", filterAuthor, "Author"],
+          ["isbn", filterIsbn, "ISBN"],
+          ["publisher", filterPublisher, "Publisher"],
+          ["dept", filterDept, "Department"],
+        ] as const).map(([key, value, label]) =>
+          value ? (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1.5 rounded-full pl-3 pr-1.5 py-1 text-[12px] font-medium"
+              style={{ background: "var(--ptec-bg-body)", border: "1px solid var(--ptec-border)", color: "var(--ptec-text-body)" }}
+            >
+              {label}: {value}
+              <button
+                type="button"
+                onClick={() => removeFilter(key)}
+                aria-label={`Remove ${label} filter`}
+                className="flex items-center justify-center w-4 h-4 rounded-full cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
+              >
+                <Icon name="x" className="text-[9px]" />
+              </button>
+            </span>
+          ) : null,
+        )}
+        {activeFilterCount > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-[12px] font-semibold cursor-pointer hover:underline underline-offset-2"
+            style={{ color: "var(--ptec-text-muted)" }}
+          >
+            {t("clearFilters")}
+          </button>
+        )}
+      </div>
+
       <div className="sr-only" role="status" aria-live="polite">
-        {q ? (loading ? `Searching for ${q}` : `Showing results for ${q}`) : ""}
+        {q ? (loading ? `${t("searchingFor")} ${q}` : `${t("resultsFor")} ${q}`) : ""}
       </div>
 
       {/* ── Type filter tabs (only when there are results or loading) ──── */}
@@ -424,15 +769,15 @@ export default function SearchPageClient() {
           className="mb-6 flex items-center gap-1 overflow-x-auto pb-1"
           style={{ borderBottom: "1px solid var(--ptec-border)" }}
         >
-          {TABS.map((tab) => {
-            const isActive = tab.id === activeType;
-            const cnt = countFor(tab.id);
-            if (!loading && cnt === 0 && tab.id !== "all") return null;
+          {TAB_IDS.map((tabId) => {
+            const isActive = tabId === activeType;
+            const cnt = countFor(tabId);
+            if (!loading && cnt === 0 && tabId !== "all") return null;
             return (
               <button
-                key={tab.id}
+                key={tabId}
                 type="button"
-                onClick={() => handleTypeChange(tab.id)}
+                onClick={() => handleTypeChange(tabId)}
                 className="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2 text-[13px] font-semibold transition-all duration-150 cursor-pointer"
                 style={{
                   color: isActive ? "var(--ptec-brand)" : "var(--ptec-text-muted)",
@@ -440,7 +785,7 @@ export default function SearchPageClient() {
                   marginBottom: -1,
                 }}
               >
-                {tab.label}
+                {t(TAB_LABEL_KEY[tabId])}
                 {!loading && cnt > 0 && (
                   <span
                     className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
@@ -457,6 +802,61 @@ export default function SearchPageClient() {
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Facet filters (category / language) ─────────────────────────── */}
+      {!loading && hasResults && (availableCategories.length > 0 || availableLanguages.length > 0) && (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
+            {t("filter")}
+          </span>
+          {availableCategories.map((cat) => {
+            const active = filterCategory === cat;
+            return (
+              <button
+                key={`cat-${cat}`}
+                type="button"
+                onClick={() => applyFilter("category", cat)}
+                className="rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
+                style={{
+                  background: active ? "var(--ptec-brand)" : "var(--ptec-bg-body)",
+                  color: active ? "#fff" : "var(--ptec-text-body)",
+                  border: `1px solid ${active ? "var(--ptec-brand)" : "var(--ptec-border)"}`,
+                }}
+              >
+                {cat}
+              </button>
+            );
+          })}
+          {availableLanguages.map((lang) => {
+            const active = filterLang === lang;
+            return (
+              <button
+                key={`lang-${lang}`}
+                type="button"
+                onClick={() => applyFilter("lang", lang)}
+                className="rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
+                style={{
+                  background: active ? "var(--ptec-brand)" : "var(--ptec-bg-body)",
+                  color: active ? "#fff" : "var(--ptec-text-body)",
+                  border: `1px solid ${active ? "var(--ptec-brand)" : "var(--ptec-border)"}`,
+                }}
+              >
+                {lang}
+              </button>
+            );
+          })}
+          {(filterLang || filterCategory) && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-[12px] font-semibold cursor-pointer hover:underline underline-offset-2"
+              style={{ color: "var(--ptec-text-muted)" }}
+            >
+              {t("clearFilters")}
+            </button>
+          )}
         </div>
       )}
 
@@ -498,17 +898,17 @@ export default function SearchPageClient() {
           style={{ background: "var(--ptec-bg-surface)", border: "1px solid var(--ptec-border)" }}
         >
           <p className="text-[15px] font-semibold mb-1" style={{ color: "var(--ptec-text-heading)" }}>
-            No results for &ldquo;{q}&rdquo;
+            {t("noResultsTitle", { query: q })}
           </p>
           <p className="text-[13px]" style={{ color: "var(--ptec-text-muted)" }}>
-            Try different keywords, check your spelling, or browse by department.
+            {t("noResultsBody")}
           </p>
           <Link
             href="/books"
             className="mt-4 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
             style={{ background: "var(--ptec-brand)" }}
           >
-            Browse Library →
+            {t("browseLibrary")}
           </Link>
         </div>
       )}
@@ -523,18 +923,17 @@ export default function SearchPageClient() {
                 const group = byType(type);
                 if (group.length === 0) return null;
                 const totalForType = counts?.[type] ?? group.length;
-                const labels: Record<SearchResultType, string> = {
-                  book:     "E-Books",
-                  research: "Theses",
-                  catalog:  "Physical Books",
-                  post:     "Posts & News",
+                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupCatalog" | "groupPosts"> = {
+                  book:     "groupBooks",
+                  research: "groupTheses",
+                  catalog:  "groupCatalog",
+                  post:     "groupPosts",
                 };
                 return (
                   <div key={type}>
                     <SectionHeading
-                      label={labels[type]}
+                      label={t(groupLabelKey[type])}
                       count={totalForType}
-                      type={type}
                       onSeeAll={() => handleTypeChange(type)}
                     />
                     <div className="space-y-2.5">
@@ -568,7 +967,7 @@ export default function SearchPageClient() {
                   color: "var(--ptec-text-body)",
                 }}
               >
-                Load more
+                {t("loadMore")}
               </button>
             </div>
           )}
@@ -606,10 +1005,10 @@ export default function SearchPageClient() {
 
             <div className="max-w-xs">
               <p className="text-[17px] font-bold mb-2" style={{ color: "var(--ptec-text-heading)" }}>
-                Search the PTEC Library
+                {t("idleTitle")}
               </p>
               <p className="text-[13px] leading-relaxed" style={{ color: "var(--ptec-text-muted)" }}>
-                Books, theses, physical catalog, and news — all searchable in one place.
+                {t("idleBody")}
               </p>
             </div>
 
@@ -618,15 +1017,15 @@ export default function SearchPageClient() {
               <div className="flex flex-col items-center gap-3 w-full max-w-sm">
                 <div className="flex items-center justify-between w-full">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--ptec-text-muted)" }}>
-                    Recent searches
+                    {t("recentSearches")}
                   </p>
                   <button
                     type="button"
-                    onClick={() => saveRecent([])}
+                    onClick={() => { clearRecentSearches(); setRecentSearches([]); }}
                     className="text-[10px] font-semibold cursor-pointer hover:underline underline-offset-2"
                     style={{ color: "var(--ptec-text-muted)" }}
                   >
-                    Clear
+                    {t("clear")}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -645,8 +1044,8 @@ export default function SearchPageClient() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => saveRecent(recentSearches.filter((x) => x !== s))}
-                        aria-label={`Remove ${s}`}
+                        onClick={() => setRecentSearches(removeRecentSearch(s))}
+                        aria-label={t("removeRecent", { term: s })}
                         className="flex items-center justify-center w-4 h-4 rounded-full cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
                       >
                         <Icon name="x" className="text-[9px]" />
@@ -657,13 +1056,13 @@ export default function SearchPageClient() {
               </div>
             )}
 
-            {/* Suggestion chips */}
+            {/* Suggestion chips — popular searches when we have data, curated list otherwise */}
             <div className="flex flex-col items-center gap-3 w-full max-w-sm">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--ptec-text-muted)" }}>
-                Try searching for
+                {popularSearches.length > 0 ? t("suggestPopular") : t("trying")}
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {SUGGESTIONS.map((s) => (
+                {(popularSearches.length > 0 ? popularSearches : SUGGESTIONS).map((s) => (
                   <button
                     key={s}
                     type="button"

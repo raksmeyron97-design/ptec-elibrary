@@ -17,6 +17,7 @@ import AbstractSection from "@/components/ui/detail/AbstractSection";
 import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import JsonLd from "@/components/seo/JsonLd";
+import { ScholarlyArticleJsonLd } from "@/components/seo/ResourceJsonLd";
 import { createClient } from "@/lib/supabase/server";
 import {
   getKeywords,
@@ -24,7 +25,7 @@ import {
   getDoi,
   getDepartment,
 } from "@/lib/theses/report-fields";
-import { SITE_URL } from "@/lib/seo/site";
+import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { Pencil, FileX2 } from "lucide-react";
 
@@ -49,11 +50,13 @@ function formatCitationDate(dateStr: string | null | undefined, fallback: string
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const supabase = await createClient();
+  const [{ id }, supabase] = await Promise.all([
+    params,
+    createClient(),
+  ]);
   const { data: report } = await supabase
     .from('research_reports')
-    .select('id, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published')
+    .select('id, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, departments(name)')
     .eq('id', id)
     .eq('is_published', true)
     .single();
@@ -67,24 +70,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Split "Sok San, Chan Dara" → ['Sok San', 'Chan Dara']
   const authors: string[] = report.author_names
-    ? report.author_names.split(',').map((s: string) => s.trim()).filter(Boolean)
+    ? report.author_names.split(',').flatMap((s: string) => {
+        const name = s.trim();
+        return name ? [name] : [];
+      })
     : [];
+  const metadataAuthors = authors.length > 0 ? authors : ['Unknown Author'];
 
   const keywords: string[] = Array.isArray(report.keywords)
     ? report.keywords
     : typeof report.keywords === 'string' && report.keywords
-      ? report.keywords.split(',').map((s: string) => s.trim()).filter(Boolean)
+      ? report.keywords.split(',').flatMap((s: string) => {
+          const keyword = s.trim();
+          return keyword ? [keyword] : [];
+        })
       : [];
 
   const citationDate = formatCitationDate(report.published_at, report.created_at);
   const pdfUrl = `${SITE_URL}/api/theses/${id}/file.pdf`;
   const doi = report.doi as string | null | undefined;
+  const section = getDepartment(report) || report.program || 'Theses';
 
   // Build citation_ meta tags — Google Scholar requires these for indexing
   const citationOther: Record<string, string | string[]> = {
     citation_title: report.title,
     citation_publication_date: citationDate ?? String(new Date(report.created_at).getFullYear()),
-    citation_technical_report_institution: 'Phnom Penh Teacher Education College',
+    citation_technical_report_institution: PTEC_NAME,
     citation_pdf_url: pdfUrl,
   };
 
@@ -97,6 +108,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: report.title,
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
+    authors: metadataAuthors.map((name) => ({ name })),
+    publisher: PTEC_NAME,
+    category: section,
     alternates: {
       canonical: canonicalUrl,
     },
@@ -105,6 +119,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: 'article',
       url: canonicalUrl,
+      siteName: PTEC_LIBRARY_NAME,
+      authors: metadataAuthors,
+      publishedTime: report.published_at ?? report.created_at ?? undefined,
+      section,
+      tags: keywords.length > 0 ? keywords : undefined,
       images: report.cover_url ? [{ url: report.cover_url, alt: report.title }] : [],
     },
     twitter: {
@@ -113,7 +132,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       images: report.cover_url ? [report.cover_url] : undefined,
     },
-    other: citationOther,
+    other: {
+      ...citationOther,
+      'dc.publisher': PTEC_NAME,
+      'dc.type': 'ScholarlyArticle',
+    },
   };
 }
 
@@ -194,43 +217,13 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   });
 
   const reportAuthors = report.author_names
-    ? (report.author_names as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+    ? (report.author_names as string).split(',').flatMap((s: string) => {
+        const name = s.trim();
+        return name ? [name] : [];
+      })
     : [];
 
   const reportUrl = `${SITE_URL}/theses/${id}`;
-  const scholarlyArticleSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'ScholarlyArticle',
-    headline: report.title,
-    abstract: report.abstract || undefined,
-    author: reportAuthors.length > 0
-      ? reportAuthors.map((name: string) => ({ '@type': 'Person', name }))
-      : { '@type': 'Organization', name: 'Unknown Author' },
-    datePublished: report.published_at ?? report.created_at ?? undefined,
-    keywords: keywords.length > 0 ? keywords.join(', ') : undefined,
-    image: report.cover_url || `${SITE_URL}/og-default.png`,
-    url: reportUrl,
-    isAccessibleForFree: true,
-    publisher: {
-      '@type': 'EducationalOrganization',
-      name: 'Phnom Penh Teacher Education College',
-      url: SITE_URL,
-    },
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'USD',
-      availability: 'https://schema.org/OnlineOnly',
-    },
-    ...(doi ? {
-      identifier: {
-        '@type': 'PropertyValue',
-        propertyID: 'DOI',
-        value: doi,
-      },
-    } : {}),
-  };
-
   const thesisBreadcrumbSchema = breadcrumbSchema([
     { name: "Home", path: "/home" },
     { name: "Theses", path: "/theses" },
@@ -238,8 +231,20 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   ]);
 
   return (
-    <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <JsonLd data={scholarlyArticleSchema} />
+    <article className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
+      <ScholarlyArticleJsonLd
+        title={report.title}
+        url={reportUrl}
+        authors={reportAuthors}
+        abstract={report.abstract}
+        image={report.cover_url}
+        datePublished={report.published_at}
+        dateCreated={report.created_at}
+        keywords={keywords}
+        doi={doi}
+        department={department}
+        references={references}
+      />
       <JsonLd data={thesisBreadcrumbSchema} />
       <ThesisViewPing id={id} />
       <ReadingProgress />
@@ -294,6 +299,6 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           <AuthorCard currentId={id} authorNames={report.author_names} />
         )}
       </div>
-    </section>
+    </article>
   );
 }

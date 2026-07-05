@@ -18,7 +18,7 @@ export default async function EditBookPage({
     .from("books")
     .select(`
       id, title, slug, description, language, published_at,
-      department, isbn, pages, cover_url, tags,
+      department, isbn, publisher, pages, cover_url, tags,
       authors(name),
       categories(name),
       departments(name)
@@ -45,6 +45,7 @@ export default async function EditBookPage({
     department: ((book.departments as any)?.name as string) ?? (book.department as string) ?? "Research",
     language:   (book.language as string) ?? "English",
     isbn:       (book.isbn as string) ?? "",
+    publisher:  (book.publisher as string) ?? "",
     year:       book.published_at
                   ? new Date(book.published_at as string).getFullYear()
                   : new Date().getFullYear(),

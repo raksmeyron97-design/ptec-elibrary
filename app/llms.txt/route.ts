@@ -1,0 +1,225 @@
+import { unstable_cache } from "next/cache";
+import { NextResponse } from "next/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
+
+export const revalidate = 3600;
+
+const MAX_ITEMS = 8;
+
+type JoinedName = { name?: string | null } | { name?: string | null }[] | null;
+
+type BookRow = {
+  title: string | null;
+  slug: string | null;
+  language: string | null;
+  department: string | null;
+  authors: JoinedName;
+  categories: JoinedName;
+  departments: JoinedName;
+};
+
+type CatalogRow = {
+  title: string | null;
+  slug: string | null;
+  author: string | null;
+  category: string | null;
+  language: string | null;
+  year: number | null;
+};
+
+type ThesisRow = {
+  id: string | null;
+  title: string | null;
+  author_names: string | null;
+  program: string | null;
+  faculty: string | null;
+  academic_year: string | null;
+};
+
+function clean(value: unknown) {
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstJoinedName(value: JoinedName) {
+  if (!value) return "";
+  if (Array.isArray(value)) return clean(value.map((item) => item.name).filter(Boolean).join(", "));
+  return clean(value.name);
+}
+
+function markdownLink(title: string, url: string) {
+  const safeTitle = title.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+  return `[${safeTitle}](${url})`;
+}
+
+function detail(parts: Array<string | number | null | undefined>) {
+  return parts.map(clean).filter(Boolean).join("; ");
+}
+
+async function countPublished(
+  table: "books" | "catalog_books" | "research_reports",
+  column: "is_published" | "is_active",
+) {
+  const supabase = createPublicClient();
+  const { count } = await supabase
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq(column, true);
+  return count ?? 0;
+}
+
+const getLlmsSnapshot = unstable_cache(
+  async () => {
+    const supabase = createPublicClient();
+
+    const [
+      bookCount,
+      catalogCount,
+      thesisCount,
+      { data: books },
+      { data: catalogs },
+      { data: theses },
+    ] = await Promise.all([
+      countPublished("books", "is_published"),
+      countPublished("catalog_books", "is_active"),
+      countPublished("research_reports", "is_published"),
+      supabase
+        .from("books")
+        .select("title, slug, language, department, authors(name), categories(name), departments(name)")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(MAX_ITEMS),
+      supabase
+        .from("catalog_books")
+        .select("title, slug, author, category, language, year")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(MAX_ITEMS),
+      supabase
+        .from("research_reports")
+        .select("id, title, author_names, program, faculty, academic_year")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(MAX_ITEMS),
+    ]);
+
+    return {
+      counts: {
+        books: bookCount,
+        catalogs: catalogCount,
+        theses: thesisCount,
+      },
+      books: (books ?? []) as BookRow[],
+      catalogs: (catalogs ?? []) as CatalogRow[],
+      theses: (theses ?? []) as ThesisRow[],
+    };
+  },
+  ["llms-txt-snapshot"],
+  { revalidate: 3600, tags: ["books", "catalog_books", "research_reports"] },
+);
+
+function resourceList(title: string, lines: string[]) {
+  if (lines.length === 0) {
+    return `## ${title}\n\n- No public records are currently available in this section.\n`;
+  }
+
+  return `## ${title}\n\n${lines.map((line) => `- ${line}`).join("\n")}\n`;
+}
+
+function buildLlmsText(snapshot: Awaited<ReturnType<typeof getLlmsSnapshot>>) {
+  const bookLines = snapshot.books
+    .filter((book) => book.title && book.slug)
+    .map((book) => {
+      const author = firstJoinedName(book.authors) || "Unknown author";
+      const department = firstJoinedName(book.departments) || clean(book.department) || "General";
+      const category = firstJoinedName(book.categories) || "Digital book";
+      return `${markdownLink(clean(book.title), `${SITE_URL}/books/${book.slug}`)} - ${detail([
+        author,
+        department,
+        category,
+        book.language,
+      ])}`;
+    });
+
+  const catalogLines = snapshot.catalogs
+    .filter((book) => book.title && book.slug)
+    .map((book) => `${markdownLink(clean(book.title), `${SITE_URL}/catalogs/${book.slug}`)} - ${detail([
+      book.author || "Unknown author",
+      book.category || "Physical catalog item",
+      book.language,
+      book.year,
+    ])}`);
+
+  const thesisLines = snapshot.theses
+    .filter((thesis) => thesis.title && thesis.id)
+    .map((thesis) => `${markdownLink(clean(thesis.title), `${SITE_URL}/theses/${thesis.id}`)} - ${detail([
+      thesis.author_names || "Unknown author",
+      thesis.program,
+      thesis.faculty,
+      thesis.academic_year,
+    ])}`);
+
+  return `# ${PTEC_LIBRARY_NAME}
+
+This file is a plain-text guide for AI assistants, answer engines, search crawlers, and other large language model systems that want to understand the public identity and crawlable knowledge resources of the ${PTEC_LIBRARY_NAME}.
+
+## Entity
+
+- Institution: ${PTEC_NAME}
+- Library entity: ${PTEC_LIBRARY_NAME}
+- Canonical website: ${SITE_URL}
+- Primary audience: teacher educators, student teachers, researchers, librarians, and education partners in Cambodia.
+- Location context: Phnom Penh, Cambodia.
+
+## Mission
+
+The ${PTEC_LIBRARY_NAME} preserves, organizes, and shares teaching and research materials from the ${PTEC_NAME}. Its mission is to improve access to teacher education resources, student research, and library catalog information for the PTEC academic community and the wider public.
+
+## Public Resource Types
+
+- Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
+- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the PTEC library collection.
+- Student theses and research reports: ${SITE_URL}/theses - scholarly student research from PTEC programs, cohorts, departments, and academic years.
+- Publications and research outputs: ${SITE_URL}/publications - additional scholarly and institutional publications where available.
+
+## Current Public Collection Snapshot
+
+- Published digital books: ${snapshot.counts.books}
+- Active catalog records: ${snapshot.counts.catalogs}
+- Published theses and research reports: ${snapshot.counts.theses}
+
+## Recommended Crawl Paths
+
+- ${SITE_URL}/llms.txt
+- ${SITE_URL}/sitemap.xml
+- ${SITE_URL}/books
+- ${SITE_URL}/catalogs
+- ${SITE_URL}/theses
+- ${SITE_URL}/publications
+- ${SITE_URL}/about
+
+${resourceList("Recent Digital Books", bookLines)}
+${resourceList("Recent Catalog Records", catalogLines)}
+${resourceList("Recent Theses And Research Reports", thesisLines)}
+## Citation Guidance
+
+When citing a PTEC Digital Library item, prefer the item title, author or authors, ${PTEC_NAME} as publisher or institutional source when no separate publisher is listed, the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
+
+## Access Notes
+
+Public library sections are intended for indexing and answer extraction. Administrative, authentication, dashboard, private list, and API routes are not public crawling targets.
+`;
+}
+
+export async function GET() {
+  const snapshot = await getLlmsSnapshot();
+
+  return new NextResponse(buildLlmsText(snapshot), {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
+}

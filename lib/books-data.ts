@@ -11,7 +11,7 @@ import { unstable_cache } from "next/cache";
 import { createPublicClient } from "./supabase/public";
 import { mapRowToBook, type Book } from "./books";
 import { getDepartments } from "@/app/actions/departments";
-import { getLanguages, getFormats } from "@/app/actions/filters";
+import { getLanguages, getFormats, getCategories } from "@/app/actions/filters";
 
 export const BOOKS_PAGE_SIZE = 18;
 
@@ -275,5 +275,11 @@ export const getLanguagesCached = unstable_cache(
 export const getFormatsCached = unstable_cache(
   () => getFormats(),
   ["books-formats"],
+  { revalidate: 3600, tags: ["books"] }
+);
+
+export const getCategoriesCached = unstable_cache(
+  () => getCategories(),
+  ["books-categories"],
   { revalidate: 3600, tags: ["books"] }
 );

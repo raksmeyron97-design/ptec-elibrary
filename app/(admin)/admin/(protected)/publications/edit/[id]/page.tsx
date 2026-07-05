@@ -8,7 +8,10 @@ export default async function EditPublicationPage({ params }: { params: Promise<
   const { id } = await params;
   const { data: publication, error } = await getPublicationForAdmin(id);
 
-  if (error || !publication) {
+  if (error) {
+    return <div>Error loading publication: {error}</div>;
+  }
+  if (!publication) {
     notFound();
   }
 

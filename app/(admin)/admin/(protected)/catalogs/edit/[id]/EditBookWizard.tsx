@@ -181,6 +181,11 @@ export default function EditBookWizard({
           </div>
 
           <div>
+            <label className={labelCls}>Publisher</label>
+            <input name="publisher" defaultValue={book.publisher ?? ""} className={inputCls} />
+          </div>
+
+          <div>
             <label className={labelCls}>Year</label>
             <input name="year" type="number" min={1900} max={2100} defaultValue={book.year ?? ""} className={inputCls} />
           </div>

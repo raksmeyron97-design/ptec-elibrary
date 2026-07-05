@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import SearchPageClient from "./SearchPageClient";
+import { getDepartmentsCached, getLanguagesCached, getCategoriesCached } from "@/lib/books-data";
 
 export const metadata: Metadata = {
   title: "Search",
@@ -10,7 +11,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function SearchPage() {
+export default async function SearchPage() {
+  const [departments, languages, categories] = await Promise.all([
+    getDepartmentsCached(),
+    getLanguagesCached(),
+    getCategoriesCached(),
+  ]);
+
   return (
     <div className="min-h-[calc(100vh-4rem)]" style={{ background: "var(--ptec-bg-app)" }}>
       <div className="mx-auto max-w-3xl px-4 pt-14 pb-24">
@@ -29,7 +36,7 @@ export default function SearchPage() {
         </div>
 
         <Suspense fallback={null}>
-          <SearchPageClient />
+          <SearchPageClient departments={departments} languages={languages} categories={categories} />
         </Suspense>
 
       </div>

@@ -1,14 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
-import { pushRecentSearch } from "@/components/ui/home/SearchSuggestions";
+import { pushRecentSearch } from "@/lib/recent-searches";
 
 type UseBookSuggestionsProps = {
   initialQuery?: string;
   onClose?: () => void; // For Command Palette to close itself
+  /** Where a free-text query (not a specific suggestion pick) navigates to. Defaults to /books. */
+  basePath?: string;
 };
 
-export function useBookSuggestions({ initialQuery = "", onClose }: UseBookSuggestionsProps = {}) {
+export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/books" }: UseBookSuggestionsProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -54,7 +56,7 @@ export function useBookSuggestions({ initialQuery = "", onClose }: UseBookSugges
     params.delete("page");
     setOpen(false);
     if (onClose) onClose();
-    router.push(`/books?${params.toString()}`);
+    router.push(`${basePath}?${params.toString()}`);
   }
 
   function pickSuggestion(s: Suggestion) {

@@ -168,6 +168,11 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           </div>
 
           <div>
+            <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Publisher</label>
+            <input name="publisher" className={inputCls} placeholder="Optional" />
+          </div>
+
+          <div>
             <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Year</label>
             <input name="year" type="number" min={1900} max={2100} className={inputCls} placeholder={String(new Date().getFullYear())} />
           </div>

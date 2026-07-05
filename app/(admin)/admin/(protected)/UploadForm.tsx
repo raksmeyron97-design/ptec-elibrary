@@ -239,6 +239,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
         language:   (formData.get("language")   as string) ?? "",
         summary:    (formData.get("summary")    as string) ?? "",
         isbn:       (formData.get("isbn")       as string) ?? "",
+        publisher:  (formData.get("publisher")  as string) ?? "",
         year:       (formData.get("year")       as string) ?? "",
         pages:      (formData.get("pages")      as string) ?? "",
         fileUrl:    pdfPublicUrl,
@@ -496,6 +497,17 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
               <FieldLabel>ISBN</FieldLabel>
               <input
                 name="isbn"
+                placeholder="Optional"
+                disabled={busy}
+                className={INPUT_CLASS}
+              />
+            </label>
+
+            {/* Publisher */}
+            <label>
+              <FieldLabel>Publisher</FieldLabel>
+              <input
+                name="publisher"
                 placeholder="Optional"
                 disabled={busy}
                 className={INPUT_CLASS}

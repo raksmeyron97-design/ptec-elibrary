@@ -10,6 +10,7 @@ export type Book = {
   title: string;
   author: string;
   isbn: string;
+  publisher?: string | null;
   department: string;
   category: string;
   language: string;

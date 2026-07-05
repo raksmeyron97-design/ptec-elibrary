@@ -50,6 +50,7 @@ export interface BookInput {
   fileUrl: string;
   summary?: string;
   isbn?: string;
+  publisher?: string;
   year?: string | number;
   pages?: string | number;
   fileSizeKb?: string | number;
@@ -79,6 +80,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   if (!fileUrl)    throw new Error("fileUrl is required");
 
   const isbn       = input.isbn?.trim() || null;
+  const publisher  = input.publisher?.trim() || null;
   const year       = Number(input.year)  || new Date().getFullYear();
   const pages      = Number(input.pages) || 1;
   const fileSizeKb = Number(input.fileSizeKb) || 0;
@@ -199,6 +201,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       is_published: true,
       department,
       isbn,
+      publisher,
       pages,
       cover_color:  coverColor,
       cover_url:    coverUrl,
@@ -295,7 +298,8 @@ export async function updateBook(bookId: string, formData: FormData) {
   const language   = requiredText(formData, "language");
   const summary    = formData.get("summary")?.toString().trim() || "";
 
-  const isbn  = formData.get("isbn")?.toString().trim() || null;
+  const isbn      = formData.get("isbn")?.toString().trim() || null;
+  const publisher = formData.get("publisher")?.toString().trim() || null;
   const year  = Number(formData.get("year"))  || new Date().getFullYear();
   const pages = Number(formData.get("pages")) || 1;
 
@@ -395,6 +399,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       published_at: `${year}-01-01`,
       department, // keep text column for now during transition
       isbn,
+      publisher,
       pages,
       tags: parseTags(formData, "tags"),
       ...coverUpdate, // only included if cover changed/removed

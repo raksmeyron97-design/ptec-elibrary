@@ -22,6 +22,27 @@ export async function getLanguages(): Promise<string[]> {
   return [...seen].sort((a, b) => a.localeCompare(b));
 }
 
+export async function getCategories(): Promise<string[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("books")
+    .select("categories!inner(name)")
+    .eq("is_published", true);
+
+  if (error || !data) {
+    console.error("[getCategories]", error?.message);
+    return [];
+  }
+
+  const seen = new Set<string>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of data as any[]) {
+    const name = row.categories?.name;
+    if (name) seen.add(name);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b));
+}
+
 export async function getFormats(): Promise<string[]> {
   const supabase = createServiceClient();
   const { data, error } = await supabase

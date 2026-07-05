@@ -23,6 +23,7 @@ type Initial = {
   department: string;
   language: string;
   isbn: string;
+  publisher: string;
   year: number;
   pages: number;
   summary: string;
@@ -361,6 +362,18 @@ export default function EditForm({
               <input
                 name="isbn"
                 defaultValue={initial.isbn}
+                placeholder="Optional"
+                disabled={saving}
+                className={INPUT_CLASS}
+              />
+            </label>
+
+            {/* Publisher */}
+            <label>
+              <FieldLabel>Publisher</FieldLabel>
+              <input
+                name="publisher"
+                defaultValue={initial.publisher}
                 placeholder="Optional"
                 disabled={saving}
                 className={INPUT_CLASS}

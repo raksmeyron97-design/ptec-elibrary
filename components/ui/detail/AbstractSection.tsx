@@ -25,10 +25,9 @@ export default function AbstractSection({
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
 
   return (
-    <div className="max-w-[70ch]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">{heading}</h2>
-        {words > 0 && (
+    <article className="max-w-[70ch]">
+      {words > 0 && (
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-[12px] text-text-muted">
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
@@ -39,36 +38,42 @@ export default function AbstractSection({
               {words.toLocaleString()} words
             </span>
           </div>
-        )}
-      </div>
-
-      {coverUrl && (
-        <div className="relative float-none mb-5 w-full overflow-hidden rounded-xl border border-divider sm:float-left sm:mb-4 sm:mr-6 sm:w-[240px]">
-          <Image
-            src={coverUrl}
-            alt={coverAlt ?? "Graphical abstract"}
-            width={480}
-            height={360}
-            className="h-auto w-full object-cover"
-          />
-        </div>
+        </header>
       )}
 
-      <p className="font-sans text-[16px] leading-[1.8] text-text-body sm:text-[17px]">
-        {abstract || "No abstract provided."}
-      </p>
-
-      {abstractSecondary && (
-        <p className="mt-4 clear-both font-khmer-serif text-[16px] leading-[1.8] text-text-body sm:text-[17px]">
-          {abstractSecondary}
+      <section aria-labelledby="abstract-heading">
+        <h2 id="abstract-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+          {heading}
+        </h2>
+        <p className="mt-3 font-sans text-[16px] leading-[1.8] text-text-body sm:text-[17px]">
+          {abstract || "No abstract provided."}
         </p>
-      )}
+
+        {abstractSecondary && (
+          <p className="mt-4 font-khmer-serif text-[16px] leading-[1.8] text-text-body sm:text-[17px]">
+            {abstractSecondary}
+          </p>
+        )}
+
+        {coverUrl && (
+          <figure className="mt-5 overflow-hidden rounded-xl border border-divider">
+            <Image
+              src={coverUrl}
+              alt={coverAlt ?? "Graphical abstract"}
+              width={480}
+              height={360}
+              className="h-auto w-full object-cover"
+            />
+          </figure>
+        )}
+      </section>
 
       {keywords.length > 0 && (
-        <div className="mt-7 clear-both border-t border-divider pt-5">
+        <section aria-labelledby="abstract-keywords-heading" className="mt-7 border-t border-divider pt-5">
+          <h3 id="abstract-keywords-heading" className="sr-only">Keywords</h3>
           <KeywordList keywords={keywords} basePath={basePath} />
-        </div>
+        </section>
       )}
-    </div>
+    </article>
   );
 }
