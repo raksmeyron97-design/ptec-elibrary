@@ -13,6 +13,7 @@ import SaveButton from "@/components/ui/pwa/SaveButton";
 import OfflineSaveButton from "@/components/ui/pwa/OfflineSaveButton";
 import DownloadCount from "@/components/ui/pwa/DownloadCount";
 import { Badge } from "@/components/ui/core/Badge";
+import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
@@ -174,7 +175,7 @@ const getBook = unstable_cache(
         id, title, slug, description,
         cover_color, cover_url,
         language, department, pages, published_at, isbn, rating, tags,
-        download_count,
+        download_count, license, verified_at,
         authors ( name, bio ),
         categories ( name ),
         departments ( name )
@@ -343,6 +344,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
                   <HeroSubscribeBadge department={book.department} />
                 </Suspense>
               )}
+              <VerifiedBadge verifiedAt={book.verifiedAt} />
+              <LicenseBadge license={book.license} />
             </div>
 
             <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading break-words">

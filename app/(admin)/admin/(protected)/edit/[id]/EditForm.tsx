@@ -9,6 +9,7 @@ import {
   bookFolder,
   bookCoverPath,
   bookFolderFromCoverUrl,
+  LICENSE_OPTIONS,
 } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
@@ -29,6 +30,7 @@ type Initial = {
   summary: string;
   coverUrl: string | null;
   tags: string[];
+  license?: string;
 };
 
 type Phase = "idle" | "uploading-cover" | "saving";
@@ -378,6 +380,16 @@ export default function EditForm({
                 disabled={saving}
                 className={INPUT_CLASS}
               />
+            </label>
+
+            {/* License */}
+            <label>
+              <FieldLabel>License</FieldLabel>
+              <select name="license" disabled={saving} defaultValue={initial.license ?? ""} className={SELECT_CLASS}>
+                {LICENSE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
             </label>
 
             {/* Category */}

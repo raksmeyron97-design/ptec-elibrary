@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { validateMimeType } from "@/lib/mime-validation";
+import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
@@ -55,6 +56,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Duplicate check (PDFs only; bulk import always creates new records) ──
+    let contentHash: string | null = null;
+    if (contentType === "application/pdf") {
+      contentHash = sha256Hex(body);
+      const duplicate = await findDuplicatePdf(contentHash);
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            error: `This PDF is already in the library as "${duplicate.title}" (${duplicate.url}). Row skipped.`,
+            duplicate,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     // ── Optimize image before upload ──
     const lastSlash = key.lastIndexOf("/");
     const subfolder = lastSlash > 0 ? key.slice(0, lastSlash) : key;
@@ -68,7 +85,7 @@ export async function POST(request: NextRequest) {
     });
     const url = await zimaUpload(file, subfolder, optimized.filename);
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, contentHash });
   } catch (err) {
     if (isAdminAuthError(err)) {
       return NextResponse.json({ error: err.message }, { status: err.status });

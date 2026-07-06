@@ -25,6 +25,7 @@ import {
   ChevronDown,
   Settings,
   BookPlus,
+  ClipboardCheck,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
@@ -56,6 +57,7 @@ function getNavGroups(
   // Content — driven entirely by the DB permission matrix
   const contentLinks: NavLink[] = [];
   if (perm(p, "books",         "write")) contentLinks.push({ name: "Upload Book",      href: "/admin/upload",           icon: Upload        });
+  if (perm(p, "books",         "write")) contentLinks.push({ name: "Review Queue",     href: "/admin/review",           icon: ClipboardCheck });
   if (perm(p, "books",         "read"))  contentLinks.push({ name: "Manage Books",     href: "/admin/manage",           icon: BookOpen      });
   if (perm(p, "catalog",       "read"))  contentLinks.push({ name: "Catalog",          href: "/admin/catalogs",         icon: Library       });
   if (perm(p, "posts",         "read"))  contentLinks.push({ name: "Posts",            href: "/admin/posts",            icon: FileText      });

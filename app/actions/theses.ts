@@ -32,6 +32,8 @@ export interface ThesisData {
   cover_url?: string | null;
   file_url?: string | null;
   file_size_kb?: number | null;
+  content_hash?: string | null;
+  license?: string | null;
   is_published?: boolean;
   keywords?: string[];
   doi?: string | null;

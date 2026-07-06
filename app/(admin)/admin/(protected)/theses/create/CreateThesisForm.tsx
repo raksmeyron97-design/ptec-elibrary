@@ -19,6 +19,7 @@ import ReferencesInput from "../_components/ReferencesInput";
 import PdfDropzone from "../_components/PdfDropzone";
 import CoverDropzone from "../_components/CoverDropzone";
 import { INPUT_CLASS, LABEL_CLASS } from "../_components/form-styles";
+import { LICENSE_OPTIONS } from "@/lib/book-utils";
 import { getSubjectsForFaculty } from "@/lib/theses/programs";
 import TagInput from "@/components/ui/core/TagInput";
 import { slugify, makeUid } from "@/lib/book-utils";
@@ -118,7 +119,7 @@ export default function CreateThesisForm() {
         const data = await pdfRes.json().catch(() => ({}));
         throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
       }
-      const { url: finalPdfUrl } = await pdfRes.json();
+      const { url: finalPdfUrl, contentHash } = await pdfRes.json();
 
       // Upload Cover via server-side proxy
       const coverPath = `reports/${titleSlug}-${uid}/cover.${coverExt}`;
@@ -135,6 +136,7 @@ export default function CreateThesisForm() {
 
       const keywords = (formData.get("keywords") as string ?? "")
         .split(",").map(k => k.trim()).filter(Boolean).slice(0, 20);
+      const license = (formData.get("license") as string)?.trim() || null;
 
       const dbData = {
         title: formData.get("title") as string,
@@ -148,12 +150,15 @@ export default function CreateThesisForm() {
         advisor_name: formData.get("advisor_name") as string,
         cover_url: finalCoverUrl,
         file_url: finalPdfUrl,
+        content_hash: contentHash ?? null,
         file_size_kb: Math.round(pdfFile.size / 1024),
         is_published: false,
         keywords,
         doi: (formData.get("doi") as string)?.trim() || null,
         references: (formData.get("references") as string) || null,
         published_at: (formData.get("published_at") as string) || null,
+        // Only sent when set — keeps this insert working pre-migration 0062.
+        ...(license ? { license } : {}),
       };
 
       const result = await createThesis(dbData);
@@ -277,6 +282,15 @@ export default function CreateThesisForm() {
                       name="published_at"
                       className={INPUT_CLASS}
                     />
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLASS}>License</label>
+                    <select name="license" defaultValue="" className={INPUT_CLASS}>
+                      {LICENSE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

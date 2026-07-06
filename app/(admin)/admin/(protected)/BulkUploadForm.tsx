@@ -124,7 +124,7 @@ async function uploadBook(
       const { error } = await pdfRes.json().catch(() => ({ error: pdfRes.statusText }));
       throw new Error(`PDF upload failed: ${error}`);
     }
-    const { url: pdfPublicUrl } = await pdfRes.json();
+    const { url: pdfPublicUrl, contentHash } = await pdfRes.json();
 
     // 2. Upload cover (optional, non-fatal)
     let coverUrl: string | null = null;
@@ -164,6 +164,7 @@ async function uploadBook(
       fileUrl:    pdfPublicUrl,
       fileSizeKb: String(Math.round(pdfFile.size / 1024)),
       coverUrl:   coverUrl ?? "",
+      contentHash: contentHash ?? "",
     });
     if (result && "error" in result) throw new Error(result.error);
 

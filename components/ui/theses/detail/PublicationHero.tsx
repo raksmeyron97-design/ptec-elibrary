@@ -3,6 +3,7 @@ import Image from "next/image";
 import { GraduationCap, Layers } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import { getDoi } from "@/lib/theses/report-fields";
+import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 
 function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -94,6 +95,8 @@ export default function PublicationHero({
             {report.academic_year && (
               <MetaChip icon={<GraduationCap className="h-3.5 w-3.5" />}>{report.academic_year}</MetaChip>
             )}
+            <VerifiedBadge verifiedAt={report.verified_at} />
+            <LicenseBadge license={report.license} />
           </div>
 
           {/* Actions */}

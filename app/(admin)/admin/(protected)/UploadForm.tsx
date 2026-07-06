@@ -12,6 +12,7 @@ import {
   bookFolder,
   bookPdfPath,
   bookCoverPath,
+  LICENSE_OPTIONS,
 } from "@/lib/book-utils";
 import Icon from "@/components/ui/core/Icon";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -124,6 +125,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
 
   const [phase, setPhase]               = useState<Phase>("idle");
   const [error, setError]               = useState<string | null>(null);
+  const [publishMode, setPublishMode]   = useState<"published" | "pending_review">("published");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [pdfName, setPdfName]           = useState<string | null>(null);
   const [deptList, setDeptList]         = useState<string[]>(defaultDepartments);
@@ -205,7 +207,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
         const data = await pdfRes.json().catch(() => ({}));
         throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
       }
-      const { url: pdfPublicUrl } = await pdfRes.json();
+      const { url: pdfPublicUrl, contentHash } = await pdfRes.json();
 
       let coverUrl: string | null = null;
       if (hasCover) {
@@ -246,9 +248,15 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
         fileSizeKb: String(Math.round(pdf.size / 1024)),
         coverUrl:   coverUrl ?? "",
         tags:       (formData.get("tags")       as string) ?? "",
+        contentHash: contentHash ?? "",
+        status:     publishMode,
+        license:    (formData.get("license")    as string) ?? "",
       });
       if (res && "error" in res) throw new Error(res.error);
-      else if (res && "success" in res) router.push(`/books/${res.slug}`);
+      else if (res && "success" in res) {
+        // Pending books 404 on the public page — send the uploader to the queue
+        router.push(publishMode === "pending_review" ? "/admin/review" : `/books/${res.slug}`);
+      }
     } catch (err) {
       setPhase("idle");
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -514,6 +522,16 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
               />
             </label>
 
+            {/* License */}
+            <label>
+              <FieldLabel>License</FieldLabel>
+              <select name="license" disabled={busy} defaultValue="" className={SELECT_CLASS}>
+                {LICENSE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+
             {/* Category */}
             <div>
               <FieldLabel required>Category</FieldLabel>
@@ -612,6 +630,36 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
         </div>
       )}
 
+      {/* Publish mode */}
+      <fieldset className="rounded-xl border border-divider bg-bg-surface px-4 py-3">
+        <legend className="px-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">
+          Visibility
+        </legend>
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-text-body">
+            <input
+              type="radio"
+              name="publishMode"
+              checked={publishMode === "published"}
+              onChange={() => setPublishMode("published")}
+              className="h-4 w-4 accent-[#4f46e5]"
+            />
+            Publish immediately
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-text-body">
+            <input
+              type="radio"
+              name="publishMode"
+              checked={publishMode === "pending_review"}
+              onChange={() => setPublishMode("pending_review")}
+              className="h-4 w-4 accent-[#4f46e5]"
+            />
+            Submit for review
+            <span className="text-[11px] text-text-muted">(stays hidden until approved)</span>
+          </label>
+        </div>
+      </fieldset>
+
       {/* Submit */}
       <button
         type="submit"
@@ -626,7 +674,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
         ) : (
           <>
             <Upload className="h-4 w-4" />
-            Upload and publish
+            {publishMode === "published" ? "Upload and publish" : "Upload for review"}
           </>
         )}
       </button>

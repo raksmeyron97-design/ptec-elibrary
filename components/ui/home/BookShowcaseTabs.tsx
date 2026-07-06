@@ -62,7 +62,8 @@ export default function BookShowcaseTabs({
           {(["trending", "recent"] as TabKey[]).map((key) => {
             const active = key === tab && !activeDept;
             return (
-              <button key={key} type="button" onClick={() => { setTab(key); setActiveDept(null); }}
+              <button key={key} type="button" role="tab" aria-selected={active}
+                onClick={() => { setTab(key); setActiveDept(null); }}
                 className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-all sm:px-5 ${
                   active
                     ? "bg-gradient-to-r from-brand to-blue-600 text-white shadow-md shadow-brand/20"

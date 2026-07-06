@@ -251,6 +251,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [activeType, setActiveType] = useState<ActiveType>("all");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [fuzzy, setFuzzy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
@@ -343,7 +344,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   // Run search whenever q, activeType, page, or a filter changes
   const runSearch = useCallback(
     async (query: string, type: ActiveType, pg: number, filters: Filters) => {
-      if (!query) { setResults(null); setCounts(null); setLoading(false); return; }
+      if (!query) { setResults(null); setCounts(null); setFuzzy(false); setLoading(false); return; }
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -370,6 +371,7 @@ export default function SearchPageClient({ departments, languages, categories }:
         setResults(data.results ?? []);
         setCounts(data.counts ?? null);
         setHasMore(data.hasMore ?? false);
+        setFuzzy(data.fuzzy ?? false);
         setLoading(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
@@ -755,7 +757,13 @@ export default function SearchPageClient({ departments, languages, categories }:
       </div>
 
       <div className="sr-only" role="status" aria-live="polite">
-        {q ? (loading ? `${t("searchingFor")} ${q}` : `${t("resultsFor")} ${q}`) : ""}
+        {q
+          ? loading
+            ? `${t("searchingFor")} ${q}`
+            : fuzzy
+              ? t("fuzzyNotice", { query: q })
+              : `${t("resultsFor")} ${q}`
+          : ""}
       </div>
 
       {/* ── Type filter tabs (only when there are results or loading) ──── */}
@@ -905,6 +913,20 @@ export default function SearchPageClient({ departments, languages, categories }:
           >
             {t("browseLibrary")}
           </Link>
+        </div>
+      )}
+
+      {/* ── Closest-matches notice (typo-tolerant fallback) ───────────── */}
+      {!loading && hasResults && fuzzy && (
+        <div
+          className="mb-5 rounded-[14px] px-4 py-3 text-[13px]"
+          style={{
+            background: "color-mix(in srgb, var(--ptec-brand) 8%, var(--ptec-bg-surface))",
+            border: "1px solid color-mix(in srgb, var(--ptec-brand) 25%, var(--ptec-border))",
+            color: "var(--ptec-text-body)",
+          }}
+        >
+          {t("fuzzyNotice", { query: q })}
         </div>
       )}
 

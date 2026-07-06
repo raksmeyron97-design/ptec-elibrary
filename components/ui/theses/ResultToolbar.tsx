@@ -75,7 +75,7 @@ export default function ResultToolbar({
             href={buildHref(params, { view: undefined })}
             className={viewBtnClass(!isGrid)}
             aria-label="List view"
-            aria-pressed={!isGrid}
+            aria-current={!isGrid ? "true" : undefined}
           >
             <Rows3 className="h-4 w-4" />
           </FilterLink>
@@ -83,7 +83,7 @@ export default function ResultToolbar({
             href={buildHref(params, { view: "grid" })}
             className={viewBtnClass(isGrid)}
             aria-label="Grid view"
-            aria-pressed={isGrid}
+            aria-current={isGrid ? "true" : undefined}
           >
             <LayoutGrid className="h-4 w-4" />
           </FilterLink>

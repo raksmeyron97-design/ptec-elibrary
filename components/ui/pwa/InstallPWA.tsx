@@ -56,7 +56,7 @@ export default function InstallPWA() {
 
   return (
     <div className="relative flex items-center">
-      <button type="button">
+      <button type="button" onClick={handleInstallClick} aria-label="Install app">
         <Icon name="download" className="text-[16px]" />
       </button>
 

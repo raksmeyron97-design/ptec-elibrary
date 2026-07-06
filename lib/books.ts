@@ -9,6 +9,11 @@ import {
 export { departments, coverColors, slugify };
 export type { Book };
 
+// license/verified_at (migration 0062) are deliberately NOT included here —
+// this shared select is used by the homepage trending section and
+// recommendations, and an unknown-column error on those call sites would
+// silently empty the result (no per-call fallback like the book detail page
+// has). Badges only need the dedicated selects on the detail pages.
 export const BOOK_SELECT = `id, title, slug, description, cover_color, cover_url, language,
    published_at, created_at, department, pages, isbn, publisher, rating, download_count, view_count,
    authors(name), categories(name), departments(name), book_files(format, file_url, file_size_kb), reviews(rating)`;
@@ -70,5 +75,7 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     viewCount:     row.view_count        ?? 0,
     dbId:          row.id                ?? null,
     tags:          row.tags              ?? [],
+    license:       row.license           ?? null,
+    verifiedAt:    row.verified_at       ?? null,
   };
 }

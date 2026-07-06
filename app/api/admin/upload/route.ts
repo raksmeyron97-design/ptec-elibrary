@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { validateMimeType } from "@/lib/mime-validation";
+import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
@@ -53,6 +54,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Duplicate check (PDFs only; magic bytes already verified above) ──
+    // Forms editing an existing record pass excludeType/excludeId so replacing
+    // a file with the identical bytes is not flagged against itself.
+    let contentHash: string | null = null;
+    if (file.type === "application/pdf") {
+      contentHash = sha256Hex(bytes);
+      const excludeType = formData.get("excludeType") as string | null;
+      const excludeId = (formData.get("excludeId") as string | null)?.trim();
+      let exclude: { type: "book" | "research"; id: string } | undefined;
+      if ((excludeType === "book" || excludeType === "research") && excludeId) {
+        exclude = { type: excludeType, id: excludeId };
+      }
+      const duplicate = await findDuplicatePdf(contentHash, exclude);
+      if (duplicate) {
+        return NextResponse.json(
+          {
+            error: `This PDF is already in the library as "${duplicate.title}" (${duplicate.url}). Upload cancelled.`,
+            duplicate,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
     // ── Optimize image before upload ──
     const opts = presetsForFolder(key);
     const optimized = await optimizeImage(bytes, file.name, file.type, opts);
@@ -65,7 +90,7 @@ export async function POST(request: NextRequest) {
     });
     const url = await zimaUpload(optimizedFile, subfolder, optimized.filename);
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, contentHash });
   } catch (err) {
     if (isAdminAuthError(err)) {
       return NextResponse.json({ error: err.message }, { status: err.status });

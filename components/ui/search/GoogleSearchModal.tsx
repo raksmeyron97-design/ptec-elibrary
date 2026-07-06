@@ -245,6 +245,9 @@ export default function SearchModal() {
         aria-modal="true"
         aria-label="Search"
         aria-hidden={!isOpen}
+        // Stays mounted for the fade-out transition, but must not trap focus
+        // or be reachable by keyboard/AT while hidden (WCAG 4.1.2).
+        inert={!isOpen}
         className="fixed inset-0 z-[100] flex items-start justify-center pt-[8vh] px-4 pb-8"
         style={{
           background: "rgba(11,21,48,0.65)",

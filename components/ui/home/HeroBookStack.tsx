@@ -155,6 +155,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Book icon → Browse resources ── */}
       <Link
         href="/books"
+        aria-label="Browse all resources"
         className="absolute -right-4 top-8 z-20 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
         <svg className="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -166,6 +167,7 @@ export default function HeroBookStack({ books }: Props) {
       {/* ── Floating accent: Download icon → Most downloaded ── */}
       <Link
         href="/books?sort=downloads"
+        aria-label="Most downloaded books"
         className="absolute -left-5 bottom-16 z-20 flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-bg-surface/[0.06] shadow-lg backdrop-blur-md transition-all hover:bg-bg-surface/[0.12] hover:scale-110"
       >
         <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

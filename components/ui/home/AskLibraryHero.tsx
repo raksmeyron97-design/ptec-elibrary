@@ -160,7 +160,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               {!value && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 flex items-center text-[15px] text-blue-300/50 transition-opacity duration-[250ms]"
+                  className="pointer-events-none absolute inset-0 flex items-center text-[15px] text-blue-300/80 transition-opacity duration-[250ms]"
                   style={{ opacity: promptVisible ? 1 : 0 }}
                 >
                   {prompts[promptIdx] ?? ""}

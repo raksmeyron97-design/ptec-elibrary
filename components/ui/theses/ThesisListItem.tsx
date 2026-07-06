@@ -89,11 +89,11 @@ export default function ThesisListItem({ report }: { report: any }) {
 
         {/* Footer row */}
         <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-emerald-700 dark:text-emerald-400">
             <Eye className="h-3.5 w-3.5" />
             {report.view_count || 0}
           </span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-amber-600 dark:text-amber-400">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-amber-700 dark:text-amber-400">
             <Download className="h-3.5 w-3.5" />
             {report.download_count || 0}
           </span>

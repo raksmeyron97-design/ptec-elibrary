@@ -58,6 +58,10 @@ export interface BookInput {
   tags?: string;
   categoryId?: string;
   departmentId?: string;
+  contentHash?: string;
+  /** "published" (default) goes live immediately; "pending_review" waits in /admin/review */
+  status?: "published" | "pending_review";
+  license?: string;
 }
 
 export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
@@ -198,7 +202,11 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       department_id: departmentId,
       language,
       published_at: `${year}-01-01`,
-      is_published: true,
+      is_published: input.status !== "pending_review",
+      // Only reference the status/license columns (migrations 0061/0062)
+      // when actually set — keeps this insert working even pre-migration.
+      ...(input.status === "pending_review" ? { status: "pending_review" } : {}),
+      ...(input.license?.trim() ? { license: input.license.trim() } : {}),
       department,
       isbn,
       publisher,
@@ -217,11 +225,24 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     file_url:       fileUrl,
     file_size_kb:   fileSizeKb,
     download_count: 0,
+    content_hash:   input.contentHash?.trim() || null,
   });
-  if (fileError) throw new Error(`File error: ${fileError.message}`);
+  if (fileError) {
+    // Don't leave a published book row with no file behind
+    await supabase.from("books").delete().eq("id", book.id);
+    // Unique-index backstop for a duplicate that raced past the upload check
+    if (fileError.code === "23505" && fileError.message.includes("content_hash")) {
+      throw new Error("This PDF was just uploaded as another book — duplicate file rejected.");
+    }
+    throw new Error(`File error: ${fileError.message}`);
+  }
 
-  await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title });
-  await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
+  await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title, status: input.status ?? "published" });
+  if (input.status === "pending_review") {
+    await createAdminNotification("new_book", `Book submitted for review: "${title}"`, undefined, "/admin/review");
+  } else {
+    await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
+  }
 
   revalidateTag("books", "max");
   revalidatePath("/");
@@ -300,6 +321,7 @@ export async function updateBook(bookId: string, formData: FormData) {
 
   const isbn      = formData.get("isbn")?.toString().trim() || null;
   const publisher = formData.get("publisher")?.toString().trim() || null;
+  const license   = formData.get("license")?.toString().trim() || null;
   const year  = Number(formData.get("year"))  || new Date().getFullYear();
   const pages = Number(formData.get("pages")) || 1;
 
@@ -402,6 +424,7 @@ export async function updateBook(bookId: string, formData: FormData) {
       publisher,
       pages,
       tags: parseTags(formData, "tags"),
+      ...(license ? { license } : {}),
       ...coverUpdate, // only included if cover changed/removed
     })
     .eq("id", bookId)

@@ -641,6 +641,7 @@
     "clearFilters": "Clear filters",
     "noResultsTitle": "No results for \"{query}\"",
     "noResultsBody": "Try different keywords, check your spelling, or browse by department.",
+    "fuzzyNotice": "No exact matches for \"{query}\" — showing the closest matches instead.",
     "browseLibrary": "Browse Library →",
     "errorGeneric": "Search failed. Please try again.",
     "idleTitle": "Search the PTEC Library",
@@ -696,5 +697,19 @@
     "goHome": "Go to homepage",
     "browseBooks": "Browse books",
     "contact": "Contact the library"
+  },
+  "trust": {
+    "verifiedBadge": "Verified by librarian",
+    "verifiedTooltip": "A librarian has reviewed and confirmed this resource's metadata.",
+    "license": {
+      "label": "License",
+      "public_domain": "Public Domain — free to use, share, and adapt",
+      "cc_by": "CC BY — free to use with attribution",
+      "cc_by_nc": "CC BY-NC — free for non-commercial use with attribution",
+      "cc_by_nc_nd": "CC BY-NC-ND — share as-is, non-commercial, with attribution",
+      "moeys_open": "MoEYS Open — free for Cambodian educational use",
+      "all_rights_reserved": "All Rights Reserved — permission required beyond fair use",
+      "unknown": "License not specified"
+    }
   }
 }

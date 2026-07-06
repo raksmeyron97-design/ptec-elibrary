@@ -30,9 +30,27 @@ export type Book = {
   dbId?: string | null;
   reviewCount?: number; // real number of reviews (0 = unrated → shows "New")
   createdAt?: string;   // ISO string from created_at column; used for NEW badge
+  license?: string | null;
+  verifiedAt?: string | null;
 };
 
 
+
+/**
+ * Rights/license options for the admin upload & edit forms (migration 0062).
+ * The blank "" option is the default and is deliberately omitted from the
+ * insert/update payload (falls back to the DB default 'unknown') so the form
+ * keeps working even before 0062 is applied.
+ */
+export const LICENSE_OPTIONS: { value: string; label: string }[] = [
+  { value: "",                    label: "Not specified" },
+  { value: "public_domain",       label: "Public Domain" },
+  { value: "cc_by",               label: "CC BY (attribution)" },
+  { value: "cc_by_nc",            label: "CC BY-NC (non-commercial)" },
+  { value: "cc_by_nc_nd",         label: "CC BY-NC-ND (no derivatives)" },
+  { value: "moeys_open",          label: "MoEYS Open (Cambodian education use)" },
+  { value: "all_rights_reserved", label: "All Rights Reserved" },
+];
 
 export const departments = [
   "Primary Education",

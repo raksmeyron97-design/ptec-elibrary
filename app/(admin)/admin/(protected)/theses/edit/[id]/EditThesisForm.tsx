@@ -21,6 +21,7 @@ import ReferencesInput from "../../_components/ReferencesInput";
 import PdfDropzone from "../../_components/PdfDropzone";
 import CoverDropzone from "../../_components/CoverDropzone";
 import { INPUT_CLASS, LABEL_CLASS } from "../../_components/form-styles";
+import { LICENSE_OPTIONS } from "@/lib/book-utils";
 import { getSubjectsForFaculty } from "@/lib/theses/programs";
 import TagInput from "@/components/ui/core/TagInput";
 import { slugify, makeUid } from "@/lib/book-utils";
@@ -109,6 +110,7 @@ export default function EditThesisForm({ report }: { report: any }) {
       let finalPdfUrl = report.file_url;
       let finalCoverUrl: string | null = coverRemoved ? null : report.cover_url;
       let fileSizeKb = report.file_size_kb;
+      let newContentHash: string | null = null;
 
       // Upload new PDF via server-side proxy if selected (avoids CORS issues with R2)
       if (pdfFile) {
@@ -119,14 +121,18 @@ export default function EditThesisForm({ report }: { report: any }) {
         pdfPayload.set("file", pdfFile);
         pdfPayload.set("key", pdfPath);
         pdfPayload.set("target", "private");
+        // Re-uploading this thesis's own PDF must not trip the duplicate check
+        pdfPayload.set("excludeType", "research");
+        pdfPayload.set("excludeId", report.id);
         const pdfRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
         if (!pdfRes.ok) {
           const data = await pdfRes.json().catch(() => ({}));
           throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
         }
-        const { url: uploadedPdfUrl } = await pdfRes.json();
+        const { url: uploadedPdfUrl, contentHash } = await pdfRes.json();
         finalPdfUrl = uploadedPdfUrl;
         fileSizeKb = Math.round(pdfFile.size / 1024);
+        newContentHash = contentHash ?? null;
       }
 
       // Upload new Cover via server-side proxy if selected (overrides remove)
@@ -150,6 +156,7 @@ export default function EditThesisForm({ report }: { report: any }) {
 
       const keywords = (formData.get("keywords") as string ?? "")
         .split(",").map(k => k.trim()).filter(Boolean).slice(0, 20);
+      const license = (formData.get("license") as string)?.trim() || null;
 
       // Save to DB — cascade fields come from state (not FormData) to ensure reliability
       const dbData = {
@@ -164,12 +171,16 @@ export default function EditThesisForm({ report }: { report: any }) {
         advisor_name: formData.get("advisor_name") as string,
         cover_url: finalCoverUrl,
         file_url: finalPdfUrl,
+        // Only overwrite the stored hash when a new PDF was actually uploaded
+        ...(newContentHash ? { content_hash: newContentHash } : {}),
         file_size_kb: fileSizeKb,
         is_published: formData.get("is_published") === "true",
         keywords,
         doi: (formData.get("doi") as string)?.trim() || null,
         references: (formData.get("references") as string) || null,
         published_at: (formData.get("published_at") as string) || null,
+        // Only sent when set — keeps this update working pre-migration 0062.
+        ...(license ? { license } : {}),
       };
 
       const result = await updateThesis(report.id, dbData);
@@ -321,6 +332,15 @@ export default function EditThesisForm({ report }: { report: any }) {
                       defaultValue={report.published_at ? report.published_at.substring(0, 10) : ""}
                       className={INPUT_CLASS}
                     />
+                  </div>
+
+                  <div>
+                    <label className={LABEL_CLASS}>License</label>
+                    <select name="license" defaultValue={report.license ?? ""} className={INPUT_CLASS}>
+                      {LICENSE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>

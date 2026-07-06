@@ -184,6 +184,7 @@ export default function SearchBar({
             "
             placeholder={placeholder}
             type="text"
+            role="combobox"
             inputMode="search"
             enterKeyHint="search"
             autoComplete="off"

@@ -48,6 +48,8 @@ export type NativeSearchResponse = {
   counts: SearchCounts;
   page: number;
   hasMore: boolean;
+  /** True when exact search found nothing and these are trigram close matches. */
+  fuzzy?: boolean;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -312,6 +314,54 @@ async function searchPosts(
   return { data: results, count: count ?? 0 };
 }
 
+// ── Fuzzy fallback (typo tolerance) ───────────────────────────────────────────
+// Only runs when exact ILIKE search returns zero rows and no filters are
+// active. Trigram word_similarity handles misspellings in both Khmer and
+// English (migration 0059_fuzzy_search.sql).
+
+const FUZZY_URL: Record<string, (ref: string) => string> = {
+  book: (ref) => `/books/${ref}`,
+  research: (ref) => `/theses/${ref}`,
+  catalog: (ref) => `/catalogs/${ref}`,
+  post: (ref) => `/posts/${ref}`,
+};
+
+async function fuzzySearch(
+  db: DB,
+  q: string,
+  typeFilter?: SearchResultType,
+  limit = 8,
+): Promise<SearchResult[]> {
+  const { data, error } = await db.rpc("search_library_fuzzy", {
+    query_text: q,
+    match_count: limit,
+  });
+  if (error) {
+    console.error("[native-search/fuzzy]", error.message);
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[])
+    .filter((r) => r.source in FUZZY_URL && (!typeFilter || r.source === typeFilter))
+    .map((r) => ({
+      id: r.id,
+      type: r.source as SearchResultType,
+      title: r.title,
+      author: r.author ?? "Unknown",
+      coverUrl: coverUrlOf(r.cover_url),
+      url: FUZZY_URL[r.source](r.ref),
+      category: r.category ?? null,
+      excerpt: makeExcerpt(r.excerpt),
+    }));
+}
+
+function countsOf(results: SearchResult[]): SearchCounts {
+  const counts: SearchCounts = { book: 0, research: 0, catalog: 0, post: 0, total: results.length };
+  for (const r of results) counts[r.type] += 1;
+  return counts;
+}
+
 // ── GET /api/search/native ─────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
@@ -364,6 +414,22 @@ export async function GET(req: Request) {
         ...posts.data,
       ];
 
+      // Zero exact matches with no filters active → try trigram close matches
+      // so a typo (Khmer or English) doesn't dead-end the search page.
+      const hasFilters = Boolean(dept || lang || category || author || isbn || publisher);
+      if (counts.total === 0 && !hasFilters) {
+        const fuzzy = await fuzzySearch(db, q);
+        if (fuzzy.length > 0) {
+          return Response.json({
+            results: fuzzy,
+            counts: countsOf(fuzzy),
+            page: 1,
+            hasMore: false,
+            fuzzy: true,
+          } satisfies NativeSearchResponse);
+        }
+      }
+
       return Response.json({ results, counts, page: 1, hasMore: false } satisfies NativeSearchResponse);
     }
 
@@ -375,6 +441,20 @@ export async function GET(req: Request) {
     else if (type === "research") result = await searchResearch(db, tokens, PAGE_SIZE_TYPE, from, category, author);
     else if (type === "catalog")  result = await searchCatalog(db, tokens, PAGE_SIZE_TYPE, from, category, author, isbn, publisher);
     else if (type === "post")     result = await searchPosts(db, tokens, PAGE_SIZE_TYPE, from, category);
+
+    const hasFilters = Boolean(dept || lang || category || author || isbn || publisher);
+    if (result.count === 0 && page === 1 && !hasFilters) {
+      const fuzzy = await fuzzySearch(db, q, type, PAGE_SIZE_TYPE);
+      if (fuzzy.length > 0) {
+        return Response.json({
+          results: fuzzy,
+          counts: countsOf(fuzzy),
+          page: 1,
+          hasMore: false,
+          fuzzy: true,
+        } satisfies NativeSearchResponse);
+      }
+    }
 
     const counts: SearchCounts = {
       book:     type === "book"     ? result.count : 0,
