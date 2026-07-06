@@ -86,28 +86,30 @@ BEGIN
     AND table_name = 'research_reports'
     AND column_name = 'program';
 
-  -- Drop all check constraints on the program column
-  EXECUTE (
+  -- Drop all check constraints on the program column. COALESCE to a no-op:
+  -- string_agg over zero rows is NULL, and EXECUTE NULL raises 22004 on
+  -- databases where the constraint never existed or was already dropped.
+  EXECUTE COALESCE((
     SELECT string_agg('ALTER TABLE public.research_reports DROP CONSTRAINT IF EXISTS ' || quote_ident(conname) || ';', E'\n')
     FROM pg_constraint c
     JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
     WHERE c.conrelid = 'public.research_reports'::regclass
       AND c.contype = 'c'
       AND a.attname = 'program'
-  );
+  ), 'SELECT 1');
 END $$;
 
 -- research_cohorts.program_code — drop the hardcoded CHECK
 DO $$
 BEGIN
-  EXECUTE (
+  EXECUTE COALESCE((
     SELECT string_agg('ALTER TABLE public.research_cohorts DROP CONSTRAINT IF EXISTS ' || quote_ident(conname) || ';', E'\n')
     FROM pg_constraint c
     JOIN pg_attribute a ON a.attnum = ANY(c.conkey) AND a.attrelid = c.conrelid
     WHERE c.conrelid = 'public.research_cohorts'::regclass
       AND c.contype = 'c'
       AND a.attname = 'program_code'
-  );
+  ), 'SELECT 1');
 END $$;
 
 -- ── 7. Add indexes ──────────────────────────────────────────────────────────
