@@ -643,6 +643,8 @@
     "noResultsTitle": "No results for \"{query}\"",
     "noResultsBody": "Try different keywords, check your spelling, or browse by department.",
     "fuzzyNotice": "No exact matches for \"{query}\" — showing the closest matches instead.",
+    "foundInside": "Found inside these documents",
+    "onPage": "Page {page}",
     "browseLibrary": "Browse Library →",
     "errorGeneric": "Search failed. Please try again.",
     "idleTitle": "Search the PTEC Library",

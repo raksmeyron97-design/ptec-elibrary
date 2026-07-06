@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
+import { extractBookMetadata } from "@/app/actions/ai-extraction";
 import {
   departments as defaultDepartments,
   makeUid,
@@ -130,9 +131,16 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
   const [pdfName, setPdfName]           = useState<string | null>(null);
   const [deptList, setDeptList]         = useState<string[]>(defaultDepartments);
   const [catList, setCatList]           = useState<string[]>([]);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [aiError, setAiError]           = useState<string | null>(null);
 
   const pdfInputRef   = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef   = useRef<HTMLInputElement>(null);
+  const authorInputRef  = useRef<HTMLInputElement>(null);
+  const yearInputRef    = useRef<HTMLInputElement>(null);
+  const languageSelectRef = useRef<HTMLSelectElement>(null);
+  const summaryInputRef = useRef<HTMLTextAreaElement>(null);
 
   const refreshLists = useCallback(async () => {
     const [deptRes, catRes] = await Promise.all([
@@ -164,7 +172,35 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setPdfName(file ? file.name : null);
+    setAiError(null);
   };
+
+  async function handleAutoFill() {
+    const file = pdfInputRef.current?.files?.[0];
+    if (!file) { setAiError("Choose a PDF first."); return; }
+
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const fd = new FormData();
+      fd.set("pdf", file);
+      const res = await extractBookMetadata(fd);
+      if ("error" in res) { setAiError(res.error); return; }
+
+      const { title, author, year, language, summary } = res.data;
+      // Imperative fill — these are uncontrolled inputs (native defaultValue),
+      // matching the rest of this form; only overwrite fields the model
+      // actually returned a value for, and never touch category/department
+      // (this library's taxonomy is too specific for the model to guess).
+      if (title && titleInputRef.current) titleInputRef.current.value = title;
+      if (author && authorInputRef.current) authorInputRef.current.value = author;
+      if (year && yearInputRef.current) yearInputRef.current.value = String(year);
+      if (language && languageSelectRef.current) languageSelectRef.current.value = language;
+      if (summary && summaryInputRef.current) summaryInputRef.current.value = summary;
+    } finally {
+      setAiLoading(false);
+    }
+  }
 
   const busy = phase !== "idle";
 
@@ -346,6 +382,27 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
                 className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
               />
             </div>
+            {pdfName && (
+              <div className="mt-2.5 flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleAutoFill}
+                  disabled={busy || aiLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#4f46e5]/30 bg-[#4f46e5]/5 px-3 py-1.5 text-[12.5px] font-semibold text-[#4f46e5] transition hover:bg-[#4f46e5]/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {aiLoading ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
+                      Reading PDF…
+                    </>
+                  ) : (
+                    <>✨ Auto-fill with AI</>
+                  )}
+                </button>
+                <span className="text-[11px] text-text-muted">Drafts title, author, year, language &amp; summary — review before saving.</span>
+              </div>
+            )}
+            {aiError && <p className="mt-1.5 text-[12px] font-medium text-red-600">{aiError}</p>}
           </div>
 
           {/* Cover image */}
@@ -479,6 +536,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
           <label className="block">
             <FieldLabel required>Title</FieldLabel>
             <input
+              ref={titleInputRef}
               name="title"
               required
               placeholder="Book title"
@@ -492,6 +550,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
             <label>
               <FieldLabel required>Author</FieldLabel>
               <input
+                ref={authorInputRef}
                 name="author"
                 required
                 placeholder="Author or institution"
@@ -542,6 +601,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
             <label>
               <FieldLabel required>Language</FieldLabel>
               <select
+                ref={languageSelectRef}
                 name="language"
                 required
                 defaultValue="Khmer"
@@ -571,6 +631,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
             <label>
               <FieldLabel>Year</FieldLabel>
               <input
+                ref={yearInputRef}
                 name="year"
                 type="number"
                 min="1900"
@@ -599,6 +660,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
           <label className="block">
             <FieldLabel>Summary</FieldLabel>
             <textarea
+              ref={summaryInputRef}
               name="summary"
               rows={4}
               disabled={busy}

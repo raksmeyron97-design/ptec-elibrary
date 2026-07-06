@@ -43,6 +43,15 @@ export type SearchCounts = {
   total: number;
 };
 
+export type PageHit = {
+  recordType: "book" | "research";
+  recordId: string;
+  title: string;
+  url: string;
+  pageNo: number;
+  snippet: string;
+};
+
 export type NativeSearchResponse = {
   results: SearchResult[];
   counts: SearchCounts;
@@ -50,6 +59,8 @@ export type NativeSearchResponse = {
   hasMore: boolean;
   /** True when exact search found nothing and these are trigram close matches. */
   fuzzy?: boolean;
+  /** Full-text matches inside PDF content (book_pages, migration 0066). */
+  pageHits?: PageHit[];
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -94,10 +105,21 @@ function getClientIP(req: Request): string {
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
-/** Best-effort log for "popular searches" — never fails the request. */
-async function logSearchQuery(db: DB, term: string): Promise<void> {
+/**
+ * Best-effort log for "popular searches" + the zero-result report — never
+ * fails the request. `result_count` (migration 0064) is requested first and
+ * falls back to the pre-0064 shape on undefined-column, so "popular searches"
+ * keeps working on environments where 0064 hasn't been applied yet.
+ */
+async function logSearchQuery(db: DB, term: string, resultCount: number): Promise<void> {
   try {
-    await db.from("search_queries").insert({ term });
+    const { error } = await db.from("search_queries").insert({ term, result_count: resultCount });
+    // PostgREST reports an unknown column on INSERT as PGRST204 (schema-cache
+    // miss), not Postgres's own 42703 (which shows up on SELECT instead) —
+    // check both so this fallback actually fires pre-migration.
+    if (error?.code === "42703" || error?.code === "PGRST204") {
+      await db.from("search_queries").insert({ term });
+    }
   } catch (err) {
     console.error("[native-search] query log failed:", err);
   }
@@ -356,6 +378,70 @@ async function fuzzySearch(
     }));
 }
 
+// ── Full-text page hits (inside PDF content) ─────────────────────────────────
+// Searches book_pages with the whole query (not tokens — precision matters
+// more here: a page-level hit should mean the actual phrase appears in the
+// text). Best-effort: any error (e.g. migration 0066 not applied) → [].
+
+function makeSnippet(content: string, q: string, radius = 90): string {
+  const idx = content.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return content.slice(0, radius * 2) + "…";
+  const start = Math.max(0, idx - radius);
+  const end = Math.min(content.length, idx + q.length + radius);
+  return (start > 0 ? "…" : "") + content.slice(start, end).trim() + (end < content.length ? "…" : "");
+}
+
+async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[]> {
+  if (q.length < 3) return []; // too short to be a meaningful phrase match
+  try {
+    const { data, error } = await db
+      .from("book_pages")
+      .select("record_type, record_id, page_no, content")
+      .ilike("content", `%${q}%`)
+      .order("page_no", { ascending: true })
+      .limit(24);
+    if (error || !data?.length) return [];
+
+    // One hit per record (its first matching page), up to `limit` records.
+    const byRecord = new Map<string, (typeof data)[number]>();
+    for (const row of data) {
+      const key = `${row.record_type}:${row.record_id}`;
+      if (!byRecord.has(key)) byRecord.set(key, row);
+    }
+    const picked = [...byRecord.values()].slice(0, limit);
+
+    const bookIds = picked.filter((r) => r.record_type === "book").map((r) => r.record_id);
+    const researchIds = picked.filter((r) => r.record_type === "research").map((r) => r.record_id);
+    const [{ data: books }, { data: theses }] = await Promise.all([
+      bookIds.length
+        ? db.from("books").select("id, title, slug").in("id", bookIds).eq("is_published", true)
+        : Promise.resolve({ data: [] as { id: string; title: string; slug: string }[] }),
+      researchIds.length
+        ? db.from("research_reports").select("id, title").in("id", researchIds).eq("is_published", true)
+        : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+    ]);
+    const bookMap = new Map((books ?? []).map((b) => [b.id, b]));
+    const researchMap = new Map((theses ?? []).map((r) => [r.id, r]));
+
+    const hits: PageHit[] = [];
+    for (const row of picked) {
+      if (row.record_type === "book") {
+        const b = bookMap.get(row.record_id);
+        if (!b) continue; // unpublished since extraction — don't leak
+        hits.push({ recordType: "book", recordId: row.record_id, title: b.title, url: `/books/${b.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+      } else {
+        const r = researchMap.get(row.record_id);
+        if (!r) continue;
+        hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+      }
+    }
+    return hits;
+  } catch (err) {
+    console.error("[native-search/pages]", err);
+    return [];
+  }
+}
+
 function countsOf(results: SearchResult[]): SearchCounts {
   const counts: SearchCounts = { book: 0, research: 0, catalog: 0, post: 0, total: results.length };
   for (const r of results) counts[r.type] += 1;
@@ -391,12 +477,12 @@ export async function GET(req: Request) {
 
   try {
     if (type === "all") {
-      const [books, research, catalog, posts] = await Promise.all([
+      const [books, research, catalog, posts, pageHits] = await Promise.all([
         searchBooks(db, tokens, PAGE_SIZE_ALL, 0, dept, lang, category, author, isbn, publisher),
         searchResearch(db, tokens, PAGE_SIZE_ALL, 0, category, author),
         searchCatalog(db, tokens, PAGE_SIZE_ALL, 0, category, author, isbn, publisher),
         searchPosts(db, tokens, PAGE_SIZE_ALL, 0, category),
-        logSearchQuery(db, q),
+        searchPageContent(db, q),
       ]);
 
       const counts: SearchCounts = {
@@ -406,6 +492,11 @@ export async function GET(req: Request) {
         post: posts.count,
         total: books.count + research.count + catalog.count + posts.count,
       };
+
+      // Logged with the real exact-match count (pre-fuzzy-fallback) — that's
+      // the actual "we don't have this" signal for collection development,
+      // even if the fuzzy fallback below later rescues the user with a typo match.
+      logSearchQuery(db, q, counts.total);
 
       const results = [
         ...books.data,
@@ -426,11 +517,12 @@ export async function GET(req: Request) {
             page: 1,
             hasMore: false,
             fuzzy: true,
+            pageHits,
           } satisfies NativeSearchResponse);
         }
       }
 
-      return Response.json({ results, counts, page: 1, hasMore: false } satisfies NativeSearchResponse);
+      return Response.json({ results, counts, page: 1, hasMore: false, pageHits } satisfies NativeSearchResponse);
     }
 
     // Type-specific paginated view

@@ -27,6 +27,8 @@ import {
   BookPlus,
   ClipboardCheck,
   Route,
+  SearchX,
+  Gauge,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
@@ -67,6 +69,8 @@ function getNavGroups(
   if (perm(p, "publications",  "read"))  contentLinks.push({ name: "Publications",     href: "/admin/publications",     icon: ScrollText    });
   if (perm(p, "announcements", "read"))  contentLinks.push({ name: "Announcements",    href: "/admin/announcements",    icon: Megaphone     });
   if (perm(p, "books",         "read"))  contentLinks.push({ name: "Book Requests",    href: "/admin/book-requests",    icon: BookPlus      });
+  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Search Insights",  href: "/admin/search-insights",  icon: SearchX       });
+  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Data Quality",     href: "/admin/data-quality",     icon: Gauge         });
   if (perm(p, "users",         "write")) contentLinks.push({ name: "Library Team",     href: "/admin/team",             icon: UserCircle    });
 
   // System — role-gated (security-sensitive, not overridable via permission matrix)

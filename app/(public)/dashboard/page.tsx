@@ -11,6 +11,8 @@ import { getSavedBooks } from "@/app/actions/saved-books";
 import { getMyReadingLists } from "@/app/actions/reading-lists";
 import { getReadingStats } from "@/app/actions/reading-analytics";
 import { getNewContentForSubscriptions } from "@/app/actions/subscriptions";
+import { getInProgressPaths } from "@/app/actions/learning-paths";
+import ContinueLearningPaths from "@/components/ui/dashboard/ContinueLearningPaths";
 import DownloadHistory from "@/components/ui/pwa/DownloadHistory";
 import DashboardTabs from "@/components/ui/dashboard/DashboardTabs";
 import ReadingStats from "@/components/ui/dashboard/ReadingStats";
@@ -49,7 +51,7 @@ export default async function DashboardPage() {
     department, language, pages, rating,
     authors ( name ), categories ( name ), departments ( name ), book_files ( format, file_url )`;
 
-  const [profileResult, savedBooks, progressResult, readingLists, readingStats, subAlerts] = await Promise.all([
+  const [profileResult, savedBooks, progressResult, readingLists, readingStats, subAlerts, inProgressPaths] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, email, role, avatar_url, created_at")
@@ -65,6 +67,7 @@ export default async function DashboardPage() {
     getMyReadingLists(),
     getReadingStats(),
     getNewContentForSubscriptions(),
+    getInProgressPaths(),
   ]);
 
   const profile  = profileResult.data;
@@ -292,6 +295,9 @@ export default async function DashboardPage() {
           <aside className="hidden lg:block w-72 shrink-0">
             <div className="sticky top-20 space-y-4">
 
+              {/* Continue Learning Path */}
+              <ContinueLearningPaths paths={inProgressPaths} />
+
               {/* Reading Stats */}
               <ReadingStats stats={readingStats} />
 
@@ -343,6 +349,7 @@ export default async function DashboardPage() {
 
         {/* Mobile: account info below content */}
         <div className="mt-8 lg:hidden space-y-4">
+          <ContinueLearningPaths paths={inProgressPaths} />
           <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
             <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
             <div className="grid grid-cols-2 gap-2.5">

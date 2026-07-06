@@ -221,6 +221,73 @@ export async function getUserPathProgress(
   };
 }
 
+export interface InProgressPath {
+  id: string;
+  slug: string;
+  title: string;
+  title_km: string | null;
+  cover_url: string | null;
+  completedSteps: number;
+  totalSteps: number;
+}
+
+/** Paths the current user has started but not finished — for the dashboard "continue" card. */
+export async function getInProgressPaths(limit = 3): Promise<InProgressPath[]> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const db = createServiceClient();
+
+  const { data: enrollments } = await db
+    .from("learning_path_enrollments")
+    .select("path_id, enrolled_at, learning_paths!inner(id, slug, title, title_km, cover_url, is_published)")
+    .eq("user_id", user.id)
+    .is("completed_at", null)
+    .eq("learning_paths.is_published", true)
+    .order("enrolled_at", { ascending: false })
+    .limit(limit);
+
+  if (!enrollments || enrollments.length === 0) return [];
+
+  const pathIds = enrollments.map((e) => e.path_id);
+
+  const [{ data: modules }, { data: doneRows }] = await Promise.all([
+    db.from("learning_path_modules").select("path_id, learning_path_steps(id)").in("path_id", pathIds),
+    db
+      .from("learning_path_step_progress")
+      .select("learning_path_steps!inner(module_id, learning_path_modules!inner(path_id))")
+      .eq("user_id", user.id),
+  ]);
+
+  const totalByPath = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const m of (modules ?? []) as any[]) {
+    totalByPath.set(m.path_id, (totalByPath.get(m.path_id) ?? 0) + (m.learning_path_steps?.length ?? 0));
+  }
+
+  const completedByPath = new Map<string, number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const row of (doneRows ?? []) as any[]) {
+    const pid = row.learning_path_steps?.learning_path_modules?.path_id;
+    if (pid && pathIds.includes(pid)) completedByPath.set(pid, (completedByPath.get(pid) ?? 0) + 1);
+  }
+
+  return enrollments
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((e: any) => ({
+      id: e.learning_paths.id,
+      slug: e.learning_paths.slug,
+      title: e.learning_paths.title,
+      title_km: e.learning_paths.title_km,
+      cover_url: e.learning_paths.cover_url,
+      completedSteps: completedByPath.get(e.path_id) ?? 0,
+      totalSteps: totalByPath.get(e.path_id) ?? 0,
+    }))
+    // A path with 0 steps has nothing left to "continue" — exclude it.
+    .filter((p) => p.totalSteps > 0);
+}
+
 export async function enrollInPath(pathId: string): Promise<{ success: true } | { error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

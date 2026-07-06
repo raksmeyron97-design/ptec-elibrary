@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
-import type { SearchResult, SearchCounts, SearchResultType } from "@/app/api/search/native/route";
+import type { SearchResult, SearchCounts, SearchResultType, PageHit } from "@/app/api/search/native/route";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
 import SearchAdvancedModal from "@/components/ui/search/SearchAdvancedModal";
@@ -252,6 +252,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [fuzzy, setFuzzy] = useState(false);
+  const [pageHits, setPageHits] = useState<PageHit[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
@@ -344,7 +345,7 @@ export default function SearchPageClient({ departments, languages, categories }:
   // Run search whenever q, activeType, page, or a filter changes
   const runSearch = useCallback(
     async (query: string, type: ActiveType, pg: number, filters: Filters) => {
-      if (!query) { setResults(null); setCounts(null); setFuzzy(false); setLoading(false); return; }
+      if (!query) { setResults(null); setCounts(null); setFuzzy(false); setPageHits([]); setLoading(false); return; }
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -372,6 +373,7 @@ export default function SearchPageClient({ departments, languages, categories }:
         setCounts(data.counts ?? null);
         setHasMore(data.hasMore ?? false);
         setFuzzy(data.fuzzy ?? false);
+        setPageHits(data.pageHits ?? []);
         setLoading(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
@@ -461,7 +463,9 @@ export default function SearchPageClient({ departments, languages, categories }:
   };
 
   const hasResults = results !== null && results.length > 0;
-  const noResults = results !== null && results.length === 0 && !loading;
+  // Page hits count as results too — a term found only inside PDF body text
+  // must not render the "no results" dead-end.
+  const noResults = results !== null && results.length === 0 && pageHits.length === 0 && !loading;
 
   // Facet chips computed from the current result set
   const availableCategories = Array.from(
@@ -989,6 +993,39 @@ export default function SearchPageClient({ departments, languages, categories }:
             </div>
           )}
         </>
+      )}
+
+      {/* ── Found inside PDFs (full-text page hits) ───────────────────── */}
+      {!loading && activeType === "all" && pageHits.length > 0 && (
+        <section className="mt-8" aria-labelledby="page-hits-heading">
+          <h3
+            id="page-hits-heading"
+            className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em]"
+            style={{ color: "var(--ptec-text-muted)" }}
+          >
+            {t("foundInside")}
+          </h3>
+          <div className="flex flex-col gap-2.5">
+            {pageHits.map((hit) => (
+              <Link
+                key={`${hit.recordType}-${hit.recordId}`}
+                href={hit.url}
+                className="group rounded-[14px] border p-4 transition-all hover:shadow-md"
+                style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
+              >
+                <p className="text-[14px] font-bold group-hover:underline underline-offset-2" style={{ color: "var(--ptec-text-heading)" }}>
+                  {hit.title}
+                  <span className="ml-2 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+                    {t("onPage", { page: hit.pageNo })}
+                  </span>
+                </p>
+                <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--ptec-text-body)" }}>
+                  {hit.snippet}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── Idle / empty state ────────────────────────────────────────── */}
