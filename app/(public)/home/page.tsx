@@ -7,7 +7,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
-import { Button } from "@/components/ui/core/Button";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getHomeStats as fetchHomeStats } from "@/lib/home-stats";
 // ── Feature components ───────────────────────────────────────────────────────
@@ -15,26 +14,14 @@ import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import ContinueReading from "@/components/ui/home/ContinueReading";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
-import CatalogsSection from "@/components/ui/home/CatalogsSection";
-import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
-import HomeBento from "@/components/ui/home/HomeBento";
 import FeaturedBooksSection from "@/components/ui/home/FeaturedBooksSection";
 import FeaturedPublications from "@/components/ui/home/FeaturedPublications";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
-import StatsBand from "@/components/ui/home/StatsBand";
-import ResearchCollections from "@/components/ui/home/ResearchCollections";
-import PopularAuthors from "@/components/ui/home/PopularAuthors";
-import RecentlyAdded from "@/components/ui/home/RecentlyAdded";
 import HowToUse from "@/components/ui/home/HowToUse";
-import Testimonials from "@/components/ui/home/Testimonials";
-import PartnerStrip from "@/components/ui/home/PartnerStrip";
 import FaqSection from "@/components/ui/home/FaqSection";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
-import CatalogsSkeleton from "@/components/ui/home/skeletons/CatalogsSkeleton";
-import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
-import InteractiveAurora from "@/components/ui/animations/InteractiveAurora";
 
 export const revalidate = 60;
 
@@ -257,11 +244,6 @@ export default async function HomePage() {
         department: b.department,
       }))} />
 
-      {/* ════════ BENTO ════════ */}
-      <Suspense fallback={<div className="h-48 animate-pulse bg-bg-surface border-b border-divider/60" />}>
-        <HomeBento />
-      </Suspense>
-
       {/* ════════ CONTINUE READING ════════ */}
       <Suspense fallback={null}>
         <ContinueReading />
@@ -277,42 +259,17 @@ export default async function HomePage() {
         <TrendingResearch />
       </Suspense>
 
-      {/* ════════ LIBRARY STATISTICS — ink band (moved out of the hero) ════════ */}
-      <StatsBand stats={homeStats} />
-
-      {/* ════════ RESEARCH COLLECTIONS — curated entry points ════════ */}
-      <Suspense fallback={<div className="h-56 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-        <ResearchCollections />
-      </Suspense>
-
-      {/* ════════ POPULAR AUTHORS — wayfinding rail ════════ */}
-      <Suspense fallback={<div className="h-40 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-        <PopularAuthors />
-      </Suspense>
-
-      {/* ════════ RECENTLY ADDED — cross-content activity feed ════════ */}
-      <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-        <RecentlyAdded />
-      </Suspense>
-
-      {/* ════════ FROM THE LIBRARY (catalogs) ════════ */}
-      <Suspense fallback={<CatalogsSkeleton />}>
-        <CatalogsSection />
-      </Suspense>
-
-      {/* ════════ LATEST POSTS ════════ */}
-      <Suspense fallback={<LatestPostsSkeleton />}>
-        <LatestPostsSection />
-      </Suspense>
+      {/*
+        Trimmed 2026-07-06 (UX audit): the homepage previously stacked 17
+        sections (~8,800px desktop / ~13,700px mobile) — scroll-depth dies
+        after ~3 viewports, so sections 8+ were effectively unreachable while
+        still costing data fetches. Bento, stats band, research collections,
+        popular authors, recently added, catalogs, and latest posts now live
+        on their own landing pages (/theses, /catalogs, /posts).
+      */}
 
       {/* ════════ HOW TO USE — 3-step orientation ════════ */}
       <HowToUse />
-
-      {/* ════════ TESTIMONIALS — hidden until real quotes exist ════════ */}
-      <Testimonials />
-
-      {/* ════════ PARTNERS — hidden until logos are confirmed ════════ */}
-      <PartnerStrip />
 
       {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════ */}
       <FaqSection />
