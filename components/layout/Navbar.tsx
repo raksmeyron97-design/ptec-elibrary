@@ -208,13 +208,13 @@ export default async function Navbar() {
             {/* Right: Socials & Language */}
             <div className="flex items-center gap-8 xl:gap-12">
               <div className="flex items-center gap-4">
-                <a href="https://www.facebook.com/ptec.edu" target="_blank" rel="noreferrer" className="hover:text-white transition-colors" aria-label="Facebook">
+                <a href="https://www.facebook.com/ptec.edu" target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-white transition-colors" aria-label="Facebook">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
-                <a href="https://www.youtube.com/@phnompenhteachereducationc3430" target="_blank" rel="noreferrer" className="hover:text-[#FF0000] transition-colors" aria-label="YouTube">
+                <a href="https://www.youtube.com/@phnompenhteachereducationc3430" target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-[#FF0000] transition-colors" aria-label="YouTube">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>
                 </a>
-                <a href="https://www.ptec.edu.kh/" target="_blank" rel="noreferrer" className="hover:text-accent transition-colors" aria-label="Website">
+                <a href="https://www.ptec.edu.kh/" target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-accent transition-colors" aria-label="Website">
                   <Icon name="globe" className="text-[15px]" />
                 </a>
               </div>

@@ -1,0 +1,51 @@
+{
+  "source": "public/ptec-library.jpg",
+  "sourceHash": "sha256-34fa913862ddecb1fadb26f10e64a72c4a6def79e727185eb05a1ba7f66415b1",
+  "sourceWidth": 1440,
+  "sourceHeight": 959,
+  "generatedAt": "2026-07-06T16:27:54.441Z",
+  "outputs": [
+    {
+      "path": "public/hero/ptec-library-640.avif",
+      "width": 640,
+      "format": "avif",
+      "bytes": 26611
+    },
+    {
+      "path": "public/hero/ptec-library-640.webp",
+      "width": 640,
+      "format": "webp",
+      "bytes": 43382
+    },
+    {
+      "path": "public/hero/ptec-library-960.avif",
+      "width": 960,
+      "format": "avif",
+      "bytes": 51796
+    },
+    {
+      "path": "public/hero/ptec-library-960.webp",
+      "width": 960,
+      "format": "webp",
+      "bytes": 84180
+    },
+    {
+      "path": "public/hero/ptec-library-1440.avif",
+      "width": 1440,
+      "format": "avif",
+      "bytes": 102224
+    },
+    {
+      "path": "public/hero/ptec-library-1440.webp",
+      "width": 1440,
+      "format": "webp",
+      "bytes": 153156
+    },
+    {
+      "path": "public/hero/ptec-library-960.jpg",
+      "width": 960,
+      "format": "jpeg",
+      "bytes": 90659
+    }
+  ]
+}

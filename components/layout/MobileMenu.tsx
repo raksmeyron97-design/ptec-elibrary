@@ -116,6 +116,9 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
+            // Mounted-but-closing (exit transition): hide from AT and block focus.
+            inert={!open}
+            aria-hidden={!open}
             tabIndex={-1}
             className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] outline-none transition-transform duration-[240ms] ease-[cubic-bezier(.3,1.25,.5,1)] motion-reduce:transition-none"
             style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}

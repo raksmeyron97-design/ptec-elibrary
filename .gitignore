@@ -50,3 +50,6 @@ next-env.d.ts
 /.design-sync/.cache/
 /.design-sync/compiled-globals.css
 /.ds-sync/node_modules/
+
+# Lighthouse / PSI output (scripts write here; large, machine-generated)
+/reports/

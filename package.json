@@ -10,7 +10,10 @@
     "lint": "eslint",
     "doctor": "npx react-doctor@latest",
     "test": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "optimize:hero": "node scripts/optimize-hero.mjs",
+    "check:hero": "node scripts/optimize-hero.mjs --check",
+    "prebuild": "node scripts/optimize-hero.mjs --check"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",

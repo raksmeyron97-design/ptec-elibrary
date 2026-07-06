@@ -23,7 +23,13 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+
+    # /hero/* ships with a 1-year immutable Cache-Control header — fail fast
+    # if public/ptec-library.jpg changed without regenerating the variants
+    # (see scripts/optimize-hero.mjs for the maintenance rule).
+    - name: Hero image cache safety
+      run: npm run check:hero
+
     - name: Type Check
       run: npx tsc --noEmit
       

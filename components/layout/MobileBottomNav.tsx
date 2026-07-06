@@ -256,6 +256,9 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             role="dialog"
             aria-modal="true"
             aria-label="Profile menu"
+            // Mounted-but-closing (exit transition): hide from AT and block focus.
+            inert={!sheetOpen}
+            aria-hidden={!sheetOpen}
             tabIndex={-1}
             className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-6px_32px_rgba(0,0,0,0.12)] outline-none transition-transform duration-[240ms] ease-[cubic-bezier(.3,1.25,.5,1)] motion-reduce:transition-none"
             style={{ transform: sheet.shown ? "translateY(0)" : "translateY(100%)" }}

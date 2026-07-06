@@ -185,6 +185,24 @@ export const getTrendingThesesCached = unstable_cache(
 );
 
 // ── Featured publications rail ──────────────────────────────────────────────
+
+// The homepage card clamps the abstract to 3 lines *visually* (line-clamp),
+// but CSS clamping still ships the full text in the HTML — a real abstract
+// measured 7.6 KB on the homepage. Truncate server-side so the homepage only
+// ever promotes the publication; the full abstract lives on the detail page.
+// 240 chars ≈ 3 lines at the card's measure. Latin text cuts at a word
+// boundary; Khmer has no spaces, so a plain slice is correct there.
+const EXCERPT_CHARS = 240;
+
+function toExcerpt(text: string | null): string | null {
+  if (!text) return text;
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (clean.length <= EXCERPT_CHARS) return clean;
+  const slice = clean.slice(0, EXCERPT_CHARS);
+  const lastSpace = slice.lastIndexOf(" ");
+  return `${lastSpace > EXCERPT_CHARS - 40 ? slice.slice(0, lastSpace) : slice}…`;
+}
+
 export type FeaturedPubRow = {
   id: string;
   slug: string | null;
@@ -217,7 +235,11 @@ export const getFeaturedPublicationsCached = unstable_cache(
       console.error("[home-data] featured publications:", error.message);
       return [];
     }
-    return (data ?? []) as FeaturedPubRow[];
+    return ((data ?? []) as FeaturedPubRow[]).map((pub) => ({
+      ...pub,
+      abstract: toExcerpt(pub.abstract),
+      abstract_km: toExcerpt(pub.abstract_km),
+    }));
   },
   ["home-featured-publications"],
   { revalidate: REVALIDATE, tags: ["home-publications"] }
