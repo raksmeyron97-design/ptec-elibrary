@@ -30,6 +30,7 @@ type CatalogRow = {
 
 type ThesisRow = {
   id: string | null;
+  slug: string | null;
   title: string | null;
   author_names: string | null;
   program: string | null;
@@ -99,7 +100,7 @@ const getLlmsSnapshot = unstable_cache(
         .limit(MAX_ITEMS),
       supabase
         .from("research_reports")
-        .select("id, title, author_names, program, faculty, academic_year")
+        .select("id, slug, title, author_names, program, faculty, academic_year")
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(MAX_ITEMS),
@@ -154,7 +155,7 @@ function buildLlmsText(snapshot: Awaited<ReturnType<typeof getLlmsSnapshot>>) {
 
   const thesisLines = snapshot.theses
     .filter((thesis) => thesis.title && thesis.id)
-    .map((thesis) => `${markdownLink(clean(thesis.title), `${SITE_URL}/theses/${thesis.id}`)} - ${detail([
+    .map((thesis) => `${markdownLink(clean(thesis.title), `${SITE_URL}/theses/${thesis.slug ?? thesis.id}`)} - ${detail([
       thesis.author_names || "Unknown author",
       thesis.program,
       thesis.faculty,

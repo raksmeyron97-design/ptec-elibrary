@@ -35,7 +35,7 @@ export async function findDuplicatePdf(
 
   let researchQ = db
     .from("research_reports")
-    .select("id, title")
+    .select("id, slug, title")
     .eq("content_hash", contentHash)
     .limit(1);
   if (exclude?.type === "research") researchQ = researchQ.neq("id", exclude.id);
@@ -53,7 +53,7 @@ export async function findDuplicatePdf(
     return { type: "book", title: book?.title ?? "Unknown", url: `/books/${book?.slug ?? ""}` };
   }
   if (researchHit) {
-    return { type: "research", title: researchHit.title, url: `/theses/${researchHit.id}` };
+    return { type: "research", title: researchHit.title, url: `/theses/${researchHit.slug ?? researchHit.id}` };
   }
   return null;
 }

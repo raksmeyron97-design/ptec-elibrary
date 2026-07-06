@@ -144,7 +144,7 @@ async function keywordSearch(
       .limit(MAX_BOOKS),
     db
       .from("research_reports")
-      .select("id, title, cover_url, author_names")
+      .select("id, slug, title, cover_url, author_names")
       .eq("is_published", true)
       .or(orFilter(["title", "abstract"], tokens))
       .order("view_count", { ascending: false })
@@ -176,12 +176,12 @@ async function keywordSearch(
     });
   for (const r of research ?? [])
     out.push({
-      slug: (r as any).id,
+      slug: (r as any).slug ?? (r as any).id,
       title: (r as any).title,
       author: (r as any).author_names ?? "Unknown",
       category: "Thesis",
       coverUrl: coverUrlOf((r as any).cover_url ?? null),
-      url: `/theses/${(r as any).id}`,
+      url: `/theses/${(r as any).slug ?? (r as any).id}`,
     });
   for (const c of catalog ?? [])
     out.push({

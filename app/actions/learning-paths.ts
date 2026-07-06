@@ -54,7 +54,7 @@ function stepUrl(type: StepResourceType, resourceId: string | null, externalUrl:
   if (type === "external") return externalUrl;
   if (!resourceId) return null;
   if (type === "book") return `/books/${resourceId}`; // resolved to slug below
-  if (type === "research") return `/theses/${resourceId}`;
+  if (type === "research") return `/theses/${resourceId}`; // resolved to slug below
   if (type === "catalog") return `/catalogs/${resourceId}`; // resolved to slug below
   return null;
 }
@@ -74,8 +74,8 @@ async function resolveStepResources(
       ? db.from("books").select("id, slug, title, cover_url").in("id", idsByType.book)
       : Promise.resolve({ data: [] as { id: string; slug: string; title: string; cover_url: string | null }[] }),
     idsByType.research.length
-      ? db.from("research_reports").select("id, title, cover_url").in("id", idsByType.research)
-      : Promise.resolve({ data: [] as { id: string; title: string; cover_url: string | null }[] }),
+      ? db.from("research_reports").select("id, slug, title, cover_url").in("id", idsByType.research)
+      : Promise.resolve({ data: [] as { id: string; slug: string | null; title: string; cover_url: string | null }[] }),
     idsByType.catalog.length
       ? db.from("catalog_books").select("id, slug, title, cover_url").in("id", idsByType.catalog)
       : Promise.resolve({ data: [] as { id: string; slug: string; title: string; cover_url: string | null }[] }),
@@ -166,7 +166,7 @@ export async function getPathBySlug(slug: string): Promise<LearningPathDetail | 
             if (b) { url = `/books/${b.slug}`; coverUrl = b.cover_url; liveTitle = b.title; }
           } else if (s.resource_type === "research" && s.resource_id) {
             const r = researchMap.get(s.resource_id);
-            if (r) { coverUrl = r.cover_url; liveTitle = r.title; }
+            if (r) { url = `/theses/${r.slug ?? s.resource_id}`; coverUrl = r.cover_url; liveTitle = r.title; }
           } else if (s.resource_type === "catalog" && s.resource_id) {
             const c = catalogMap.get(s.resource_id);
             if (c) { url = `/catalogs/${c.slug}`; coverUrl = c.cover_url; liveTitle = c.title; }

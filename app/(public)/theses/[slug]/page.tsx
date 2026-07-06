@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
-import { getThesisById } from "@/app/actions/theses";
+import { getThesisById, getThesisBySlug } from "@/app/actions/theses";
 import ThesisViewPing from "@/components/ui/theses/ThesisViewPing";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
@@ -31,7 +31,12 @@ import { Pencil, FileX2 } from "lucide-react";
 
 export const revalidate = 3600;
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = { params: Promise<{ slug: string }> };
+
+// Legacy /theses/[uuid] URLs. Middleware already issues the 301 for these;
+// this page-level lookup is the fallback for anything that slips past the
+// middleware matcher, and produces the 404 when the id doesn't exist.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function truncate(text: string | null | undefined, max: number): string {
   if (!text) return '';
@@ -50,22 +55,26 @@ function formatCitationDate(dateStr: string | null | undefined, fallback: string
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ id }, supabase] = await Promise.all([
+  const [{ slug }, supabase] = await Promise.all([
     params,
     createClient(),
   ]);
   const { data: report } = await supabase
     .from('research_reports')
-    .select('id, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, departments(name)')
-    .eq('id', id)
+    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, departments(name)')
+    .eq('slug', slug)
     .eq('is_published', true)
-    .single();
+    .maybeSingle();
 
   if (!report) {
+    // Legacy UUID URLs are handled in the page component (301 or 404); for
+    // everything else, throwing here (before the shell streams) makes the
+    // response a genuine HTTP 404 instead of a soft 200+noindex.
+    if (!UUID_RE.test(slug)) notFound();
     return { title: 'Thesis not found' };
   }
 
-  const canonicalUrl = `${SITE_URL}/theses/${id}`;
+  const canonicalUrl = `${SITE_URL}/theses/${report.slug}`;
   const description = truncate(report.abstract, 160) || 'Thesis from Phnom Penh Teacher Education College.';
 
   // Split "Sok San, Chan Dara" → ['Sok San', 'Chan Dara']
@@ -87,7 +96,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       : [];
 
   const citationDate = formatCitationDate(report.published_at, report.created_at);
-  const pdfUrl = `${SITE_URL}/api/theses/${id}/file.pdf`;
+  const pdfUrl = `${SITE_URL}/api/theses/${report.id}/file.pdf`;
   const doi = report.doi as string | null | undefined;
   const section = getDepartment(report) || report.program || 'Theses';
 
@@ -141,12 +150,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ThesisDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const { data: report, error } = await getThesisById(id);
+  const { slug } = await params;
+  let { data: report } = await getThesisBySlug(slug);
 
-  if (error || !report || !report.is_published) {
+  if (!report && UUID_RE.test(slug)) {
+    // Legacy ID URL: 301 to the canonical slug URL, 404 if the id is unknown.
+    const { data: bySlugId } = await getThesisById(slug);
+    if (bySlugId?.slug && bySlugId.is_published) {
+      permanentRedirect(`/theses/${bySlugId.slug}`);
+    }
+    report = bySlugId;
+  }
+
+  if (!report || !report.is_published) {
     notFound();
   }
+
+  const id: string = report.id;
+  const canonicalSlug: string = report.slug ?? report.id;
 
   // Admin-only edit link — best-effort, non-blocking
   let isAdmin = false;
@@ -169,7 +190,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   const doi = getDoi(report);
   const department = getDepartment(report);
   const fileHref = `/api/theses/${id}/file`;
-  const shareUrl = `${SITE_URL}/theses/${id}`;
+  const shareUrl = `${SITE_URL}/theses/${canonicalSlug}`;
 
   // ── Tab content ───────────────────────────────────────────────────────────
   const tabs: ThesisTab[] = [
@@ -223,7 +244,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       })
     : [];
 
-  const reportUrl = `${SITE_URL}/theses/${id}`;
+  const reportUrl = `${SITE_URL}/theses/${canonicalSlug}`;
   const thesisBreadcrumbSchema = breadcrumbSchema([
     { name: "Home", path: "/home" },
     { name: "Theses", path: "/theses" },

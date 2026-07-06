@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .range(0, 4999),
     supabase
       .from('research_reports')
-      .select('id, published_at, created_at')
+      .select('id, slug, published_at, created_at')
       .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(0, 4999),
@@ -70,7 +70,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const reportUrls: MetadataRoute.Sitemap = (reports ?? []).map((r) => ({
-    url: `${SITE_URL}/theses/${r.id}`,
+    url: `${SITE_URL}/theses/${r.slug ?? r.id}`,
     lastModified: r.published_at ?? r.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.9,

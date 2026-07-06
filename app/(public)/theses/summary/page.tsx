@@ -105,7 +105,7 @@ export default async function ThesesSummaryPage() {
                                   className="pl-2 text-text-body marker:text-lg marker:font-bold marker:text-brand"
                                 >
                                   <Link
-                                    href={`/theses/${report.id}`}
+                                    href={`/theses/${report.slug ?? report.id}`}
                                     className="text-[15px] font-medium leading-relaxed transition-colors hover:text-brand hover:underline sm:text-base"
                                   >
                                     {report.title}

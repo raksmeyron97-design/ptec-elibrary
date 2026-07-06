@@ -30,7 +30,7 @@ export type Suggestion =
   | { type: "book";     slug: string; label: string; sub: string; coverUrl?: string | null }
   | { type: "author";   label: string }
   | { type: "category"; label: string }
-  | { type: "research"; id: string;   label: string; sub: string; coverUrl?: string | null };
+  | { type: "research"; id: string; slug?: string | null; label: string; sub: string; coverUrl?: string | null };
 
 export async function GET(req: NextRequest) {
   // Rate limiting check (60 requests per minute)
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
   // ── 4. Matching published research report titles (up to 3) ───────────────────
   const { data: reports } = await supabase
     .from("research_reports")
-    .select("id, title, author_names, cohort, academic_year, cover_url")
+    .select("id, slug, title, author_names, cohort, academic_year, cover_url")
     .eq("is_published", true)
     .ilike("title", `%${q}%`)
     .limit(3);
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
       .filter(Boolean)
       .join(" · ");
     const sub: string = (r.author_names as string | null) ?? (cohortYear || "Thesis");
-    results.push({ type: "research", id: r.id, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
+    results.push({ type: "research", id: r.id, slug: r.slug ?? null, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
   }
 
   return NextResponse.json(results);

@@ -8,6 +8,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 
 type ThesisRow = {
   id: string;
+  slug: string | null;
   title: string;
   author_names: string | null;
   cohort: string | null;
@@ -21,7 +22,7 @@ async function getTrendingTheses(): Promise<ThesisRow[]> {
   // PostgREST can't order by an expression.
   const { data, error } = await supabase
     .from("research_reports")
-    .select("id, title, author_names, cohort, view_count, download_count")
+    .select("id, slug, title, author_names, cohort, view_count, download_count")
     .eq("is_published", true)
     .order("view_count", { ascending: false, nullsFirst: false })
     .limit(30);
@@ -106,7 +107,7 @@ export default async function TrendingResearch() {
                 <div className="min-w-0 flex-1 py-0.5">
                   <h3 className="font-khmer-serif text-[15px] font-bold leading-snug text-text-heading line-clamp-2 sm:text-[16px]">
                     <Link
-                      href={`/theses/${thesis.id}`}
+                      href={`/theses/${thesis.slug ?? thesis.id}`}
                       className="after:absolute after:inset-0 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
                     >
                       {thesis.title}

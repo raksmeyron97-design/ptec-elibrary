@@ -205,7 +205,7 @@ async function searchResearch(
   let q = db
     .from("research_reports")
     .select(
-      "id, title, cover_url, abstract, author_names, program, academic_year, view_count",
+      "id, slug, title, cover_url, abstract, author_names, program, academic_year, view_count",
       { count: "exact" }
     )
     .eq("is_published", true)
@@ -233,7 +233,7 @@ async function searchResearch(
       title: r.title,
       author: r.author_names ?? "Unknown",
       coverUrl: coverUrlOf(r.cover_url),
-      url: `/theses/${r.id}`,
+      url: `/theses/${r.slug ?? r.id}`,
       year,
       category: r.program ?? null,
       excerpt: makeExcerpt(r.abstract),
@@ -417,8 +417,8 @@ async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[
         ? db.from("books").select("id, title, slug").in("id", bookIds).eq("is_published", true)
         : Promise.resolve({ data: [] as { id: string; title: string; slug: string }[] }),
       researchIds.length
-        ? db.from("research_reports").select("id, title").in("id", researchIds).eq("is_published", true)
-        : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+        ? db.from("research_reports").select("id, slug, title").in("id", researchIds).eq("is_published", true)
+        : Promise.resolve({ data: [] as { id: string; slug: string | null; title: string }[] }),
     ]);
     const bookMap = new Map((books ?? []).map((b) => [b.id, b]));
     const researchMap = new Map((theses ?? []).map((r) => [r.id, r]));
@@ -432,7 +432,7 @@ async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[
       } else {
         const r = researchMap.get(row.record_id);
         if (!r) continue;
-        hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+        hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
       }
     }
     return hits;

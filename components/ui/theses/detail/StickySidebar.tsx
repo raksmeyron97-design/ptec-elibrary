@@ -58,7 +58,7 @@ export default function StickySidebar({
 
       {/* Cite this */}
       <div id="cite-panel" className="scroll-mt-4">
-        <CiteThis report={report} reportId={reportId} />
+        <CiteThis report={report} reportId={report.slug ?? reportId} />
       </div>
 
       <BackToTopButton />

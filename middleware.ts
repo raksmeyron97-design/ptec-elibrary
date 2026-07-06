@@ -6,6 +6,11 @@ import type { NextRequest } from "next/server";
 // Paths that require an active session on the main domain
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
 
+// Legacy thesis detail URLs were /theses/<uuid>; they 301 to /theses/<slug>.
+// (research_reports ids are uuids — there were never numeric thesis ids.)
+const LEGACY_THESIS_RE =
+  /^\/theses\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 export async function middleware(request: NextRequest) {
   const nonce = crypto.randomUUID();
   const nonceB64 = Buffer.from(nonce).toString('base64');
@@ -43,6 +48,40 @@ export async function middleware(request: NextRequest) {
     res.headers.set('Content-Security-Policy', cspHeader);
     res.headers.set('x-nonce', nonceB64);
     return res;
+  }
+
+  // ── Legacy thesis URLs: 301 /theses/<uuid> → /theses/<slug> ──
+  // A single anonymous PostgREST lookup (no cookies, RLS-scoped to published
+  // rows). Unknown ids fall through to the page route, which renders the 404.
+  const legacyThesis = url.pathname.match(LEGACY_THESIS_RE);
+  if (legacyThesis) {
+    try {
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const lookup = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/research_reports?id=eq.${legacyThesis[1]}&is_published=eq.true&select=slug&limit=1`,
+        { headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` } },
+      );
+      if (lookup.ok) {
+        const rows: { slug: string | null }[] = await lookup.json();
+        const slug = rows[0]?.slug;
+        if (slug) {
+          const res = NextResponse.redirect(new URL(`/theses/${slug}`, request.url), 301);
+          res.headers.set('Content-Security-Policy', cspHeader);
+          res.headers.set('x-nonce', nonceB64);
+          return res;
+        }
+        // Id is definitively not in the DB (or unpublished). Rewriting to an
+        // unrouted path renders the global not-found page with a real HTTP
+        // 404 status — inside the route tree the (public) loading boundary
+        // would stream a 200 shell before notFound() could set the status.
+        const res = NextResponse.rewrite(new URL('/__not-found__', request.url));
+        res.headers.set('Content-Security-Policy', cspHeader);
+        res.headers.set('x-nonce', nonceB64);
+        return res;
+      }
+    } catch {
+      // Lookup failed — let the page route resolve or 404 the id itself.
+    }
   }
 
   // ── Fast-path for public routes ──────────────────────────────

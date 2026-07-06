@@ -3,11 +3,13 @@
 // app/admin/actions.ts
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
 import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
+import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -248,6 +250,12 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   revalidatePath("/");
   revalidatePath("/books");
   revalidatePath(`/books/${book.slug}`);
+
+  // Full-text page indexing (book_pages, migration 0066). Runs after the
+  // response is sent so the admin isn't kept waiting on PDF parsing; failures
+  // only log — scripts/extract-pdf-text.ts remains the repair safety net.
+  after(() => indexPdfPagesSafe("book", book.id, fileUrl));
+
   return { success: true, slug: book.slug };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -289,6 +297,8 @@ export async function deleteBook(bookId: string) {
     supabase.from("reviews").delete().eq("book_id", bookId),
     supabase.from("saved_books").delete().eq("book_id", bookId),
     supabase.from("reading_progress").delete().eq("book_id", bookId),
+    // Full-text page index (no FK — polymorphic record_id, migration 0066)
+    supabase.from("book_pages").delete().eq("record_type", "book").eq("record_id", bookId),
   ]);
 
   await supabase.from("book_files").delete().eq("book_id", bookId);

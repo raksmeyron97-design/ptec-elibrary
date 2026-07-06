@@ -272,7 +272,7 @@ async function searchTheses(args: {
 
   const { data } = await db
     .from("research_reports")
-    .select("id, title, cover_url, abstract, author_names, program, subject, academic_year, keywords")
+    .select("id, slug, title, cover_url, abstract, author_names, program, subject, academic_year, keywords")
     .eq("is_published", true)
     .or(`title.ilike.%${q}%,abstract.ilike.%${q}%,author_names.ilike.%${q}%`)
     .order("view_count", { ascending: false })
@@ -280,7 +280,7 @@ async function searchTheses(args: {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[]).map((r: any) => ({
-    slug: r.id,
+    slug: r.slug ?? r.id,
     title: r.title,
     author: r.author_names ?? "Unknown",
     program: r.program ?? "",
@@ -288,7 +288,7 @@ async function searchTheses(args: {
     academicYear: r.academic_year ?? "",
     description: String(r.abstract ?? "").slice(0, 300),
     coverUrl: coverUrlOf(r.cover_url),
-    url: `/theses/${r.id}`,
+    url: `/theses/${r.slug ?? r.id}`,
     type: "research" as const,
   }));
 }

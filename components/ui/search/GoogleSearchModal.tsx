@@ -201,7 +201,7 @@ export default function SearchModal() {
     pushRecentSearch(s.label);
     setIsOpen(false);
     if (s.type === "book")          router.push(`/books/${s.slug}`);
-    else if (s.type === "research") router.push(`/theses/${s.id}`);
+    else if (s.type === "research") router.push(`/theses/${s.slug ?? s.id}`);
     else                            router.push(`/books?q=${encodeURIComponent(s.label)}`);
   }, [router]);
 

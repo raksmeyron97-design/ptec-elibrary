@@ -90,7 +90,7 @@ export default async function AuthorCard({
           {otherWorks.map((w) => (
             <li key={w.id}>
               <Link
-                href={`/theses/${w.id}`}
+                href={`/theses/${w.slug ?? w.id}`}
                 className="group flex items-start gap-2.5 rounded-xl p-2 transition-colors duration-150 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-brand/50" />

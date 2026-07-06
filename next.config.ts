@@ -27,6 +27,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "5mb",
     },
   },
+  // pdfjs is loaded lazily by lib/pdf-page-index.ts for server-side text
+  // extraction; keep it out of the server bundle (worker/canvas quirks).
+  serverExternalPackages: ["pdfjs-dist"],
   turbopack: {},
   async rewrites() {
     return {

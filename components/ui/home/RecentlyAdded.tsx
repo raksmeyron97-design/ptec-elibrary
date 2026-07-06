@@ -30,7 +30,7 @@ async function getRecentItems(): Promise<FeedItem[]> {
       .limit(8),
     supabase
       .from("research_reports")
-      .select("id, title, created_at")
+      .select("id, slug, title, created_at")
       .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(8),
@@ -60,7 +60,7 @@ async function getRecentItems(): Promise<FeedItem[]> {
       key: `thesis-${r.id}`,
       type: "thesis" as const,
       title: r.title as string,
-      href: `/theses/${r.id}`,
+      href: `/theses/${r.slug ?? r.id}`,
       ...withAge(r.created_at as string),
     })),
     ...(pubsRes.data ?? []).map((p) => ({

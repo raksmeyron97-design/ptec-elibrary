@@ -8,6 +8,7 @@ import { getThesisPrograms } from "@/app/actions/theses";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
+import { thesisHref } from "@/lib/theses";
 
 export default async function ThesisCard({ report }: { report: any }) {
   const formatCount = (n: number) =>
@@ -38,7 +39,7 @@ export default async function ThesisCard({ report }: { report: any }) {
           still receive their own clicks without nesting <a> inside <a>. The
           focus ring is inset because the article clips overflow. */}
       <Link
-        href={`/theses/${report.id}`}
+        href={thesisHref(report)}
         aria-label={report.title}
         className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
       />
@@ -161,7 +162,7 @@ export default async function ThesisCard({ report }: { report: any }) {
 
               <span className="relative z-10 shrink-0">
                 <ShareButton
-                  url={`${SITE_URL}/theses/${report.id}`}
+                  url={`${SITE_URL}${thesisHref(report)}`}
                   title={report.title}
                   className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
                 />

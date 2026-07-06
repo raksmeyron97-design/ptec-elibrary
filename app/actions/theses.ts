@@ -2,9 +2,11 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
+import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 
 
 const REVALIDATE_PATHS = [
@@ -173,6 +175,23 @@ export async function getThesisById(id: string) {
   return { data, error: null };
 }
 
+export async function getThesisBySlug(slug: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("research_reports")
+    .select(`*, departments(name)`)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching thesis by slug:", error);
+    return { data: null, error: error.message };
+  }
+
+  return { data, error: null };
+}
+
 export async function incrementThesisViewCount(id: string) {
   // Only count views from signed-in users (matches the book view-count behavior)
   // and prevents anonymous callers from spamming the counter via this action.
@@ -245,10 +264,10 @@ export async function createThesis(formData: ThesisData) {
   }
 
   const { supabase } = admin;
-  const { error } = await supabase.from("research_reports").insert([{
+  const { data: created, error } = await supabase.from("research_reports").insert([{
     ...formData,
     keywords: formData.keywords ?? [],
-  }]);
+  }]).select("id").single();
 
   if (error) {
     return { success: false, error: error.message };
@@ -256,6 +275,13 @@ export async function createThesis(formData: ThesisData) {
 
   await createAdminNotification("new_report", `New thesis: "${formData.title}"`, undefined, "/theses");
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+
+  // Full-text page indexing (book_pages) — background, non-blocking, log-only on failure.
+  if (created?.id && formData.file_url) {
+    const fileUrl = formData.file_url;
+    after(() => indexPdfPagesSafe("research", created.id, fileUrl));
+  }
+
   return { success: true };
 }
 
@@ -276,6 +302,8 @@ export async function deleteThesis(id: string) {
     .single();
 
   await supabase.from("view_logs").delete().eq("content_type", "research_report").eq("content_id", id);
+  // Full-text page index (no FK — polymorphic record_id, migration 0066)
+  await supabase.from("book_pages").delete().eq("record_type", "research").eq("record_id", id);
 
   const { error } = await supabase.from("research_reports").delete().eq("id", id);
 
@@ -301,6 +329,14 @@ export async function updateThesis(id: string, formData: ThesisData) {
   }
 
   const { supabase } = admin;
+
+  // Detect a new/replaced PDF so we can re-run full-text indexing below.
+  const { data: before } = await supabase
+    .from("research_reports")
+    .select("file_url")
+    .eq("id", id)
+    .single();
+
   const { error } = await supabase
     .from("research_reports")
     .update(formData)
@@ -311,6 +347,13 @@ export async function updateThesis(id: string, formData: ThesisData) {
   }
 
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+
+  // Full-text page indexing (book_pages) — only when the PDF actually changed.
+  const newFileUrl = formData.file_url;
+  if (newFileUrl && newFileUrl !== before?.file_url) {
+    after(() => indexPdfPagesSafe("research", id, newFileUrl));
+  }
+
   return { success: true };
 }
 

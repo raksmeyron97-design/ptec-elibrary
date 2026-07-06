@@ -69,7 +69,7 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
       pushRecentSearch(s.label);
       setOpen(false);
       if (onClose) onClose();
-      router.push(`/theses/${s.id}`);
+      router.push(`/theses/${s.slug ?? s.id}`);
     } else {
       setQuery(s.label);
       navigate(s.label);

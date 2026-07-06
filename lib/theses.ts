@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Thesis {
   id: string;
+  slug: string | null;
   title: string;
   abstract: string;
   department_id: string;
@@ -25,6 +26,7 @@ export interface Thesis {
 export function mapRowToThesis(row: any): Thesis {
   return {
     id: row.id,
+    slug: row.slug ?? null,
     title: row.title,
     abstract: row.abstract,
     department_id: row.department_id,
@@ -45,4 +47,13 @@ export function mapRowToThesis(row: any): Thesis {
     keywords: row.keywords ?? [],
     created_at: row.created_at,
   };
+}
+
+/**
+ * Canonical public path for a thesis. Prefers the SEO slug; falls back to the
+ * UUID for rows fetched with a select that predates migration 0067 (the legacy
+ * /theses/[uuid] URL 301s to the slug URL, so the link still works).
+ */
+export function thesisHref(report: { slug?: string | null; id: string }): string {
+  return `/theses/${report.slug || report.id}`;
 }
