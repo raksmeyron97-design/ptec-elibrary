@@ -132,7 +132,7 @@ export default async function Navbar() {
       { label: t('libraryTimings'), href: "/about/timings" },
       { label: t('libraryCollection'), href: "/about/collection" },
       { label: t('libraryCommittee'), href: "/about/committee" },
-      { label: t('libraryTeam'), href: "/about/team" },
+      { label: t('libraryTeam'), href: "/about/team/close" },
     ],
   };
 
@@ -151,7 +151,7 @@ export default async function Navbar() {
     { label: t('libraryTimings'), href: "/about/timings" },
     { label: t('libraryCollection'), href: "/about/collection" },
     { label: t('libraryCommittee'), href: "/about/committee" },
-    { label: t('libraryTeam'), href: "/about/team" },
+    { label: t('libraryTeam'), href: "/about/team/close" },
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────
