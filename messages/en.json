@@ -44,9 +44,9 @@
   },
   "nav": {
     "home": "Home",
-    "eResources": "e-Resources",
-    "eBooks": "e-Books",
-    "booksInLibrary": "Books in Library",
+    "eResources": "Digital Library",
+    "eBooks": "Books",
+    "booksInLibrary": "Physical Library",
     "posts": "News & Events",
     "about": "About",
     "contact": "Contact",
@@ -240,7 +240,7 @@
     "ctaStatBilingual": "Bilingual"
   },
   "books": {
-    "title": "e-Resources",
+    "title": "Books",
     "subtitle": "Textbooks, research papers and teaching materials, all in one place.",
     "noResults": "No resources found",
     "resources": "{count} resource",
@@ -325,7 +325,7 @@
     "emailLabel": "Email"
   },
   "catalogs": {
-    "title": "Books In Library",
+    "title": "Physical Library",
     "subtitle": "Find physical books available at PTEC Library",
     "searchPlaceholder": "Search title, author, or ISBN…",
     "searchButton": "Search",
