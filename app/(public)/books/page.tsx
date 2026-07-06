@@ -14,6 +14,7 @@ import {
 } from "@/lib/books-data";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
+import { buttonClasses } from "@/components/ui/core/Button";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
@@ -348,10 +349,7 @@ function EmptyState({
             : t('emptyHintEmpty')}
       </p>
       {hasFilters && (
-        <FilterLink
-          href="/books"
-          className="mt-5 inline-flex h-10 items-center rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
-        >
+        <FilterLink href="/books" className={buttonClasses("primary", "md", "mt-5")}>
           {t('clearFilters')}
         </FilterLink>
       )}

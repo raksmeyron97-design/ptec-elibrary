@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
+import { Button } from "@/components/ui/core/Button";
 import { PTEC } from "@/lib/ptec";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -339,14 +340,9 @@ export default function ContactPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={isDisabled || captchaPending}
-              className="mt-5 rounded-xl px-6 py-3 text-sm font-bold text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-              style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-            >
+            <Button type="submit" disabled={isDisabled || captchaPending} className="mt-5">
               {status === "loading" ? "Sending…" : "Submit message"}
-            </button>
+            </Button>
           </form>
         </div>
 

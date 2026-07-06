@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
+import { Button } from "@/components/ui/core/Button";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 
 interface Props {
@@ -234,12 +235,9 @@ export default function SearchAdvancedModal({
               >
                 {t("advClearAll")}
               </button>
-              <button
-                type="submit"
-                className="ml-auto inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-              >
+              <Button type="submit" className="ml-auto">
                 {t("searchButton")}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

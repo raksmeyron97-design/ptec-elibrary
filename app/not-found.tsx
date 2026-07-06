@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
+import { Button } from "@/components/ui/core/Button";
 
 export default async function NotFound() {
   const t = await getTranslations("notFound");
@@ -36,12 +37,9 @@ export default async function NotFound() {
               className="h-12 w-full rounded-xl border border-divider bg-bg-surface pl-10 pr-4 text-[15px] text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
             />
           </div>
-          <button
-            type="submit"
-            className="inline-flex h-12 shrink-0 items-center rounded-xl bg-brand px-5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-          >
+          <Button type="submit" size="lg" className="shrink-0">
             {t("searchButton")}
-          </button>
+          </Button>
         </form>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium">
