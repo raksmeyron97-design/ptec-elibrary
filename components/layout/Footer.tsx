@@ -465,24 +465,10 @@ export default async function Footer() {
                 />
               </div>
 
-              {/* Flag Counter Widget */}
-              <div className="flex justify-start">
-                <a
-                  href="https://info.flagcounter.com/19Xs"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Visitor flag counter"
-                  className="cursor-pointer"
-                >
-                  <img
-                    src="https://s11.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/"
-                    alt="Flag Counter"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    className="rounded-md opacity-80 hover:opacity-100 transition-opacity duration-300"
-                  />
-                </a>
-              </div>
+              {/* Flag Counter widget removed 2026-07-06: the middleware CSP
+                  (img-src) has never allowed flagcounter.com, so it rendered
+                  nothing and only produced a blocked request + console error
+                  on every page. */}
             </div>
 
           </div>

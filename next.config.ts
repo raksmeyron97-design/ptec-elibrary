@@ -49,6 +49,36 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Hero image variants are effectively content-versioned: if the photo
+      // ever changes, scripts/optimize-hero.mjs output must get new filenames
+      // (bump the name, not the content) — that's what makes immutable safe.
+      {
+        source: "/hero/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      // Unversioned public images (logos, OG image, PWA icons): cache a day
+      // at the edge/browser, serve stale for a week while revalidating.
+      {
+        source:
+          "/:file(logo.png|logo.webp|logo_top.png|logo_footer.png|logo_footer.webp|og-default.png|og-default.jpg|ptec-library.jpg)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/favicon/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
     ];
   },
   images: {

@@ -56,7 +56,7 @@ function SuggestionRow({
       >
         {"coverUrl" in s && s.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.coverUrl} alt="" className="h-full w-full object-cover" />
+          <img src={s.coverUrl} alt="" loading="lazy" decoding="async" width={26} height={36} className="h-full w-full object-cover" />
         ) : (
           <Icon name={TYPE_ICON[s.type]} className="text-[13px]" style={{ color: "var(--ptec-text-muted)" } as React.CSSProperties} />
         )}
@@ -123,10 +123,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ── Main modal ─────────────────────────────────────────────────────────────────
-export default function SearchModal() {
+export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boolean } = {}) {
   const router = useRouter();
 
-  const [isOpen, setIsOpen]                 = useState(false);
+  const [isOpen, setIsOpen]                 = useState(defaultOpen);
   const [query, setQuery]                   = useState("");
   const [suggestions, setSuggestions]       = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);

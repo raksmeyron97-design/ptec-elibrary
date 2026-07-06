@@ -6,7 +6,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import SearchModal from "@/components/ui/search/GoogleSearchModal";
+import SearchModal from "@/components/ui/search/SearchModalLazy";
 import NavigationProgress from "@/components/ui/NavigationProgress";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';

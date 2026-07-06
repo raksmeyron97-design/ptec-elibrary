@@ -3,7 +3,7 @@
 // articles (1 lead + 3 supporting rows). Publications are judged by
 // title/authors/venue, so no covers: metadata is the visual.
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getFeaturedPublicationsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
 import type { ArticleType } from "@/lib/publications";
 
@@ -22,24 +22,7 @@ type PubRow = {
 };
 
 async function getFeaturedPublications(): Promise<PubRow[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("publications_with_stats")
-    .select(
-      "id, slug, title, title_km, article_type, journal_name, doi, publication_date, abstract, abstract_km, author_names"
-    )
-    .eq("is_published", true)
-    .order("publication_date", { ascending: false, nullsFirst: false })
-    .order("created_at", { ascending: false })
-    .limit(4);
-
-  if (error) {
-    // Publications table may not exist yet on older deployments — hide the
-    // section rather than break the homepage.
-    console.error("[FeaturedPublications]", error.message);
-    return [];
-  }
-  return (data ?? []) as PubRow[];
+  return (await getFeaturedPublicationsCached()) as PubRow[];
 }
 
 function yearOf(dateStr: string | null): string | null {

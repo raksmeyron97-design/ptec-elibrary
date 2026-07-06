@@ -1,14 +1,9 @@
-"use client"
-
-;
-/* eslint-disable @next/next/no-img-element */
-
+"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslations, useLocale } from "next-intl";
-import { motion, AnimatePresence } from "framer-motion";
 import { pushRecentSearch, readRecent, RECENT_KEY } from "./SearchSuggestions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -124,11 +119,10 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
       >
 
         {/* Ambient glow bed */}
-        <motion.div
+        <div
           aria-hidden
-          className="pointer-events-none absolute -inset-6 rounded-[22px] bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)]"
-          animate={{ opacity: focused ? 1 : 0.45 }}
-          transition={{ duration: 0.35 }}
+          className="pointer-events-none absolute -inset-6 rounded-[22px] bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)] transition-opacity duration-[350ms]"
+          style={{ opacity: focused ? 1 : 0.45 }}
         />
 
         {/* Gradient ring */}
@@ -204,14 +198,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
       </div>
 
       {/* ── Chips ── */}
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="mt-4 space-y-3"
-        >
+      <div className="mt-4 space-y-3 animate-[fade-rise-in_0.2s_ease-out]">
           {/* Recent searches */}
           {recent.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -263,8 +250,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               ))}
             </div>
           )}
-        </motion.div>
-      </AnimatePresence>
+      </div>
     </div>
   );
 }

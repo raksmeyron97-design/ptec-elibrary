@@ -319,6 +319,38 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .drawer-slide-in { animation: drawer-slide-in .22s cubic-bezier(.22,1,.36,1) both; }
 .fade-rise-in { animation: fade-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
 
+/* ── Scroll reveal (CSS-only; toggled by ScrollRevealWrapper's observer) ─
+   Default state is fully visible — the hidden start state only applies once
+   JS sets data-revealed="false", so no-JS visitors never lose content. */
+.scroll-reveal,
+.scroll-reveal-stagger .scroll-reveal-item {
+  opacity: 1;
+  transform: none;
+  transition: opacity .7s ease-out, transform .7s ease-out;
+}
+.scroll-reveal[data-revealed="false"],
+.scroll-reveal-stagger[data-revealed="false"] .scroll-reveal-item {
+  opacity: 0;
+  transform: translateY(40px);
+}
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(2) { transition-delay: .15s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(3) { transition-delay: .3s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(4) { transition-delay: .45s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(5) { transition-delay: .6s; }
+.scroll-reveal-stagger .scroll-reveal-item:nth-child(n+6) { transition-delay: .75s; }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal, .scroll-reveal-item { transition: none !important; }
+}
+
+/* ── Below-the-fold render skipping ─────────────────────────────────
+   content-visibility lets the browser skip layout/paint for offscreen
+   sections; contain-intrinsic-size reserves approximate space so the
+   scrollbar doesn't jump (CLS-safe). */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
 /* ── Navigation progress bar ────────────────────────────────────── */
 @keyframes nav-progress-indeterminate {
   0%   { transform: translateX(-100%); }

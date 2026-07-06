@@ -1,19 +1,29 @@
 "use client";
 
-import { useMotionValueEvent, useScroll, motion } from "framer-motion";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 
 type ScrollPhase = "top" | "fading" | "pill";
 
 export default function NavbarStickyWrapper({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<ScrollPhase>("top");
-  const { scrollY } = useScroll();
+  const ticking = useRef(false);
 
-  useMotionValueEvent(scrollY, "change", (y) => {
-    if (y < 10)       setPhase("top");
-    else if (y < 60) setPhase("fading");
-    else              setPhase("pill");
-  });
+  useEffect(() => {
+    const update = () => {
+      ticking.current = false;
+      const y = window.scrollY;
+      setPhase(y < 10 ? "top" : y < 60 ? "fading" : "pill");
+    };
+    const onScroll = () => {
+      if (!ticking.current) {
+        ticking.current = true;
+        requestAnimationFrame(update);
+      }
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const [isLg, setIsLg] = useState(true);
   useEffect(() => {
@@ -64,25 +74,16 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
             : "relative w-full z-40"
         }
       >
-        {/* ── Pill / bar ──────────────────────────────────── */}
-        <motion.div
-          initial={false}
-          animate={{
+        {/* ── Pill / bar — CSS transition (was a framer spring; the ~35 KB
+             library isn't worth a bounce on a navbar) ── */}
+        <div
+          style={{
             borderRadius: isPill ? 9999 : 0,
-            /*
-             * FIXED: was 300/35 — felt sluggish because high damping killed
-             * the snap. New values: higher stiffness + lower damping =
-             * quicker settle with a tiny satisfying bounce.
-             */
             boxShadow: isPill
               ? "0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)"
               : "none",
-          }}
-          transition={{
-            type: "spring",
-            stiffness: 500,
-            damping: 32,
-            mass: 0.7,
+            transition:
+              "border-radius 0.22s cubic-bezier(.3,1.4,.6,1), box-shadow 0.22s ease",
           }}
           className={[
             "pointer-events-auto relative",
@@ -90,11 +91,6 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
               ? [
                   "is-pill",
                   "w-fit max-w-[calc(100vw-2.5rem)]",
-                  /*
-                   * FIXED blur: added saturate(150%) so the frosted-glass
-                   * effect is visible even on light/white backgrounds.
-                   * Reduced from backdrop-blur-xl to backdrop-blur-md to improve scroll performance on desktop.
-                   */
                   "bg-white/82 backdrop-blur-md saturate-150",
                   "border border-white/55",
                 ].join(" ")
@@ -107,7 +103,7 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
           ].join(" ")}
         >
           {children}
-        </motion.div>
+        </div>
       </div>
     </>
   );

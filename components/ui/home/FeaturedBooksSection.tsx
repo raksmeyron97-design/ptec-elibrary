@@ -80,13 +80,14 @@ export default async function FeaturedBooksSection({ books }: { books: FeatBook[
             {/* Cover */}
             <div className="relative min-h-[220px] overflow-hidden sm:h-full">
               {featured.coverUrl ? (
+                // Below the fold — stays lazy (next/image default) so it never
+                // competes with the hero LCP image for bandwidth.
                 <Image
                   src={featured.coverUrl}
                   alt={featured.title}
                   fill
                   sizes="(max-width: 640px) 100vw, 196px"
                   className="object-cover"
-                  priority
                 />
               ) : (
                 <div

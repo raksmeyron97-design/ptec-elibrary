@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/(public)/home/page.tsx
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Image from "next/image";
+import { preload } from "react-dom";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
+import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getHomeStats as fetchHomeStats } from "@/lib/home-stats";
@@ -37,43 +36,8 @@ export const metadata: Metadata = {
 };
 
 // ── Data fetchers ────────────────────────────────────────────────────────────
-
-async function getTrendingBooks() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("books")
-    .select(BOOK_SELECT)
-    .eq("is_published", true)
-    .order("download_count", { ascending: false })
-    .limit(12);
-  return (data ?? []).map(mapRowToBook);
-}
-
-async function getTrendingTerms(): Promise<string[]> {
-  const supabase = await createClient();
-  // Fetch categories that have the most-viewed/downloaded books
-  const { data } = await supabase
-    .from("books")
-    .select("category_id, view_count, download_count, categories!inner(name)")
-    .eq("is_published", true)
-    .not("category_id", "is", null);
-
-  if (!data?.length) return ["Pedagogy", "Mathematics", "Khmer Literature", "Science", "English"];
-
-  // Aggregate score per category
-  const scoreMap = new Map<string, number>();
-  for (const row of data) {
-    const cat = (row.categories as unknown as { name: string } | null);
-    if (!cat?.name) continue;
-    const score = (row.view_count ?? 0) + (row.download_count ?? 0) * 3;
-    scoreMap.set(cat.name, (scoreMap.get(cat.name) ?? 0) + score);
-  }
-
-  return [...scoreMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(([name]) => name);
-}
+// Public list data comes from lib/home-data.ts (unstable_cache, 5-min TTL) so
+// each request only pays for the per-user auth check, not four table scans.
 
 async function getHomeStats() {
   const raw = await fetchHomeStats();
@@ -87,13 +51,24 @@ async function getHomeStats() {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
+  // LCP: preload the hero photo (AVIF branch — ~95% of browsers; the rest
+  // simply fetch it via <picture> without the head start).
+  preload("/hero/ptec-library-960.avif", {
+    as: "image",
+    type: "image/avif",
+    imageSrcSet:
+      "/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w",
+    imageSizes: "100vw",
+    fetchPriority: "high",
+  });
+
   const t = await getTranslations("home");
   const locale = await getLocale();
 
   const supabase = await createClient();
   const [trendingBooks, trendingTerms, homeStats, { data: { user } }] = await Promise.all([
-    getTrendingBooks(),
-    getTrendingTerms(),
+    getTrendingBooksCached(),
+    getTrendingTermsCached(),
     getHomeStats(),
     supabase.auth.getUser(),
   ]);
@@ -117,17 +92,33 @@ export default async function HomePage() {
 
         {/* Background wrapper with overflow-hidden so blurs/scales don't leak */}
         <div className="absolute inset-0 -z-30 overflow-hidden pointer-events-none">
-          {/* 1. Photo background — LCP image */}
+          {/* 1. Photo background — LCP image.
+              Pre-generated variants (scripts/optimize-hero.mjs): AVIF/WebP at
+              640/960/1440w — no runtime transform (images.unoptimized). The
+              image is decorative (gradient overlays carry the text contrast),
+              so alt="" + aria-hidden wrapper is intentional. */}
           <div className="absolute inset-0" aria-hidden>
-            <Image
-              src="/ptec-library.jpg"
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              quality={70}
-              className="object-cover object-center"
-            />
+            <picture>
+              <source
+                type="image/avif"
+                srcSet="/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w"
+                sizes="100vw"
+              />
+              <source
+                type="image/webp"
+                srcSet="/hero/ptec-library-640.webp 640w, /hero/ptec-library-960.webp 960w, /hero/ptec-library-1440.webp 1440w"
+                sizes="100vw"
+              />
+              <img
+                src="/hero/ptec-library-960.jpg"
+                alt=""
+                width={1440}
+                height={959}
+                fetchPriority="high"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+              />
+            </picture>
           </div>
 
           {/* 2a. Left-to-right ink overlay: text column reads clearly, photo shows on right */}
@@ -229,20 +220,27 @@ export default async function HomePage() {
         <FeaturedPublications />
       </Suspense>
 
+      {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
+          so the browser skips their layout/paint work until scrolled near. */}
+
       {/* ════════ CATEGORIES — browse by subject, slot 3 ════════ */}
-      <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-        <CategoryGrid />
-      </Suspense>
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+          <CategoryGrid />
+        </Suspense>
+      </div>
 
       {/* ════════ FEATURED EDITORIAL ════════ */}
-      <FeaturedBooksSection books={trendingBooks.slice(0, 4).map((b) => ({
-        slug: b.slug,
-        title: b.title,
-        author: b.author,
-        coverUrl: b.coverUrl ?? null,
-        cover: b.cover,
-        department: b.department,
-      }))} />
+      <div className="cv-auto">
+        <FeaturedBooksSection books={trendingBooks.slice(0, 4).map((b) => ({
+          slug: b.slug,
+          title: b.title,
+          author: b.author,
+          coverUrl: b.coverUrl ?? null,
+          cover: b.cover,
+          department: b.department,
+        }))} />
+      </div>
 
       {/* ════════ CONTINUE READING ════════ */}
       <Suspense fallback={null}>
@@ -250,14 +248,18 @@ export default async function HomePage() {
       </Suspense>
 
       {/* ════════ BROWSE: Trending / Recently Added + Dept chips ════════ */}
-      <Suspense fallback={<BrowseBooksSkeleton />}>
-        <BrowseBooksSection trendingBooks={trendingBooks} />
-      </Suspense>
+      <div className="cv-auto">
+        <Suspense fallback={<BrowseBooksSkeleton />}>
+          <BrowseBooksSection trendingBooks={trendingBooks} />
+        </Suspense>
+      </div>
 
       {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
-      <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-        <TrendingResearch />
-      </Suspense>
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+          <TrendingResearch />
+        </Suspense>
+      </div>
 
       {/*
         Trimmed 2026-07-06 (UX audit): the homepage previously stacked 17
@@ -269,10 +271,16 @@ export default async function HomePage() {
       */}
 
       {/* ════════ HOW TO USE — 3-step orientation ════════ */}
-      <HowToUse />
+      <div className="cv-auto">
+        <HowToUse />
+      </div>
 
-      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════ */}
-      <FaqSection />
+      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
+          (JSON-LD inside stays in the HTML — content-visibility only skips
+          rendering work, not markup, so the FAQPage schema is still crawled) */}
+      <div className="cv-auto">
+        <FaqSection />
+      </div>
 
       {/* ════════ CTA BANNER — logged-out visitors only ════════ */}
       {!user && (

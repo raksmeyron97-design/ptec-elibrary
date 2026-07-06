@@ -3,43 +3,8 @@
 // downloads). A numbered <ol>, not a card grid: rank is the information, and
 // usage numbers beside each row are the social proof (IEEE "most popular").
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getTrendingThesesCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
-
-type ThesisRow = {
-  id: string;
-  slug: string | null;
-  title: string;
-  author_names: string | null;
-  cohort: string | null;
-  view_count: number | null;
-  download_count: number | null;
-};
-
-async function getTrendingTheses(): Promise<ThesisRow[]> {
-  const supabase = await createClient();
-  // Fetch a candidate pool by raw views, then rank by weighted score —
-  // PostgREST can't order by an expression.
-  const { data, error } = await supabase
-    .from("research_reports")
-    .select("id, slug, title, author_names, cohort, view_count, download_count")
-    .eq("is_published", true)
-    .order("view_count", { ascending: false, nullsFirst: false })
-    .limit(30);
-
-  if (error) {
-    console.error("[TrendingResearch]", error.message);
-    return [];
-  }
-
-  return (data ?? [])
-    .map((r) => ({
-      ...r,
-      score: (r.view_count ?? 0) + (r.download_count ?? 0) * 3,
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-}
 
 const formatCount = (n: number) =>
   n >= 1_000_000
@@ -49,7 +14,7 @@ const formatCount = (n: number) =>
       : String(n);
 
 export default async function TrendingResearch() {
-  const theses = await getTrendingTheses();
+  const theses = await getTrendingThesesCached();
   // A "trending" list of one or two rows reads as emptiness, not popularity —
   // hide the section until there is a real ranking to show.
   if (theses.length < 3) return null;

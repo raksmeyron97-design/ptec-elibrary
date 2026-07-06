@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { motion, AnimatePresence } from "framer-motion";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES, ROLE_META } from "@/lib/types/roles";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
+import { useMountTransition } from "@/lib/hooks/useMountTransition";
 
 // ── Icons ──────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -71,27 +71,23 @@ function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC
         isActive ? "text-brand font-bold" : "text-text-muted font-medium"
       }`}
     >
-      <motion.span
-        animate={{ scale: isActive ? 1.15 : 1 }}
-        transition={{ type: "spring", stiffness: 420, damping: 22, mass: 0.6 }}
+      <span
+        className="transition-transform duration-200 ease-out"
+        style={{ transform: isActive ? "scale(1.15)" : "scale(1)" }}
       >
         <Icon />
-      </motion.span>
+      </span>
       <span className="text-[11px] tracking-wide whitespace-nowrap overflow-visible">
         {label}
       </span>
-      <AnimatePresence>
-        {isActive && (
-          <motion.span
-            key="dot"
-            className="absolute top-[2px] w-1 h-1 rounded-full bg-brand"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 500, damping: 24 }}
-          />
-        )}
-      </AnimatePresence>
+      <span
+        aria-hidden
+        className="absolute top-[2px] w-1 h-1 rounded-full bg-brand transition-all duration-200 ease-out"
+        style={{
+          transform: isActive ? "scale(1)" : "scale(0)",
+          opacity: isActive ? 1 : 0,
+        }}
+      />
     </Link>
   );
 }
@@ -114,18 +110,13 @@ function getInitials(name: string | null, email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
-// ── Spring configs ─────────────────────────────────────────────
-// FIXED: was plain CSS transition (no spring feel).
-// Now both the sheet and backdrop use Framer springs for a snappy,
-// tactile feel that matches the desktop pill.
-const SHEET_SPRING = { type: "spring", stiffness: 450, damping: 30, mass: 0.6 } as const;
-const BACKDROP_EASE = { duration: 0.18, ease: "easeOut" } as const;
 
 // ── Component ──────────────────────────────────────────────────
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const sheet = useMountTransition(sheetOpen);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = !!user?.avatar_url && !avatarFailed;
 
@@ -172,7 +163,9 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [sheetOpen]);
-  const sheetTrapRef = useFocusTrap<HTMLDivElement>(sheetOpen);
+  // Keyed to open && mounted: the trap must (re-)arm only after the sheet
+  // element actually exists, or the container ref is still null.
+  const sheetTrapRef = useFocusTrap<HTMLDivElement>(sheetOpen && sheet.mounted);
 
   // Lock body scroll when sheet is open
   useEffect(() => {
@@ -247,45 +240,25 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       </nav>
 
       {/* ── Backdrop ────────────────────────────────────────────── */}
-      {/*
-       * FIXED: was inline style opacity with CSS transition — no hardware
-       * accel, no spring. AnimatePresence + motion gives GPU compositing.
-       */}
-      <AnimatePresence>
-        {sheetOpen && (
-          <motion.div
-            key="backdrop"
-            onClick={closeSheet}
-            aria-hidden="true"
-            className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-[2px]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={BACKDROP_EASE}
-          />
-        )}
-      </AnimatePresence>
+      {sheet.mounted && (
+        <div
+          onClick={closeSheet}
+          aria-hidden="true"
+          className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-[2px] transition-opacity duration-200 ease-out"
+          style={{ opacity: sheet.shown ? 1 : 0 }}
+        />
+      )}
 
       {/* ── Sheet panel ─────────────────────────────────────────── */}
-      {/*
-       * FIXED: was translateY(100%) / translateY(0) via inline style +
-       * CSS transition. Now a Framer spring: enters with a bounce, exits
-       * fast — feels native (like iOS sheets).
-       */}
-      <AnimatePresence>
-        {sheetOpen && (
-          <motion.div
-            key="sheet"
+      {sheet.mounted && (
+          <div
             ref={sheetTrapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Profile menu"
             tabIndex={-1}
-            className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-6px_32px_rgba(0,0,0,0.12)] outline-none"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={SHEET_SPRING}
+            className="fixed bottom-0 left-0 right-0 z-[70] rounded-t-[20px] bg-bg-surface shadow-[0_-6px_32px_rgba(0,0,0,0.12)] outline-none transition-transform duration-[240ms] ease-[cubic-bezier(.3,1.25,.5,1)] motion-reduce:transition-none"
+            style={{ transform: sheet.shown ? "translateY(0)" : "translateY(100%)" }}
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-1">
@@ -373,9 +346,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             </div>
 
             <div className="h-[env(safe-area-inset-bottom)]" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </>
   );
 }

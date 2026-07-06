@@ -3,32 +3,8 @@
 // browsing is the #2 discovery path after search, so it sits directly under
 // the publications rail. Tiles land on pre-filtered results, not a menu.
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getDepartmentCountsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
-
-async function getDepartmentCounts(): Promise<{ name: string; count: number }[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("books")
-    .select("departments!inner(name)")
-    .eq("is_published", true);
-
-  if (error) {
-    console.error("[CategoryGrid]", error.message);
-    return [];
-  }
-
-  const counts = new Map<string, number>();
-  for (const row of data ?? []) {
-    const name = (row.departments as unknown as { name: string } | null)?.name;
-    if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 7);
-}
 
 function BookOpenIcon() {
   return (
@@ -49,7 +25,7 @@ function BookOpenIcon() {
 }
 
 export default async function CategoryGrid() {
-  const departments = await getDepartmentCounts();
+  const departments = await getDepartmentCountsCached();
   if (departments.length === 0) return null;
 
   const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);

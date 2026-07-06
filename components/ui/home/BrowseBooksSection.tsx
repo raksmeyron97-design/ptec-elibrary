@@ -1,5 +1,4 @@
-import { createServiceClient } from "@/lib/supabase/server";
-import { mapRowToBook, BOOK_SELECT } from "@/lib/books";
+import { getRecentlyAddedCached, getDeptBooksCached } from "@/lib/home-data";
 import BookShowcaseTabs from "./BookShowcaseTabs";
 import type { ComponentProps } from "react";
 import BookCard from "@/components/ui/books/BookCard";
@@ -9,46 +8,10 @@ import { ScrollRevealWrapper } from "@/components/ui/animations/ScrollRevealWrap
 
 type BookCardData = ComponentProps<typeof BookCard>["book"];
 
-async function getRecentlyAdded() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("books")
-    .select(BOOK_SELECT)
-    .eq("is_published", true)
-    .order("published_at", { ascending: false })
-    .limit(12);
-  return (data ?? []).map(mapRowToBook);
-}
-
-async function getDeptBooks() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("books")
-    .select(BOOK_SELECT)
-    .eq("is_published", true)
-    .order("download_count", { ascending: false })
-    .limit(60);
-  const books = (data ?? []).map(mapRowToBook);
-
-  const deptMap = new Map<string, BookCardData[]>();
-  for (const book of books) {
-    const dept = book.department;
-    if (dept && dept !== "General") {
-      if (!deptMap.has(dept)) deptMap.set(dept, []);
-      const arr = deptMap.get(dept)!;
-      if (arr.length < 12) arr.push(book);
-    }
-  }
-  return {
-    depts: [...deptMap.keys()].slice(0, 6),
-    deptBooks: Object.fromEntries(deptMap.entries()),
-  };
-}
-
 export default async function BrowseBooksSection({ trendingBooks }: { trendingBooks: BookCardData[] }) {
   const [recentlyAdded, { depts, deptBooks }, t, locale] = await Promise.all([
-    getRecentlyAdded(),
-    getDeptBooks(),
+    getRecentlyAddedCached(),
+    getDeptBooksCached(),
     getTranslations("home"),
     getLocale(),
   ]);

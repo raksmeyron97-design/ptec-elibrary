@@ -8,12 +8,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from 'next-intl';
 import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
+import { useMountTransition } from "@/lib/hooks/useMountTransition";
 
 type NavItem = { label: string; href: string };
 
@@ -45,6 +45,7 @@ function getInitials(name: string | null, email: string) {
 export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) {
   const t = useTranslations('nav');
   const [open, setOpen] = useState(false);
+  const drawer = useMountTransition(open);
   const pathname = usePathname();
 
   // Close the drawer whenever the route changes (link tapped).
@@ -71,7 +72,9 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
   }, [open]);
 
   // Keep keyboard focus inside the drawer while it is open; restore on close.
-  const trapRef = useFocusTrap<HTMLDivElement>(open);
+  // Keyed to open && mounted: the trap must (re-)arm only after the drawer
+  // element actually exists, or the container ref is still null.
+  const trapRef = useFocusTrap<HTMLDivElement>(open && drawer.mounted);
 
   return (
     <div className="lg:hidden">
@@ -97,34 +100,25 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
       </button>
 
       {/* Backdrop — Using 100vw and 100dvh to escape the parent container */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-            className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-          />
-        )}
-      </AnimatePresence>
+      {drawer.mounted && (
+        <div
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+          className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out"
+          style={{ opacity: drawer.shown ? 1 : 0 }}
+        />
+      )}
 
       {/* Drawer panel — Using 100dvh so it fills the screen properly on mobile Safari/Chrome */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
+      {drawer.mounted && (
+          <div
             ref={trapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
             tabIndex={-1}
-            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] outline-none"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 450, damping: 32, mass: 0.6 }}
+            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] outline-none transition-transform duration-[240ms] ease-[cubic-bezier(.3,1.25,.5,1)] motion-reduce:transition-none"
+            style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}
           >
         {/* Drawer header */}
         <div className="flex items-center justify-between border-b border-divider px-5 py-4 shrink-0">
@@ -241,9 +235,8 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
             </Link>
           )}
         </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }

@@ -100,13 +100,16 @@ export default function HeroBookStack({ books }: Props) {
           style={{ opacity: fadeState === "in" ? 1 : 0 }}
         >
           {currentBook.coverUrl ? (
+            // Only the first cover gets fetchpriority=high; rotated-in covers
+            // fetch when they become the visible card, without LCP priority.
             <Image
               src={currentBook.coverUrl}
               alt={currentBook.title}
               fill
               sizes="280px"
               className="object-cover"
-              priority
+              priority={activeIndex === 0}
+              loading={activeIndex === 0 ? undefined : "eager"}
             />
           ) : (
             <div
