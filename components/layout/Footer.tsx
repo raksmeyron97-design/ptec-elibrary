@@ -218,7 +218,6 @@ const footerStyles = `
 
 export default async function Footer() {
   const t = await getTranslations("footer");
-  const tn = await getTranslations("nav");
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -243,12 +242,12 @@ export default async function Footer() {
     : null;
 
   const quickLinks: [string, string][] = [
-    [tn("home"), "/home"],
-    [tn("eResources"), "/books"],
-    [tn("posts"), "/posts"],
-    [tn("about"), "/about"],
-    [tn("contact"), "/contact"],
-    [tn("libraryRules"), "/about/rules"],
+    ["Home", "/home"],
+    ["E-Resources", "/books"],
+    ["Posts", "/posts"],
+    ["About Us", "/about"],
+    ["Contact", "/contact"],
+    ["Library Rules", "/rules"],
   ];
 
   const headingClass =
@@ -423,7 +422,7 @@ export default async function Footer() {
             </div>
 
             {/* ── Quick Links ── */}
-            <nav aria-label="Footer" className="ptec-reveal r3 ptec-col flex flex-col gap-6">
+            <div className="ptec-reveal r3 ptec-col flex flex-col gap-6">
               <h3 className={headingClass}>{t("quickLinks")}</h3>
 
               <ul className="flex flex-col gap-3.5">
@@ -439,35 +438,51 @@ export default async function Footer() {
                   </li>
                 ))}
               </ul>
-            </nav>
+            </div>
 
             {/* ── Find PTEC ── */}
             <div className="ptec-reveal r4 ptec-col flex flex-col gap-6 h-full">
               <h3 className={headingClass}>{t("findPtec")}</h3>
 
-              {/* Location card — no third-party embed, so it can never render
-                  as a blank box when the map host is unreachable. */}
-              <Link
-                href={PTEC.links.mapPlace}
-                target="_blank"
-                rel="noreferrer"
-                className="ptec-mapwrap group relative flex w-full flex-1 min-h-[180px] sm:min-h-[160px] flex-col justify-between rounded-xl border border-white/10 bg-white/[0.03] p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-400/15 text-gold-300">
-                    <Icon name="map-pin" className="text-[16px]" />
-                  </span>
-                  <p className="text-[13px] leading-snug text-blue-50">
-                    {PTEC.address.en}
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gold-300 group-hover:text-gold-200">
-                  {t("getDirections")}
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M7 17L17 7M17 7H8M17 7v9" />
-                  </svg>
-                </span>
-              </Link>
+              <div className="ptec-mapwrap relative w-full flex-1 min-h-[180px] sm:min-h-[160px] rounded-xl overflow-hidden border border-white/10">
+                <iframe
+                  src={PTEC.links.mapEmbed}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, pointerEvents: "none" }}
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="PTEC Location Map"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <Link
+                  href={PTEC.links.mapPlace}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute inset-0 z-10 block"
+                  aria-label="Open Map in new tab"
+                />
+              </div>
+
+              {/* Flag Counter Widget */}
+              <div className="flex justify-start">
+                <a
+                  href="https://info.flagcounter.com/19Xs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visitor flag counter"
+                  className="cursor-pointer"
+                >
+                  <img
+                    src="https://s11.flagcounter.com/count2/19Xs/bg_FFFFFF/txt_000000/border_CCCCCC/columns_2/maxflags_10/viewers_0/labels_0/pageviews_0/flags_0/percent_0/"
+                    alt="Flag Counter"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="rounded-md opacity-80 hover:opacity-100 transition-opacity duration-300"
+                  />
+                </a>
+              </div>
             </div>
 
           </div>
