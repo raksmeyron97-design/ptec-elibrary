@@ -14,6 +14,7 @@ const PERMISSION_AREAS: PermissionArea[] = [
   { label: "Research",      key: "research"       },
   { label: "Posts",         key: "posts"          },
   { label: "Announcements", key: "announcements"  },
+  { label: "Learning Paths", key: "learning_paths" },
   { label: "Users",         key: "users"          },
   { label: "Roles",         key: "roles"          },
 ];

@@ -26,6 +26,7 @@ import {
   Settings,
   BookPlus,
   ClipboardCheck,
+  Route,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
@@ -62,6 +63,7 @@ function getNavGroups(
   if (perm(p, "catalog",       "read"))  contentLinks.push({ name: "Catalog",          href: "/admin/catalogs",         icon: Library       });
   if (perm(p, "posts",         "read"))  contentLinks.push({ name: "Posts",            href: "/admin/posts",            icon: FileText      });
   if (perm(p, "research",      "read"))  contentLinks.push({ name: "Theses",           href: "/admin/theses",            icon: GraduationCap });
+  if (perm(p, "learning_paths","read"))  contentLinks.push({ name: "Learning Paths",   href: "/admin/paths",            icon: Route         });
   if (perm(p, "publications",  "read"))  contentLinks.push({ name: "Publications",     href: "/admin/publications",     icon: ScrollText    });
   if (perm(p, "announcements", "read"))  contentLinks.push({ name: "Announcements",    href: "/admin/announcements",    icon: Megaphone     });
   if (perm(p, "books",         "read"))  contentLinks.push({ name: "Book Requests",    href: "/admin/book-requests",    icon: BookPlus      });

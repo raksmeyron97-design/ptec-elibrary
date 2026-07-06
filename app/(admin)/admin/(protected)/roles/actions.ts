@@ -5,7 +5,7 @@ import { requireSuperAdmin } from "@/lib/auth/requireAdmin";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 
 const VALID_RESOURCES = new Set([
-  "books", "catalog", "research", "posts", "announcements", "users", "roles",
+  "books", "catalog", "research", "posts", "announcements", "learning_paths", "users", "roles",
 ]);
 const VALID_LEVELS = new Set<PermLevel>(["none", "read", "write"]);
 

@@ -117,6 +117,7 @@ export default async function Navbar() {
       { label: t('eBooks'), href: "/books", icon: EResourcesIcon },
       { label: t('theses'), href: "/theses", icon: ResearchIcon },
       { label: t('publications'), href: "/publications", icon: PublicationsIcon },
+      { label: t('learningPaths'), href: "/paths", icon: ResearchIcon },
       { label: "SVA Library", href: "https://svacamelib.org/", icon: ExternalLinkIcon, target: "_blank" }
     ]
   };
@@ -141,6 +142,7 @@ export default async function Navbar() {
     { label: t('eResources'),      href: "/books" },
     { label: t('theses'), href: "/theses" },
     { label: t('publications'),    href: "/publications" },
+    { label: t('learningPaths'),   href: "/paths" },
     { label: "SVA Library",        href: "https://svacamelib.org/" },
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },

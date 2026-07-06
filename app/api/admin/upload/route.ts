@@ -8,7 +8,7 @@ import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-opt
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/", "publications/"];
+const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/", "publications/", "paths/"];
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
     if (!ALLOWED_PREFIXES.some((p) => key.startsWith(p))) {
       return NextResponse.json(
-        { error: "File path must start with books/, posts/, research/, reports/, or publications/" },
+        { error: "File path must start with books/, posts/, research/, reports/, publications/, or paths/" },
         { status: 400 },
       );
     }

@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { data: reports },
     { data: catalogBooks },
     { data: publications },
+    { data: paths },
   ] = await Promise.all([
     supabase
       .from('books')
@@ -42,6 +43,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .range(0, 4999),
     supabase
       .from('publications')
+      .select('slug, updated_at, created_at')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .range(0, 4999),
+    supabase
+      .from('learning_paths')
       .select('slug, updated_at, created_at')
       .eq('is_published', true)
       .order('created_at', { ascending: false })
@@ -120,6 +127,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: 0.9,
     },
+    {
+      url: `${SITE_URL}/paths`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
     // Informational pages — rarely change
     ...[
       '/about',
@@ -139,6 +152,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
 
+  const pathUrls: MetadataRoute.Sitemap = (paths ?? []).map((p) => ({
+    url: `${SITE_URL}/paths/${p.slug}`,
+    lastModified: p.updated_at ?? p.created_at ?? new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  }));
+
   return [
     ...staticUrls,
     ...reportUrls,
@@ -146,5 +166,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...bookUrls,
     ...postUrls,
     ...catalogUrls,
+    ...pathUrls,
   ];
 }

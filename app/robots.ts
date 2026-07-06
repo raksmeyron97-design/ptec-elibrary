@@ -18,6 +18,7 @@ const publicLibraryPaths = [
   '/catalogs/',
   '/theses/',
   '/publications/',
+  '/paths/',
   '/about/',
   '/contact',
   '/policy',
