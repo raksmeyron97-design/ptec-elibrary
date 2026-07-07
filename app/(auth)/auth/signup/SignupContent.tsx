@@ -115,8 +115,17 @@ export default function SignupContent({ stats }: Props) {
     : null;
   const confirmErrMsg  = passwordMismatch ? t('errPasswordMismatch') : null;
 
+  // Kept in sync with the DB-level guard (migration 0068) and
+  // app/actions/auth.ts — this client check only exists to show a friendly
+  // message; enforcement happens in the database trigger.
+  const RESERVED_ADMIN_DOMAINS = ["@ptec.edu.kh", "@admin.ptec.edu.kh", "@ptec-admin.edu.kh"];
+  const emailReserved = RESERVED_ADMIN_DOMAINS.some((d) =>
+    email.trim().toLowerCase().endsWith(d)
+  );
+
   function friendlyErrorLocal(msg: string): string {
     if (/user already registered/i.test(msg)) return t('errUserExists');
+    if (/database error saving new user/i.test(msg)) return t('errReservedDomain');
     if (/password should be at least/i.test(msg)) return t('errPasswordLength');
     if (/invalid email/i.test(msg)) return t('errEmailInvalid');
     if (/too many requests|rate limit/i.test(msg)) return t('errTooManyRequests');
@@ -128,6 +137,7 @@ export default function SignupContent({ stats }: Props) {
     e.preventDefault();
     setSubmitted(true);
     if (nameErrMsg || emailErrMsg || passwordErrMsg || confirmErrMsg || !email || !password || !fullName || password !== confirmPassword) return;
+    if (emailReserved) { setError(t('errReservedDomain')); return; }
     if (!captchaToken) { setError("Please complete the verification below."); return; }
 
     setError(null);

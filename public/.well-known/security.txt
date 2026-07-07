@@ -1,0 +1,5 @@
+# Security contact for the PTEC e-Library (RFC 9116)
+Contact: https://library.ptec.edu.kh/contact
+Expires: 2027-07-01T00:00:00.000Z
+Preferred-Languages: en, km
+Canonical: https://library.ptec.edu.kh/.well-known/security.txt

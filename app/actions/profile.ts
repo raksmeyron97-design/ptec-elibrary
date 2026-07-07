@@ -1,9 +1,12 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, AVATAR_OPTS } from "@/lib/image-optimize";
+import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
+import type { AppRole } from "@/lib/types/roles";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export async function updateProfile(formData: FormData) {
   try {
@@ -61,6 +64,90 @@ export async function updateProfile(formData: FormData) {
     return { success: true };
   } catch (err) {
     console.error("Error updating profile:", err);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Permanently delete the current user's account and all associated data.
+ *
+ * Deletion happens via auth.admin.deleteUser — every user-owned table
+ * (profiles, notes, annotations, reading progress, saved books, lists,
+ * reviews, push subscriptions, …) references auth.users/profiles with
+ * ON DELETE CASCADE, so a single delete removes everything.
+ *
+ * Admin-panel roles cannot self-delete: their profile is referenced by
+ * admin_audit_log (RESTRICT), and removing staff must stay a deliberate
+ * super-admin action.
+ */
+export async function deleteAccount(confirmation: string) {
+  try {
+    const authClient = await createClient();
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
+
+    if (userError || !user) {
+      return { error: "Not authenticated" };
+    }
+
+    if (confirmation !== "DELETE") {
+      return { error: "Please type DELETE to confirm." };
+    }
+
+    const supabase = createServiceClient();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, is_super_admin")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const role = (profile?.role ?? "reader") as AppRole;
+    if (ADMIN_PANEL_ROLES.includes(role) || profile?.is_super_admin) {
+      logSecurityEvent({
+        type: "suspicious_input",
+        where: "deleteAccount",
+        userId: user.id,
+        detail: "admin-panel role attempted self-serve account deletion",
+      });
+      return {
+        error:
+          "Staff accounts cannot be deleted here. Please ask a super admin to remove your account.",
+      };
+    }
+
+    // Books this user reviewed — their average rating must be recomputed
+    // after the cascade removes the reviews.
+    const { data: reviewed } = await supabase
+      .from("reviews")
+      .select("book_id")
+      .eq("user_id", user.id);
+    const reviewedBookIds = [...new Set((reviewed ?? []).map((r) => r.book_id))];
+
+    const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+    if (deleteError) {
+      console.error("[deleteAccount] deleteUser failed:", deleteError.message);
+      return { error: "Failed to delete account. Please try again or contact the library." };
+    }
+
+    for (const bookId of reviewedBookIds) {
+      const { data: remaining } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("book_id", bookId);
+      const avg =
+        remaining && remaining.length > 0
+          ? Math.round((remaining.reduce((s, r) => s + r.rating, 0) / remaining.length) * 10) / 10
+          : null;
+      await supabase.from("books").update({ rating: avg }).eq("id", bookId);
+    }
+
+    // Clear the now-orphaned session cookies.
+    await authClient.auth.signOut();
+
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (err) {
+    console.error("[deleteAccount] Error:", err);
     return { error: "An unexpected error occurred" };
   }
 }

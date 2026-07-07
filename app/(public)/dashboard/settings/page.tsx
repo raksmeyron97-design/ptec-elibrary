@@ -84,6 +84,16 @@ export default async function SettingsPage() {
     updatePassword: "Update password",
     updating: "Updating…",
     passwordUpdated: "Password updated successfully.",
+
+    // Danger zone
+    dangerTitle: "Delete account",
+    dangerDesc:
+      "Permanently delete your account, saved books, reading lists, notes, reading progress, and reviews. This cannot be undone.",
+    dangerOpen: "Delete my account…",
+    dangerConfirmLabel: "Type DELETE to confirm",
+    dangerCancel: "Cancel",
+    dangerConfirm: "Permanently delete account",
+    dangerDeleting: "Deleting…",
   };
 
   return (

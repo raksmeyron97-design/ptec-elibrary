@@ -5,6 +5,13 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_ROLES, ADMIN_PANEL_ROLES, LIBRARIAN_ROLES } from "@/lib/types/roles";
 import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
+import { logSecurityEvent } from "@/lib/security-log";
+
+/** A signed-in user tried an action above their role — worth flagging. */
+function forbidden(where: string, userId: string): AdminAuthError {
+  logSecurityEvent({ type: "auth_forbidden", where, userId });
+  return new AdminAuthError("Forbidden", 403);
+}
 
 export type AdminAuthStatus = 401 | 403 | 500;
 
@@ -100,7 +107,7 @@ export async function requireAdmin(): Promise<RequiredAdmin> {
   const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
 
   if (!ADMIN_ROLES.includes(role) && !isSuperAdmin) {
-    throw new AdminAuthError("Forbidden", 403);
+    throw forbidden("requireAdmin", user.id);
   }
 
   return { supabase, user, userId: user.id, role };
@@ -114,7 +121,7 @@ export async function requireStaff(): Promise<RequiredAdmin> {
   const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
 
   if (!ADMIN_PANEL_ROLES.includes(role) && !isSuperAdmin) {
-    throw new AdminAuthError("Forbidden", 403);
+    throw forbidden("requireStaff", user.id);
   }
 
   return { supabase, user, userId: user.id, role };
@@ -128,7 +135,7 @@ export async function requireLibrarian(): Promise<RequiredAdmin> {
   const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
 
   if (!LIBRARIAN_ROLES.includes(role) && !isSuperAdmin) {
-    throw new AdminAuthError("Forbidden", 403);
+    throw forbidden("requireLibrarian", user.id);
   }
 
   return { supabase, user, userId: user.id, role };
@@ -142,7 +149,7 @@ export async function requireSuperAdmin(): Promise<RequiredAdmin> {
   const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
 
   if (role !== "super_admin" && !isSuperAdmin) {
-    throw new AdminAuthError("Forbidden", 403);
+    throw forbidden("requireSuperAdmin", user.id);
   }
 
   return { supabase, user, userId: user.id, role };
@@ -168,7 +175,7 @@ export async function requirePermission(
   const perms = await getPermissionsForRole(role, supabase);
 
   if (!hasPermission(perms, resource, minLevel)) {
-    throw new AdminAuthError("Forbidden", 403);
+    throw forbidden(`requirePermission:${resource}:${minLevel}`, user.id);
   }
 
   return { supabase, user, userId: user.id, role };

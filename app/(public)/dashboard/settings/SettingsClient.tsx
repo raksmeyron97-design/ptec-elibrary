@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { updateProfile, updatePassword } from "@/app/actions/profile";
+import { useRouter } from "next/navigation";
+import { updateProfile, updatePassword, deleteAccount } from "@/app/actions/profile";
 import Icon from "@/components/ui/core/Icon";
 
 type SettingsClientProps = {
@@ -92,10 +93,15 @@ const scorePassword = (pw: string) => {
 };
 
 export default function SettingsClient({ user, t }: SettingsClientProps) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("profile");
 
   const [profilePending, startProfileTransition] = useTransition();
   const [passwordPending, startPasswordTransition] = useTransition();
+  const [deletePending, startDeleteTransition] = useTransition();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
 
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -164,6 +170,20 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
         setProfileMsg({ type: "success", text: t.profileUpdated || "Profile updated successfully." });
         setAvatarFile(null);
       }
+    });
+  };
+
+  const onDeleteAccount = () => {
+    setDeleteMsg(null);
+    startDeleteTransition(async () => {
+      const res = await deleteAccount(deleteConfirm.trim());
+      if (res?.error) {
+        setDeleteMsg(res.error);
+        return;
+      }
+      // Account is gone and the session is cleared — leave the dashboard.
+      router.push("/home");
+      router.refresh();
     });
   };
 
@@ -505,6 +525,70 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
                 {passwordPending ? t.updating || "Updating…" : t.updatePassword || "Update password"}
               </button>
             </div>
+          </div>
+
+          {/* ---------------- Danger zone ---------------- */}
+          <div className="mt-6 bg-bg-surface border border-red-300 dark:border-red-900 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 sm:px-8 pt-6 pb-5">
+              <h2 className="text-lg font-bold text-red-600">{t.dangerTitle || "Delete account"}</h2>
+              <p className="text-sm text-text-muted mt-1">
+                {t.dangerDesc ||
+                  "Permanently delete your account, saved books, reading lists, notes, reading progress, and reviews. This cannot be undone."}
+              </p>
+            </div>
+
+            {!deleteOpen ? (
+              <div className="border-t border-divider bg-paper px-6 sm:px-8 py-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(true)}
+                  className="h-11 px-6 rounded-xl border border-red-300 dark:border-red-900 text-red-600 font-semibold hover:bg-red-50 dark:hover:bg-red-950/40 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                >
+                  {t.dangerOpen || "Delete my account…"}
+                </button>
+              </div>
+            ) : (
+              <div className="border-t border-divider px-6 sm:px-8 py-5 space-y-4">
+                <label htmlFor="delete-confirm" className="block text-sm font-semibold text-text-body">
+                  {t.dangerConfirmLabel || "Type DELETE to confirm"}
+                </label>
+                <input
+                  id="delete-confirm"
+                  type="text"
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="DELETE"
+                  autoComplete="off"
+                  className={inputBase}
+                />
+                {deleteMsg && (
+                  <p className="text-sm text-red-600 flex items-center gap-1.5" role="alert">
+                    <AlertIcon className="h-4 w-4 shrink-0" />
+                    {deleteMsg}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteOpen(false); setDeleteConfirm(""); setDeleteMsg(null); }}
+                    className="h-11 px-5 rounded-xl text-text-muted font-medium hover:text-text-body transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    {t.dangerCancel || "Cancel"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDeleteAccount}
+                    disabled={deletePending || deleteConfirm.trim() !== "DELETE"}
+                    className="h-11 px-6 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
+                  >
+                    {deletePending && <Spinner />}
+                    {deletePending
+                      ? t.dangerDeleting || "Deleting…"
+                      : t.dangerConfirm || "Permanently delete account"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </section>
       </div>

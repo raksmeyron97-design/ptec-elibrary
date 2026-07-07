@@ -7,9 +7,31 @@ on:
     branches: [ "main" ]
 
 jobs:
+  # Scan the full git history for committed secrets on every push.
+  # If this ever fires on a real secret: rotate it first, then clean history.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # On PRs, block newly-introduced dependencies with known vulnerabilities.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
     
@@ -23,6 +45,12 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
+
+    # Fail on high/critical advisories in production dependencies only —
+    # dev-tooling advisories are noise and moderate ones are tracked manually
+    # (see docs/SECURITY-OPS.md §6).
+    - name: Audit production dependencies
+      run: npm audit --omit=dev --audit-level=high
 
     # /hero/* ships with a 1-year immutable Cache-Control header — fail fast
     # if public/ptec-library.jpg changed without regenerating the variants

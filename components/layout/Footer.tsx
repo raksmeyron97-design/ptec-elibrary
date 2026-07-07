@@ -248,6 +248,7 @@ export default async function Footer() {
     ["About Us", "/about"],
     ["Contact", "/contact"],
     ["Library Rules", "/rules"],
+    ["Privacy", "/privacy"],
   ];
 
   const headingClass =

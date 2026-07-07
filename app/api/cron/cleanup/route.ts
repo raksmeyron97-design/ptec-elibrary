@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
 
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${secret}`) {
+    logSecurityEvent({ type: "cron_auth_failed", where: "/api/cron/cleanup" });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

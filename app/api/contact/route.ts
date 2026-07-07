@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
+import { logSecurityEvent } from "@/lib/security-log";
 
 const COOLDOWN_MS = 2 * 60 * 1000;
 const MAX_PER_HOUR = 3;
@@ -102,12 +103,14 @@ export async function POST(req: NextRequest) {
 
   // 0. CAPTCHA (enforced only when TURNSTILE_SECRET_KEY is configured)
   if (!(await verifyTurnstile(turnstileToken, ip))) {
+    logSecurityEvent({ type: "captcha_failed", where: "/api/contact", ip });
     return NextResponse.json({ error: "Captcha verification failed." }, { status: 403 });
   }
 
   // 1. In-memory DDoS protection (fast fail)
   const memLimit = await rateLimit(ip, 10, 60 * 1000); // Max 10 requests per minute per IP
   if (!memLimit.success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/contact", ip });
     return NextResponse.json(
       { error: "Too many rapid requests. Please slow down.", secondsLeft: Math.ceil((memLimit.reset - Date.now()) / 1000) },
       { status: 429 }

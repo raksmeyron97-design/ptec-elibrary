@@ -427,6 +427,7 @@
     "errNetwork": "Network error. Please check your connection.",
     "errDefault": "An error occurred. Please try again.",
     "errUserExists": "An account with this email already exists. Try signing in instead.",
+    "errReservedDomain": "This email domain is reserved for library staff. Please sign up with a personal email, or contact the library if you are a staff member.",
     "errPasswordLength": "Password must be at least 8 characters.",
     "errEmailInvalid": "Please enter a valid email address.",
     "errNameRequired": "Full name is required.",
@@ -714,5 +715,30 @@
       "all_rights_reserved": "All Rights Reserved — permission required beyond fair use",
       "unknown": "License not specified"
     }
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "updated": "Last updated: July 2026",
+    "intro": "The PTEC e-Library is a free digital library operated by the Phnom Penh Teacher Education College. We collect only the personal data needed to run the library, we never sell it, and you can delete your account and data at any time. This page explains exactly what we store and why.",
+    "collectTitle": "What we collect",
+    "collectAccount": "Account information: your email address, display name, and an optional profile photo. If you sign in with Google, we receive your name, email, and Google profile photo.",
+    "collectActivity": "Library activity: books you save, reading lists, reading progress, personal notes and highlights, and reviews you write. This is what makes features like “continue reading” work.",
+    "collectContact": "Contact form messages: the name, email, and message you send us are forwarded to library staff so we can reply, and are not used for anything else.",
+    "collectTechnical": "Technical records: download logs and search queries, used to keep the service secure and to improve the catalog (for example, finding searches that return no results).",
+    "notTitle": "What we do not do",
+    "notBody": "We do not sell or share your personal data with advertisers, we do not show ads, and we do not track you across other websites. We do not collect any personal data beyond what is listed above.",
+    "storageTitle": "Where your data is stored",
+    "storageBody": "Account and activity data are stored in our database (Supabase/PostgreSQL); book files are stored on the library’s file storage. All connections use HTTPS encryption, and access to private data is restricted by server-side permission checks.",
+    "visibilityTitle": "Who can see your data",
+    "visibilityPrivate": "Private to you: personal notes, highlights, reading progress, saved books, and reading lists are visible only to your account. Library staff cannot browse them.",
+    "visibilityPublic": "Public: book reviews you post are shown on the book page together with your display name and profile photo.",
+    "retentionTitle": "How long we keep it",
+    "retentionBody": "Your data is kept while your account exists. When you delete your account, your profile, notes, reading progress, saved lists, and reviews are permanently removed. Contact-form messages are kept only as long as needed to respond.",
+    "choicesTitle": "Your choices",
+    "choicesBody": "You can edit your name and photo, change your password, or permanently delete your account and all associated data from",
+    "choicesSettingsLink": "your account settings",
+    "contactTitle": "Questions",
+    "contactBody": "If you have any question about your data, or want a copy of it, please reach us through the",
+    "contactLink": "contact page"
   }
 }

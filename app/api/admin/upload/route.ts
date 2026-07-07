@@ -4,6 +4,7 @@ import { validateMimeType } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
     if (!key) return NextResponse.json({ error: "No key provided" }, { status: 400 });
 
     if (key.startsWith("/") || key.startsWith("\\") || key.includes("..") || key.includes("\\")) {
+      logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: "path traversal attempt in key" });
       return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
     }
     if (!ALLOWED_PREFIXES.some((p) => key.startsWith(p))) {
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
 
     if (!validateMimeType(bytes, file.type)) {
+      logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: `magic bytes do not match declared type ${file.type}` });
       return NextResponse.json(
         {
           error: `Invalid file: content does not match declared type (${file.type}). Only PDF, JPEG, PNG, WebP, and AVIF are allowed.`,
