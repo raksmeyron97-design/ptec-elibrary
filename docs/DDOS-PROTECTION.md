@@ -29,12 +29,14 @@ The domain `library.ptec.edu.kh` should be proxied through Cloudflare
       deliberately crawlable (`/api/theses/:id/file.pdf`).
 - [ ] **WAF managed rules** — Security → WAF → enable the free managed ruleset.
 - [ ] **Always Use HTTPS + TLS Full (strict)** — SSL/TLS settings.
-- [ ] **Origin protection** — the origin is Vercel, which is itself a CDN with
-      DDoS absorption, so origin-IP lockdown isn't applicable the way it is
-      for a VPS. **The Zima Storage host is the exception**: it IS a single
-      origin. Put `api./cdn.storage-ptec.online` behind Cloudflare too, and
-      firewall the box to accept HTTP only from Cloudflare's published IP
-      ranges (https://www.cloudflare.com/ips/).
+- [ ] **Origin protection** — the app and Zima Storage run on a self-hosted
+      ZimaOS box. Expose it **only** through a Cloudflare Tunnel (outbound-only
+      connection, zero router port-forwards) so the origin IP is never
+      discoverable. Full architecture, setup steps, private-port list, and the
+      "is my origin hidden?" checklist live in `ZIMAOS-DEPLOYMENT.md`.
+      `api./cdn.storage-ptec.online` should be proxied hostnames on the same
+      tunnel (or firewalled to Cloudflare's published IP ranges,
+      https://www.cloudflare.com/ips/, if it must listen directly).
 
 ### Cloudflare rate-limiting rules (Security → WAF → Rate limiting)
 
@@ -118,7 +120,9 @@ Notes:
 
 ## 4. Emergency mode (env switches)
 
-Set in Vercel → Project → Environment Variables, then **redeploy** (~1 min).
+Self-hosted (ZimaOS): edit `.env` on the box, then `docker compose up -d app`
+(container recreate, a few seconds). On Vercel: set the variable in Project →
+Environment Variables and redeploy (~1 min).
 
 | Variable | Effect |
 |---|---|

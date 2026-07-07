@@ -24,6 +24,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for the ZimaOS Docker image (Dockerfile
+  // copies .next/standalone). Harmless elsewhere: `next start` and Vercel
+  // deployments ignore it.
+  output: "standalone",
   experimental: {
     serverActions: {
       bodySizeLimit: "5mb",

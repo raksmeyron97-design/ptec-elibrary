@@ -1,0 +1,21 @@
+# Secrets — env files are injected at runtime via compose env_file, never baked in
+.env
+.env.*
+!.env.example
+
+# Build artifacts / caches
+.next
+node_modules
+playwright-report
+test-results
+coverage
+
+# VCS / tooling
+.git
+.github
+.claude
+.vscode
+
+# Local dev
+*.log
+supabase/.temp

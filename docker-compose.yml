@@ -1,0 +1,70 @@
+# PTEC e-Library — ZimaOS deployment.
+#
+#   docker compose up -d --build                  # app only (port 3000 on LAN)
+#   docker compose --profile tunnel up -d --build # app + Cloudflare Tunnel (recommended)
+#
+# With the tunnel profile the app publishes NO host port at all: the only way
+# in is Cloudflare → cloudflared → private Docker network → app. The origin
+# stays invisible to the public internet. See docs/ZIMAOS-DEPLOYMENT.md.
+#
+# Runtime secrets come from .env (never baked into the image). The
+# NEXT_PUBLIC_* build args below are compiled into the client bundle and are
+# public by definition — everything else stays server-side.
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_ROOT_DOMAIN: ${NEXT_PUBLIC_ROOT_DOMAIN}
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+        NEXT_PUBLIC_R2_PUBLIC_URL: ${NEXT_PUBLIC_R2_PUBLIC_URL}
+        NEXT_PUBLIC_R2_COVERS_URL: ${NEXT_PUBLIC_R2_COVERS_URL}
+    image: ptec-elibrary:latest
+    container_name: ptec-elibrary
+    restart: unless-stopped
+    env_file: .env
+    # LAN-only binding: reachable on the ZimaOS box / local network for
+    # debugging, but NOT via router port-forwarding (don't forward 3000!).
+    # When running with the tunnel profile you can delete this ports block
+    # entirely — cloudflared reaches the app over the internal network.
+    ports:
+      - "3000:3000"
+    networks: [web]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # Cloudflare Tunnel — outbound-only connection to Cloudflare's edge.
+  # Create the tunnel in Cloudflare Zero Trust → Networks → Tunnels, map
+  # library.ptec.edu.kh → http://app:3000, put the token in .env as
+  # TUNNEL_TOKEN. No inbound ports, no port forwarding, origin IP hidden.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ptec-tunnel
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    networks: [web]
+    depends_on:
+      app:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  web:
+    driver: bridge
