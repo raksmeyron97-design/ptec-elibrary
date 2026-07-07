@@ -10,6 +10,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +23,7 @@ const EMBED_MODEL = "gemini-embedding-001";
 const EMBED_DIM = 768; // must match vector(768) columns
 const MIN_SIMILARITY = 0.25;
 
-const RATE_PER_MIN = 10; // per-IP requests/minute
+// Rate limit comes from ratePolicy("search") — RL_SEARCH_PER_MIN to override.
 const DAILY_AI_LIMIT = 1000; // global Gemini summary calls/day (denial-of-wallet)
 const SEARCH_SENTINEL = "00000000-0000-0000-0000-000000000002";
 
@@ -260,7 +262,9 @@ Write 1–3 concise sentences: briefly explain the topic and how the listed book
 // ── GET /api/search?q=... ─────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const ip = getClientIP(req);
-  if (!(await rateLimit(ip, RATE_PER_MIN, 60_000)).success) {
+  const { limit, windowMs } = ratePolicy("search");
+  if (!(await rateLimit(ip, limit, windowMs)).success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/search", ip });
     return Response.json({ error: "Too many requests. Please slow down." }, { status: 429 });
   }
 
@@ -279,7 +283,11 @@ export async function GET(req: Request) {
   }
 
   // Summary is best-effort: quota/RPC/Gemini failure must not break search.
+  // In emergency mode the summary is skipped entirely — book results still work.
   let answer = "";
+  if (isExpensiveSearchDisabled()) {
+    return Response.json({ answer, books });
+  }
   try {
     const db = createServiceClient();
     const { data: aiAllowed } = await db.rpc("increment_ai_usage", {

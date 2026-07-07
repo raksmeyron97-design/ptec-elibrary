@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 
@@ -33,17 +35,26 @@ export type Suggestion =
   | { type: "research"; id: string; slug?: string | null; label: string; sub: string; coverUrl?: string | null };
 
 export async function GET(req: NextRequest) {
-  // Rate limiting check (60 requests per minute)
+  // Emergency mode: autocomplete is a nice-to-have that fires on every
+  // keystroke — shed it first. The search page itself keeps working.
+  if (isExpensiveSearchDisabled()) return NextResponse.json([]);
+
   const ip = getClientIP(req);
-  const limit = await rateLimit(ip, 60, 60000);
-  
+  const { limit: rlLimit, windowMs } = ratePolicy("suggestions");
+  const limit = await rateLimit(ip, rlLimit, windowMs);
+
   if (!limit.success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/books/suggestions", ip });
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const rawQ = req.nextUrl.searchParams.get("q")?.trim();
   if (!rawQ || rawQ.length < 2) return NextResponse.json([]);
-  const q = rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim();
+  if (rawQ.length > 100) return NextResponse.json([]);
+  // Strip ILIKE wildcards (%/_) along with punctuation — user input must not
+  // be able to inject expensive pattern matches into the four queries below.
+  const q = rawQ.replace(/[(),.\\%_]/g, " ").replace(/\s+/g, " ").trim();
+  if (q.length < 2) return NextResponse.json([]);
 
   const supabase = await createClient();
   const results: Suggestion[] = [];

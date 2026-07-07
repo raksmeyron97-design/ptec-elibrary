@@ -4,6 +4,8 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +13,7 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE_ALL = 4;   // results per type in "all" view (16 max total)
 const PAGE_SIZE_TYPE = 10; // results per page in type-specific view
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
-const RATE_PER_MIN = 30;   // per-IP, no AI cost so we can be generous
+// Rate limit comes from ratePolicy("searchNative") — RL_SEARCH_NATIVE_PER_MIN to override.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -452,7 +454,9 @@ function countsOf(results: SearchResult[]): SearchCounts {
 
 export async function GET(req: Request) {
   const ip = getClientIP(req);
-  if (!(await rateLimit(ip, RATE_PER_MIN, 60_000)).success) {
+  const { limit: rlLimit, windowMs } = ratePolicy("searchNative");
+  if (!(await rateLimit(ip, rlLimit, windowMs)).success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/search/native", ip });
     return Response.json({ error: "Too many requests." }, { status: 429 });
   }
 

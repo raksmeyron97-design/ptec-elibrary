@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export type Review = {
@@ -31,6 +34,13 @@ export async function submitReview(
   } = await authClient.auth.getUser();
 
   if (!user) return { success: false, error: "You must be signed in to leave a review." };
+
+  const { limit, windowMs } = ratePolicy("review");
+  const rl = await rateLimit(`review:${user.id}`, limit, windowMs);
+  if (!rl.success) {
+    logSecurityEvent({ type: "rate_limited", where: "submitReview", userId: user.id });
+    return { success: false, error: "You are reviewing too quickly. Please try again in a few minutes." };
+  }
 
   const rating = Number(formData.get("rating"));
   if (!rating || rating < 1 || rating > 5) {

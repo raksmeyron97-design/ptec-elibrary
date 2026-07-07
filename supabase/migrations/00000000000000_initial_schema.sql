@@ -1110,10 +1110,11 @@ BEGIN
   VALUES (p_key, array[v_now], now())
   ON CONFLICT (key) DO UPDATE
     SET history    = array_append(
-                       array(
-                         SELECT unnest(rate_limit.history)
-                         WHERE  unnest > v_cutoff
-                       ),
+                       -- NB: a select-list alias can't be referenced in WHERE;
+                       -- unnest must be in FROM (bug fixed in 0069).
+                       (SELECT coalesce(array_agg(ts), '{}')
+                        FROM unnest(rate_limit.history) AS t(ts)
+                        WHERE ts > v_cutoff),
                        v_now
                      ),
         updated_at = now()

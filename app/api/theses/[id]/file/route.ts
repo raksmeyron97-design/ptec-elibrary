@@ -3,6 +3,8 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
@@ -32,8 +34,10 @@ export async function GET(
     request.headers.get("x-real-ip")?.trim() ??
     request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
     "unknown";
-  const rl = await rateLimit(`thesis-file:${ip}`, 30, 60_000);
+  const { limit, windowMs } = ratePolicy("fileRead");
+  const rl = await rateLimit(`thesis-file:${ip}`, limit, windowMs);
   if (!rl.success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/theses/[id]/file", ip });
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
       { status: 429 },

@@ -4,6 +4,8 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { ratePolicy } from "@/lib/rate-limit-policy";
+import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
@@ -16,8 +18,7 @@ const s3 = new S3Client({
   },
 });
 
-const DOWNLOAD_LIMIT = 5;
-const DOWNLOAD_WINDOW_MS = 60 * 1000;
+// Rate limit comes from ratePolicy("download") — RL_DOWNLOAD_PER_MIN to override.
 
 export async function GET(
   _req: Request,
@@ -31,13 +32,15 @@ export async function GET(
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const rl = await rateLimit(user.id, DOWNLOAD_LIMIT, DOWNLOAD_WINDOW_MS);
+  const { limit: downloadLimit, windowMs } = ratePolicy("download");
+  const rl = await rateLimit(user.id, downloadLimit, windowMs);
   if (!rl.success) {
+    logSecurityEvent({ type: "rate_limited", where: "/api/books/[slug]/download", userId: user.id });
     return new NextResponse("Too Many Requests", {
       status: 429,
       headers: {
         "Retry-After": String(Math.ceil((rl.reset - Date.now()) / 1000)),
-        "X-RateLimit-Limit": String(DOWNLOAD_LIMIT),
+        "X-RateLimit-Limit": String(downloadLimit),
         "X-RateLimit-Remaining": "0",
       },
     });

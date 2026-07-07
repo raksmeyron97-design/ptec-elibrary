@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
@@ -106,6 +106,13 @@ export default function ContactPage() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
   const turnstileRef = useRef<TurnstileInstance>(null);
+  // Anti-bot: honeypot field (must stay empty) + form render time (server
+  // rejects submissions faster than a human could type).
+  const [website, setWebsite] = useState("");
+  const formTimeRef = useRef(0);
+  useEffect(() => {
+    formTimeRef.current = Date.now();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -116,7 +123,14 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, message, turnstileToken: captchaToken }),
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          turnstileToken: captchaToken,
+          website,
+          formTime: formTimeRef.current,
+        }),
       });
 
       const data = await res.json();
@@ -267,6 +281,21 @@ export default function ContactPage() {
             <p className="text-sm text-text-muted mb-6">
               <span className="font-kh" lang="km">សូមផ្ញើសំណូមពររបស់អ្នក</span>
             </p>
+
+            {/* Honeypot — visually hidden from humans, tempting to bots.
+                Kept off-screen (not display:none) so naive bots still fill it. */}
+            <div aria-hidden="true" className="absolute -left-[9999px] top-auto h-px w-px overflow-hidden">
+              <label htmlFor="contact-website">Website</label>
+              <input
+                id="contact-website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </div>
 
             <div className="space-y-4">
               <div>

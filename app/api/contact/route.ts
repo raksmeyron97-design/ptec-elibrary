@@ -1,7 +1,13 @@
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
+
+// Bots that auto-fill every field trip the honeypot; bots that submit the
+// instant the page loads trip the fill-time floor. Real users need several
+// seconds just to solve Turnstile.
+const MIN_FILL_TIME_MS = 3_000;
 
 const COOLDOWN_MS = 2 * 60 * 1000;
 const MAX_PER_HOUR = 3;
@@ -83,7 +89,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, email, message, turnstileToken } = body;
+  const { name, email, message, turnstileToken, website, formTime } = body;
+
+  const ipEarly = getClientIP(req);
+
+  // Honeypot: invisible field real users never fill. Answer with a fake
+  // success so bots don't learn they were detected.
+  if (typeof website === "string" && website.trim() !== "") {
+    logSecurityEvent({ type: "suspicious_input", where: "/api/contact", ip: ipEarly, detail: "honeypot field filled" });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Minimum fill time: submissions faster than a human can type are bots.
+  const elapsed = typeof formTime === "number" ? Date.now() - formTime : NaN;
+  if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < MIN_FILL_TIME_MS) {
+    logSecurityEvent({ type: "suspicious_input", where: "/api/contact", ip: ipEarly, detail: `form submitted in ${Math.round(elapsed)}ms` });
+    return NextResponse.json({ error: "Please try sending your message again." }, { status: 400 });
+  }
 
   // Validate
   if (!name?.trim() || !email?.trim() || !message?.trim()) {
@@ -113,6 +135,21 @@ export async function POST(req: NextRequest) {
     logSecurityEvent({ type: "rate_limited", where: "/api/contact", ip });
     return NextResponse.json(
       { error: "Too many rapid requests. Please slow down.", secondsLeft: Math.ceil((memLimit.reset - Date.now()) / 1000) },
+      { status: 429 }
+    );
+  }
+
+  // 1b. Duplicate-content guard: the same message body may be sent at most
+  // twice per hour site-wide (spam campaigns blast one text from many IPs).
+  const contentHash = createHash("sha256")
+    .update(message.trim().toLowerCase().replace(/\s+/g, " "))
+    .digest("hex")
+    .slice(0, 32);
+  const dupLimit = await rateLimit(`contact-dup:${contentHash}`, 2, HOUR_MS);
+  if (!dupLimit.success) {
+    logSecurityEvent({ type: "suspicious_input", where: "/api/contact", ip, detail: "repeated identical message content" });
+    return NextResponse.json(
+      { error: "This message was already sent. Please wait before sending it again." },
       { status: 429 }
     );
   }
