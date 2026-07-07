@@ -12,7 +12,7 @@ export default async function TeamSectionsPage() {
   const [{ data: sectionsRaw }, { data: membersRaw }] = await Promise.all([
     supabase
       .from("team_sections")
-      .select("id, name_km, name_en, description_km, description_en, display_order")
+      .select("*")
       .order("display_order", { ascending: true }),
     supabase.from("team_members").select("section_id"),
   ]);

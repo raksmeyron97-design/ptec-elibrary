@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/requireAdmin";
+import { isAllowedTeamPhotoUrl } from "@/lib/team/photo";
 import { revalidatePath } from "next/cache";
 
 export async function updateOwnTeamMember(formData: FormData) {
@@ -24,13 +25,10 @@ export async function updateOwnTeamMember(formData: FormData) {
     if (!nameKm) return { error: "Khmer name is required." };
     if (!nameEn) return { error: "Latin name is required." };
 
-    // Validate photo_url is from our own R2 public bucket (or empty).
+    // Validate photo_url is from library storage — Zima or legacy R2 (or empty).
     const rawPhotoUrl = (formData.get("photo_url") as string)?.trim() || null;
-    if (rawPhotoUrl) {
-      const publicBase = process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.replace(/\/$/, "");
-      if (!publicBase || !rawPhotoUrl.startsWith(publicBase + "/")) {
-        return { error: "Invalid photo URL." };
-      }
+    if (rawPhotoUrl && !isAllowedTeamPhotoUrl(rawPhotoUrl)) {
+      return { error: "Invalid photo URL." };
     }
 
     // Validate section_id exists before accepting it (prevents orphaned FK or spoofed IDs).
