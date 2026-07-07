@@ -19,6 +19,15 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
 }
 
+/** Strip PostgREST filter metacharacters before building .or(...) strings. */
+function sanitizeSearchTerm(input: string): string {
+  return input
+    .replace(/[%,()\\*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
 // Server actions are callable with arbitrary JSON — the ThesisData interface
 // only exists at compile time. Whitelist columns so extra keys (view_count,
 // verified_at, status, …) can never reach the insert/update.
@@ -160,16 +169,17 @@ export async function getTheses({
     query = query.eq("academic_year", academicYear);
   }
 
-  if (q) {
+  const term = q ? sanitizeSearchTerm(q) : "";
+  if (term) {
     const { data: kwMatches } = await supabase
       .from("research_reports")
       .select("id")
-      .filter("keywords::text", "ilike", `%${q}%`)
+      .filter("keywords::text", "ilike", `%${term}%`)
       .eq("is_published", true);
 
     const kwIds = kwMatches?.map(r => r.id) ?? [];
 
-    let orStr = `title.ilike.%${q}%,author_names.ilike.%${q}%,advisor_name.ilike.%${q}%,doi.ilike.%${q}%`;
+    let orStr = `title.ilike.%${term}%,author_names.ilike.%${term}%,advisor_name.ilike.%${term}%,doi.ilike.%${term}%`;
     if (kwIds.length > 0) {
       orStr += `,id.in.(${kwIds.join(",")})`;
     }

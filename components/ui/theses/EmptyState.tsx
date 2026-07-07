@@ -17,10 +17,14 @@ export default function EmptyState({
   title = "No theses found",
   message,
   showReset,
+  resetHref = "/theses",
+  resetLabel = "Reset Filters",
 }: {
   title?: string;
   message: string;
   showReset: boolean;
+  resetHref?: string;
+  resetLabel?: string;
 }) {
   return (
     <div className="fade-rise-in flex min-h-[320px] sm:min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface p-6 sm:p-10 text-center">
@@ -29,11 +33,11 @@ export default function EmptyState({
       <p className="mt-2 max-w-sm text-sm leading-6 text-text-muted">{message}</p>
       {showReset && (
         <Link
-          href="/theses"
+          href={resetHref}
           className="mt-5 inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-full bg-brand px-6 text-sm font-semibold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 focus-visible:ring-offset-2"
         >
           <RotateCcw className="h-4 w-4" />
-          Reset Filters
+          {resetLabel}
         </Link>
       )}
     </div>
