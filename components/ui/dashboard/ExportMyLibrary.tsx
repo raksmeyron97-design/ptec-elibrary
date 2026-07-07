@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Download, ChevronDown } from "lucide-react";
 import { getExportData } from "@/app/actions/export";
 
@@ -21,14 +22,15 @@ function downloadFile(content: string, filename: string, mimeType: string) {
 
 type ExportType = "reading" | "saved" | "annotations" | "notes";
 
-const OPTIONS: { key: ExportType; label: string }[] = [
-  { key: "reading",     label: "Reading Progress (.csv)" },
-  { key: "saved",       label: "Saved Books (.csv)"      },
-  { key: "annotations", label: "Annotations (.csv)"      },
-  { key: "notes",       label: "Notes (.txt)"            },
+const OPTIONS: { key: ExportType; labelKey: "exportReading" | "exportSaved" | "exportAnnotations" | "exportNotes" }[] = [
+  { key: "reading",     labelKey: "exportReading"     },
+  { key: "saved",       labelKey: "exportSaved"       },
+  { key: "annotations", labelKey: "exportAnnotations" },
+  { key: "notes",       labelKey: "exportNotes"       },
 ];
 
 export default function ExportMyLibrary() {
+  const t = useTranslations("dashboard");
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState<ExportType | null>(null);
 
@@ -76,33 +78,43 @@ export default function ExportMyLibrary() {
   };
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+    >
       <button
+        type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand"
+        disabled={loading !== null}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-wait disabled:opacity-70"
       >
-        <span className="text-text-muted flex-none">
+        <span className="text-text-muted flex-none" aria-hidden="true">
           <Download className="h-4 w-4" />
         </span>
-        Export My Library
+        {t("exportLibrary")}
         {loading
-          ? <span className="ml-auto text-[11px] text-text-muted animate-pulse">Exporting…</span>
-          : <ChevronDown className={`ml-auto h-3.5 w-3.5 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+          ? <span className="ml-auto text-[11px] text-text-muted animate-pulse" role="status">{t("exporting")}</span>
+          : <ChevronDown className={`ml-auto h-3.5 w-3.5 text-text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         }
       </button>
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-3 top-full z-20 mt-1 w-52 rounded-xl border border-divider bg-bg-surface shadow-lg py-1.5 overflow-hidden">
+          <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setOpen(false)} />
+          <div role="menu" aria-label={t("exportLibrary")}
+            className="absolute left-3 top-full z-20 mt-1 w-52 rounded-xl border border-divider bg-bg-surface shadow-lg py-1.5 overflow-hidden">
             {OPTIONS.map(opt => (
               <button
                 key={opt.key}
+                type="button"
+                role="menuitem"
                 onClick={() => handle(opt.key)}
-                className="flex w-full items-center gap-2.5 px-4 py-2 text-[12.5px] text-text-body transition hover:bg-paper hover:text-brand text-left"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2 text-[12.5px] text-text-body transition hover:bg-paper hover:text-brand focus-visible:bg-paper focus-visible:text-brand focus-visible:outline-none text-left"
               >
-                <Download className="h-3.5 w-3.5 text-text-muted flex-none" />
-                {opt.label}
+                <Download className="h-3.5 w-3.5 text-text-muted flex-none" aria-hidden="true" />
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>

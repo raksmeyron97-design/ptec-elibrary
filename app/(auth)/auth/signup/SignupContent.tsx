@@ -183,7 +183,7 @@ export default function SignupContent({ stats }: Props) {
       <div className="relative hidden w-[45%] flex-col overflow-hidden lg:flex">
         {/* 1. Campus background photo */}
         <Image
-          src="/home/ptec-library-640.avif"
+          src="/hero/ptec-library-960.jpg"
           alt=""
           aria-hidden="true"
           fill

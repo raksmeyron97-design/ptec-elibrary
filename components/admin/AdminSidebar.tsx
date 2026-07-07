@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Upload,
   BookOpen,
+  BookCopy,
   Library,
   FileText,
   Users,
@@ -16,6 +17,8 @@ import {
   GraduationCap,
   ScrollText,
   Megaphone,
+  Newspaper,
+  BarChart3,
   Shield,
   ShieldCheck,
   PanelLeftClose,
@@ -23,6 +26,7 @@ import {
   UserCircle,
   Search,
   ChevronDown,
+  ChevronRight,
   Settings,
   BookPlus,
   ClipboardCheck,
@@ -37,73 +41,112 @@ import Image from "next/image";
 import Avatar from "@/components/ui/Avatar";
 import NotificationBell from "@/components/admin/NotificationBell";
 
-type NavLink = {
+type NavIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+
+type NavChild = {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  icon: NavIcon;
 };
+
+type NavNode =
+  | { type: "link"; name: string; href: string; icon: NavIcon }
+  | { type: "group"; name: string; icon: NavIcon; children: NavChild[] };
 
 function perm(perms: Record<string, PermLevel>, resource: string, minLevel: "read" | "write"): boolean {
   const level = perms[resource] ?? "none";
   return minLevel === "write" ? level === "write" : level !== "none";
 }
 
-function getNavGroups(
+/**
+ * Parent → children navigation tree. A parent only renders when the user
+ * can see at least one of its children (same permission gates as before).
+ */
+function getNavTree(
   role: AppRole,
   isSuperAdmin: boolean,
   userPermissions: Record<string, PermLevel>,
-): { label: string; links: NavLink[] }[] {
+): NavNode[] {
   const isSA    = isSuperAdmin || role === "super_admin";
   const isAdmin = ADMIN_ROLES.includes(role) || isSA;
   const p = userPermissions;
 
-  // Content — driven entirely by the DB permission matrix
-  const contentLinks: NavLink[] = [];
-  if (perm(p, "books",         "write")) contentLinks.push({ name: "Upload Book",      href: "/admin/upload",           icon: Upload        });
-  if (perm(p, "books",         "write")) contentLinks.push({ name: "Review Queue",     href: "/admin/review",           icon: ClipboardCheck });
-  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Manage Books",     href: "/admin/manage",           icon: BookOpen      });
-  if (perm(p, "catalog",       "read"))  contentLinks.push({ name: "Catalog",          href: "/admin/catalogs",         icon: Library       });
-  if (perm(p, "posts",         "read"))  contentLinks.push({ name: "Posts",            href: "/admin/posts",            icon: FileText      });
-  if (perm(p, "research",      "read"))  contentLinks.push({ name: "Theses",           href: "/admin/theses",            icon: GraduationCap });
-  if (perm(p, "learning_paths","read"))  contentLinks.push({ name: "Learning Paths",   href: "/admin/paths",            icon: Route         });
-  if (perm(p, "publications",  "read"))  contentLinks.push({ name: "Publications",     href: "/admin/publications",     icon: ScrollText    });
-  if (perm(p, "announcements", "read"))  contentLinks.push({ name: "Announcements",    href: "/admin/announcements",    icon: Megaphone     });
-  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Book Requests",    href: "/admin/book-requests",    icon: BookPlus      });
-  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Search Insights",  href: "/admin/search-insights",  icon: SearchX       });
-  if (perm(p, "books",         "read"))  contentLinks.push({ name: "Data Quality",     href: "/admin/data-quality",     icon: Gauge         });
-  if (perm(p, "users",         "write")) contentLinks.push({ name: "Library Team",     href: "/admin/team",             icon: UserCircle    });
+  const books: NavChild[] = [];
+  if (perm(p, "books",   "write")) books.push({ name: "Upload Book",   href: "/admin/upload",        icon: Upload         });
+  if (perm(p, "books",   "write")) books.push({ name: "Review Queue",  href: "/admin/review",        icon: ClipboardCheck });
+  if (perm(p, "books",   "read"))  books.push({ name: "Manage Books",  href: "/admin/manage",        icon: BookCopy       });
+  if (perm(p, "catalog", "read"))  books.push({ name: "Catalog",       href: "/admin/catalogs",      icon: Library        });
+  if (perm(p, "books",   "read"))  books.push({ name: "Book Requests", href: "/admin/book-requests", icon: BookPlus       });
 
-  // System — role-gated (security-sensitive, not overridable via permission matrix)
-  const systemLinks: NavLink[] = [];
-  if (isAdmin) systemLinks.push({ name: "Security Logs", href: "/admin/logs",  icon: Shield      });
-  if (perm(p, "users", "write")) systemLinks.push({ name: "Users", href: "/admin/users", icon: Users });
-  if (perm(p, "roles", "write") || isSA) systemLinks.push({ name: "Roles", href: "/admin/roles", icon: ShieldCheck });
+  const content: NavChild[] = [];
+  if (perm(p, "posts",          "read")) content.push({ name: "Posts",          href: "/admin/posts",         icon: FileText      });
+  if (perm(p, "research",       "read")) content.push({ name: "Theses",         href: "/admin/theses",        icon: GraduationCap });
+  if (perm(p, "publications",   "read")) content.push({ name: "Publications",   href: "/admin/publications",  icon: ScrollText    });
+  if (perm(p, "learning_paths", "read")) content.push({ name: "Learning Paths", href: "/admin/paths",         icon: Route         });
+  if (perm(p, "announcements",  "read")) content.push({ name: "Announcements",  href: "/admin/announcements", icon: Megaphone     });
 
-  const groups: { label: string; links: NavLink[] }[] = [
-    { label: "Overview", links: [{ name: "Dashboard", href: "/admin", icon: LayoutDashboard }] },
-    { label: "Content", links: contentLinks },
+  const insights: NavChild[] = [];
+  if (perm(p, "books", "read")) insights.push({ name: "Search Insights", href: "/admin/search-insights", icon: SearchX });
+  if (perm(p, "books", "read")) insights.push({ name: "Data Quality",    href: "/admin/data-quality",    icon: Gauge   });
+
+  // Administration — role-gated items (security-sensitive) live here too
+  const administration: NavChild[] = [];
+  if (perm(p, "users", "write"))         administration.push({ name: "Library Team",  href: "/admin/team",  icon: UserCircle  });
+  if (perm(p, "users", "write"))         administration.push({ name: "Users",         href: "/admin/users", icon: Users       });
+  if (perm(p, "roles", "write") || isSA) administration.push({ name: "Roles",         href: "/admin/roles", icon: ShieldCheck });
+  if (isAdmin)                           administration.push({ name: "Security Logs", href: "/admin/logs",  icon: Shield      });
+
+  const tree: NavNode[] = [
+    { type: "link", name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   ];
-  if (systemLinks.length > 0) {
-    groups.push({ label: "System", links: systemLinks });
-  }
-  return groups;
+  if (books.length)          tree.push({ type: "group", name: "Books",          icon: BookOpen,  children: books          });
+  if (content.length)        tree.push({ type: "group", name: "Content",        icon: Newspaper, children: content        });
+  if (insights.length)       tree.push({ type: "group", name: "Insights",       icon: BarChart3, children: insights       });
+  if (administration.length) tree.push({ type: "group", name: "Administration", icon: Settings,  children: administration });
+  return tree;
 }
 
-function NavItem({
+/**
+ * The nav is a scroll container (overflow-y-auto), which also clips
+ * horizontal overflow — so collapsed-mode tooltips/flyouts must be
+ * position:fixed (the aside's transform makes it their containing block,
+ * escaping the nav's clip) with a measured top coordinate.
+ */
+function useFlyout(estimatedHeight: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState<number | null>(null);
+
+  const show = () => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (rect) setTop(Math.max(8, Math.min(rect.top, window.innerHeight - estimatedHeight - 8)));
+  };
+  const hide = () => setTop(null);
+
+  return [ref, top, show, hide] as const;
+}
+
+/** Top-level standalone link (Dashboard) — tooltip when collapsed. */
+function TopLevelLink({
   link,
   active,
   collapsed,
   onClick,
 }: {
-  link: NavLink;
+  link: { name: string; href: string; icon: NavIcon };
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
 }) {
   const Icon = link.icon;
+  const [flyRef, flyTop, showFly, hideFly] = useFlyout(40);
 
   return (
-    <div className="relative group/nav-item">
+    <div
+      ref={flyRef}
+      className="relative group/nav-item"
+      onMouseEnter={collapsed ? showFly : undefined}
+      onMouseLeave={collapsed ? hideFly : undefined}
+    >
       <Link
         href={link.href}
         onClick={onClick}
@@ -139,18 +182,12 @@ function NavItem({
             color: active ? "#DDB022" : "rgba(255,255,255,0.55)",
           }}
         />
-        {!collapsed && (
-          <span className="truncate">{link.name}</span>
-        )}
+        {!collapsed && <span className="truncate">{link.name}</span>}
       </Link>
 
       {/* Tooltip — shown only in collapsed mode */}
-      {collapsed && (
-        <div
-          className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 opacity-0 scale-95
-                     group-hover/nav-item:opacity-100 group-hover/nav-item:scale-100
-                     transition-all duration-150"
-        >
+      {collapsed && flyTop !== null && (
+        <div className="pointer-events-none fixed z-50 pl-2" style={{ left: "64px", top: flyTop }}>
           <div
             className="whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-xl"
             style={{ background: "rgba(11,21,48,0.95)", backdropFilter: "blur(8px)" }}
@@ -163,6 +200,229 @@ function NavItem({
   );
 }
 
+/** Child link inside an expanded parent group. */
+function ChildLink({
+  link,
+  active,
+  onClick,
+}: {
+  link: NavChild;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const Icon = link.icon;
+
+  return (
+    <Link
+      href={link.href}
+      onClick={onClick}
+      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer"
+      style={{
+        padding: "7px 10px",
+        color: active ? "#FFFFFF" : "rgba(255,255,255,0.60)",
+        background: active ? "rgba(255,255,255,0.12)" : undefined,
+      }}
+      onMouseEnter={e => {
+        if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)";
+        if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.88)";
+      }}
+      onMouseLeave={e => {
+        if (!active) (e.currentTarget as HTMLElement).style.background = "";
+        if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.60)";
+      }}
+    >
+      {/* Gold tick on the guide line for the active child */}
+      <span
+        className="absolute -left-[13px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full transition-all duration-150"
+        style={{ background: active ? "#DDB022" : "transparent" }}
+      />
+      <Icon
+        className="shrink-0"
+        style={{
+          width: "15px",
+          height: "15px",
+          color: active ? "#DDB022" : "rgba(255,255,255,0.42)",
+        }}
+      />
+      <span className="truncate">{link.name}</span>
+    </Link>
+  );
+}
+
+/** Parent group: accordion when expanded, hover flyout menu when collapsed. */
+function NavGroup({
+  group,
+  collapsed,
+  open,
+  onToggle,
+  isActive,
+  onNavigate,
+}: {
+  group: { name: string; icon: NavIcon; children: NavChild[] };
+  collapsed: boolean;
+  open: boolean;
+  onToggle: () => void;
+  isActive: (href: string) => boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = group.icon;
+  const childActive = group.children.some(c => isActive(c.href));
+  // header (~34px) + rows (~36px each) + padding
+  const [flyRef, flyTop, showFly, hideFly] = useFlyout(50 + group.children.length * 36);
+
+  // ── Collapsed sidebar: icon + hover flyout submenu ──
+  if (collapsed) {
+    return (
+      <div
+        ref={flyRef}
+        className="relative group/nav-item"
+        onMouseEnter={showFly}
+        onMouseLeave={hideFly}
+      >
+        <div
+          className="flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
+          style={{
+            padding: "10px",
+            background: childActive ? "rgba(255,255,255,0.14)" : undefined,
+            boxShadow: childActive ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : undefined,
+          }}
+        >
+          {childActive && (
+            <span
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
+              style={{ background: "#DDB022" }}
+            />
+          )}
+          <Icon
+            className="shrink-0"
+            style={{
+              width: "18px",
+              height: "18px",
+              color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
+            }}
+          />
+        </div>
+
+        {/* Flyout submenu — hover to open, links are clickable */}
+        {flyTop !== null && (
+        <div
+          className="fixed z-50 pl-2"
+          style={{ left: "64px", top: flyTop }}
+        >
+          <div
+            className="w-56 rounded-xl py-2 shadow-2xl border border-white/10"
+            style={{ background: "rgba(13,24,54,0.97)", backdropFilter: "blur(10px)" }}
+          >
+            <div
+              className="px-3.5 pb-1.5 text-[10px] font-bold uppercase tracking-widest select-none"
+              style={{ color: "rgba(255,255,255,0.35)" }}
+            >
+              {group.name}
+            </div>
+            <div className="px-2 space-y-0.5">
+              {group.children.map(child => {
+                const ChildIcon = child.icon;
+                const active = isActive(child.href);
+                return (
+                  <Link
+                    key={child.href}
+                    href={child.href}
+                    onClick={() => { hideFly(); onNavigate(); }}
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer"
+                    style={{
+                      color: active ? "#FFFFFF" : "rgba(255,255,255,0.65)",
+                      background: active ? "rgba(255,255,255,0.12)" : undefined,
+                    }}
+                    onMouseEnter={e => {
+                      if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)";
+                    }}
+                    onMouseLeave={e => {
+                      if (!active) (e.currentTarget as HTMLElement).style.background = "";
+                    }}
+                  >
+                    <ChildIcon
+                      className="shrink-0"
+                      style={{
+                        width: "15px",
+                        height: "15px",
+                        color: active ? "#DDB022" : "rgba(255,255,255,0.45)",
+                      }}
+                    />
+                    <span className="truncate">{child.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Expanded sidebar: accordion parent row + indented children ──
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+        style={{
+          padding: "10px 12px",
+          color: childActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.70)",
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)";
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLElement).style.background = "";
+        }}
+      >
+        <Icon
+          className="shrink-0"
+          style={{
+            width: "18px",
+            height: "18px",
+            color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
+          }}
+        />
+        <span className="flex-1 text-left truncate">{group.name}</span>
+        {/* Active dot when the group is closed but holds the current page */}
+        {childActive && !open && (
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#DDB022" }} />
+        )}
+        <ChevronRight
+          className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          style={{ width: "14px", height: "14px", color: "rgba(255,255,255,0.40)" }}
+        />
+      </button>
+
+      {/* Animated expand/collapse via grid-rows */}
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden min-h-0">
+          <div
+            className="ml-[21px] pl-3 py-1 space-y-0.5 border-l"
+            style={{ borderColor: "rgba(255,255,255,0.12)" }}
+          >
+            {group.children.map(child => (
+              <ChildLink
+                key={child.href}
+                link={child}
+                active={isActive(child.href)}
+                onClick={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function getRoleLabel(role: AppRole, isSuperAdmin: boolean): string {
   if (isSuperAdmin || role === "super_admin") return "Super Admin";
   if (role === "admin") return "Admin";
@@ -170,6 +430,8 @@ function getRoleLabel(role: AppRole, isSuperAdmin: boolean): string {
   if (role === "staff") return "Staff";
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
+
+const GROUPS_STORAGE_KEY = "admin-sidebar-groups";
 
 export default function AdminSidebar({
   children,
@@ -197,14 +459,53 @@ export default function AdminSidebar({
   const [searchQuery, setSearchQuery] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const navGroups = getNavGroups(role, isSuperAdmin, userPermissions);
+  const navTree = getNavTree(role, isSuperAdmin, userPermissions);
   const roleLabel = getRoleLabel(role, isSuperAdmin);
+
+  const isActive = (href: string) =>
+    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+
+  const activeGroupName = (() => {
+    for (const node of navTree) {
+      if (node.type === "group" && node.children.some(c => isActive(c.href))) return node.name;
+    }
+    return null;
+  })();
+
+  // Open the group holding the current page by default (deterministic for SSR).
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    activeGroupName ? { [activeGroupName]: true } : {},
+  );
 
   useEffect(() => {
     setMounted(true);
     const saved = localStorage.getItem("admin-sidebar-collapsed");
     if (saved === "true") setCollapsed(true);
+    try {
+      const savedGroups = JSON.parse(localStorage.getItem(GROUPS_STORAGE_KEY) ?? "{}") as Record<string, boolean>;
+      setOpenGroups(prev => ({ ...savedGroups, ...prev }));
+    } catch {
+      /* corrupted state — keep defaults */
+    }
   }, []);
+
+  // Navigating into a section always reveals it, even if previously closed
+  // (state adjustment during render — avoids an extra effect pass).
+  const [revealedGroup, setRevealedGroup] = useState(activeGroupName);
+  if (activeGroupName !== revealedGroup) {
+    setRevealedGroup(activeGroupName);
+    if (activeGroupName && !openGroups[activeGroupName]) {
+      setOpenGroups(prev => ({ ...prev, [activeGroupName]: true }));
+    }
+  }
+
+  const toggleGroup = (name: string) => {
+    setOpenGroups(prev => {
+      const next = { ...prev, [name]: !prev[name] };
+      localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -232,13 +533,14 @@ export default function AdminSidebar({
     });
   };
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
-
   const pageLabel = (() => {
-    for (const g of navGroups) {
-      for (const l of g.links) {
-        if (isActive(l.href)) return l.name;
+    for (const node of navTree) {
+      if (node.type === "link") {
+        if (isActive(node.href)) return node.name;
+      } else {
+        for (const child of node.children) {
+          if (isActive(child.href)) return child.name;
+        }
       }
     }
     return pathname.split("/").pop()?.replace(/-/g, " ") ?? "Admin";
@@ -321,41 +623,32 @@ export default function AdminSidebar({
           )}
         </div>
 
-        {/* ── Navigation ── */}
+        {/* ── Navigation: parent groups with expandable children ── */}
         <nav
           className="flex-1 overflow-y-auto space-y-1"
           style={{ padding: collapsed ? "12px 8px" : "12px 10px" }}
         >
-          {navGroups.map((group, gi) => (
-            <div key={group.label} className={gi > 0 ? "pt-3" : ""}>
-              {/* Section label */}
-              {!collapsed ? (
-                <div
-                  className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest select-none"
-                  style={{ color: "rgba(255,255,255,0.25)" }}
-                >
-                  {group.label}
-                </div>
-              ) : gi > 0 ? (
-                <div
-                  className="mb-2 mx-2 h-px"
-                  style={{ background: "rgba(255,255,255,0.10)" }}
-                />
-              ) : null}
-
-              <div className="space-y-0.5">
-                {group.links.map(link => (
-                  <NavItem
-                    key={link.name}
-                    link={link}
-                    active={isActive(link.href)}
-                    collapsed={collapsed}
-                    onClick={() => setMobileOpen(false)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+          {navTree.map(node =>
+            node.type === "link" ? (
+              <TopLevelLink
+                key={node.href}
+                link={node}
+                active={isActive(node.href)}
+                collapsed={collapsed}
+                onClick={() => setMobileOpen(false)}
+              />
+            ) : (
+              <NavGroup
+                key={node.name}
+                group={node}
+                collapsed={collapsed}
+                open={!!openGroups[node.name]}
+                onToggle={() => toggleGroup(node.name)}
+                isActive={isActive}
+                onNavigate={() => setMobileOpen(false)}
+              />
+            ),
+          )}
         </nav>
 
         {/* ── Footer ── */}

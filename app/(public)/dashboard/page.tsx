@@ -21,7 +21,7 @@ import ExportMyLibrary from "@/components/ui/dashboard/ExportMyLibrary";
 import NewForYou from "@/components/ui/dashboard/NewForYou";
 import Avatar from "@/components/ui/Avatar";
 import { mapRowToBook } from "@/lib/books";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 
@@ -35,14 +35,15 @@ type Profile = {
   created_at: string;
 };
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
+function formatDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale === "km" ? "km-KH" : "en-US", {
     year: "numeric", month: "short", day: "numeric",
   });
 }
 
 export default async function DashboardPage() {
   const t = await getTranslations("dashboard");
+  const locale = await getLocale();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?callbackUrl=/dashboard");
@@ -129,7 +130,7 @@ export default async function DashboardPage() {
     {
       icon: <BookMarked className="h-5 w-5" />,
       value: readingLists.length,
-      label: "Reading Lists",
+      label: t("statLists"),
       iconColor: "text-violet-300",
       iconBg: "bg-violet-500/20",
       glow: "shadow-violet-500/20",
@@ -143,7 +144,7 @@ export default async function DashboardPage() {
     { icon: <UserCircle   className="h-3.5 w-3.5" />, label: t("labelFullName"),    value: profile?.full_name || "—"                          },
     { icon: <Mail         className="h-3.5 w-3.5" />, label: t("labelEmail"),       value: profile?.email ?? user.email ?? "—"                },
     { icon: <ShieldCheck  className="h-3.5 w-3.5" />, label: t("labelRole"),        value: profile?.role ?? "reader"                          },
-    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: t("labelMemberSince"), value: profile?.created_at ? formatDate(profile.created_at) : "—" },
+    { icon: <CalendarDays className="h-3.5 w-3.5" />, label: t("labelMemberSince"), value: profile?.created_at ? formatDate(profile.created_at, locale) : "—" },
     { icon: <Hash         className="h-3.5 w-3.5" />, label: t("labelUserId"),      value: user.id.slice(0, 8) + "…"                          },
     { icon: <Zap          className="h-3.5 w-3.5" />, label: t("labelStatus"),      value: t("statusActive")                                  },
   ];
@@ -187,14 +188,14 @@ export default async function DashboardPage() {
                       ? "bg-amber-400/20 text-amber-200 border border-amber-400/30"
                       : "bg-white/10 text-blue-200 border border-white/15"
                   }`}>
-                    {isAdmin ? "Admin" : t("reader")}
+                    {isAdmin ? t("admin") : t("reader")}
                   </span>
                 </div>
                 <p className="mt-0.5 text-[13px] text-blue-300 truncate">{profile?.email ?? user.email}</p>
                 {profile?.created_at && (
                   <p className="mt-1 flex items-center gap-1.5 text-[12px] text-blue-400">
                     <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                    Member since {formatDate(profile.created_at)}
+                    {t("memberSince")} {formatDate(profile.created_at, locale)}
                   </p>
                 )}
               </div>
@@ -211,7 +212,7 @@ export default async function DashboardPage() {
                 <Link href="/admin"
                   className="inline-flex items-center gap-2 rounded-xl bg-amber-500/20 px-4 py-2 text-[13px] font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30 border border-amber-400/20">
                   <ShieldCheck className="h-4 w-4" />
-                  Admin
+                  {t("admin")}
                 </Link>
               )}
               <Link href="/dashboard/settings"
@@ -283,8 +284,6 @@ export default async function DashboardPage() {
               completedBooks={completedBooks}
               savedBooks={savedBooks as any}
               readingLists={readingLists}
-              browseLabel={t("browseCatalogue")}
-              browseMoreLabel={t("browseMore")}
               totalInProgress={inProgress.length}
               totalCompleted={completed.length}
             />
@@ -303,13 +302,13 @@ export default async function DashboardPage() {
 
               {/* Quick links */}
               <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Quick Links</p>
-                <nav className="flex flex-col gap-1">
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("quickLinks")}</p>
+                <nav className="flex flex-col gap-1" aria-label={t("quickLinks")}>
                   {[
-                    { href: "/books",            icon: <Library className="h-4 w-4" />,     label: "Browse Library" },
-                    { href: "/theses",            icon: <BookOpen className="h-4 w-4" />,    label: "Theses" },
-                    { href: "/dashboard/settings",icon: <Settings className="h-4 w-4" />,   label: "Settings" },
-                    ...(isAdmin ? [{ href: "/admin", icon: <ShieldCheck className="h-4 w-4" />, label: "Admin Panel" }] : []),
+                    { href: "/books",            icon: <Library className="h-4 w-4" />,     label: t("linkBrowseLibrary") },
+                    { href: "/theses",            icon: <BookOpen className="h-4 w-4" />,    label: t("linkTheses") },
+                    { href: "/dashboard/settings",icon: <Settings className="h-4 w-4" />,   label: t("settings") },
+                    ...(isAdmin ? [{ href: "/admin", icon: <ShieldCheck className="h-4 w-4" />, label: t("linkAdminPanel") }] : []),
                   ].map((l) => (
                     <Link key={l.href} href={l.href}
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-medium text-text-body transition hover:bg-paper hover:text-brand">
@@ -339,7 +338,7 @@ export default async function DashboardPage() {
 
               {/* Download history */}
               <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Recent Downloads</p>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("recentDownloads")}</p>
                 <DownloadHistory />
               </div>
 
@@ -353,7 +352,7 @@ export default async function DashboardPage() {
           <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
             <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("accountInfo")}</p>
             <div className="grid grid-cols-2 gap-2.5">
-              {accountFields.map(({ icon, label, value }) => (
+              {accountFields.map(({ label, value }) => (
                 <div key={label} className="rounded-xl border border-divider bg-paper px-3 py-2.5">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
                   <p className="mt-0.5 truncate text-[12px] font-semibold text-text-heading">{value}</p>
@@ -362,7 +361,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">Recent Downloads</p>
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-text-muted">{t("recentDownloads")}</p>
             <DownloadHistory />
           </div>
         </div>

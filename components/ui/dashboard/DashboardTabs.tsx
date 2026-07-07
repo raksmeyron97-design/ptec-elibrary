@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
 import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";
-import { BookOpen, Bookmark, BookMarked, CheckCircle2, Library } from "lucide-react";
+import { BookOpen, Bookmark, BookMarked, CheckCircle2 } from "lucide-react";
 import type { ReadingList } from "@/app/actions/reading-lists";
 
 type BookItem = {
@@ -38,32 +39,32 @@ interface Props {
   completedBooks:   BookItem[];
   savedBooks:       BookItem[];
   readingLists:     ReadingList[];
-  browseLabel:      string;
-  browseMoreLabel:  string;
   totalInProgress:  number;
   totalCompleted:   number;
 }
 
 type TabId = "reading" | "saved" | "lists";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "reading", label: "Reading",      icon: <BookOpen    className="h-4 w-4" /> },
-  { id: "saved",   label: "Saved Books",  icon: <Bookmark    className="h-4 w-4" /> },
-  { id: "lists",   label: "My Lists",     icon: <BookMarked  className="h-4 w-4" /> },
-];
+const TAB_IDS: TabId[] = ["reading", "saved", "lists"];
+
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  reading: <BookOpen   className="h-4 w-4" aria-hidden="true" />,
+  saved:   <Bookmark   className="h-4 w-4" aria-hidden="true" />,
+  lists:   <BookMarked className="h-4 w-4" aria-hidden="true" />,
+};
 
 function EmptyState({
   icon, title, desc, href, label,
 }: { icon: React.ReactNode; title: string; desc: string; href: string; label: string }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-14 text-center px-6">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/8 text-brand">
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/8 text-brand" aria-hidden="true">
         {icon}
       </div>
       <p className="text-[14px] font-semibold text-text-heading">{title}</p>
       <p className="mt-1 max-w-xs text-[12.5px] text-text-muted">{desc}</p>
       <Link href={href}
-        className="mt-5 inline-flex h-9 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition hover:bg-brand-hover">
+        className="mt-5 inline-flex h-9 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
         {label}
       </Link>
     </div>
@@ -72,9 +73,17 @@ function EmptyState({
 
 export default function DashboardTabs({
   inProgressBooks, completedBooks, savedBooks, readingLists,
-  browseLabel, browseMoreLabel, totalInProgress, totalCompleted,
+  totalInProgress, totalCompleted,
 }: Props) {
+  const t = useTranslations("dashboard");
   const [tab, setTab] = useState<TabId>("reading");
+  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+
+  const labels: Record<TabId, string> = {
+    reading: t("tabReading"),
+    saved:   t("tabSaved"),
+    lists:   t("tabLists"),
+  };
 
   const counts: Record<TabId, number> = {
     reading: totalInProgress + totalCompleted,
@@ -82,28 +91,49 @@ export default function DashboardTabs({
     lists:   readingLists.length,
   };
 
+  const onTablistKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const dir = e.key === "ArrowRight" ? 1 : -1;
+    const next = TAB_IDS[(TAB_IDS.indexOf(tab) + dir + TAB_IDS.length) % TAB_IDS.length];
+    setTab(next);
+    tabRefs.current[next]?.focus();
+  };
+
   return (
     <div>
       {/* Tab bar */}
-      <div className="mb-6 flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 shadow-sm">
-        {TABS.map((t) => (
+      <div
+        role="tablist"
+        aria-label={t("tabsLabel")}
+        onKeyDown={onTablistKeyDown}
+        className="mb-6 flex items-center gap-1 rounded-2xl border border-divider bg-bg-surface p-1.5 shadow-sm"
+      >
+        {TAB_IDS.map((id) => (
           <button
-            key={t.id}
+            key={id}
+            ref={(el) => { tabRefs.current[id] = el; }}
             type="button"
-            onClick={() => setTab(t.id)}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 ${
-              tab === t.id
+            role="tab"
+            id={`dashboard-tab-${id}`}
+            aria-selected={tab === id}
+            aria-controls={`dashboard-panel-${id}`}
+            aria-label={labels[id]}
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => setTab(id)}
+            className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+              tab === id
                 ? "bg-brand text-white shadow-sm"
                 : "text-text-muted hover:bg-paper hover:text-text-body"
             }`}
           >
-            {t.icon}
-            <span className="hidden sm:inline">{t.label}</span>
-            {counts[t.id] > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                tab === t.id ? "bg-white/20 text-white" : "bg-brand/10 text-brand"
+            {TAB_ICONS[id]}
+            <span className="hidden sm:inline">{labels[id]}</span>
+            {counts[id] > 0 && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
+                tab === id ? "bg-white/20 text-white" : "bg-brand/10 text-brand"
               }`}>
-                {counts[t.id]}
+                {counts[id]}
               </span>
             )}
           </button>
@@ -111,19 +141,19 @@ export default function DashboardTabs({
       </div>
 
       {/* ── Reading tab ── */}
-      {tab === "reading" && (
+      <div role="tabpanel" id="dashboard-panel-reading" aria-labelledby="dashboard-tab-reading" hidden={tab !== "reading"}>
         <div className="space-y-8">
           {/* Continue Reading */}
           <div>
             <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/10">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/10" aria-hidden="true">
                 <BookOpen className="h-4 w-4 text-brand" />
               </div>
               <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">
-                Continue Reading
+                {t("continueReading")}
               </h3>
               {inProgressBooks.length > 0 && (
-                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand">
+                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand tabular-nums">
                   {inProgressBooks.length}
                 </span>
               )}
@@ -131,10 +161,10 @@ export default function DashboardTabs({
             {inProgressBooks.length === 0 ? (
               <EmptyState
                 icon={<BookOpen className="h-6 w-6" />}
-                title="Nothing in progress"
-                desc="Open a book and start reading to track your progress here."
+                title={t("noInProgressTitle")}
+                desc={t("noInProgressDesc")}
                 href="/books"
-                label={browseLabel}
+                label={t("browseCatalogue")}
               />
             ) : (
               <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
@@ -149,13 +179,13 @@ export default function DashboardTabs({
           {completedBooks.length > 0 && (
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30" aria-hidden="true">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </div>
                 <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">
-                  Completed
+                  {t("completedHeading")}
                 </h3>
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 tabular-nums">
                   {completedBooks.length}
                 </span>
               </div>
@@ -166,52 +196,48 @@ export default function DashboardTabs({
               </div>
             </div>
           )}
-
-          {inProgressBooks.length === 0 && completedBooks.length === 0 && null}
         </div>
-      )}
+      </div>
 
       {/* ── Saved tab ── */}
-      {tab === "saved" && (
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10">
-                <Bookmark className="h-4 w-4 text-accent" />
-              </div>
-              <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">Saved Books</h3>
+      <div role="tabpanel" id="dashboard-panel-saved" aria-labelledby="dashboard-tab-saved" hidden={tab !== "saved"}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10" aria-hidden="true">
+              <Bookmark className="h-4 w-4 text-accent" />
             </div>
-            {savedBooks.length > 0 && (
-              <Link href="/books" className="text-[13px] font-semibold text-brand hover:underline">
-                {browseMoreLabel} →
-              </Link>
-            )}
+            <h3 className="font-khmer-serif text-[17px] font-bold text-text-heading">{t("savedHeading")}</h3>
           </div>
-          {savedBooks.length === 0 ? (
-            <EmptyState
-              icon={<Bookmark className="h-6 w-6" />}
-              title="No saved books yet"
-              desc="Tap the bookmark icon on any book to save it for later."
-              href="/books"
-              label={browseLabel}
-            />
-          ) : (
-            <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-              {savedBooks.map((book) => (
-                <BookCard
-                  key={book.slug}
-                  book={{ ...book, format: (book.format ?? "PDF") as "PDF" | "Print" | "Audio" | "Video" }}
-                />
-              ))}
-            </div>
+          {savedBooks.length > 0 && (
+            <Link href="/books" className="text-[13px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand rounded">
+              {t("browseMore")} →
+            </Link>
           )}
         </div>
-      )}
+        {savedBooks.length === 0 ? (
+          <EmptyState
+            icon={<Bookmark className="h-6 w-6" />}
+            title={t("noSavedTitle")}
+            desc={t("noSavedDesc")}
+            href="/books"
+            label={t("browseCatalogue")}
+          />
+        ) : (
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+            {savedBooks.map((book) => (
+              <BookCard
+                key={book.slug}
+                book={{ ...book, format: (book.format ?? "PDF") as "PDF" | "Print" | "Audio" | "Video" }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Lists tab ── */}
-      {tab === "lists" && (
-        <ReadingListsSection initialLists={readingLists} />
-      )}
+      <div role="tabpanel" id="dashboard-panel-lists" aria-labelledby="dashboard-tab-lists" hidden={tab !== "lists"}>
+        {tab === "lists" && <ReadingListsSection initialLists={readingLists} />}
+      </div>
     </div>
   );
 }
