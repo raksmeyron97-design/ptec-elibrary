@@ -28,6 +28,19 @@ function requiredText(formData: FormData, key: string) {
   return value.trim();
 }
 
+// Publication years must be plausible: no earlier than 1900 and at most one
+// year in the future (forthcoming titles). Blank/invalid input defaults to
+// the current year, matching previous behaviour.
+function validatedYear(raw: unknown): number {
+  const current = new Date().getFullYear();
+  const year = Number(raw);
+  if (!raw || Number.isNaN(year)) return current;
+  if (!Number.isInteger(year) || year < 1900 || year > current + 1) {
+    throw new Error(`Publication year must be between 1900 and ${current + 1}`);
+  }
+  return year;
+}
+
 function pickCoverColor(title: string): string {
   const coverColors = [
     "bg-[#0f766e]", "bg-[#2563eb]", "bg-[#7c3aed]", "bg-[#16a34a]",
@@ -87,7 +100,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
 
   const isbn       = input.isbn?.trim() || null;
   const publisher  = input.publisher?.trim() || null;
-  const year       = Number(input.year)  || new Date().getFullYear();
+  const year       = validatedYear(input.year);
   const pages      = Number(input.pages) || 1;
   const fileSizeKb = Number(input.fileSizeKb) || 0;
   const coverUrl   = input.coverUrl?.trim() || null;
@@ -332,7 +345,7 @@ export async function updateBook(bookId: string, formData: FormData) {
   const isbn      = formData.get("isbn")?.toString().trim() || null;
   const publisher = formData.get("publisher")?.toString().trim() || null;
   const license   = formData.get("license")?.toString().trim() || null;
-  const year  = Number(formData.get("year"))  || new Date().getFullYear();
+  const year  = validatedYear(formData.get("year"));
   const pages = Number(formData.get("pages")) || 1;
 
   // coverUrl handling:

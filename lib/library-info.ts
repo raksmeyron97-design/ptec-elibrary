@@ -1,6 +1,9 @@
 // lib/library-info.ts
 // Single source of truth for library facts used by the AI assistant.
 // Content is kept in step with the public About pages under app/(public)/about/*.
+// Contact details come from lib/ptec.ts — never restate them here.
+
+import { PTEC } from "@/lib/ptec";
 
 export const LIBRARY_INFO = {
   name: {
@@ -8,12 +11,12 @@ export const LIBRARY_INFO = {
     km: "បណ្ណាល័យ វ.គ.ភ (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ)",
   },
   location: {
-    en: "St. 271, Sangkat Teuk Laork 3, Khan Toul Kork, Phnom Penh, Cambodia.",
-    km: "ផ្លូវ ២៧១ សង្កាត់ទឹកល្អក់៣ ខណ្ឌទួលគោក រាជធានីភ្នំពេញ ព្រះរាជាណាចក្រកម្ពុជា",
+    en: PTEC.address.en,
+    km: PTEC.address.km,
   },
-  phone: "012 950 192",
-  email: "info@ptec.edu.kh",
-  website: "www.ptec.edu.kh",
+  phone: PTEC.phone,
+  email: PTEC.email,
+  website: PTEC.links.website,
 
   // ── Hours (mirrors app/(public)/about/timings) ──────────────────────────────
   hours: {

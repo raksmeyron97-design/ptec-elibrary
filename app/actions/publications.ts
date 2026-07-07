@@ -71,6 +71,52 @@ export interface PublicationData {
   is_published?: boolean;
 }
 
+// Server actions accept arbitrary JSON at runtime — whitelist columns so
+// extra keys (view_count, created_by, embedding, …) can never reach the
+// insert/update, and reject implausible publication dates.
+const PUBLICATION_FIELDS = [
+  "slug", "title", "title_km", "article_type", "journal_name", "volume",
+  "issue_no", "page_start", "page_end", "article_no", "doi",
+  "publication_date", "abstract", "abstract_km", "keywords", "publisher",
+  "isbn", "subjects", "table_of_contents", "learning_outcomes", "faqs",
+  "license", "copyright", "language", "cover_url", "pdf_url", "references",
+  "is_published",
+] as const satisfies readonly (keyof PublicationData)[];
+
+function pickAuthorship(a: AuthorshipInput) {
+  return {
+    author_id: a.author_id,
+    author_order: a.author_order,
+    is_corresponding: a.is_corresponding,
+    affiliation_ids: a.affiliation_ids,
+  };
+}
+
+function pickFile(f: PublicationFileInput, index: number) {
+  return {
+    label: f.label,
+    file_url: f.file_url,
+    file_type: f.file_type ?? null,
+    size_bytes: f.size_bytes ?? null,
+    sort_order: f.sort_order ?? index,
+  };
+}
+
+function sanitizePublicationData(formData: PublicationData): { data?: Partial<PublicationData>; error?: string } {
+  const data: Record<string, unknown> = {};
+  for (const key of PUBLICATION_FIELDS) {
+    if (key in formData) data[key] = formData[key];
+  }
+  if (data.publication_date) {
+    const year = new Date(String(data.publication_date)).getFullYear();
+    const current = new Date().getFullYear();
+    if (Number.isNaN(year) || year < 1900 || year > current + 1) {
+      return { error: `Publication year must be between 1900 and ${current + 1}` };
+    }
+  }
+  return { data: data as Partial<PublicationData> };
+}
+
 export interface AuthorshipInput {
   author_id: string;
   author_order: number;
@@ -285,10 +331,15 @@ export async function createPublication(
   if (!formData.title?.trim()) return { success: false as const, error: "Title is required" };
   if (!formData.slug?.trim()) return { success: false as const, error: "Slug is required" };
 
+  const sanitized = sanitizePublicationData(formData);
+  if (sanitized.error || !sanitized.data) {
+    return { success: false as const, error: sanitized.error ?? "Invalid publication data" };
+  }
+
   const { data: created, error } = await supabase
     .from("publications")
     .insert([{
-      ...formData,
+      ...sanitized.data,
       keywords: (formData.keywords ?? []).slice(0, 20),
       subjects: (formData.subjects ?? []).slice(0, 12),
       table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
@@ -309,7 +360,7 @@ export async function createPublication(
 
   if (authorships.length > 0) {
     const { error: authErr } = await supabase.from("publication_authorships").insert(
-      authorships.map((a) => ({ ...a, publication_id: created.id })),
+      authorships.map((a) => ({ ...pickAuthorship(a), publication_id: created.id })),
     );
     if (authErr) {
       return { success: false as const, error: `Saved article but failed to link authors: ${authErr.message}` };
@@ -318,7 +369,7 @@ export async function createPublication(
 
   if (files.length > 0) {
     const { error: fileErr } = await supabase.from("publication_files").insert(
-      files.map((f, i) => ({ ...f, sort_order: f.sort_order ?? i, publication_id: created.id })),
+      files.map((f, i) => ({ ...pickFile(f, i), publication_id: created.id })),
     );
     if (fileErr) {
       return { success: false as const, error: `Saved article but failed to attach files: ${fileErr.message}` };
@@ -346,10 +397,15 @@ export async function updatePublication(
   }
   const { supabase, userId } = admin;
 
+  const sanitized = sanitizePublicationData(formData);
+  if (sanitized.error || !sanitized.data) {
+    return { success: false as const, error: sanitized.error ?? "Invalid publication data" };
+  }
+
   const { error } = await supabase
     .from("publications")
     .update({
-      ...formData,
+      ...sanitized.data,
       keywords: (formData.keywords ?? []).slice(0, 20),
       subjects: (formData.subjects ?? []).slice(0, 12),
       table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
@@ -371,7 +427,7 @@ export async function updatePublication(
     await supabase.from("publication_authorships").delete().eq("publication_id", id);
     if (authorships.length > 0) {
       const { error: authErr } = await supabase.from("publication_authorships").insert(
-        authorships.map((a) => ({ ...a, publication_id: id })),
+        authorships.map((a) => ({ ...pickAuthorship(a), publication_id: id })),
       );
       if (authErr) {
         return { success: false as const, error: `Updated article but failed to link authors: ${authErr.message}` };
@@ -383,7 +439,7 @@ export async function updatePublication(
     await supabase.from("publication_files").delete().eq("publication_id", id);
     if (files.length > 0) {
       const { error: fileErr } = await supabase.from("publication_files").insert(
-        files.map((f, i) => ({ ...f, sort_order: f.sort_order ?? i, publication_id: id })),
+        files.map((f, i) => ({ ...pickFile(f, i), publication_id: id })),
       );
       if (fileErr) {
         return { success: false as const, error: `Updated article but failed to attach files: ${fileErr.message}` };

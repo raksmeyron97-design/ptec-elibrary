@@ -94,6 +94,7 @@ export default async function ThesesPage({
   searchParams: Promise<SP>;
 }) {
   const t = await getTranslations("nav");
+  const tTheses = await getTranslations("theses");
   const params = await searchParams;
 
   const [reportsRes, cohortRes, yearRes] = await Promise.all([
@@ -294,6 +295,12 @@ export default async function ThesesPage({
                   searchParams={params as Record<string, string | undefined>}
                   basePath="/theses"
                 />
+              )}
+
+              {total > 0 && total < 5 && !hasFilters && !params.q && (
+                <p className="rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-3 text-center text-[13px] text-text-muted">
+                  {tTheses("growingNote")}
+                </p>
               )}
             </div>
           </div>

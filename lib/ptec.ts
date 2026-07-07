@@ -13,11 +13,13 @@ export const PTEC = {
 
   // ── Contact ───────────────────────────────────────────────────────────────
   phone: "012 950 192",
-  phoneTel: "tel:012950192",       // use in href="tel:..."
+  phoneIntl: "(+855) 12 950 192", // international display format
+  phoneTel: "tel:+85512950192",   // use in href="tel:..."
   // Library front desk — a separate line from the main institution number.
   phoneLibrary: "092 788 990",
-  phoneLibraryTel: "tel:092788990",
+  phoneLibraryTel: "tel:+85592788990",
   email: "info@ptec.edu.kh",
+  emailInternational: "international@ptec.edu.kh",
 
   // ── Address ───────────────────────────────────────────────────────────────
   address: {
@@ -30,10 +32,11 @@ export const PTEC = {
   },
 
   // ── Opening hours ─────────────────────────────────────────────────────────
+  // Authoritative source: app/(public)/about/timings/page.tsx — keep in sync.
   hours: {
-    en: "Monday – Saturday: 7:00 AM – 5:00 PM (Sunday: Closed)",
-    km: "ច័ន្ទ – សៅរ៍: ម៉ោង ៧:០០ ព្រឹក – ៥:០០ ល្ងាច (ថ្ងៃអាទិត្យ: បិទ)",
-    openingHoursSpec: "Mon-Sat 07:00-17:00",
+    en: "Monday – Friday: 7:00 AM – 5:00 PM · Saturday: 8:00 AM – 4:00 PM (Sunday: Closed)",
+    km: "ច័ន្ទ – សុក្រ: ម៉ោង ៧:០០ ព្រឹក – ៥:០០ ល្ងាច · សៅរ៍: ៨:០០ ព្រឹក – ៤:០០ រសៀល (ថ្ងៃអាទិត្យ: បិទ)",
+    openingHoursSpec: ["Mo-Fr 07:00-17:00", "Sa 08:00-16:00"],
   },
 
   // ── Social & external links ───────────────────────────────────────────────

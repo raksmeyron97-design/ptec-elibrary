@@ -89,7 +89,7 @@
     "featuredCollections": "Featured Collections",
     "allDepartments": "All departments",
     "ctaHeading": "Begin Your Learning Journey Today",
-    "ctaBody": "Hundreds of educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
+    "ctaBody": "100+ educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
     "ctaBrowse": "Browse all resources",
     "ctaPhysical": "Physical Library",
     "heroTitle": "Expand your knowledge with PTEC",
@@ -347,7 +347,11 @@
     "copiesCount": "{available}/{total} copies",
     "availAvailable": "Available",
     "availLimited": "Limited",
-    "availUnavailable": "Unavailable"
+    "availUnavailable": "Unavailable",
+    "emptyPreparingTitle": "The physical library catalog is being prepared",
+    "emptyPreparingBody": "Our librarians are cataloguing the physical collection now. Digital resources are available today — please check back soon, or contact the library team about physical book availability.",
+    "emptyPreparingCtaBooks": "Browse digital books",
+    "emptyPreparingCtaContact": "Contact the library"
   },
   "posts": {
     "eyebrow": "PTEC Library",
@@ -481,7 +485,8 @@
     "statPublications": "Publications",
     "statJournals": "Journals",
     "statYears": "Years covered",
-    "statDownloads": "Downloads"
+    "statDownloads": "Downloads",
+    "growingNote": "This repository is growing — more academic works will be added soon."
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",
@@ -642,7 +647,7 @@
     "filter": "Filter",
     "clearFilters": "Clear filters",
     "noResultsTitle": "No results for \"{query}\"",
-    "noResultsBody": "Try different keywords, check your spelling, or browse by department.",
+    "noResultsBody": "Try a shorter keyword, check your spelling, search in Khmer or English, or browse by subject.",
     "fuzzyNotice": "No exact matches for \"{query}\" — showing the closest matches instead.",
     "foundInside": "Found inside these documents",
     "onPage": "Page {page}",
@@ -740,5 +745,8 @@
     "contactTitle": "Questions",
     "contactBody": "If you have any question about your data, or want a copy of it, please reach us through the",
     "contactLink": "contact page"
+  },
+  "theses": {
+    "growingNote": "This repository is growing — more academic works will be added soon."
   }
 }

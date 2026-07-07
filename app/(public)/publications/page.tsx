@@ -234,11 +234,18 @@ export default async function PublicationsPage({
                 )}
               </div>
             ) : (
-              <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-                {paged.map((pub) => (
-                  <PublicationCard key={pub.id} publication={pub} />
-                ))}
-              </div>
+              <>
+                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
+                  {paged.map((pub) => (
+                    <PublicationCard key={pub.id} publication={pub} />
+                  ))}
+                </div>
+                {!hasFilters && !params.q && total < 5 && (
+                  <p className="mt-6 rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-3 text-center text-[13px] text-text-muted">
+                    {t("growingNote")}
+                  </p>
+                )}
+              </>
             )}
 
             {publications.length > 0 && (

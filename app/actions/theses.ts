@@ -19,6 +19,34 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
 }
 
+// Server actions are callable with arbitrary JSON — the ThesisData interface
+// only exists at compile time. Whitelist columns so extra keys (view_count,
+// verified_at, status, …) can never reach the insert/update.
+const THESIS_FIELDS = [
+  "title", "abstract", "program", "faculty", "subject", "cohort",
+  "academic_year", "author_names", "advisor_name", "cover_url", "file_url",
+  "file_size_kb", "content_hash", "license", "is_published", "keywords",
+  "doi", "published_at", "references",
+] as const satisfies readonly (keyof ThesisData)[];
+
+function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}): { data?: Partial<ThesisData>; error?: string } {
+  const data: Record<string, unknown> = {};
+  for (const key of THESIS_FIELDS) {
+    if (key in formData) data[key] = formData[key];
+  }
+  if (requireCore && !(typeof data.title === "string" && data.title.trim())) {
+    return { error: "Title is required" };
+  }
+  if (data.published_at) {
+    const year = new Date(String(data.published_at)).getFullYear();
+    const current = new Date().getFullYear();
+    if (Number.isNaN(year) || year < 1900 || year > current + 1) {
+      return { error: `Publication year must be between 1900 and ${current + 1}` };
+    }
+  }
+  return { data: data as Partial<ThesisData> };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ThesisData {
@@ -264,8 +292,12 @@ export async function createThesis(formData: ThesisData) {
   }
 
   const { supabase } = admin;
+  const sanitized = sanitizeThesisData(formData, { requireCore: true });
+  if (sanitized.error || !sanitized.data) {
+    return { success: false, error: sanitized.error ?? "Invalid thesis data" };
+  }
   const { data: created, error } = await supabase.from("research_reports").insert([{
-    ...formData,
+    ...sanitized.data,
     keywords: formData.keywords ?? [],
   }]).select("id").single();
 
@@ -330,6 +362,11 @@ export async function updateThesis(id: string, formData: ThesisData) {
 
   const { supabase } = admin;
 
+  const sanitized = sanitizeThesisData(formData);
+  if (sanitized.error || !sanitized.data) {
+    return { success: false, error: sanitized.error ?? "Invalid thesis data" };
+  }
+
   // Detect a new/replaced PDF so we can re-run full-text indexing below.
   const { data: before } = await supabase
     .from("research_reports")
@@ -339,7 +376,7 @@ export async function updateThesis(id: string, formData: ThesisData) {
 
   const { error } = await supabase
     .from("research_reports")
-    .update(formData)
+    .update(sanitized.data)
     .eq("id", id);
 
   if (error) {

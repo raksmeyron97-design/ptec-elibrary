@@ -277,14 +277,30 @@ export default async function CatalogsPage({
             <svg className="mb-4 h-12 w-12 text-text-muted/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
-            <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('noBooksFound')}</h2>
-            <p className="mt-2 max-w-sm text-sm text-text-muted">
-              {params.q ? t('emptyMatchQuery', { query: params.q }) : hasFilters ? t('emptyHintFilters') : t('emptyHintEmpty')}
-            </p>
-            {hasFilters && (
-              <Link href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
-                {t('clearFilters')}
-              </Link>
+            {!params.q && !hasFilters ? (
+              /* Catalog genuinely empty — the collection is still being catalogued */
+              <>
+                <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('emptyPreparingTitle')}</h2>
+                <p className="mt-2 max-w-md text-sm text-text-muted">{t('emptyPreparingBody')}</p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                  <Link href="/books" className="inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
+                    {t('emptyPreparingCtaBooks')}
+                  </Link>
+                  <Link href="/contact" className="inline-flex h-10 items-center rounded-xl border border-divider px-6 text-sm font-semibold text-text-heading transition hover:bg-bg-muted">
+                    {t('emptyPreparingCtaContact')}
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('noBooksFound')}</h2>
+                <p className="mt-2 max-w-sm text-sm text-text-muted">
+                  {params.q ? t('emptyMatchQuery', { query: params.q }) : t('emptyHintFilters')}
+                </p>
+                <Link href="/catalogs" className="mt-5 inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
+                  {t('clearFilters')}
+                </Link>
+              </>
             )}
           </div>
         ) : (
