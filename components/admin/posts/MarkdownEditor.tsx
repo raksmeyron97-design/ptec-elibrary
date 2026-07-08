@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Markdown from "@/app/(public)/posts/[slug]/Markdown";
 
 interface Props {
@@ -10,6 +10,11 @@ interface Props {
   disabled?: boolean;
   required?: boolean;
   minRows?: number;
+  /** Optional controlled tab (e.g. a sticky "Preview" button elsewhere on the page). Falls back to internal state when omitted. */
+  tab?: Tab;
+  onTabChange?: (tab: Tab) => void;
+  /** Already-uploaded cover images, offered by the "Insert image" tool. */
+  images?: { url: string; alt?: string }[];
 }
 
 type Tab = "write" | "preview";
@@ -22,6 +27,9 @@ interface Tool {
   prefix: string;
   suffix?: string;
 }
+
+const TABLE_TEMPLATE =
+  "\n\n| Column 1 | Column 2 |\n| --- | --- |\n| Row 1 | Row 1 |\n| Row 2 | Row 2 |\n\n";
 
 const TOOLS: (Tool | "divider")[] = [
   // Headings
@@ -127,7 +135,7 @@ const TOOLS: (Tool | "divider")[] = [
     ),
   },
   "divider",
-  // Link & rule
+  // Link, table & rule
   {
     id: "link", label: "Link (Ctrl+K)",
     action: "wrap", prefix: "[", suffix: "](url)",
@@ -135,6 +143,17 @@ const TOOLS: (Tool | "divider")[] = [
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    ),
+  },
+  {
+    id: "table", label: "Insert table",
+    action: "insert", prefix: TABLE_TEMPLATE,
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="1.5"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="9" y1="4" x2="9" y2="20"/>
       </svg>
     ),
   },
@@ -161,12 +180,31 @@ export default function MarkdownEditor({
   disabled = false,
   required = false,
   minRows = 18,
+  tab: controlledTab,
+  onTabChange,
+  images = [],
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [tab, setTab] = useState<Tab>("write");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [internalTab, setInternalTab] = useState<Tab>("write");
+  const tab = controlledTab ?? internalTab;
+  const setTab = onTabChange ?? setInternalTab;
+  const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const wordCount = value.trim() ? value.trim().split(/\s+/).filter(Boolean).length : 0;
   const charCount = value.length;
+
+  const insertAtCursor = useCallback((text: string) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const newValue = value.slice(0, start) + text + value.slice(end);
+    onChange(newValue);
+    const nextPos = start + text.length;
+    setTimeout(() => { el.focus(); el.setSelectionRange(nextPos, nextPos); }, 0);
+  }, [value, onChange]);
 
   const applyTool = useCallback((tool: Tool) => {
     const el = textareaRef.current;
@@ -235,13 +273,45 @@ export default function MarkdownEditor({
     }
   }
 
+  // Fullscreen: Escape to exit + a simple focus trap, mirroring the same
+  // state-driven overlay pattern used in components/ui/reader/PDFViewer.tsx.
+  useEffect(() => {
+    if (!isFullscreen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") { setIsFullscreen(false); return; }
+      if (e.key !== "Tab") return;
+      const focusables = wrapperRef.current?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), textarea",
+      );
+      if (!focusables || focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isFullscreen]);
+
   return (
     <div
+      ref={wrapperRef}
+      role={isFullscreen ? "dialog" : undefined}
+      aria-modal={isFullscreen || undefined}
+      aria-label={isFullscreen ? "Fullscreen content editor" : undefined}
       className={[
-        "overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-all",
-        !disabled
+        "flex flex-col overflow-hidden border-divider bg-bg-surface shadow-sm transition-all",
+        isFullscreen
+          ? "fixed inset-0 z-[200] rounded-none border-0"
+          : "rounded-xl border",
+        !disabled && !isFullscreen
           ? "focus-within:border-brand focus-within:shadow-md focus-within:ring-2 focus-within:ring-brand/10"
-          : "opacity-60 pointer-events-none",
+          : "",
+        disabled ? "opacity-60 pointer-events-none" : "",
       ].join(" ")}
     >
       {/* ── Header ──────────────────────────────────────────────────── */}
@@ -259,34 +329,57 @@ export default function MarkdownEditor({
           <span className="hidden text-xs text-text-muted sm:inline">— Markdown</span>
         </div>
 
-        {/* Write / Preview tabs */}
-        <div className="flex items-center rounded-lg border border-divider bg-bg-surface p-0.5 gap-0.5">
-          {(["write", "preview"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={[
-                "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold capitalize transition-all cursor-pointer",
-                tab === t
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-text-muted hover:text-text-body",
-              ].join(" ")}
-            >
-              {t === "write" ? (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              ) : (
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              )}
-              {t}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Write / Preview tabs */}
+          <div className="flex items-center rounded-lg border border-divider bg-bg-surface p-0.5 gap-0.5">
+            {(["write", "preview"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={[
+                  "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold capitalize transition-all cursor-pointer",
+                  tab === t
+                    ? "bg-brand text-white shadow-sm"
+                    : "text-text-muted hover:text-text-body",
+                ].join(" ")}
+              >
+                {t === "write" ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsFullscreen((v) => !v)}
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            aria-pressed={isFullscreen}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition hover:bg-blue-50 hover:text-brand"
+          >
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+                <path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                <path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
@@ -313,6 +406,53 @@ export default function MarkdownEditor({
             )
           )}
 
+          {/* Insert image — popover of already-uploaded cover images */}
+          <div className="relative">
+            <button
+              type="button"
+              title="Insert image"
+              aria-label="Insert image"
+              aria-haspopup="menu"
+              aria-expanded={imagePickerOpen}
+              onClick={() => setImagePickerOpen((v) => !v)}
+              className="flex h-7 min-w-[28px] shrink-0 items-center justify-center rounded px-1 text-text-muted transition-all hover:bg-blue-50 hover:text-brand active:scale-95 cursor-pointer"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+            </button>
+            {imagePickerOpen && (
+              <div role="menu" aria-label="Insert image" className="absolute left-0 z-30 mt-1 w-64 rounded-xl border border-divider bg-bg-surface p-2 shadow-xl">
+                {images.length === 0 ? (
+                  <p className="px-2 py-3 text-xs text-text-muted">Upload a cover image first — it will show up here to insert.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {images.map((img, idx) => (
+                      <button
+                        key={img.url}
+                        type="button"
+                        role="menuitem"
+                        title={img.alt || `Image ${idx + 1}`}
+                        aria-label={`Insert ${img.alt || `image ${idx + 1}`}`}
+                        onClick={() => {
+                          insertAtCursor(`![${img.alt ?? ""}](${img.url})`);
+                          setImagePickerOpen(false);
+                        }}
+                        className="overflow-hidden rounded-lg border border-divider transition hover:border-brand"
+                        style={{ aspectRatio: "1/1" }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img.url} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Keyboard shortcuts hint — far right */}
           <div className="ml-auto shrink-0 pl-2">
             <span className="text-[10px] text-text-muted/60 font-mono hidden lg:block">
@@ -336,13 +476,13 @@ export default function MarkdownEditor({
           placeholder={
             "Start writing in Markdown…\n\n## Introduction\n\nType your content here. Use **bold**, *italic*, or `code`.\n\n> This is a blockquote — great for highlights.\n\n- Bullet point one\n- Bullet point two"
           }
-          className="block w-full resize-y bg-white px-5 py-4 font-mono text-sm leading-7 text-text-heading outline-none placeholder:text-text-muted/40 disabled:cursor-not-allowed"
+          className={`block w-full resize-y bg-white px-5 py-4 font-mono text-sm leading-7 text-text-heading outline-none placeholder:text-text-muted/40 disabled:cursor-not-allowed ${isFullscreen ? "flex-1 resize-none" : ""}`}
         />
       )}
 
       {/* ── Preview pane ────────────────────────────────────────────── */}
       {tab === "preview" && (
-        <div className="min-h-[20rem] bg-white px-6 py-5">
+        <div className={`bg-white px-6 py-5 ${isFullscreen ? "flex-1 overflow-y-auto" : "min-h-[20rem]"}`}>
           {value.trim() ? (
             <Markdown content={value} />
           ) : (
@@ -379,7 +519,7 @@ export default function MarkdownEditor({
           </svg>
           <span>Markdown</span>
           <span className="text-divider">·</span>
-          <span>Tab = 2 spaces</span>
+          <span>Tab = 2 spaces{isFullscreen ? " · Esc to exit" : ""}</span>
         </div>
       </div>
     </div>

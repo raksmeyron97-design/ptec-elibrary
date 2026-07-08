@@ -10,6 +10,8 @@ interface TagInputProps {
   max?: number;
   disabled?: boolean;
   label?: string;
+  /** Notified with the current tag list on every change (including mount). Optional — most callers just read the hidden input at submit time. */
+  onChange?: (tags: string[]) => void;
 }
 
 export default function TagInput({
@@ -19,6 +21,7 @@ export default function TagInput({
   max = 20,
   disabled = false,
   label,
+  onChange,
 }: TagInputProps) {
   const [tags, setTags] = useState<string[]>(defaultTags);
   const [inputValue, setInputValue] = useState("");
@@ -29,6 +32,11 @@ export default function TagInput({
   useEffect(() => {
     getAllTags().then(setAllTags).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    onChange?.(tags);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tags]);
 
   const filteredSuggestions = allTags.filter(
     (t) =>

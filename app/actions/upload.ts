@@ -15,6 +15,22 @@ function validateFolder(folder: string): void {
   }
 }
 
+/**
+ * Map an upload folder to the permission resource that actually governs it.
+ * Previously this always checked "books" regardless of folder, which
+ * silently blocked e.g. a `staff` user (posts:write, but only books:read)
+ * from uploading a post cover image. `team`/`avatars` have no dedicated
+ * resource in the permission matrix, so they keep the historical "books"
+ * check rather than inventing new behavior for them here.
+ */
+function permissionResourceForFolder(folder: string): string {
+  const top = folder.split("/")[0];
+  if (top === "posts") return "posts";
+  if (top === "research" || top === "reports") return "research";
+  if (top === "publications") return "publications";
+  return "books";
+}
+
 /** Pick optimization preset based on the upload folder. */
 function presetsForFolder(folder: string) {
   const top = folder.split("/")[0];
@@ -33,8 +49,8 @@ export async function uploadToZima(
   folder: string,
 ): Promise<{ publicUrl: string } | { error: string }> {
   try {
-    await requirePermission("books", "write");
     validateFolder(folder);
+    await requirePermission(permissionResourceForFolder(folder), "write");
 
     const file = formData.get("file") as File | null;
     if (!file || file.size === 0) throw new Error("No file provided");

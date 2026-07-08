@@ -1,51 +1,104 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/admin/posts/page.tsx
-import { createServiceClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import PostsClient from "./PostsClient";
+import Pagination from "@/components/ui/core/Pagination";
+import PostStats from "@/components/admin/posts/PostStats";
+import PostToolbar from "@/components/admin/posts/PostToolbar";
+import PostFilters from "@/components/admin/posts/PostFilters";
+import PostsListClient from "@/components/admin/posts/PostsListClient";
+import PostErrorState from "@/components/admin/posts/PostErrorState";
+import { getPosts, getPostsSummary, getPostAuthors } from "@/lib/admin/posts";
 
-export default async function AdminPostsPage() {
-  const supabase = createServiceClient();
+const PAGE_SIZE = 20;
 
-  // Fetch ALL posts (drafts included) with author name
-  const { data: posts } = await supabase
-    .from("posts")
-    .select(`
-      id,
-      title,
-      slug,
-      category,
-      is_published,
-      views,
-      created_at,
-      author:profiles!author_id ( full_name, email )
-    `)
-    .order("created_at", { ascending: false });
+type SP = {
+  q?: string;
+  category?: string;
+  status?: string;
+  authorId?: string;
+  dateRange?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minViews?: string;
+  maxViews?: string;
+  sort?: string;
+  page?: string;
+};
 
-  const rows = (posts ?? []).map((p: any) => ({
-    id:          p.id as string,
-    title:       p.title as string,
-    slug:        p.slug as string,
-    category:    p.category ?? "Other",
-    author:      p.author?.full_name ?? p.author?.email ?? "—",
-    isPublished: p.is_published as boolean,
-    views:       p.views ?? 0,
-    createdAt:   p.created_at ?? null,
-  }));
+export default async function AdminPostsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}) {
+  const sp = await searchParams;
+  const page = Math.max(1, Number(sp.page ?? "1") || 1);
+
+  const [postsResult, summary, authors] = await Promise.all([
+    getPosts({
+      q: sp.q,
+      category: sp.category,
+      status: sp.status,
+      authorId: sp.authorId,
+      dateRange: (sp.dateRange as never) ?? "all",
+      dateFrom: sp.dateFrom,
+      dateTo: sp.dateTo,
+      minViews: sp.minViews ? Number(sp.minViews) : undefined,
+      maxViews: sp.maxViews ? Number(sp.maxViews) : undefined,
+      sort: sp.sort,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    getPostsSummary(),
+    getPostAuthors(),
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(postsResult.total / PAGE_SIZE));
+  const hasActiveFilters = Boolean(
+    sp.q || sp.category || sp.status || sp.authorId || (sp.dateRange && sp.dateRange !== "all") || sp.minViews || sp.maxViews,
+  );
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-text-heading">Manage Posts</h1>
-          <p className="text-sm text-text-muted">Create, edit, and publish your library posts.</p>
-        </div>
-
+      <div>
+        <h1 className="text-2xl font-bold text-text-heading">Manage Posts</h1>
+        <p className="text-sm text-text-muted">Create, edit, and publish your library posts.</p>
       </div>
 
-      {/* Client-side table with search + filter + pagination */}
-      <PostsClient posts={rows} />
+      <PostStats summary={summary} />
+
+      <PostToolbar totalItems={postsResult.total} />
+
+      <PostFilters
+        value={{
+          category: sp.category ?? "",
+          status: sp.status ?? "",
+          dateRange: sp.dateRange ?? "all",
+          dateFrom: sp.dateFrom ?? "",
+          dateTo: sp.dateTo ?? "",
+          authorId: sp.authorId ?? "",
+          minViews: sp.minViews ?? "",
+          maxViews: sp.maxViews ?? "",
+          sort: sp.sort ?? "newest",
+        }}
+        authors={authors}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      {postsResult.error ? (
+        <PostErrorState />
+      ) : (
+        <PostsListClient
+          rows={postsResult.rows}
+          rowNumberOffset={(page - 1) * PAGE_SIZE}
+          hasAnyPostsAtAll={summary.total > 0}
+        />
+      )}
+
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalItems={postsResult.total}
+        pageSize={PAGE_SIZE}
+        searchParams={sp as Record<string, string | undefined>}
+        basePath="/admin/posts"
+      />
     </div>
   );
 }
