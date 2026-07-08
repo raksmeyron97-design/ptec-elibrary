@@ -377,7 +377,7 @@ export async function createPublication(
   }
 
   await queuePublicationEmbedding(created.id);
-  await logAdminAction(userId, "create_publication", "publications", created.id, { title: created.title });
+  await logAdminAction(userId, "publication.create", "publications", created.id, { title: created.title });
   await createAdminNotification("new_publication", `New publication: "${created.title}"`, undefined, "/admin/publications");
   revalidateAll();
   return { success: true as const, id: created.id as string };
@@ -448,7 +448,7 @@ export async function updatePublication(
   }
 
   await queuePublicationEmbedding(id);
-  await logAdminAction(userId, "update_publication", "publications", id, { title: formData.title });
+  await logAdminAction(userId, "publication.update", "publications", id, { title: formData.title });
   revalidateAll();
   return { success: true as const };
 }
@@ -480,7 +480,7 @@ export async function togglePublicationPublishStatus(id: string, isPublished: bo
 
   await logAdminAction(
     userId,
-    isPublished ? "publish_publication" : "unpublish_publication",
+    isPublished ? "publication.publish" : "publication.unpublish",
     "publications",
     id,
   );
@@ -523,7 +523,7 @@ export async function deletePublication(id: string) {
     if (url) await zimaDelete(url as string).catch(() => null);
   }
 
-  await logAdminAction(userId, "delete_publication", "publications", id, { title: row?.title });
+  await logAdminAction(userId, "publication.delete", "publications", id, { title: row?.title });
   revalidateAll();
   return { success: true as const };
 }
@@ -594,7 +594,7 @@ export async function upsertPublicationAuthor(author: {
 
   await logAdminAction(
     userId,
-    author.id ? "update_publication_author" : "create_publication_author",
+    author.id ? "publication_author.update" : "publication_author.create",
     "publication_authors",
     (data as PublicationAuthor).id,
     { full_name },
@@ -614,7 +614,7 @@ export async function deletePublicationAuthor(id: string): Promise<{ success: bo
   const { error } = await supabase.from("publication_authors").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
 
-  await logAdminAction(userId, "delete_publication_author", "publication_authors", id);
+  await logAdminAction(userId, "publication_author.delete", "publication_authors", id);
   return { success: true };
 }
 
@@ -667,7 +667,7 @@ export async function upsertPublicationAffiliation(affiliation: {
 
   await logAdminAction(
     userId,
-    affiliation.id ? "update_publication_affiliation" : "create_publication_affiliation",
+    affiliation.id ? "publication_affiliation.update" : "publication_affiliation.create",
     "publication_affiliations",
     (data as PublicationAffiliation).id,
     { name },
@@ -687,6 +687,6 @@ export async function deletePublicationAffiliation(id: string): Promise<{ succes
   const { error } = await supabase.from("publication_affiliations").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
 
-  await logAdminAction(userId, "delete_publication_affiliation", "publication_affiliations", id);
+  await logAdminAction(userId, "publication_affiliation.delete", "publication_affiliations", id);
   return { success: true };
 }

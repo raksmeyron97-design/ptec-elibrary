@@ -252,7 +252,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     throw new Error(`File error: ${fileError.message}`);
   }
 
-  await logAdminAction(user.id, "saveBookRecord", "books", book.id, { title, status: input.status ?? "published" });
+  await logAdminAction(user.id, "book.create", "books", book.id, { title, status: input.status ?? "published" });
   if (input.status === "pending_review") {
     await createAdminNotification("new_book", `Book submitted for review: "${title}"`, undefined, "/admin/review");
   } else {
@@ -323,7 +323,7 @@ export async function deleteBook(bookId: string) {
     await zimaDelete(url).catch(() => null);
   }
 
-  await logAdminAction(user.id, "deleteBook", "books", bookId);
+  await logAdminAction(user.id, "book.delete", "books", bookId);
 
   revalidateTag("books", "max");
   revalidatePath("/books");
@@ -455,7 +455,7 @@ export async function updateBook(bookId: string, formData: FormData) {
     .single();
   if (bookError) throw new Error(`Book update failed: ${bookError.message}`);
 
-  await logAdminAction(user.id, "updateBook", "books", bookId, { title });
+  await logAdminAction(user.id, "book.update", "books", bookId, { title });
 
   revalidateTag("books", "max");
   revalidatePath("/");
@@ -506,7 +506,7 @@ export async function addCategory(name: string): Promise<{ id?: string; name?: s
     return { error: `Failed to add category: ${insertErr.message}` };
   }
 
-  await logAdminAction(user.id, "addCategory", "categories", newCat.id, { name: newCat.name });
+  await logAdminAction(user.id, "category.create", "categories", newCat.id, { name: newCat.name });
 
   return newCat;
 }
@@ -550,7 +550,7 @@ export async function addDepartment(name: string): Promise<{ id?: string; name?:
     return { error: `Failed to add department: ${insertErr.message}` };
   }
 
-  await logAdminAction(user.id, "addDepartment", "departments", newDept.id, { name: newDept.name });
+  await logAdminAction(user.id, "department.create", "departments", newDept.id, { name: newDept.name });
 
   return newDept;
 }
@@ -576,7 +576,7 @@ export async function updateCategory(id: string, newName: string): Promise<{ suc
   const { error } = await supabase.from("categories").update({ name: trimmed, slug: slugify(trimmed) }).eq("id", id);
   if (error) return { error: `Failed to update category: ${error.message}` };
 
-  await logAdminAction(user.id, "updateCategory", "categories", id, { newName: trimmed });
+  await logAdminAction(user.id, "category.update", "categories", id, { newName: trimmed });
   revalidatePath("/admin");
   return { success: true };
 }
@@ -598,7 +598,7 @@ export async function deleteCategory(id: string): Promise<{ success?: boolean; e
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) return { error: `Failed to delete category: ${error.message}` };
 
-  await logAdminAction(user.id, "deleteCategory", "categories", id);
+  await logAdminAction(user.id, "category.delete", "categories", id);
   revalidatePath("/admin");
   return { success: true };
 }
@@ -625,7 +625,7 @@ export async function updateDepartment(id: string, newName: string): Promise<{ s
   // Also update text column in books for backward compatibility
   await supabase.from("books").update({ department: trimmed }).eq("department_id", id);
 
-  await logAdminAction(user.id, "updateDepartment", "departments", id, { newName: trimmed });
+  await logAdminAction(user.id, "department.update", "departments", id, { newName: trimmed });
   revalidatePath("/admin");
   return { success: true };
 }
@@ -647,7 +647,7 @@ export async function deleteDepartment(id: string): Promise<{ success?: boolean;
   const { error } = await supabase.from("departments").delete().eq("id", id);
   if (error) return { error: `Failed to delete department: ${error.message}` };
 
-  await logAdminAction(user.id, "deleteDepartment", "departments", id);
+  await logAdminAction(user.id, "department.delete", "departments", id);
   revalidatePath("/admin");
   return { success: true };
 }

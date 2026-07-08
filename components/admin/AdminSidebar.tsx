@@ -150,7 +150,7 @@ function TopLevelLink({
       <Link
         href={link.href}
         onClick={onClick}
-        className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer"
+        className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
         style={{
           padding: collapsed ? "10px" : "10px 12px",
           justifyContent: collapsed ? "center" : undefined,
@@ -216,7 +216,7 @@ function ChildLink({
     <Link
       href={link.href}
       onClick={onClick}
-      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer"
+      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
       style={{
         padding: "7px 10px",
         color: active ? "#FFFFFF" : "rgba(255,255,255,0.60)",
@@ -367,7 +367,7 @@ function NavGroup({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer"
+        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
         style={{
           padding: "10px 12px",
           color: childActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.70)",
@@ -458,6 +458,19 @@ export default function AdminSidebar({
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Cmd/Ctrl+K focuses the admin search from anywhere in the panel.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const navTree = getNavTree(role, isSuperAdmin, userPermissions);
   const roleLabel = getRoleLabel(role, isSuperAdmin);
@@ -782,18 +795,17 @@ export default function AdminSidebar({
             >
               <Search className="w-4 h-4 shrink-0" style={{ color: "#94A3B8" }} />
               <input
+                ref={searchInputRef}
                 type="search"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search books, reports…"
+                placeholder="Search books, theses, users…"
                 className="flex-1 bg-transparent text-sm outline-none text-text-heading placeholder:text-slate-400"
-                aria-label="Search admin"
+                aria-label="Search books, theses, and users"
               />
-              {searchQuery && (
-                <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
-                  ↵
-                </kbd>
-              )}
+              <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
+                {searchQuery ? "↵" : "⌘K"}
+              </kbd>
             </div>
           </form>
 
@@ -806,9 +818,9 @@ export default function AdminSidebar({
             {/* Profile settings shortcut */}
             <button
               type="button"
-              className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100"
+              className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               style={{ color: "#64748B" }}
-              aria-label="My profile"
+              aria-label="Open my profile settings"
               onClick={() => router.push("/admin/profile")}
             >
               <Settings style={{ width: "18px", height: "18px" }} />
@@ -822,7 +834,7 @@ export default function AdminSidebar({
               <button
                 type="button"
                 onClick={() => setProfileOpen(prev => !prev)}
-                className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-slate-100"
+                className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 aria-label="Open profile menu"
                 aria-expanded={profileOpen}
               >
@@ -884,6 +896,16 @@ export default function AdminSidebar({
 
                   {/* Actions */}
                   <div className="p-2">
+                    <Link
+                      href="/admin/profile"
+                      className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200 hover:bg-slate-50"
+                      style={{ color: "#475569" }}
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      <UserCircle style={{ width: "15px", height: "15px" }} />
+                      <span>My profile</span>
+                    </Link>
+
                     <a
                       href={
                         process.env.NEXT_PUBLIC_ROOT_DOMAIN

@@ -109,7 +109,7 @@ async function setStatus(
     if (error) return { error: error.message };
     if (!row) return { error: "Record not found" };
 
-    await logAdminAction(user.id, status === "published" ? "approveContent" : "rejectContent", table, id, {
+    await logAdminAction(user.id, status === "published" ? "content.approve" : "content.reject", table, id, {
       title: row.title,
     });
 

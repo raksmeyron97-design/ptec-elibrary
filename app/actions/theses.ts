@@ -260,6 +260,18 @@ export async function incrementThesisDownloadCount(id: string) {
   if (error) {
     console.error("Failed to increment download count:", error);
   }
+
+  // Timestamped log so thesis downloads appear in period analytics.
+  // Best-effort: the content columns arrive with migration 0072 — until it
+  // is applied this insert fails harmlessly and only the counter above runs.
+  const { error: logError } = await supabase.from("download_logs").insert({
+    content_type: "research_report",
+    content_id: id,
+    user_id: user.id,
+  });
+  if (logError) {
+    console.warn("[incrementThesisDownloadCount] download_logs insert skipped:", logError.message);
+  }
 }
 
 export async function toggleThesisPublishStatus(id: string, isPublished: boolean) {

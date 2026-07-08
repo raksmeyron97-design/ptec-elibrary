@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     await db.from("push_subscriptions").delete().in("endpoint", expired);
   }
 
-  await logAdminAction(admin.userId, "push_broadcast", "push_subscriptions", undefined, {
+  await logAdminAction(admin.userId, "push.broadcast", "push_subscriptions", undefined, {
     targeted_user: body.userId ?? "all",
     recipients: subs.length,
     sent,

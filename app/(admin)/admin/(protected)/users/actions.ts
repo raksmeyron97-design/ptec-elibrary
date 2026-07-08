@@ -58,7 +58,7 @@ export async function setUserRole(
   // Log the role change
   await supabase.from("admin_audit_log").insert({
     admin_id: user.id,
-    action: "setUserRole",
+    action: "user_role.update",
     target_table: "profiles",
     target_id: targetUserId,
     metadata: {
