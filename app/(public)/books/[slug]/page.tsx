@@ -3,7 +3,7 @@ import { Suspense, cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
-import PDFViewer from "@/components/ui/reader/PDFViewerClient";
+import PDFReaderLauncher from "@/components/ui/reader/PDFReaderLauncher";
 import PDFCover from "@/components/ui/reader/PDFCover";
 import BookCover from "@/components/ui/books/BookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
@@ -362,7 +362,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
             {book.dbId && (
               <Suspense fallback={null}>
-                <ResumeBanner bookId={book.dbId} />
+                <ResumeBanner bookId={book.dbId} slug={slug} />
               </Suspense>
             )}
 
@@ -505,7 +505,7 @@ async function HeroSubscribeBadge({ department }: { department: string }) {
   );
 }
 
-async function ResumeBanner({ bookId }: { bookId: string }) {
+async function ResumeBanner({ bookId, slug }: { bookId: string; slug: string }) {
   const savedProgress = await getProgressOnce(bookId);
   if (!savedProgress || savedProgress.progressPct <= 0) return null;
   const t = await getTranslations("bookDetail");
@@ -536,12 +536,12 @@ async function ResumeBanner({ bookId }: { bookId: string }) {
           style={{ width: `${savedProgress.progressPct}%` }}
         />
       </div>
-      <a
-        href="#reader"
+      <Link
+        href={`/books/${slug}/read`}
         className="shrink-0 w-full sm:w-auto text-center rounded-[10px] bg-brand px-4 py-2 sm:py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover shadow-sm"
       >
         {t("resume")}
-      </a>
+      </Link>
     </div>
   );
 }
@@ -568,13 +568,13 @@ async function ActionButtons({
   return (
     <>
       {book.pdfUrl ? (
-        <a
-          href="#reader"
+        <Link
+          href={`/books/${slug}/read`}
           className="inline-flex items-center justify-center gap-2.5 rounded-[14px] bg-brand px-6 py-3.5 text-[15px] font-bold text-brand-contrast transition-all hover:-translate-y-0.5 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30"
         >
           <Icon name="pdf" className="text-[20px]" />
           {resuming ? t("continueReading") : t("readOnline")}
-        </a>
+        </Link>
       ) : (
         <span className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-paper border border-divider px-6 py-3.5 text-sm font-semibold text-text-muted">
           {t("pdfNotAvailable")}
@@ -625,7 +625,7 @@ async function ReaderSection({
   ]);
 
   return (
-    <PDFViewer
+    <PDFReaderLauncher
       title={book.title}
       pdfUrl={fileSrc}
       bookId={book.dbId!}
@@ -634,6 +634,7 @@ async function ReaderSection({
       initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
       allowDownload={true}
       isLoggedIn={!!user}
+      fullReaderHref={`/books/${book.slug}/read`}
     />
   );
 }

@@ -16,6 +16,8 @@ function formatSize(bytes: number) {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+const RECOMMENDED_PDF_BYTES = 25 * 1024 * 1024;
+
 export default function PdfDropzone({ file, onChange, existingLabel, actionLabel = "Click to upload" }: PdfDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -25,8 +27,13 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
     if (f && f.type === "application/pdf") onChange(f);
   };
 
+  const openPicker = () => inputRef.current?.click();
+
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={file ? "Replace thesis PDF" : "Upload thesis PDF"}
       className={`relative flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-6 py-8 text-center cursor-pointer group transition-colors ${
         file
           ? "border-emerald-400 bg-emerald-50/40"
@@ -34,7 +41,12 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
           ? "border-brand bg-brand/5"
           : "border-divider bg-paper hover:border-brand"
       }`}
-      onClick={() => inputRef.current?.click()}
+      onClick={openPicker}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        openPicker();
+      }}
       onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
       onDragLeave={() => setDragActive(false)}
       onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFiles(e.dataTransfer.files); }}
@@ -50,11 +62,20 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
         <p className="mt-0.5 max-w-xs truncate text-xs text-text-muted/80">
           {file ? `${file.name} · ${formatSize(file.size)}` : existingLabel ?? "PDF files only"}
         </p>
+        <p className="mt-1 max-w-sm text-[11px] leading-4 text-text-muted">
+          Recommended: under 25 MB when possible. Compress scanned PDFs before uploading.
+        </p>
+        {file && file.size > RECOMMENDED_PDF_BYTES && (
+          <p className="mt-1 text-[11px] font-semibold text-amber-700">
+            This PDF is large and may load slowly in the online reader.
+          </p>
+        )}
       </div>
       <input
         ref={inputRef}
         type="file"
         accept="application/pdf"
+        aria-label="Thesis PDF file"
         className="hidden"
         onChange={(e) => onChange(e.target.files?.[0] || null)}
       />

@@ -17,6 +17,7 @@ import Icon from "@/components/ui/core/Icon";
 import { useTranslations, useLocale } from "next-intl";
 import { saveReadingProgress } from "@/app/actions/reading-progress";
 import { incrementDownloadCount } from "@/app/actions/download";
+import { PTEC } from "@/lib/ptec";
 import {
   getBookAnnotations,
   addAnnotation,
@@ -62,6 +63,12 @@ type FitMode = "width" | "page";
 type ViewMode = "single" | "scroll";
 type Theme = "light" | "sepia" | "dark";
 type PanelTab = "outline" | "bookmarks" | "search" | "annotations" | null;
+type PdfErrorKind = "missing" | "permission" | "invalid" | "network" | "unknown";
+type ReaderEventType =
+  | "pdf_load_error"
+  | "pdf_load_slow"
+  | "pdf_render_error"
+  | "broken_file_report";
 
 type SelectionPopup = {
   text: string;
@@ -81,7 +88,9 @@ type SearchHit = { page: number; snippet: string };
 ─────────────────────────────────────────────────────────────────── */
 const PAD = 32; // horizontal/vertical breathing room inside the viewport
 const MAX_SCROLL_W = 1000; // cap page width on very wide screens for readability
-const RENDER_WINDOW = 3; // pages rendered on each side of the active page (scroll mode)
+const SCROLL_PAGE_Y = 24; // vertical padding around each virtualized scroll page
+const VIRTUAL_OVERSCAN = 2; // pages kept before/after the visible viewport
+const MAX_RENDER_DPR = 2; // cap canvas density to avoid huge mobile/retina canvases
 const TOOLBAR_H = 56;
 const AUTOSAVE_MS = 1500;
 
@@ -109,6 +118,53 @@ function themeFilter(theme: Theme): string | undefined {
   if (theme === "dark") return "invert(1) hue-rotate(180deg)";
   if (theme === "sepia") return "sepia(0.5) saturate(1.1) brightness(0.98)";
   return undefined;
+}
+
+function classifyPdfError(error: Error): PdfErrorKind {
+  const message = error.message.toLowerCase();
+  if (message.includes("404") || message.includes("not found") || message.includes("missing")) return "missing";
+  if (message.includes("401") || message.includes("403") || message.includes("unauthorized") || message.includes("forbidden")) return "permission";
+  if (message.includes("invalid") || message.includes("corrupt") || message.includes("password")) return "invalid";
+  if (message.includes("network") || message.includes("failed to fetch")) return "network";
+  return "unknown";
+}
+
+function safePdfPath(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const base = typeof window !== "undefined" ? window.location.origin : "https://library.ptec.edu.kh";
+    return new URL(raw, base).pathname;
+  } catch {
+    return raw.split("?")[0]?.slice(0, 160) || null;
+  }
+}
+
+function sendReaderEvent(payload: {
+  type: ReaderEventType;
+  bookId: string;
+  file: string | null;
+  page?: number;
+  message?: string;
+  durationMs?: number;
+}) {
+  try {
+    const body = JSON.stringify(payload);
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(
+        "/api/reader-events",
+        new Blob([body], { type: "application/json" }),
+      );
+      return;
+    }
+    void fetch("/api/reader-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      keepalive: true,
+    });
+  } catch {
+    /* logging must never interrupt reading */
+  }
 }
 
 
@@ -178,85 +234,80 @@ const OutlineTree = memo(function OutlineTree({
 }) {
   return (
     <ul className={cx("space-y-0.5", depth > 0 && "ml-2 border-l border-white/10 pl-2")}>
-      {items.map((it, i) => (
-        <li key={i}>
-          <button
-            type="button"
-            onClick={() => onSelect(it.dest)}
-            className="block w-full truncate rounded px-2 py-1 text-left text-xs text-slate-200 transition hover:bg-white/10"
-            title={it.title}
-          >
-            {it.title || "—"}
-          </button>
-          {it.items?.length ? (
-            <OutlineTree items={it.items} onSelect={onSelect} depth={depth + 1} />
-          ) : null}
-        </li>
-      ))}
+      {items.map((it, i) => {
+        const itemKey =
+          typeof it.dest === "string"
+            ? it.dest
+            : `${it.title || "untitled"}-${depth}-${i}`;
+        return (
+          <li key={itemKey}>
+            <button
+              type="button"
+              onClick={() => onSelect(it.dest)}
+              className="block w-full truncate rounded px-2 py-1 text-left text-xs text-slate-200 transition hover:bg-white/10"
+              title={it.title}
+            >
+              {it.title || "—"}
+            </button>
+            {it.items?.length ? (
+              <OutlineTree items={it.items} onSelect={onSelect} depth={depth + 1} />
+            ) : null}
+          </li>
+        );
+      })}
     </ul>
   );
 });
 
-/* One page inside continuous-scroll mode. Outer wrapper always exists
-   (keeps a stable IntersectionObserver target + reserves layout height);
-   the heavy <Page> only mounts when inside the render window. */
+/* One page inside continuous-scroll mode. The parent virtualizer only mounts a
+   small moving window, so every mounted page is intentionally rendered. */
 const ScrollPage = memo(function ScrollPage({
   pageNumber,
   width,
   estHeight,
-  render,
   filter,
+  devicePixelRatio,
   customTextRenderer,
-  registerRef,
+  onRenderError,
 }: {
   pageNumber: number;
   width?: number;
   estHeight: number;
-  render: boolean;
   filter?: string;
+  devicePixelRatio: number;
   customTextRenderer?: (item: { str: string }) => string;
-  registerRef: (page: number, el: HTMLDivElement | null) => void;
+  onRenderError?: (error: Error) => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    registerRef(pageNumber, ref.current);
-    return () => registerRef(pageNumber, null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageNumber]);
-
   return (
     <div
-      ref={ref}
       data-page={pageNumber}
-      className="w-full px-1 py-3"
-      style={{ minHeight: estHeight }}
+      className="w-full px-1"
+      style={{
+        boxSizing: "border-box",
+        height: estHeight + SCROLL_PAGE_Y,
+        paddingBottom: SCROLL_PAGE_Y / 2,
+        paddingTop: SCROLL_PAGE_Y / 2,
+      }}
     >
-      {render ? (
-        <div className="relative mx-auto w-max shadow-lg">
-          <div style={{ filter }}>
-            <Page
-              pageNumber={pageNumber}
-              width={width}
-              renderTextLayer
-              renderAnnotationLayer
-              customTextRenderer={customTextRenderer}
-              loading={
-                <div
-                  style={{ height: estHeight, width }}
-                  className="animate-pulse rounded bg-paper/60"
-                />
-              }
-            />
-          </div>
+      <div className="relative mx-auto w-max shadow-lg">
+        <div style={{ filter }}>
+          <Page
+            pageNumber={pageNumber}
+            width={width}
+            devicePixelRatio={devicePixelRatio}
+            renderTextLayer
+            renderAnnotationLayer
+            customTextRenderer={customTextRenderer}
+            onRenderError={onRenderError}
+            loading={
+              <div
+                style={{ height: estHeight, width: width ?? "min(100%, 720px)" }}
+                className="animate-pulse rounded bg-paper/60"
+              />
+            }
+          />
         </div>
-      ) : (
-        <div
-          style={{ height: estHeight, width }}
-          className="mx-auto flex items-center justify-center rounded bg-paper/40 text-xs text-text-muted"
-        >
-          {pageNumber}
-        </div>
-      )}
+      </div>
     </div>
   );
 });
@@ -335,6 +386,9 @@ export default function PDFViewer({
       cMapUrl: "/pdf/cmaps/",
       cMapPacked: true,
       standardFontDataUrl: "/pdf/standard_fonts/",
+      disableAutoFetch: true,
+      disableStream: false,
+      rangeChunkSize: 65536,
     }),
     [],
   );
@@ -351,6 +405,7 @@ export default function PDFViewer({
   const [downloading, setDownloading] = useState(false);
   const [, startTransition] = useTransition();
   const [docKey, setDocKey] = useState(0); // bump to force a reload on retry
+  const [loadErrorKind, setLoadErrorKind] = useState<PdfErrorKind | null>(null);
   
   const [maxProgressPct, setMaxProgressPct] = useState(initialMaxProgressPct || initialProgressPct || 0);
 
@@ -358,6 +413,8 @@ export default function PDFViewer({
   const [containerWidth, setContainerWidth] = useState<number>();
   const [containerHeight, setContainerHeight] = useState<number>();
   const [aspectRatio, setAspectRatio] = useState<number>(); // height / width of page 1
+  const [scrollTop, setScrollTop] = useState(0);
+  const [renderPixelRatio, setRenderPixelRatio] = useState(1);
 
   /* ── Reading preferences (persisted) ────────────────────────── */
   const [viewMode, setViewMode] = useState<ViewMode>("scroll");
@@ -391,11 +448,11 @@ export default function PDFViewer({
   const docAreaRef = useRef<HTMLDivElement>(null); // touch target + fullscreen box
   const containerRef = useRef<HTMLDivElement>(null); // scroll viewport (measured)
   const pdfRef = useRef<PdfDocumentProxy | null>(null);
-  const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const ratios = useRef<Map<number, number>>(new Map());
   const programmaticScroll = useRef(false);
   const progScrollTimer = useRef<number | undefined>(undefined);
+  const scrollRafRef = useRef<number | null>(null);
+  const initialScrollDoneRef = useRef(false);
+  const loadStartedAtRef = useRef(0);
 
   // refs mirroring state for stable native touch handlers
   const scaleRef = useRef(scale);
@@ -408,6 +465,23 @@ export default function PDFViewer({
   const lastSavedRef = useRef(initialProgressPct);
   useEffect(() => { lastSavedRef.current = lastSaved; }, [lastSaved]);
 
+  const reportReaderEvent = useCallback(
+    (
+      type: ReaderEventType,
+      details: { message?: string; page?: number; durationMs?: number } = {},
+    ) => {
+      sendReaderEvent({
+        type,
+        bookId,
+        file: safePdfPath(pdfUrl),
+        page: details.page ?? currentPageRef.current,
+        message: details.message?.slice(0, 240),
+        durationMs: details.durationMs,
+      });
+    },
+    [bookId, pdfUrl],
+  );
+
   /* ── Derived ────────────────────────────────────────────────── */
   const progressPct =
     numPages > 0 ? Math.round((currentPage / numPages) * 100) : 0;
@@ -419,10 +493,12 @@ export default function PDFViewer({
   useEffect(() => void (currentPageRef.current = currentPage), [currentPage]);
   useEffect(() => void (numPagesRef.current = numPages), [numPages]);
   useEffect(() => void (progressRef.current = progressPct), [progressPct]);
-  
-  if (progressPct > maxProgressPct) {
-    setMaxProgressPct(progressPct);
-  }
+
+  const markMaxProgressForPage = useCallback((page: number, pages = numPagesRef.current) => {
+    if (!pages) return;
+    const pct = Math.round((page / pages) * 100);
+    setMaxProgressPct((prev) => Math.max(prev, pct));
+  }, []);
 
   /* ── Page width (folds zoom in; implements REAL fit-to-page) ──── */
   const baseWidth = useMemo(() => {
@@ -439,6 +515,29 @@ export default function PDFViewer({
   const pageWidth = baseWidth ? Math.round(baseWidth * scale) : undefined;
   const estHeight =
     pageWidth && aspectRatio ? Math.round(pageWidth * aspectRatio) : 600;
+  const scrollRowHeight = estHeight + SCROLL_PAGE_Y;
+  const virtualRange = useMemo(() => {
+    if (viewMode !== "scroll" || !numPages || !containerHeight || !scrollRowHeight) {
+      return { start: 1, end: Math.min(numPages || 1, 1), before: 0, after: 0 };
+    }
+    const firstVisible = Math.floor(scrollTop / scrollRowHeight) + 1;
+    const visibleCount = Math.max(1, Math.ceil(containerHeight / scrollRowHeight));
+    const start = clamp(1, numPages, firstVisible - VIRTUAL_OVERSCAN);
+    const end = clamp(1, numPages, firstVisible + visibleCount + VIRTUAL_OVERSCAN);
+    return {
+      start,
+      end,
+      before: (start - 1) * scrollRowHeight,
+      after: (numPages - end) * scrollRowHeight,
+    };
+  }, [containerHeight, numPages, scrollRowHeight, scrollTop, viewMode]);
+  const visiblePages = useMemo(() => {
+    if (viewMode !== "scroll" || !numPages) return [];
+    return Array.from(
+      { length: Math.max(0, virtualRange.end - virtualRange.start + 1) },
+      (_, i) => virtualRange.start + i,
+    );
+  }, [numPages, virtualRange.end, virtualRange.start, viewMode]);
 
   /* ── Load persisted prefs after mount (avoids hydration mismatch) ── */
   useEffect(() => {
@@ -467,6 +566,10 @@ export default function PDFViewer({
     () => lsSet(`ebook:bm:${bookId}`, JSON.stringify(bookmarks)),
     [bookmarks, bookId],
   );
+
+  useEffect(() => {
+    loadStartedAtRef.current = performance.now();
+  }, [docKey, resolvedFile]);
 
   /* ── Load annotations on mount (logged-in users only) ──────── */
   useEffect(() => {
@@ -532,6 +635,15 @@ export default function PDFViewer({
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    const update = () => {
+      setRenderPixelRatio(clamp(1, MAX_RENDER_DPR, window.devicePixelRatio || 1));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   /* ── Zoom Focal Point (preserve scroll center) ────────────────── */
   const prevScaleRef = useRef(scale);
   useEffect(() => {
@@ -540,6 +652,7 @@ export default function PDFViewer({
     const ratio = scale / prevScaleRef.current;
     el.scrollLeft = (el.scrollLeft + el.clientWidth / 2) * ratio - el.clientWidth / 2;
     el.scrollTop = (el.scrollTop + el.clientHeight / 2) * ratio - el.clientHeight / 2;
+    setScrollTop(el.scrollTop);
     prevScaleRef.current = scale;
   }, [scale]);
 
@@ -572,14 +685,21 @@ export default function PDFViewer({
   const navigateToPage = useCallback(
     (val: number) => {
       const clamped = clamp(1, numPagesRef.current || 1, val);
+      currentPageRef.current = clamped;
       setCurrentPage(clamped);
+      markMaxProgressForPage(clamped);
       if (viewModeRef.current === "scroll") {
         programmaticScroll.current = true;
         const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const targetTop = (clamped - 1) * scrollRowHeight;
         requestAnimationFrame(() => {
-          pageRefs.current
-            .get(clamped)
-            ?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth", block: "start" });
+          const el = containerRef.current;
+          if (!el) return;
+          el.scrollTo({
+            top: targetTop,
+            behavior: prefersReduced ? "auto" : "smooth",
+          });
+          setScrollTop(targetTop);
         });
         window.clearTimeout(progScrollTimer.current);
         progScrollTimer.current = window.setTimeout(() => {
@@ -587,20 +707,101 @@ export default function PDFViewer({
         }, 700);
       }
     },
-    [],
+    [markMaxProgressForPage, scrollRowHeight],
   );
   useEffect(() => void (navigateRef.current = navigateToPage), [navigateToPage]);
+
+  useEffect(() => {
+    initialScrollDoneRef.current = false;
+  }, [docKey, pdfUrl]);
+
+  useEffect(() => {
+    if (
+      viewMode !== "scroll" ||
+      !numPages ||
+      !pageWidth ||
+      initialScrollDoneRef.current
+    ) {
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+    const targetTop = (currentPageRef.current - 1) * scrollRowHeight;
+    el.scrollTop = targetTop;
+    setScrollTop(targetTop);
+    initialScrollDoneRef.current = true;
+  }, [numPages, pageWidth, scrollRowHeight, viewMode]);
+
+  const handleViewportScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const el = event.currentTarget;
+      if (scrollRafRef.current !== null) return;
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        const nextTop = el.scrollTop;
+        setScrollTop(nextTop);
+        if (
+          viewModeRef.current !== "scroll" ||
+          programmaticScroll.current ||
+          !numPagesRef.current
+        ) {
+          return;
+        }
+        const nextPage = clamp(
+          1,
+          numPagesRef.current,
+          Math.floor((nextTop + el.clientHeight * 0.35) / scrollRowHeight) + 1,
+        );
+        if (nextPage !== currentPageRef.current) {
+          currentPageRef.current = nextPage;
+          setCurrentPage(nextPage);
+          markMaxProgressForPage(nextPage);
+        }
+      });
+    },
+    [markMaxProgressForPage, scrollRowHeight],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+      }
+      window.clearTimeout(progScrollTimer.current);
+    };
+  }, []);
 
   /* ── Document / page load callbacks ─────────────────────────── */
   function onDocumentLoadSuccess(pdf: PdfDocumentProxy) {
     pdfRef.current = pdf;
+    setLoadErrorKind(null);
     setNumPages(pdf.numPages);
-    if (currentPage > pdf.numPages) setCurrentPage(pdf.numPages);
+    if (currentPage > pdf.numPages) {
+      currentPageRef.current = pdf.numPages;
+      setCurrentPage(pdf.numPages);
+    }
+    markMaxProgressForPage(Math.min(currentPageRef.current, pdf.numPages), pdf.numPages);
+    const durationMs = Math.round(performance.now() - loadStartedAtRef.current);
+    if (durationMs > 8000) {
+      reportReaderEvent("pdf_load_slow", { durationMs });
+    }
     pdf
       .getOutline()
       .then((o) => setOutline((o as unknown as OutlineNode[]) ?? []))
       .catch(() => setOutline([]));
   }
+
+  function onDocumentLoadError(error: Error) {
+    setLoadErrorKind(classifyPdfError(error));
+    reportReaderEvent("pdf_load_error", { message: error.message });
+  }
+
+  const onPageRenderError = useCallback(
+    (page: number, error: Error) => {
+      reportReaderEvent("pdf_render_error", { page, message: error.message });
+    },
+    [reportReaderEvent],
+  );
 
   function onFirstPageLoad(page: {
     originalWidth?: number;
@@ -612,6 +813,14 @@ export default function PDFViewer({
     const h = page.originalHeight ?? page.height;
     if (w && h) setAspectRatio(h / w);
   }
+
+  useEffect(() => {
+    return () => {
+      const pdf = pdfRef.current;
+      pdfRef.current = null;
+      void pdf?.destroy?.();
+    };
+  }, []);
 
   /* ── Zoom / fit / theme ─────────────────────────────────────── */
   const zoomIn = useCallback(() => setScale((s) => clamp(0.5, 3, s + 0.25)), []);
@@ -627,12 +836,16 @@ export default function PDFViewer({
         // When switching to scroll, scroll directly to the current page element
         const p = currentPageRef.current;
         requestAnimationFrame(() => {
-          pageRefs.current.get(p)?.scrollIntoView({ behavior: "auto", block: "start" });
+          const el = containerRef.current;
+          if (!el) return;
+          const targetTop = (p - 1) * scrollRowHeight;
+          el.scrollTo({ top: targetTop, behavior: "auto" });
+          setScrollTop(targetTop);
         });
         return "scroll";
       });
     },
-    [],
+    [scrollRowHeight],
   );
   const cycleTheme = useCallback(
     () =>
@@ -688,10 +901,10 @@ export default function PDFViewer({
 
   /* ── Search + annotation text renderer ─────────────────────── */
   const highlight = useCallback(
-    (item: { str: string }) => {
+    (item: { str: string }, pageNumber: number) => {
       let result = item.str;
       // Annotation highlights (page-specific, best-effort text match)
-      const pageAnns = annotations.filter((a) => a.page_number === currentPage);
+      const pageAnns = annotations.filter((a) => a.page_number === pageNumber);
       for (const ann of pageAnns) {
         const safeText = ann.selected_text
           .substring(0, 40)
@@ -712,7 +925,7 @@ export default function PDFViewer({
       }
       return result;
     },
-    [searchQuery, annotations, currentPage],
+    [searchQuery, annotations],
   );
 
   async function runSearch(raw: string) {
@@ -762,58 +975,6 @@ export default function PDFViewer({
       /* ignore */
     }
   }
-
-  /* ── Continuous-scroll: track the active page via IntersectionObserver ── */
-  useEffect(() => {
-    if (viewMode !== "scroll" || !numPages) return;
-    const root = containerRef.current;
-    if (!root) return;
-    const currentRatios = ratios.current;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          const p = Number((e.target as HTMLElement).dataset.page);
-          currentRatios.set(p, e.isIntersecting ? e.intersectionRatio : 0);
-        }
-        if (programmaticScroll.current) return;
-        let best = currentPageRef.current;
-        let bestR = -1;
-        currentRatios.forEach((r, p) => {
-          if (r > bestR) {
-            bestR = r;
-            best = p;
-          }
-        });
-        if (bestR > 0 && best !== currentPageRef.current) {
-          currentPageRef.current = best;
-          setCurrentPage(best);
-        }
-      },
-      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
-    );
-    observerRef.current = io;
-    pageRefs.current.forEach((el) => el && io.observe(el));
-    return () => {
-      io.disconnect();
-      observerRef.current = null;
-      currentRatios.clear();
-    };
-  }, [viewMode, numPages]);
-
-  const registerPageRef = useCallback(
-    (page: number, el: HTMLDivElement | null) => {
-      const map = pageRefs.current;
-      if (el) {
-        map.set(page, el);
-        observerRef.current?.observe(el);
-      } else {
-        const prev = map.get(page);
-        if (prev) observerRef.current?.unobserve(prev);
-        map.delete(page);
-      }
-    },
-    [],
-  );
 
   /* ── Keyboard navigation ────────────────────────────────────── */
   useEffect(() => {
@@ -1053,7 +1214,22 @@ export default function PDFViewer({
   const docAreaBg =
     theme === "dark" ? "bg-neutral-900" : theme === "sepia" ? "bg-[#f3e9d6]" : "bg-paper";
   const filter = themeFilter(theme);
-  const pages = numPages > 0 ? Array.from({ length: numPages }, (_, i) => i + 1) : [];
+  const loadErrorMessage = isOffline
+    ? t("offlineError")
+    : loadErrorKind === "missing"
+      ? t("fileUnavailable")
+      : loadErrorKind === "permission"
+        ? t("permissionDenied")
+        : loadErrorKind === "invalid"
+          ? t("invalidPdf")
+          : loadErrorKind === "network"
+            ? t("networkError")
+            : t("loadErrorDetailed");
+  const reportBrokenHref = `mailto:${PTEC.email}?subject=${encodeURIComponent(
+    `Broken PDF: ${title}`,
+  )}&body=${encodeURIComponent(
+    `Please check this PDF file.\n\nTitle: ${title}\nResource ID: ${bookId}\nFile: ${safePdfPath(pdfUrl) ?? "unknown"}\nPage: ${currentPage}`,
+  )}`;
 
   return (
     <>
@@ -1636,7 +1812,7 @@ export default function PDFViewer({
             <div
               className="absolute z-50 w-64 rounded-xl border border-white/20 bg-slate-900 p-3 shadow-2xl"
               style={{
-                left: Math.min(selectionPopup.x, (containerRef.current?.clientWidth ?? 400) - 270),
+                left: Math.max(8, Math.min(selectionPopup.x, (containerWidth ?? 400) - 270)),
                 top: Math.max(selectionPopup.y - 170, 8),
               }}
             >
@@ -1916,51 +2092,84 @@ export default function PDFViewer({
             ref={containerRef}
             className="relative h-full w-full overflow-auto"
             style={{ touchAction: "pan-y" }}
+            onScroll={handleViewportScroll}
           >
             <Document
               key={docKey}
               file={resolvedFile ?? undefined}
               options={pdfOptions}
               onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              onSourceError={onDocumentLoadError}
               loading={
-                <div className="flex h-full flex-col items-center justify-center gap-3 p-10">
+                <div className="flex h-full flex-col items-center justify-center gap-3 p-10" aria-live="polite">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-divider border-t-brand" />
                   <p className="text-sm text-text-muted">{t("loading")}</p>
                 </div>
               }
               error={
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
-                  <p className="text-sm text-red-500">
-                    {isOffline ? t("offlineError") : t("loadError")}
+                  <Icon name="alert-triangle" className="text-4xl text-red-500" />
+                  <p className="max-w-md text-sm leading-6 text-red-500">
+                    {loadErrorMessage}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setDocKey((k) => k + 1)}
-                    className="rounded-md bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-cyan-400"
-                  >
-                    {t("retry")}
-                  </button>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoadErrorKind(null);
+                        setDocKey((k) => k + 1);
+                      }}
+                      className="rounded-md bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                    >
+                      {t("retry")}
+                    </button>
+                    <a
+                      href={reportBrokenHref}
+                      onClick={() => reportReaderEvent("broken_file_report")}
+                      className="rounded-md border border-divider bg-bg-surface px-4 py-1.5 text-xs font-semibold text-text-heading hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                    >
+                      {t("reportBrokenFile")}
+                    </a>
+                  </div>
                 </div>
               }
             >
               {viewMode === "scroll" ? (
                 <div className="flex flex-col">
-                  {pages.map((p) => (
+                  {virtualRange.before > 0 && (
+                    <div style={{ height: virtualRange.before }} aria-hidden />
+                  )}
+                  {visiblePages.map((p) => (
                     <ScrollPage
                       key={p}
                       pageNumber={p}
                       width={pageWidth}
                       estHeight={estHeight}
-                      render={Math.abs(p - currentPage) <= RENDER_WINDOW}
                       filter={filter}
-                      customTextRenderer={(searchQuery || annotations.some((a) => a.page_number === currentPage)) ? highlight : undefined}
-                      registerRef={registerPageRef}
+                      devicePixelRatio={renderPixelRatio}
+                      onRenderError={(error) => onPageRenderError(p, error)}
+                      customTextRenderer={
+                        searchQuery || annotations.some((a) => a.page_number === p)
+                          ? (item) => highlight(item, p)
+                          : undefined
+                      }
                     />
                   ))}
+                  {virtualRange.after > 0 && (
+                    <div style={{ height: virtualRange.after }} aria-hidden />
+                  )}
                   {/* capture page-1 aspect ratio once */}
                   {!aspectRatio && (
-                    <div className="hidden">
-                      <Page pageNumber={1} width={1} onLoadSuccess={onFirstPageLoad} renderTextLayer={false} renderAnnotationLayer={false} />
+                    <div aria-hidden className="pointer-events-none h-px overflow-hidden opacity-0">
+                      <Page
+                        pageNumber={1}
+                        width={1}
+                        devicePixelRatio={1}
+                        onLoadSuccess={onFirstPageLoad}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
                     </div>
                   )}
                 </div>
@@ -1971,10 +2180,16 @@ export default function PDFViewer({
                       <Page
                         pageNumber={currentPage}
                         width={pageWidth}
+                        devicePixelRatio={renderPixelRatio}
                         onLoadSuccess={!aspectRatio ? onFirstPageLoad : undefined}
+                        onRenderError={(error) => onPageRenderError(currentPage, error)}
                         renderTextLayer
                         renderAnnotationLayer
-                        customTextRenderer={(searchQuery || annotations.some((a) => a.page_number === currentPage)) ? highlight : undefined}
+                        customTextRenderer={
+                          searchQuery || annotations.some((a) => a.page_number === currentPage)
+                            ? (item) => highlight(item, currentPage)
+                            : undefined
+                        }
                         loading={
                           <div style={{ height: estHeight, width: pageWidth }} className="animate-pulse rounded bg-paper/60" />
                         }
@@ -1984,10 +2199,22 @@ export default function PDFViewer({
                   {/* preload neighbours off-screen for instant page turns */}
                   <div aria-hidden className="pointer-events-none absolute opacity-0" style={{ left: -99999, top: 0 }}>
                     {currentPage > 1 && (
-                      <Page pageNumber={currentPage - 1} width={pageWidth} renderTextLayer={false} renderAnnotationLayer={false} />
+                      <Page
+                        pageNumber={currentPage - 1}
+                        width={pageWidth}
+                        devicePixelRatio={renderPixelRatio}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
                     )}
                     {currentPage < numPages && (
-                      <Page pageNumber={currentPage + 1} width={pageWidth} renderTextLayer={false} renderAnnotationLayer={false} />
+                      <Page
+                        pageNumber={currentPage + 1}
+                        width={pageWidth}
+                        devicePixelRatio={renderPixelRatio}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
                     )}
                   </div>
                 </div>

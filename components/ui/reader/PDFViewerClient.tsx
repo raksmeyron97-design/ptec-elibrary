@@ -7,8 +7,13 @@ import nextDynamic from "next/dynamic";
 const PDFViewer = nextDynamic(() => import("@/components/ui/reader/PDFViewer"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-divider bg-paper">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-divider border-t-brand" />
+    <div
+      className="flex min-h-[400px] flex-col items-center justify-center gap-3 rounded-lg border border-divider bg-paper"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-divider border-t-brand" aria-hidden />
+      <span className="text-sm font-medium text-text-muted">Loading document...</span>
     </div>
   ),
 });

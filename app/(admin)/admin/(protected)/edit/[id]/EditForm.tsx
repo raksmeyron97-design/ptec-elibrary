@@ -50,6 +50,15 @@ const SELECT_CLASS =
   "h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
   "focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:opacity-60 text-text-body";
 
+function activatePickerFromKeyboard(
+  e: React.KeyboardEvent<HTMLDivElement>,
+  openPicker: () => void,
+) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  openPicker();
+}
+
 function FieldLabel({
   children,
   required,
@@ -283,7 +292,7 @@ export default function EditForm({
           </span>
           <div className="flex-1 min-w-0">
             <h2 className="text-sm font-bold text-text-heading">PDF File</h2>
-            <p className="text-xs text-text-muted">PDF only · max 100 MB</p>
+            <p className="text-xs text-text-muted">PDF only · max 100 MB · recommended under 25 MB</p>
           </div>
           {!pdfFile && (
             <span
@@ -322,17 +331,25 @@ export default function EditForm({
           )}
 
           <div
+            role="button"
+            tabIndex={saving ? -1 : 0}
+            aria-label={pdfFile ? "Replace PDF file" : initial.fileUrl ? "Replace PDF file" : "Upload PDF file"}
             className="relative flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
             onClick={() => !saving && pdfInputRef.current?.click()}
+            onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && pdfInputRef.current?.click())}
           >
             <UploadCloud className="h-5 w-5 text-text-muted" />
             <p className="text-xs text-text-muted leading-tight">
               {pdfFile ? `Selected: ${pdfFile.name}` : initial.fileUrl ? "Click to replace PDF" : "Click to upload PDF"}
             </p>
+            <p className="max-w-sm text-[11px] leading-4 text-text-muted">
+              Compress scanned PDFs before uploading so the online reader stays fast.
+            </p>
             <input
               ref={pdfInputRef}
               type="file"
               accept="application/pdf"
+              aria-label="PDF file"
               disabled={saving}
               onChange={handlePdfChange}
               className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -397,6 +414,7 @@ export default function EditForm({
                   onClick={removeCover}
                   disabled={saving}
                   title="Remove cover"
+                  aria-label="Remove cover"
                   className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/65 text-white transition-colors hover:bg-black/85 disabled:opacity-50"
                 >
                   <X className="h-3 w-3" />
@@ -411,8 +429,12 @@ export default function EditForm({
             {/* Dropzone */}
             <div
               ref={coverZoneRef}
+              role="button"
+              tabIndex={saving ? -1 : 0}
+              aria-label={preview ? "Replace cover image" : "Upload cover image"}
               className="relative flex h-36 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
               onClick={() => !saving && fileInputRef.current?.click()}
+              onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && fileInputRef.current?.click())}
             >
               <ImagePlus className="h-6 w-6 text-text-muted" />
               <p className="text-xs text-text-muted leading-tight">
@@ -426,6 +448,7 @@ export default function EditForm({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/avif"
+                aria-label="Cover image"
                 disabled={saving}
                 onChange={handleCoverChange}
                 className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"

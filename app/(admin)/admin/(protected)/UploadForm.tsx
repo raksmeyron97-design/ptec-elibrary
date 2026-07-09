@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -32,6 +33,15 @@ const INPUT_CLASS =
 const SELECT_CLASS =
   "h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
   "focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:opacity-60 text-text-body";
+
+function activatePickerFromKeyboard(
+  e: React.KeyboardEvent<HTMLDivElement>,
+  openPicker: () => void,
+) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  openPicker();
+}
 
 function FieldLabel({
   children,
@@ -154,10 +164,13 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
   }, [supabase]);
 
   useEffect(() => {
-    refreshLists();
+    const initialRefresh = window.setTimeout(() => {
+      void refreshLists();
+    }, 0);
     window.addEventListener("ptec:categories-changed", refreshLists);
     window.addEventListener("ptec:departments-changed", refreshLists);
     return () => {
+      window.clearTimeout(initialRefresh);
       window.removeEventListener("ptec:categories-changed", refreshLists);
       window.removeEventListener("ptec:departments-changed", refreshLists);
     };
@@ -339,12 +352,16 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
           <div>
             <FieldLabel required>PDF file</FieldLabel>
             <div
+              role="button"
+              tabIndex={busy ? -1 : 0}
+              aria-label={pdfName ? "Replace PDF file" : "Upload PDF file"}
               className="relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-11 text-center transition-all cursor-pointer group"
               style={{
                 borderColor: pdfName ? "#0f9d6b" : "var(--ptec-divider)",
                 background:  pdfName ? "rgba(15,157,107,0.03)" : "var(--ptec-paper)",
               }}
               onClick={() => !busy && pdfInputRef.current?.click()}
+              onKeyDown={(e) => activatePickerFromKeyboard(e, () => !busy && pdfInputRef.current?.click())}
             >
               <span
                 className="flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-105"
@@ -368,6 +385,9 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
                 <>
                   <p className="text-sm font-semibold text-text-heading">Click to select PDF</p>
                   <p className="text-xs text-text-muted">or drag &amp; drop · PDF only · max 100 MB</p>
+                  <p className="max-w-sm text-[11px] leading-5 text-text-muted">
+                    Large PDFs may load slowly for students. Recommended size: under 25 MB when possible; compress scanned PDFs before uploading.
+                  </p>
                 </>
               )}
               <input
@@ -375,6 +395,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
                 name="pdf"
                 type="file"
                 accept=".pdf,application/pdf"
+                aria-label="PDF file"
                 required
                 disabled={busy}
                 onChange={handlePdfChange}
@@ -416,10 +437,13 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
             <div className="flex items-start gap-4">
               {coverPreview ? (
                 <div className="relative h-32 w-[88px] shrink-0 overflow-hidden rounded-xl border border-divider shadow-md">
-                  <img
+                  <Image
                     src={coverPreview}
                     alt="Cover preview"
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="88px"
+                    className="object-cover"
+                    unoptimized
                   />
                   <button
                     type="button"
@@ -440,8 +464,12 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
                 </div>
               )}
               <div
+                role="button"
+                tabIndex={busy ? -1 : 0}
+                aria-label={coverPreview ? "Replace cover image" : "Upload cover image"}
                 className="relative flex h-32 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
                 onClick={() => !busy && coverInputRef.current?.click()}
+                onKeyDown={(e) => activatePickerFromKeyboard(e, () => !busy && coverInputRef.current?.click())}
               >
                 <ImagePlus className="h-6 w-6 text-text-muted" />
                 <p className="text-xs text-text-muted leading-tight">
@@ -452,6 +480,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
                   name="cover"
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
+                  aria-label="Cover image"
                   disabled={busy}
                   onChange={handleCoverChange}
                   onClick={(e) => e.stopPropagation()}
