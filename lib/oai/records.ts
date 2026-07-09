@@ -103,8 +103,19 @@ async function fetchAllBookRows(supabase: ServiceClient, range: OaiDateRange, wi
       .in("license", OAI_ALLOWED_LICENSES)
       .order("id", { ascending: true })
       .range(from, from + FETCH_PAGE_SIZE - 1);
-    if (range.from) query = query.gte(dateColumn, range.from.toISOString());
-    if (range.until) query = query.lte(dateColumn, range.until.toISOString());
+    if (dateColumn === "updated_at") {
+      if (range.from) {
+        const iso = range.from.toISOString();
+        query = query.or(`updated_at.gte.${iso},and(updated_at.is.null,created_at.gte.${iso})`);
+      }
+      if (range.until) {
+        const iso = range.until.toISOString();
+        query = query.or(`updated_at.lte.${iso},and(updated_at.is.null,created_at.lte.${iso})`);
+      }
+    } else {
+      if (range.from) query = query.gte(dateColumn, range.from.toISOString());
+      if (range.until) query = query.lte(dateColumn, range.until.toISOString());
+    }
 
     const { data, error } = await query;
     if (error) {
@@ -196,8 +207,14 @@ async function fetchThesisRecords(supabase: ServiceClient, range: OaiDateRange):
       .in("license", OAI_ALLOWED_LICENSES)
       .order("id", { ascending: true })
       .range(from, from + FETCH_PAGE_SIZE - 1);
-    if (range.from) query = query.gte("updated_at", range.from.toISOString());
-    if (range.until) query = query.lte("updated_at", range.until.toISOString());
+    if (range.from) {
+      const iso = range.from.toISOString();
+      query = query.or(`updated_at.gte.${iso},and(updated_at.is.null,created_at.gte.${iso})`);
+    }
+    if (range.until) {
+      const iso = range.until.toISOString();
+      query = query.or(`updated_at.lte.${iso},and(updated_at.is.null,created_at.lte.${iso})`);
+    }
 
     const { data, error } = await query;
     if (error) throw new Error(`[oai] research_reports query failed: ${error.message}`);
@@ -274,8 +291,14 @@ async function fetchPublicationRecords(supabase: ServiceClient, range: OaiDateRa
       .eq("is_published", true)
       .order("id", { ascending: true })
       .range(from, from + FETCH_PAGE_SIZE - 1);
-    if (range.from) query = query.gte("updated_at", range.from.toISOString());
-    if (range.until) query = query.lte("updated_at", range.until.toISOString());
+    if (range.from) {
+      const iso = range.from.toISOString();
+      query = query.or(`updated_at.gte.${iso},and(updated_at.is.null,created_at.gte.${iso})`);
+    }
+    if (range.until) {
+      const iso = range.until.toISOString();
+      query = query.or(`updated_at.lte.${iso},and(updated_at.is.null,created_at.lte.${iso})`);
+    }
 
     const { data, error } = await query;
     if (error) throw new Error(`[oai] publications query failed: ${error.message}`);
