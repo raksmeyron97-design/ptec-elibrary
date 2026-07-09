@@ -70,7 +70,7 @@ e.g. 1_example.png
 ផ្នែកទី ៣ — ទំព័រ “ទំនាក់ទំនង” (Contact)
 របៀបទាក់ទង និងទីតាំងបណ្ណាល័យ។
 ៣.១  អាសយដ្ឋានពេញ (Full address)
-St.271, Sangkat Teu Laork 3, Toul Kork, Phnom Penh.
+St.271, Sangkat Teuk Laork 3, Toul Kork, Phnom Penh.
 ៣.២  ទីតាំងផែនទី / Google Maps link
 បិទភ្ជាប់ link ពី Google Maps ប្រសិនបើមាន
 Link: ptec

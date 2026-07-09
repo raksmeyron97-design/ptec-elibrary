@@ -12,9 +12,9 @@ export const PTEC = {
   },
 
   // ── Contact ───────────────────────────────────────────────────────────────
-  phone: "012 950 192",
-  phoneIntl: "(+855) 12 950 192", // international display format
-  phoneTel: "tel:+85512950192",   // use in href="tel:..."
+  phone: "092 788 990",
+  phoneIntl: "(+855) 92 788 990", // international display format
+  phoneTel: "tel:+85592788990",   // use in href="tel:..."
   // Library front desk — a separate line from the main institution number.
   phoneLibrary: "092 788 990",
   phoneLibraryTel: "tel:+85592788990",
