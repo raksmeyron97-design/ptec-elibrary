@@ -47,6 +47,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 
 import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { bookScholarMeta } from "@/lib/seo/citation";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string; locale: string }>;
@@ -72,7 +73,7 @@ const getBookMeta = unstable_cache(
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("books")
-      .select("title, description, cover_url, language, published_at, isbn, department, tags, authors(name), categories(name), departments(name)")
+      .select("id, title, description, cover_url, language, published_at, isbn, department, tags, authors(name), categories(name), departments(name)")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle();
@@ -154,10 +155,8 @@ export async function generateMetadata({
       images: book.cover_url ? [book.cover_url] : undefined,
     },
     other: {
-      "citation_title": book.title,
-      "citation_author": authorNames,
-      ...(book.published_at ? { "citation_publication_date": book.published_at } : {}),
-      "citation_publisher": PTEC_NAME,
+      // Google Scholar citation_* meta tags — see lib/seo/citation.ts
+      ...bookScholarMeta(book, authorNames),
       "dc.publisher": PTEC_NAME,
       "dc.type": "Book",
     },

@@ -89,6 +89,13 @@ const POLICIES = {
     limit: envInt("RL_THESIS_AUTOSAVE_PER_MIN", 40),
     windowMs: 60_000,
   }),
+  /** OAI-PMH harvesting (/api/oai) — per IP. Harvesters page sequentially
+   *  (one request per resumptionToken), so 30/min is generous for a
+   *  well-behaved BASE/CORE/OpenAIRE crawl while still capping abuse. */
+  oai: () => ({
+    limit: strictDiv(envInt("RL_OAI_PER_MIN", 30)),
+    windowMs: 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

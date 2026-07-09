@@ -29,6 +29,7 @@ import {
 import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { breadcrumbSchema } from "@/lib/seo/schema";
+import { thesisScholarMeta } from "@/lib/seo/citation";
 import { Pencil, FileX2 } from "lucide-react";
 
 export const revalidate = 3600;
@@ -43,17 +44,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function truncate(text: string | null | undefined, max: number): string {
   if (!text) return '';
   return text.length > max ? text.slice(0, max - 1) + '…' : text;
-}
-
-function formatCitationDate(dateStr: string | null | undefined, fallback: string | null | undefined): string | null {
-  const raw = dateStr ?? fallback;
-  if (!raw) return null;
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return null;
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}/${mm}/${dd}`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -112,23 +102,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         })
       : [];
 
-  const citationDate = formatCitationDate(report.published_at, report.created_at);
-  const pdfUrl = `${SITE_URL}/api/theses/${report.id}/file.pdf`;
-  const doi = report.doi as string | null | undefined;
   const section = getDepartment(report) || report.program || 'Theses';
 
-  // Build citation_ meta tags — Google Scholar requires these for indexing
-  const citationOther: Record<string, string | string[]> = {
-    citation_title: report.title,
-    citation_publication_date: citationDate ?? String(new Date(report.created_at).getFullYear()),
-    citation_technical_report_institution: PTEC_NAME,
-    citation_pdf_url: pdfUrl,
-  };
-
-  if (authors.length > 0) citationOther.citation_author = authors;
-  if (report.abstract) citationOther.citation_abstract = report.abstract;
-  if (keywords.length > 0) citationOther.citation_keywords = keywords.join('; ');
-  if (doi) citationOther.citation_doi = doi;
+  // Google Scholar citation_* meta tags — see lib/seo/citation.ts
+  const citationOther = thesisScholarMeta(report);
 
   return {
     title: seoTitle,

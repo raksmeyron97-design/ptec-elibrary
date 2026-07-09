@@ -7,7 +7,7 @@ import { getTranslations } from "next-intl/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { getPublicationBySlug } from "@/app/actions/publications";
-import type { PublicationAffiliation, Publication } from "@/lib/publications";
+import type { PublicationAffiliation } from "@/lib/publications";
 import { toCitationLine, citationYear, authorList } from "@/lib/citations";
 import PublicationViewPing from "@/components/ui/publications/PublicationViewPing";
 import PublicationHero from "@/components/ui/publications/PublicationHero";
@@ -31,6 +31,7 @@ import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/Se
 import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
+import { publicationScholarMeta } from "@/lib/seo/citation";
 import { createClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
@@ -52,13 +53,6 @@ function formatDate(dateStr: string | null): string | null {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
-function citationDate(pub: Publication): string {
-  const raw = pub.publication_date ?? pub.published_at ?? pub.created_at;
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return String(new Date().getFullYear());
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, locale } = await params;
   const { data: pub } = await getPublicationBySlug(slug);
@@ -70,28 +64,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const alternates = localeAlternates(`/publications/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const description = truncate(pub.abstract, 160) || "Journal article from Phnom Penh Teacher Education College.";
-  const authors = authorList(pub);
-  const pdfUrl = `${SITE_URL}/api/publications/${slug}/file`;
 
-  // Google Scholar citation_* meta tags — required for indexing
-  const citationOther: Record<string, string | string[]> = {
-    citation_title: pub.title,
-    citation_publication_date: citationDate(pub),
-    citation_pdf_url: pdfUrl,
-    citation_language: pub.language,
-  };
-  if (authors.length > 0) citationOther.citation_author = authors;
-  if (pub.journal_name) citationOther.citation_journal_title = pub.journal_name;
-  if (pub.volume) citationOther.citation_volume = pub.volume;
-  if (pub.issue_no) citationOther.citation_issue = pub.issue_no;
-  if (pub.page_start) citationOther.citation_firstpage = pub.page_start;
-  if (pub.page_end) citationOther.citation_lastpage = pub.page_end;
-  if (pub.doi) citationOther.citation_doi = pub.doi;
-  if (pub.isbn) citationOther.citation_isbn = pub.isbn;
-  if (pub.publisher) citationOther.citation_publisher = pub.publisher;
-  if (pub.abstract) citationOther.citation_abstract = pub.abstract;
+  // Google Scholar citation_* meta tags — see lib/seo/citation.ts
+  const citationOther = publicationScholarMeta(pub);
   const allKeywords = [...new Set([...pub.keywords, ...pub.subjects])];
-  if (allKeywords.length > 0) citationOther.citation_keywords = allKeywords.join("; ");
 
   return {
     title: pub.title,

@@ -247,7 +247,7 @@ export default async function Footer() {
     ["Posts", "/posts"],
     ["About Us", "/about"],
     ["Contact", "/contact"],
-    ["Library Rules", "/rules"],
+    ["Library Rules", "/about/rules"],
     ["Privacy", "/privacy"],
   ];
 
