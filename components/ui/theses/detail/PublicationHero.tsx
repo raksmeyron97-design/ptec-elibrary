@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { GraduationCap, Layers } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
-import { getDoi } from "@/lib/theses/report-fields";
+import { getDoi, getThesisTypeLabel, getCoAdvisor } from "@/lib/theses/report-fields";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 
 function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
@@ -26,6 +26,7 @@ export default function PublicationHero({
   shareUrl: string;
 }) {
   const doi = getDoi(report);
+  const coAdvisor = getCoAdvisor(report);
 
   return (
     <header className="gradient-top-border fade-rise-in mb-7 overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
@@ -58,7 +59,7 @@ export default function PublicationHero({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
               <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
-              Thesis
+              {getThesisTypeLabel(report)}
             </span>
             {doi && (
               <a
@@ -85,6 +86,11 @@ export default function PublicationHero({
           {report.advisor_name && (
             <p className="mt-1 text-[14px] text-text-muted sm:text-[15px]">
               Advisor: <span className="font-medium text-text-heading">{report.advisor_name}</span>
+            </p>
+          )}
+          {coAdvisor && (
+            <p className="mt-1 text-[14px] text-text-muted sm:text-[15px]">
+              Co-Advisor: <span className="font-medium text-text-heading">{coAdvisor}</span>
             </p>
           )}
 

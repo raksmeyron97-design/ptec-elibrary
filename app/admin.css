@@ -45,6 +45,8 @@
 .metric-badge-views   { background: linear-gradient(135deg, var(--ptec-metric-views-from), var(--ptec-metric-views-to)); }
 .metric-badge-users   { background: linear-gradient(135deg, var(--ptec-metric-users-from), var(--ptec-metric-users-to)); }
 .metric-badge-catalog { background: linear-gradient(135deg, var(--ptec-metric-cat-from), var(--ptec-metric-cat-to)); }
+.metric-badge-red     { background: linear-gradient(135deg, var(--ptec-metric-red-from), var(--ptec-metric-red-to)); }
+.metric-badge-gray    { background: linear-gradient(135deg, var(--ptec-metric-gray-from), var(--ptec-metric-gray-to)); }
 
 /* ── Admin form card & chips ───────────────────────────────────── */
 .form-card-accent { position: relative; }

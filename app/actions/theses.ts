@@ -3,10 +3,15 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
+import { logAdminAction } from "@/app/actions/audit";
+import { rateLimit } from "@/lib/rate-limit";
+import { normalizeStatus, slugify, type ThesisStatus } from "@/lib/admin/theses-shared";
+import { validateThesisPublish, firstValidationError } from "@/lib/admin/thesis-validation";
 
 
 const REVALIDATE_PATHS = [
@@ -17,6 +22,22 @@ const REVALIDATE_PATHS = [
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
+}
+
+/** Best-effort request metadata for audit logs — never blocks the action. */
+async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
+  try {
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    return { ip, userAgent: h.get("user-agent") ?? undefined };
+  } catch {
+    return {};
+  }
+}
+
+async function enforceRateLimit(userId: string) {
+  const { success } = await rateLimit(`thesis-mutate:${userId}`, 30, 60_000);
+  if (!success) throw new Error("Too many changes — please wait a moment and try again.");
 }
 
 /** Strip PostgREST filter metacharacters before building .or(...) strings. */
@@ -30,12 +51,15 @@ function sanitizeSearchTerm(input: string): string {
 
 // Server actions are callable with arbitrary JSON — the ThesisData interface
 // only exists at compile time. Whitelist columns so extra keys (view_count,
-// verified_at, status, …) can never reach the insert/update.
+// verified_at, …) can never reach the insert/update.
 const THESIS_FIELDS = [
-  "title", "abstract", "program", "faculty", "subject", "cohort",
-  "academic_year", "author_names", "advisor_name", "cover_url", "file_url",
-  "file_size_kb", "content_hash", "license", "is_published", "keywords",
-  "doi", "published_at", "references",
+  "title", "slug", "abstract", "program", "faculty", "subject", "cohort",
+  "academic_year", "author_names", "advisor_name", "co_advisor_name",
+  "cover_url", "cover_alt_text", "file_url", "file_size_kb", "content_hash",
+  "supplementary_files", "license", "is_published", "status", "scheduled_at",
+  "keywords", "doi", "published_at", "defense_date", "submitted_date",
+  "references", "thesis_type", "language", "seo_title", "seo_description",
+  "og_image",
 ] as const satisfies readonly (keyof ThesisData)[];
 
 function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}): { data?: Partial<ThesisData>; error?: string } {
@@ -53,13 +77,57 @@ function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}):
       return { error: `Publication year must be between 1900 and ${current + 1}` };
     }
   }
+  if (typeof data.status === "string") data.status = normalizeStatus(data.status);
   return { data: data as Partial<ThesisData> };
+}
+
+/** Blocks the transition to published/scheduled when required fields (spec §26) are missing. */
+function checkPublishReady(merged: Partial<ThesisData>): string | null {
+  if (merged.status !== "published" && merged.status !== "scheduled") return null;
+  const errors = validateThesisPublish({
+    title: (merged.title as string) ?? "",
+    slug: (merged.slug as string) ?? "",
+    program: (merged.program as string) ?? null,
+    cohort: (merged.cohort as string) ?? null,
+    academicYear: (merged.academic_year as string) ?? null,
+    authorNames: (merged.author_names as string) ?? null,
+    advisorName: (merged.advisor_name as string) ?? null,
+    fileUrl: (merged.file_url as string) ?? null,
+    coverUrl: (merged.cover_url as string) ?? null,
+    abstract: (merged.abstract as string) ?? null,
+    keywords: (merged.keywords as string[]) ?? [],
+    references: (merged.references as string) ?? null,
+    license: (merged.license as string) ?? null,
+  });
+  return firstValidationError(errors);
+}
+
+async function uniqueThesisSlug(supabase: ReturnType<typeof createServiceClient>, base: string, ignoreId?: string): Promise<string> {
+  let slug = base || "thesis";
+  let n = 1;
+  while (true) {
+    const { data } = await supabase.from("research_reports").select("id").eq("slug", slug).limit(1);
+    const taken = (data ?? []).some((r: { id: string }) => r.id !== ignoreId);
+    if (!taken) return slug;
+    n += 1;
+    slug = `${base}-${n}`;
+  }
+}
+
+/** Server Action wrapper for the client-side live-availability check. */
+export async function checkThesisSlugAvailable(slug: string, ignoreId?: string): Promise<boolean> {
+  const clean = slugify(slug);
+  if (!clean) return false;
+  const supabase = createServiceClient();
+  const { data } = await supabase.from("research_reports").select("id").eq("slug", clean).limit(1);
+  return !(data ?? []).some((r: { id: string }) => r.id !== ignoreId);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface ThesisData {
   title: string;
+  slug?: string;
   abstract: string;
   program?: string | null;
   faculty?: string | null;
@@ -68,16 +136,28 @@ export interface ThesisData {
   academic_year?: string | null;
   author_names?: string | null;
   advisor_name?: string | null;
+  co_advisor_name?: string | null;
   cover_url?: string | null;
+  cover_alt_text?: string | null;
   file_url?: string | null;
   file_size_kb?: number | null;
   content_hash?: string | null;
+  supplementary_files?: { url: string; filename: string; mimeType: string; size: number; description?: string }[];
   license?: string | null;
   is_published?: boolean;
+  status?: ThesisStatus;
+  scheduled_at?: string | null;
   keywords?: string[];
   doi?: string | null;
   published_at?: string | null;
+  defense_date?: string | null;
+  submitted_date?: string | null;
   references?: string | null;
+  thesis_type?: string | null;
+  language?: string | null;
+  seo_title?: string | null;
+  seo_description?: string | null;
+  og_image?: string | null;
 }
 
 export interface ThesisCohort {
@@ -286,8 +366,17 @@ export async function toggleThesisPublishStatus(id: string, isPublished: boolean
   const updatePayload: { is_published: boolean; published_at?: string } = { is_published: isPublished };
 
   if (isPublished) {
-    const { data } = await supabase.from("research_reports").select("published_at").eq("id", id).single();
-    if (data && !data.published_at) {
+    const { data } = await supabase
+      .from("research_reports")
+      .select("title, slug, program, cohort, academic_year, author_names, advisor_name, file_url, cover_url, abstract, keywords, references, license, published_at")
+      .eq("id", id)
+      .single();
+    if (!data) return { success: false, error: "Thesis not found" };
+
+    const publishError = checkPublishReady({ ...data, status: "published" });
+    if (publishError) return { success: false, error: publishError };
+
+    if (!data.published_at) {
       updatePayload.published_at = new Date().toISOString();
     }
   }
@@ -300,6 +389,9 @@ export async function toggleThesisPublishStatus(id: string, isPublished: boolean
   if (error) {
     return { success: false, error: error.message };
   }
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, isPublished ? "thesis.publish" : "thesis.unpublish", "research_reports", id, meta);
 
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
@@ -318,6 +410,14 @@ export async function createThesis(formData: ThesisData) {
   if (sanitized.error || !sanitized.data) {
     return { success: false, error: sanitized.error ?? "Invalid thesis data" };
   }
+
+  const slugBase = slugify(formData.slug || formData.title);
+  const slug = await uniqueThesisSlug(supabase, slugBase);
+  sanitized.data.slug = slug;
+
+  const publishError = checkPublishReady(sanitized.data);
+  if (publishError) return { success: false, error: publishError };
+
   const { data: created, error } = await supabase.from("research_reports").insert([{
     ...sanitized.data,
     keywords: formData.keywords ?? [],
@@ -326,6 +426,9 @@ export async function createThesis(formData: ThesisData) {
   if (error) {
     return { success: false, error: error.message };
   }
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.create", "research_reports", created?.id, { title: formData.title, status: sanitized.data.status, ...meta });
 
   await createAdminNotification("new_report", `New thesis: "${formData.title}"`, undefined, "/theses");
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
@@ -336,7 +439,7 @@ export async function createThesis(formData: ThesisData) {
     after(() => indexPdfPagesSafe("research", created.id, fileUrl));
   }
 
-  return { success: true };
+  return { success: true, id: created?.id as string | undefined };
 }
 
 export async function deleteThesis(id: string) {
@@ -351,7 +454,7 @@ export async function deleteThesis(id: string) {
   // Fetch URLs before deleting so we can clean up R2 afterwards
   const { data: row } = await supabase
     .from("research_reports")
-    .select("file_url, cover_url")
+    .select("title, file_url, cover_url")
     .eq("id", id)
     .single();
 
@@ -369,6 +472,9 @@ export async function deleteThesis(id: string) {
   for (const url of [row?.file_url, row?.cover_url]) {
     if (url) await zimaDelete(url as string).catch(() => null);
   }
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.delete", "research_reports", id, { title: row?.title, ...meta });
 
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
   return { success: true };
@@ -396,6 +502,14 @@ export async function updateThesis(id: string, formData: ThesisData) {
     .eq("id", id)
     .single();
 
+  if (typeof formData.slug === "string") {
+    const slugBase = slugify(formData.slug);
+    sanitized.data.slug = await uniqueThesisSlug(supabase, slugBase, id);
+  }
+
+  const publishError = checkPublishReady(sanitized.data);
+  if (publishError) return { success: false, error: publishError };
+
   const { error } = await supabase
     .from("research_reports")
     .update(sanitized.data)
@@ -404,6 +518,9 @@ export async function updateThesis(id: string, formData: ThesisData) {
   if (error) {
     return { success: false, error: error.message };
   }
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.update", "research_reports", id, { title: formData.title, status: sanitized.data.status, ...meta });
 
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 
@@ -414,6 +531,158 @@ export async function updateThesis(id: string, formData: ThesisData) {
   }
 
   return { success: true };
+}
+
+// ── Status transitions, duplication, bulk actions (Manage Theses list) ───────
+
+async function setThesisStatus(id: string, status: ThesisStatus, extra?: Record<string, unknown>) {
+  const admin = await requirePermission("research", "write");
+  await enforceRateLimit(admin.user.id);
+  const { supabase } = admin;
+
+  if (status === "published" || status === "scheduled") {
+    const { data: existing } = await supabase
+      .from("research_reports")
+      .select("title, slug, program, cohort, academic_year, author_names, advisor_name, file_url, cover_url, abstract, keywords, references, license")
+      .eq("id", id)
+      .single();
+    if (!existing) throw new Error("Thesis not found");
+    const publishError = checkPublishReady({ ...existing, status });
+    if (publishError) throw new Error(publishError);
+  }
+
+  const { data: row, error } = await supabase
+    .from("research_reports")
+    .update({ status, ...extra })
+    .eq("id", id)
+    .select("title, slug")
+    .single();
+  if (error) throw new Error(error.message);
+
+  const actionMap: Record<ThesisStatus, string> = {
+    published: "thesis.publish",
+    draft: "thesis.unpublish",
+    pending_review: "thesis.submit_for_review",
+    scheduled: "thesis.schedule",
+    archived: "thesis.archive",
+    rejected: "thesis.reject",
+  };
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, actionMap[status], "research_reports", id, { title: row.title, ...meta });
+
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+}
+
+export async function archiveThesis(id: string) {
+  await setThesisStatus(id, "archived");
+}
+
+export async function unarchiveThesis(id: string) {
+  await setThesisStatus(id, "draft");
+}
+
+export async function scheduleThesis(id: string, scheduledAt: string) {
+  const when = new Date(scheduledAt);
+  if (Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
+    throw new Error("Scheduled time must be a valid future date/time");
+  }
+  await setThesisStatus(id, "scheduled", { scheduled_at: when.toISOString() });
+}
+
+export async function duplicateThesis(id: string) {
+  const admin = await requirePermission("research", "write");
+  await enforceRateLimit(admin.user.id);
+  const { supabase, user } = admin;
+
+  const { data: source, error: fetchError } = await supabase
+    .from("research_reports")
+    .select(
+      "title, abstract, program, faculty, subject, cohort, academic_year, author_names, advisor_name, license, keywords, references, doi",
+    )
+    .eq("id", id)
+    .single();
+  if (fetchError || !source) throw new Error("Thesis not found");
+
+  const { data: copy, error: insertError } = await supabase
+    .from("research_reports")
+    .insert({
+      ...source,
+      title: `${source.title} (Copy)`,
+      status: "draft",
+      is_published: false,
+      // Cover/PDF are intentionally not copied — every thesis file must be
+      // uploaded/verified individually, never silently shared between rows.
+    })
+    .select("id")
+    .single();
+  if (insertError) throw new Error(`Duplicate failed: ${insertError.message}`);
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "thesis.duplicate", "research_reports", copy.id, { sourceId: id, ...meta });
+
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  return { success: true, id: copy.id as string };
+}
+
+export type BulkThesisAction = "publish" | "unpublish" | "archive" | "delete" | "cohort" | "academicYear" | "program";
+
+export async function bulkUpdateTheses(
+  ids: string[],
+  action: BulkThesisAction,
+  payload?: { cohort?: string; academicYear?: string; program?: string },
+): Promise<{ success: number; failed: number }> {
+  const admin = await requirePermission("research", "write");
+  await enforceRateLimit(admin.user.id);
+  const { supabase, user } = admin;
+
+  if (!ids.length) return { success: 0, failed: 0 };
+
+  if (action === "delete") {
+    const { data: rows } = await supabase.from("research_reports").select("id, file_url, cover_url").in("id", ids);
+    await supabase.from("view_logs").delete().eq("content_type", "research_report").in("content_id", ids);
+    await supabase.from("book_pages").delete().eq("record_type", "research").in("record_id", ids);
+    const { error, count } = await supabase.from("research_reports").delete({ count: "exact" }).in("id", ids);
+
+    for (const row of rows ?? []) {
+      for (const url of [row.file_url, row.cover_url]) {
+        if (url) await zimaDelete(url as string).catch(() => null);
+      }
+    }
+
+    const meta = await requestMeta();
+    await logAdminAction(user.id, "thesis.bulk_action", "research_reports", undefined, { action, ids, ...meta });
+    REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+    if (error) return { success: count ?? 0, failed: ids.length - (count ?? 0) };
+    return { success: count ?? ids.length, failed: 0 };
+  }
+
+  let update: Record<string, unknown>;
+  if (action === "cohort") {
+    if (!payload?.cohort) throw new Error("Cohort is required");
+    update = { cohort: payload.cohort };
+  } else if (action === "academicYear") {
+    if (!payload?.academicYear) throw new Error("Academic year is required");
+    update = { academic_year: payload.academicYear };
+  } else if (action === "program") {
+    if (!payload?.program) throw new Error("Program is required");
+    update = { program: payload.program };
+  } else {
+    const statusMap: Record<"publish" | "unpublish" | "archive", ThesisStatus> = {
+      publish: "published",
+      unpublish: "draft",
+      archive: "archived",
+    };
+    update = { status: statusMap[action] };
+  }
+
+  const { error, count } = await supabase.from("research_reports").update(update, { count: "exact" }).in("id", ids);
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "thesis.bulk_action", "research_reports", undefined, { action, ids, payload, ...meta });
+
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  if (error) return { success: 0, failed: ids.length };
+  return { success: count ?? ids.length, failed: 0 };
 }
 
 // ── Cohort lookup actions ─────────────────────────────────────────────────────
@@ -514,6 +783,22 @@ export async function deleteThesisCohort(id: string): Promise<{ success: boolean
     return { success: false, error: errorMessage(error) };
   }
   const { supabase } = admin;
+
+  const { data: cohort } = await supabase
+    .from("research_cohorts")
+    .select("program_code, number")
+    .eq("id", id)
+    .single();
+  if (cohort) {
+    const { count } = await supabase
+      .from("research_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("program", cohort.program_code)
+      .eq("cohort", String(cohort.number));
+    if (count && count > 0) {
+      return { success: false, error: `${count} thesis${count === 1 ? "" : "es"} use this cohort — reassign them before deleting.` };
+    }
+  }
 
   // Cascade will remove associated academic years (ON DELETE CASCADE)
   const { error } = await supabase.from("research_cohorts").delete().eq("id", id);
@@ -637,6 +922,17 @@ export async function deleteThesisAcademicYear(id: string): Promise<{ success: b
   }
   const { supabase } = admin;
 
+  const { data: year } = await supabase.from("research_academic_years").select("label").eq("id", id).single();
+  if (year?.label) {
+    const { count } = await supabase
+      .from("research_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("academic_year", year.label);
+    if (count && count > 0) {
+      return { success: false, error: `${count} thesis${count === 1 ? "" : "es"} use this academic year — reassign them before deleting.` };
+    }
+  }
+
   const { error } = await supabase.from("research_academic_years").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
 
@@ -757,6 +1053,17 @@ export async function deleteThesisProgram(id: string): Promise<{ success: boolea
     return { success: false, error: errorMessage(error) };
   }
   const { supabase } = admin;
+
+  const { data: program } = await supabase.from("research_programs").select("code").eq("id", id).single();
+  if (program?.code) {
+    const { count } = await supabase
+      .from("research_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("program", program.code);
+    if (count && count > 0) {
+      return { success: false, error: `${count} thesis${count === 1 ? "" : "es"} use this program — reassign them before deleting.` };
+    }
+  }
 
   // CASCADE will remove associated faculties
   const { error } = await supabase.from("research_programs").delete().eq("id", id);
@@ -882,6 +1189,18 @@ export async function deleteThesisFaculty(id: string): Promise<{ success: boolea
     return { success: false, error: errorMessage(error) };
   }
   const { supabase } = admin;
+
+  const { data: faculty } = await supabase.from("research_faculties").select("program_code, code").eq("id", id).single();
+  if (faculty) {
+    const { count } = await supabase
+      .from("research_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("program", faculty.program_code)
+      .eq("faculty", faculty.code);
+    if (count && count > 0) {
+      return { success: false, error: `${count} thesis${count === 1 ? "" : "es"} use this faculty — reassign them before deleting.` };
+    }
+  }
 
   const { error } = await supabase.from("research_faculties").delete().eq("id", id);
   if (error) return { success: false, error: error.message };

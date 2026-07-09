@@ -1,8 +1,7 @@
 /**
- * Shared field-styling tokens for the thesis Create/Edit forms.
- *
- * Single source of truth — both CreateThesisForm and EditThesisForm import
- * these so their inputs and labels can never drift apart again.
+ * Shared field-styling tokens, originally written for the thesis Create/Edit
+ * forms. Also reused by the Publications and Learning Path admin forms —
+ * check for other importers before changing these values.
  */
 
 /** Text input / select base styling. */

@@ -1,4 +1,4 @@
-import CreateThesisForm from "./CreateThesisForm";
+import ThesisForm from "@/components/admin/theses/form/ThesisForm";
 import Link from "next/link";
 import { ArrowLeft, Settings2 } from "lucide-react";
 
@@ -13,11 +13,11 @@ export default async function CreateThesisPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-text-heading">Upload Thesis</h1>
-          <p className="text-text-muted text-sm mt-1">Add a new student thesis to the repository</p>
+          <p className="text-text-muted text-sm">Add a new student thesis to the repository</p>
         </div>
         <Link
           href="/admin/theses/manage-cohorts"
+          target="_blank"
           className="inline-flex items-center gap-2 rounded-lg border border-divider bg-paper px-4 py-2 text-sm font-medium text-text-heading hover:bg-black/5 transition-colors shadow-sm"
         >
           <Settings2 className="w-4 h-4" />
@@ -25,7 +25,7 @@ export default async function CreateThesisPage() {
         </Link>
       </div>
 
-      <CreateThesisForm />
+      <ThesisForm />
     </div>
   );
 }

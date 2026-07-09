@@ -10,6 +10,7 @@
  * empties, so it works whether `keywords` is `text[]`, a comma list, or null.
  */
 
+import { THESIS_TYPE_LABELS, THESIS_LANGUAGE_LABELS, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
 
 export type ResearchReport = Record<string, any>;
 
@@ -95,6 +96,38 @@ export function formatPublicationDate(report: ResearchReport): string | null {
   const date = new Date(d);
   if (isNaN(date.getTime())) return null;
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/** "Thesis" / "Research Report" / "Capstone Project" / etc. — defaults to "Thesis" for legacy rows with no thesis_type set. */
+export function getThesisTypeLabel(report: ResearchReport): string {
+  const t = report.thesis_type as ThesisType | null | undefined;
+  return (t && THESIS_TYPE_LABELS[t]) || "Thesis";
+}
+
+/** "Khmer" / "English" / "Khmer + English" — null (not shown) for legacy rows with no language set. */
+export function getLanguageLabel(report: ResearchReport): string | null {
+  const l = report.language as ThesisLanguage | null | undefined;
+  return (l && THESIS_LANGUAGE_LABELS[l]) || null;
+}
+
+export function getCoAdvisor(report: ResearchReport): string | null {
+  return (report.co_advisor_name as string) || null;
+}
+
+/** Human date like "12 June 2026" for an arbitrary date column; null on missing/unparseable input. */
+function formatDate(value: unknown): string | null {
+  if (!value) return null;
+  const date = new Date(value as string);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
+export function getDefenseDate(report: ResearchReport): string | null {
+  return formatDate(report.defense_date);
+}
+
+export function getSubmittedDate(report: ResearchReport): string | null {
+  return formatDate(report.submitted_date);
 }
 
 /** A short "source" line, ACS-style: "Cohort 12 · 2023–2024 · Faculty of Science". */

@@ -15,6 +15,8 @@ export type SecurityEventType =
   | "captcha_failed" // Turnstile verification failed
   | "cron_auth_failed" // /api/cron/* called with a bad or missing secret
   | "upload_rejected" // file failed MIME/size/path validation
+  | "virus_scan_blocked" // a file's hash matched known malware on VirusTotal
+  | "virus_scan_error" // the VirusTotal lookup itself failed (fails open — logged, not blocking)
   | "suspicious_input"; // input rejected at a trust boundary
 
 export interface SecurityEvent {

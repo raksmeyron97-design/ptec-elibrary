@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
-import { validateMimeType } from "@/lib/mime-validation";
+import { validateMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 import { logSecurityEvent } from "@/lib/security-log";
+import { checkFileHashReputation } from "@/lib/virus-scan";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -47,22 +48,39 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
 
-    if (!validateMimeType(bytes, file.type)) {
-      logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: `magic bytes do not match declared type ${file.type}` });
+    // CSV has no magic-byte signature to verify (it's plain text), so it
+    // can't go through validateMimeType() — isPlausibleTextFile() is a
+    // weaker heuristic check instead (rejects obvious disguised binaries).
+    const contentOk = file.type === "text/csv"
+      ? isPlausibleTextFile(bytes)
+      : validateMimeType(bytes, file.type);
+    if (!contentOk) {
+      logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: `content does not match declared type ${file.type}` });
       return NextResponse.json(
         {
-          error: `Invalid file: content does not match declared type (${file.type}). Only PDF, JPEG, PNG, WebP, and AVIF are allowed.`,
+          error: `Invalid file: content does not match declared type (${file.type}).`,
         },
         { status: 400 },
       );
     }
 
-    // ── Duplicate check (PDFs only; magic bytes already verified above) ──
+    // ── Malware reputation check (hash lookup, fails open — see lib/virus-scan.ts) ──
+    const fileHash = sha256Hex(bytes);
+    const scan = await checkFileHashReputation(fileHash);
+    if (scan.verdict === "malicious") {
+      logSecurityEvent({ type: "virus_scan_blocked", where: "/api/admin/upload", detail: `${scan.detections} AV engines flagged this file's hash` });
+      return NextResponse.json(
+        { error: "This file was flagged as malicious by security scanning and cannot be uploaded." },
+        { status: 400 },
+      );
+    }
+
+    // ── Duplicate check (PDFs only; content already verified above) ──
     // Forms editing an existing record pass excludeType/excludeId so replacing
     // a file with the identical bytes is not flagged against itself.
     let contentHash: string | null = null;
     if (file.type === "application/pdf") {
-      contentHash = sha256Hex(bytes);
+      contentHash = fileHash;
       const excludeType = formData.get("excludeType") as string | null;
       const excludeId = (formData.get("excludeId") as string | null)?.trim();
       let exclude: { type: "book" | "research"; id: string } | undefined;

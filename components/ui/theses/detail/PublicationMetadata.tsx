@@ -1,6 +1,15 @@
 import type { ReactNode } from "react";
-import { User, UserCheck, GraduationCap, Building2, Layers, CalendarDays, Hash } from "lucide-react";
-import { getDepartment, formatPublicationDate, getDoi, type ResearchReport } from "@/lib/theses/report-fields";
+import { User, UserCheck, GraduationCap, Building2, Layers, CalendarDays, Hash, Languages, FileCheck2 } from "lucide-react";
+import {
+  getDepartment,
+  formatPublicationDate,
+  getDoi,
+  getLanguageLabel,
+  getCoAdvisor,
+  getDefenseDate,
+  getSubmittedDate,
+  type ResearchReport,
+} from "@/lib/theses/report-fields";
 import { getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
 
 function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
@@ -19,13 +28,18 @@ function Row({ icon, label, value }: { icon: ReactNode; label: string; value: Re
 
 /**
  * A conditional metadata grid — every row only renders when the underlying
- * data exists. Theses have no ISBN/language/license/page-count columns (those
- * belong to the books table), so this intentionally omits them rather than
- * showing fabricated placeholders.
+ * data exists. Theses have no ISBN/page-count columns (those belong to the
+ * books table); language/thesis-type/co-advisor/defense+submitted dates
+ * exist since migration 0076 and render only for rows that set them —
+ * legacy theses uploaded before that migration just skip these rows.
  */
 export default async function PublicationMetadata({ report }: { report: ResearchReport }) {
   const publishedOn = formatPublicationDate(report);
   const doi = getDoi(report);
+  const language = getLanguageLabel(report);
+  const coAdvisor = getCoAdvisor(report);
+  const defendedOn = getDefenseDate(report);
+  const submittedOn = getSubmittedDate(report);
   const { data: programs } = await getThesisPrograms();
   const { data: faculties } = await getThesisFaculties();
   const program = programs?.find((p) => p.code === report.program);
@@ -45,11 +59,15 @@ export default async function PublicationMetadata({ report }: { report: Research
       <dl className="divide-y divide-divider/60">
         {report.author_names && <Row icon={<User className="h-4 w-4" />} label="Author(s)" value={report.author_names} />}
         {report.advisor_name && <Row icon={<UserCheck className="h-4 w-4" />} label="Advisor" value={report.advisor_name} />}
+        {coAdvisor && <Row icon={<UserCheck className="h-4 w-4" />} label="Co-Advisor" value={coAdvisor} />}
         {program && <Row icon={<GraduationCap className="h-4 w-4" />} label="Program" value={program.name_en} />}
         {faculty && <Row icon={<Layers className="h-4 w-4" />} label="Faculty" value={faculty.name_en} />}
         {showDepartment && <Row icon={<Building2 className="h-4 w-4" />} label="Department" value={department} />}
         {report.academic_year && <Row icon={<CalendarDays className="h-4 w-4" />} label="Academic Year" value={report.academic_year} />}
+        {language && <Row icon={<Languages className="h-4 w-4" />} label="Language" value={language} />}
         {publishedOn && <Row icon={<CalendarDays className="h-4 w-4" />} label="Published" value={publishedOn} />}
+        {submittedOn && <Row icon={<FileCheck2 className="h-4 w-4" />} label="Submitted" value={submittedOn} />}
+        {defendedOn && <Row icon={<FileCheck2 className="h-4 w-4" />} label="Defended" value={defendedOn} />}
         {doi && (
           <Row
             icon={<Hash className="h-4 w-4" />}

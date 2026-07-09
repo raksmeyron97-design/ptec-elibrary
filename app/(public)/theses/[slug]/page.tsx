@@ -74,8 +74,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Thesis not found' };
   }
 
+  // SEO overrides (migration 0076) fetched separately from the required
+  // columns above — until that migration is applied, this query errors
+  // harmlessly and every field below just falls back to the pre-existing
+  // title/abstract/cover-derived defaults instead of 404ing the whole page.
+  const { data: seoRow } = await supabase
+    .from('research_reports')
+    .select('seo_title, seo_description, og_image')
+    .eq('id', report.id)
+    .maybeSingle();
+
   const canonicalUrl = `${SITE_URL}/theses/${report.slug}`;
-  const description = truncate(report.abstract, 160) || 'Thesis from Phnom Penh Teacher Education College.';
+  // Admin-set SEO overrides (migration 0076) win when present; otherwise
+  // fall back to the title/abstract-derived defaults already used below.
+  const seoTitle: string = seoRow?.seo_title || report.title;
+  const description = seoRow?.seo_description || truncate(report.abstract, 160) || 'Thesis from Phnom Penh Teacher Education College.';
+  const ogImage: string | null = seoRow?.og_image || report.cover_url;
 
   // Split "Sok San, Chan Dara" → ['Sok San', 'Chan Dara']
   const authors: string[] = report.author_names
@@ -114,7 +128,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (doi) citationOther.citation_doi = doi;
 
   return {
-    title: report.title,
+    title: seoTitle,
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     authors: metadataAuthors.map((name) => ({ name })),
@@ -124,7 +138,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       canonical: canonicalUrl,
     },
     openGraph: {
-      title: report.title,
+      title: seoTitle,
       description,
       type: 'article',
       url: canonicalUrl,
@@ -133,13 +147,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       publishedTime: report.published_at ?? report.created_at ?? undefined,
       section,
       tags: keywords.length > 0 ? keywords : undefined,
-      images: report.cover_url ? [{ url: report.cover_url, alt: report.title }] : [],
+      images: ogImage ? [{ url: ogImage, alt: report.title }] : [],
     },
     twitter: {
       card: 'summary_large_image',
-      title: report.title,
+      title: seoTitle,
       description,
-      images: report.cover_url ? [report.cover_url] : undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
     other: {
       ...citationOther,

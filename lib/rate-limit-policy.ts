@@ -84,6 +84,11 @@ const POLICIES = {
     limit: envInt("RL_POST_AUTOSAVE_PER_MIN", 40),
     windowMs: 60_000,
   }),
+  /** Thesis draft autosaves (2s debounce + 25s interval fallback) — per user */
+  thesisAutosave: () => ({
+    limit: envInt("RL_THESIS_AUTOSAVE_PER_MIN", 40),
+    windowMs: 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

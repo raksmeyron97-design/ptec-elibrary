@@ -1,5 +1,7 @@
 import { getThesisById } from "@/app/actions/theses";
-import EditThesisForm from "./EditThesisForm";
+import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
+import { normalizeStatus } from "@/lib/admin/theses-shared";
+import type { SupplementaryFile } from "@/lib/admin/thesis-file-validation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -12,6 +14,40 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  const initial: ThesisInitial = {
+    id: report.id,
+    title: report.title ?? "",
+    slug: report.slug ?? "",
+    doi: report.doi ?? null,
+    thesisType: report.thesis_type ?? null,
+    language: report.language ?? null,
+    license: report.license ?? null,
+    program: report.program ?? null,
+    faculty: report.faculty ?? null,
+    subject: report.subject ?? null,
+    cohort: report.cohort ?? null,
+    academicYear: report.academic_year ?? null,
+    authorNames: report.author_names ?? null,
+    advisorName: report.advisor_name ?? null,
+    coAdvisorName: report.co_advisor_name ?? null,
+    publishedAt: report.published_at ?? null,
+    defenseDate: report.defense_date ?? null,
+    submittedDate: report.submitted_date ?? null,
+    abstract: report.abstract ?? null,
+    keywords: report.keywords ?? [],
+    references: report.references ?? null,
+    coverUrl: report.cover_url ?? null,
+    coverAltText: report.cover_alt_text ?? null,
+    fileUrl: report.file_url ?? null,
+    fileSizeKb: report.file_size_kb ?? null,
+    supplementaryFiles: (report.supplementary_files ?? []) as SupplementaryFile[],
+    status: normalizeStatus(report.status),
+    scheduledAt: report.scheduled_at ?? null,
+    seoTitle: report.seo_title ?? null,
+    seoDescription: report.seo_description ?? null,
+    ogImage: report.og_image ?? null,
+  };
+
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex items-center gap-4">
@@ -21,13 +57,10 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-text-heading">Edit Thesis</h1>
-          <p className="text-text-muted text-sm mt-1">Update details for this thesis</p>
-        </div>
+        <p className="text-text-muted text-sm">Update details for this thesis</p>
       </div>
 
-      <EditThesisForm report={report} />
+      <ThesisForm initial={initial} />
     </div>
   );
 }

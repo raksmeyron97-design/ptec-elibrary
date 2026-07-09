@@ -74,6 +74,20 @@
   --ptec-metric-cat-from:     #22D3EE;  /* cyan-400 */
   --ptec-metric-cat-to:       #0891B2;  /* cyan-600 */
   --ptec-metric-cat-num:      #0E7490;  /* cyan-700 */
+
+  /* Missing/at-risk counts → red */
+  --ptec-metric-red-bg:       #FEF2F2;  /* red-50  */
+  --ptec-metric-red-border:   #FECACA;  /* red-200 */
+  --ptec-metric-red-from:     #F87171;  /* red-400 */
+  --ptec-metric-red-to:       #DC2626;  /* red-600 */
+  --ptec-metric-red-num:      #B91C1C;  /* red-700 */
+
+  /* Neutral counts (drafts, etc.) → slate */
+  --ptec-metric-gray-bg:      #F8FAFC;  /* slate-50  */
+  --ptec-metric-gray-border:  #E2E8F0;  /* slate-200 */
+  --ptec-metric-gray-from:    #94A3B8;  /* slate-400 */
+  --ptec-metric-gray-to:      #475569;  /* slate-600 */
+  --ptec-metric-gray-num:     #334155;  /* slate-700 */
 }
 
 :root.dark {

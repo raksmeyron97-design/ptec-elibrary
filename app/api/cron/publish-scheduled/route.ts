@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/publish-scheduled
  *
- * Flips posts from `status = 'scheduled'` to `'published'` once their
- * `scheduled_at` has passed. The `posts_sync_publish_status` trigger
- * (migration 0073) then cascades `is_published`/`published_at` automatically.
+ * Flips posts and theses from `status = 'scheduled'` to `'published'` once
+ * their `scheduled_at` has passed. The `posts_sync_publish_status` (0073)
+ * and `research_reports_sync_publish_status` (0075) triggers then cascade
+ * `is_published`/`published_at` automatically.
  *
  * ── Setup ─────────────────────────────────────────────────────────────────
  * Same CRON_SECRET pattern as /api/cron/cleanup — add to vercel.json:
@@ -32,17 +33,23 @@ export async function GET(request: NextRequest) {
   }
 
   const db = createServiceClient();
-  const { data, error } = await db
-    .from("posts")
-    .update({ status: "published" })
-    .eq("status", "scheduled")
-    .lte("scheduled_at", new Date().toISOString())
-    .select("id, slug");
+  const now = new Date().toISOString();
 
-  if (error) {
-    console.error("[/api/cron/publish-scheduled] update failed:", error.message);
+  const [posts, theses] = await Promise.all([
+    db.from("posts").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
+    db.from("research_reports").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
+  ]);
+
+  if (posts.error) console.error("[/api/cron/publish-scheduled] posts update failed:", posts.error.message);
+  if (theses.error) console.error("[/api/cron/publish-scheduled] theses update failed:", theses.error.message);
+  if (posts.error && theses.error) {
     return NextResponse.json({ error: "Publish sweep failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, published: (data ?? []).length, slugs: (data ?? []).map((p) => p.slug) });
+  return NextResponse.json({
+    ok: true,
+    published: (posts.data ?? []).length + (theses.data ?? []).length,
+    postSlugs: (posts.data ?? []).map((p) => p.slug),
+    thesisSlugs: (theses.data ?? []).map((t) => t.slug),
+  });
 }
