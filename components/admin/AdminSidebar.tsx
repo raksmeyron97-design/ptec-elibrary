@@ -74,7 +74,7 @@ function getNavTree(
   const books: NavChild[] = [];
   if (perm(p, "books",   "write")) books.push({ name: "Upload Book",   href: "/admin/upload",        icon: Upload         });
   if (perm(p, "books",   "write")) books.push({ name: "Review Queue",  href: "/admin/review",        icon: ClipboardCheck });
-  if (perm(p, "books",   "read"))  books.push({ name: "Manage Books",  href: "/admin/manage",        icon: BookCopy       });
+  if (perm(p, "books",   "read"))  books.push({ name: "Manage E-books", href: "/admin/manage",        icon: BookCopy       });
   if (perm(p, "catalog", "read"))  books.push({ name: "Catalog",       href: "/admin/catalogs",      icon: Library        });
   if (perm(p, "books",   "read"))  books.push({ name: "Book Requests", href: "/admin/book-requests", icon: BookPlus       });
 

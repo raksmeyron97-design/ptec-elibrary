@@ -21,7 +21,8 @@ export default async function EditBookPage({
       department, isbn, publisher, pages, cover_url, tags, license,
       authors(name),
       categories(name),
-      departments(name)
+      departments(name),
+      book_files(file_url, file_size_kb, format)
     `)
     .eq("id", id)
     .single();
@@ -35,6 +36,11 @@ export default async function EditBookPage({
   ]);
   const departments = (deptRows ?? []).map((d) => d.name);
   const categories  = (catRows  ?? []).map((c) => c.name);
+
+  // book_files may come back as an array or a single embedded object
+  // depending on how PostgREST infers the relation cardinality.
+  const fileRows = Array.isArray(book.book_files) ? book.book_files : book.book_files ? [book.book_files] : [];
+  const primaryFile = fileRows.find((f: any) => f?.file_url) ?? fileRows[0] ?? null;
 
   // Flatten relations for the form
   const initial = {
@@ -54,6 +60,9 @@ export default async function EditBookPage({
     tags:       Array.isArray(book.tags) ? (book.tags as string[]) : [],
     coverUrl: (book.cover_url as string | null) ?? null,
     license:  (book.license as string | null) ?? "",
+    fileUrl:     (primaryFile?.file_url as string | null) ?? null,
+    fileSizeKb:  (primaryFile?.file_size_kb as number | null) ?? null,
+    fileFormat:  (primaryFile?.format as string | null) ?? null,
   };
 
   return (

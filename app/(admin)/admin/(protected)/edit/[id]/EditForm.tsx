@@ -4,17 +4,20 @@
 import { useState, useRef, Fragment } from "react";
 import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
+import { replaceBookFile } from "@/app/actions/ebooks";
 import {
   makeUid,
   bookFolder,
   bookCoverPath,
+  bookPdfPath,
   bookFolderFromCoverUrl,
   LICENSE_OPTIONS,
 } from "@/lib/book-utils";
+import { formatFileSize } from "@/lib/admin/ebooks-shared";
 import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
-import { ImagePlus, Save, BookOpen, AlertCircle, X, FileText, Info } from "lucide-react";
+import { ImagePlus, UploadCloud, Save, BookOpen, AlertCircle, X, FileText, Info, Download } from "lucide-react";
 
 type Initial = {
   id: string;
@@ -31,9 +34,12 @@ type Initial = {
   coverUrl: string | null;
   tags: string[];
   license?: string;
+  fileUrl: string | null;
+  fileSizeKb: number | null;
+  fileFormat: string | null;
 };
 
-type Phase = "idle" | "uploading-cover" | "saving";
+type Phase = "idle" | "uploading-pdf" | "uploading-cover" | "saving";
 
 const INPUT_CLASS =
   "h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
@@ -64,6 +70,7 @@ function FieldLabel({
 function PhaseStepper({ phase }: { phase: Phase }) {
   if (phase === "idle") return null;
   const steps = [
+    { id: "uploading-pdf",   label: "Uploading PDF",   color: "#7c3aed" },
     { id: "uploading-cover", label: "Uploading cover", color: "#0e7490" },
     { id: "saving",          label: "Saving record",   color: "#0f9d6b" },
   ] as const;
@@ -116,7 +123,7 @@ function PhaseStepper({ phase }: { phase: Phase }) {
         style={{ color: "#0e7490" }}
       >
         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-        {phase === "uploading-cover" ? "Uploading cover…" : "Saving…"}
+        {phase === "uploading-pdf" ? "Uploading PDF…" : phase === "uploading-cover" ? "Uploading cover…" : "Saving…"}
       </div>
     </div>
   );
@@ -138,6 +145,9 @@ export default function EditForm({
   const fileInputRef              = useRef<HTMLInputElement>(null);
   const coverZoneRef              = useRef<HTMLDivElement>(null);
 
+  const [pdfFile, setPdfFile]     = useState<File | null>(null);
+  const pdfInputRef               = useRef<HTMLInputElement>(null);
+
   const saving = phase !== "idle";
 
   function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -157,6 +167,20 @@ export default function EditForm({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf") { setError("File must be a PDF"); return; }
+    if (file.size > 100 * 1024 * 1024)   { setError("PDF must be under 100 MB"); return; }
+    setError(null);
+    setPdfFile(file);
+  }
+
+  function removePdf() {
+    setPdfFile(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -166,6 +190,33 @@ export default function EditForm({
     const title    = (formData.get("title") as string)?.trim() || initial.title;
 
     try {
+      if (pdfFile) {
+        setPhase("uploading-pdf");
+        const folder =
+          bookFolderFromCoverUrl(initial.coverUrl) ??
+          bookFolder(initial.category, title, makeUid());
+        const path = bookPdfPath(folder);
+
+        const pdfPayload = new FormData();
+        pdfPayload.set("file", pdfFile);
+        pdfPayload.set("key", path);
+        pdfPayload.set("target", "private");
+        pdfPayload.set("excludeType", "book");
+        pdfPayload.set("excludeId", initial.id);
+
+        const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
+        const data = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) throw new Error(data.error ?? `PDF upload failed (${uploadRes.status})`);
+
+        const replaceResult = await replaceBookFile(initial.id, {
+          fileUrl: data.url,
+          fileSizeKb: Math.round(pdfFile.size / 1024),
+          contentHash: data.contentHash ?? null,
+        });
+        if (!replaceResult.success) throw new Error(replaceResult.error ?? "Failed to save the new PDF");
+        removePdf();
+      }
+
       let newCoverUrl: string | null = null;
 
       if (coverFile) {
@@ -202,6 +253,7 @@ export default function EditForm({
 
   const phaseLabel: Record<Phase, string> = {
     "idle":            "Save changes",
+    "uploading-pdf":   "Uploading PDF…",
     "uploading-cover": "Uploading cover…",
     "saving":          "Saving…",
   };
@@ -219,12 +271,89 @@ export default function EditForm({
       >
         <Info className="h-4 w-4 shrink-0" style={{ color: "#4f46e5" }} />
         <p className="text-xs" style={{ color: "#4f46e5" }}>
-          Editing metadata and cover image. The PDF file is not changed here.
+          Editing metadata, cover image, and PDF file for this e-book.
         </p>
       </div>
 
+      {/* ── PDF file card ── */}
+      <div id="replace-pdf" className="form-card-accent scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+          <span className="sec-chip sec-chip--files">
+            <FileText className="h-[18px] w-[18px]" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-bold text-text-heading">PDF File</h2>
+            <p className="text-xs text-text-muted">PDF only · max 100 MB</p>
+          </div>
+          {!pdfFile && (
+            <span
+              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
+              style={initial.fileUrl ? { background: "rgba(15,157,107,0.10)", color: "#0f9d6b" } : { background: "rgba(220,38,38,0.10)", color: "#dc2626" }}
+            >
+              {initial.fileUrl ? "PDF ready" : "Missing PDF"}
+            </span>
+          )}
+          {pdfFile && (
+            <span
+              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
+              style={{ background: "rgba(221,176,34,0.12)", color: "#806211" }}
+            >
+              New PDF selected
+            </span>
+          )}
+        </div>
+
+        <div className="p-6 space-y-3">
+          {initial.fileUrl && !pdfFile && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-divider bg-paper px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-text-body">
+                <FileText className="h-4 w-4 shrink-0 text-text-muted" />
+                <span className="truncate">Current file · {(initial.fileFormat ?? "pdf").toUpperCase()} · {formatFileSize(initial.fileSizeKb)}</span>
+              </div>
+              <a
+                href={initial.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
+              >
+                <Download className="h-3.5 w-3.5" /> Open
+              </a>
+            </div>
+          )}
+
+          <div
+            className="relative flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
+            onClick={() => !saving && pdfInputRef.current?.click()}
+          >
+            <UploadCloud className="h-5 w-5 text-text-muted" />
+            <p className="text-xs text-text-muted leading-tight">
+              {pdfFile ? `Selected: ${pdfFile.name}` : initial.fileUrl ? "Click to replace PDF" : "Click to upload PDF"}
+            </p>
+            <input
+              ref={pdfInputRef}
+              type="file"
+              accept="application/pdf"
+              disabled={saving}
+              onChange={handlePdfChange}
+              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            />
+          </div>
+
+          {pdfFile && (
+            <button
+              type="button"
+              onClick={removePdf}
+              disabled={saving}
+              className="text-xs font-semibold text-text-muted hover:text-red-600 disabled:opacity-50"
+            >
+              Cancel PDF replacement
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Cover image card ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+      <div id="cover" className="form-card-accent scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
         <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
           <span className="sec-chip sec-chip--files">
             <ImagePlus className="h-[18px] w-[18px]" />
