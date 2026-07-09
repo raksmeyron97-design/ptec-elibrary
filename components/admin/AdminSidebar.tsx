@@ -33,6 +33,7 @@ import {
   Route,
   SearchX,
   Gauge,
+  Inbox,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
@@ -99,6 +100,7 @@ function getNavTree(
   const tree: NavNode[] = [
     { type: "link", name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   ];
+  if (perm(p, "contact", "read")) tree.push({ type: "link", name: "Inbox", href: "/admin/inbox", icon: Inbox });
   if (books.length)          tree.push({ type: "group", name: "Books",          icon: BookOpen,  children: books          });
   if (content.length)        tree.push({ type: "group", name: "Content",        icon: Newspaper, children: content        });
   if (insights.length)       tree.push({ type: "group", name: "Insights",       icon: BarChart3, children: insights       });

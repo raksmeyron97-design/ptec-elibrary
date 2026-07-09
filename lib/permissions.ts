@@ -7,11 +7,11 @@ type SupabaseService = { from: (table: string) => any };
 
 /** Hardcoded fallback — matches the migration seeds in 0041_role_permissions.sql + 0052_publications.sql */
 export const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PermLevel>> = {
-  reader:      { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "read",  announcements: "read",  learning_paths: "read",  users: "none",  roles: "none" },
-  staff:       { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "write", announcements: "write", learning_paths: "read",  users: "none",  roles: "none" },
-  librarian:   { books: "write", catalog: "write", research: "write", publications: "write", posts: "read",  announcements: "read",  learning_paths: "write", users: "none",  roles: "none" },
-  admin:       { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "none" },
-  super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "write" },
+  reader:      { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "read",  announcements: "read",  learning_paths: "read",  users: "none",  roles: "none", contact: "none"  },
+  staff:       { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "write", announcements: "write", learning_paths: "read",  users: "none",  roles: "none", contact: "write" },
+  librarian:   { books: "write", catalog: "write", research: "write", publications: "write", posts: "read",  announcements: "read",  learning_paths: "write", users: "none",  roles: "none", contact: "write" },
+  admin:       { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "none", contact: "write" },
+  super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "write", contact: "write" },
 };
 
 /**

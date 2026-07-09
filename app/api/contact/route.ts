@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
 import { logSecurityEvent } from "@/lib/security-log";
+import { validateContactInput, type ContactInput } from "@/lib/contact/validate";
+import { sendGmail, GmailSendError } from "@/lib/gmail";
+import { adminNotificationEmail, userConfirmationEmail } from "@/lib/email/contact-templates";
 
 // Bots that auto-fill every field trip the honeypot; bots that submit the
 // instant the page loads trip the fill-time floor. Real users need several
@@ -82,6 +85,9 @@ async function recordSend(ip: string, history: number[], supabase: SupabaseClien
   await supabase.from("contact_rate_limit").upsert({ ip, history });
 }
 
+// Field-order priority for surfacing a single error message to the form.
+const ERROR_FIELD_ORDER: (keyof ContactInput)[] = ["name", "email", "phone", "subject", "category", "message"];
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
 
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { name, email, message, turnstileToken, website, formTime } = body;
+  const { name, email, phone, subject, category, message, turnstileToken, website, formTime } = body;
 
   const ipEarly = getClientIP(req);
 
@@ -108,18 +114,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate
-  if (!name?.trim() || !email?.trim() || !message?.trim()) {
-    return NextResponse.json({ error: "All fields are required." }, { status: 400 });
+  const { valid, errors } = validateContactInput({ name, email, phone, subject, category, message });
+  if (!valid) {
+    const firstField = ERROR_FIELD_ORDER.find((f) => errors[f]);
+    return NextResponse.json({ error: firstField ? errors[firstField] : "Invalid input." }, { status: 400 });
   }
 
-  const emailRE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRE.test(email.trim())) {
-    return NextResponse.json({ error: "Invalid email address." }, { status: 400 });
-  }
-
-  if (name.trim().length > 100 || message.trim().length > 2000) {
-    return NextResponse.json({ error: "Input too long." }, { status: 400 });
-  }
+  const cleanName = name.trim();
+  const cleanEmail = email.trim();
+  const cleanPhone = phone?.trim() || null;
+  const cleanSubject = subject.trim();
+  const cleanCategory = category.trim();
+  const cleanMessage = message.trim();
 
   const ip = getClientIP(req);
 
@@ -142,7 +148,7 @@ export async function POST(req: NextRequest) {
   // 1b. Duplicate-content guard: the same message body may be sent at most
   // twice per hour site-wide (spam campaigns blast one text from many IPs).
   const contentHash = createHash("sha256")
-    .update(message.trim().toLowerCase().replace(/\s+/g, " "))
+    .update(cleanMessage.toLowerCase().replace(/\s+/g, " "))
     .digest("hex")
     .slice(0, 32);
   const dupLimit = await rateLimit(`contact-dup:${contentHash}`, 2, HOUR_MS);
@@ -169,37 +175,70 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Send to Telegram
-  const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+  // 3. Save to the database FIRST — this is the source of truth. Everything
+  // after this point (notification + confirmation emails) is best-effort:
+  // if Gmail is down, the message must still be safely recorded.
+  const { data: inserted, error: insertError } = await supabase
+    .from("contact_messages")
+    .insert({
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      subject: cleanSubject,
+      category: cleanCategory,
+      message: cleanMessage,
+      ip_address: ip,
+      user_agent: req.headers.get("user-agent")?.slice(0, 500) ?? null,
+    })
+    .select("id")
+    .single();
 
-  if (!BOT_TOKEN || !CHAT_ID) {
-    console.error("Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID");
-    return NextResponse.json({ error: "Server misconfiguration." }, { status: 500 });
-  }
-
-  const text = `📬 New message from library\n\n👤 Name: ${name.trim()}\n📧 Email: ${email.trim()}\n💬 Message:\n${message.trim()}`;
-
-  try {
-    const tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: CHAT_ID, text }),
-    });
-
-    if (!tgRes.ok) {
-      const err = await tgRes.text();
-      console.error("Telegram error:", err);
-      throw new Error("Telegram API error");
-    }
-
-    await recordSend(ip, limit.history, supabase);
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error(err);
+  if (insertError || !inserted) {
+    console.error("[contact] Failed to save message:", insertError?.message);
     return NextResponse.json(
       { error: "Failed to send message. Please email us directly." },
       { status: 502 }
     );
   }
+
+  await recordSend(ip, limit.history, supabase);
+
+  // 4. Best-effort emails — never let a Gmail failure affect the response;
+  // the message is already safely stored above.
+  try {
+    const notification = adminNotificationEmail({
+      name: cleanName,
+      email: cleanEmail,
+      phone: cleanPhone,
+      category: cleanCategory,
+      subject: cleanSubject,
+      message: cleanMessage,
+      contactMessageId: inserted.id,
+    });
+    await sendGmail({
+      to: process.env.ADMIN_GMAIL_ADDRESS ?? "",
+      replyTo: cleanEmail,
+      ...notification,
+    });
+  } catch (err) {
+    const detail = err instanceof GmailSendError ? err.message : "unknown error";
+    console.error("[contact] Admin notification email failed:", detail);
+    logSecurityEvent({ type: "suspicious_input", where: "/api/contact", detail: `admin notification email failed: ${detail}` });
+  }
+
+  try {
+    const confirmation = userConfirmationEmail({
+      name: cleanName,
+      category: cleanCategory,
+      subject: cleanSubject,
+      message: cleanMessage,
+    });
+    await sendGmail({ to: cleanEmail, ...confirmation });
+  } catch (err) {
+    const detail = err instanceof GmailSendError ? err.message : "unknown error";
+    console.error("[contact] User confirmation email failed:", detail);
+    await supabase.from("contact_messages").update({ confirmation_sent: false }).eq("id", inserted.id);
+  }
+
+  return NextResponse.json({ ok: true, id: inserted.id });
 }

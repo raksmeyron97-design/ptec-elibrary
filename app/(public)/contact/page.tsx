@@ -5,6 +5,12 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
 import { PTEC } from "@/lib/ptec";
+import {
+  validateContactInput,
+  CONTACT_CATEGORIES,
+  CONTACT_CATEGORY_LABELS,
+  type ContactCategory,
+} from "@/lib/contact/validate";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -100,9 +106,13 @@ type Status = "idle" | "loading" | "success" | "error";
 export default function ContactPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [subject, setSubject] = useState("");
+  const [category, setCategory] = useState<ContactCategory | "">("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
   const turnstileRef = useRef<TurnstileInstance>(null);
@@ -116,8 +126,17 @@ export default function ContactPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("loading");
     setErrorMsg("");
+
+    const { valid, errors } = validateContactInput({ name, email, phone, subject, category, message });
+    if (!valid) {
+      setFieldErrors(errors);
+      setStatus("error");
+      setErrorMsg("Please fix the highlighted fields and try again.");
+      return;
+    }
+    setFieldErrors({});
+    setStatus("loading");
 
     try {
       const res = await fetch("/api/contact", {
@@ -126,6 +145,9 @@ export default function ContactPage() {
         body: JSON.stringify({
           name,
           email,
+          phone,
+          subject,
+          category,
           message,
           turnstileToken: captchaToken,
           website,
@@ -154,7 +176,7 @@ export default function ContactPage() {
       }
 
       setStatus("success");
-      setName(""); setEmail(""); setMessage("");
+      setName(""); setEmail(""); setPhone(""); setSubject(""); setCategory(""); setMessage("");
     } catch {
       setStatus("error");
       setErrorMsg("Network error. Please check your connection and try again.");
@@ -298,38 +320,101 @@ export default function ContactPage() {
             </div>
 
             <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-name" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                    Full name <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="contact-name"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isDisabled}
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.name ? "border-danger" : "border-divider focus:border-brand"}`}
+                    placeholder="Your full name"
+                  />
+                  {fieldErrors.name && <p className="mt-1 text-xs text-danger">{fieldErrors.name}</p>}
+                </div>
+                <div>
+                  <label htmlFor="contact-email" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                    Email address <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    id="contact-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isDisabled}
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.email ? "border-danger" : "border-divider focus:border-brand"}`}
+                    placeholder="your@email.com"
+                  />
+                  {fieldErrors.email && <p className="mt-1 text-xs text-danger">{fieldErrors.email}</p>}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="contact-phone" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                    Phone <span className="normal-case font-normal text-text-muted/70">(optional)</span>
+                  </label>
+                  <input
+                    id="contact-phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    disabled={isDisabled}
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.phone ? "border-danger" : "border-divider focus:border-brand"}`}
+                    placeholder="012 345 678"
+                  />
+                  {fieldErrors.phone && <p className="mt-1 text-xs text-danger">{fieldErrors.phone}</p>}
+                </div>
+                <div>
+                  <label htmlFor="contact-category" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                    Category <span className="text-danger">*</span>
+                  </label>
+                  <select
+                    id="contact-category"
+                    required
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as ContactCategory)}
+                    disabled={isDisabled}
+                    aria-invalid={Boolean(fieldErrors.category)}
+                    className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.category ? "border-danger" : "border-divider focus:border-brand"}`}
+                  >
+                    <option value="" disabled>Select a category…</option>
+                    {CONTACT_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{CONTACT_CATEGORY_LABELS[c]}</option>
+                    ))}
+                  </select>
+                  {fieldErrors.category && <p className="mt-1 text-xs text-danger">{fieldErrors.category}</p>}
+                </div>
+              </div>
+
               <div>
-                <label htmlFor="contact-name" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                  Full name
+                <label htmlFor="contact-subject" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
+                  Subject <span className="text-danger">*</span>
                 </label>
                 <input
-                  id="contact-name"
+                  id="contact-subject"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
                   disabled={isDisabled}
-                  className="h-11 w-full rounded-xl border border-divider px-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading"
-                  placeholder="Your full name"
+                  aria-invalid={Boolean(fieldErrors.subject)}
+                  className={`h-11 w-full rounded-xl border px-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading ${fieldErrors.subject ? "border-danger" : "border-divider focus:border-brand"}`}
+                  placeholder="Brief summary of your request"
                 />
+                {fieldErrors.subject && <p className="mt-1 text-xs text-danger">{fieldErrors.subject}</p>}
               </div>
-              <div>
-                <label htmlFor="contact-email" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                  Email address
-                </label>
-                <input
-                  id="contact-email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isDisabled}
-                  className="h-11 w-full rounded-xl border border-divider px-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading"
-                  placeholder="your@email.com"
-                />
-              </div>
+
               <div>
                 <label htmlFor="contact-message" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                  Message
+                  Message <span className="text-danger">*</span>
                 </label>
                 <textarea
                   id="contact-message"
@@ -337,9 +422,11 @@ export default function ContactPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   disabled={isDisabled}
-                  className="min-h-32 w-full rounded-xl border border-divider p-4 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading resize-none"
+                  aria-invalid={Boolean(fieldErrors.message)}
+                  className={`min-h-32 w-full rounded-xl border p-4 text-sm outline-none focus:ring-2 focus:ring-brand/10 disabled:opacity-50 bg-bg-surface text-text-heading resize-none ${fieldErrors.message ? "border-danger" : "border-divider focus:border-brand"}`}
                   placeholder="How can the library help?"
                 />
+                {fieldErrors.message && <p className="mt-1 text-xs text-danger">{fieldErrors.message}</p>}
               </div>
             </div>
 
