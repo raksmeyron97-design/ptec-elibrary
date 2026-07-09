@@ -2,7 +2,7 @@
 // Server component — fetch + render download history for the current user.
 // Drop this inside the dashboard page alongside the Saved/In-Progress sections.
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { getMyDownloadHistory } from "@/app/actions/download";
 

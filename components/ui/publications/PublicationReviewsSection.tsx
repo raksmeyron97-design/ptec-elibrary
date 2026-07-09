@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, getLocale } from "next-intl/server";
 import { Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -22,6 +22,7 @@ export default async function PublicationReviewsSection({
   slug: string;
 }) {
   const t = await getTranslations("publicationDetail");
+  const locale = await getLocale();
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,7 +54,7 @@ export default async function PublicationReviewsSection({
           <h3 className="text-base font-bold text-text-heading">{t("leaveAReview")}</h3>
           <p className="mt-2 text-sm text-text-muted">{t("signInToReview")}</p>
           <Link
-            href={`/auth/login?callbackUrl=/publications/${slug}#reviews`}
+            href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/publications/${slug}#reviews`}
             className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand text-sm font-bold text-brand-contrast transition hover:bg-brand-hover"
           >
             {t("signInToReview")}

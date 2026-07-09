@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowRight } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import ThesisCard from "@/components/ui/theses/ThesisCard";

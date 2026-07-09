@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { FileText, Check } from "lucide-react";
 import { saveBookNote } from "@/app/actions/book-notes";
 import Link from "next/link";
+import { useLocale } from "next-intl";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -18,6 +19,7 @@ export default function BookNotes({
   isLoggedIn: boolean;
   bookSlug: string;
 }) {
+  const locale = useLocale();
   const [content, setContent] = useState(initialContent);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,7 +52,7 @@ export default function BookNotes({
           Sign in to take private notes on this book.
         </p>
         <Link
-          href={`/auth/login?callbackUrl=/books/${bookSlug}`}
+          href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/books/${bookSlug}`}
           className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-hover transition-colors"
         >
           Sign In to Take Notes

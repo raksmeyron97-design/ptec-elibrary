@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Monitor, Smartphone, X } from "lucide-react";
-import Markdown from "@/app/(public)/posts/[slug]/Markdown";
+import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
 import { CATEGORY_BADGE_STYLES } from "@/lib/admin/posts-shared";
 
 type Viewport = "desktop" | "mobile";

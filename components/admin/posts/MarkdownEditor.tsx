@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Markdown from "@/app/(public)/posts/[slug]/Markdown";
+import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
 
 interface Props {
   name?: string;

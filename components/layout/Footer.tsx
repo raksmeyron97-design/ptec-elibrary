@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Icon from "@/components/ui/core/Icon";
 import MobileBottomNav from "./MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";

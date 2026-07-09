@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useLocale } from "next-intl";
 import { markAsRead } from "@/app/actions/notifications";
 import type { Notification } from "@/app/actions/notifications";

@@ -2,7 +2,7 @@
 // Homepage slot 2 — text-first editorial showcase of the newest journal
 // articles (1 lead + 3 supporting rows). Publications are judged by
 // title/authors/venue, so no covers: metadata is the visual.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getFeaturedPublicationsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
 import type { ArticleType } from "@/lib/publications";

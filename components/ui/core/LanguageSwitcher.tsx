@@ -1,7 +1,8 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { Globe } from 'lucide-react';
 import { setLocaleCookie } from '@/app/actions/locale';
 
@@ -12,13 +13,16 @@ interface Props {
 
 export default function LanguageSwitcher({ locale, className }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
   const switchTo = (next: 'en' | 'km') => {
     if (next === locale) return;
+    const qs = searchParams.toString();
     startTransition(async () => {
       await setLocaleCookie(next);
-      router.refresh();
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { locale: next, scroll: false });
     });
   };
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { pushRecentSearch } from "@/lib/recent-searches";
 

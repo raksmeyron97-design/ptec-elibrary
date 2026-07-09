@@ -2,7 +2,7 @@
 // Homepage — ranked top-5 theses by real reader behavior (views + weighted
 // downloads). A numbered <ol>, not a card grid: rank is the information, and
 // usage numbers beside each row are the social proof (IEEE "most popular").
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTrendingThesesCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
 

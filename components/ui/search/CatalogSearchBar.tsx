@@ -1,7 +1,8 @@
 "use client";
 // components/ui/CatalogSearchBar.tsx
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { FormEvent, useState } from "react";
 import { useTranslations } from 'next-intl';
 

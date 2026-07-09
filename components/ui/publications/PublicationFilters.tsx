@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 
 export type PublicationFilterValues = {

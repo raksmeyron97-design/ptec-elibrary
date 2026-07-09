@@ -9,6 +9,10 @@ const privatePaths = [
   '/login',
   '/offline-books',
   '/lists',
+  // Khmer locale-prefixed equivalents — /dashboard etc. also resolve under /km.
+  '/km/dashboard/',
+  '/km/offline-books',
+  '/km/lists',
 ];
 
 const publicLibraryPaths = [
@@ -24,6 +28,19 @@ const publicLibraryPaths = [
   '/about/',
   '/contact',
   '/policy',
+  // Khmer locale-prefixed equivalents (localePrefix: "as-needed" — English
+  // stays unprefixed above, Khmer lives under /km).
+  '/km',
+  '/km/books/',
+  '/km/catalogs/',
+  '/km/theses/',
+  '/km/publications/',
+  '/km/subjects/',
+  '/km/authors/',
+  '/km/paths/',
+  '/km/about/',
+  '/km/contact',
+  '/km/policy',
 ];
 
 export default function robots(): MetadataRoute.Robots {

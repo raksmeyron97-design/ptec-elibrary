@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { RotateCcw } from "lucide-react";
 
 /** Inline illustration — no emoji, matches the brand palette. */

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, type ComponentProps } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
 import { useTranslations } from "next-intl";

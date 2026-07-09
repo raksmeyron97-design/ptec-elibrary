@@ -5,7 +5,7 @@
 // cookie. Isolating the auth check (and the stats it displays) here — behind
 // its own Suspense boundary — lets the hero/search markup flush in the first
 // streamed chunk instead of waiting on the Supabase auth round-trip.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getHomeStats } from "@/lib/home-stats";
 import { getTranslations, getLocale } from "next-intl/server";

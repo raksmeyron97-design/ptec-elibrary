@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useId } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
@@ -431,13 +432,13 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <p className="text-[15px] font-semibold text-white">{t("title")}</p>
                 <p className="mt-1 text-[13px] text-blue-300/70">{t("loginRequired")}</p>
               </div>
-              <Link
+              <NextLink
                 href="/auth/login"
                 onClick={() => setOpen(false)}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 text-[13px] font-semibold text-blue-950 transition-all hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
               >
                 {t("loginButton")}
-              </Link>
+              </NextLink>
             </div>
           ) : (
             <>

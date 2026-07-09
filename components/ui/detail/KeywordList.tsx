@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Tag } from "lucide-react";
 
 export default function KeywordList({

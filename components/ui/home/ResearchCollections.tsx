@@ -2,7 +2,7 @@
 // Curated collection cards (config: lib/home-collections.ts) — the librarian's
 // editorial voice. Each card: name, one-line scope, live count, and a fan of
 // three recent covers for texture. Cards whose department is empty are hidden.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations, getLocale } from "next-intl/server";

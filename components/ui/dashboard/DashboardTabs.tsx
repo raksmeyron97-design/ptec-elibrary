@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
 import ReadingListsSection from "@/components/ui/lists/ReadingListsSection";

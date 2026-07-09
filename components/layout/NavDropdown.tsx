@@ -5,8 +5,7 @@
 
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 
 type SubLink = { label: string; href: string; icon?: React.ReactNode; target?: string };
 

@@ -7,6 +7,21 @@ import { slugify } from '@/lib/books';
 // without being frozen at build time.
 export const revalidate = 3600;
 
+// English stays unprefixed (the canonical entry); Khmer is exposed via the
+// alternates.languages field so both locales stay discoverable without
+// doubling the number of sitemap entries.
+function withAlternates(path: string) {
+  return {
+    url: `${SITE_URL}${path}`,
+    alternates: {
+      languages: {
+        en: `${SITE_URL}${path}`,
+        km: `${SITE_URL}/km${path}`,
+      },
+    },
+  };
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceClient();
 
@@ -75,35 +90,35 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
 
   const bookUrls: MetadataRoute.Sitemap = (books ?? []).map((book) => ({
-    url: `${SITE_URL}/books/${book.slug}`,
+    ...withAlternates(`/books/${book.slug}`),
     lastModified: book.published_at ?? book.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.8,
   }));
 
   const postUrls: MetadataRoute.Sitemap = (posts ?? []).map((post) => ({
-    url: `${SITE_URL}/posts/${post.slug}`,
+    ...withAlternates(`/posts/${post.slug}`),
     lastModified: post.updated_at ?? post.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.7,
   }));
 
   const reportUrls: MetadataRoute.Sitemap = (reports ?? []).map((r) => ({
-    url: `${SITE_URL}/theses/${r.slug ?? r.id}`,
+    ...withAlternates(`/theses/${r.slug ?? r.id}`),
     lastModified: r.published_at ?? r.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.9,
   }));
 
   const catalogUrls: MetadataRoute.Sitemap = (catalogBooks ?? []).map((b) => ({
-    url: `${SITE_URL}/catalogs/${b.slug}`,
+    ...withAlternates(`/catalogs/${b.slug}`),
     lastModified: b.updated_at ?? b.created_at ?? new Date(),
     changeFrequency: 'weekly',
     priority: 0.6,
   }));
 
   const publicationUrls: MetadataRoute.Sitemap = (publications ?? []).map((p) => ({
-    url: `${SITE_URL}/publications/${p.slug}`,
+    ...withAlternates(`/publications/${p.slug}`),
     lastModified: p.updated_at ?? p.created_at ?? new Date(),
     changeFrequency: 'monthly',
     priority: 0.9,
@@ -111,43 +126,43 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticUrls: MetadataRoute.Sitemap = [
     {
-      url: `${SITE_URL}/home`,
+      ...withAlternates('/home'),
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1.0,
     },
     {
-      url: `${SITE_URL}/books`,
+      ...withAlternates('/books'),
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/theses`,
+      ...withAlternates('/theses'),
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/catalogs`,
+      ...withAlternates('/catalogs'),
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${SITE_URL}/posts`,
+      ...withAlternates('/posts'),
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.8,
     },
     {
-      url: `${SITE_URL}/publications`,
+      ...withAlternates('/publications'),
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/paths`,
+      ...withAlternates('/paths'),
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
@@ -164,7 +179,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       '/contact',
       '/policy',
     ].map((path) => ({
-      url: `${SITE_URL}${path}`,
+      ...withAlternates(path),
       lastModified: new Date(),
       changeFrequency: 'monthly' as const,
       priority: 0.4,
@@ -172,14 +187,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const pathUrls: MetadataRoute.Sitemap = (paths ?? []).map((p) => ({
-    url: `${SITE_URL}/paths/${p.slug}`,
+    ...withAlternates(`/paths/${p.slug}`),
     lastModified: p.updated_at ?? p.created_at ?? new Date(),
     changeFrequency: 'weekly',
     priority: 0.7,
   }));
 
   const subjectUrls: MetadataRoute.Sitemap = (categories ?? []).map((c) => ({
-    url: `${SITE_URL}/subjects/${c.slug}`,
+    ...withAlternates(`/subjects/${c.slug}`),
     lastModified: c.created_at ?? new Date(),
     changeFrequency: 'weekly',
     priority: 0.6,
@@ -195,7 +210,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? new Date().toISOString());
   }
   const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) => ({
-    url: `${SITE_URL}/authors/${slug}`,
+    ...withAlternates(`/authors/${slug}`),
     lastModified: createdAt,
     changeFrequency: 'monthly',
     priority: 0.5,

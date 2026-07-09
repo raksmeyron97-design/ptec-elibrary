@@ -1,5 +1,5 @@
 // components/ui/ContinueReading.tsx
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import BookCard from "@/components/ui/books/BookCard";

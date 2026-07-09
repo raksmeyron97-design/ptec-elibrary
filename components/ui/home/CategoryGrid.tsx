@@ -2,7 +2,7 @@
 // Homepage slot 3 — subject taxonomy tiles with live item counts. Subject
 // browsing is the #2 discovery path after search, so it sits directly under
 // the publications rail. Tiles land on pre-filtered results, not a menu.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getDepartmentCountsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
 

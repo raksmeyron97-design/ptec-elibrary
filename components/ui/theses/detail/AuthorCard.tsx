@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { GraduationCap } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getKeywords, getDepartment } from "@/lib/theses/report-fields";

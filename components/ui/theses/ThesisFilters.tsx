@@ -2,7 +2,8 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { X, ChevronDown } from "lucide-react";
 
 export default function ThesisFilters({

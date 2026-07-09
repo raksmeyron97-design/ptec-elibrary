@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { Search, X, RotateCcw } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 export type ToolbarOption = { value: string; label: string };
 
@@ -38,6 +38,8 @@ export default function SummaryToolbar({
   programs: ToolbarOption[];
 }) {
   const t = useTranslations("thesisSummary");
+  const locale = useLocale();
+  const formAction = locale === "km" ? `/km${BASE_PATH}` : BASE_PATH;
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [q, setQ] = useState(current.q);
@@ -96,7 +98,7 @@ export default function SummaryToolbar({
   return (
     <form
       method="get"
-      action={BASE_PATH}
+      action={formAction}
       onSubmit={(e) => {
         e.preventDefault();
         if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import CiteThis from "@/components/ui/theses/CiteThis";

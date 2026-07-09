@@ -3,7 +3,7 @@
 // Native <details>/<summary> — zero JS, free keyboard support. FAQPage JSON-LD
 // is generated from the same translation strings so the schema always mirrors
 // the visible text (a Google structured-data requirement).
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 

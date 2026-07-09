@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { CatalogBook } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTranslations } from 'next-intl/server';
 import { ScrollRevealWrapper, StaggerRevealContainer, StaggerRevealItem } from "@/components/ui/animations/ScrollRevealWrapper";
 

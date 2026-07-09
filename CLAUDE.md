@@ -27,7 +27,7 @@ Database migrations are in `supabase/migrations/` and must be applied sequential
 
 ### Route Groups
 
-- `app/(public)/` — public pages (home, books, catalogs, theses, publications, posts, search, lists, dashboard, offline-books). Root `/` redirects to `/home` in middleware.
+- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). Root `/` (and `/km`) redirects to `/home` (`/km/home`) in middleware.
 - `app/(auth)/` — authentication flows (login, signup, forgot/reset password)
 - `app/(admin)/admin/` — admin panel: `login`, `mfa` (enroll/verify), and `(protected)/` which holds all admin sections
 
@@ -75,7 +75,13 @@ All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`
 
 ### Internationalisation (i18n)
 
-- Built with `next-intl` v4. Locale (`en` or `km`) is stored in the `ptec_locale` cookie and resolved in `i18n/request.ts`.
+- Built with `next-intl` v4, using **locale-prefixed routing** (`localePrefix: "as-needed"`, `i18n/routing.ts`): English is unprefixed (`/theses/foo`), Khmer lives under `/km` (`/km/theses/foo`). Only `app/(public)` participates — `app/(admin)` and `app/(auth)` are deliberately **not** locale-routed and stay exactly as before (unprefixed, cookie-driven).
+- All `(public)` routes live under `app/[locale]/(public)/`. `middleware.ts` resolves the locale from the URL for non-admin/auth/api requests: it strips/validates a `/km` prefix, redirects `/en*` → unprefixed (no duplicate default-locale URLs), and for English invisibly rewrites the request to `/en/...` internally (via `NextResponse.rewrite`) so the file router matches — the browser URL and `usePathname()` stay clean. It then sets an `x-locale` request header (mirroring the existing `x-nonce` pattern).
+- `i18n/request.ts` reads that `x-locale` header first; if absent (admin/auth requests), it falls back to the `ptec_locale` cookie exactly as before — this is how the root `app/layout.tsx` (which sits *above* the `[locale]` segment and can't read `params.locale` directly) still resolves the correct locale for every request.
+- **Navigation**: `i18n/navigation.ts` exports locale-aware `Link`/`redirect`/`usePathname`/`useRouter`/`getPathname` (via `createNavigation`) — use these for any link/redirect targeting a route under `(public)`. Never use them for `/admin/*` or `/auth/*` targets (those are outside the locale scheme and would get an incorrect `/km` prefix); import plain `next/link`/`next/navigation` for those, even from within otherwise-localized files (several files intentionally mix both, e.g. a dashboard page's "admin" link).
+- `components/ui/books/ClientNavWrapper.tsx` (`FilterLink`/`FilterSelect`/`SortSelect`/`RowsPerPageSelect`, used by `Pagination.tsx`) is shared with the admin panel and deliberately **not** locale-aware — it navigates via a plain `basePath` prop. Public listing pages must pass an explicit locale-prefixed `basePath` (e.g. `locale === "km" ? "/km/books" : "/books"`); admin call sites are untouched.
+- `LanguageSwitcher.tsx` does real path-based switching (`router.replace(pathname + query, { locale })` from `i18n/navigation.ts`), not just a cookie write + refresh.
+- `lib/seo/alternates.ts`'s `localeAlternates(path, locale)` builds reciprocal `canonical` + `hreflang` (`en`/`km`/`x-default`) — wired into every public `generateMetadata` and into `lib/seo/listing-metadata.ts`'s `buildListingMetadata()`. `app/sitemap.ts` emits one canonical (English) entry per URL with `alternates.languages` covering both locales, rather than doubling entries.
 - Translation strings live in `messages/en.json` and `messages/km.json`.
 - Khmer fonts (Hanuman, Suwannaphum, Angkor, KantumruyPro, NotoSerifKhmer) are loaded in `app/fonts.ts` and applied as CSS variables on `<html>`.
 

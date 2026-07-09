@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import SearchBar from "@/components/ui/search/SearchBar";
 import AdvancedSearchModal, { type FacetOption } from "@/components/ui/theses/AdvancedSearchModal";
 

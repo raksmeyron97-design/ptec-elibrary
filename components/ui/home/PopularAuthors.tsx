@@ -3,7 +3,7 @@
 // unified library search (which indexes author names across books, theses,
 // catalog, and publications). Initials avatars — no author photos exist, and
 // empty photo circles read as broken.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations, getLocale } from "next-intl/server";
 

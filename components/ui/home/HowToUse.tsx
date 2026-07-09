@@ -2,7 +2,7 @@
 // 3-step orientation for first-time student-teachers. Numbered because the
 // sequence is real information; copy names actual capabilities (offline PWA
 // reading, progress tracking) and frames the account as benefit, not gate.
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 
 const STEP_ICON_PATHS = {

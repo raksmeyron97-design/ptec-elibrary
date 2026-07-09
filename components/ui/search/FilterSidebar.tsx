@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 type FilterSidebarProps = {
   departments: string[];        // fetched from DB by parent page

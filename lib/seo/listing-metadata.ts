@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_URL } from "@/lib/seo/site";
+import { localeAlternates } from "@/lib/seo/alternates";
 
 /**
  * Metadata for paginated listing pages (/books, /theses, /posts, …).
@@ -13,6 +13,7 @@ import { SITE_URL } from "@/lib/seo/site";
  */
 export function buildListingMetadata({
   path,
+  locale,
   title,
   description,
   page,
@@ -21,6 +22,8 @@ export function buildListingMetadata({
 }: {
   /** Route path starting with "/", e.g. "/books". */
   path: string;
+  /** Current request locale ("en" | "km") — drives canonical + hreflang. */
+  locale: string;
   title: string;
   description: string;
   /** Current 1-based page number (from ?page=). */
@@ -29,19 +32,19 @@ export function buildListingMetadata({
   hasFilters: boolean;
   ogType?: "website";
 }): Metadata {
-  const canonical =
-    page > 1 ? `${SITE_URL}${path}?page=${page}` : `${SITE_URL}${path}`;
+  const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
+  const alternates = localeAlternates(pathWithQuery, locale);
   const pagedTitle = page > 1 ? `${title} — Page ${page}` : title;
 
   return {
     title: pagedTitle,
     description,
-    alternates: { canonical },
+    alternates,
     robots: hasFilters ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${pagedTitle} | PTEC Library`,
       description,
-      url: canonical,
+      url: alternates.canonical,
       type: ogType,
     },
     twitter: {

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import AnimatedStat from "./AnimatedStat";

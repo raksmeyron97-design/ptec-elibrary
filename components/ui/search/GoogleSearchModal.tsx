@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import Icon, { IconName } from "@/components/ui/core/Icon";
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { pushRecentSearch, readRecent } from "@/components/ui/home/SearchSuggestions";

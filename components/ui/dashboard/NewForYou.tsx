@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { Bell, BookOpen, ChevronRight } from "lucide-react";
 import type { NewContentAlert } from "@/app/actions/subscriptions";

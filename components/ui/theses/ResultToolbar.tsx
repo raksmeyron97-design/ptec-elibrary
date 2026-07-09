@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { LayoutGrid, List, Rows3, RotateCcw } from "lucide-react";
 import { FilterLink } from "@/components/ui/books/ClientNavWrapper";
 import { SortSelect, RowsPerPageSelect } from "@/components/ui/books/ClientNavWrapper";
@@ -10,14 +10,14 @@ const SORT_OPTIONS = [
   { value: "downloads", label: "Most Downloaded" },
 ];
 
-function buildHref(current: Record<string, string | undefined>, overrides: Record<string, string | undefined>): string {
+function buildHref(basePath: string, current: Record<string, string | undefined>, overrides: Record<string, string | undefined>): string {
   const merged = { ...current, ...overrides };
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(merged)) {
     if (v) p.set(k, v);
   }
   const qs = p.toString();
-  return `/theses${qs ? `?${qs}` : ""}`;
+  return `${basePath}${qs ? `?${qs}` : ""}`;
 }
 
 function viewBtnClass(active: boolean): string {
@@ -36,6 +36,7 @@ export default function ResultToolbar({
   pageSizeOptions,
   hasFilters,
   summaryLabel,
+  basePath = "/theses",
 }: {
   total: number;
   query?: string;
@@ -46,6 +47,7 @@ export default function ResultToolbar({
   pageSizeOptions: number[];
   hasFilters: boolean;
   summaryLabel?: string;
+  basePath?: string;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-divider bg-bg-surface p-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -58,7 +60,7 @@ export default function ResultToolbar({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Items per page */}
-        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath="/theses" id="theses-page-size" />
+        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id="theses-page-size" />
 
         {/* Sort */}
         <SortSelect
@@ -66,13 +68,13 @@ export default function ResultToolbar({
           options={SORT_OPTIONS}
           defaultLabel="Newest"
           paramKey="sort"
-          basePath="/theses"
+          basePath={basePath}
         />
 
         {/* View toggle */}
         <div role="group" aria-label="View mode" className="flex items-center rounded-lg border border-divider bg-paper p-0.5">
           <FilterLink
-            href={buildHref(params, { view: undefined })}
+            href={buildHref(basePath, params, { view: undefined })}
             className={viewBtnClass(!isGrid)}
             aria-label="List view"
             aria-current={!isGrid ? "true" : undefined}
@@ -80,7 +82,7 @@ export default function ResultToolbar({
             <Rows3 className="h-4 w-4" />
           </FilterLink>
           <FilterLink
-            href={buildHref(params, { view: "grid" })}
+            href={buildHref(basePath, params, { view: "grid" })}
             className={viewBtnClass(isGrid)}
             aria-label="Grid view"
             aria-current={isGrid ? "true" : undefined}
@@ -92,7 +94,7 @@ export default function ResultToolbar({
         {/* Reset filters */}
         {hasFilters && (
           <FilterLink
-            href="/theses"
+            href={basePath}
             className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12.5px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/30 hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
             <RotateCcw className="h-3.5 w-3.5" />

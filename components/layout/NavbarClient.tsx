@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from 'next-intl';
 import type { AppRole } from "@/lib/types/roles";
@@ -53,13 +54,14 @@ export default function NavbarClient({ user }: NavbarClientProps) {
 
   // ── Not logged in ─────────────────────────────────────────────
   if (!user) {
+    // Plain next/link: /auth/login is outside the locale-prefixed tree.
     return (
-      <Link
+      <NextLink
         href="/auth/login"
         className="rounded-lg bg-brand px-6 py-2.5 text-[14px] font-semibold text-brand-contrast transition-all hover:bg-brand-hover hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
       >
         Login
-      </Link>
+      </NextLink>
     );
   }
 

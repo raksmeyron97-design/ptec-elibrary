@@ -5,9 +5,9 @@
 
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link, usePathname } from "@/i18n/navigation";
+import NextLink from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from 'next-intl';
@@ -229,13 +229,14 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
               </button>
             </form>
           ) : (
-            <Link
+            // Plain next/link: /auth/login is outside the locale-prefixed tree.
+            <NextLink
               href="/auth/login"
               onClick={() => setOpen(false)}
               className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
             >
               {t('login')}
-            </Link>
+            </NextLink>
           )}
         </div>
           </div>

@@ -4,7 +4,7 @@
 // Distinct from the Newest Books cover rail — the dates are the message: this
 // library is maintained. Rendered fully server-side (locale-aware, no
 // hydration drift).
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getTranslations, getLocale } from "next-intl/server";
 
