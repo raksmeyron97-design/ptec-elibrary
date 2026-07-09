@@ -11,6 +11,9 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   author:   "account",
   category: "bookmark",
   research: "school",
+  publication: "file-check",
+  catalog: "library",
+  post: "bookmark",
 };
 
 const TYPE_LABEL: Record<Suggestion["type"], string> = {
@@ -18,6 +21,9 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   author:   "Author",
   category: "Category",
   research: "Thesis",
+  publication: "Publication",
+  catalog: "Physical book",
+  post: "News",
 };
 
 const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
@@ -25,6 +31,9 @@ const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
   author:   "Authors",
   category: "Categories",
   research: "Theses",
+  publication: "Publications",
+  catalog: "Physical books",
+  post: "News",
 };
 
 const TYPE_COLOR: Record<Suggestion["type"], string> = {
@@ -32,6 +41,9 @@ const TYPE_COLOR: Record<Suggestion["type"], string> = {
   author:   "text-gold-700 dark:text-accent-text",
   category: "text-brand",
   research: "text-accent-text",
+  publication: "text-info",
+  catalog: "text-warning",
+  post: "text-brand",
 };
 
 const TYPE_BG: Record<Suggestion["type"], string> = {
@@ -39,6 +51,9 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
   author:   "bg-gold-50 dark:bg-accent/10",
   category: "bg-brand/10",
   research: "bg-accent/10",
+  publication: "bg-info/10",
+  catalog: "bg-warning/10",
+  post: "bg-brand/5",
 };
 
 const FALLBACK_TRENDING = ["Pedagogy", "Mathematics", "Science", "History"];

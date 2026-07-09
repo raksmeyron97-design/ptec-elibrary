@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
@@ -10,21 +10,67 @@ import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 interface Props {
   currentQ: string;
   currentAuthor: string;
+  currentAdvisor: string;
   currentIsbn: string;
   currentPublisher: string;
-  currentCategory: string;
+  currentSubject: string;
   currentLanguage: string;
   currentDepartment: string;
+  currentProgram: string;
+  currentCohort: string;
+  currentYear: string;
+  currentFormat: string;
+  currentAvailability: string;
+  currentViews: string;
+  currentDownloads: string;
+  currentRating: string;
   categories: string[];
   languages: string[];
   departments: string[];
 }
+
+type Draft = {
+  q: string;
+  author: string;
+  advisor: string;
+  isbn: string;
+  publisher: string;
+  subject: string;
+  language: string;
+  department: string;
+  program: string;
+  cohort: string;
+  year: string;
+  format: string;
+  availability: string;
+  views: string;
+  downloads: string;
+  rating: string;
+};
 
 const fieldFocusClass =
   "focus:outline-none focus:ring-2 focus:ring-focus-ring/30 focus:border-brand";
 
 const inputClass = `h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors ${fieldFocusClass}`;
 const selectClass = `h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors appearance-none cursor-pointer ${fieldFocusClass}`;
+const EMPTY_DRAFT: Draft = {
+  q: "",
+  author: "",
+  advisor: "",
+  isbn: "",
+  publisher: "",
+  subject: "",
+  language: "",
+  department: "",
+  program: "",
+  cohort: "",
+  year: "",
+  format: "",
+  availability: "",
+  views: "",
+  downloads: "",
+  rating: "",
+};
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -40,11 +86,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function SearchAdvancedModal({
   currentQ,
   currentAuthor,
+  currentAdvisor,
   currentIsbn,
   currentPublisher,
-  currentCategory,
+  currentSubject,
   currentLanguage,
   currentDepartment,
+  currentProgram,
+  currentCohort,
+  currentYear,
+  currentFormat,
+  currentAvailability,
+  currentViews,
+  currentDownloads,
+  currentRating,
   categories,
   languages,
   departments,
@@ -57,24 +112,53 @@ export default function SearchAdvancedModal({
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const trapRef = useFocusTrap<HTMLDivElement>(open);
 
-  const [q, setQ] = useState(currentQ);
-  const [author, setAuthor] = useState(currentAuthor);
-  const [isbn, setIsbn] = useState(currentIsbn);
-  const [publisher, setPublisher] = useState(currentPublisher);
-  const [category, setCategory] = useState(currentCategory);
-  const [language, setLanguage] = useState(currentLanguage);
-  const [department, setDepartment] = useState(currentDepartment);
+  const currentDraft: Draft = useMemo(
+    () => ({
+      q: currentQ,
+      author: currentAuthor,
+      advisor: currentAdvisor,
+      isbn: currentIsbn,
+      publisher: currentPublisher,
+      subject: currentSubject,
+      language: currentLanguage,
+      department: currentDepartment,
+      program: currentProgram,
+      cohort: currentCohort,
+      year: currentYear,
+      format: currentFormat,
+      availability: currentAvailability,
+      views: currentViews,
+      downloads: currentDownloads,
+      rating: currentRating,
+    }),
+    [
+      currentQ,
+      currentAuthor,
+      currentAdvisor,
+      currentIsbn,
+      currentPublisher,
+      currentSubject,
+      currentLanguage,
+      currentDepartment,
+      currentProgram,
+      currentCohort,
+      currentYear,
+      currentFormat,
+      currentAvailability,
+      currentViews,
+      currentDownloads,
+      currentRating,
+    ],
+  );
+
+  const [draft, setDraft] = useState<Draft>(() => currentDraft);
+  const updateDraft = (key: keyof Draft, value: string) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
 
   // Reset the draft form to the URL's current state each time the modal opens.
   useEffect(() => {
     if (!open) return;
-    setQ(currentQ);
-    setAuthor(currentAuthor);
-    setIsbn(currentIsbn);
-    setPublisher(currentPublisher);
-    setCategory(currentCategory);
-    setLanguage(currentLanguage);
-    setDepartment(currentDepartment);
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -91,18 +175,29 @@ export default function SearchAdvancedModal({
       window.clearTimeout(focusTimer);
       trigger?.focus();
     };
-  }, [open, currentQ, currentAuthor, currentIsbn, currentPublisher, currentCategory, currentLanguage, currentDepartment]);
+  }, [
+    open,
+  ]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const params: Record<string, string> = {};
-    if (q) params.q = q;
-    if (author) params.author = author;
-    if (isbn) params.isbn = isbn;
-    if (publisher) params.publisher = publisher;
-    if (category) params.category = category;
-    if (language) params.lang = language;
-    if (department) params.dept = department;
+    if (draft.q) params.q = draft.q;
+    if (draft.author) params.author = draft.author;
+    if (draft.advisor) params.advisor = draft.advisor;
+    if (draft.isbn) params.isbn = draft.isbn;
+    if (draft.publisher) params.publisher = draft.publisher;
+    if (draft.subject) params.subject = draft.subject;
+    if (draft.language) params.lang = draft.language;
+    if (draft.department) params.dept = draft.department;
+    if (draft.program) params.program = draft.program;
+    if (draft.cohort) params.cohort = draft.cohort;
+    if (draft.year) params.year = draft.year;
+    if (draft.format) params.format = draft.format;
+    if (draft.availability) params.availability = draft.availability;
+    if (draft.views) params.views = draft.views;
+    if (draft.downloads) params.downloads = draft.downloads;
+    if (draft.rating) params.rating = draft.rating;
 
     const qs = new URLSearchParams(params).toString();
     setOpen(false);
@@ -114,7 +209,10 @@ export default function SearchAdvancedModal({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setDraft(currentDraft);
+          setOpen(true);
+        }}
         aria-haspopup="dialog"
         aria-expanded={open}
         className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 text-[12.5px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
@@ -155,8 +253,8 @@ export default function SearchAdvancedModal({
               <Field label={t("advFieldKeyword")}>
                 <input
                   ref={firstFieldRef}
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
+                  value={draft.q}
+                  onChange={(e) => updateDraft("q", e.target.value)}
                   placeholder={t("advPlaceholderKeyword")}
                   className={inputClass}
                 />
@@ -165,17 +263,26 @@ export default function SearchAdvancedModal({
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("advFieldAuthor")}>
                   <input
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
+                    value={draft.author}
+                    onChange={(e) => updateDraft("author", e.target.value)}
                     placeholder={t("advAnyAuthor")}
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label={t("advFieldAdvisor")}>
+                  <input
+                    value={draft.advisor}
+                    onChange={(e) => updateDraft("advisor", e.target.value)}
+                    placeholder={t("advAnyAdvisor")}
                     className={inputClass}
                   />
                 </Field>
 
                 <Field label={t("advFieldPublisher")}>
                   <input
-                    value={publisher}
-                    onChange={(e) => setPublisher(e.target.value)}
+                    value={draft.publisher}
+                    onChange={(e) => updateDraft("publisher", e.target.value)}
                     placeholder={t("advAnyPublisher")}
                     className={inputClass}
                   />
@@ -183,16 +290,16 @@ export default function SearchAdvancedModal({
 
                 <Field label={t("advFieldIsbn")}>
                   <input
-                    value={isbn}
-                    onChange={(e) => setIsbn(e.target.value)}
+                    value={draft.isbn}
+                    onChange={(e) => updateDraft("isbn", e.target.value)}
                     placeholder={t("advAnyIsbn")}
                     className={inputClass}
                   />
                 </Field>
 
-                <Field label={t("advFieldCategory")}>
-                  <select value={category} onChange={(e) => setCategory(e.target.value)} className={selectClass}>
-                    <option value="">{t("advAnyCategory")}</option>
+                <Field label={t("advFieldSubject")}>
+                  <select value={draft.subject} onChange={(e) => updateDraft("subject", e.target.value)} className={selectClass}>
+                    <option value="">{t("advAnySubject")}</option>
                     {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -200,7 +307,7 @@ export default function SearchAdvancedModal({
                 </Field>
 
                 <Field label={t("advFieldLanguage")}>
-                  <select value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
+                  <select value={draft.language} onChange={(e) => updateDraft("language", e.target.value)} className={selectClass}>
                     <option value="">{t("advAnyLanguage")}</option>
                     {languages.map((l) => (
                       <option key={l} value={l}>{l}</option>
@@ -209,11 +316,85 @@ export default function SearchAdvancedModal({
                 </Field>
 
                 <Field label={t("advFieldDepartment")}>
-                  <select value={department} onChange={(e) => setDepartment(e.target.value)} className={selectClass}>
+                  <select value={draft.department} onChange={(e) => updateDraft("department", e.target.value)} className={selectClass}>
                     <option value="">{t("advAnyDepartment")}</option>
                     {departments.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
+                  </select>
+                </Field>
+
+                <Field label={t("advFieldProgram")}>
+                  <select value={draft.program} onChange={(e) => updateDraft("program", e.target.value)} className={selectClass}>
+                    <option value="">{t("advAnyProgram")}</option>
+                    <option value="b_ed_12_4">{t("programBEd")}</option>
+                    <option value="bachelor_plus_1">{t("programBPlus1")}</option>
+                  </select>
+                </Field>
+
+                <Field label={t("advFieldCohort")}>
+                  <input
+                    value={draft.cohort}
+                    onChange={(e) => updateDraft("cohort", e.target.value)}
+                    placeholder={t("advAnyCohort")}
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label={t("advFieldYear")}>
+                  <input
+                    value={draft.year}
+                    onChange={(e) => updateDraft("year", e.target.value.replace(/[^\d]/g, "").slice(0, 4))}
+                    placeholder={t("advAnyYear")}
+                    inputMode="numeric"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label={t("advFieldFormat")}>
+                  <select value={draft.format} onChange={(e) => updateDraft("format", e.target.value)} className={selectClass}>
+                    <option value="">{t("advAnyFormat")}</option>
+                    <option value="PDF">PDF</option>
+                    <option value="Print">{t("formatPrint")}</option>
+                    <option value="HTML">HTML</option>
+                  </select>
+                </Field>
+
+                <Field label={t("advFieldAvailability")}>
+                  <select value={draft.availability} onChange={(e) => updateDraft("availability", e.target.value)} className={selectClass}>
+                    <option value="">{t("advAnyAvailability")}</option>
+                    <option value="digital">{t("availabilityDigital")}</option>
+                    <option value="downloadable">{t("availabilityDownloadable")}</option>
+                    <option value="available">{t("availabilityAvailable")}</option>
+                  </select>
+                </Field>
+
+                <Field label={t("advFieldViews")}>
+                  <input
+                    value={draft.views}
+                    onChange={(e) => updateDraft("views", e.target.value.replace(/[^\d]/g, ""))}
+                    placeholder={t("advMinViews")}
+                    inputMode="numeric"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label={t("advFieldDownloads")}>
+                  <input
+                    value={draft.downloads}
+                    onChange={(e) => updateDraft("downloads", e.target.value.replace(/[^\d]/g, ""))}
+                    placeholder={t("advMinDownloads")}
+                    inputMode="numeric"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label={t("advFieldRating")}>
+                  <select value={draft.rating} onChange={(e) => updateDraft("rating", e.target.value)} className={selectClass}>
+                    <option value="">{t("advAnyRating")}</option>
+                    <option value="5">5+</option>
+                    <option value="4">4+</option>
+                    <option value="3">3+</option>
                   </select>
                 </Field>
               </div>
@@ -223,13 +404,7 @@ export default function SearchAdvancedModal({
               <button
                 type="button"
                 onClick={() => {
-                  setQ("");
-                  setAuthor("");
-                  setIsbn("");
-                  setPublisher("");
-                  setCategory("");
-                  setLanguage("");
-                  setDepartment("");
+                  setDraft(EMPTY_DRAFT);
                 }}
                 className="cursor-pointer rounded-sm text-[13px] font-semibold text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >

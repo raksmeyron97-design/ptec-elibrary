@@ -1,11 +1,12 @@
 /* lib/pdf-page-index.ts
  *
- * Full-text page extraction for book/thesis PDFs → the book_pages table
+ * Full-text page extraction for book/thesis/publication PDFs -> the book_pages table
  * (migration 0066), which powers "found inside" page hits in
  * /api/search/native.
  *
  * Used from two places:
- *   - Admin server actions (saveBookRecord, createThesis, updateThesis) via
+ *   - Admin server actions (saveBookRecord, createThesis, updateThesis,
+ *     createPublication, updatePublication) via
  *     `after()` — new uploads are indexed automatically in the background.
  *   - scripts/extract-pdf-text.ts — CLI backfill / re-extract safety net.
  *
@@ -23,7 +24,7 @@ export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
 const INSERT_BATCH = 100;
 
-export type PageRecordType = "book" | "research";
+export type PageRecordType = "book" | "research" | "publication";
 
 export type IndexPdfResult =
   | { indexed: true; pages: number }

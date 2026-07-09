@@ -13,6 +13,9 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   author:   "account",
   category: "bookmark",
   research: "school",
+  publication: "file-check",
+  catalog: "library",
+  post: "bookmark",
 };
 
 const TYPE_LABEL: Record<Suggestion["type"], string> = {
@@ -20,9 +23,18 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   author:   "Author",
   category: "Category",
   research: "Thesis",
+  publication: "Publication",
+  catalog: "Physical book",
+  post: "News",
 };
 
 const TRENDING = ["ការអប់រំ", "Thesis", "PDF ឯកសារ", "Pedagogy", "Mathematics"];
+
+function suggestionKey(s: Suggestion): string {
+  if ("slug" in s && s.slug) return `${s.type}-${s.slug}`;
+  if ("id" in s) return `${s.type}-${s.id}`;
+  return `${s.type}-${s.label}`;
+}
 
 // ── Suggestion row ─────────────────────────────────────────────────────────────
 function SuggestionRow({
@@ -303,8 +315,11 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
               onKeyDown={handleInputKeyDown}
               placeholder="Search books, authors, categories…"
               aria-label="Search query"
+              role="combobox"
               aria-autocomplete="list"
               aria-expanded={showSuggestions}
+              aria-haspopup="listbox"
+              aria-controls="global-search-suggestions"
               autoComplete="off"
               spellCheck={false}
               className="flex-1 h-[46px] pl-9 pr-3 text-[15px] font-medium bg-transparent outline-none"
@@ -345,7 +360,7 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
               onClick={() => setIsOpen(false)}
               aria-label="Close"
               className="hidden sm:flex items-center gap-1 ml-2 h-7 px-2 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--ptec-border)_60%,transparent)]"
-              style={{ color: "var(--ptec-text-muted)", border: "1px solid var(--ptec-border)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.06em" }}
+              style={{ color: "var(--ptec-text-muted)", border: "1px solid var(--ptec-border)", fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em" }}
             >
               ESC
             </button>
@@ -357,6 +372,7 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
           {/* ── Suggestions ───────────────────────────────────────────── */}
           {showSuggestions && (
             <div
+              id="global-search-suggestions"
               role="listbox"
               aria-label="Search suggestions"
               className="max-h-[320px] overflow-y-auto overscroll-contain"
@@ -372,7 +388,7 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
               ) : (
                 suggestions.slice(0, 7).map((s, i) => (
                   <SuggestionRow
-                    key={`${s.type}-${s.label}-${i}`}
+                    key={suggestionKey(s)}
                     s={s}
                     isActive={i === activeIdx}
                     onHover={() => setActiveIdx(i)}

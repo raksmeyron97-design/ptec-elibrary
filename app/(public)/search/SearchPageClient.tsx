@@ -18,18 +18,24 @@ import {
 } from "@/lib/recent-searches";
 import "@/app/gcse.css";
 
-const SUGGESTION_TYPE_ICON: Record<Suggestion["type"], "library" | "account" | "bookmark" | "school"> = {
+const SUGGESTION_TYPE_ICON: Record<Suggestion["type"], "library" | "account" | "bookmark" | "school" | "file-check"> = {
   book: "library",
   author: "account",
   category: "bookmark",
   research: "school",
+  publication: "file-check",
+  catalog: "library",
+  post: "bookmark",
 };
 
-const SUGGESTION_TYPE_LABEL_KEY: Record<Suggestion["type"], "suggestBooks" | "suggestAuthors" | "suggestCategories" | "suggestTheses"> = {
+const SUGGESTION_TYPE_LABEL_KEY: Record<Suggestion["type"], "suggestBooks" | "suggestAuthors" | "suggestCategories" | "suggestTheses" | "suggestPublications" | "suggestCatalog" | "suggestNews"> = {
   book: "suggestBooks",
   author: "suggestAuthors",
   category: "suggestCategories",
   research: "suggestTheses",
+  publication: "suggestPublications",
+  catalog: "suggestCatalog",
+  post: "suggestNews",
 };
 
 function highlightMatch(text: string, query: string) {
@@ -61,57 +67,93 @@ const SUGGESTIONS = [
 
 type ActiveType = "all" | SearchResultType;
 
-const TAB_IDS: ActiveType[] = ["all", "book", "research", "catalog", "post"];
-const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "tabCatalog" | "tabPosts"> = {
+const TAB_IDS: ActiveType[] = ["all", "book", "research", "publication", "catalog", "post"];
+const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabPosts"> = {
   all:      "tabAll",
   book:     "tabBooks",
   research: "tabTheses",
+  publication: "tabPublications",
   catalog:  "tabCatalog",
   post:     "tabPosts",
 };
 
-const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgeCatalog" | "badgePost"; className: string }> = {
+const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgePublication" | "badgeCatalog" | "badgePost"; className: string }> = {
   book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-500 border-blue-500/20" },
   research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-600 border-green-600/20" },
+  publication: { labelKey: "badgePublication", className: "bg-cyan-600/15 text-cyan-700 border-cyan-500/20" },
   catalog:  { labelKey: "badgeCatalog", className: "bg-amber-500/15 text-amber-600 border-amber-500/20" },
   post:     { labelKey: "badgePost",   className: "bg-purple-500/15 text-purple-500 border-purple-500/20" },
 };
 
+const COVER_PLACEHOLDER_COLORS: Record<SearchResultType, string> = {
+  book: "bg-blue-600",
+  research: "bg-green-700",
+  publication: "bg-cyan-700",
+  catalog: "bg-amber-600",
+  post: "bg-purple-600",
+};
+
 // ── Cover placeholder ──────────────────────────────────────────────────────────
 function CoverPlaceholder({ title, type }: { title: string; type: SearchResultType }) {
-  const colors: Record<SearchResultType, string> = {
-    book:     "bg-blue-600",
-    research: "bg-green-700",
-    catalog:  "bg-amber-600",
-    post:     "bg-purple-600",
-  };
   const initials = title
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
   return (
-    <div className={`flex h-full w-full items-center justify-center rounded-lg ${colors[type]} text-white text-[13px] font-bold`}>
+    <div className={`flex h-full w-full items-center justify-center rounded-lg ${COVER_PLACEHOLDER_COLORS[type]} text-white text-[13px] font-bold`}>
       {initials || "—"}
     </div>
   );
 }
 
+function trackSearchClick(result: SearchResult, query: string, action: string) {
+  if (!query.trim()) return;
+  fetch("/api/search/click", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      q: query,
+      resultType: result.type,
+      resultId: result.id,
+      resultUrl: result.url,
+      resultTitle: result.title,
+      action,
+    }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 // ── Single result card ─────────────────────────────────────────────────────────
-function ResultCard({ result }: { result: SearchResult }) {
+function ResultCard({ result, query }: { result: SearchResult; query: string }) {
   const t = useTranslations("search");
   const badge = TYPE_BADGE[result.type];
+  const actionClass =
+    "inline-flex h-8 items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-2.5 text-[11.5px] font-semibold text-text-muted transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40";
+
+  const actions = [
+    result.actions?.read ? { key: "read", href: result.actions.read, label: t("actionRead"), icon: "pdf" as const } : null,
+    result.actions?.view ?? result.url ? { key: "view", href: result.actions?.view ?? result.url, label: t("actionView"), icon: "eye" as const } : null,
+    result.actions?.download ? { key: "download", href: result.actions.download, label: t("actionDownload"), icon: "download" as const } : null,
+    result.actions?.cite ? { key: "cite", href: result.actions.cite, label: t("actionCite"), icon: "bookmark" as const } : null,
+    result.actions?.save ? { key: "save", href: result.actions.save, label: t("actionSave"), icon: "bookmark-plus" as const } : null,
+  ].filter(Boolean) as { key: string; href: string; label: string; icon: Parameters<typeof Icon>[0]["name"] }[];
+
   return (
-    <Link
-      href={result.url}
-      className="group flex gap-3.5 rounded-[14px] border border-divider bg-bg-surface p-4 transition-all duration-150 hover:border-brand/30 hover:shadow-sm focus-visible:border-brand/30"
+    <article
+      className="group flex gap-3.5 rounded-[14px] border border-divider bg-bg-surface p-4 transition-all duration-150 hover:border-brand/30 hover:shadow-sm"
     >
       {/* Cover */}
-      <div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg">
+      <Link
+        href={result.url}
+        onClick={() => trackSearchClick(result, query, "cover")}
+        className="h-16 w-12 shrink-0 overflow-hidden rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        aria-label={result.title}
+      >
         {result.coverUrl ? (
           <Image
             src={result.coverUrl}
-            alt={result.title}
+            alt=""
             width={48}
             height={64}
             className="h-full w-full object-cover"
@@ -120,7 +162,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         ) : (
           <CoverPlaceholder title={result.title} type={result.type} />
         )}
-      </div>
+      </Link>
 
       {/* Body */}
       <div className="min-w-0 flex-1">
@@ -136,8 +178,11 @@ function ResultCard({ result }: { result: SearchResult }) {
             </span>
           )}
           {result.language && (
-            <span className="text-[10px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
-              · {result.language}
+            <span
+              className="rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
+              style={{ borderColor: "var(--ptec-border)", color: "var(--ptec-text-muted)" }}
+            >
+              {result.language}
             </span>
           )}
           {result.year && (
@@ -147,16 +192,18 @@ function ResultCard({ result }: { result: SearchResult }) {
           )}
         </div>
 
-        <p
-          className="line-clamp-2 text-[14px] font-semibold leading-snug transition-colors group-hover:text-[color:var(--ptec-brand)]"
+        <Link
+          href={result.url}
+          onClick={() => trackSearchClick(result, query, "title")}
+          className="line-clamp-2 rounded-sm text-[14px] font-semibold leading-snug transition-colors group-hover:text-[color:var(--ptec-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           style={{ color: "var(--ptec-text-heading)" }}
         >
-          {result.title}
-        </p>
+          {highlightMatch(result.title, query)}
+        </Link>
 
         {result.author && (
           <p className="mt-0.5 text-[12px]" style={{ color: "var(--ptec-text-muted)" }}>
-            {result.author}
+            {highlightMatch(result.author, query)}
           </p>
         )}
 
@@ -165,8 +212,32 @@ function ResultCard({ result }: { result: SearchResult }) {
             className="mt-1 line-clamp-2 text-[12px] leading-relaxed"
             style={{ color: "var(--ptec-text-body)" }}
           >
-            {result.excerpt}
+            {highlightMatch(result.excerpt, query)}
           </p>
+        )}
+
+        {(result.matchedFields?.length || result.availability || result.format) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {result.matchedFields?.slice(0, 4).map((field) => (
+              <span
+                key={field}
+                className="rounded-full px-2 py-0.5 text-[10.5px] font-medium"
+                style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}
+              >
+                {t("matchedField", { field })}
+              </span>
+            ))}
+            {result.format && (
+              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+                {result.format}
+              </span>
+            )}
+            {result.availability && (
+              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+                {result.availability}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Rating for books */}
@@ -185,8 +256,22 @@ function ResultCard({ result }: { result: SearchResult }) {
             )}
           </div>
         )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {actions.slice(0, 5).map((action) => (
+            <Link
+              key={action.key}
+              href={action.href}
+              onClick={() => trackSearchClick(result, query, action.key)}
+              className={actionClass}
+            >
+              <Icon name={action.icon} className="text-[12px]" />
+              {action.label}
+            </Link>
+          ))}
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -257,6 +342,8 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [trending, setTrending] = useState<string[]>([]);
   const [popularSearches, setPopularSearches] = useState<string[]>([]);
+  const [relatedSubjects, setRelatedSubjects] = useState<string[]>([]);
+  const [popularResources, setPopularResources] = useState<SearchResult[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -329,23 +416,77 @@ export default function SearchPageClient({ departments, languages, categories }:
 
   // Facet + advanced-search filters — derived straight from the URL, same as `q`
   const filterLang = params.get("lang") ?? "";
-  const filterCategory = params.get("category") ?? "";
+  const filterSubject = params.get("subject") ?? params.get("category") ?? "";
   const filterDept = params.get("dept") ?? "";
   const filterAuthor = params.get("author") ?? "";
+  const filterAdvisor = params.get("advisor") ?? "";
+  const filterProgram = params.get("program") ?? "";
+  const filterCohort = params.get("cohort") ?? "";
+  const filterYear = params.get("year") ?? "";
+  const filterFormat = params.get("format") ?? "";
+  const filterAvailability = params.get("availability") ?? "";
+  const filterViews = params.get("views") ?? "";
+  const filterDownloads = params.get("downloads") ?? "";
+  const filterRating = params.get("rating") ?? "";
   const filterIsbn = params.get("isbn") ?? "";
   const filterPublisher = params.get("publisher") ?? "";
-  const activeFilterCount = [filterLang, filterCategory, filterDept, filterAuthor, filterIsbn, filterPublisher].filter(Boolean).length;
+  const sort = params.get("sort") ?? "relevance";
+  const activeFilterCount = [
+    filterLang, filterSubject, filterDept, filterAuthor, filterAdvisor, filterProgram,
+    filterCohort, filterYear, filterFormat, filterAvailability, filterViews,
+    filterDownloads, filterRating, filterIsbn, filterPublisher,
+  ].filter(Boolean).length;
 
-  type Filters = { lang: string; category: string; dept: string; author: string; isbn: string; publisher: string };
+  type Filters = {
+    lang: string;
+    subject: string;
+    dept: string;
+    author: string;
+    advisor: string;
+    program: string;
+    cohort: string;
+    year: string;
+    format: string;
+    availability: string;
+    views: string;
+    downloads: string;
+    rating: string;
+    isbn: string;
+    publisher: string;
+    sort: string;
+  };
   const currentFilters: Filters = {
-    lang: filterLang, category: filterCategory, dept: filterDept,
-    author: filterAuthor, isbn: filterIsbn, publisher: filterPublisher,
+    lang: filterLang,
+    subject: filterSubject,
+    dept: filterDept,
+    author: filterAuthor,
+    advisor: filterAdvisor,
+    program: filterProgram,
+    cohort: filterCohort,
+    year: filterYear,
+    format: filterFormat,
+    availability: filterAvailability,
+    views: filterViews,
+    downloads: filterDownloads,
+    rating: filterRating,
+    isbn: filterIsbn,
+    publisher: filterPublisher,
+    sort,
   };
 
   // Run search whenever q, activeType, page, or a filter changes
   const runSearch = useCallback(
     async (query: string, type: ActiveType, pg: number, filters: Filters) => {
-      if (!query) { setResults(null); setCounts(null); setFuzzy(false); setPageHits([]); setLoading(false); return; }
+      if (!query) {
+        setResults(null);
+        setCounts(null);
+        setFuzzy(false);
+        setPageHits([]);
+        setRelatedSubjects([]);
+        setPopularResources([]);
+        setLoading(false);
+        return;
+      }
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -358,10 +499,20 @@ export default function SearchPageClient({ departments, languages, categories }:
         url.searchParams.set("q", query);
         url.searchParams.set("type", type);
         url.searchParams.set("page", String(pg));
+        if (filters.sort) url.searchParams.set("sort", filters.sort);
         if (filters.lang) url.searchParams.set("lang", filters.lang);
-        if (filters.category) url.searchParams.set("category", filters.category);
+        if (filters.subject) url.searchParams.set("subject", filters.subject);
         if (filters.dept) url.searchParams.set("dept", filters.dept);
         if (filters.author) url.searchParams.set("author", filters.author);
+        if (filters.advisor) url.searchParams.set("advisor", filters.advisor);
+        if (filters.program) url.searchParams.set("program", filters.program);
+        if (filters.cohort) url.searchParams.set("cohort", filters.cohort);
+        if (filters.year) url.searchParams.set("year", filters.year);
+        if (filters.format) url.searchParams.set("format", filters.format);
+        if (filters.availability) url.searchParams.set("availability", filters.availability);
+        if (filters.views) url.searchParams.set("views", filters.views);
+        if (filters.downloads) url.searchParams.set("downloads", filters.downloads);
+        if (filters.rating) url.searchParams.set("rating", filters.rating);
         if (filters.isbn) url.searchParams.set("isbn", filters.isbn);
         if (filters.publisher) url.searchParams.set("publisher", filters.publisher);
 
@@ -374,6 +525,8 @@ export default function SearchPageClient({ departments, languages, categories }:
         setHasMore(data.hasMore ?? false);
         setFuzzy(data.fuzzy ?? false);
         setPageHits(data.pageHits ?? []);
+        setRelatedSubjects(data.relatedSubjects ?? []);
+        setPopularResources(data.popularResources ?? []);
         setLoading(false);
       } catch (err: unknown) {
         if ((err as Error)?.name === "AbortError") return;
@@ -387,19 +540,26 @@ export default function SearchPageClient({ departments, languages, categories }:
   useEffect(() => {
     runSearch(q, activeType, page, currentFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, activeType, page, filterLang, filterCategory, filterDept, filterAuthor, filterIsbn, filterPublisher]);
+  }, [
+    q, activeType, page, filterLang, filterSubject, filterDept, filterAuthor,
+    filterAdvisor, filterProgram, filterCohort, filterYear, filterFormat,
+    filterAvailability, filterViews, filterDownloads, filterRating,
+    filterIsbn, filterPublisher, sort,
+  ]);
 
-  const applyFilter = (key: "lang" | "category", value: string) => {
+  const applyFilter = (key: "lang" | "subject", value: string) => {
     const next = new URLSearchParams(params.toString());
     if (next.get(key) === value) next.delete(key); // clicking the active chip toggles it off
     else next.set(key, value);
+    if (key === "subject") next.delete("category");
     next.delete("page");
     router.replace(`/search?${next.toString()}`);
   };
 
-  const removeFilter = (key: "lang" | "category" | "dept" | "author" | "isbn" | "publisher") => {
+  const removeFilter = (key: keyof Filters) => {
     const next = new URLSearchParams(params.toString());
     next.delete(key);
+    if (key === "subject") next.delete("category");
     next.delete("page");
     router.replace(`/search?${next.toString()}`);
   };
@@ -407,9 +567,19 @@ export default function SearchPageClient({ departments, languages, categories }:
   const clearFilters = () => {
     const next = new URLSearchParams(params.toString());
     next.delete("lang");
+    next.delete("subject");
     next.delete("category");
     next.delete("dept");
     next.delete("author");
+    next.delete("advisor");
+    next.delete("program");
+    next.delete("cohort");
+    next.delete("year");
+    next.delete("format");
+    next.delete("availability");
+    next.delete("views");
+    next.delete("downloads");
+    next.delete("rating");
     next.delete("isbn");
     next.delete("publisher");
     next.delete("page");
@@ -450,6 +620,14 @@ export default function SearchPageClient({ departments, languages, categories }:
     setPage(1);
   };
 
+  const handleSortChange = (value: string) => {
+    const next = new URLSearchParams(params.toString());
+    if (value === "relevance") next.delete("sort");
+    else next.set("sort", value);
+    next.delete("page");
+    router.replace(`/search?${next.toString()}`);
+  };
+
   const clearInput = () => { setInput(""); setSuggestOpen(true); inputRef.current?.focus(); };
 
   // Grouped results for "all" view
@@ -469,7 +647,7 @@ export default function SearchPageClient({ departments, languages, categories }:
 
   // Facet chips computed from the current result set
   const availableCategories = Array.from(
-    new Set((results ?? []).map((r) => r.category).filter((v): v is string => !!v)),
+    new Set((results ?? []).map((r) => r.subject ?? r.category).filter((v): v is string => !!v)),
   );
   const availableLanguages = Array.from(
     new Set((results ?? []).map((r) => r.language).filter((v): v is string => !!v)),
@@ -507,7 +685,6 @@ export default function SearchPageClient({ departments, languages, categories }:
             onKeyDown={handleInputKeyDown}
             placeholder={t("placeholder")}
             aria-label={t("ariaLabel")}
-            autoFocus
             autoComplete="off"
             role="combobox"
             aria-autocomplete="list"
@@ -668,7 +845,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                             <span className="block truncate text-sm font-medium" style={{ color: "var(--ptec-text-heading)" }}>
                               {highlightMatch(s.label, input)}
                             </span>
-                            {(s.type === "book" || s.type === "research") && s.sub && (
+                            {(s.type === "book" || s.type === "research" || s.type === "publication" || s.type === "catalog" || s.type === "post") && s.sub && (
                               <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--ptec-text-muted)" }}>
                                 {s.sub}
                               </span>
@@ -715,20 +892,56 @@ export default function SearchPageClient({ departments, languages, categories }:
         <SearchAdvancedModal
           currentQ={q}
           currentAuthor={filterAuthor}
+          currentAdvisor={filterAdvisor}
           currentIsbn={filterIsbn}
           currentPublisher={filterPublisher}
-          currentCategory={filterCategory}
+          currentSubject={filterSubject}
           currentLanguage={filterLang}
           currentDepartment={filterDept}
+          currentProgram={filterProgram}
+          currentCohort={filterCohort}
+          currentYear={filterYear}
+          currentFormat={filterFormat}
+          currentAvailability={filterAvailability}
+          currentViews={filterViews}
+          currentDownloads={filterDownloads}
+          currentRating={filterRating}
           categories={categories}
           languages={languages}
           departments={departments}
         />
+        <label className="inline-flex h-9 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3 text-[12.5px] font-semibold text-text-body shadow-sm">
+          <span className="text-text-muted">{t("sortLabel")}</span>
+          <select
+            value={sort}
+            onChange={(e) => handleSortChange(e.target.value)}
+            className="h-7 cursor-pointer bg-transparent text-[12.5px] font-semibold text-text-heading outline-none"
+            aria-label={t("sortLabel")}
+          >
+            <option value="relevance">{t("sortRelevance")}</option>
+            <option value="newest">{t("sortNewest")}</option>
+            <option value="oldest">{t("sortOldest")}</option>
+            <option value="title">{t("sortTitle")}</option>
+            <option value="views">{t("sortViews")}</option>
+            <option value="downloads">{t("sortDownloads")}</option>
+            <option value="rating">{t("sortRating")}</option>
+          </select>
+        </label>
         {([
           ["author", filterAuthor, t("advFieldAuthor")],
+          ["advisor", filterAdvisor, t("advFieldAdvisor")],
           ["isbn", filterIsbn, t("advFieldIsbn")],
           ["publisher", filterPublisher, t("advFieldPublisher")],
           ["dept", filterDept, t("advFieldDepartment")],
+          ["subject", filterSubject, t("advFieldSubject")],
+          ["program", filterProgram, t("advFieldProgram")],
+          ["cohort", filterCohort, t("advFieldCohort")],
+          ["year", filterYear, t("advFieldYear")],
+          ["format", filterFormat, t("advFieldFormat")],
+          ["availability", filterAvailability, t("advFieldAvailability")],
+          ["views", filterViews, t("advFieldViews")],
+          ["downloads", filterDownloads, t("advFieldDownloads")],
+          ["rating", filterRating, t("advFieldRating")],
         ] as const).map(([key, value, label]) =>
           value ? (
             <span
@@ -819,12 +1032,12 @@ export default function SearchPageClient({ departments, languages, categories }:
             {t("filter")}
           </span>
           {availableCategories.map((cat) => {
-            const active = filterCategory === cat;
+            const active = filterSubject === cat;
             return (
               <button
                 key={`cat-${cat}`}
                 type="button"
-                onClick={() => applyFilter("category", cat)}
+                onClick={() => applyFilter("subject", cat)}
                 className="rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
                 style={{
                   background: active ? "var(--ptec-brand)" : "var(--ptec-bg-body)",
@@ -854,7 +1067,7 @@ export default function SearchPageClient({ departments, languages, categories }:
               </button>
             );
           })}
-          {(filterLang || filterCategory) && (
+          {(filterLang || filterSubject) && (
             <button
               type="button"
               onClick={clearFilters}
@@ -910,6 +1123,39 @@ export default function SearchPageClient({ departments, languages, categories }:
           <p className="text-[13px]" style={{ color: "var(--ptec-text-muted)" }}>
             {t("noResultsBody")}
           </p>
+          {(relatedSubjects.length > 0 || popularSearches.length > 0) && (
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {(relatedSubjects.length > 0 ? relatedSubjects : popularSearches).slice(0, 6).map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => router.push(`/search?q=${encodeURIComponent(term)}`)}
+                  className="rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:border-brand/40 hover:text-brand"
+                  style={{ borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
+          {popularResources.length > 0 && (
+            <div className="mx-auto mt-5 max-w-md space-y-2 text-left">
+              <p className="text-center text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--ptec-text-muted)" }}>
+                {t("popularResources")}
+              </p>
+              {popularResources.slice(0, 3).map((item) => (
+                <Link
+                  key={`${item.type}-${item.id}`}
+                  href={item.url}
+                  onClick={() => trackSearchClick(item, q, "no-results-popular")}
+                  className="block rounded-xl border px-3 py-2 text-[13px] font-semibold transition-colors hover:border-brand/40 hover:text-brand"
+                  style={{ borderColor: "var(--ptec-border)", color: "var(--ptec-text-heading)" }}
+                >
+                  {item.title}
+                </Link>
+              ))}
+            </div>
+          )}
           <Link
             href="/books"
             className="mt-4 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
@@ -940,13 +1186,14 @@ export default function SearchPageClient({ departments, languages, categories }:
           {activeType === "all" ? (
             // Grouped "All" view
             <div className="space-y-8">
-              {(["book", "research", "catalog", "post"] as SearchResultType[]).map((type) => {
+              {(["book", "research", "publication", "catalog", "post"] as SearchResultType[]).map((type) => {
                 const group = byType(type);
                 if (group.length === 0) return null;
                 const totalForType = counts?.[type] ?? group.length;
-                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupCatalog" | "groupPosts"> = {
+                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupPublications" | "groupCatalog" | "groupPosts"> = {
                   book:     "groupBooks",
                   research: "groupTheses",
+                  publication: "groupPublications",
                   catalog:  "groupCatalog",
                   post:     "groupPosts",
                 };
@@ -959,7 +1206,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                     />
                     <div className="space-y-2.5">
                       {group.map((r) => (
-                        <ResultCard key={r.id} result={r} />
+                        <ResultCard key={r.id} result={r} query={q} />
                       ))}
                     </div>
                   </div>
@@ -970,7 +1217,7 @@ export default function SearchPageClient({ departments, languages, categories }:
             // Flat type-specific view
             <div className="space-y-2.5">
               {results!.map((r) => (
-                <ResultCard key={r.id} result={r} />
+                <ResultCard key={r.id} result={r} query={q} />
               ))}
             </div>
           )}

@@ -2,12 +2,14 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
 import { broadcastPush } from "@/lib/push";
+import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import {
   mapRowToPublication,
   PUBLICATION_DETAIL_SELECT,
@@ -377,6 +379,10 @@ export async function createPublication(
   }
 
   await queuePublicationEmbedding(created.id);
+  if (formData.pdf_url) {
+    const pdfUrl = formData.pdf_url;
+    after(() => indexPdfPagesSafe("publication", created.id, pdfUrl));
+  }
   await logAdminAction(userId, "publication.create", "publications", created.id, { title: created.title });
   await createAdminNotification("new_publication", `New publication: "${created.title}"`, undefined, "/admin/publications");
   revalidateAll();
@@ -401,6 +407,12 @@ export async function updatePublication(
   if (sanitized.error || !sanitized.data) {
     return { success: false as const, error: sanitized.error ?? "Invalid publication data" };
   }
+
+  const { data: before } = await supabase
+    .from("publications")
+    .select("pdf_url")
+    .eq("id", id)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("publications")
@@ -448,6 +460,10 @@ export async function updatePublication(
   }
 
   await queuePublicationEmbedding(id);
+  if (formData.pdf_url && formData.pdf_url !== before?.pdf_url) {
+    const pdfUrl = formData.pdf_url;
+    after(() => indexPdfPagesSafe("publication", id, pdfUrl));
+  }
   await logAdminAction(userId, "publication.update", "publications", id, { title: formData.title });
   revalidateAll();
   return { success: true as const };
@@ -510,6 +526,7 @@ export async function deletePublication(id: string) {
     .single();
 
   await supabase.from("view_logs").delete().eq("content_type", "publication").eq("content_id", id);
+  await supabase.from("book_pages").delete().eq("record_type", "publication").eq("record_id", id);
 
   const { error } = await supabase.from("publications").delete().eq("id", id);
   if (error) {

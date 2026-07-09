@@ -1,6 +1,7 @@
-// Native full-text search across books, research reports, catalog, and posts.
-// Uses Postgres trigram ILIKE (indexes already exist on key columns).
-// This is separate from /api/search which is the AI semantic "Ask Library" endpoint.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Native academic search across books, theses, publications, physical catalog,
+// and posts. Ranking is intentionally computed server-side so the UI receives
+// a lightweight, already-ordered response.
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
@@ -10,17 +11,21 @@ import { logSecurityEvent } from "@/lib/security-log";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE_ALL = 4;   // results per type in "all" view (16 max total)
-const PAGE_SIZE_TYPE = 10; // results per page in type-specific view
+const PAGE_SIZE_ALL = 4;
+const PAGE_SIZE_TYPE = 10;
+const CANDIDATE_LIMIT_ALL = 80;
+const CANDIDATE_LIMIT_TYPE = 260;
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
-// Rate limit comes from ratePolicy("searchNative") — RL_SEARCH_NATIVE_PER_MIN to override.
+const CACHE_TTL_MS = 45_000;
+const CACHE_MAX = 80;
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export type SearchResultType = "book" | "research" | "catalog" | "post";
+export type SearchResultType = "book" | "research" | "publication" | "catalog" | "post";
+export type ActiveSearchType = "all" | SearchResultType;
+export type SearchSort = "relevance" | "newest" | "oldest" | "title" | "views" | "downloads" | "rating";
 
 export type SearchResult = {
   id: string;
+  ref: string;
   type: SearchResultType;
   title: string;
   author: string;
@@ -30,23 +35,31 @@ export type SearchResult = {
   department?: string | null;
   language?: string | null;
   category?: string | null;
+  subject?: string | null;
   isbn?: string | null;
   publisher?: string | null;
   rating?: number | null;
-  excerpt?: string | null;
+  views?: number;
   downloadCount?: number;
+  excerpt?: string | null;
+  keywords?: string[];
+  format?: string | null;
+  availability?: string | null;
+  score?: number;
+  matchedFields?: string[];
+  actions?: {
+    view?: string;
+    read?: string;
+    download?: string;
+    cite?: string;
+    save?: string;
+  };
 };
 
-export type SearchCounts = {
-  book: number;
-  research: number;
-  catalog: number;
-  post: number;
-  total: number;
-};
+export type SearchCounts = Record<SearchResultType, number> & { total: number };
 
 export type PageHit = {
-  recordType: "book" | "research";
+  recordType: "book" | "research" | "publication";
   recordId: string;
   title: string;
   url: string;
@@ -54,18 +67,81 @@ export type PageHit = {
   snippet: string;
 };
 
+export type SearchFacets = {
+  subjects: string[];
+  languages: string[];
+  authors: string[];
+  years: number[];
+  formats: string[];
+  availability: string[];
+};
+
 export type NativeSearchResponse = {
   results: SearchResult[];
   counts: SearchCounts;
   page: number;
   hasMore: boolean;
-  /** True when exact search found nothing and these are trigram close matches. */
   fuzzy?: boolean;
-  /** Full-text matches inside PDF content (book_pages, migration 0066). */
+  didYouMean?: string | null;
   pageHits?: PageHit[];
+  facets?: SearchFacets;
+  relatedSubjects?: string[];
+  popularResources?: SearchResult[];
+  sort: SearchSort;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+type DB = ReturnType<typeof createServiceClient>;
+
+type Filters = {
+  dept?: string;
+  lang?: string;
+  subject?: string;
+  author?: string;
+  advisor?: string;
+  program?: string;
+  cohort?: string;
+  year?: string;
+  format?: string;
+  availability?: string;
+  isbn?: string;
+  publisher?: string;
+  minViews?: number;
+  minDownloads?: number;
+  minRating?: number;
+};
+
+type Candidate = SearchResult & {
+  searchableText: string;
+  titleText: string;
+  authorText: string;
+  subjectText: string;
+  keywordText: string;
+  bodyText: string;
+  dateValue: number;
+  popularityValue: number;
+};
+
+type PerTypeSearch = { data: SearchResult[]; count: number; allCandidates: SearchResult[] };
+
+const responseCache = new Map<string, { expires: number; body: NativeSearchResponse }>();
+
+function cacheGet(key: string): NativeSearchResponse | null {
+  const hit = responseCache.get(key);
+  if (!hit) return null;
+  if (hit.expires < Date.now()) {
+    responseCache.delete(key);
+    return null;
+  }
+  return hit.body;
+}
+
+function cacheSet(key: string, body: NativeSearchResponse) {
+  if (responseCache.size >= CACHE_MAX) {
+    const first = responseCache.keys().next().value;
+    if (first) responseCache.delete(first);
+  }
+  responseCache.set(key, { expires: Date.now() + CACHE_TTL_MS, body });
+}
 
 function coverUrlOf(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -73,289 +149,655 @@ function coverUrlOf(raw: string | null | undefined): string | null {
 }
 
 function sanitize(raw: string): string {
-  return raw.replace(/[%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  return raw
+    .replace(/[%_(),\\*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+}
+
+function normalize(raw: string | null | undefined): string {
+  return (raw ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function tokenize(q: string): string[] {
   const words = q.split(/\s+/).filter((w) => w.length >= 2);
-  return Array.from(new Set([q, ...words])).slice(0, 5);
+  return Array.from(new Set([q, ...words])).slice(0, 8);
 }
 
 function orFilter(fields: string[], tokens: string[]): string {
   const clauses: string[] = [];
-  for (const tok of tokens)
-    for (const f of fields)
-      clauses.push(`${f}.ilike.%${tok}%`);
+  for (const tok of tokens) {
+    const safe = sanitize(tok);
+    if (!safe) continue;
+    for (const f of fields) clauses.push(`${f}.ilike.%${safe}%`);
+  }
   return clauses.join(",");
 }
 
 function yearOf(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
   const y = new Date(dateStr).getFullYear();
-  return isNaN(y) ? null : y;
+  return Number.isFinite(y) ? y : null;
 }
 
-function makeExcerpt(text: string | null | undefined, len = 150): string | null {
+function yearFromText(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/\b(19|20)\d{2}\b/);
+  return match ? Number(match[0]) : null;
+}
+
+function makeExcerpt(text: string | null | undefined, len = 170): string | null {
   if (!text) return null;
   const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length <= len ? clean : clean.slice(0, len) + "…";
+  return clean.length <= len ? clean : `${clean.slice(0, len)}...`;
+}
+
+function cleanArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.flatMap((item) => {
+        const clean = typeof item === "string" ? item.trim() : "";
+        return clean ? [clean] : [];
+      })
+    : [];
+}
+
+function hasKhmer(text: string): boolean {
+  return /[\u1780-\u17ff]/.test(text);
 }
 
 function getClientIP(req: Request): string {
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
   const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
+  if (xff) {
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return "unknown";
 }
 
-/**
- * Best-effort log for "popular searches" + the zero-result report — never
- * fails the request. `result_count` (migration 0064) is requested first and
- * falls back to the pre-0064 shape on undefined-column, so "popular searches"
- * keeps working on environments where 0064 hasn't been applied yet.
- */
-async function logSearchQuery(db: DB, term: string, resultCount: number): Promise<void> {
+async function logSearchQuery(
+  db: DB,
+  term: string,
+  resultCount: number,
+  type: ActiveSearchType,
+  sort: SearchSort,
+): Promise<void> {
   try {
-    const { error } = await db.from("search_queries").insert({ term, result_count: resultCount });
-    // PostgREST reports an unknown column on INSERT as PGRST204 (schema-cache
-    // miss), not Postgres's own 42703 (which shows up on SELECT instead) —
-    // check both so this fallback actually fires pre-migration.
+    const payload = {
+      term,
+      result_count: resultCount,
+      query_language: hasKhmer(term) ? "km" : "en",
+      resource_type: type,
+      sort,
+    };
+    const { error } = await db.from("search_queries").insert(payload);
     if (error?.code === "42703" || error?.code === "PGRST204") {
-      await db.from("search_queries").insert({ term });
+      await db.from("search_queries").insert({ term, result_count: resultCount });
     }
   } catch (err) {
     console.error("[native-search] query log failed:", err);
   }
 }
 
-// ── Per-table searchers ───────────────────────────────────────────────────────
+function searchScore(row: Candidate, q: string, pageHitIds: Set<string>): SearchResult {
+  const query = normalize(q);
+  const tokens = tokenize(q).map(normalize).filter(Boolean);
+  const matched = new Set<string>();
+  let score = 0;
 
-type DB = ReturnType<typeof createServiceClient>;
+  const title = normalize(row.titleText);
+  const author = normalize(row.authorText);
+  const subject = normalize(row.subjectText);
+  const keywords = normalize(row.keywordText);
+  const body = normalize(row.bodyText);
+  const all = normalize(row.searchableText);
 
-async function searchBooks(
-  db: DB,
-  tokens: string[],
-  limit: number,
-  from = 0,
-  dept?: string,
-  lang?: string,
-  category?: string,
-  author?: string,
-  isbn?: string,
-  publisher?: string,
-): Promise<{ data: SearchResult[]; count: number }> {
-  const authorsJoin = category || author ? "authors!inner(name)" : "authors(name)";
-  const categoriesJoin = category ? "categories!inner(name)" : "categories(name)";
+  const bump = (amount: number, field: string) => {
+    score += amount;
+    matched.add(field);
+  };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q: any = db
+  if (title === query) bump(260, "title");
+  else if (title.startsWith(query)) bump(190, "title");
+  else if (title.includes(query)) bump(145, "title");
+
+  if (author === query) bump(125, "author");
+  else if (author.includes(query)) bump(96, "author");
+
+  if (subject === query) bump(100, "subject");
+  else if (subject.includes(query)) bump(74, "subject");
+
+  if (keywords.includes(query)) bump(60, "keywords");
+  if (body.includes(query)) bump(30, "abstract");
+
+  for (const tok of tokens) {
+    if (tok === query) continue;
+    if (title.includes(tok)) bump(22, "title");
+    if (author.includes(tok)) bump(18, "author");
+    if (subject.includes(tok)) bump(14, "subject");
+    if (keywords.includes(tok)) bump(10, "keywords");
+    if (body.includes(tok)) bump(6, "abstract");
+  }
+
+  if (pageHitIds.has(`${row.type}:${row.id}`)) bump(42, "pdf");
+  if (score === 0 && all.includes(query)) bump(8, "text");
+
+  const popularityBoost =
+    Math.min(row.views ?? 0, 1200) / 1200 * 8 +
+    Math.min(row.downloadCount ?? 0, 800) / 800 * 10 +
+    Math.min(Number(row.rating ?? 0), 5) * 1.5;
+  score += popularityBoost;
+
+  if (row.year) {
+    const age = Math.max(0, new Date().getFullYear() - row.year);
+    score += Math.max(0, 5 - age * 0.35);
+  }
+
+  return {
+    ...row,
+    score: Math.round(score * 100) / 100,
+    matchedFields: Array.from(matched),
+    searchableText: undefined,
+    titleText: undefined,
+    authorText: undefined,
+    subjectText: undefined,
+    keywordText: undefined,
+    bodyText: undefined,
+    dateValue: undefined,
+    popularityValue: undefined,
+  } as SearchResult;
+}
+
+function compareBySort(a: SearchResult, b: SearchResult, sort: SearchSort): number {
+  if (sort === "newest") return (b.year ?? 0) - (a.year ?? 0) || (b.score ?? 0) - (a.score ?? 0);
+  if (sort === "oldest") return (a.year ?? 9999) - (b.year ?? 9999) || (b.score ?? 0) - (a.score ?? 0);
+  if (sort === "title") return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+  if (sort === "views") return (b.views ?? 0) - (a.views ?? 0) || (b.score ?? 0) - (a.score ?? 0);
+  if (sort === "downloads") return (b.downloadCount ?? 0) - (a.downloadCount ?? 0) || (b.score ?? 0) - (a.score ?? 0);
+  if (sort === "rating") return (b.rating ?? 0) - (a.rating ?? 0) || (b.score ?? 0) - (a.score ?? 0);
+  return (b.score ?? 0) - (a.score ?? 0) || (b.views ?? 0) - (a.views ?? 0);
+}
+
+function countsOf(results: SearchResult[]): SearchCounts {
+  const counts: SearchCounts = { book: 0, research: 0, publication: 0, catalog: 0, post: 0, total: results.length };
+  for (const r of results) counts[r.type] += 1;
+  return counts;
+}
+
+function facetsOf(results: SearchResult[]): SearchFacets {
+  const subjects = new Set<string>();
+  const languages = new Set<string>();
+  const authors = new Set<string>();
+  const years = new Set<number>();
+  const formats = new Set<string>();
+  const availability = new Set<string>();
+  for (const r of results) {
+    if (r.subject || r.category) subjects.add((r.subject || r.category)!);
+    if (r.language) languages.add(r.language);
+    if (r.author && r.author !== "Unknown") authors.add(r.author);
+    if (r.year) years.add(r.year);
+    if (r.format) formats.add(r.format);
+    if (r.availability) availability.add(r.availability);
+  }
+  return {
+    subjects: [...subjects].sort().slice(0, 20),
+    languages: [...languages].sort().slice(0, 12),
+    authors: [...authors].sort().slice(0, 12),
+    years: [...years].sort((a, b) => b - a).slice(0, 20),
+    formats: [...formats].sort(),
+    availability: [...availability].sort(),
+  };
+}
+
+function filterCommon(row: Candidate, filters: Filters): boolean {
+  if (filters.minViews != null && (row.views ?? 0) < filters.minViews) return false;
+  if (filters.minDownloads != null && (row.downloadCount ?? 0) < filters.minDownloads) return false;
+  if (filters.minRating != null && Number(row.rating ?? 0) < filters.minRating) return false;
+  if (filters.year && row.year !== Number(filters.year)) return false;
+  if (filters.format && normalize(row.format) !== normalize(filters.format)) return false;
+  if (filters.availability) {
+    const wanted = normalize(filters.availability);
+    const actual = normalize(row.availability);
+    const downloadable = wanted === "downloadable" && (actual.includes("digital") || actual.includes("download"));
+    const available = wanted === "available" && (actual.includes("available") || actual.includes("digital"));
+    if (!downloadable && !available && !actual.includes(wanted)) return false;
+  }
+  return true;
+}
+
+async function lookupIds(db: DB, table: string, column: string, q: string, idColumn = "id"): Promise<string[]> {
+  if (!q) return [];
+  try {
+    const { data } = await db
+      .from(table)
+      .select(idColumn)
+      .ilike(column, `%${q}%`)
+      .limit(80);
+    return (data ?? []).map((r: any) => String(r[idColumn])).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function matchingBookFileIds(db: DB, filters: Filters): Promise<string[] | null> {
+  if (!filters.format && !filters.availability) return null;
+  let q = db.from("book_files").select("book_id").not("file_url", "is", null).limit(500);
+  if (filters.format) q = q.ilike("format", filters.format);
+  const { data, error } = await q;
+  if (error) return [];
+  return [...new Set((data ?? []).map((row: any) => row.book_id as string).filter(Boolean))];
+}
+
+async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+  const [authorIds, categoryIds, departmentIds, fileBookIds] = await Promise.all([
+    lookupIds(db, "authors", "name", q),
+    lookupIds(db, "categories", "name", q),
+    lookupIds(db, "departments", "name", q),
+    matchingBookFileIds(db, filters),
+  ]);
+
+  const categoryFilter = filters.subject;
+  const authorsJoin = filters.author || authorIds.length ? "authors!inner(name)" : "authors(name)";
+  const categoriesJoin = categoryFilter || categoryIds.length ? "categories!inner(name)" : "categories(name)";
+  const departmentsJoin = filters.dept || departmentIds.length ? "departments!inner(name)" : "departments(name)";
+
+  let query: any = db
     .from("books")
     .select(
-      `id, slug, title, cover_url, description, language, published_at, rating, download_count, department, isbn, publisher, reviews(count), ${authorsJoin}, ${categoriesJoin}`,
-      { count: "exact" }
+      `id, slug, title, cover_url, description, language, published_at, created_at, rating, download_count, view_count, department, isbn, publisher, tags, reviews(count), book_files(format, file_url), ${authorsJoin}, ${categoriesJoin}, ${departmentsJoin}`,
+      { count: "exact" },
     )
-    .eq("is_published", true)
-    .or(orFilter(["title", "description"], tokens));
+    .eq("is_published", true);
 
-  if (dept) q = q.eq("department", dept);
-  if (lang) q = q.eq("language", lang);
-  if (category) q = q.eq("categories.name", category);
-  if (author) q = q.ilike("authors.name", `%${author}%`);
-  if (isbn) q = q.ilike("isbn", `%${isbn.trim()}%`);
-  if (publisher) q = q.ilike("publisher", `%${publisher}%`);
+  const orParts = [
+    orFilter(["title", "description", "isbn", "publisher"], tokens),
+    authorIds.length ? `author_id.in.(${authorIds.join(",")})` : "",
+    categoryIds.length ? `category_id.in.(${categoryIds.join(",")})` : "",
+    departmentIds.length ? `department_id.in.(${departmentIds.join(",")})` : "",
+  ].filter(Boolean);
+  if (orParts.length) query = query.or(orParts.join(","));
 
-  const { data, count, error } = await q
-    .order("download_count", { ascending: false })
-    .range(from, from + limit - 1);
+  if (filters.lang) query = query.eq("language", filters.lang);
+  if (filters.dept) query = query.eq("departments.name", filters.dept);
+  if (categoryFilter) query = query.eq("categories.name", categoryFilter);
+  if (filters.author) query = query.ilike("authors.name", `%${filters.author}%`);
+  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
+  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+  if (filters.year) query = query.gte("published_at", `${filters.year}-01-01`).lte("published_at", `${filters.year}-12-31`);
+  if (fileBookIds) query = fileBookIds.length ? query.in("id", fileBookIds) : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+  const { data, count, error } = await query
+    .order("download_count", { ascending: false, nullsFirst: false })
+    .limit(limit);
 
   if (error) {
     console.error("[native-search/books]", error.message);
-    return { data: [], count: 0 };
+    return { data: [], count: 0, allCandidates: [] };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: SearchResult[] = (data ?? []).map((r: any) => ({
-    id: r.id,
-    type: "book" as const,
-    title: r.title,
-    author: r.authors?.name ?? "Unknown",
-    coverUrl: coverUrlOf(r.cover_url),
-    url: `/books/${r.slug}`,
-    year: yearOf(r.published_at),
-    department: r.department ?? null,
-    language: r.language ?? null,
-    category: r.categories?.name ?? null,
-    isbn: r.isbn ?? null,
-    publisher: r.publisher ?? null,
-    // Only surface a rating when real reviews exist — the column default (5)
-    // must never render as social proof for an unreviewed book.
-    rating: (r.reviews?.[0]?.count ?? 0) > 0 && r.rating ? Number(r.rating) : null,
-    excerpt: makeExcerpt(r.description),
-    downloadCount: r.download_count ?? 0,
-  }));
-
-  return { data: results, count: count ?? 0 };
-}
-
-async function searchResearch(
-  db: DB,
-  tokens: string[],
-  limit: number,
-  from = 0,
-  category?: string,
-  author?: string,
-): Promise<{ data: SearchResult[]; count: number }> {
-  let q = db
-    .from("research_reports")
-    .select(
-      "id, slug, title, cover_url, abstract, author_names, program, academic_year, view_count",
-      { count: "exact" }
-    )
-    .eq("is_published", true)
-    .or(orFilter(["title", "abstract", "author_names"], tokens));
-
-  if (category) q = q.eq("program", category);
-  if (author) q = q.ilike("author_names", `%${author}%`);
-
-  const { data, count, error } = await q
-    .order("view_count", { ascending: false })
-    .range(from, from + limit - 1);
-
-  if (error) {
-    console.error("[native-search/research]", error.message);
-    return { data: [], count: 0 };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: SearchResult[] = (data ?? []).map((r: any) => {
-    const ayRaw: string = r.academic_year ?? "";
-    const year = ayRaw ? parseInt(ayRaw.split("/")[0] ?? ayRaw, 10) || null : null;
+  const candidates: Candidate[] = (data ?? []).map((r: any) => {
+    const files = Array.isArray(r.book_files) ? r.book_files : [];
+    const pdf = files.find((f: any) => f?.file_url) ?? null;
+    const author = r.authors?.name ?? "Unknown";
+    const category = r.categories?.name ?? null;
+    const dept = r.departments?.name ?? r.department ?? null;
+    const keywords = cleanArray(r.tags);
+    const year = yearOf(r.published_at);
     return {
       id: r.id,
-      type: "research" as const,
+      ref: r.slug,
+      type: "book" as const,
       title: r.title,
-      author: r.author_names ?? "Unknown",
+      author,
       coverUrl: coverUrlOf(r.cover_url),
-      url: `/theses/${r.slug ?? r.id}`,
+      url: `/books/${r.slug}`,
       year,
-      category: r.program ?? null,
-      excerpt: makeExcerpt(r.abstract),
+      department: dept,
+      language: r.language ?? null,
+      category,
+      subject: category ?? dept,
+      isbn: r.isbn ?? null,
+      publisher: r.publisher ?? null,
+      rating: (r.reviews?.[0]?.count ?? 0) > 0 && r.rating ? Number(r.rating) : null,
+      views: r.view_count ?? 0,
+      downloadCount: r.download_count ?? 0,
+      excerpt: makeExcerpt(r.description),
+      keywords,
+      format: pdf?.format ?? "PDF",
+      availability: pdf?.file_url ? "Digital" : "Metadata only",
+      actions: {
+        view: `/books/${r.slug}`,
+        read: pdf?.file_url ? `/books/${r.slug}/read` : undefined,
+        download: pdf?.file_url ? `/api/books/${r.id}/file?download=1` : undefined,
+        cite: `/books/${r.slug}#cite`,
+        save: `/books/${r.slug}#save`,
+      },
+      searchableText: [r.title, author, category, dept, r.description, r.isbn, r.publisher, keywords.join(" ")].filter(Boolean).join(" "),
+      titleText: r.title,
+      authorText: author,
+      subjectText: [category, dept].filter(Boolean).join(" "),
+      keywordText: keywords.join(" "),
+      bodyText: r.description ?? "",
+      dateValue: year ?? 0,
+      popularityValue: (r.view_count ?? 0) + (r.download_count ?? 0),
     };
-  });
+  }).filter((row: Candidate) => filterCommon(row, filters));
 
-  return { data: results, count: count ?? 0 };
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
 }
 
-async function searchCatalog(
-  db: DB,
-  tokens: string[],
-  limit: number,
-  from = 0,
-  category?: string,
-  author?: string,
-  isbn?: string,
-  publisher?: string,
-): Promise<{ data: SearchResult[]; count: number }> {
-  let q = db
-    .from("catalog_books")
+async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+
+  let query: any = db
+    .from("research_reports")
     .select(
-      "id, slug, title, cover_url, author, description, category, isbn, publisher",
-      { count: "exact" }
-    )
-    .eq("is_active", true)
-    .or(orFilter(["title", "author", "description"], tokens));
-
-  if (category) q = q.eq("category", category);
-  if (author) q = q.ilike("author", `%${author}%`);
-  if (isbn) q = q.ilike("isbn", `%${isbn.trim()}%`);
-  if (publisher) q = q.ilike("publisher", `%${publisher}%`);
-
-  const { data, count, error } = await q
-    .order("title", { ascending: true })
-    .range(from, from + limit - 1);
-
-  if (error) {
-    console.error("[native-search/catalog]", error.message);
-    return { data: [], count: 0 };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: SearchResult[] = (data ?? []).map((r: any) => ({
-    id: r.id,
-    type: "catalog" as const,
-    title: r.title,
-    author: r.author ?? "Unknown",
-    coverUrl: coverUrlOf(r.cover_url),
-    url: `/catalogs/${r.slug ?? r.id}`,
-    category: r.category ?? "Physical Book",
-    isbn: r.isbn ?? null,
-    publisher: r.publisher ?? null,
-    excerpt: makeExcerpt(r.description),
-  }));
-
-  return { data: results, count: count ?? 0 };
-}
-
-async function searchPosts(
-  db: DB,
-  tokens: string[],
-  limit: number,
-  from = 0,
-  category?: string,
-): Promise<{ data: SearchResult[]; count: number }> {
-  let q = db
-    .from("posts")
-    .select(
-      "id, slug, title, cover_url, excerpt, category, created_at",
-      { count: "exact" }
+      "id, slug, title, cover_url, abstract, author_names, advisor_name, co_advisor_name, program, cohort, academic_year, subject, faculty, keywords, language, thesis_type, view_count, download_count, published_at, created_at, file_url",
+      { count: "exact" },
     )
     .eq("is_published", true)
-    .or(orFilter(["title", "excerpt"], tokens));
+    .or(orFilter(["title", "abstract", "author_names", "advisor_name", "subject"], tokens));
 
-  if (category) q = q.eq("category", category);
-
-  const { data, count, error } = await q
-    .order("created_at", { ascending: false })
-    .range(from, from + limit - 1);
-
-  if (error) {
-    console.error("[native-search/posts]", error.message);
-    return { data: [], count: 0 };
+  if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
+  if (filters.program) query = query.eq("program", filters.program);
+  if (filters.cohort) query = query.eq("cohort", filters.cohort);
+  if (filters.lang) query = query.eq("language", filters.lang);
+  if (filters.year) query = query.ilike("academic_year", `%${filters.year}%`);
+  if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  if (filters.availability && filters.availability !== "digital" && filters.availability !== "downloadable") {
+    query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: SearchResult[] = (data ?? []).map((r: any) => ({
-    id: r.id,
-    type: "post" as const,
-    title: r.title,
-    author: "",
-    coverUrl: coverUrlOf(r.cover_url),
-    url: `/posts/${r.slug}`,
-    year: yearOf(r.created_at),
-    category: r.category ?? "News",
-    excerpt: makeExcerpt(r.excerpt),
-  }));
+  const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
+  if (error) {
+    console.error("[native-search/research]", error.message);
+    return { data: [], count: 0, allCandidates: [] };
+  }
 
-  return { data: results, count: count ?? 0 };
+  const candidates: Candidate[] = (data ?? []).map((r: any) => {
+    const year = yearFromText(r.academic_year) ?? yearOf(r.published_at) ?? yearOf(r.created_at);
+    const author = r.author_names ?? "Unknown";
+    const subject = r.subject ?? r.program ?? r.faculty ?? "Thesis";
+    const keywords = cleanArray(r.keywords);
+    const ref = r.slug ?? r.id;
+    return {
+      id: r.id,
+      ref,
+      type: "research" as const,
+      title: r.title,
+      author,
+      coverUrl: coverUrlOf(r.cover_url),
+      url: `/theses/${ref}`,
+      year,
+      language: r.language ?? null,
+      category: r.program ?? "Thesis",
+      subject,
+      rating: null,
+      views: r.view_count ?? 0,
+      downloadCount: r.download_count ?? 0,
+      excerpt: makeExcerpt(r.abstract),
+      keywords,
+      format: r.file_url ? "PDF" : null,
+      availability: r.file_url ? "Digital" : "Metadata only",
+      actions: {
+        view: `/theses/${ref}`,
+        read: r.file_url ? `/theses/${ref}#fulltext` : undefined,
+        download: r.file_url ? `/api/theses/${r.id}/file?download=1` : undefined,
+        cite: `/theses/${ref}#cite`,
+        save: `/theses/${ref}#save`,
+      },
+      searchableText: [r.title, author, r.advisor_name, r.co_advisor_name, subject, r.abstract, keywords.join(" ")].filter(Boolean).join(" "),
+      titleText: r.title,
+      authorText: [author, r.advisor_name, r.co_advisor_name].filter(Boolean).join(" "),
+      subjectText: subject,
+      keywordText: keywords.join(" "),
+      bodyText: r.abstract ?? "",
+      dateValue: year ?? 0,
+      popularityValue: (r.view_count ?? 0) + (r.download_count ?? 0),
+    };
+  }).filter((row: Candidate) => {
+    if (filters.subject) {
+      const haystack = normalize([row.subject, row.category, row.keywordText].filter(Boolean).join(" "));
+      if (!haystack.includes(normalize(filters.subject))) return false;
+    }
+    if (filters.advisor) {
+      const haystack = normalize(row.authorText);
+      if (!haystack.includes(normalize(filters.advisor))) return false;
+    }
+    return filterCommon(row, filters);
+  });
+
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
 }
 
-// ── Fuzzy fallback (typo tolerance) ───────────────────────────────────────────
-// Only runs when exact ILIKE search returns zero rows and no filters are
-// active. Trigram word_similarity handles misspellings in both Khmer and
-// English (migration 0059_fuzzy_search.sql).
+async function searchPublications(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+  let query: any = db
+    .from("publications_with_stats")
+    .select(
+      "id, slug, title, title_km, cover_url, abstract, abstract_km, author_names, journal_name, article_type, language, keywords, subjects, publisher, isbn, view_count, download_count, publication_date, published_at, created_at, pdf_url",
+      { count: "exact" },
+    )
+    .eq("is_published", true)
+    .or(orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn"], tokens));
 
-const FUZZY_URL: Record<string, (ref: string) => string> = {
+  if (filters.lang) query = query.eq("language", filters.lang);
+  if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
+  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
+  if (filters.year) query = query.gte("publication_date", `${filters.year}-01-01`).lte("publication_date", `${filters.year}-12-31`);
+  if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  if (filters.availability && filters.availability !== "digital" && filters.availability !== "downloadable") {
+    query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  }
+
+  const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
+  if (error) {
+    console.error("[native-search/publications]", error.message);
+    return { data: [], count: 0, allCandidates: [] };
+  }
+
+  const candidates: Candidate[] = (data ?? []).map((p: any) => {
+    const year = yearOf(p.publication_date) ?? yearOf(p.published_at) ?? yearOf(p.created_at);
+    const keywords = cleanArray(p.keywords);
+    const subjects = cleanArray(p.subjects);
+    const subject = subjects[0] ?? p.journal_name ?? "Publication";
+    return {
+      id: p.id,
+      ref: p.slug,
+      type: "publication" as const,
+      title: p.title,
+      author: p.author_names ?? "Unknown",
+      coverUrl: coverUrlOf(p.cover_url),
+      url: `/publications/${p.slug}`,
+      year,
+      language: p.language ?? null,
+      category: p.article_type ?? "Publication",
+      subject,
+      isbn: p.isbn ?? null,
+      publisher: p.publisher ?? p.journal_name ?? null,
+      rating: null,
+      views: p.view_count ?? 0,
+      downloadCount: p.download_count ?? 0,
+      excerpt: makeExcerpt(p.abstract ?? p.abstract_km),
+      keywords: [...new Set([...keywords, ...subjects])],
+      format: p.pdf_url ? "PDF" : null,
+      availability: p.pdf_url ? "Digital" : "Metadata only",
+      actions: {
+        view: `/publications/${p.slug}`,
+        read: p.pdf_url ? `/publications/${p.slug}#fulltext` : undefined,
+        download: p.pdf_url ? `/api/publications/${p.slug}/file?download=1` : undefined,
+        cite: `/publications/${p.slug}#cite-panel`,
+        save: `/publications/${p.slug}#save`,
+      },
+      searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, p.abstract, p.abstract_km, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
+      titleText: [p.title, p.title_km].filter(Boolean).join(" "),
+      authorText: p.author_names ?? "",
+      subjectText: [subject, p.journal_name, subjects.join(" ")].filter(Boolean).join(" "),
+      keywordText: [...keywords, ...subjects].join(" "),
+      bodyText: [p.abstract, p.abstract_km].filter(Boolean).join(" "),
+      dateValue: year ?? 0,
+      popularityValue: (p.view_count ?? 0) + (p.download_count ?? 0),
+    };
+  }).filter((row: Candidate) => {
+    if (filters.subject) {
+      const haystack = normalize([row.subject, row.category, row.keywordText, row.publisher].filter(Boolean).join(" "));
+      if (!haystack.includes(normalize(filters.subject))) return false;
+    }
+    return filterCommon(row, filters);
+  });
+
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+}
+
+async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+  let query: any = db
+    .from("catalog_books")
+    .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, created_at", { count: "exact" })
+    .eq("is_active", true)
+    .or(orFilter(["title", "author", "description", "category", "department", "isbn", "publisher"], tokens));
+
+  if (filters.lang) query = query.eq("language", filters.lang);
+  if (filters.author) query = query.ilike("author", `%${filters.author}%`);
+  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
+  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+  if (filters.year) query = query.eq("year", Number(filters.year));
+  if (filters.format && normalize(filters.format) !== "print") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  if (filters.availability === "available") query = query.gt("copies_available", 0);
+  if (filters.availability === "digital" || filters.availability === "downloadable") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+  const { data, count, error } = await query.order("title", { ascending: true }).limit(limit);
+  if (error) {
+    console.error("[native-search/catalog]", error.message);
+    return { data: [], count: 0, allCandidates: [] };
+  }
+
+  const candidates: Candidate[] = (data ?? []).map((r: any) => {
+    const keywords = cleanArray(r.keywords);
+    const availability = (r.copies_available ?? 0) > 0 ? "Available" : "On shelf record";
+    return {
+      id: r.id,
+      ref: r.slug ?? r.id,
+      type: "catalog" as const,
+      title: r.title,
+      author: r.author ?? "Unknown",
+      coverUrl: coverUrlOf(r.cover_url),
+      url: `/catalogs/${r.slug ?? r.id}`,
+      year: r.year ?? yearOf(r.created_at),
+      department: r.department ?? null,
+      language: r.language ?? null,
+      category: r.category ?? "Physical Book",
+      subject: r.category ?? r.department ?? "Physical Book",
+      isbn: r.isbn ?? null,
+      publisher: r.publisher ?? null,
+      views: 0,
+      downloadCount: 0,
+      excerpt: makeExcerpt(r.description),
+      keywords,
+      format: "Print",
+      availability,
+      actions: { view: `/catalogs/${r.slug ?? r.id}` },
+      searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, keywords.join(" ")].filter(Boolean).join(" "),
+      titleText: r.title,
+      authorText: r.author ?? "",
+      subjectText: [r.category, r.department].filter(Boolean).join(" "),
+      keywordText: keywords.join(" "),
+      bodyText: r.description ?? "",
+      dateValue: r.year ?? yearOf(r.created_at) ?? 0,
+      popularityValue: r.copies_available ?? 0,
+    };
+  }).filter((row: Candidate) => {
+    if (filters.subject) {
+      const haystack = normalize([row.subject, row.category, row.department, row.keywordText].filter(Boolean).join(" "));
+      if (!haystack.includes(normalize(filters.subject))) return false;
+    }
+    return filterCommon(row, filters);
+  });
+
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+}
+
+async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+  let query: any = db
+    .from("posts")
+    .select("id, slug, title, cover_url, excerpt, content, category, tags, views, created_at, updated_at", { count: "exact" })
+    .eq("is_published", true)
+    .or(orFilter(["title", "excerpt", "content", "category"], tokens));
+
+  if (filters.subject) query = query.eq("category", filters.subject);
+  if (filters.year) query = query.gte("created_at", `${filters.year}-01-01`).lte("created_at", `${filters.year}-12-31`);
+  if (filters.format && normalize(filters.format) !== "html") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  if (filters.availability && filters.availability !== "digital") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+  const { data, count, error } = await query.order("created_at", { ascending: false }).limit(limit);
+  if (error) {
+    console.error("[native-search/posts]", error.message);
+    return { data: [], count: 0, allCandidates: [] };
+  }
+
+  const candidates: Candidate[] = (data ?? []).map((p: any) => {
+    const year = yearOf(p.created_at);
+    const keywords = cleanArray(p.tags);
+    return {
+      id: p.id,
+      ref: p.slug,
+      type: "post" as const,
+      title: p.title,
+      author: "PTEC Library",
+      coverUrl: coverUrlOf(p.cover_url),
+      url: `/posts/${p.slug}`,
+      year,
+      category: p.category ?? "News",
+      subject: p.category ?? "News",
+      views: p.views ?? 0,
+      downloadCount: 0,
+      excerpt: makeExcerpt(p.excerpt ?? p.content),
+      keywords,
+      format: "HTML",
+      availability: "Digital",
+      actions: { view: `/posts/${p.slug}`, read: `/posts/${p.slug}` },
+      searchableText: [p.title, p.category, p.excerpt, p.content, keywords.join(" ")].filter(Boolean).join(" "),
+      titleText: p.title,
+      authorText: "PTEC Library",
+      subjectText: p.category ?? "News",
+      keywordText: keywords.join(" "),
+      bodyText: [p.excerpt, p.content].filter(Boolean).join(" "),
+      dateValue: year ?? 0,
+      popularityValue: p.views ?? 0,
+    };
+  }).filter((row: Candidate) => filterCommon(row, filters));
+
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+}
+
+const FUZZY_URL: Record<SearchResultType, (ref: string) => string> = {
   book: (ref) => `/books/${ref}`,
   research: (ref) => `/theses/${ref}`,
+  publication: (ref) => `/publications/${ref}`,
   catalog: (ref) => `/catalogs/${ref}`,
   post: (ref) => `/posts/${ref}`,
 };
 
-async function fuzzySearch(
-  db: DB,
-  q: string,
-  typeFilter?: SearchResultType,
-  limit = 8,
-): Promise<SearchResult[]> {
+async function fuzzySearch(db: DB, q: string, typeFilter?: SearchResultType, limit = 8): Promise<SearchResult[]> {
   const { data, error } = await db.rpc("search_library_fuzzy", {
     query_text: q,
     match_count: limit,
@@ -365,46 +807,44 @@ async function fuzzySearch(
     return [];
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((data ?? []) as any[])
     .filter((r) => r.source in FUZZY_URL && (!typeFilter || r.source === typeFilter))
     .map((r) => ({
       id: r.id,
+      ref: r.ref,
       type: r.source as SearchResultType,
       title: r.title,
       author: r.author ?? "Unknown",
       coverUrl: coverUrlOf(r.cover_url),
-      url: FUZZY_URL[r.source](r.ref),
+      url: FUZZY_URL[r.source as SearchResultType](r.ref),
       category: r.category ?? null,
+      subject: r.category ?? null,
       excerpt: makeExcerpt(r.excerpt),
+      score: Math.round(Number(r.similarity ?? 0) * 100),
+      matchedFields: ["title"],
+      actions: { view: FUZZY_URL[r.source as SearchResultType](r.ref) },
     }));
 }
 
-// ── Full-text page hits (inside PDF content) ─────────────────────────────────
-// Searches book_pages with the whole query (not tokens — precision matters
-// more here: a page-level hit should mean the actual phrase appears in the
-// text). Best-effort: any error (e.g. migration 0066 not applied) → [].
-
 function makeSnippet(content: string, q: string, radius = 90): string {
   const idx = content.toLowerCase().indexOf(q.toLowerCase());
-  if (idx === -1) return content.slice(0, radius * 2) + "…";
+  if (idx === -1) return `${content.slice(0, radius * 2)}...`;
   const start = Math.max(0, idx - radius);
   const end = Math.min(content.length, idx + q.length + radius);
-  return (start > 0 ? "…" : "") + content.slice(start, end).trim() + (end < content.length ? "…" : "");
+  return `${start > 0 ? "..." : ""}${content.slice(start, end).trim()}${end < content.length ? "..." : ""}`;
 }
 
-async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[]> {
-  if (q.length < 3) return []; // too short to be a meaningful phrase match
+async function searchPageContent(db: DB, q: string, limit = 6): Promise<PageHit[]> {
+  if (q.length < 3) return [];
   try {
     const { data, error } = await db
       .from("book_pages")
       .select("record_type, record_id, page_no, content")
       .ilike("content", `%${q}%`)
       .order("page_no", { ascending: true })
-      .limit(24);
+      .limit(30);
     if (error || !data?.length) return [];
 
-    // One hit per record (its first matching page), up to `limit` records.
     const byRecord = new Map<string, (typeof data)[number]>();
     for (const row of data) {
       const key = `${row.record_type}:${row.record_id}`;
@@ -414,27 +854,35 @@ async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[
 
     const bookIds = picked.filter((r) => r.record_type === "book").map((r) => r.record_id);
     const researchIds = picked.filter((r) => r.record_type === "research").map((r) => r.record_id);
-    const [{ data: books }, { data: theses }] = await Promise.all([
+    const publicationIds = picked.filter((r) => r.record_type === "publication").map((r) => r.record_id);
+
+    const [{ data: books }, { data: theses }, { data: publications }] = await Promise.all([
       bookIds.length
         ? db.from("books").select("id, title, slug").in("id", bookIds).eq("is_published", true)
         : Promise.resolve({ data: [] as { id: string; title: string; slug: string }[] }),
       researchIds.length
         ? db.from("research_reports").select("id, slug, title").in("id", researchIds).eq("is_published", true)
         : Promise.resolve({ data: [] as { id: string; slug: string | null; title: string }[] }),
+      publicationIds.length
+        ? db.from("publications").select("id, slug, title").in("id", publicationIds).eq("is_published", true)
+        : Promise.resolve({ data: [] as { id: string; slug: string; title: string }[] }),
     ]);
+
     const bookMap = new Map((books ?? []).map((b) => [b.id, b]));
     const researchMap = new Map((theses ?? []).map((r) => [r.id, r]));
+    const publicationMap = new Map((publications ?? []).map((p) => [p.id, p]));
 
     const hits: PageHit[] = [];
     for (const row of picked) {
       if (row.record_type === "book") {
         const b = bookMap.get(row.record_id);
-        if (!b) continue; // unpublished since extraction — don't leak
-        hits.push({ recordType: "book", recordId: row.record_id, title: b.title, url: `/books/${b.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
-      } else {
+        if (b) hits.push({ recordType: "book", recordId: row.record_id, title: b.title, url: `/books/${b.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+      } else if (row.record_type === "research") {
         const r = researchMap.get(row.record_id);
-        if (!r) continue;
-        hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+        if (r) hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+      } else if (row.record_type === "publication") {
+        const p = publicationMap.get(row.record_id);
+        if (p) hits.push({ recordType: "publication", recordId: row.record_id, title: p.title, url: `/publications/${p.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
       }
     }
     return hits;
@@ -444,13 +892,28 @@ async function searchPageContent(db: DB, q: string, limit = 5): Promise<PageHit[
   }
 }
 
-function countsOf(results: SearchResult[]): SearchCounts {
-  const counts: SearchCounts = { book: 0, research: 0, catalog: 0, post: 0, total: results.length };
-  for (const r of results) counts[r.type] += 1;
-  return counts;
+function parseSort(value: string | null): SearchSort {
+  if (value === "newest" || value === "oldest" || value === "title" || value === "views" || value === "downloads" || value === "rating") {
+    return value;
+  }
+  if (value === "most_viewed") return "views";
+  if (value === "most_downloaded") return "downloads";
+  if (value === "top_rated") return "rating";
+  return "relevance";
 }
 
-// ── GET /api/search/native ─────────────────────────────────────────────────────
+function parseType(value: string | null): ActiveSearchType {
+  return value === "book" || value === "research" || value === "publication" || value === "catalog" || value === "post"
+    ? value
+    : "all";
+}
+
+function numberParam(searchParams: URLSearchParams, key: string): number | undefined {
+  const raw = searchParams.get(key);
+  if (!raw) return undefined;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : undefined;
+}
 
 export async function GET(req: Request) {
   const ip = getClientIP(req);
@@ -466,106 +929,170 @@ export async function GET(req: Request) {
     return Response.json({ error: "Missing or invalid query." }, { status: 400 });
   }
 
-  const type = (searchParams.get("type") ?? "all") as "all" | SearchResultType;
-  const dept = searchParams.get("dept") ?? undefined;
-  const lang = searchParams.get("lang") ?? undefined;
-  const category = searchParams.get("category") ?? undefined;
-  const author = searchParams.get("author") ?? undefined;
-  const isbn = searchParams.get("isbn") ?? undefined;
-  const publisher = searchParams.get("publisher") ?? undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
-
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
+  if (!q) return Response.json({ error: "Missing or invalid query." }, { status: 400 });
+
+  const type = parseType(searchParams.get("resourceType") ?? searchParams.get("type"));
+  const sort = parseSort(searchParams.get("sort"));
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const filters: Filters = {
+    dept: searchParams.get("dept") ?? undefined,
+    lang: searchParams.get("lang") ?? undefined,
+    subject: searchParams.get("subject") ?? searchParams.get("category") ?? undefined,
+    author: searchParams.get("author") ?? undefined,
+    advisor: searchParams.get("advisor") ?? undefined,
+    program: searchParams.get("program") ?? undefined,
+    cohort: searchParams.get("cohort") ?? undefined,
+    year: searchParams.get("year") ?? undefined,
+    format: searchParams.get("format") ?? undefined,
+    availability: searchParams.get("availability") ?? undefined,
+    isbn: searchParams.get("isbn") ?? undefined,
+    publisher: searchParams.get("publisher") ?? undefined,
+    minViews: numberParam(searchParams, "views"),
+    minDownloads: numberParam(searchParams, "downloads"),
+    minRating: numberParam(searchParams, "rating"),
+  };
+
+  const cacheKey = JSON.stringify({ q, type, sort, page, filters });
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    if (type === "all" && page === 1) {
+      const dbForLog = createServiceClient();
+      logSearchQuery(dbForLog, q, cached.counts.total, type, sort);
+    }
+    return Response.json(cached, { headers: { "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" } });
+  }
+
   const db = createServiceClient();
 
   try {
+    const pageHits = await searchPageContent(db, q);
+    const pageHitIds = new Set(pageHits.map((hit) => `${hit.recordType}:${hit.recordId}`));
+    const candidateLimit = type === "all" ? CANDIDATE_LIMIT_ALL : CANDIDATE_LIMIT_TYPE;
+
+    const run = {
+      book: () => searchBooks(db, q, filters, candidateLimit, pageHitIds, sort),
+      research: () => searchResearch(db, q, filters, candidateLimit, pageHitIds, sort),
+      publication: () => searchPublications(db, q, filters, candidateLimit, pageHitIds, sort),
+      catalog: () => searchCatalog(db, q, filters, candidateLimit, pageHitIds, sort),
+      post: () => searchPosts(db, q, filters, candidateLimit, pageHitIds, sort),
+    } satisfies Record<SearchResultType, () => Promise<PerTypeSearch>>;
+
+    let response: NativeSearchResponse;
+
     if (type === "all") {
-      const [books, research, catalog, posts, pageHits] = await Promise.all([
-        searchBooks(db, tokens, PAGE_SIZE_ALL, 0, dept, lang, category, author, isbn, publisher),
-        searchResearch(db, tokens, PAGE_SIZE_ALL, 0, category, author),
-        searchCatalog(db, tokens, PAGE_SIZE_ALL, 0, category, author, isbn, publisher),
-        searchPosts(db, tokens, PAGE_SIZE_ALL, 0, category),
-        searchPageContent(db, q),
+      const [books, research, publications, catalog, posts] = await Promise.all([
+        run.book(),
+        run.research(),
+        run.publication(),
+        run.catalog(),
+        run.post(),
       ]);
+
+      const allCandidates = [
+        ...books.allCandidates,
+        ...research.allCandidates,
+        ...publications.allCandidates,
+        ...catalog.allCandidates,
+        ...posts.allCandidates,
+      ].sort((a, b) => compareBySort(a, b, sort));
 
       const counts: SearchCounts = {
         book: books.count,
         research: research.count,
+        publication: publications.count,
         catalog: catalog.count,
         post: posts.count,
-        total: books.count + research.count + catalog.count + posts.count,
+        total: books.count + research.count + publications.count + catalog.count + posts.count,
       };
 
-      // Logged with the real exact-match count (pre-fuzzy-fallback) — that's
-      // the actual "we don't have this" signal for collection development,
-      // even if the fuzzy fallback below later rescues the user with a typo match.
-      logSearchQuery(db, q, counts.total);
-
       const results = [
-        ...books.data,
-        ...research.data,
-        ...catalog.data,
-        ...posts.data,
+        ...books.allCandidates.slice(0, PAGE_SIZE_ALL),
+        ...research.allCandidates.slice(0, PAGE_SIZE_ALL),
+        ...publications.allCandidates.slice(0, PAGE_SIZE_ALL),
+        ...catalog.allCandidates.slice(0, PAGE_SIZE_ALL),
+        ...posts.allCandidates.slice(0, PAGE_SIZE_ALL),
       ];
 
-      // Zero exact matches with no filters active → try trigram close matches
-      // so a typo (Khmer or English) doesn't dead-end the search page.
-      const hasFilters = Boolean(dept || lang || category || author || isbn || publisher);
+      const hasFilters = Object.values(filters).some((value) => value !== undefined && value !== "");
       if (counts.total === 0 && !hasFilters) {
         const fuzzy = await fuzzySearch(db, q);
         if (fuzzy.length > 0) {
-          return Response.json({
+          response = {
             results: fuzzy,
             counts: countsOf(fuzzy),
             page: 1,
             hasMore: false,
             fuzzy: true,
+            didYouMean: fuzzy[0]?.title ?? null,
             pageHits,
-          } satisfies NativeSearchResponse);
+            facets: facetsOf(fuzzy),
+            relatedSubjects: facetsOf(fuzzy).subjects.slice(0, 8),
+            popularResources: [],
+            sort,
+          };
+          logSearchQuery(db, q, 0, type, sort);
+          cacheSet(cacheKey, response);
+          return Response.json(response);
         }
       }
 
-      return Response.json({ results, counts, page: 1, hasMore: false, pageHits } satisfies NativeSearchResponse);
-    }
+      response = {
+        results,
+        counts,
+        page: 1,
+        hasMore: false,
+        pageHits,
+        facets: facetsOf(allCandidates),
+        relatedSubjects: facetsOf(allCandidates).subjects.slice(0, 8),
+        popularResources: allCandidates.slice(0, 5),
+        sort,
+      };
+      logSearchQuery(db, q, counts.total, type, sort);
+    } else {
+      const result = await run[type]();
+      const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));
+      const from = (page - 1) * PAGE_SIZE_TYPE;
+      let pageResults = sorted.slice(from, from + PAGE_SIZE_TYPE);
+      let fuzzy = false;
+      let didYouMean: string | null = null;
 
-    // Type-specific paginated view
-    const from = (page - 1) * PAGE_SIZE_TYPE;
-    let result: { data: SearchResult[]; count: number } = { data: [], count: 0 };
-
-    if (type === "book")     result = await searchBooks(db, tokens, PAGE_SIZE_TYPE, from, dept, lang, category, author, isbn, publisher);
-    else if (type === "research") result = await searchResearch(db, tokens, PAGE_SIZE_TYPE, from, category, author);
-    else if (type === "catalog")  result = await searchCatalog(db, tokens, PAGE_SIZE_TYPE, from, category, author, isbn, publisher);
-    else if (type === "post")     result = await searchPosts(db, tokens, PAGE_SIZE_TYPE, from, category);
-
-    const hasFilters = Boolean(dept || lang || category || author || isbn || publisher);
-    if (result.count === 0 && page === 1 && !hasFilters) {
-      const fuzzy = await fuzzySearch(db, q, type, PAGE_SIZE_TYPE);
-      if (fuzzy.length > 0) {
-        return Response.json({
-          results: fuzzy,
-          counts: countsOf(fuzzy),
-          page: 1,
-          hasMore: false,
-          fuzzy: true,
-        } satisfies NativeSearchResponse);
+      const hasFilters = Object.values(filters).some((value) => value !== undefined && value !== "");
+      if (result.count === 0 && page === 1 && !hasFilters) {
+        const fuzzyMatches = await fuzzySearch(db, q, type, PAGE_SIZE_TYPE);
+        if (fuzzyMatches.length > 0) {
+          pageResults = fuzzyMatches;
+          fuzzy = true;
+          didYouMean = fuzzyMatches[0]?.title ?? null;
+        }
       }
+
+      const counts: SearchCounts = {
+        book: type === "book" ? result.count : 0,
+        research: type === "research" ? result.count : 0,
+        publication: type === "publication" ? result.count : 0,
+        catalog: type === "catalog" ? result.count : 0,
+        post: type === "post" ? result.count : 0,
+        total: result.count,
+      };
+
+      response = {
+        results: pageResults,
+        counts: fuzzy ? countsOf(pageResults) : counts,
+        page,
+        hasMore: !fuzzy && result.count > page * PAGE_SIZE_TYPE,
+        fuzzy,
+        didYouMean,
+        pageHits: [],
+        facets: facetsOf(sorted),
+        relatedSubjects: facetsOf(sorted).subjects.slice(0, 8),
+        popularResources: sorted.slice(0, 5),
+        sort,
+      };
     }
 
-    const counts: SearchCounts = {
-      book:     type === "book"     ? result.count : 0,
-      research: type === "research" ? result.count : 0,
-      catalog:  type === "catalog"  ? result.count : 0,
-      post:     type === "post"     ? result.count : 0,
-      total: result.count,
-    };
-
-    return Response.json({
-      results: result.data,
-      counts,
-      page,
-      hasMore: result.count > page * PAGE_SIZE_TYPE,
-    } satisfies NativeSearchResponse);
+    cacheSet(cacheKey, response);
+    return Response.json(response, { headers: { "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" } });
   } catch (err) {
     console.error("[native-search] error:", err);
     return Response.json({ error: "Search failed. Please try again." }, { status: 500 });

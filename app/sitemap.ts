@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/seo/site';
+import { slugify } from '@/lib/books';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -16,6 +17,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { data: catalogBooks },
     { data: publications },
     { data: paths },
+    { data: categories },
+    { data: authors },
+    { data: publicationAuthors },
   ] = await Promise.all([
     supabase
       .from('books')
@@ -53,6 +57,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(0, 4999),
+    supabase
+      .from('categories')
+      .select('slug, created_at')
+      .order('name', { ascending: true })
+      .range(0, 999),
+    supabase
+      .from('authors')
+      .select('name, created_at')
+      .order('name', { ascending: true })
+      .range(0, 999),
+    supabase
+      .from('publication_authors')
+      .select('full_name, created_at')
+      .order('full_name', { ascending: true })
+      .range(0, 999),
   ]);
 
   const bookUrls: MetadataRoute.Sitemap = (books ?? []).map((book) => ({
@@ -159,6 +178,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  const subjectUrls: MetadataRoute.Sitemap = (categories ?? []).map((c) => ({
+    url: `${SITE_URL}/subjects/${c.slug}`,
+    lastModified: c.created_at ?? new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.6,
+  }));
+
+  const authorSlugSet = new Map<string, string>();
+  for (const a of authors ?? []) {
+    const slug = slugify(a.name);
+    if (slug) authorSlugSet.set(slug, a.created_at ?? new Date().toISOString());
+  }
+  for (const a of publicationAuthors ?? []) {
+    const slug = slugify(a.full_name);
+    if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? new Date().toISOString());
+  }
+  const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) => ({
+    url: `${SITE_URL}/authors/${slug}`,
+    lastModified: createdAt,
+    changeFrequency: 'monthly',
+    priority: 0.5,
+  }));
+
   return [
     ...staticUrls,
     ...reportUrls,
@@ -167,5 +209,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...postUrls,
     ...catalogUrls,
     ...pathUrls,
+    ...subjectUrls,
+    ...authorUrls,
   ];
 }

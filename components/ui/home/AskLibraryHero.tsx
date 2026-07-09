@@ -238,7 +238,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               {trending.slice(0, 5).map((term) => (
                 <Link
                   key={`t-${term}`}
-                  href={`/books?q=${encodeURIComponent(term)}`}
+                  href={`/search?q=${encodeURIComponent(term)}`}
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
                 >
                   <svg className="h-3 w-3 shrink-0 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>

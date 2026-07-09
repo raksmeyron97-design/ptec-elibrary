@@ -32,7 +32,10 @@ export type Suggestion =
   | { type: "book";     slug: string; label: string; sub: string; coverUrl?: string | null }
   | { type: "author";   label: string }
   | { type: "category"; label: string }
-  | { type: "research"; id: string; slug?: string | null; label: string; sub: string; coverUrl?: string | null };
+  | { type: "research"; id: string; slug?: string | null; label: string; sub: string; coverUrl?: string | null }
+  | { type: "publication"; slug: string; label: string; sub: string; coverUrl?: string | null }
+  | { type: "catalog"; slug: string; label: string; sub: string; coverUrl?: string | null }
+  | { type: "post"; slug: string; label: string; sub: string; coverUrl?: string | null };
 
 export async function GET(req: NextRequest) {
   // Emergency mode: autocomplete is a nice-to-have that fires on every
@@ -113,6 +116,60 @@ export async function GET(req: NextRequest) {
       .join(" · ");
     const sub: string = (r.author_names as string | null) ?? (cohortYear || "Thesis");
     results.push({ type: "research", id: r.id, slug: r.slug ?? null, label: r.title, sub, coverUrl: coverUrlOf(r.cover_url) });
+  }
+
+  // ── 5. Matching publication titles in English or Khmer (up to 3) ────────────
+  const { data: publications } = await supabase
+    .from("publications_with_stats")
+    .select("slug, title, title_km, author_names, journal_name, cover_url")
+    .eq("is_published", true)
+    .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,author_names.ilike.%${q}%`)
+    .limit(3);
+
+  for (const p of publications ?? []) {
+    results.push({
+      type: "publication",
+      slug: p.slug,
+      label: p.title_km && p.title_km.includes(q) ? p.title_km : p.title,
+      sub: (p.author_names as string | null) ?? p.journal_name ?? "Publication",
+      coverUrl: coverUrlOf(p.cover_url),
+    });
+  }
+
+  // ── 6. Matching physical catalog records (up to 2) ──────────────────────────
+  const { data: catalog } = await supabase
+    .from("catalog_books")
+    .select("slug, title, author, category, cover_url")
+    .eq("is_active", true)
+    .or(`title.ilike.%${q}%,author.ilike.%${q}%,category.ilike.%${q}%`)
+    .limit(2);
+
+  for (const c of catalog ?? []) {
+    results.push({
+      type: "catalog",
+      slug: c.slug,
+      label: c.title,
+      sub: c.author ?? c.category ?? "Physical book",
+      coverUrl: coverUrlOf(c.cover_url),
+    });
+  }
+
+  // ── 7. Matching news/posts (up to 2) ────────────────────────────────────────
+  const { data: posts } = await supabase
+    .from("posts")
+    .select("slug, title, category, cover_url")
+    .eq("is_published", true)
+    .ilike("title", `%${q}%`)
+    .limit(2);
+
+  for (const p of posts ?? []) {
+    results.push({
+      type: "post",
+      slug: p.slug,
+      label: p.title,
+      sub: p.category ?? "News",
+      coverUrl: coverUrlOf(p.cover_url),
+    });
   }
 
   return NextResponse.json(results);

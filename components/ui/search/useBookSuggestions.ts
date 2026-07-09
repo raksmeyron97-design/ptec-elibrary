@@ -70,6 +70,21 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
       setOpen(false);
       if (onClose) onClose();
       router.push(`/theses/${s.slug ?? s.id}`);
+    } else if (s.type === "publication") {
+      pushRecentSearch(s.label);
+      setOpen(false);
+      if (onClose) onClose();
+      router.push(`/publications/${s.slug}`);
+    } else if (s.type === "catalog") {
+      pushRecentSearch(s.label);
+      setOpen(false);
+      if (onClose) onClose();
+      router.push(`/catalogs/${s.slug}`);
+    } else if (s.type === "post") {
+      pushRecentSearch(s.label);
+      setOpen(false);
+      if (onClose) onClose();
+      router.push(`/posts/${s.slug}`);
     } else {
       setQuery(s.label);
       navigate(s.label);
@@ -81,7 +96,7 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
     return acc;
   }, {});
 
-  const groupOrder: Suggestion["type"][] = ["book", "author", "category", "research"];
+  const groupOrder: Suggestion["type"][] = ["book", "research", "publication", "catalog", "post", "author", "category"];
 
   return {
     query,

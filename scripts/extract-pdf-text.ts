@@ -1,7 +1,7 @@
 /* scripts/extract-pdf-text.ts
  *
- * Backfills book_pages (migration 0066) with per-page text from every
- * published book/thesis PDF, powering "found inside" page hits in
+ * Backfills book_pages with per-page text from every published
+ * book/thesis/publication PDF, powering "found inside" page hits in
  * /api/search/native. The actual extraction lives in lib/pdf-page-index.ts,
  * which the upload server actions also call — new uploads are indexed
  * automatically, so this script is the backfill / repair safety net (e.g.
@@ -67,9 +67,10 @@ async function fetchIndexedRecordKeys(): Promise<Set<string>> {
 }
 
 async function main() {
-  const [{ data: books }, { data: theses }, alreadyIndexed] = await Promise.all([
+  const [{ data: books }, { data: theses }, { data: publications }, alreadyIndexed] = await Promise.all([
     db.from("books").select("id, title, book_files(file_url)").eq("is_published", true),
     db.from("research_reports").select("id, title, file_url").eq("is_published", true),
+    db.from("publications").select("id, title, pdf_url").eq("is_published", true),
     REEXTRACT_ALL ? Promise.resolve(new Set<string>()) : fetchIndexedRecordKeys(),
   ]);
 
@@ -84,6 +85,11 @@ async function main() {
   for (const r of theses ?? []) {
     if (r.file_url && !alreadyIndexed.has(`research:${r.id}`)) {
       targets.push({ recordType: "research", recordId: r.id, title: r.title, rawUrl: r.file_url });
+    }
+  }
+  for (const p of publications ?? []) {
+    if (p.pdf_url && !alreadyIndexed.has(`publication:${p.id}`)) {
+      targets.push({ recordType: "publication", recordId: p.id, title: p.title, rawUrl: p.pdf_url });
     }
   }
 
