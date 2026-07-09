@@ -444,7 +444,7 @@ export default function ContactPage() {
 
             {status === "success" && (
               <p className="mt-4 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm font-medium text-success">
-                Your message was sent successfully!
+                Thank you. Your message has been received. Our library team will contact you by email soon.
               </p>
             )}
             {status === "error" && errorMsg && (
@@ -485,6 +485,7 @@ export default function ContactPage() {
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
+                sandbox="allow-scripts allow-popups allow-forms"
                 title="PTEC Library location on Google Maps"
               />
             </div>
@@ -520,7 +521,7 @@ export default function ContactPage() {
             <ul className="space-y-3" role="list">
               {CONTACT_PERSONS.map((person, idx) => (
                 <li
-                  key={idx}
+                  key={person.km}
                   className="flex items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3"
                 >
                   <div

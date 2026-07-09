@@ -220,10 +220,26 @@ export async function POST(req: NextRequest) {
       replyTo: cleanEmail,
       ...notification,
     });
+    await supabase
+      .from("contact_messages")
+      .update({
+        admin_notification_status: "sent",
+        last_email_attempt_at: new Date().toISOString(),
+      })
+      .eq("id", inserted.id);
   } catch (err) {
     const detail = err instanceof GmailSendError ? err.message : "unknown error";
     console.error("[contact] Admin notification email failed:", detail);
     logSecurityEvent({ type: "suspicious_input", where: "/api/contact", detail: `admin notification email failed: ${detail}` });
+    await supabase
+      .from("contact_messages")
+      .update({
+        status: "email_failed",
+        admin_notification_status: "failed",
+        last_email_error: detail,
+        last_email_attempt_at: new Date().toISOString(),
+      })
+      .eq("id", inserted.id);
   }
 
   try {
@@ -234,10 +250,27 @@ export async function POST(req: NextRequest) {
       message: cleanMessage,
     });
     await sendGmail({ to: cleanEmail, ...confirmation });
+    await supabase
+      .from("contact_messages")
+      .update({
+        confirmation_sent: true,
+        user_confirmation_status: "sent",
+        last_email_attempt_at: new Date().toISOString(),
+      })
+      .eq("id", inserted.id);
   } catch (err) {
     const detail = err instanceof GmailSendError ? err.message : "unknown error";
     console.error("[contact] User confirmation email failed:", detail);
-    await supabase.from("contact_messages").update({ confirmation_sent: false }).eq("id", inserted.id);
+    await supabase
+      .from("contact_messages")
+      .update({
+        status: "email_failed",
+        confirmation_sent: false,
+        user_confirmation_status: "failed",
+        last_email_error: detail,
+        last_email_attempt_at: new Date().toISOString(),
+      })
+      .eq("id", inserted.id);
   }
 
   return NextResponse.json({ ok: true, id: inserted.id });
