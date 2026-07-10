@@ -83,19 +83,7 @@ const getBookMeta = unstable_cache(
   { revalidate: 3600, tags: ["books"] }
 );
 
-export async function generateStaticParams() {
-  const supabase = createServiceClient();
-  const { data: books } = await supabase
-    .from("books")
-    .select("slug")
-    .eq("is_published", true)
-    .order("view_count", { ascending: false })
-    .limit(100);
 
-  return (books ?? []).map((book) => ({
-    slug: book.slug,
-  }));
-}
 
 export async function generateMetadata({
   params,
