@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import NavbarClient from "./NavbarClient";
 import MobileMenu from "./MobileMenu";
 import NavLinkActive from "./NavLinkActive";
-import NavDropdown from "./NavDropdown";
 import NavSearch from "@/components/layout/NavSearch";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { Seal } from "@/components/ui/core/Seal";
@@ -110,33 +109,10 @@ export default async function Navbar() {
     { label: t('posts'),           href: "/posts",    icon: PostsIcon },
   ];
 
-  const aboutDropdown = {
-    label: t('about'),
-    href: "/about",
-    icon: AboutIcon,
-    subLinks: [
-      { label: t('ourJourney'),  href: "/about/our-journey" },
-      { label: t('contact'),     href: "/contact" },
-      { label: t('libraryRules'), href: "/about/rules" },
-      { label: t('libraryTimings'), href: "/about/timings" },
-      { label: t('libraryCollection'), href: "/about/collection" },
-      { label: t('libraryCommittee'), href: "/about/committee" },
-      { label: t('libraryTeam'), href: "/about/team/close" },
-    ],
-  };
-
   const mobileNavLinks = [
     { label: t('home'),            href: "/home" },
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },
-    { label: t('about'),           href: "/about" },
-    { label: t('ourJourney'),      href: "/about/our-journey" },
-    { label: t('contact'),         href: "/contact" },
-    { label: t('libraryRules'), href: "/about/rules" },
-    { label: t('libraryTimings'), href: "/about/timings" },
-    { label: t('libraryCollection'), href: "/about/collection" },
-    { label: t('libraryCommittee'), href: "/about/committee" },
-    { label: t('libraryTeam'), href: "/about/team/close" },
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────
@@ -227,7 +203,6 @@ export default async function Navbar() {
               {/* Desktop nav links */}
               <DesktopNavLinks
                 navLinks={navLinks}
-                aboutDropdown={aboutDropdown}
               />
             </div>
 

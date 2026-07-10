@@ -2,19 +2,15 @@
 // Desktop nav with sliding amber hover pill + clean minimal style
 import { useState, useRef } from "react";
 import NavLinkActive from "./NavLinkActive";
-import NavDropdown from "./NavDropdown";
 import DigitalLibraryDropdown from "./DigitalLibraryDropdown";
-
-type SubLink = { label: string; href: string; icon?: React.ReactNode; target?: string };
+import AboutDropdown from "./AboutDropdown";
 
 type DesktopNavLinksProps = {
   navLinks: { label: string; href: string; icon: React.ReactNode }[];
-  aboutDropdown:      { label: string; href: string; icon: React.ReactNode; subLinks: SubLink[] };
 };
 
 export default function DesktopNavLinks({
   navLinks,
-  aboutDropdown,
 }: DesktopNavLinksProps) {
   const [hoverStyle, setHoverStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const containerRef = useRef<HTMLElement>(null);
@@ -68,12 +64,7 @@ export default function DesktopNavLinks({
       </div>
 
       <div onMouseEnter={handleMouseEnter} className="h-full flex items-center px-3">
-        <NavDropdown
-          label={aboutDropdown.label}
-          href={aboutDropdown.href}
-          icon={aboutDropdown.icon}
-          subLinks={aboutDropdown.subLinks}
-        />
+        <AboutDropdown />
       </div>
     </nav>
   );

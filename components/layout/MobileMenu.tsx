@@ -15,6 +15,7 @@ import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useMountTransition } from "@/lib/hooks/useMountTransition";
 import MobileDigitalLibraryAccordion from "./MobileDigitalLibraryAccordion";
+import MobileAboutAccordion from "./MobileAboutAccordion";
 
 type NavItem = { label: string; href: string };
 
@@ -197,6 +198,13 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
 
                   {index === 0 && (
                     <MobileDigitalLibraryAccordion
+                      pathname={pathname}
+                      onNavigate={() => setOpenPath(null)}
+                    />
+                  )}
+
+                  {index === 2 && (
+                    <MobileAboutAccordion
                       pathname={pathname}
                       onNavigate={() => setOpenPath(null)}
                     />
