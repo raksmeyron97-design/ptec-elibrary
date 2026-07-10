@@ -3,18 +3,17 @@
 import { useState, useRef } from "react";
 import NavLinkActive from "./NavLinkActive";
 import NavDropdown from "./NavDropdown";
+import DigitalLibraryDropdown from "./DigitalLibraryDropdown";
 
 type SubLink = { label: string; href: string; icon?: React.ReactNode; target?: string };
 
 type DesktopNavLinksProps = {
   navLinks: { label: string; href: string; icon: React.ReactNode }[];
-  eResourcesDropdown: { label: string; href: string; icon: React.ReactNode; subLinks: SubLink[] };
   aboutDropdown:      { label: string; href: string; icon: React.ReactNode; subLinks: SubLink[] };
 };
 
 export default function DesktopNavLinks({
   navLinks,
-  eResourcesDropdown,
   aboutDropdown,
 }: DesktopNavLinksProps) {
   const [hoverStyle, setHoverStyle] = useState({ left: 0, width: 0, opacity: 0 });
@@ -44,13 +43,13 @@ export default function DesktopNavLinks({
     >
       {/* Sliding amber hover pill */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 h-[36px] rounded-lg pointer-events-none -z-10"
+        className="absolute left-0 top-1/2 h-[36px] w-px rounded-lg pointer-events-none -z-10"
         style={{
-          left:    hoverStyle.left,
-          width:   hoverStyle.width,
           opacity: hoverStyle.opacity,
+          transform: `translate3d(${hoverStyle.left}px, -50%, 0) scaleX(${Math.max(hoverStyle.width, 1)})`,
+          transformOrigin: "left center",
           background: "color-mix(in srgb, rgb(245 158 11) 8%, transparent)",
-          transition: "left 150ms ease-out, width 150ms ease-out, opacity 100ms ease-out",
+          transition: "transform 150ms ease-out, opacity 100ms ease-out",
         }}
       />
 
@@ -65,12 +64,7 @@ export default function DesktopNavLinks({
       ))}
 
       <div onMouseEnter={handleMouseEnter} className="h-full flex items-center px-3">
-        <NavDropdown
-          label={eResourcesDropdown.label}
-          href={eResourcesDropdown.href}
-          icon={eResourcesDropdown.icon}
-          subLinks={eResourcesDropdown.subLinks}
-        />
+        <DigitalLibraryDropdown />
       </div>
 
       <div onMouseEnter={handleMouseEnter} className="h-full flex items-center px-3">

@@ -14,6 +14,7 @@ import { useTranslations } from 'next-intl';
 import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useMountTransition } from "@/lib/hooks/useMountTransition";
+import MobileDigitalLibraryAccordion from "./MobileDigitalLibraryAccordion";
 
 type NavItem = { label: string; href: string };
 
@@ -44,14 +45,10 @@ function getInitials(name: string | null, email: string) {
 
 export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) {
   const t = useTranslations('nav');
-  const [open, setOpen] = useState(false);
-  const drawer = useMountTransition(open);
   const pathname = usePathname();
-
-  // Close the drawer whenever the route changes (link tapped).
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const open = openPath === pathname;
+  const drawer = useMountTransition(open);
 
   // Lock body scroll while the drawer is open.
   useEffect(() => {
@@ -65,7 +62,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") setOpenPath(null);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -79,7 +76,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
   return (
     <div className="lg:hidden">
       {/* Hamburger button (hidden on lg+) */}
-      <button type="button" onClick={() => setOpen(true)}
+      <button type="button" onClick={() => setOpenPath(pathname)}
         aria-label="Open menu"
         aria-expanded={open}
         className="flex h-10 w-10 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand"
@@ -102,7 +99,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
       {/* Backdrop — Using 100vw and 100dvh to escape the parent container */}
       {drawer.mounted && (
         <div
-          onClick={() => setOpen(false)}
+          onClick={() => setOpenPath(null)}
           aria-hidden="true"
           className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out"
           style={{ opacity: drawer.shown ? 1 : 0 }}
@@ -125,7 +122,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
           >
         {/* Drawer header */}
         <div className="flex items-center justify-between border-b border-divider px-5 py-4 shrink-0">
-          <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
+          <Link href="/" onClick={() => setOpenPath(null)} className="flex items-center gap-2">
             <Image
               src="/logo_top.png"
               alt="PTEC Logo"
@@ -134,7 +131,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
               className="h-9 w-auto object-contain"
             />
           </Link>
-          <button type="button" onClick={() => setOpen(false)}
+          <button type="button" onClick={() => setOpenPath(null)}
             aria-label="Close menu"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
@@ -152,7 +149,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
               <>
                 <Link
                   href="/dashboard"
-                  onClick={() => setOpen(false)}
+                  onClick={() => setOpenPath(null)}
                   className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
                     pathname === "/dashboard"
                       ? "bg-brand/10 text-brand"
@@ -167,7 +164,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
                 </Link>
                 <Link
                   href="/dashboard#saved"
-                  onClick={() => setOpen(false)}
+                  onClick={() => setOpenPath(null)}
                   className="flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium text-text-body transition-colors hover:bg-paper hover:text-brand-hover"
                 >
                   <div className="flex items-center gap-3">
@@ -179,24 +176,32 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
               </>
             )}
 
-            {navLinks.map((link) => {
+            {navLinks.map((link, index) => {
               const isActive =
                 pathname === link.href ||
                 (link.href !== "/" && pathname.startsWith(link.href));
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
-                    isActive
-                      ? "bg-brand/10 text-brand"
-                      : "text-text-body hover:bg-paper hover:text-brand-hover"
-                  }`}
-                >
-                  {link.label}
-                  {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
-                </Link>
+                <div key={link.href}>
+                  <Link
+                    href={link.href}
+                    onClick={() => setOpenPath(null)}
+                    className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
+                      isActive
+                        ? "bg-brand/10 text-brand"
+                        : "text-text-body hover:bg-paper hover:text-brand-hover"
+                    }`}
+                  >
+                    {link.label}
+                    {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
+                  </Link>
+
+                  {index === 0 && (
+                    <MobileDigitalLibraryAccordion
+                      pathname={pathname}
+                      onNavigate={() => setOpenPath(null)}
+                    />
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -232,7 +237,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
             // Plain next/link: /auth/login is outside the locale-prefixed tree.
             <NextLink
               href="/auth/login"
-              onClick={() => setOpen(false)}
+              onClick={() => setOpenPath(null)}
               className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
             >
               {t('login')}

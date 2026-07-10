@@ -110,19 +110,6 @@ export default async function Navbar() {
     { label: t('posts'),           href: "/posts",    icon: PostsIcon },
   ];
 
-  const eResourcesDropdown = {
-    label: t('eResources'),
-    href: "/books",
-    icon: EResourcesIcon,
-    subLinks: [
-      { label: t('eBooks'), href: "/books", icon: EResourcesIcon },
-      { label: t('theses'), href: "/theses", icon: ResearchIcon },
-      { label: t('publications'), href: "/publications", icon: PublicationsIcon },
-      { label: t('learningPaths'), href: "/paths", icon: ResearchIcon },
-      { label: "SVA Library", href: "https://svacamelib.org/", icon: ExternalLinkIcon, target: "_blank" }
-    ]
-  };
-
   const aboutDropdown = {
     label: t('about'),
     href: "/about",
@@ -140,11 +127,6 @@ export default async function Navbar() {
 
   const mobileNavLinks = [
     { label: t('home'),            href: "/home" },
-    { label: t('eResources'),      href: "/books" },
-    { label: t('theses'), href: "/theses" },
-    { label: t('publications'),    href: "/publications" },
-    { label: t('learningPaths'),   href: "/paths" },
-    { label: "SVA Library",        href: "https://svacamelib.org/" },
     { label: t('booksInLibrary'),  href: "/catalogs" },
     { label: t('posts'),           href: "/posts" },
     { label: t('about'),           href: "/about" },
@@ -245,7 +227,6 @@ export default async function Navbar() {
               {/* Desktop nav links */}
               <DesktopNavLinks
                 navLinks={navLinks}
-                eResourcesDropdown={eResourcesDropdown}
                 aboutDropdown={aboutDropdown}
               />
             </div>
