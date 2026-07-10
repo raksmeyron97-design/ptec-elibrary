@@ -10,6 +10,7 @@ import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
+import { notifyNewBookPublished } from "@/lib/push-events";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -257,6 +258,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     await createAdminNotification("new_book", `Book submitted for review: "${title}"`, undefined, "/admin/review");
   } else {
     await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
+    after(() => notifyNewBookPublished({ id: book.id, title, slug: book.slug }));
   }
 
   revalidateTag("books", "max");

@@ -8,6 +8,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import SearchModal from "@/components/ui/search/SearchModalLazy";
 import NavigationProgress from "@/components/ui/NavigationProgress";
+import PushNotificationOnboarding from "@/components/ui/notifications/PushNotificationOnboarding";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
 import { SITE_URL } from '@/lib/seo/site';
@@ -158,6 +159,7 @@ export default async function RootLayout({
             Skip to content
           </a>
           {children}
+          <PushNotificationOnboarding />
           <Analytics />
           <SpeedInsights />
           <Suspense fallback={null}>

@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
 import PushSubscribeButton from "@/components/ui/notifications/PushSubscribeButton";
-import { getTranslations } from "next-intl/server";
 
 export const metadata = {
   title: "Settings",
@@ -29,9 +27,6 @@ export default async function SettingsPage({
     .select("full_name, avatar_url")
     .eq("id", user.id)
     .single();
-
-  const t = await getTranslations("nav");
-  // using generic translations for now as they might not be added yet, but using english fallbacks in the client
 
   const userInfo = {
     id: user.id,
@@ -127,12 +122,7 @@ export default async function SettingsPage({
 
       <SettingsClient user={userInfo} t={translations} />
 
-      {/* Notifications */}
-      <div className="mt-8 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-        <h2 className="mb-1 text-[15px] font-bold text-text-heading">Push Notifications</h2>
-        <p className="mb-4 text-[12.5px] text-text-muted">
-          Receive browser/device notifications when new books or announcements are posted.
-        </p>
+      <div className="mt-8">
         <PushSubscribeButton />
       </div>
     </div>

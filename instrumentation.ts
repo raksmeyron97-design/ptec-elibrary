@@ -40,7 +40,7 @@ const ENV_GROUPS: { group: string; critical: boolean; vars: string[] }[] = [
   {
     group: "Web push notifications",
     critical: false,
-    vars: ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_MAILTO"],
+    vars: ["NEXT_PUBLIC_VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"],
   },
   {
     group: "Cron cleanup",

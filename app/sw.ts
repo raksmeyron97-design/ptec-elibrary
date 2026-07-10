@@ -165,4 +165,114 @@ const serwist = new Serwist({
   },
 });
 
+type PushNotificationPayload = {
+  type?: string;
+  title?: string;
+  body?: string;
+  url?: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  entityId?: string;
+  eventId?: string;
+};
+
+const DEFAULT_NOTIFICATION = {
+  title: "PTEC Library",
+  body: "A new update is available from PTEC Library.",
+  url: "/",
+  icon: "/favicon/web-app-manifest-192x192.png",
+  badge: "/favicon/favicon-96x96.png",
+};
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
+function cleanText(value: unknown, fallback: string, maxLength: number): string {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
+}
+
+function safePath(value: unknown): string {
+  if (typeof value !== "string") return DEFAULT_NOTIFICATION.url;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2000) return DEFAULT_NOTIFICATION.url;
+
+  try {
+    const url = new URL(trimmed, self.location.origin);
+    if (url.origin !== self.location.origin) return DEFAULT_NOTIFICATION.url;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return DEFAULT_NOTIFICATION.url;
+  }
+}
+
+function parsePushPayload(event: PushEvent): PushNotificationPayload {
+  if (!event.data) return {};
+
+  try {
+    return asRecord(event.data.json()) as PushNotificationPayload;
+  } catch {
+    try {
+      const text = event.data.text();
+      return text ? { body: text } : {};
+    } catch {
+      return {};
+    }
+  }
+}
+
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    const payload = parsePushPayload(event);
+    const title = cleanText(payload.title, DEFAULT_NOTIFICATION.title, 120);
+    const body = cleanText(payload.body, DEFAULT_NOTIFICATION.body, 500);
+    const destination = safePath(payload.url);
+    const eventId = cleanText(payload.eventId, "", 160);
+    const tag = cleanText(payload.tag, eventId || `ptec-library-${payload.type ?? "update"}`, 120);
+
+    await self.registration.showNotification(title, {
+      body,
+      icon: cleanText(payload.icon, DEFAULT_NOTIFICATION.icon, 2000),
+      badge: cleanText(payload.badge, DEFAULT_NOTIFICATION.badge, 2000),
+      tag,
+      data: {
+        url: destination,
+        type: cleanText(payload.type, "BROADCAST", 40),
+        entityId: cleanText(payload.entityId, "", 160),
+        eventId,
+      },
+    });
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  event.waitUntil((async () => {
+    const data = asRecord(event.notification.data);
+    const destination = safePath(data.url);
+    const targetUrl = new URL(destination, self.location.origin).href;
+    const windows = await self.clients.matchAll({
+      type: "window",
+      includeUncontrolled: true,
+    });
+
+    for (const client of windows) {
+      const windowClient = client as WindowClient;
+      if (new URL(windowClient.url).origin !== self.location.origin) continue;
+      if ("navigate" in windowClient) {
+        await windowClient.navigate(targetUrl);
+      }
+      await windowClient.focus();
+      return;
+    }
+
+    await self.clients.openWindow(targetUrl);
+  })());
+});
+
 serwist.addEventListeners();

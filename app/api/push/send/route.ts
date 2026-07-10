@@ -3,17 +3,10 @@ import { isAdminAuthError, requireStaff } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { logSecurityEvent } from "@/lib/security-log";
 import { sendPush, type PushPayload } from "@/lib/push";
+import { safeInternalUrl } from "@/lib/push-utils";
 
 const MAX_TITLE = 120;
 const MAX_BODY = 500;
-
-/** Only allow same-site relative paths or https URLs as the notification target. */
-function safeUrl(url: unknown): string {
-  if (typeof url !== "string" || url.length === 0 || url.length > 2000) return "/";
-  if (url.startsWith("/") && !url.startsWith("//")) return url;
-  if (url.startsWith("https://")) return url;
-  return "/";
-}
 
 export async function POST(req: NextRequest) {
   // requireStaff enforces role AND MFA (AAL2) — same bar as the rest of the
@@ -51,7 +44,10 @@ export async function POST(req: NextRequest) {
   }
 
   const db = admin.supabase;
-  let query = db.from("push_subscriptions").select("endpoint, p256dh, auth_key");
+  let query = db
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth_key, failure_count")
+    .eq("enabled", true);
   if (typeof body.userId === "string" && body.userId) {
     query = query.eq("user_id", body.userId);
   }
@@ -62,12 +58,16 @@ export async function POST(req: NextRequest) {
   const payload: PushPayload = {
     title: body.title.trim(),
     body:  body.body.trim(),
-    url:   safeUrl(body.url),
-    icon:  typeof body.icon === "string" && body.icon.startsWith("/") ? body.icon : "/icons/icon-192.png",
+    url:   safeInternalUrl(body.url),
+    icon:  typeof body.icon === "string" && body.icon.startsWith("/") ? body.icon : "/favicon/web-app-manifest-192x192.png",
+    badge: "/favicon/favicon-96x96.png",
+    type: "BROADCAST",
   };
 
   let sent = 0;
-  const expired: string[] = [];
+  let expired = 0;
+  let failed = 0;
+  const now = new Date().toISOString();
 
   await Promise.allSettled(
     subs.map(async (sub) => {
@@ -75,21 +75,32 @@ export async function POST(req: NextRequest) {
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
         payload,
       );
-      if (res.ok) { sent++; }
-      else if (res.expired) { expired.push(sub.endpoint); }
+      if (res.ok) {
+        sent++;
+        await db.from("push_subscriptions").update({ last_success_at: now, failure_count: 0 }).eq("endpoint", sub.endpoint);
+      } else if (res.expired) {
+        expired++;
+        await db
+          .from("push_subscriptions")
+          .update({ enabled: false, last_failure_at: now, failure_count: ((sub.failure_count as number | null) ?? 0) + 1 })
+          .eq("endpoint", sub.endpoint);
+      } else {
+        failed++;
+        await db
+          .from("push_subscriptions")
+          .update({ last_failure_at: now, failure_count: ((sub.failure_count as number | null) ?? 0) + 1 })
+          .eq("endpoint", sub.endpoint);
+      }
     }),
   );
-
-  // Clean up expired subscriptions
-  if (expired.length > 0) {
-    await db.from("push_subscriptions").delete().in("endpoint", expired);
-  }
 
   await logAdminAction(admin.userId, "push.broadcast", "push_subscriptions", undefined, {
     targeted_user: body.userId ?? "all",
     recipients: subs.length,
     sent,
+    expired,
+    failed,
   });
 
-  return NextResponse.json({ sent, expired: expired.length });
+  return NextResponse.json({ sent, expired, failed });
 }

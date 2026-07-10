@@ -16,6 +16,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { zimaDelete } from "@/lib/zima";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { normalizeEbookStatus, type EbookStatus } from "@/lib/admin/ebooks-shared";
+import { notifyNewBookPublished } from "@/lib/push-events";
+import { shouldNotifyPublishedTransition } from "@/lib/push-utils";
 
 const REVALIDATE_PATHS = ["/admin/manage", "/admin", "/books", "/"];
 
@@ -93,6 +95,16 @@ async function setEbookStatus(
     }
   }
 
+  const { data: before } = await supabase
+    .from("books")
+    .select("title, slug, status")
+    .eq("id", id)
+    .single();
+  const shouldNotify = shouldNotifyPublishedTransition(
+    normalizeEbookStatus(before?.status as string | null),
+    status,
+  );
+
   const { data: row, error } = await supabase
     .from("books")
     .update({ status })
@@ -106,6 +118,9 @@ async function setEbookStatus(
 
   revalidateAll();
   if (row?.slug) revalidatePath(`/books/${row.slug}`);
+  if (shouldNotify && row?.slug && row?.title) {
+    after(() => notifyNewBookPublished({ id, title: row.title, slug: row.slug }));
+  }
   return { success: true };
 }
 
@@ -255,18 +270,41 @@ export async function bulkUpdateEbooks(
 
   if (action === "publish") {
     // Never bulk-publish a book with no PDF — those count as failed.
-    const { data: fileRows } = await supabase
-      .from("book_files")
-      .select("book_id")
-      .in("book_id", cleanIds)
-      .not("file_url", "is", null);
+    const [{ data: fileRows }, { data: bookRows }] = await Promise.all([
+      supabase
+        .from("book_files")
+        .select("book_id")
+        .in("book_id", cleanIds)
+        .not("file_url", "is", null),
+      supabase
+        .from("books")
+        .select("id, title, slug, status")
+        .in("id", cleanIds),
+    ]);
+    const booksById = new Map((bookRows ?? []).map((book) => [book.id as string, book]));
     const publishable = cleanIds.filter((id) => (fileRows ?? []).some((f: { book_id: string }) => f.book_id === id));
+    const newlyPublished = publishable
+      .map((id) => booksById.get(id))
+      .filter((book): book is { id: string; title: string; slug: string; status: string | null } =>
+        !!book &&
+        typeof book.id === "string" &&
+        typeof book.title === "string" &&
+        typeof book.slug === "string" &&
+        shouldNotifyPublishedTransition(normalizeEbookStatus(book.status), "published"),
+      );
     if (publishable.length) {
       const { error } = await supabase.from("books").update({ status: "published" }).in("id", publishable);
       if (error) return { success: 0, failed: cleanIds.length, error: error.message };
     }
     await logBulk();
     revalidateAll();
+    if (newlyPublished.length) {
+      after(() => Promise.all(newlyPublished.map((book) => notifyNewBookPublished({
+        id: book.id,
+        title: book.title,
+        slug: book.slug,
+      }))).then(() => undefined));
+    }
     const failed = cleanIds.length - publishable.length;
     return {
       success: publishable.length,

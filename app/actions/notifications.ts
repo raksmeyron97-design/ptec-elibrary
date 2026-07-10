@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requirePermission, requireUser } from "@/lib/auth-guards";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { notifyAnnouncementPublished } from "@/lib/push-events";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ export async function createAnnouncement(payload: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const { supabase } = await requirePermission("announcements", "write");
-    const { error } = await supabase.from("notifications").insert({
+    const { data, error } = await supabase.from("notifications").insert({
       type: "announcement",
       title_en: payload.title_en,
       title_km: payload.title_km ?? null,
@@ -139,8 +141,15 @@ export async function createAnnouncement(payload: {
       body_km: payload.body_km ?? null,
       link: payload.link ?? null,
       target_role: null,
-    });
+    }).select("id")
+      .single();
     if (error) return { success: false, error: error.message };
+    after(() => notifyAnnouncementPublished({
+      id: data.id,
+      title: payload.title_en,
+      body: payload.body_en,
+      url: payload.link,
+    }));
     revalidatePath("/admin/announcements");
     return { success: true };
   } catch (e) {

@@ -156,8 +156,11 @@ export async function middleware(request: NextRequest) {
   // denylist below can't enumerate every asset type (that's exactly how the
   // /pdf/pdf.worker.min.mjs and /hero/*.avif rewrite bug happened), so bail
   // out here for any request whose last path segment looks like a filename.
+  // /pdf/* contains extensionless files (LICENSE, LICENSE_FOXIT, …) that the
+  // dot check below misses; they're precached by the service worker, and a
+  // locale rewrite turns them into 404s that fail the whole SW install.
   const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
-  if (lastSegment.includes(".")) {
+  if (lastSegment.includes(".") || pathname.startsWith("/pdf/")) {
     return applySecurity(NextResponse.next({ request: { headers: request.headers } }));
   }
 
