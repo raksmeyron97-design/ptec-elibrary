@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/core/Icon";
 
 const THEME_STORAGE_KEY = "ptec.theme";
@@ -29,6 +30,7 @@ function applyTheme(theme: Theme) {
 }
 
 export default function ThemeToggle() {
+  const t = useTranslations("nav");
   const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,11 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button type="button" onClick={toggleTheme} aria-label="Toggle theme">
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={theme === "light" ? t("switchToDark") : t("switchToLight")}
+    >
       {theme === "light" ? (
         <Icon name="moon" className="text-[18px]" />
       ) : (

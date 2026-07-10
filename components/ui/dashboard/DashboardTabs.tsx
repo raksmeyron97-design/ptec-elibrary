@@ -64,7 +64,7 @@ function EmptyState({
       <p className="text-[14px] font-semibold text-text-heading">{title}</p>
       <p className="mt-1 max-w-xs text-[12.5px] text-text-muted">{desc}</p>
       <Link href={href}
-        className="mt-5 inline-flex h-9 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+        className="mt-5 inline-flex h-9 items-center rounded-xl bg-brand px-5 text-[13px] font-semibold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
         {label}
       </Link>
     </div>

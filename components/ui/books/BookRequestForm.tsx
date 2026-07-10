@@ -83,7 +83,7 @@ export default function BookRequestForm() {
                   <button
                     type="button"
                     onClick={() => { setOpen(false); setResult(null); }}
-                    className="mt-2 rounded-[10px] bg-brand px-5 py-2 text-[13px] font-bold text-white transition hover:bg-brand-hover"
+                    className="mt-2 rounded-[10px] bg-brand px-5 py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover"
                   >
                     Done
                   </button>
@@ -162,7 +162,7 @@ export default function BookRequestForm() {
                     <button
                       type="submit"
                       disabled={busy}
-                      className="flex-1 rounded-[10px] bg-brand py-2.5 text-[13px] font-bold text-white transition hover:bg-brand-hover disabled:opacity-60"
+                      className="flex-1 rounded-[10px] bg-brand py-2.5 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover disabled:opacity-60"
                     >
                       {busy ? "Submitting…" : "Submit Request"}
                     </button>

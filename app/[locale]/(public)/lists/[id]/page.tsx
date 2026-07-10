@@ -66,7 +66,7 @@ export default async function ReadingListPage({ params }: Props) {
             <BookMarked className="mb-3 h-10 w-10 text-text-muted/30" />
             <p className="text-[14px] font-semibold text-text-muted">No books in this list yet</p>
             <Link href="/books"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-hover">
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast hover:bg-brand-hover">
               Browse Books
             </Link>
           </div>

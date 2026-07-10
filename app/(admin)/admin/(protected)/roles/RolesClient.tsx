@@ -26,11 +26,13 @@ function nextLevel(current: PermLevel): PermLevel {
   return LEVEL_CYCLE[(idx + 1) % LEVEL_CYCLE.length];
 }
 
-function PermBadge({ level, interactive, loading, onClick }: {
+function PermBadge({ level, interactive, loading, onClick, contextLabel }: {
   level: PermLevel;
   interactive?: boolean;
   loading?: boolean;
   onClick?: () => void;
+  /** e.g. "Books permission for librarian" — read to screen readers along with the level */
+  contextLabel?: string;
 }) {
   const base = "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold transition-all";
 
@@ -62,6 +64,7 @@ function PermBadge({ level, interactive, loading, onClick }: {
       onClick={onClick}
       disabled={loading}
       title={`Click to change to "${next}"`}
+      aria-label={contextLabel ? `${contextLabel}: ${level}. Activate to change to ${next}` : undefined}
       className={`
         ${base} ${styles[level]} cursor-pointer
         hover:scale-105 hover:shadow-sm active:scale-95
@@ -196,11 +199,12 @@ export default function RolesClient({
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">Role permissions matrix</caption>
             <thead>
               <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
-                <th className="px-6 py-3 w-36">Role</th>
+                <th scope="col" className="px-6 py-3 w-36">Role</th>
                 {PERMISSION_AREAS.map((area) => (
-                  <th key={area.key} className="px-4 py-3 text-center">{area.label}</th>
+                  <th key={area.key} scope="col" className="px-4 py-3 text-center">{area.label}</th>
                 ))}
               </tr>
             </thead>
@@ -233,6 +237,7 @@ export default function RolesClient({
                             interactive={editMode && !isSuperAdmin}
                             loading={isLoading || (isPending && savingCell === key)}
                             onClick={() => handleCycle(role, area.key)}
+                            contextLabel={`${area.label} permission for ${ROLE_META[role].label}`}
                           />
                         </td>
                       );

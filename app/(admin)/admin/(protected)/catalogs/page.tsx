@@ -173,11 +173,12 @@ export default async function AdminCatalogsPage({
       <div className="rounded-xl bg-bg-surface border border-divider shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">Physical catalog books</caption>
             <thead>
               <tr className="border-b border-divider bg-paper/60 text-left">
-                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted text-center w-16">Cover</th>
+                <th scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted text-center w-16">Cover</th>
                 {["Title / Author", "Category", "Shelf", "Availability", "Copies", "Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
+                  <th key={h} scope="col" className="px-4 py-3 text-xs font-bold uppercase tracking-wider text-text-muted">
                     {h}
                   </th>
                 ))}

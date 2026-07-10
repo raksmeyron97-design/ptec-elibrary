@@ -40,14 +40,27 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
   return (
     <>
       <style>{`
-        /* ── Pill mode: force light-mode token overrides ── */
+        /* ── Pill mode: force light-mode token overrides ──
+           The pill is always a light glass surface (bg-white/82), so ALL
+           tokens must flip to their light values together — forcing only the
+           text tokens left dark-theme surfaces (bg-bg-surface, bg-paper)
+           under light-theme text, which failed WCAG contrast. Muted is
+           #59677E (not the old #64748B, which was itself a contrast fail). */
         .is-pill {
           --ptec-text-heading: #0B1530 !important;
           --ptec-text-body: #334155 !important;
-          --ptec-text-muted: #64748B !important;
+          --ptec-text-muted: #59677E !important;
           --ptec-brand: #1E3A8A !important;
           --ptec-brand-hover: #182E6E !important;
           --ptec-accent: #DDB022 !important;
+          --ptec-bg-surface: #FFFFFF !important;
+          --ptec-bg-body: #F3F4F6 !important;
+          --ptec-bg-app: #F3F4F6 !important;
+          --ptec-paper: #F3F4F6 !important;
+          --ptec-border: #E5E7EB !important;
+          --ptec-border-strong: #D6DAE0 !important;
+          --ptec-divider: #E5E7EB !important;
+          --ptec-focus-ring: #3A5FC4 !important;
           color: #1e293b !important;
         }
         .is-pill .dark\\:text-brand  { color: #1E3A8A !important; }

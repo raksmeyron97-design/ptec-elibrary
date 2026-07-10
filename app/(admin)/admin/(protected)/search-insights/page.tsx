@@ -180,11 +180,12 @@ export default async function SearchInsightsPage() {
           ) : (
             <div className="mt-4 overflow-hidden rounded-xl border border-divider">
               <table className="w-full text-left text-[13px]">
+                <caption className="sr-only">Most clicked search results</caption>
                 <thead>
                   <tr className="border-b border-divider bg-paper text-[11px] font-bold uppercase tracking-wide text-text-muted">
-                    <th className="px-3 py-2">Result</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2">Clicks</th>
+                    <th scope="col" className="px-3 py-2">Result</th>
+                    <th scope="col" className="px-3 py-2">Type</th>
+                    <th scope="col" className="px-3 py-2">Clicks</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -370,7 +370,7 @@ export default async function Footer() {
                   <Seal size={72} variant="footer" />
                 </span>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FBBF24] font-khmer-serif mb-1">
+                  <p lang="km" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FBBF24] font-khmer-serif mb-1">
                     បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
                   </p>
                   <h2 className="font-khmer-serif font-bold text-xl tracking-wide">

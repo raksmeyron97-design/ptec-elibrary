@@ -58,7 +58,7 @@ function ListCard({ list, onDelete, onUpdate }: {
           </label>
           <div className="flex gap-2">
             <button onClick={save} disabled={busy || !name.trim()}
-              className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60">
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-brand-contrast disabled:opacity-60">
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
             </button>
             <button onClick={() => setEditing(false)}
@@ -158,7 +158,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-brand-hover"
+          className="inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-3.5 py-2 text-[13px] font-bold text-brand-contrast transition hover:bg-brand-hover"
         >
           <Plus className="h-4 w-4" /> New List
         </button>
@@ -185,7 +185,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
               <button
                 onClick={handleCreate}
                 disabled={busy || !newName.trim()}
-                className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-white disabled:opacity-60"
+                className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast disabled:opacity-60"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 Create List
@@ -208,7 +208,7 @@ export default function ReadingListsSection({ initialLists }: Props) {
           </p>
           <button
             onClick={() => setCreating(true)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-hover"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast hover:bg-brand-hover"
           >
             <Plus className="h-4 w-4" /> Create First List
           </button>

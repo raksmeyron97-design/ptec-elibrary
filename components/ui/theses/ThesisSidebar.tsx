@@ -472,7 +472,7 @@ export default function ThesisSidebar({
         onClick={() => setMobileOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={mobileOpen}
-        className="lg:hidden fixed bottom-5 right-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-white shadow-xl transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+        className="lg:hidden fixed bottom-5 right-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-brand-contrast shadow-xl transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
       >
         <SlidersHorizontal className="w-4 h-4" />
         Filters

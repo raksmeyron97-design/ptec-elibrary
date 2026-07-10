@@ -263,6 +263,12 @@ export default async function BooksPage({
           <EmptyState hasFilters={hasFilters} query={params.q} t={t} basePath={basePath} />
         ) : (
           <>
+            {/* Card titles are h3s; this keeps the h1 → h2 → h3 outline intact */}
+            <h2 className="sr-only">
+              {total > 0
+                ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
+                : t('title')}
+            </h2>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
               {books.map((book, i) => (
                 <BookCard key={book.slug} book={book} priority={i < 6} />

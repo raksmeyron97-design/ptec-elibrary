@@ -98,7 +98,11 @@ function SortableHeader({
 }) {
   const active = sort.column === column;
   return (
-    <th className={`px-4 py-2.5 font-medium ${className}`}>
+    <th
+      scope="col"
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+      className={`px-4 py-2.5 font-medium ${className}`}
+    >
       <button
         type="button"
         onClick={() => onSort(column)}
@@ -423,9 +427,10 @@ export default function PublicationsClient({
       <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
+            <caption className="sr-only">Publications list</caption>
             <thead className="border-b border-divider bg-paper text-xs text-text-muted">
               <tr>
-                <th className="w-10 px-3 py-2.5">
+                <th scope="col" className="w-10 px-3 py-2.5">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -437,9 +442,9 @@ export default function PublicationsClient({
                     className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-brand)]"
                   />
                 </th>
-                {show("cover") && <th className="w-14 px-2 py-2.5 font-medium" />}
+                {show("cover") && <th scope="col" className="w-14 px-2 py-2.5 font-medium"><span className="sr-only">Cover</span></th>}
                 <SortableHeader label="Title" column="title" sort={sort} onSort={handleSort} />
-                {show("journal") && <th className="px-4 py-2.5 font-medium">Journal / Issue</th>}
+                {show("journal") && <th scope="col" className="px-4 py-2.5 font-medium">Journal / Issue</th>}
                 {show("views") && (
                   <SortableHeader label="Views" column="views" sort={sort} onSort={handleSort} className="text-right" />
                 )}
@@ -449,8 +454,8 @@ export default function PublicationsClient({
                 {show("date") && (
                   <SortableHeader label="Date" column="created" sort={sort} onSort={handleSort} />
                 )}
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
+                <th scope="col" className="px-4 py-2.5 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">

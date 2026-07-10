@@ -53,7 +53,7 @@ export default function BookNotes({
         </p>
         <Link
           href={`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/books/${bookSlug}`}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-[13px] font-semibold text-white hover:bg-brand-hover transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-[13px] font-semibold text-brand-contrast hover:bg-brand-hover transition-colors"
         >
           Sign In to Take Notes
         </Link>

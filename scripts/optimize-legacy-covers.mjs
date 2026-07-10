@@ -23,7 +23,7 @@ import { readFileSync } from "node:fs";
 
 // Minimal .env loader (script runs outside Next).
 for (const line of readFileSync(".env", "utf8").split("\n")) {
-  const m = line.match(/^([A-Z0-9_]+)=["']?([^"'\n]*)["']?$/);
+  const m = line.match(/^([A-Z0-9_]+)=["']?([^"'\r\n]*?)["']?\s*$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 

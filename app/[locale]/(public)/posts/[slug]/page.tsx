@@ -372,7 +372,7 @@ export default async function PostDetailPage({
 
           {/* Author card */}
           <div className="flex gap-4 items-start mt-10 bg-bg-surface border border-divider rounded-2xl p-6 shadow-sm">
-            <span className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center font-khmer-serif font-bold text-2xl flex-none shadow-sm">
+            <span className="w-14 h-14 rounded-full bg-brand text-brand-contrast flex items-center justify-center font-khmer-serif font-bold text-2xl flex-none shadow-sm">
               {authorInitial}
             </span>
             <div>

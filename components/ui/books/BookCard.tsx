@@ -107,14 +107,14 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
           {/* NEW badge — solid pill, top-left, only on browse + new books */}
           {isNew && (
-            <span className="absolute left-2 top-2 z-[4] rounded-[4px] bg-brand px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white">
+            <span className="absolute left-2 top-2 z-[4] rounded-[4px] bg-brand px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-brand-contrast">
               {tc("new")}
             </span>
           )}
 
           {/* Category pill — bottom-left, frosted white */}
           {(book.category || book.department) && (
-            <span className="absolute bottom-2 left-2 z-[4] rounded-[4px] bg-white/90 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-brand shadow-sm backdrop-blur-sm">
+            <span className="absolute bottom-2 left-2 z-[4] rounded-[4px] bg-white/90 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-blue-700 shadow-sm backdrop-blur-sm">
               {book.category || book.department}
             </span>
           )}

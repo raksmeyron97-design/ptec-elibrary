@@ -29,19 +29,28 @@ export default function LanguageSwitcher({ locale, className }: Props) {
   const enLabel = locale === 'km' ? 'អង់គ្លេស' : 'EN';
 
   return (
-    <div className={`flex items-center gap-2 text-sm ${className || ''}`}>
-      <Globe className="w-4 h-4 shrink-0" />
+    <div
+      className={`flex items-center gap-2 text-sm ${className || ''}`}
+      role="group"
+      aria-label={locale === 'km' ? 'ភាសា' : 'Language'}
+    >
+      <Globe className="w-4 h-4 shrink-0" aria-hidden="true" />
       <button
         type="button"
         onClick={() => switchTo('en')}
+        aria-pressed={locale === 'en'}
+        aria-label="English"
         className={`transition-colors hover:text-white ${locale === 'en' ? 'underline font-semibold text-white' : ''}`}
       >
         {enLabel}
       </button>
-      <span className="opacity-40 select-none">|</span>
+      <span className="opacity-40 select-none" aria-hidden="true">|</span>
       <button
         type="button"
         onClick={() => switchTo('km')}
+        aria-pressed={locale === 'km'}
+        aria-label="ភាសាខ្មែរ"
+        lang="km"
         className={`transition-colors hover:text-white ${locale === 'km' ? 'underline font-semibold text-white' : ''}`}
       >
         KH

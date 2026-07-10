@@ -87,11 +87,11 @@ const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "t
 };
 
 const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgePublication" | "badgeCatalog" | "badgePost"; className: string }> = {
-  book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-500 border-blue-500/20" },
-  research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-600 border-green-600/20" },
-  publication: { labelKey: "badgePublication", className: "bg-cyan-600/15 text-cyan-700 border-cyan-500/20" },
-  catalog:  { labelKey: "badgeCatalog", className: "bg-amber-500/15 text-amber-600 border-amber-500/20" },
-  post:     { labelKey: "badgePost",   className: "bg-purple-500/15 text-purple-500 border-purple-500/20" },
+  book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-700 border-blue-500/25 dark:bg-blue-400/10 dark:text-blue-300 dark:border-blue-400/25" },
+  research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-800 border-green-600/25 dark:bg-green-400/10 dark:text-green-300 dark:border-green-400/25" },
+  publication: { labelKey: "badgePublication", className: "bg-cyan-600/15 text-cyan-800 border-cyan-500/25 dark:bg-cyan-400/10 dark:text-cyan-300 dark:border-cyan-400/25" },
+  catalog:  { labelKey: "badgeCatalog", className: "bg-amber-500/15 text-amber-800 border-amber-500/25 dark:bg-amber-400/10 dark:text-amber-300 dark:border-amber-400/25" },
+  post:     { labelKey: "badgePost",   className: "bg-purple-500/15 text-purple-800 border-purple-500/25 dark:bg-purple-400/10 dark:text-purple-300 dark:border-purple-400/25" },
 };
 
 const COVER_PLACEHOLDER_COLORS: Record<SearchResultType, string> = {
@@ -675,8 +675,8 @@ export default function SearchPageClient({ departments, languages, categories }:
             type="submit"
             disabled={!input.trim()}
             aria-label={t("searchButton")}
-            className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-3.5 sm:px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-offset-1"
-            style={{ background: "var(--ptec-brand)", color: "#fff" }}
+            className="flex-shrink-0 flex items-center gap-1.5 h-[40px] px-3.5 sm:px-4 mx-1.5 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.97] focus:outline-none focus:ring-2 focus:ring-focus-ring focus:ring-offset-1"
+            style={{ background: "var(--ptec-brand)", color: "var(--ptec-brand-contrast)" }}
           >
             <Icon name="search" className="text-[12px]" />
             <span className="hidden sm:inline">{t("searchButton")}</span>
@@ -688,7 +688,9 @@ export default function SearchPageClient({ departments, languages, categories }:
           <div
             ref={dropdownRef}
             id="search-page-listbox"
-            role="listbox"
+            // Only a real option list may carry role="listbox" — the recents/
+            // trending chips and loading states are not option children.
+            role={input.length >= 2 && suggestions.length > 0 ? "listbox" : undefined}
             aria-label={t("ariaLabel")}
             className="relative z-40 mt-2 overflow-hidden rounded-2xl"
             style={{
@@ -766,13 +768,14 @@ export default function SearchPageClient({ departments, languages, categories }:
                 const items = grouped[type];
                 if (!items?.length) return null;
                 return (
-                  <div key={type}>
+                  <div key={type} role="group" aria-labelledby={`search-suggest-group-${type}`}>
                     <div
                       className="flex items-center gap-2 px-4 py-2"
                       style={{ borderBottom: "1px solid var(--ptec-border)", background: "var(--ptec-bg-body)" }}
+                      role="presentation"
                     >
-                      <Icon name={SUGGESTION_TYPE_ICON[type]} className="text-[12px]" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
+                      <Icon name={SUGGESTION_TYPE_ICON[type]} className="text-[12px]" style={{ color: "var(--ptec-brand)" } as React.CSSProperties} aria-hidden />
+                      <span id={`search-suggest-group-${type}`} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
                         {t(SUGGESTION_TYPE_LABEL_KEY[type])}
                       </span>
                     </div>
@@ -868,7 +871,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           <select
             value={sort}
             onChange={(e) => handleSortChange(e.target.value)}
-            className="h-7 cursor-pointer bg-transparent text-[12.5px] font-semibold text-text-heading outline-none"
+            className="h-7 cursor-pointer rounded-md bg-transparent text-[12.5px] font-semibold text-text-heading outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
             aria-label={t("sortLabel")}
           >
             <option value="relevance">{t("sortRelevance")}</option>
@@ -905,7 +908,7 @@ export default function SearchPageClient({ departments, languages, categories }:
               <button
                 type="button"
                 onClick={() => removeFilter(key)}
-                aria-label={`Remove ${label} filter`}
+                aria-label={t("removeFilter", { label })}
                 className="flex items-center justify-center w-4 h-4 rounded-full cursor-pointer transition-colors hover:bg-[color-mix(in_srgb,var(--ptec-border)_80%,transparent)]"
               >
                 <Icon name="x" className="text-[9px]" />
@@ -925,13 +928,20 @@ export default function SearchPageClient({ departments, languages, categories }:
         )}
       </div>
 
+      {/* Announce search lifecycle to screen readers: searching → N results
+          (or fuzzy fallback / error). Counts matter — "results for X" alone
+          doesn't tell a non-sighted user whether anything was found. */}
       <div className="sr-only" role="status" aria-live="polite">
         {q
           ? loading
             ? `${t("searchingFor")} ${q}`
-            : fuzzy
-              ? t("fuzzyNotice", { query: q })
-              : `${t("resultsFor")} ${q}`
+            : error
+              ? t("errorGeneric")
+              : fuzzy
+                ? t("fuzzyNotice", { query: q })
+                : counts
+                  ? t("resultsAnnouncement", { count: counts.total, query: q })
+                  : `${t("resultsFor")} ${q}`
           : ""}
       </div>
       </div>
@@ -945,6 +955,7 @@ export default function SearchPageClient({ departments, languages, categories }:
             type="button"
             onClick={() => setMobileFacetsOpen((v) => !v)}
             aria-expanded={mobileFacetsOpen}
+            aria-controls="search-facets-panel"
             data-testid="facets-toggle"
             className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold lg:hidden"
             style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
@@ -959,7 +970,7 @@ export default function SearchPageClient({ departments, languages, categories }:
               </span>
             )}
           </button>
-          <div className={`${mobileFacetsOpen ? "mt-3 block" : "hidden"} lg:mt-0 lg:block`}>
+          <div id="search-facets-panel" className={`${mobileFacetsOpen ? "mt-3 block" : "hidden"} lg:mt-0 lg:block`}>
             <SearchFacets
               facetCounts={facetCounts}
               showTypes={activeType === "all"}
@@ -989,6 +1000,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                 key={tabId}
                 type="button"
                 onClick={() => handleTypeChange(tabId)}
+                aria-pressed={isActive}
                 className="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2 text-[13px] font-semibold transition-all duration-150 cursor-pointer"
                 style={{
                   color: isActive ? "var(--ptec-brand)" : "var(--ptec-text-muted)",
@@ -1040,6 +1052,7 @@ export default function SearchPageClient({ departments, languages, categories }:
       {/* ── Error ─────────────────────────────────────────────────────── */}
       {error && !loading && (
         <div
+          role="alert"
           className="rounded-[14px] p-5 text-center text-[13px]"
           style={{ background: "var(--ptec-bg-surface)", border: "1px solid var(--ptec-border)", color: "var(--ptec-text-muted)" }}
         >
@@ -1094,7 +1107,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           )}
           <Link
             href="/books"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-semibold text-brand-contrast transition hover:opacity-90"
             style={{ background: "var(--ptec-brand)" }}
           >
             {t("browseLibrary")}

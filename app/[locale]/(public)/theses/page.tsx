@@ -282,17 +282,24 @@ export default async function ThesesPage({
                   showReset={hasFilters}
                 />
               ) : isGrid ? (
-                <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-                  {pagedReports.map((report) => (
-                    <ThesisCard key={report.id} report={report} />
-                  ))}
-                </div>
+                <>
+                  {/* Card titles are h3s; keep the document outline h1 → h2 → h3 */}
+                  <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
+                  <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
+                    {pagedReports.map((report) => (
+                      <ThesisCard key={report.id} report={report} />
+                    ))}
+                  </div>
+                </>
               ) : (
-                <div className="flex flex-col gap-4">
-                  {pagedReports.map((report) => (
-                    <ThesisListItem key={report.id} report={report} />
-                  ))}
-                </div>
+                <>
+                  <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
+                  <div className="flex flex-col gap-4">
+                    {pagedReports.map((report) => (
+                      <ThesisListItem key={report.id} report={report} />
+                    ))}
+                  </div>
+                </>
               )}
 
               {total > 0 && (

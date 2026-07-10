@@ -200,10 +200,10 @@ export default function AuthorsClient({
           <table className="w-full text-left text-sm">
             <thead className="bg-paper border-b border-divider text-text-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">ORCID</th>
-                <th className="px-5 py-3 font-medium">Email</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <th scope="col" className="px-5 py-3 font-medium">Name</th>
+                <th scope="col" className="px-5 py-3 font-medium">ORCID</th>
+                <th scope="col" className="px-5 py-3 font-medium">Email</th>
+                <th scope="col" className="px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">
@@ -349,10 +349,10 @@ export default function AuthorsClient({
           <table className="w-full text-left text-sm">
             <thead className="bg-paper border-b border-divider text-text-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Name</th>
-                <th className="px-5 py-3 font-medium">City</th>
-                <th className="px-5 py-3 font-medium">Country</th>
-                <th className="px-5 py-3 font-medium text-right">Actions</th>
+                <th scope="col" className="px-5 py-3 font-medium">Name</th>
+                <th scope="col" className="px-5 py-3 font-medium">City</th>
+                <th scope="col" className="px-5 py-3 font-medium">Country</th>
+                <th scope="col" className="px-5 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">

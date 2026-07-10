@@ -227,7 +227,7 @@ const ToolButton = memo(function ToolButton({
         "inline-flex items-center justify-center rounded-md transition disabled:opacity-30",
         active
           ? "bg-cyan-500/20 text-cyan-300"
-          : "text-text-muted hover:bg-bg-surface/10 hover:text-white",
+          : "text-slate-400 hover:bg-bg-surface/10 hover:text-white",
         className,
       )}
     >
@@ -735,6 +735,44 @@ export default function PDFViewer({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (numPages > 0) setAriaPageAnnouncement(`${t("page")} ${fmtNum(currentPage)} / ${fmtNum(numPages)}`);
   }, [currentPage, numPages, t, fmtNum]);
+
+  /* ── Strip dangling aria-owns from the pdf.js text layer ────────
+     pdf.js links every text-layer span to a structure-tree element via
+     aria-owns, but react-pdf never renders the structure tree, so each
+     reference dangles (axe: aria-valid-attr-value, critical). Removing
+     the attribute restores natural DOM reading order for screen readers. */
+  useEffect(() => {
+    const root = docAreaRef.current;
+    if (!root) return;
+    const strip = (scope: ParentNode) => {
+      const els = scope.querySelectorAll("[aria-owns]");
+      els.forEach((el) => {
+        const ids = el.getAttribute("aria-owns")?.split(/\s+/).filter(Boolean) ?? [];
+        if (!ids.length || ids.some((id) => !document.getElementById(id))) {
+          el.removeAttribute("aria-owns");
+        }
+      });
+    };
+    strip(root);
+    const mo = new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === "attributes" && m.target instanceof Element) {
+          strip(m.target.parentNode ?? root);
+          continue;
+        }
+        for (const node of m.addedNodes) {
+          if (node instanceof Element) strip(node);
+        }
+      }
+    });
+    mo.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-owns"],
+    });
+    return () => mo.disconnect();
+  }, []);
 
   /* ── Track connectivity (for the offline badge + error copy) ──── */
   useEffect(() => {
@@ -1478,7 +1516,7 @@ export default function PDFViewer({
               </span>
               <div className="min-w-0 flex-1">
                 <h2 title={title} className="truncate text-[15px] font-bold sm:text-base">{title}</h2>
-                <p className="text-[11px] text-text-muted">{t("readOnline")}</p>
+                <p className="text-[11px] text-slate-400">{t("readOnline")}</p>
               </div>
 
               <div className="flex items-center gap-1">
@@ -1518,7 +1556,7 @@ export default function PDFViewer({
                   <ToolButton
                     onClick={() => setPanelTab((p) => (p === "annotations" ? null : "annotations"))}
                     active={panelTab === "annotations"}
-                    label={locale === "km" ? "ចំណារ" : "Annotations"}
+                    label={t("annotations")}
                     className="relative hidden h-8 w-8 sm:inline-flex"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
@@ -1538,7 +1576,7 @@ export default function PDFViewer({
                   <ToolButton
                     onClick={() => setMobileMenuOpen((v) => !v)}
                     active={mobileMenuOpen}
-                    label={locale === "km" ? "មុខងារផ្សេងទៀត" : "More"}
+                    label={t("moreOptions")}
                     className="h-8 w-8"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -1558,13 +1596,12 @@ export default function PDFViewer({
                       />
                       {/* opens upward: on mobile the toolbar sits at the bottom */}
                       <div
-                        role="menu"
                         className="absolute bottom-full right-0 z-50 mb-1.5 w-60 rounded-lg border border-white/10 bg-slate-900 p-1.5 shadow-2xl"
                       >
                         {/* Zoom */}
                         <div className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm text-slate-200">
                           <span className="flex items-center gap-3">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                                 <circle cx="11" cy="11" r="7" />
                                 <path d="m21 21-4.3-4.3M8 11h6" />
@@ -1584,7 +1621,7 @@ export default function PDFViewer({
                                 <path d="M20 12H4" />
                               </svg>
                             </button>
-                            <span className="w-9 text-center text-[11px] font-semibold text-text-muted">
+                            <span className="w-9 text-center text-[11px] font-semibold text-slate-400">
                               {fmtNum(Math.round(scale * 100))}%
                             </span>
                             <button
@@ -1604,8 +1641,8 @@ export default function PDFViewer({
                         <div className="my-1 h-px bg-white/10" />
 
                         {/* View mode */}
-                        <button type="button" role="menuitem" onClick={toggleView} className={MENU_ROW}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                        <button type="button" onClick={toggleView} className={MENU_ROW}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                             {viewMode === "scroll" ? (
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <rect x="5" y="3" width="14" height="7" rx="1" />
@@ -1622,8 +1659,8 @@ export default function PDFViewer({
 
                         {/* Fit (single mode only) */}
                         {viewMode === "single" && (
-                          <button type="button" role="menuitem" onClick={toggleFit} className={MENU_ROW}>
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                          <button type="button" onClick={toggleFit} className={MENU_ROW}>
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                               {fitMode === "width" ? (
                                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                                   <path d="M21 12H3m6-4-6 4 6 4m6-8 6 4-6 4" />
@@ -1640,8 +1677,8 @@ export default function PDFViewer({
                         )}
 
                         {/* Theme */}
-                        <button type="button" role="menuitem" onClick={cycleTheme} className={MENU_ROW}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                        <button type="button" onClick={cycleTheme} className={MENU_ROW}>
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                             {theme === "dark" ? (
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
@@ -1663,8 +1700,8 @@ export default function PDFViewer({
 
                         {/* Bookmark current page */}
                         {numPages > 0 && (
-                          <button type="button" role="menuitem" onClick={toggleBookmark} className={MENU_ROW}>
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                          <button type="button" onClick={toggleBookmark} className={MENU_ROW}>
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
                                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                               </svg>
@@ -1678,14 +1715,13 @@ export default function PDFViewer({
                         {/* Outline */}
                         <button
                           type="button"
-                          role="menuitem"
                           onClick={() => {
                             setPanelTab("outline");
                             setMobileMenuOpen(false);
                           }}
                           className={MENU_ROW}
                         >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                               <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                             </svg>
@@ -1696,14 +1732,13 @@ export default function PDFViewer({
                         {/* Bookmarks panel */}
                         <button
                           type="button"
-                          role="menuitem"
                           onClick={() => {
                             setPanelTab("bookmarks");
                             setMobileMenuOpen(false);
                           }}
                           className={MENU_ROW}
                         >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                             </svg>
@@ -1717,8 +1752,7 @@ export default function PDFViewer({
                         {numPages > 0 && (
                           <button
                             type="button"
-                            role="menuitem"
-                            onClick={() => {
+                              onClick={() => {
                               saveNow();
                               setMobileMenuOpen(false);
                             }}
@@ -1731,7 +1765,7 @@ export default function PDFViewer({
                                   <path d="M20 6 9 17l-5-5" />
                                 </svg>
                               ) : (
-                                <svg className="h-4 w-4 text-text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                   <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                                   <path d="M17 21v-8H7v8M7 3v5h8" />
                                 </svg>
@@ -1744,14 +1778,13 @@ export default function PDFViewer({
                         {/* Fullscreen */}
                         <button
                           type="button"
-                          role="menuitem"
                           onClick={() => {
                             setIsFullscreen((v) => !v);
                             setMobileMenuOpen(false);
                           }}
                           className={MENU_ROW}
                         >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-text-muted">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
                             {isFullscreen ? (
                               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                                 <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
@@ -1780,7 +1813,7 @@ export default function PDFViewer({
                     <path d="M20 12H4" />
                   </svg>
                 </ToolButton>
-                <span className="w-9 text-center text-[11px] font-semibold text-text-muted">
+                <span className="w-9 text-center text-[11px] font-semibold text-slate-400">
                   {fmtNum(Math.round(scale * 100))}%
                 </span>
                 <ToolButton onClick={zoomIn} disabled={scale >= 3} label={t("zoomIn")} className="h-7 w-7">
@@ -1876,9 +1909,9 @@ export default function PDFViewer({
                         (e.target as HTMLInputElement).blur();
                       }
                     }}
-                    className="w-9 bg-transparent text-center text-sm font-semibold text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="w-9 rounded bg-transparent text-center text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
-                  <span className="text-[11px] text-text-muted">/ {fmtNum(numPages)}</span>
+                  <span className="text-[11px] text-slate-400">/ {fmtNum(numPages)}</span>
                   <ToolButton onClick={() => navigateToPage(currentPage + 1)} disabled={currentPage >= numPages} label={t("next")} className="h-7 w-7">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
                       <path d="M9 5l7 7-7 7" />
@@ -1905,7 +1938,14 @@ export default function PDFViewer({
               {numPages > 0 && (
                 <div className="hidden flex-col gap-0.5 lg:flex">
                   <div className="flex items-center gap-2">
-                    <div className="relative h-1.5 w-24 overflow-hidden rounded-full bg-bg-surface/20">
+                    <div
+                      role="progressbar"
+                      aria-label={t("readingProgress")}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={progressPct}
+                      className="relative h-1.5 w-24 overflow-hidden rounded-full bg-bg-surface/20"
+                    >
                       <div className="absolute h-full rounded-full bg-white/10 transition-all duration-300" style={{ width: `${maxProgressPct}%` }} />
                       <div className="absolute h-full rounded-full bg-cyan-400 transition-all duration-300" style={{ width: `${progressPct}%` }} />
                     </div>
@@ -1915,7 +1955,7 @@ export default function PDFViewer({
                       was previously mislabeled "min left". Hidden until the
                       reader has actually started ("≈ N left" at 0% is noise). */}
                   {maxProgressPct > 0 && (
-                    <span className="text-[10px] text-text-muted">
+                    <span className="text-[10px] text-slate-400">
                       {fmtNum(Math.max(0, numPages - Math.round((maxProgressPct / 100) * numPages)))} {locale === "km" ? "ទំព័រនៅសល់" : "pages left"}
                     </span>
                   )}
@@ -1999,7 +2039,14 @@ export default function PDFViewer({
           {/* Mobile progress — hidden on phones, shown on tablet only */}
           {numPages > 0 && (
             <div className="mt-2 hidden items-center gap-2 sm:flex lg:hidden">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-bg-surface/20">
+              <div
+                role="progressbar"
+                aria-label={t("readingProgress")}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progressPct}
+                className="h-1 flex-1 overflow-hidden rounded-full bg-bg-surface/20"
+              >
                 <div className="h-full rounded-full bg-cyan-400 transition-all duration-300" style={{ width: `${progressPct}%` }} />
               </div>
               <span className="text-[11px] font-semibold text-cyan-300">{fmtNum(progressPct)}%</span>
@@ -2030,12 +2077,13 @@ export default function PDFViewer({
                 &ldquo;{selectionPopup.text.slice(0, 120)}{selectionPopup.text.length > 120 ? "…" : ""}&rdquo;
               </p>
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-[11px] text-text-muted">Color:</span>
+                <span className="text-[11px] text-slate-400">{t("annotationColor")}:</span>
                 {(["yellow", "green", "blue", "pink"] as const).map((c) => (
                   <button
                     key={c}
                     type="button"
                     onClick={() => setAnnotationColor(c)}
+                    aria-pressed={annotationColor === c}
                     className={`h-5 w-5 rounded-full transition-transform ${
                       annotationColor === c ? "scale-125 ring-2 ring-white" : "hover:scale-110"
                     } ${
@@ -2043,7 +2091,11 @@ export default function PDFViewer({
                       c === "green" ? "bg-green-300" :
                       c === "blue" ? "bg-blue-300" : "bg-pink-300"
                     }`}
-                    aria-label={c}
+                    aria-label={
+                      c === "yellow" ? t("colorYellow") :
+                      c === "green" ? t("colorGreen") :
+                      c === "blue" ? t("colorBlue") : t("colorPink")
+                    }
                   />
                 ))}
               </div>
@@ -2052,7 +2104,7 @@ export default function PDFViewer({
                 value={annotationNote}
                 onChange={(e) => setAnnotationNote(e.target.value)}
                 placeholder={locale === "km" ? "ចំណាំ (ស្រេចចិត្ត)…" : "Note (optional)…"}
-                className="mb-2 w-full rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-[12px] text-white outline-none placeholder:text-text-muted focus:border-cyan-400"
+                className="mb-2 w-full rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-[12px] text-white outline-none placeholder:text-slate-400 focus:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/60"
               />
               <div className="flex gap-2">
                 <button
@@ -2121,9 +2173,9 @@ export default function PDFViewer({
               <aside className="absolute left-0 top-0 z-30 flex h-full w-[85%] max-w-[300px] flex-col border-r border-white/10 bg-slate-900 text-white shadow-2xl">
                 <div className="flex items-center justify-between border-b border-white/10 px-3 py-2.5">
                   <span className="text-sm font-semibold">
-                    {panelTab === "outline" ? t("outline") : panelTab === "bookmarks" ? t("bookmarks") : panelTab === "annotations" ? (locale === "km" ? "ចំណារ" : "Annotations") : t("search")}
+                    {panelTab === "outline" ? t("outline") : panelTab === "bookmarks" ? t("bookmarks") : panelTab === "annotations" ? t("annotations") : t("search")}
                   </span>
-                  <button type="button" onClick={() => setPanelTab(null)} aria-label={t("close")} className="rounded p-1 text-text-muted hover:bg-white/10 hover:text-white">
+                  <button type="button" onClick={() => setPanelTab(null)} aria-label={t("close")} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
@@ -2135,7 +2187,7 @@ export default function PDFViewer({
                     (outline.length ? (
                       <OutlineTree items={outline} onSelect={goToDest} />
                     ) : (
-                      <p className="p-3 text-xs text-text-muted">{t("noOutline")}</p>
+                      <p className="p-3 text-xs text-slate-400">{t("noOutline")}</p>
                     ))}
 
                   {panelTab === "bookmarks" &&
@@ -2157,7 +2209,7 @@ export default function PDFViewer({
                               type="button"
                               onClick={() => setBookmarks((bm) => bm.filter((x) => x !== p))}
                               aria-label={t("bookmarkRemove")}
-                              className="rounded p-1 text-text-muted hover:bg-white/10 hover:text-red-400"
+                              className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-red-400"
                             >
                               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                                 <path d="M18 6 6 18M6 6l12 12" />
@@ -2167,7 +2219,7 @@ export default function PDFViewer({
                         ))}
                       </ul>
                     ) : (
-                      <p className="p-3 text-xs text-text-muted">{t("noBookmarks")}</p>
+                      <p className="p-3 text-xs text-slate-400">{t("noBookmarks")}</p>
                     ))}
 
                   {panelTab === "search" && (
@@ -2190,7 +2242,7 @@ export default function PDFViewer({
                             }
                           }}
                           placeholder={t("searchPlaceholder")}
-                          className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-800 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-text-muted focus:border-cyan-400"
+                          className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-800 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-slate-400 focus:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-400/60"
                         />
                         <button
                           type="button"
@@ -2234,7 +2286,7 @@ export default function PDFViewer({
                           </span>
                         </div>
                       )}
-                      <div className="px-2 py-1 text-[11px] text-text-muted">
+                      <div className="px-2 py-1 text-[11px] text-slate-400">
                         {searching ? t("searching") : searchQuery ? (pageHits.length ? t("hits", { count: fmtNum(pageHits.length) }) : t("noResults")) : ""}
                       </div>
                       <ul className="flex-1 space-y-1 overflow-y-auto">
@@ -2270,7 +2322,7 @@ export default function PDFViewer({
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                           </svg>
-                          <p className="text-[11px] text-text-muted">
+                          <p className="text-[11px] text-slate-400">
                             {locale === "km"
                               ? "គ្មានចំណារ។ ជ្រើសអត្ថបទ ហើយចុចប៊ូតុង \"ចំណារ\"។"
                               : "No annotations yet. Select any text in the PDF to add one."}
@@ -2313,8 +2365,8 @@ export default function PDFViewer({
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteAnnotation(ann.id)}
-                                    aria-label="Delete annotation"
-                                    className="shrink-0 rounded p-0.5 text-text-muted hover:bg-white/10 hover:text-red-400"
+                                    aria-label={t("deleteAnnotation")}
+                                    className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-red-400"
                                   >
                                     <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                                       <path d="M18 6 6 18M6 6l12 12" />
@@ -2350,6 +2402,12 @@ export default function PDFViewer({
             // custom pinch handler above keeps receiving the events.
             style={{ touchAction: "pan-x pan-y" }}
             onScroll={handleViewportScroll}
+            // Scrollable region must be keyboard-reachable (axe:
+            // scrollable-region-focusable); arrows/PageUp/PageDown already
+            // turn pages via the window keydown handler above.
+            tabIndex={0}
+            role="region"
+            aria-label={`${title} — ${t("documentArea")}`}
           >
             <Document
               key={docKey}

@@ -145,7 +145,7 @@ export default function ReadingListButton({ bookId, isLoggedIn, initialListIds =
                   type="button"
                   onClick={handleCreate}
                   disabled={busy === "new" || !newName.trim()}
-                  className="rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60"
+                  className="rounded-lg bg-brand px-3 py-1.5 text-[12px] font-bold text-brand-contrast disabled:opacity-60"
                 >
                   {busy === "new" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add"}
                 </button>

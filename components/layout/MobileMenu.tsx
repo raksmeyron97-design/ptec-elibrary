@@ -78,7 +78,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
     <div className="lg:hidden">
       {/* Hamburger button (hidden on lg+) */}
       <button type="button" onClick={() => setOpenPath(pathname)}
-        aria-label="Open menu"
+        aria-label={t("openMenu")}
         aria-expanded={open}
         className="flex h-10 w-10 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand"
       >
@@ -113,7 +113,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
             ref={trapRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Menu"
+            aria-label={t("menu")}
             // Mounted-but-closing (exit transition): hide from AT and block focus.
             inert={!open}
             aria-hidden={!open}
@@ -133,7 +133,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
             />
           </Link>
           <button type="button" onClick={() => setOpenPath(null)}
-            aria-label="Close menu"
+            aria-label={t("closeMenu")}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">

@@ -199,6 +199,16 @@ body {
   color: var(--color-text-body);
 }
 
+/* ── Keyboard focus visibility (WCAG 2.4.7) ─────────────────────────
+   Zero-specificity fallback: any interactive element gets a visible
+   focus ring unless a component supplies its own (a `focus-visible:*`
+   utility or an `outline-none` class both out-rank :where()). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ptec-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .khmer {
   font-family: var(--font-body);
   line-height: 1.8;

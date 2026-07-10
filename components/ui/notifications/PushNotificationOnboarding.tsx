@@ -134,7 +134,7 @@ export default function PushNotificationOnboarding() {
               type="button"
               onClick={enable}
               disabled={busyAction === "enable"}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <BellRing className="h-4 w-4" />
               {busyAction === "enable" ? t("enabling") : t("allow")}

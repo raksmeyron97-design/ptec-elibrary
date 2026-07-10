@@ -103,7 +103,7 @@ export default function BookShowcaseTabs({
           <button type="button" onClick={() => setActiveDept(null)}
             className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
               activeDept === null
-                ? "border-brand bg-brand text-white"
+                ? "border-brand bg-brand text-brand-contrast"
                 : "border-divider bg-bg-surface text-text-muted hover:border-brand/40 hover:text-text-heading"
             }`}
           >
@@ -114,7 +114,7 @@ export default function BookShowcaseTabs({
             <button key={dept} type="button" onClick={() => setActiveDept(dept)}
               className={`shrink-0 rounded-full border px-4 py-1.5 text-[12px] font-bold transition-colors ${
                 activeDept === dept
-                  ? "border-brand bg-brand text-white"
+                  ? "border-brand bg-brand text-brand-contrast"
                   : "border-divider bg-bg-surface text-text-muted hover:border-brand/40 hover:text-text-heading"
               }`}
             >

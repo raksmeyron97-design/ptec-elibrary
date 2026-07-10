@@ -110,6 +110,7 @@ export default function UsersClient({
               key={r}
               type="button"
               onClick={() => startTransition(() => router.push(buildUrl({ role: r === "all" ? "" : r, page: "" })))}
+              aria-pressed={isActive}
               className="rounded-full border px-3.5 py-1 text-[12px] font-semibold transition-all duration-150"
               style={
                 isActive && colors
@@ -135,30 +136,32 @@ export default function UsersClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or email…"
-          className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
+          aria-label="Search users by name or email"
+          className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 rounded"
         />
         {query && (
-          <button type="button" onClick={() => setQuery("")} className="text-text-muted hover:text-text-body">✕</button>
+          <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-text-muted hover:text-text-body">✕</button>
         )}
-        <span className="text-xs text-text-muted">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-text-muted" role="status" aria-live="polite">{totalItems} result{totalItems !== 1 ? "s" : ""}</span>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">Users list</caption>
             <thead>
               <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
-                <th className="px-4 py-3">#</th>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3 hidden md:table-cell">Email</th>
-                <th className="px-4 py-3 hidden lg:table-cell">Joined</th>
-                <th className="px-4 py-3 text-center">Role</th>
-                <th className="px-4 py-3 text-right">Assign Role</th>
+                <th scope="col" className="px-4 py-3">#</th>
+                <th scope="col" className="px-4 py-3">User</th>
+                <th scope="col" className="px-4 py-3 hidden md:table-cell">Email</th>
+                <th scope="col" className="px-4 py-3 hidden lg:table-cell">Joined</th>
+                <th scope="col" className="px-4 py-3 text-center">Role</th>
+                <th scope="col" className="px-4 py-3 text-right">Assign Role</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -230,7 +233,8 @@ export default function UsersClient({
                             value={u.role}
                             disabled={isChanging || !!changingId}
                             onChange={(e) => handleRoleChange(u, e.target.value as AppRole)}
-                            className="rounded border border-divider bg-bg-surface px-2 py-1 text-xs text-text-body shadow-sm outline-none transition hover:border-text-muted focus:border-brand disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label={`Assign role for ${u.fullName ?? u.email}`}
+                            className="rounded border border-divider bg-bg-surface px-2 py-1 text-xs text-text-body shadow-sm outline-none transition hover:border-text-muted focus:border-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {ALL_ROLES.map((r) => {
                               const assignable = canAssign(r);
