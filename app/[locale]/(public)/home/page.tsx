@@ -7,6 +7,7 @@ import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, getLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
+import HeroConstellation from "@/components/ui/home/HeroConstellation";
 import ContinueReading from "@/components/ui/home/ContinueReading";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
@@ -183,6 +184,14 @@ export default async function HomePage() {
           {/* <InteractiveAurora className="absolute inset-0" /> */}
         </div>
 
+        {/* 5. Constellation canvas — client island between the background and
+            the content: a drifting star network whose trending-term nodes
+            light up while the search field is focused. */}
+        <HeroConstellation
+          terms={trendingTerms.slice(0, 4)}
+          className="absolute inset-0 -z-10"
+        />
+
         <div className="relative mx-auto max-w-[1400px] px-4 py-14 sm:py-20 md:px-12 md:py-24 lg:py-28">
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
 
@@ -222,6 +231,12 @@ export default async function HomePage() {
                   hint={t("askHint")}
                 />
               </div>
+
+              {/* Constellation affordance — desktop only (the canvas glow is
+                  behind the left overlay and barely visible on phones) */}
+              <p className="mt-3 hidden text-[12px] text-blue-300/65 lg:block">
+                {t("constellationHint")}
+              </p>
 
               {/* Mobile book strip — unchanged component */}
               <div className="mt-10 lg:hidden">
