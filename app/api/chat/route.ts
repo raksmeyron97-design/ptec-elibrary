@@ -6,6 +6,7 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
@@ -22,6 +23,11 @@ const MAX_TURNS = 10; // max conversation turns accepted from the client
 const MAX_TEXT_LEN = 500; // max chars per message
 
 const MODEL = "gemini-3.5-flash";
+
+// Page-level passage retrieval (book_chunks, migration 0082).
+const MAX_PASSAGES = 6; // chunks fed to the model as citable context
+const PASSAGE_MIN_SIMILARITY = 0.3;
+const PASSAGE_TEXT_LEN = 700; // chars per chunk in the prompt (bounds input tokens)
 
 // Sentinel UUID for the global circuit breaker row in ai_usage (not a real user).
 const GLOBAL_SENTINEL = "00000000-0000-0000-0000-000000000000";
@@ -144,10 +150,41 @@ export async function POST(req: Request) {
     .or(`title.ilike.%${query}%,abstract.ilike.%${query}%`)
     .limit(2);
 
+  // ── 7b. Page-level passages (semantic, match_book_chunks — best-effort) ──────────
+  // Publish state is re-checked inside the RPC. Any failure (no embeddings
+  // backfilled yet, Gemini hiccup) degrades to metadata-only context.
+  type Passage = { title: string; author: string; page: number; text: string };
+  let passages: Passage[] = [];
+  try {
+    const vec = await generateQueryEmbedding(query);
+    const { data: chunks, error: chunksErr } = await db.rpc("match_book_chunks", {
+      query_embedding: vec,
+      match_count: MAX_PASSAGES,
+      min_similarity: PASSAGE_MIN_SIMILARITY,
+    });
+    if (chunksErr) throw new Error(chunksErr.message);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    passages = ((chunks ?? []) as any[]).map((c) => ({
+      title: c.title as string,
+      author: (c.author as string) ?? "Unknown",
+      page: c.page_no as number,
+      text: ((c.content as string) ?? "").slice(0, PASSAGE_TEXT_LEN),
+    }));
+  } catch (err) {
+    console.error("[/api/chat] passage retrieval skipped:", err instanceof Error ? err.message : err);
+  }
+
+  const passageBlock = passages.length
+    ? `Passages found inside library PDFs (each with its source page):\n${passages
+        .map((p, i) => `${i + 1}. "${p.title}" (${p.author}), p. ${p.page}: ${p.text}`)
+        .join("\n")}`
+    : "No PDF passages matched this question.";
+
   const libraryContext = `
 Library Search Results for "${query}":
 Books: ${JSON.stringify(books ?? [])}
 Theses: ${JSON.stringify(research ?? [])}
+${passageBlock}
 `;
 
   // ── 8. Stream the model response ─────────────────────────────────────────────────
@@ -162,10 +199,13 @@ Theses: ${JSON.stringify(research ?? [])}
     const result = streamText({
       model: google(MODEL),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
+      // Same as /api/search: don't let thinking tokens eat the output cap.
+      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
       system: `You are a helpful, polite, and knowledgeable library assistant for the PTEC E-Library (Phnom Penh Teacher Education College).
 You MUST ONLY recommend books or research materials that actually exist in the library context provided below.
 If no results are found in the context, tell the user politely that you couldn't find any related materials in the library.
 If results are found, summarize them nicely with their title, author, and description.
+When your answer draws on one of the PDF passages below, cite its source page inline, e.g. (Book Title, p. 42) — in Khmer replies use (ចំណងជើង, ទំព័រ 42). Only cite page numbers that appear in the passages; never invent them.
 Do NOT write essays, homework, or assignments for students; politely decline such requests.
 Keep responses concise. Reply in Khmer (ភាសាខ្មែរ) when the user writes in Khmer, otherwise reply in English.
 

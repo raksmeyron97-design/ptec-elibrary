@@ -4,8 +4,9 @@
 // a lightweight, already-ordered response.
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import { rateLimit } from "@/lib/rate-limit";
-import { ratePolicy } from "@/lib/rate-limit-policy";
+import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 
 export const runtime = "nodejs";
@@ -65,6 +66,9 @@ export type PageHit = {
   url: string;
   pageNo: number;
   snippet: string;
+  /** "exact" = the query text appears verbatim on the page (trigram/ILIKE);
+   *  "semantic" = the passage is about the query topic (book_chunks, 0082). */
+  matchType?: "exact" | "semantic";
 };
 
 export type SearchFacets = {
@@ -876,13 +880,13 @@ async function searchPageContent(db: DB, q: string, limit = 6): Promise<PageHit[
     for (const row of picked) {
       if (row.record_type === "book") {
         const b = bookMap.get(row.record_id);
-        if (b) hits.push({ recordType: "book", recordId: row.record_id, title: b.title, url: `/books/${b.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+        if (b) hits.push({ recordType: "book", recordId: row.record_id, title: b.title, url: `/books/${b.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
       } else if (row.record_type === "research") {
         const r = researchMap.get(row.record_id);
-        if (r) hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+        if (r) hits.push({ recordType: "research", recordId: row.record_id, title: r.title, url: `/theses/${r.slug ?? row.record_id}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
       } else if (row.record_type === "publication") {
         const p = publicationMap.get(row.record_id);
-        if (p) hits.push({ recordType: "publication", recordId: row.record_id, title: p.title, url: `/publications/${p.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q) });
+        if (p) hits.push({ recordType: "publication", recordId: row.record_id, title: p.title, url: `/publications/${p.slug}`, pageNo: row.page_no, snippet: makeSnippet(row.content, q), matchType: "exact" });
       }
     }
     return hits;
@@ -890,6 +894,68 @@ async function searchPageContent(db: DB, q: string, limit = 6): Promise<PageHit[
     console.error("[native-search/pages]", err);
     return [];
   }
+}
+
+// Semantic passages from inside PDFs (book_chunks, migration 0082): finds
+// pages ABOUT the query even when its words never appear verbatim. Costs one
+// Gemini query embedding per uncached all-tab search, so it is guarded: skips
+// short queries and emergency mode, and fails open on quota/RPC/embed errors
+// (the exact-match hits above still render).
+const SEMANTIC_MIN_SIMILARITY = 0.35;
+const SEMANTIC_SNIPPET_LEN = 230;
+
+async function semanticPassages(db: DB, q: string, limit = 6): Promise<PageHit[]> {
+  if (q.length < 4 || !process.env.GEMINI_API_KEY || isExpensiveSearchDisabled()) return [];
+  try {
+    const vec = await generateQueryEmbedding(q);
+    const { data, error } = await db.rpc("match_book_chunks", {
+      query_embedding: vec,
+      match_count: limit * 2, // over-fetch: multiple chunks may share a record
+      min_similarity: SEMANTIC_MIN_SIMILARITY,
+    });
+    if (error || !data?.length) return [];
+
+    const hits: PageHit[] = [];
+    const seen = new Set<string>();
+    for (const r of data as any[]) {
+      if (r.source !== "book" && r.source !== "research" && r.source !== "publication") continue;
+      const key = `${r.source}:${r.record_id}`;
+      if (seen.has(key)) continue; // rows arrive ordered by similarity — keep the best chunk
+      seen.add(key);
+      const text: string = r.content ?? "";
+      const clipped = text.length > SEMANTIC_SNIPPET_LEN ? `${text.slice(0, SEMANTIC_SNIPPET_LEN).trim()}...` : text;
+      hits.push({
+        recordType: r.source as PageHit["recordType"],
+        recordId: r.record_id,
+        title: r.title,
+        url: FUZZY_URL[r.source as SearchResultType](r.ref),
+        pageNo: r.page_no,
+        // Leading ellipsis: a chunk is an excerpt from mid-book by nature.
+        snippet: `...${clipped}`,
+        matchType: "semantic",
+      });
+      if (hits.length >= limit) break;
+    }
+    return hits;
+  } catch (err) {
+    console.error("[native-search/semantic]", err);
+    return [];
+  }
+}
+
+/** Exact hits first, then semantic passages for records not already listed. */
+function mergePageHits(exact: PageHit[], semantic: PageHit[], cap = 6): PageHit[] {
+  const seen = new Set(exact.map((h) => `${h.recordType}:${h.recordId}`));
+  const merged = [...exact];
+  for (const hit of semantic) {
+    if (merged.length >= cap) break;
+    const key = `${hit.recordType}:${hit.recordId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(hit);
+    }
+  }
+  return merged.slice(0, cap);
 }
 
 function parseSort(value: string | null): SearchSort {
@@ -981,13 +1047,17 @@ export async function GET(req: Request) {
     let response: NativeSearchResponse;
 
     if (type === "all") {
-      const [books, research, publications, catalog, posts] = await Promise.all([
+      // Semantic passages ride along with the type searches (no added latency);
+      // they don't feed pageHitIds scoring — only the rendered hit list.
+      const [books, research, publications, catalog, posts, semantic] = await Promise.all([
         run.book(),
         run.research(),
         run.publication(),
         run.catalog(),
         run.post(),
+        semanticPassages(db, q),
       ]);
+      const mergedPageHits = mergePageHits(pageHits, semantic);
 
       const allCandidates = [
         ...books.allCandidates,
@@ -1025,7 +1095,7 @@ export async function GET(req: Request) {
             hasMore: false,
             fuzzy: true,
             didYouMean: fuzzy[0]?.title ?? null,
-            pageHits,
+            pageHits: mergedPageHits,
             facets: facetsOf(fuzzy),
             relatedSubjects: facetsOf(fuzzy).subjects.slice(0, 8),
             popularResources: [],
@@ -1042,7 +1112,7 @@ export async function GET(req: Request) {
         counts,
         page: 1,
         hasMore: false,
-        pageHits,
+        pageHits: mergedPageHits,
         facets: facetsOf(allCandidates),
         relatedSubjects: facetsOf(allCandidates).subjects.slice(0, 8),
         popularResources: allCandidates.slice(0, 5),

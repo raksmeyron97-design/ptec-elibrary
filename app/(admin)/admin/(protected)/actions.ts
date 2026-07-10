@@ -312,8 +312,9 @@ export async function deleteBook(bookId: string) {
     supabase.from("reviews").delete().eq("book_id", bookId),
     supabase.from("saved_books").delete().eq("book_id", bookId),
     supabase.from("reading_progress").delete().eq("book_id", bookId),
-    // Full-text page index (no FK — polymorphic record_id, migration 0066)
+    // Full-text page index + chunk embeddings (no FK — polymorphic record_id, migrations 0066/0082)
     supabase.from("book_pages").delete().eq("record_type", "book").eq("record_id", bookId),
+    supabase.from("book_chunks").delete().eq("record_type", "book").eq("record_id", bookId),
   ]);
 
   await supabase.from("book_files").delete().eq("book_id", bookId);

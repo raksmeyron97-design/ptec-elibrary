@@ -805,6 +805,7 @@
     "fuzzyNotice": "No exact matches for \"{query}\" — showing the closest matches instead.",
     "foundInside": "Found inside these documents",
     "onPage": "Page {page}",
+    "relatedPassage": "Related passage",
     "browseLibrary": "Browse Library →",
     "errorGeneric": "Search failed. Please try again.",
     "idleTitle": "Search the PTEC Library",

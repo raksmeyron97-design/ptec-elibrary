@@ -142,7 +142,9 @@ export async function indexPdfPages(opts: {
 /**
  * Background-safe wrapper for server actions: never throws, only logs.
  * Call via `after(() => indexPdfPagesSafe(...))` so the admin's upload
- * response isn't blocked by PDF parsing.
+ * response isn't blocked by PDF parsing. After a successful extraction it
+ * chains chunk embedding (book_chunks, migration 0082) so new/replaced
+ * uploads become passage-searchable without a manual backfill.
  */
 export async function indexPdfPagesSafe(
   recordType: PageRecordType,
@@ -153,6 +155,8 @@ export async function indexPdfPagesSafe(
     const result = await indexPdfPages({ recordType, recordId, fileUrl });
     if (result.indexed) {
       console.log(`[pdf-index] ${recordType}:${recordId} — indexed ${result.pages} pages`);
+      const { embedRecordChunksSafe } = await import("./chunk-embed");
+      await embedRecordChunksSafe(recordType, recordId);
     } else {
       console.log(`[pdf-index] ${recordType}:${recordId} — skipped (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
     }

@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/search/route.ts
 // Public AI semantic search — no auth required.
-// Hybrid retrieval:  pgvector (gemini-embedding-001) → keyword fallback/supplement.
-// Plus a Gemini one-shot summary.  Response shape: { answer, books }
+// Hybrid retrieval:  pgvector (gemini-embedding-001) over work metadata
+// (match_library) AND page-level chunks (match_book_chunks, migration 0082)
+// → keyword fallback/supplement. Plus a Gemini one-shot summary.
+// Response shape: { answer, books, passages } — passages are the best
+// matching page-level excerpts from inside PDFs, deduped to one per work.
 //
-// Requires migration 0001_pgvector_search.sql + a backfill run of
+// Requires the pgvector migrations (0029/0082) + a backfill run of
 // scripts/embed-library.ts so rows have embeddings.
 
 import { createServiceClient } from "@/lib/supabase/server";
@@ -46,6 +49,18 @@ interface AIBook {
   coverUrl: string | null;
   category?: string;
   url?: string;
+}
+
+// A passage found inside a PDF, deduped to the best chunk per work.
+interface AIPassage {
+  slug: string;
+  title: string;
+  author: string;
+  coverUrl: string | null;
+  url: string;
+  page: number;
+  snippet: string;
+  similarity: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -102,11 +117,8 @@ async function embedQuery(text: string): Promise<number[] | null> {
 
 async function semanticSearch(
   db: ReturnType<typeof createServiceClient>,
-  q: string,
+  vec: number[],
 ): Promise<AIBook[]> {
-  const vec = await embedQuery(q);
-  if (!vec) return [];
-
   const { data, error } = await db.rpc("match_library", {
     query_embedding: vec,
     match_count: MAX_BOOKS,
@@ -125,6 +137,49 @@ async function semanticSearch(
     coverUrl: coverUrlOf(r.cover_url ?? null),
     url: urlFor(r.source, r.ref),
   }));
+}
+
+// ── 1b. Passage search (page-level chunks, migration 0082) ───────────────────
+const MAX_PASSAGES = 5;
+const CHUNK_MIN_SIMILARITY = 0.3;
+const SNIPPET_LEN = 260;
+
+async function chunkSearch(
+  db: ReturnType<typeof createServiceClient>,
+  vec: number[],
+): Promise<AIPassage[]> {
+  const { data, error } = await db.rpc("match_book_chunks", {
+    query_embedding: vec,
+    match_count: 12,
+    min_similarity: CHUNK_MIN_SIMILARITY,
+  });
+  if (error) {
+    // Fail open pre-migration / on RPC trouble — works search still runs.
+    console.error("[/api/search] match_book_chunks error:", error.message);
+    return [];
+  }
+
+  // Rows arrive ordered by similarity; keep the best chunk per work.
+  const passages: AIPassage[] = [];
+  const seen = new Set<string>();
+  for (const r of (data ?? []) as any[]) {
+    const url = urlFor(r.source, r.ref);
+    if (seen.has(url)) continue;
+    seen.add(url);
+    const text: string = r.content ?? "";
+    passages.push({
+      slug: r.ref,
+      title: r.title,
+      author: r.author ?? "Unknown",
+      coverUrl: coverUrlOf(r.cover_url ?? null),
+      url,
+      page: r.page_no,
+      snippet: text.length > SNIPPET_LEN ? `${text.slice(0, SNIPPET_LEN).trim()}…` : text,
+      similarity: Math.round(Number(r.similarity ?? 0) * 100) / 100,
+    });
+    if (passages.length >= MAX_PASSAGES) break;
+  }
+  return passages;
 }
 
 // ── 2. Keyword fallback / supplement ──────────────────────────────────────────
@@ -206,14 +261,27 @@ async function keywordSearch(
   return out;
 }
 
-// ── Hybrid: semantic first, keyword fills the gaps ────────────────────────────
-async function hybridSearch(rawQ: string): Promise<AIBook[]> {
+// ── Hybrid: semantic (works + passages) first, keyword fills the gaps ─────────
+async function hybridSearch(rawQ: string): Promise<{ books: AIBook[]; passages: AIPassage[] }> {
   const db = createServiceClient();
 
-  const semantic = await semanticSearch(db, rawQ);
+  // One query embedding feeds both retrievers (no extra Gemini call).
+  const vec = await embedQuery(rawQ);
+  const [semantic, passages] = vec
+    ? await Promise.all([semanticSearch(db, vec), chunkSearch(db, vec)])
+    : [[] as AIBook[], [] as AIPassage[]];
 
   const seen = new Set(semantic.map((b) => b.url ?? b.slug));
   const merged = [...semantic];
+
+  // Works surfaced only by their page content still belong in the results.
+  for (const p of passages) {
+    if (merged.length >= MAX_BOOKS) break;
+    if (!seen.has(p.url)) {
+      seen.add(p.url);
+      merged.push({ slug: p.slug, title: p.title, author: p.author, coverUrl: p.coverUrl, url: p.url });
+    }
+  }
 
   if (merged.length < MAX_BOOKS) {
     const kw = await keywordSearch(db, rawQ);
@@ -227,11 +295,11 @@ async function hybridSearch(rawQ: string): Promise<AIBook[]> {
     }
   }
 
-  return merged.slice(0, MAX_BOOKS);
+  return { books: merged.slice(0, MAX_BOOKS), passages };
 }
 
 // ── Gemini one-shot summary ───────────────────────────────────────────────────
-async function generateAnswer(q: string, titles: string[]): Promise<string> {
+async function generateAnswer(q: string, titles: string[], passages: AIPassage[]): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return "";
 
@@ -240,10 +308,19 @@ async function generateAnswer(q: string, titles: string[]): Promise<string> {
       ? `Found these books: ${titles.join(", ")}.`
       : "No specific books were found in the catalog.";
 
+  const passageList =
+    passages.length > 0
+      ? `The topic also appears inside these PDFs: ${passages
+          .slice(0, 3)
+          .map((p) => `"${p.title}" (p. ${p.page})`)
+          .join(", ")}.`
+      : "";
+
   const prompt = `You are the PTEC Library AI assistant for Phnom Penh Teacher Education College.
 A user searched for: "${q}"
 ${bookList}
-Write 1–3 concise sentences: briefly explain the topic and how the listed books relate to it. If no books were found, suggest alternative search terms. Detect the language of the query and reply in the same language (Khmer if Khmer, English if English).`;
+${passageList}
+Write 1–3 concise sentences: briefly explain the topic and how the listed books relate to it. If a PDF passage is directly relevant, mention its page number (e.g. "p. 42"). If no books were found, suggest alternative search terms. Detect the language of the query and reply in the same language (Khmer if Khmer, English if English).`;
 
   try {
     const ai = new GoogleGenAI({ apiKey: key });
@@ -275,8 +352,9 @@ export async function GET(req: Request) {
   }
 
   let books: AIBook[] = [];
+  let passages: AIPassage[] = [];
   try {
-    books = await hybridSearch(q);
+    ({ books, passages } = await hybridSearch(q));
   } catch (err) {
     console.error("[/api/search] search failed:", err);
     return Response.json({ error: "Search failed. Please try again." }, { status: 500 });
@@ -286,7 +364,7 @@ export async function GET(req: Request) {
   // In emergency mode the summary is skipped entirely — book results still work.
   let answer = "";
   if (isExpensiveSearchDisabled()) {
-    return Response.json({ answer, books });
+    return Response.json({ answer, books, passages });
   }
   try {
     const db = createServiceClient();
@@ -295,11 +373,11 @@ export async function GET(req: Request) {
       p_limit: DAILY_AI_LIMIT,
     });
     if ((aiAllowed as number) !== -1) {
-      answer = await generateAnswer(q, books.map((b) => b.title));
+      answer = await generateAnswer(q, books.map((b) => b.title), passages);
     }
   } catch (err) {
     console.error("[/api/search] AI summary skipped:", err);
   }
 
-  return Response.json({ answer, books });
+  return Response.json({ answer, books, passages });
 }

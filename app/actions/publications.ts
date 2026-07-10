@@ -527,6 +527,7 @@ export async function deletePublication(id: string) {
 
   await supabase.from("view_logs").delete().eq("content_type", "publication").eq("content_id", id);
   await supabase.from("book_pages").delete().eq("record_type", "publication").eq("record_id", id);
+  await supabase.from("book_chunks").delete().eq("record_type", "publication").eq("record_id", id);
 
   const { error } = await supabase.from("publications").delete().eq("id", id);
   if (error) {

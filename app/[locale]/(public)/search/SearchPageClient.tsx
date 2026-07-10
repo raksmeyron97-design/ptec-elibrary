@@ -1257,17 +1257,42 @@ export default function SearchPageClient({ departments, languages, categories }:
               <Link
                 key={`${hit.recordType}-${hit.recordId}`}
                 href={hit.url}
-                className="group rounded-[14px] border p-4 transition-all hover:shadow-md"
+                className="group relative overflow-hidden rounded-[14px] border p-4 pl-5 transition-all hover:shadow-md"
                 style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
               >
-                <p className="text-[14px] font-bold group-hover:underline underline-offset-2" style={{ color: "var(--ptec-text-heading)" }}>
-                  {hit.title}
-                  <span className="ml-2 rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+                {/* Bookmark spine — marks the card as a passage pulled from a page */}
+                <span
+                  aria-hidden
+                  className="absolute inset-y-0 left-0 w-[3px] transition-opacity opacity-60 group-hover:opacity-100"
+                  style={{ background: "var(--ptec-brand)" }}
+                />
+                <blockquote
+                  className="text-[14.5px] leading-relaxed"
+                  style={{
+                    color: "var(--ptec-text-body)",
+                    fontFamily: "var(--font-var-serif), var(--font-var-hanuman), Georgia, serif",
+                  }}
+                >
+                  {hit.snippet}
+                </blockquote>
+                <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
+                  <span className="font-bold group-hover:underline underline-offset-2" style={{ color: "var(--ptec-text-heading)" }}>
+                    {hit.title}
+                  </span>
+                  <span className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
                     {t("onPage", { page: hit.pageNo })}
                   </span>
-                </p>
-                <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--ptec-text-body)" }}>
-                  {hit.snippet}
+                  {hit.matchType === "semantic" && (
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                      style={{
+                        background: "color-mix(in srgb, var(--ptec-brand) 9%, transparent)",
+                        color: "var(--ptec-brand)",
+                      }}
+                    >
+                      {t("relatedPassage")}
+                    </span>
+                  )}
                 </p>
               </Link>
             ))}
