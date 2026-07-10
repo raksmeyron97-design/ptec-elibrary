@@ -10,6 +10,15 @@ import type { SearchResult, SearchCounts, SearchResultType, PageHit } from "@/ap
 import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
 import SearchAdvancedModal from "@/components/ui/search/SearchAdvancedModal";
+import SearchFacets from "./SearchFacets";
+import {
+  FACET_DIMENSIONS,
+  FACET_PARAM_KEYS,
+  parseFacetSelections,
+  toggleListParam,
+  type FacetDimension,
+  type SearchFacetCounts,
+} from "@/lib/search/facets";
 import {
   readRecentSearches,
   pushRecentSearch,
@@ -333,7 +342,8 @@ export default function SearchPageClient({ departments, languages, categories }:
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [counts, setCounts] = useState<SearchCounts | null>(null);
-  const [activeType, setActiveType] = useState<ActiveType>("all");
+  const [facetCounts, setFacetCounts] = useState<SearchFacetCounts | null>(null);
+  const [mobileFacetsOpen, setMobileFacetsOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [fuzzy, setFuzzy] = useState(false);
@@ -350,11 +360,15 @@ export default function SearchPageClient({ departments, languages, categories }:
   const abortRef = useRef<AbortController | null>(null);
   const fetchedTrending = useRef(false);
 
+  // The type tab lives in the URL (shareable, back-button safe), like q and the facets.
+  const typeParam = params.get("type") ?? "all";
+  const activeType: ActiveType = (TAB_IDS as string[]).includes(typeParam) ? (typeParam as ActiveType) : "all";
+
   // Sync input with URL param (e.g. back/forward navigation, recent-chip clicks)
   useEffect(() => { setInput(q); }, [q, setInput]);
 
-  // Reset to "all" tab when query changes
-  useEffect(() => { setActiveType("all"); setPage(1); }, [q]);
+  // Reset pagination when the query changes
+  useEffect(() => { setPage(1); }, [q]);
 
   // Persist to recent searches only when the committed query (URL param)
   // changes — not on every tab/page/filter refetch, which polluted recents
@@ -414,72 +428,37 @@ export default function SearchPageClient({ departments, languages, categories }:
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Facet + advanced-search filters — derived straight from the URL, same as `q`
-  const filterLang = params.get("lang") ?? "";
-  const filterSubject = params.get("subject") ?? params.get("category") ?? "";
+  // Advanced-search filters — derived straight from the URL, same as `q`.
+  // Facet dimensions (types/subject/lang/year/availability) are multi-select
+  // and parsed separately below.
   const filterDept = params.get("dept") ?? "";
   const filterAuthor = params.get("author") ?? "";
   const filterAdvisor = params.get("advisor") ?? "";
   const filterProgram = params.get("program") ?? "";
   const filterCohort = params.get("cohort") ?? "";
-  const filterYear = params.get("year") ?? "";
   const filterFormat = params.get("format") ?? "";
-  const filterAvailability = params.get("availability") ?? "";
   const filterViews = params.get("views") ?? "";
   const filterDownloads = params.get("downloads") ?? "";
   const filterRating = params.get("rating") ?? "";
   const filterIsbn = params.get("isbn") ?? "";
   const filterPublisher = params.get("publisher") ?? "";
   const sort = params.get("sort") ?? "relevance";
-  const activeFilterCount = [
-    filterLang, filterSubject, filterDept, filterAuthor, filterAdvisor, filterProgram,
-    filterCohort, filterYear, filterFormat, filterAvailability, filterViews,
-    filterDownloads, filterRating, filterIsbn, filterPublisher,
-  ].filter(Boolean).length;
 
-  type Filters = {
-    lang: string;
-    subject: string;
-    dept: string;
-    author: string;
-    advisor: string;
-    program: string;
-    cohort: string;
-    year: string;
-    format: string;
-    availability: string;
-    views: string;
-    downloads: string;
-    rating: string;
-    isbn: string;
-    publisher: string;
-    sort: string;
-  };
-  const currentFilters: Filters = {
-    lang: filterLang,
-    subject: filterSubject,
-    dept: filterDept,
-    author: filterAuthor,
-    advisor: filterAdvisor,
-    program: filterProgram,
-    cohort: filterCohort,
-    year: filterYear,
-    format: filterFormat,
-    availability: filterAvailability,
-    views: filterViews,
-    downloads: filterDownloads,
-    rating: filterRating,
-    isbn: filterIsbn,
-    publisher: filterPublisher,
-    sort,
-  };
+  const selections = parseFacetSelections((key) => params.get(key));
+  const selectedFacetCount = FACET_DIMENSIONS.reduce((sum, dim) => sum + selections[dim].length, 0);
+  const activeFilterCount =
+    [
+      filterDept, filterAuthor, filterAdvisor, filterProgram, filterCohort,
+      filterFormat, filterViews, filterDownloads, filterRating, filterIsbn, filterPublisher,
+    ].filter(Boolean).length + selectedFacetCount;
 
-  // Run search whenever q, activeType, page, or a filter changes
+  // Run search whenever q, activeType, page, or the URL filter state changes
   const runSearch = useCallback(
-    async (query: string, type: ActiveType, pg: number, filters: Filters) => {
+    async (query: string, type: ActiveType, pg: number) => {
       if (!query) {
         setResults(null);
         setCounts(null);
+        setFacetCounts(null);
         setFuzzy(false);
         setPageHits([]);
         setRelatedSubjects([]);
@@ -496,25 +475,12 @@ export default function SearchPageClient({ departments, languages, categories }:
 
       try {
         const url = new URL("/api/search/native", window.location.origin);
+        // Forward the page URL's committed state wholesale — it is the single
+        // source of truth for filters, facets, and sort.
+        for (const [key, value] of params.entries()) url.searchParams.set(key, value);
         url.searchParams.set("q", query);
         url.searchParams.set("type", type);
         url.searchParams.set("page", String(pg));
-        if (filters.sort) url.searchParams.set("sort", filters.sort);
-        if (filters.lang) url.searchParams.set("lang", filters.lang);
-        if (filters.subject) url.searchParams.set("subject", filters.subject);
-        if (filters.dept) url.searchParams.set("dept", filters.dept);
-        if (filters.author) url.searchParams.set("author", filters.author);
-        if (filters.advisor) url.searchParams.set("advisor", filters.advisor);
-        if (filters.program) url.searchParams.set("program", filters.program);
-        if (filters.cohort) url.searchParams.set("cohort", filters.cohort);
-        if (filters.year) url.searchParams.set("year", filters.year);
-        if (filters.format) url.searchParams.set("format", filters.format);
-        if (filters.availability) url.searchParams.set("availability", filters.availability);
-        if (filters.views) url.searchParams.set("views", filters.views);
-        if (filters.downloads) url.searchParams.set("downloads", filters.downloads);
-        if (filters.rating) url.searchParams.set("rating", filters.rating);
-        if (filters.isbn) url.searchParams.set("isbn", filters.isbn);
-        if (filters.publisher) url.searchParams.set("publisher", filters.publisher);
 
         const res = await fetch(url.toString(), { signal: abortRef.current.signal });
         if (!res.ok) throw new Error("Search failed");
@@ -522,6 +488,7 @@ export default function SearchPageClient({ departments, languages, categories }:
         const data = await res.json();
         setResults(data.results ?? []);
         setCounts(data.counts ?? null);
+        setFacetCounts(data.facetCounts ?? null);
         setHasMore(data.hasMore ?? false);
         setFuzzy(data.fuzzy ?? false);
         setPageHits(data.pageHits ?? []);
@@ -534,56 +501,43 @@ export default function SearchPageClient({ departments, languages, categories }:
         setLoading(false);
       }
     },
-    [t],
+    [t, params],
   );
 
   useEffect(() => {
-    runSearch(q, activeType, page, currentFilters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    q, activeType, page, filterLang, filterSubject, filterDept, filterAuthor,
-    filterAdvisor, filterProgram, filterCohort, filterYear, filterFormat,
-    filterAvailability, filterViews, filterDownloads, filterRating,
-    filterIsbn, filterPublisher, sort,
-  ]);
+    runSearch(q, activeType, page);
+  }, [q, activeType, page, runSearch]);
 
-  const applyFilter = (key: "lang" | "subject", value: string) => {
+  const toggleFacet = (dim: FacetDimension, value: string) => {
+    const key = FACET_PARAM_KEYS[dim];
     const next = new URLSearchParams(params.toString());
-    if (next.get(key) === value) next.delete(key); // clicking the active chip toggles it off
-    else next.set(key, value);
-    if (key === "subject") next.delete("category");
-    next.delete("page");
-    router.replace(`/search?${next.toString()}`);
+    const current = dim === "subjects" ? (next.get("subject") ?? next.get("category")) : next.get(key);
+    const merged = toggleListParam(current, value);
+    if (merged) next.set(key, merged);
+    else next.delete(key);
+    if (dim === "subjects") next.delete("category");
+    setPage(1);
+    router.push(`/search?${next.toString()}`);
   };
 
-  const removeFilter = (key: keyof Filters) => {
+  const removeFilter = (key: string) => {
     const next = new URLSearchParams(params.toString());
     next.delete(key);
-    if (key === "subject") next.delete("category");
-    next.delete("page");
-    router.replace(`/search?${next.toString()}`);
+    setPage(1);
+    router.push(`/search?${next.toString()}`);
   };
 
   const clearFilters = () => {
     const next = new URLSearchParams(params.toString());
-    next.delete("lang");
-    next.delete("subject");
-    next.delete("category");
-    next.delete("dept");
-    next.delete("author");
-    next.delete("advisor");
-    next.delete("program");
-    next.delete("cohort");
-    next.delete("year");
-    next.delete("format");
-    next.delete("availability");
-    next.delete("views");
-    next.delete("downloads");
-    next.delete("rating");
-    next.delete("isbn");
-    next.delete("publisher");
-    next.delete("page");
-    router.replace(`/search?${next.toString()}`);
+    for (const key of [
+      "types", "lang", "subject", "category", "dept", "author", "advisor", "program",
+      "cohort", "year", "format", "availability", "views", "downloads", "rating",
+      "isbn", "publisher",
+    ]) {
+      next.delete(key);
+    }
+    setPage(1);
+    router.push(`/search?${next.toString()}`);
   };
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -594,7 +548,7 @@ export default function SearchPageClient({ departments, languages, categories }:
       navigateToQuery(t);
     } else {
       setSuggestOpen(false);
-      runSearch(t, activeType, 1, currentFilters);
+      runSearch(t, activeType, 1);
     }
   };
 
@@ -616,16 +570,19 @@ export default function SearchPageClient({ departments, languages, categories }:
   };
 
   const handleTypeChange = (type: ActiveType) => {
-    setActiveType(type);
+    const next = new URLSearchParams(params.toString());
+    if (type === "all") next.delete("type");
+    else next.set("type", type);
     setPage(1);
+    router.push(`/search?${next.toString()}`);
   };
 
   const handleSortChange = (value: string) => {
     const next = new URLSearchParams(params.toString());
     if (value === "relevance") next.delete("sort");
     else next.set("sort", value);
-    next.delete("page");
-    router.replace(`/search?${next.toString()}`);
+    setPage(1);
+    router.push(`/search?${next.toString()}`);
   };
 
   const clearInput = () => { setInput(""); setSuggestOpen(true); inputRef.current?.focus(); };
@@ -645,16 +602,12 @@ export default function SearchPageClient({ departments, languages, categories }:
   // must not render the "no results" dead-end.
   const noResults = results !== null && results.length === 0 && pageHits.length === 0 && !loading;
 
-  // Facet chips computed from the current result set
-  const availableCategories = Array.from(
-    new Set((results ?? []).map((r) => r.subject ?? r.category).filter((v): v is string => !!v)),
-  );
-  const availableLanguages = Array.from(
-    new Set((results ?? []).map((r) => r.language).filter((v): v is string => !!v)),
-  );
+  const hasFacetValues =
+    facetCounts !== null && FACET_DIMENSIONS.some((dim) => facetCounts[dim].length > 0);
 
   return (
     <>
+      <div className="mx-auto max-w-3xl">
       {/* ── Search bar ────────────────────────────────────────────────────── */}
       <form onSubmit={handleSearch} className="mb-8">
         <div
@@ -895,14 +848,14 @@ export default function SearchPageClient({ departments, languages, categories }:
           currentAdvisor={filterAdvisor}
           currentIsbn={filterIsbn}
           currentPublisher={filterPublisher}
-          currentSubject={filterSubject}
-          currentLanguage={filterLang}
+          currentSubject={selections.subjects[0] ?? ""}
+          currentLanguage={selections.langs[0] ?? ""}
           currentDepartment={filterDept}
           currentProgram={filterProgram}
           currentCohort={filterCohort}
-          currentYear={filterYear}
+          currentYear={selections.years[0] ?? ""}
           currentFormat={filterFormat}
-          currentAvailability={filterAvailability}
+          currentAvailability={selections.availability[0] ?? ""}
           currentViews={filterViews}
           currentDownloads={filterDownloads}
           currentRating={filterRating}
@@ -927,18 +880,17 @@ export default function SearchPageClient({ departments, languages, categories }:
             <option value="rating">{t("sortRating")}</option>
           </select>
         </label>
+        {/* Facet dimensions (type/subject/lang/year/availability) live in the
+            sidebar as checkboxes; only modal-only fields get removable chips. */}
         {([
           ["author", filterAuthor, t("advFieldAuthor")],
           ["advisor", filterAdvisor, t("advFieldAdvisor")],
           ["isbn", filterIsbn, t("advFieldIsbn")],
           ["publisher", filterPublisher, t("advFieldPublisher")],
           ["dept", filterDept, t("advFieldDepartment")],
-          ["subject", filterSubject, t("advFieldSubject")],
           ["program", filterProgram, t("advFieldProgram")],
           ["cohort", filterCohort, t("advFieldCohort")],
-          ["year", filterYear, t("advFieldYear")],
           ["format", filterFormat, t("advFieldFormat")],
-          ["availability", filterAvailability, t("advFieldAvailability")],
           ["views", filterViews, t("advFieldViews")],
           ["downloads", filterDownloads, t("advFieldDownloads")],
           ["rating", filterRating, t("advFieldRating")],
@@ -982,6 +934,43 @@ export default function SearchPageClient({ departments, languages, categories }:
               : `${t("resultsFor")} ${q}`
           : ""}
       </div>
+      </div>
+
+      {/* ── Results region: facet sidebar + main column ─────────────────── */}
+      <div className={hasFacetValues ? "lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start lg:gap-8" : undefined}>
+      {hasFacetValues && facetCounts && (
+        <aside className="mb-6 lg:sticky lg:top-24 lg:mb-0" aria-label={t("filter")}>
+          {/* Mobile: facets collapse behind a toggle; desktop: always visible */}
+          <button
+            type="button"
+            onClick={() => setMobileFacetsOpen((v) => !v)}
+            aria-expanded={mobileFacetsOpen}
+            data-testid="facets-toggle"
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12.5px] font-semibold lg:hidden"
+            style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)", color: "var(--ptec-text-body)" }}
+          >
+            {t("filter")}
+            {selectedFacetCount > 0 && (
+              <span
+                className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                style={{ background: "color-mix(in srgb, var(--ptec-brand) 12%, transparent)", color: "var(--ptec-brand)" }}
+              >
+                {selectedFacetCount}
+              </span>
+            )}
+          </button>
+          <div className={`${mobileFacetsOpen ? "mt-3 block" : "hidden"} lg:mt-0 lg:block`}>
+            <SearchFacets
+              facetCounts={facetCounts}
+              showTypes={activeType === "all"}
+              selectedCount={selectedFacetCount}
+              onToggle={toggleFacet}
+              onClearAll={clearFilters}
+            />
+          </div>
+        </aside>
+      )}
+      <div className="min-w-0">
 
       {/* ── Type filter tabs (only when there are results or loading) ──── */}
       {q && (hasResults || loading) && (
@@ -992,7 +981,9 @@ export default function SearchPageClient({ departments, languages, categories }:
           {TAB_IDS.map((tabId) => {
             const isActive = tabId === activeType;
             const cnt = countFor(tabId);
-            if (!loading && cnt === 0 && tabId !== "all") return null;
+            // Keep the active tab visible even at 0 (a facet may have zeroed
+            // it) so the user can still switch away from it.
+            if (!loading && cnt === 0 && tabId !== "all" && !isActive) return null;
             return (
               <button
                 key={tabId}
@@ -1022,61 +1013,6 @@ export default function SearchPageClient({ departments, languages, categories }:
               </button>
             );
           })}
-        </div>
-      )}
-
-      {/* ── Facet filters (category / language) ─────────────────────────── */}
-      {!loading && hasResults && (availableCategories.length > 0 || availableLanguages.length > 0) && (
-        <div className="mb-5 flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--ptec-text-muted)" }}>
-            {t("filter")}
-          </span>
-          {availableCategories.map((cat) => {
-            const active = filterSubject === cat;
-            return (
-              <button
-                key={`cat-${cat}`}
-                type="button"
-                onClick={() => applyFilter("subject", cat)}
-                className="rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
-                style={{
-                  background: active ? "var(--ptec-brand)" : "var(--ptec-bg-body)",
-                  color: active ? "#fff" : "var(--ptec-text-body)",
-                  border: `1px solid ${active ? "var(--ptec-brand)" : "var(--ptec-border)"}`,
-                }}
-              >
-                {cat}
-              </button>
-            );
-          })}
-          {availableLanguages.map((lang) => {
-            const active = filterLang === lang;
-            return (
-              <button
-                key={`lang-${lang}`}
-                type="button"
-                onClick={() => applyFilter("lang", lang)}
-                className="rounded-full px-3 py-1 text-[12px] font-medium cursor-pointer transition-colors"
-                style={{
-                  background: active ? "var(--ptec-brand)" : "var(--ptec-bg-body)",
-                  color: active ? "#fff" : "var(--ptec-text-body)",
-                  border: `1px solid ${active ? "var(--ptec-brand)" : "var(--ptec-border)"}`,
-                }}
-              >
-                {lang}
-              </button>
-            );
-          })}
-          {(filterLang || filterSubject) && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-[12px] font-semibold cursor-pointer hover:underline underline-offset-2"
-              style={{ color: "var(--ptec-text-muted)" }}
-            >
-              {t("clearFilters")}
-            </button>
-          )}
         </div>
       )}
 
@@ -1300,10 +1236,13 @@ export default function SearchPageClient({ departments, languages, categories }:
         </section>
       )}
 
+      </div>
+      </div>
+
       {/* ── Idle / empty state ────────────────────────────────────────── */}
       {!q && (
         <div
-          className="relative overflow-hidden rounded-2xl"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl"
           style={{ border: "1.5px dashed var(--ptec-border)", background: "var(--ptec-bg-surface)" }}
         >
           <div

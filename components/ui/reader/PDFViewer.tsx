@@ -24,6 +24,14 @@ import {
   deleteAnnotation,
   type Annotation,
 } from "@/app/actions/book-annotations";
+import {
+  nfc,
+  itemStrings,
+  findPageMatches,
+  renderItemHtml,
+  type ItemDecoration,
+  type MatchSpan,
+} from "@/lib/reader/search-matches";
 
 /* ──────────────────────────────────────────────────────────────────
    Worker — SELF-HOSTED for true offline support.
@@ -81,7 +89,10 @@ type OutlineNode = {
   dest: string | unknown[] | null;
   items: OutlineNode[];
 };
-type SearchHit = { page: number; snippet: string };
+/** One row in the search-results list: a page with ≥1 match. */
+type PageHit = { page: number; count: number; snippet: string; firstMatch: number };
+/** A page's matches, each tagged with its global (document-wide) index. */
+type IndexedPageMatch = { spans: MatchSpan[]; idx: number };
 
 /* ──────────────────────────────────────────────────────────────────
    Constants
@@ -93,6 +104,8 @@ const VIRTUAL_OVERSCAN = 2; // pages kept before/after the visible viewport
 const MAX_RENDER_DPR = 2; // cap canvas density to avoid huge mobile/retina canvases
 const TOOLBAR_H = 56;
 const AUTOSAVE_MS = 1500;
+const MAX_MATCHES = 500; // stop in-doc search here to keep low-end phones responsive
+const DEFAULT_ASPECT = Math.SQRT2; // A4 height/width — placeholder until page 1 is measured
 
 const KH_DIGITS = "០១២៣៤៥៦៧៨៩";
 /** Render digits in Khmer numerals when the active locale is Khmer. */
@@ -275,7 +288,7 @@ const ScrollPage = memo(function ScrollPage({
   estHeight: number;
   filter?: string;
   devicePixelRatio: number;
-  customTextRenderer?: (item: { str: string }) => string;
+  customTextRenderer?: (item: { str: string; itemIndex: number }) => string;
   onRenderError?: (error: Error) => void;
 }) {
   return (
@@ -412,14 +425,32 @@ export default function PDFViewer({
   /* ── Layout measurement ─────────────────────────────────────── */
   const [containerWidth, setContainerWidth] = useState<number>();
   const [containerHeight, setContainerHeight] = useState<number>();
-  const [aspectRatio, setAspectRatio] = useState<number>(); // height / width of page 1
+  // height / width of page 1 — seeded from the last visit so the loading
+  // placeholder reserves the right height and page 1 lands without a shift
+  const [aspectRatio, setAspectRatio] = useState<number | undefined>(() => {
+    const ar = parseFloat(lsGet(`ebook:ar:${bookId}`) ?? "");
+    return Number.isFinite(ar) && ar > 0.2 && ar < 5 ? ar : undefined;
+  });
   const [scrollTop, setScrollTop] = useState(0);
   const [renderPixelRatio, setRenderPixelRatio] = useState(1);
 
-  /* ── Reading preferences (persisted) ────────────────────────── */
-  const [viewMode, setViewMode] = useState<ViewMode>("scroll");
-  const [fitMode, setFitMode] = useState<FitMode>("width");
-  const [theme, setTheme] = useState<Theme>("light");
+  /* ── Reading preferences (persisted) ──────────────────────────
+     Lazy-initialized straight from localStorage: this component only ever
+     mounts client-side (ssr:false wrapper), so there is no hydration pass,
+     and reading in an effect instead lets the persist-effects clobber the
+     stored value under StrictMode's double-run. */
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const v = lsGet("ebook:viewMode");
+    return v === "single" || v === "scroll" ? v : "scroll";
+  });
+  const [fitMode, setFitMode] = useState<FitMode>(() => {
+    const f = lsGet("ebook:fitMode");
+    return f === "width" || f === "page" ? f : "width";
+  });
+  const [theme, setTheme] = useState<Theme>(() => {
+    const th = lsGet("ebook:theme");
+    return th === "light" || th === "sepia" || th === "dark" ? th : "light";
+  });
 
   /* ── Navigation / save status ───────────────────────────────── */
   const [pageInputValue, setPageInputValue] = useState(String(currentPage));
@@ -431,11 +462,26 @@ export default function PDFViewer({
   /* ── Panel (outline / bookmarks / search) ───────────────────── */
   const [panelTab, setPanelTab] = useState<PanelTab>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
-  const [bookmarks, setBookmarks] = useState<number[]>([]);
+  const [bookmarks, setBookmarks] = useState<number[]>(() => {
+    try {
+      const arr = JSON.parse(lsGet(`ebook:bm:${bookId}`) ?? "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  });
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [pageHits, setPageHits] = useState<PageHit[]>([]);
+  const [matchPages, setMatchPages] = useState<number[]>([]); // global match idx → page
+  const [matchesByPage, setMatchesByPage] = useState<Map<number, IndexedPageMatch[]>>(
+    () => new Map(),
+  );
+  const [currentMatch, setCurrentMatch] = useState(-1);
   const [searching, setSearching] = useState(false);
+  const searchSeqRef = useRef(0); // bump to cancel an in-flight search
+  const pageTextCacheRef = useRef<Map<number, string[]>>(new Map());
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   /* ── Annotations ────────────────────────────────────────────── */
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -453,6 +499,10 @@ export default function PDFViewer({
   const scrollRafRef = useRef<number | null>(null);
   const initialScrollDoneRef = useRef(false);
   const loadStartedAtRef = useRef(0);
+  // A persisted aspect ratio is only an estimate — still measure page 1 once.
+  const arMeasuredRef = useRef(false);
+  // Exact page to resume at (from localStorage), applied on document load.
+  const pendingRestoreRef = useRef<number | null>(null);
 
   // refs mirroring state for stable native touch handlers
   const scaleRef = useRef(scale);
@@ -513,8 +563,9 @@ export default function PDFViewer({
   }, [containerWidth, containerHeight, viewMode, fitMode, aspectRatio]);
 
   const pageWidth = baseWidth ? Math.round(baseWidth * scale) : undefined;
-  const estHeight =
-    pageWidth && aspectRatio ? Math.round(pageWidth * aspectRatio) : 600;
+  const estHeight = pageWidth
+    ? Math.round(pageWidth * (aspectRatio ?? DEFAULT_ASPECT))
+    : 600;
   const scrollRowHeight = estHeight + SCROLL_PAGE_Y;
   const virtualRange = useMemo(() => {
     if (viewMode !== "scroll" || !numPages || !containerHeight || !scrollRowHeight) {
@@ -539,25 +590,46 @@ export default function PDFViewer({
     );
   }, [numPages, virtualRange.end, virtualRange.start, viewMode]);
 
-  /* ── Load persisted prefs after mount (avoids hydration mismatch) ── */
+  /* ── Exact-page resume (applied on document load) ──────────────
+     The server stores a rounded percentage (≈5-page error on a 500-page
+     book) and knows nothing when logged out or offline; this device's exact
+     page wins unless the server % has clearly moved away (book was read
+     further on another device). The page is only APPLIED on document load,
+     where the real page count is known — the `pages` column is unreliable
+     metadata. */
   useEffect(() => {
-    const v = lsGet("ebook:viewMode");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (v === "single" || v === "scroll") setViewMode(v);
-    const f = lsGet("ebook:fitMode");
-    if (f === "width" || f === "page") setFitMode(f);
-    const th = lsGet("ebook:theme");
-    if (th === "light" || th === "sepia" || th === "dark") setTheme(th);
-    const bm = lsGet(`ebook:bm:${bookId}`);
-    if (bm) {
+    const pos = lsGet(`ebook:pos:${bookId}`);
+    if (pos) {
       try {
-        const arr = JSON.parse(bm);
-        if (Array.isArray(arr)) setBookmarks(arr);
+        const saved = JSON.parse(pos) as { p?: number; pct?: number };
+        const p = typeof saved.p === "number" ? Math.floor(saved.p) : 0;
+        const pct = typeof saved.pct === "number" ? saved.pct : 0;
+        const useLocal =
+          p >= 1 &&
+          (!isLoggedIn ||
+            initialProgressPct === 0 ||
+            Math.abs(pct - initialProgressPct) <= 2);
+        if (useLocal) pendingRestoreRef.current = p;
       } catch {
         /* ignore */
       }
     }
-  }, [bookId]);
+  }, [bookId, initialProgressPct, isLoggedIn]);
+
+  /* ── Persist the exact page (debounced) for next-visit resume ─── */
+  useEffect(() => {
+    if (!numPages || !currentPage) return;
+    const id = window.setTimeout(() => {
+      lsSet(
+        `ebook:pos:${bookId}`,
+        JSON.stringify({
+          p: currentPage,
+          pct: Math.round((currentPage / numPages) * 100),
+        }),
+      );
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [currentPage, numPages, bookId]);
 
   useEffect(() => lsSet("ebook:viewMode", viewMode), [viewMode]);
   useEffect(() => lsSet("ebook:fitMode", fitMode), [fitMode]);
@@ -569,6 +641,7 @@ export default function PDFViewer({
 
   useEffect(() => {
     loadStartedAtRef.current = performance.now();
+    pageTextCacheRef.current = new Map();
   }, [docKey, resolvedFile]);
 
   /* ── Load annotations on mount (logged-in users only) ──────── */
@@ -776,11 +849,20 @@ export default function PDFViewer({
     pdfRef.current = pdf;
     setLoadErrorKind(null);
     setNumPages(pdf.numPages);
-    if (currentPage > pdf.numPages) {
-      currentPageRef.current = pdf.numPages;
-      setCurrentPage(pdf.numPages);
+    numPagesRef.current = pdf.numPages; // fresh for navigateToPage below
+    const pending = pendingRestoreRef.current;
+    pendingRestoreRef.current = null;
+    let target = Math.min(currentPageRef.current, pdf.numPages);
+    if (pending) target = clamp(1, pdf.numPages, pending);
+    if (target !== currentPageRef.current) {
+      currentPageRef.current = target;
+      setCurrentPage(target);
+      // We position explicitly (next frame, after the spacers commit) —
+      // suppress the layout-ready initial scroll so it can't fight us.
+      initialScrollDoneRef.current = true;
+      requestAnimationFrame(() => navigateToPage(target));
     }
-    markMaxProgressForPage(Math.min(currentPageRef.current, pdf.numPages), pdf.numPages);
+    markMaxProgressForPage(target, pdf.numPages);
     const durationMs = Math.round(performance.now() - loadStartedAtRef.current);
     if (durationMs > 8000) {
       reportReaderEvent("pdf_load_slow", { durationMs });
@@ -811,7 +893,11 @@ export default function PDFViewer({
   }) {
     const w = page.originalWidth ?? page.width;
     const h = page.originalHeight ?? page.height;
-    if (w && h) setAspectRatio(h / w);
+    if (w && h) {
+      arMeasuredRef.current = true;
+      setAspectRatio(h / w);
+      lsSet(`ebook:ar:${bookId}`, (h / w).toFixed(4));
+    }
   }
 
   useEffect(() => {
@@ -901,63 +987,164 @@ export default function PDFViewer({
 
   /* ── Search + annotation text renderer ─────────────────────── */
   const highlight = useCallback(
-    (item: { str: string }, pageNumber: number) => {
-      let result = item.str;
-      // Annotation highlights (page-specific, best-effort text match)
-      const pageAnns = annotations.filter((a) => a.page_number === pageNumber);
-      for (const ann of pageAnns) {
-        const safeText = ann.selected_text
-          .substring(0, 40)
-          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        if (!safeText) continue;
-        result = result.replace(
-          new RegExp(safeText, "gi"),
-          (m) => `<mark class="ann-${ann.highlight_color}">${m}</mark>`,
-        );
+    (item: { str: string; itemIndex: number }, pageNumber: number) => {
+      const nStr = nfc(item.str);
+      const decorations: ItemDecoration[] = [];
+
+      // Annotation highlights (page-specific, best-effort text match).
+      // Lowest priority — pushed first so search marks win on overlap.
+      const lower = nStr.toLowerCase();
+      for (const ann of annotations) {
+        if (ann.page_number !== pageNumber) continue;
+        const needle = nfc(ann.selected_text).slice(0, 40).toLowerCase();
+        if (needle.length < 3) continue;
+        let from = 0;
+        for (;;) {
+          const at = lower.indexOf(needle, from);
+          if (at === -1) break;
+          decorations.push({
+            start: at,
+            end: at + needle.length,
+            cls: `ann-${ann.highlight_color}`,
+          });
+          from = at + needle.length;
+        }
       }
-      // Search highlight (higher priority — applied last so it renders on top)
-      if (searchQuery) {
-        const q = searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        result = result.replace(
-          new RegExp(q, "gi"),
-          (m) => `<mark class="ebook-mark">${m}</mark>`,
-        );
+
+      // Search matches — exact spans from the same extraction the search ran on
+      const pageMatches = matchesByPage.get(pageNumber);
+      if (pageMatches) {
+        for (const m of pageMatches) {
+          for (const s of m.spans) {
+            if (s.itemIndex !== item.itemIndex) continue;
+            decorations.push({
+              start: s.start,
+              end: s.end,
+              cls:
+                m.idx === currentMatch
+                  ? "ebook-mark ebook-mark-current"
+                  : "ebook-mark",
+            });
+          }
+        }
       }
-      return result;
+
+      return renderItemHtml(nStr, decorations);
     },
-    [searchQuery, annotations],
+    [annotations, matchesByPage, currentMatch],
   );
+
+  /* ── Match cycling ──────────────────────────────────────────── */
+  const goToMatch = useCallback(
+    (idx: number) => {
+      const total = matchPages.length;
+      if (!total) return;
+      const wrapped = ((idx % total) + total) % total;
+      setCurrentMatch(wrapped);
+      const page = matchPages[wrapped];
+      if (page !== currentPageRef.current) navigateToPage(page);
+    },
+    [matchPages, navigateToPage],
+  );
+
+  /* Bring the active match into view once its text layer has rendered.
+     Scrolls ONLY the viewer's own viewport (never window) to avoid yanking
+     the page around. */
+  useEffect(() => {
+    if (currentMatch < 0) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      const el = containerRef.current;
+      const mark = el?.querySelector<HTMLElement>(".ebook-mark-current");
+      if (el && mark) {
+        const mr = mark.getBoundingClientRect();
+        const cr = el.getBoundingClientRect();
+        if (mr.top < cr.top + 48 || mr.bottom > cr.bottom - 48) {
+          el.scrollTop += mr.top - (cr.top + cr.height / 2);
+        }
+        if (mr.left < cr.left + 16 || mr.right > cr.right - 16) {
+          el.scrollLeft += mr.left - (cr.left + cr.width / 2);
+        }
+        window.clearInterval(timer);
+      } else if (tries > 12) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, [currentMatch]);
 
   async function runSearch(raw: string) {
     const q = raw.trim();
+    const seq = ++searchSeqRef.current;
     setSearchQuery(q);
-    setSearchHits([]);
+    setPageHits([]);
+    setMatchPages([]);
+    setMatchesByPage(new Map());
+    setCurrentMatch(-1);
     const pdf = pdfRef.current;
     if (!pdf || !q) return;
     setSearching(true);
-    const lower = q.toLowerCase();
-    const hits: SearchHit[] = [];
+    const hits: PageHit[] = [];
+    const flat: number[] = [];
+    const byPage = new Map<number, IndexedPageMatch[]>();
+    let globalIdx = 0;
+    let jumped = false;
+    let dirty = false;
+    // Every flush re-renders the mounted text layers, so batch progressive
+    // results per yield instead of per hit — low-end phones choke otherwise.
+    const flush = () => {
+      if (!dirty) return;
+      dirty = false;
+      setPageHits([...hits]);
+      setMatchPages([...flat]);
+      setMatchesByPage(new Map(byPage));
+    };
     try {
       for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const tc = await page.getTextContent();
-        const text = tc.items
-          .map((it) => ("str" in it ? (it as { str: string }).str : ""))
-          .join(" ");
-        const idx = text.toLowerCase().indexOf(lower);
-        if (idx !== -1) {
-          const snippet = text
-            .slice(Math.max(0, idx - 30), idx + q.length + 40)
-            .trim();
-          hits.push({ page: i, snippet });
-          setSearchHits([...hits]); // progressive results
+        if (searchSeqRef.current !== seq || !pdfRef.current) return;
+        let items = pageTextCacheRef.current.get(i);
+        if (!items) {
+          const page = await pdf.getPage(i);
+          const tc = await page.getTextContent();
+          items = itemStrings(tc.items as Array<{ str?: unknown }>);
+          pageTextCacheRef.current.set(i, items);
         }
-        if (i % 10 === 0) await new Promise((r) => setTimeout(r, 0)); // keep UI responsive
+        const pageMatches = findPageMatches(items, q);
+        if (pageMatches.length) {
+          const firstIdx = globalIdx;
+          byPage.set(
+            i,
+            pageMatches.map((m) => ({ spans: m.spans, idx: globalIdx++ })),
+          );
+          for (let k = 0; k < pageMatches.length; k++) flat.push(i);
+          hits.push({
+            page: i,
+            count: pageMatches.length,
+            snippet: pageMatches[0].snippet,
+            firstMatch: firstIdx,
+          });
+          dirty = true;
+          if (!jumped) {
+            jumped = true;
+            flush();
+            setCurrentMatch(firstIdx);
+            if (i !== currentPageRef.current) navigateToPage(i);
+          }
+          if (globalIdx >= MAX_MATCHES) break;
+        }
+        if (i % 10 === 0) {
+          flush();
+          await new Promise((r) => setTimeout(r, 0)); // keep UI responsive
+        }
       }
     } catch {
       /* ignore */
     }
-    setSearching(false);
+    if (searchSeqRef.current === seq) {
+      flush();
+      setSearching(false);
+    }
   }
 
   /* ── Outline destination → page ─────────────────────────────── */
@@ -980,7 +1167,8 @@ export default function PDFViewer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const inField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+      if (inField && e.key !== "Escape") return; // Esc must close panes from the search box too
       const p = currentPageRef.current;
       const n = numPagesRef.current;
       switch (e.key) {
@@ -1019,18 +1207,39 @@ export default function PDFViewer({
           setIsFullscreen((v) => !v);
           break;
         case "/":
+          // The navbar (NavSearch) binds "/" site-wide to router.push("/search").
+          // While a document is open, in-document search owns the key — this
+          // listener is registered in the CAPTURE phase so it always runs
+          // first, and stopPropagation keeps the navbar from navigating away.
           e.preventDefault();
+          e.stopPropagation();
           setPanelTab("search");
+          // covers the panel-already-open case; the panel-open effect covers the rest
+          requestAnimationFrame(() => searchInputRef.current?.focus());
           break;
         case "Escape":
-          if (panelTab) setPanelTab(null);
+          if (inField) (e.target as HTMLElement).blur();
+          if (mobileMenuOpen) setMobileMenuOpen(false);
+          else if (panelTab) setPanelTab(null);
           else if (isFullscreen) setIsFullscreen(false);
+          else break;
+          e.stopPropagation(); // consumed — don't also trigger other Esc handlers
           break;
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [zoomIn, zoomOut, panelTab, isFullscreen]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [zoomIn, zoomOut, panelTab, isFullscreen, mobileMenuOpen]);
+
+  /* ── "/" or the toolbar button opened the search panel → focus it ── */
+  useEffect(() => {
+    if (panelTab !== "search") return;
+    const id = requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [panelTab]);
 
   /* ── Touch: swipe (single mode), pinch-zoom, double-tap-zoom ── */
   useEffect(() => {
@@ -1236,6 +1445,7 @@ export default function PDFViewer({
       {/* search + annotation highlight colors (scoped) */}
       <style>{`
         .ebook-mark{background:#fde047;color:#000;border-radius:2px;}
+        .ebook-mark-current{background:#fb923c;box-shadow:0 0 0 2px #ea580c;}
         .ann-yellow{background:#fef08a80;border-radius:2px;}
         .ann-green{background:#bbf7d080;border-radius:2px;}
         .ann-blue{background:#bfdbfe80;border-radius:2px;}
@@ -1964,11 +2174,20 @@ export default function PDFViewer({
                     <div className="flex h-full flex-col">
                       <div className="flex gap-1 p-1">
                         <input
+                          ref={searchInputRef}
                           type="text"
                           value={searchInput}
                           onChange={(e) => setSearchInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") runSearch(searchInput);
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            const q = searchInput.trim();
+                            // Same query again → cycle instead of re-searching
+                            if (q && q === searchQuery && matchPages.length) {
+                              goToMatch(currentMatch + (e.shiftKey ? -1 : 1));
+                            } else {
+                              runSearch(searchInput);
+                            }
                           }}
                           placeholder={t("searchPlaceholder")}
                           className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-800 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-text-muted focus:border-cyan-400"
@@ -1985,21 +2204,56 @@ export default function PDFViewer({
                           </svg>
                         </button>
                       </div>
+                      {matchPages.length > 0 && (
+                        <div className="flex items-center justify-between gap-1 px-2 py-1">
+                          <span aria-live="polite" className="text-[11px] font-semibold text-cyan-300">
+                            {t("matchCount", {
+                              current: fmtNum(currentMatch + 1),
+                              total: fmtNum(matchPages.length),
+                            })}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ToolButton
+                              onClick={() => goToMatch(currentMatch - 1)}
+                              label={t("prevMatch")}
+                              className="h-6 w-6"
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                                <path d="m18 15-6-6-6 6" />
+                              </svg>
+                            </ToolButton>
+                            <ToolButton
+                              onClick={() => goToMatch(currentMatch + 1)}
+                              label={t("nextMatch")}
+                              className="h-6 w-6"
+                            >
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round">
+                                <path d="m6 9 6 6 6-6" />
+                              </svg>
+                            </ToolButton>
+                          </span>
+                        </div>
+                      )}
                       <div className="px-2 py-1 text-[11px] text-text-muted">
-                        {searching ? t("searching") : searchQuery ? (searchHits.length ? t("hits", { count: fmtNum(searchHits.length) }) : t("noResults")) : ""}
+                        {searching ? t("searching") : searchQuery ? (pageHits.length ? t("hits", { count: fmtNum(pageHits.length) }) : t("noResults")) : ""}
                       </div>
                       <ul className="flex-1 space-y-1 overflow-y-auto">
-                        {searchHits.map((h) => (
+                        {pageHits.map((h) => (
                           <li key={h.page}>
                             <button
                               type="button"
                               onClick={() => {
-                                navigateToPage(h.page);
+                                goToMatch(h.firstMatch);
                                 if (window.innerWidth < 768) setPanelTab(null);
                               }}
                               className="block w-full rounded px-2 py-1.5 text-left hover:bg-white/10"
                             >
-                              <span className="text-xs font-semibold text-cyan-300">{t("page")} {fmtNum(h.page)}</span>
+                              <span className="flex items-baseline justify-between gap-2">
+                                <span className="text-xs font-semibold text-cyan-300">{t("page")} {fmtNum(h.page)}</span>
+                                {h.count > 1 && (
+                                  <span className="rounded bg-white/10 px-1 text-[10px] text-slate-300">{fmtNum(h.count)}</span>
+                                )}
+                              </span>
                               <span className="mt-0.5 block truncate text-[11px] text-slate-300">…{h.snippet}…</span>
                             </button>
                           </li>
@@ -2091,7 +2345,10 @@ export default function PDFViewer({
           <div
             ref={containerRef}
             className="relative h-full w-full overflow-auto"
-            style={{ touchAction: "pan-y" }}
+            // pan-x too: zoomed pages overflow horizontally and must stay
+            // pannable on touch. Browser pinch-zoom remains disabled, so the
+            // custom pinch handler above keeps receiving the events.
+            style={{ touchAction: "pan-x pan-y" }}
             onScroll={handleViewportScroll}
           >
             <Document
@@ -2150,7 +2407,7 @@ export default function PDFViewer({
                       devicePixelRatio={renderPixelRatio}
                       onRenderError={(error) => onPageRenderError(p, error)}
                       customTextRenderer={
-                        searchQuery || annotations.some((a) => a.page_number === p)
+                        matchesByPage.has(p) || annotations.some((a) => a.page_number === p)
                           ? (item) => highlight(item, p)
                           : undefined
                       }
@@ -2160,7 +2417,7 @@ export default function PDFViewer({
                     <div style={{ height: virtualRange.after }} aria-hidden />
                   )}
                   {/* capture page-1 aspect ratio once */}
-                  {!aspectRatio && (
+                  {!arMeasuredRef.current && (
                     <div aria-hidden className="pointer-events-none h-px overflow-hidden opacity-0">
                       <Page
                         pageNumber={1}
@@ -2181,12 +2438,12 @@ export default function PDFViewer({
                         pageNumber={currentPage}
                         width={pageWidth}
                         devicePixelRatio={renderPixelRatio}
-                        onLoadSuccess={!aspectRatio ? onFirstPageLoad : undefined}
+                        onLoadSuccess={arMeasuredRef.current ? undefined : onFirstPageLoad}
                         onRenderError={(error) => onPageRenderError(currentPage, error)}
                         renderTextLayer
                         renderAnnotationLayer
                         customTextRenderer={
-                          searchQuery || annotations.some((a) => a.page_number === currentPage)
+                          matchesByPage.has(currentPage) || annotations.some((a) => a.page_number === currentPage)
                             ? (item) => highlight(item, currentPage)
                             : undefined
                         }

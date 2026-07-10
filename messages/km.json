@@ -24,6 +24,9 @@
     "noResults": "រកមិនឃើញ",
     "searching": "កំពុងស្វែងរក…",
     "hits": "ឃើញនៅ {count} ទំព័រ",
+    "matchCount": "{current} នៃ {total}",
+    "prevMatch": "លទ្ធផលមុន",
+    "nextMatch": "លទ្ធផលបន្ទាប់",
     "theme": "ពណ៌ផ្ទៃ",
     "noOutline": "ឯកសារនេះគ្មានមាតិកា",
     "noBookmarks": "មិនទាន់មានចំណាំ",
@@ -891,7 +894,10 @@
     "advFieldRating": "ការវាយតម្លៃ",
     "advAnyRating": "ការវាយតម្លៃណាមួយ",
     "advClearAll": "សម្អាតទាំងអស់",
-    "advClose": "បិទ"
+    "advClose": "បិទ",
+    "facetType": "ប្រភេទ",
+    "facetShowMore": "បង្ហាញបន្ថែម",
+    "facetShowLess": "បង្ហាញតិច"
   },
   "pagination": {
     "showing": "បង្ហាញ {from}–{to} នៃ {total, plural, other {# លទ្ធផល}}",

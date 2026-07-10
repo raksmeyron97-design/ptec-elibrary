@@ -24,6 +24,9 @@
     "noResults": "No results",
     "searching": "Searching…",
     "hits": "Found on {count} page(s)",
+    "matchCount": "{current} of {total}",
+    "prevMatch": "Previous match",
+    "nextMatch": "Next match",
     "theme": "Theme",
     "noOutline": "This document has no contents",
     "noBookmarks": "No bookmarks yet",
@@ -885,7 +888,10 @@
     "advFieldRating": "Rating",
     "advAnyRating": "Any rating",
     "advClearAll": "Clear all",
-    "advClose": "Close"
+    "advClose": "Close",
+    "facetType": "Type",
+    "facetShowMore": "Show more",
+    "facetShowLess": "Show less"
   },
   "pagination": {
     "showing": "Showing {from}–{to} of {total, plural, =1 {1 result} other {# results}}",

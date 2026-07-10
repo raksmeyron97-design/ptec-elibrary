@@ -8,6 +8,15 @@ import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import {
+  buildFacetCounts,
+  hasAnySelection,
+  hasNonTypeSelection,
+  matchesFacets,
+  parseFacetSelections,
+  type FacetSelections,
+  type SearchFacetCounts,
+} from "@/lib/search/facets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +98,8 @@ export type NativeSearchResponse = {
   didYouMean?: string | null;
   pageHits?: PageHit[];
   facets?: SearchFacets;
+  /** Per-value facet counts for the sidebar; a dimension's counts ignore its own selection. */
+  facetCounts?: SearchFacetCounts;
   relatedSubjects?: string[];
   popularResources?: SearchResult[];
   sort: SearchSort;
@@ -96,17 +107,16 @@ export type NativeSearchResponse = {
 
 type DB = ReturnType<typeof createServiceClient>;
 
+// Facet dimensions (type/subject/lang/year/availability) are NOT here — they
+// are multi-select and applied in memory over the candidate pool (see
+// lib/search/facets.ts) so the sidebar gets live counts without extra queries.
 type Filters = {
   dept?: string;
-  lang?: string;
-  subject?: string;
   author?: string;
   advisor?: string;
   program?: string;
   cohort?: string;
-  year?: string;
   format?: string;
-  availability?: string;
   isbn?: string;
   publisher?: string;
   minViews?: number;
@@ -363,15 +373,7 @@ function filterCommon(row: Candidate, filters: Filters): boolean {
   if (filters.minViews != null && (row.views ?? 0) < filters.minViews) return false;
   if (filters.minDownloads != null && (row.downloadCount ?? 0) < filters.minDownloads) return false;
   if (filters.minRating != null && Number(row.rating ?? 0) < filters.minRating) return false;
-  if (filters.year && row.year !== Number(filters.year)) return false;
   if (filters.format && normalize(row.format) !== normalize(filters.format)) return false;
-  if (filters.availability) {
-    const wanted = normalize(filters.availability);
-    const actual = normalize(row.availability);
-    const downloadable = wanted === "downloadable" && (actual.includes("digital") || actual.includes("download"));
-    const available = wanted === "available" && (actual.includes("available") || actual.includes("digital"));
-    if (!downloadable && !available && !actual.includes(wanted)) return false;
-  }
   return true;
 }
 
@@ -390,9 +392,8 @@ async function lookupIds(db: DB, table: string, column: string, q: string, idCol
 }
 
 async function matchingBookFileIds(db: DB, filters: Filters): Promise<string[] | null> {
-  if (!filters.format && !filters.availability) return null;
-  let q = db.from("book_files").select("book_id").not("file_url", "is", null).limit(500);
-  if (filters.format) q = q.ilike("format", filters.format);
+  if (!filters.format) return null;
+  const q = db.from("book_files").select("book_id").not("file_url", "is", null).ilike("format", filters.format).limit(500);
   const { data, error } = await q;
   if (error) return [];
   return [...new Set((data ?? []).map((row: any) => row.book_id as string).filter(Boolean))];
@@ -408,9 +409,8 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     matchingBookFileIds(db, filters),
   ]);
 
-  const categoryFilter = filters.subject;
   const authorsJoin = filters.author || authorIds.length ? "authors!inner(name)" : "authors(name)";
-  const categoriesJoin = categoryFilter || categoryIds.length ? "categories!inner(name)" : "categories(name)";
+  const categoriesJoin = categoryIds.length ? "categories!inner(name)" : "categories(name)";
   const departmentsJoin = filters.dept || departmentIds.length ? "departments!inner(name)" : "departments(name)";
 
   let query: any = db
@@ -429,13 +429,10 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
   ].filter(Boolean);
   if (orParts.length) query = query.or(orParts.join(","));
 
-  if (filters.lang) query = query.eq("language", filters.lang);
   if (filters.dept) query = query.eq("departments.name", filters.dept);
-  if (categoryFilter) query = query.eq("categories.name", categoryFilter);
   if (filters.author) query = query.ilike("authors.name", `%${filters.author}%`);
   if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
   if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-  if (filters.year) query = query.gte("published_at", `${filters.year}-01-01`).lte("published_at", `${filters.year}-12-31`);
   if (fileBookIds) query = fileBookIds.length ? query.in("id", fileBookIds) : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
 
   const { data, count, error } = await query
@@ -515,12 +512,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
   if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
   if (filters.program) query = query.eq("program", filters.program);
   if (filters.cohort) query = query.eq("cohort", filters.cohort);
-  if (filters.lang) query = query.eq("language", filters.lang);
-  if (filters.year) query = query.ilike("academic_year", `%${filters.year}%`);
   if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  if (filters.availability && filters.availability !== "digital" && filters.availability !== "downloadable") {
-    query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  }
 
   const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
   if (error) {
@@ -570,10 +562,6 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
       popularityValue: (r.view_count ?? 0) + (r.download_count ?? 0),
     };
   }).filter((row: Candidate) => {
-    if (filters.subject) {
-      const haystack = normalize([row.subject, row.category, row.keywordText].filter(Boolean).join(" "));
-      if (!haystack.includes(normalize(filters.subject))) return false;
-    }
     if (filters.advisor) {
       const haystack = normalize(row.authorText);
       if (!haystack.includes(normalize(filters.advisor))) return false;
@@ -597,15 +585,10 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     .eq("is_published", true)
     .or(orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn"], tokens));
 
-  if (filters.lang) query = query.eq("language", filters.lang);
   if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
   if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
   if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
-  if (filters.year) query = query.gte("publication_date", `${filters.year}-01-01`).lte("publication_date", `${filters.year}-12-31`);
   if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  if (filters.availability && filters.availability !== "digital" && filters.availability !== "downloadable") {
-    query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  }
 
   const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
   if (error) {
@@ -655,13 +638,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       dateValue: year ?? 0,
       popularityValue: (p.view_count ?? 0) + (p.download_count ?? 0),
     };
-  }).filter((row: Candidate) => {
-    if (filters.subject) {
-      const haystack = normalize([row.subject, row.category, row.keywordText, row.publisher].filter(Boolean).join(" "));
-      if (!haystack.includes(normalize(filters.subject))) return false;
-    }
-    return filterCommon(row, filters);
-  });
+  }).filter((row: Candidate) => filterCommon(row, filters));
 
   const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
   return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
@@ -676,14 +653,10 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
     .eq("is_active", true)
     .or(orFilter(["title", "author", "description", "category", "department", "isbn", "publisher"], tokens));
 
-  if (filters.lang) query = query.eq("language", filters.lang);
   if (filters.author) query = query.ilike("author", `%${filters.author}%`);
   if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
   if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-  if (filters.year) query = query.eq("year", Number(filters.year));
   if (filters.format && normalize(filters.format) !== "print") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  if (filters.availability === "available") query = query.gt("copies_available", 0);
-  if (filters.availability === "digital" || filters.availability === "downloadable") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
 
   const { data, count, error } = await query.order("title", { ascending: true }).limit(limit);
   if (error) {
@@ -725,13 +698,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       dateValue: r.year ?? yearOf(r.created_at) ?? 0,
       popularityValue: r.copies_available ?? 0,
     };
-  }).filter((row: Candidate) => {
-    if (filters.subject) {
-      const haystack = normalize([row.subject, row.category, row.department, row.keywordText].filter(Boolean).join(" "));
-      if (!haystack.includes(normalize(filters.subject))) return false;
-    }
-    return filterCommon(row, filters);
-  });
+  }).filter((row: Candidate) => filterCommon(row, filters));
 
   const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
   return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
@@ -746,10 +713,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
     .eq("is_published", true)
     .or(orFilter(["title", "excerpt", "content", "category"], tokens));
 
-  if (filters.subject) query = query.eq("category", filters.subject);
-  if (filters.year) query = query.gte("created_at", `${filters.year}-01-01`).lte("created_at", `${filters.year}-12-31`);
   if (filters.format && normalize(filters.format) !== "html") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
-  if (filters.availability && filters.availability !== "digital") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
 
   const { data, count, error } = await query.order("created_at", { ascending: false }).limit(limit);
   if (error) {
@@ -1003,15 +967,11 @@ export async function GET(req: Request) {
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const filters: Filters = {
     dept: searchParams.get("dept") ?? undefined,
-    lang: searchParams.get("lang") ?? undefined,
-    subject: searchParams.get("subject") ?? searchParams.get("category") ?? undefined,
     author: searchParams.get("author") ?? undefined,
     advisor: searchParams.get("advisor") ?? undefined,
     program: searchParams.get("program") ?? undefined,
     cohort: searchParams.get("cohort") ?? undefined,
-    year: searchParams.get("year") ?? undefined,
     format: searchParams.get("format") ?? undefined,
-    availability: searchParams.get("availability") ?? undefined,
     isbn: searchParams.get("isbn") ?? undefined,
     publisher: searchParams.get("publisher") ?? undefined,
     minViews: numberParam(searchParams, "views"),
@@ -1019,10 +979,20 @@ export async function GET(req: Request) {
     minRating: numberParam(searchParams, "rating"),
   };
 
-  const cacheKey = JSON.stringify({ q, type, sort, page, filters });
+  const selections: FacetSelections = parseFacetSelections((key) => searchParams.get(key));
+  // Legacy advanced-modal value: "downloadable" availability means a digital copy.
+  selections.availability = [
+    ...new Set(selections.availability.map((v) => (v.toLowerCase() === "downloadable" ? "Digital" : v))),
+  ];
+  const hasFilters =
+    Object.values(filters).some((value) => value !== undefined && value !== "") || hasAnySelection(selections);
+
+  const cacheKey = JSON.stringify({ q, type, sort, page, filters, selections });
   const cached = cacheGet(cacheKey);
   if (cached) {
-    if (type === "all" && page === 1) {
+    // With facets active, cached counts.total is post-filter — not the "does
+    // the library have this" signal — so those repeats go unlogged (45s TTL).
+    if (type === "all" && page === 1 && !hasFilters) {
       const dbForLog = createServiceClient();
       logSearchQuery(dbForLog, q, cached.counts.total, type, sort);
     }
@@ -1059,32 +1029,48 @@ export async function GET(req: Request) {
       ]);
       const mergedPageHits = mergePageHits(pageHits, semantic);
 
-      const allCandidates = [
-        ...books.allCandidates,
-        ...research.allCandidates,
-        ...publications.allCandidates,
-        ...catalog.allCandidates,
-        ...posts.allCandidates,
-      ].sort((a, b) => compareBySort(a, b, sort));
+      const byType: Record<SearchResultType, PerTypeSearch> = {
+        book: books,
+        research,
+        publication: publications,
+        catalog,
+        post: posts,
+      };
+      const typeIds = Object.keys(byType) as SearchResultType[];
+      const unionCandidates = typeIds.flatMap((t) => byType[t].allCandidates);
+      const allCandidates = [...unionCandidates].sort((a, b) => compareBySort(a, b, sort));
+
+      // Facet counts come from the candidate pool already in hand — grouped in
+      // memory, never one query per facet value.
+      const facetCounts = buildFacetCounts(unionCandidates, selections);
+
+      // Exact DB counts stay authoritative until an in-memory facet narrows the
+      // pool; then the honest number is how many candidates survived.
+      const nonTypeActive = hasNonTypeSelection(selections);
+      const typeCountOf = (t: SearchResultType): number =>
+        nonTypeActive
+          ? byType[t].allCandidates.filter((c) => matchesFacets(c, selections, "types")).length
+          : byType[t].count;
+      const activeTypes = selections.types.length
+        ? typeIds.filter((t) => selections.types.some((v) => v.toLowerCase() === t))
+        : typeIds;
+      // Demand signal for the zero-result report: "does the library have
+      // anything for this term at all", independent of active facets.
+      const preFacetTotal = typeIds.reduce((sum, t) => sum + byType[t].count, 0);
 
       const counts: SearchCounts = {
-        book: books.count,
-        research: research.count,
-        publication: publications.count,
-        catalog: catalog.count,
-        post: posts.count,
-        total: books.count + research.count + publications.count + catalog.count + posts.count,
+        book: typeCountOf("book"),
+        research: typeCountOf("research"),
+        publication: typeCountOf("publication"),
+        catalog: typeCountOf("catalog"),
+        post: typeCountOf("post"),
+        total: activeTypes.reduce((sum, t) => sum + typeCountOf(t), 0),
       };
 
-      const results = [
-        ...books.allCandidates.slice(0, PAGE_SIZE_ALL),
-        ...research.allCandidates.slice(0, PAGE_SIZE_ALL),
-        ...publications.allCandidates.slice(0, PAGE_SIZE_ALL),
-        ...catalog.allCandidates.slice(0, PAGE_SIZE_ALL),
-        ...posts.allCandidates.slice(0, PAGE_SIZE_ALL),
-      ];
+      const results = activeTypes.flatMap((t) =>
+        byType[t].allCandidates.filter((c) => matchesFacets(c, selections)).slice(0, PAGE_SIZE_ALL),
+      );
 
-      const hasFilters = Object.values(filters).some((value) => value !== undefined && value !== "");
       if (counts.total === 0 && !hasFilters) {
         const fuzzy = await fuzzySearch(db, q);
         if (fuzzy.length > 0) {
@@ -1097,6 +1083,7 @@ export async function GET(req: Request) {
             didYouMean: fuzzy[0]?.title ?? null,
             pageHits: mergedPageHits,
             facets: facetsOf(fuzzy),
+            facetCounts: buildFacetCounts(fuzzy, selections),
             relatedSubjects: facetsOf(fuzzy).subjects.slice(0, 8),
             popularResources: [],
             sort,
@@ -1114,20 +1101,27 @@ export async function GET(req: Request) {
         hasMore: false,
         pageHits: mergedPageHits,
         facets: facetsOf(allCandidates),
+        facetCounts,
         relatedSubjects: facetsOf(allCandidates).subjects.slice(0, 8),
         popularResources: allCandidates.slice(0, 5),
         sort,
       };
-      logSearchQuery(db, q, counts.total, type, sort);
+      logSearchQuery(db, q, preFacetTotal, type, sort);
     } else {
       const result = await run[type]();
       const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));
+      // On a type tab the `types` dimension is meaningless — the tab already
+      // fixes the type — so it is excluded from both matching and counting.
+      const facetCounts = buildFacetCounts(sorted, selections);
+      const facetFiltered = hasNonTypeSelection(selections)
+        ? sorted.filter((c) => matchesFacets(c, selections, "types"))
+        : sorted;
+      const effectiveCount = hasNonTypeSelection(selections) ? facetFiltered.length : result.count;
       const from = (page - 1) * PAGE_SIZE_TYPE;
-      let pageResults = sorted.slice(from, from + PAGE_SIZE_TYPE);
+      let pageResults = facetFiltered.slice(from, from + PAGE_SIZE_TYPE);
       let fuzzy = false;
       let didYouMean: string | null = null;
 
-      const hasFilters = Object.values(filters).some((value) => value !== undefined && value !== "");
       if (result.count === 0 && page === 1 && !hasFilters) {
         const fuzzyMatches = await fuzzySearch(db, q, type, PAGE_SIZE_TYPE);
         if (fuzzyMatches.length > 0) {
@@ -1138,23 +1132,24 @@ export async function GET(req: Request) {
       }
 
       const counts: SearchCounts = {
-        book: type === "book" ? result.count : 0,
-        research: type === "research" ? result.count : 0,
-        publication: type === "publication" ? result.count : 0,
-        catalog: type === "catalog" ? result.count : 0,
-        post: type === "post" ? result.count : 0,
-        total: result.count,
+        book: type === "book" ? effectiveCount : 0,
+        research: type === "research" ? effectiveCount : 0,
+        publication: type === "publication" ? effectiveCount : 0,
+        catalog: type === "catalog" ? effectiveCount : 0,
+        post: type === "post" ? effectiveCount : 0,
+        total: effectiveCount,
       };
 
       response = {
         results: pageResults,
         counts: fuzzy ? countsOf(pageResults) : counts,
         page,
-        hasMore: !fuzzy && result.count > page * PAGE_SIZE_TYPE,
+        hasMore: !fuzzy && effectiveCount > page * PAGE_SIZE_TYPE,
         fuzzy,
         didYouMean,
         pageHits: [],
         facets: facetsOf(sorted),
+        facetCounts,
         relatedSubjects: facetsOf(sorted).subjects.slice(0, 8),
         popularResources: sorted.slice(0, 5),
         sort,
