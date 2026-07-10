@@ -331,6 +331,15 @@
     "copy": "Copy",
     "copied": "Copied!"
   },
+  "cite": {
+    "citeBook": "Cite this book",
+    "citeThesis": "Cite this thesis",
+    "cite": "Cite",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "close": "Close",
+    "closeAria": "Close citation panel"
+  },
   "footer": {
     "description": "The Phnom Penh Teacher Education College was established to train teachers with quality education, leading students toward a better future without discrimination.",
     "information": "Information",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy, Download, Quote } from "lucide-react";
 import {
   buildCitation,
@@ -28,6 +29,7 @@ export default function CiteThis({
   /** compact = a small button that expands inline (used in list rows) */
   compact?: boolean;
 }) {
+  const t = useTranslations("cite");
   const [open, setOpen] = useState(!compact);
   const [format, setFormat] = useState<CiteFormat>("apa");
   const [copied, setCopied] = useState(false);
@@ -61,7 +63,7 @@ export default function CiteThis({
         className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
       >
         <Quote className="h-3.5 w-3.5" />
-        Cite
+        {t("cite")}
       </button>
     );
   }
@@ -100,7 +102,7 @@ export default function CiteThis({
           className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
           {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("copied") : t("copy")}
         </button>
         <button
           type="button"
@@ -120,13 +122,13 @@ export default function CiteThis({
       <div className="mt-3 w-full rounded-xl border border-divider bg-bg-surface p-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="inline-flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-wider text-text-muted">
-            <Quote className="h-3.5 w-3.5" /> Cite this report
+            <Quote className="h-3.5 w-3.5" /> {t("citeThesis")}
           </span>
           <button type="button" onClick={() => setOpen(false)}
-            aria-label="Close citation panel"
+            aria-label={t("closeAria")}
             className="cursor-pointer rounded-sm text-[12px] font-medium text-text-muted transition-colors duration-150 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
-            Close
+            {t("close")}
           </button>
         </div>
         {panel}
@@ -138,7 +140,7 @@ export default function CiteThis({
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
       <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-        <Quote className="h-4 w-4 text-brand" /> Cite this report
+        <Quote className="h-4 w-4 text-brand" /> {t("citeThesis")}
       </h3>
       {panel}
     </div>

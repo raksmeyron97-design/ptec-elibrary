@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy, Download, Quote } from "lucide-react";
 import {
   buildBookCitation,
@@ -16,6 +17,7 @@ const FORMATS: { id: CiteFormat; label: string }[] = [
 ];
 
 export default function CiteBook({ book }: { book: Book }) {
+  const t = useTranslations("cite");
   const [format, setFormat] = useState<CiteFormat>("apa");
   const [copied, setCopied] = useState(false);
 
@@ -45,7 +47,7 @@ export default function CiteBook({ book }: { book: Book }) {
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
       <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-        <Quote className="h-4 w-4 text-brand" /> Cite this book
+        <Quote className="h-4 w-4 text-brand" /> {t("citeBook")}
       </h3>
 
       {/* Format tabs */}
@@ -83,7 +85,7 @@ export default function CiteBook({ book }: { book: Book }) {
           className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-divider bg-paper px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("copied") : t("copy")}
         </button>
         <button
           type="button"

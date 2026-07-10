@@ -1,6 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { toAPA, toMLA, toChicago, toIEEE, toBibTeX, toRIS, toCitationLine, authorList } from './citations';
+import {
+  toAPA, toMLA, toChicago, toIEEE, toBibTeX, toRIS, toCitationLine, authorList,
+  apa, bibtex, ris, bibtexKey, citationFileName,
+  type CitationWork,
+} from './citations';
+import {
+  bookToCitationWork,
+  buildBookCitation,
+} from './books/citation';
+import {
+  thesisToCitationWork,
+  buildCitation as buildThesisCitation,
+} from './theses/citation';
 import type { Publication } from './publications';
+import type { Book } from './book-utils';
+
+/**
+ * Minimal strict BibTeX entry parser (test-only). Accepts exactly the shape
+ * our formatter emits — `@type{key,\n  field = {value},\n…\n}` — and throws
+ * on anything malformed, including unbalanced braces inside a value. Passing
+ * this parser is what "the BibTeX output parses" means in these tests.
+ */
+function parseBibTeXEntry(src: string): { type: string; key: string; fields: Record<string, string> } {
+  const m = src.match(/^@([A-Za-z]+)\{([^,\s{}]+),\n([\s\S]*)\n\}$/);
+  if (!m) throw new Error(`not a BibTeX entry:\n${src}`);
+  const [, type, key, body] = m;
+  const fields: Record<string, string> = {};
+  for (const line of body.split(',\n')) {
+    const fm = line.match(/^ {2}([A-Za-z]+) = \{(.*)\}$/);
+    if (!fm) throw new Error(`bad field line: ${line}`);
+    let depth = 0;
+    for (const ch of fm[2]) {
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      if (depth < 0) throw new Error(`unbalanced braces in ${fm[1]}: ${fm[2]}`);
+    }
+    if (depth !== 0) throw new Error(`unbalanced braces in ${fm[1]}: ${fm[2]}`);
+    fields[fm[1].toLowerCase()] = fm[2];
+  }
+  return { type, key, fields };
+}
 
 const pub: Publication = {
   id: 'pub-1',
@@ -157,5 +196,260 @@ describe('toRIS', () => {
   it('collapses whitespace in the abstract', () => {
     const ris = toRIS(pub);
     expect(ris).toContain('AB  - A study of digital pedagogy across programs.');
+  });
+});
+
+// ── Generic formatters over CitationWork ─────────────────────────────────────
+
+const fullBookWork: CitationWork = {
+  kind: 'book',
+  title: 'Teaching Mathematics in Cambodia',
+  authors: ['Sok San', 'Chan Dara'],
+  year: '2024',
+  publisher: 'MoEYS Publishing',
+  isbn: '978-9-99-999999-9',
+  pageCount: 240,
+  language: 'Khmer',
+  url: 'https://library.ptec.edu.kh/books/teaching-mathematics',
+};
+
+const sparseWork: CitationWork = {
+  kind: 'book',
+  title: '',
+  authors: [],
+  year: null,
+  url: 'https://library.ptec.edu.kh/books/mystery',
+};
+
+const thesisWork: CitationWork = {
+  kind: 'thesis',
+  title: 'Reading Fluency in Grade 3 Classrooms',
+  authors: ['Pen Sokha'],
+  year: '2023',
+  publisher: 'Phnom Penh Teacher Education College',
+  department: 'Primary Education',
+  number: 'Cohort 12',
+  noteType: 'Thesis',
+  keywords: ['literacy', 'primary'],
+  abstract: 'A  study\nspanning   two lines.',
+  url: 'https://library.ptec.edu.kh/theses/reading-fluency',
+};
+
+describe('apa (generic)', () => {
+  it('formats a fully-populated book', () => {
+    expect(apa(fullBookWork)).toBe(
+      'Sok San, Chan Dara (2024). Teaching Mathematics in Cambodia. ' +
+      'MoEYS Publishing. https://library.ptec.edu.kh/books/teaching-mathematics',
+    );
+  });
+
+  it('falls back gracefully on a sparse work', () => {
+    expect(apa(sparseWork)).toBe(
+      'Unknown author (n.d.). Untitled. https://library.ptec.edu.kh/books/mystery',
+    );
+  });
+
+  it('adds the bracketed note type for theses', () => {
+    expect(apa(thesisWork)).toContain('Reading Fluency in Grade 3 Classrooms [Thesis].');
+  });
+});
+
+describe('bibtex (generic)', () => {
+  it('produces a parseable @book entry for a fully-populated book', () => {
+    const entry = parseBibTeXEntry(bibtex(fullBookWork));
+    expect(entry.type).toBe('book');
+    expect(entry.key).toBe('sok2024teaching');
+    expect(entry.fields.author).toBe('Sok San and Chan Dara');
+    expect(entry.fields.publisher).toBe('MoEYS Publishing');
+    expect(entry.fields.isbn).toBe('978-9-99-999999-9');
+    expect(entry.fields.pages).toBe('240');
+    expect(entry.fields.url).toBe('https://library.ptec.edu.kh/books/teaching-mathematics');
+  });
+
+  it('produces a parseable entry even for a sparse work', () => {
+    const entry = parseBibTeXEntry(bibtex(sparseWork));
+    expect(entry.type).toBe('book');
+    expect(entry.key).toMatch(/^[a-z0-9]+$/);
+    expect(entry.fields.url).toBe('https://library.ptec.edu.kh/books/mystery');
+    expect(entry.fields.author).toBeUndefined();
+    expect(entry.fields.year).toBeUndefined();
+    expect(entry.fields.isbn).toBeUndefined();
+  });
+
+  it('maps theses to @techreport with institution/type/number/address', () => {
+    const entry = parseBibTeXEntry(bibtex(thesisWork));
+    expect(entry.type).toBe('techreport');
+    expect(entry.fields.institution).toBe('Phnom Penh Teacher Education College');
+    expect(entry.fields.type).toBe('Thesis');
+    expect(entry.fields.number).toBe('Cohort 12');
+    expect(entry.fields.address).toBe('Primary Education');
+  });
+
+  it('escapes LaTeX special characters and drops braces', () => {
+    const nasty: CitationWork = {
+      ...fullBookWork,
+      title: '100% of {braces} & $pecial_chars #1 ~here^ \\ end',
+      authors: ["O'Brien & Sons"],
+    };
+    const entry = parseBibTeXEntry(bibtex(nasty));
+    expect(entry.fields.title).toBe(
+      '100\\% of braces \\& \\$pecial\\_chars \\#1 \\textasciitilde{}here\\textasciicircum{} \\textbackslash{} end',
+    );
+    expect(entry.fields.author).toBe("O'Brien \\& Sons");
+  });
+
+  it('never LaTeX-escapes DOI and URL fields', () => {
+    const withDoi: CitationWork = { ...thesisWork, doi: '10.1234/ptec_2023#7' };
+    const entry = parseBibTeXEntry(bibtex(withDoi));
+    expect(entry.fields.doi).toBe('10.1234/ptec_2023#7');
+  });
+
+  it('publication toBibTeX output parses too', () => {
+    const entry = parseBibTeXEntry(toBibTeX(pub));
+    expect(entry.type).toBe('article');
+    expect(entry.key).toBe('sok2026digital');
+  });
+});
+
+describe('ris (generic)', () => {
+  it('produces a valid record for a fully-populated book', () => {
+    const lines = ris(fullBookWork).split('\n');
+    expect(lines[0]).toBe('TY  - BOOK');
+    expect(lines[lines.length - 1]).toBe('ER  - ');
+    expect(lines).toContain('AU  - Sok San');
+    expect(lines).toContain('AU  - Chan Dara');
+    expect(lines).toContain('PB  - MoEYS Publishing');
+    expect(lines).toContain('SN  - 978-9-99-999999-9');
+    expect(lines).toContain('LA  - Khmer');
+    // Every line must be single-line "TAG  - value".
+    for (const line of lines) expect(line).toMatch(/^[A-Z][A-Z0-9]  - /);
+  });
+
+  it('omits empty tags on a sparse work but keeps TY/UR/ER', () => {
+    const lines = ris(sparseWork).split('\n');
+    expect(lines).toEqual([
+      'TY  - BOOK',
+      'UR  - https://library.ptec.edu.kh/books/mystery',
+      'ER  - ',
+    ]);
+  });
+
+  it('uses TY THES for theses and flattens multi-line abstracts', () => {
+    const out = ris(thesisWork);
+    const lines = out.split('\n');
+    expect(lines[0]).toBe('TY  - THES');
+    expect(lines).toContain('AB  - A study spanning two lines.');
+    expect(lines).toContain('KW  - literacy');
+    expect(lines).toContain('KW  - primary');
+  });
+});
+
+describe('bibtexKey / citationFileName', () => {
+  it('builds firstauthor+year+firstword keys', () => {
+    expect(bibtexKey(fullBookWork)).toBe('sok2024teaching');
+  });
+
+  it('falls back to "citation" when nothing alphanumeric survives (e.g. Khmer-only)', () => {
+    expect(bibtexKey({ kind: 'book', title: 'សៀវភៅ', authors: ['សុខ'], year: null, url: 'x' })).toBe('citation');
+  });
+
+  it('names files .bib/.ris/.txt with matching mimes', () => {
+    expect(citationFileName('bibtex', fullBookWork)).toEqual({ name: 'sok2024teaching.bib', mime: 'application/x-bibtex' });
+    expect(citationFileName('ris', fullBookWork)).toEqual({ name: 'sok2024teaching.ris', mime: 'application/x-research-info-systems' });
+    expect(citationFileName('apa', fullBookWork)).toEqual({ name: 'sok2024teaching.txt', mime: 'text/plain' });
+  });
+});
+
+// ── Domain adapters ──────────────────────────────────────────────────────────
+
+const fullBook: Book = {
+  slug: 'khmer-grammar',
+  title: 'Khmer Grammar Handbook',
+  author: 'Vann Molyvann, Pen Sokha',
+  isbn: '978-1-23-456789-7',
+  publisher: 'PTEC Press',
+  department: 'Language',
+  category: 'Language',
+  language: 'Khmer',
+  year: 2022,
+  format: 'PDF',
+  availability: 'Digital',
+  rating: 4.5,
+  pages: 312,
+  summary: 'A grammar reference.',
+  cover: 'bg-[#0f766e]',
+  tags: ['grammar'],
+};
+
+// mapRowToBook placeholders for missing data: "Unknown" author, "N/A" isbn, pages 1.
+const sparseBook: Book = {
+  ...fullBook,
+  slug: 'mystery-book',
+  title: 'Mystery Book',
+  author: 'Unknown',
+  isbn: 'N/A',
+  publisher: null,
+  year: 0,
+  pages: 1,
+};
+
+describe('bookToCitationWork', () => {
+  it('uses the real publisher and splits the byline', () => {
+    const work = bookToCitationWork(fullBook);
+    expect(work.publisher).toBe('PTEC Press');
+    expect(work.authors).toEqual(['Vann Molyvann', 'Pen Sokha']);
+    expect(work.year).toBe('2022');
+    const entry = parseBibTeXEntry(buildBookCitation('bibtex', fullBook));
+    expect(entry.type).toBe('book');
+    expect(entry.fields.author).toBe('Vann Molyvann and Pen Sokha');
+    expect(entry.fields.publisher).toBe('PTEC Press');
+  });
+
+  it('treats mapRowToBook placeholders as missing and falls back to the repository', () => {
+    const work = bookToCitationWork(sparseBook);
+    expect(work.isbn).toBeNull();
+    expect(work.pageCount).toBeNull();
+    expect(work.year).toBeNull();
+    expect(work.publisher).toBe('Phnom Penh Teacher Education College');
+    const entry = parseBibTeXEntry(buildBookCitation('bibtex', sparseBook));
+    expect(entry.fields.isbn).toBeUndefined();
+    expect(entry.fields.pages).toBeUndefined();
+    expect(buildBookCitation('apa', sparseBook)).toContain('(n.d.)');
+  });
+});
+
+describe('thesisToCitationWork', () => {
+  const report = {
+    id: '00000000-0000-0000-0000-000000000001',
+    slug: 'reading-impact-study',
+    title: 'Reading Impact Study',
+    author_names: 'Sok San, Chan Dara',
+    abstract: 'An abstract.',
+    cohort: 12,
+    thesis_type: 'research_report',
+    keywords: ['reading', 'impact'],
+    department: 'Primary Education',
+    published_at: '2023-06-01',
+  };
+
+  it('derives type, year, and cohort from real fields', () => {
+    const work = thesisToCitationWork(report, report.slug);
+    expect(work.noteType).toBe('Research Report');
+    expect(work.year).toBe('2023');
+    expect(work.number).toBe('Cohort 12');
+    expect(work.authors).toEqual(['Sok San', 'Chan Dara']);
+    expect(buildThesisCitation('apa', report, report.slug)).toBe(
+      'Sok San, Chan Dara (2023). Reading Impact Study [Research Report]. ' +
+      'Phnom Penh Teacher Education College. https://library.ptec.edu.kh/theses/reading-impact-study',
+    );
+  });
+
+  it('produces parseable BibTeX and valid RIS for a sparse report', () => {
+    const entry = parseBibTeXEntry(buildThesisCitation('bibtex', {}, 'unknown'));
+    expect(entry.type).toBe('techreport');
+    expect(entry.fields.institution).toBe('Phnom Penh Teacher Education College');
+    const lines = buildThesisCitation('ris', {}, 'unknown').split('\n');
+    expect(lines[0]).toBe('TY  - THES');
+    expect(lines[lines.length - 1]).toBe('ER  - ');
   });
 });

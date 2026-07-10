@@ -1,4 +1,18 @@
-import { getDoi, getYear, getDepartment, type ResearchReport } from "./report-fields";
+import {
+  getDoi,
+  getYear,
+  getDepartment,
+  getKeywords,
+  getThesisTypeLabel,
+  type ResearchReport,
+} from "./report-fields";
+import {
+  apa,
+  bibtex,
+  ris,
+  citationFileName,
+  type CitationWork,
+} from "@/lib/citations";
 
 /**
  * ── EDIT ME ───────────────────────────────────────────────────────────────
@@ -29,21 +43,32 @@ function safeAuthors(report: ResearchReport): string {
   return (report.author_names || "Unknown author").toString().trim();
 }
 
-/** A stable, lowercase BibTeX key: firstauthorword + year + firsttitleword. */
-function bibKey(report: ResearchReport): string {
-  const a = safeAuthors(report).split(/[\s,]+/)[0] || "report";
-  const y = getYear(report) || "n.d.";
-  const t = (report.title || "untitled").toString().split(/\s+/)[0] || "report";
-  return `${a}${y}${t}`.replace(/[^A-Za-z0-9]/g, "").toLowerCase();
+/** Normalise a thesis row into the neutral CitationWork shape. The APA/BibTeX
+ *  "type" comes from the real thesis_type column ("Thesis", "Research Report",
+ *  "Capstone Project", …) instead of a hardcoded label. */
+export function thesisToCitationWork(report: ResearchReport, reportId: string): CitationWork {
+  const authors = safeAuthors(report)
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  return {
+    kind: "thesis",
+    title: (report.title || "").toString().trim(),
+    authors,
+    year: getYear(report),
+    publisher: REPOSITORY.name,
+    department: getDepartment(report),
+    number: report.cohort ? `Cohort ${report.cohort}` : null,
+    noteType: getThesisTypeLabel(report),
+    doi: getDoi(report),
+    abstract: (report.abstract || "").toString() || null,
+    keywords: getKeywords(report),
+    url: reportUrl(reportId),
+  };
 }
 
 export function toAPA(report: ResearchReport, reportId: string): string {
-  const authors = safeAuthors(report);
-  const year = getYear(report) || "n.d.";
-  const title = (report.title || "").toString().trim();
-  const link = doiOrUrl(report, reportId);
-  // Author, A. (Year). Title [Research report]. Repository. link
-  return `${authors} (${year}). ${title} [Research report]. ${REPOSITORY.name}. ${link}`;
+  return apa(thesisToCitationWork(report, reportId));
 }
 
 export function toMLA(report: ResearchReport, reportId: string): string {
@@ -71,41 +96,11 @@ export function toIEEE(report: ResearchReport, reportId: string): string {
 }
 
 export function toBibTeX(report: ResearchReport, reportId: string): string {
-  const fields: Array<[string, string | null]> = [
-    ["author", safeAuthors(report)],
-    ["title", (report.title || "").toString().trim()],
-    ["institution", REPOSITORY.name],
-    ["year", getYear(report)],
-    ["type", "Research report"],
-    ["number", report.cohort ? `Cohort ${report.cohort}` : null],
-    ["address", getDepartment(report)],
-    ["url", reportUrl(reportId)],
-    ["doi", getDoi(report)],
-  ];
-  const body = fields
-    .filter(([, v]) => v)
-    .map(([k, v]) => `  ${k} = {${String(v).replace(/[{}]/g, "")}}`)
-    .join(",\n");
-  return `@techreport{${bibKey(report)},\n${body}\n}`;
+  return bibtex(thesisToCitationWork(report, reportId));
 }
 
 export function toRIS(report: ResearchReport, reportId: string): string {
-  const lines: Array<[string, string | null]> = [
-    ["TY", "RPRT"],
-    ["TI", (report.title || "").toString().trim()],
-    ["AU", safeAuthors(report)],
-    ["PY", getYear(report)],
-    ["PB", REPOSITORY.name],
-    ["DP", getDepartment(report)],
-    ["AB", (report.abstract || "").toString().replace(/\s+/g, " ").trim() || null],
-    ["DO", getDoi(report)],
-    ["UR", reportUrl(reportId)],
-    ["ER", ""],
-  ];
-  return lines
-    .filter(([tag, v]) => tag === "ER" || v)
-    .map(([tag, v]) => `${tag}  - ${v ?? ""}`)
-    .join("\n");
+  return ris(thesisToCitationWork(report, reportId));
 }
 
 export function buildCitation(format: CiteFormat, report: ResearchReport, reportId: string): string {
@@ -119,8 +114,6 @@ export function buildCitation(format: CiteFormat, report: ResearchReport, report
 
 /** Filename + mime for downloading a citation file. */
 export function citationFile(format: CiteFormat, report: ResearchReport): { name: string; mime: string } {
-  const slug = bibKey(report) || "citation";
-  if (format === "bibtex") return { name: `${slug}.bib`, mime: "application/x-bibtex" };
-  if (format === "ris") return { name: `${slug}.ris`, mime: "application/x-research-info-systems" };
-  return { name: `${slug}.txt`, mime: "text/plain" };
+  // The URL plays no part in the filename, so the id can be blank here.
+  return citationFileName(format, thesisToCitationWork(report, report.slug ?? report.id ?? ""));
 }
