@@ -706,6 +706,7 @@
     "title": "Library Assistant",
     "subtitle": "Ask about books, hours, or borrowing",
     "open": "Ask the library assistant",
+    "close": "Close library assistant",
     "placeholder": "Ask anything…",
     "send": "Send",
     "starter1": "Recommend books about teaching methods",

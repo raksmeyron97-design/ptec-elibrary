@@ -45,6 +45,42 @@ function SparkleIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+// ── Library Assistant icon ────────────────────────────────────────────────────
+// Custom composite mark: open book (primary) + speech bubble with chat dots
+// (secondary) + one small sparkle (AI accent). Lucide-compatible construction:
+// outline strokes, round caps/joins, inherits color via currentColor.
+// Legible from 20px up; the FAB renders it at 24–28px.
+function LibraryAssistantIcon({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* Open book */}
+      <path d="M5.7 26.8a1.2 1.2 0 0 1-1.2-1.2v-8.4a1.2 1.2 0 0 1 1.2-1.2h4.6c2.3 0 4.4 1 5.7 2.6 1.3-1.6 3.4-2.6 5.7-2.6h4.6a1.2 1.2 0 0 1 1.2 1.2v8.4a1.2 1.2 0 0 1-1.2 1.2h-5.5c-1.9 0-3.7.8-4.8 2.1-1.1-1.3-2.9-2.1-4.8-2.1z" />
+      <path d="M16 18.6v10.3" />
+      {/* Speech bubble, tail pointing at the book spine */}
+      <path d="M12 2.5h8a3 3 0 0 1 3 3v1.5a3 3 0 0 1-3 3h-2.6L16 12.6 14.6 10H12a3 3 0 0 1-3-3V5.5a3 3 0 0 1 3-3z" />
+      {/* Conversation dots (filled so they stay visible at small sizes) */}
+      <circle cx="12.75" cy="6.25" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="6.25" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="19.25" cy="6.25" r="1.3" fill="currentColor" stroke="none" />
+      {/* Single sparkle accent */}
+      <path
+        fill="currentColor"
+        stroke="none"
+        d="M27.4 1.7c.28 1.3 1.02 2.02 2.3 2.3-1.28.28-2.02 1.02-2.3 2.3-.28-1.28-1.02-2.02-2.3-2.3 1.28-.28 2.02-1.02 2.3-2.3z"
+      />
+    </svg>
+  );
+}
+
 // ── AI avatar chip (assistant sender identity) ───────────────────────────────
 function AiAvatar() {
   return (
@@ -359,8 +395,14 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-6px); }
         }
+        @keyframes ask-icon-swap {
+          from { opacity: 0; transform: rotate(-60deg) scale(0.5); }
+          to   { opacity: 1; transform: rotate(0deg) scale(1); }
+        }
+        .ask-fab-icon { animation: ask-icon-swap 0.22s cubic-bezier(0.22,1,0.36,1); }
         @media (prefers-reduced-motion: reduce) {
           [style*="ask-bounce"] { animation: none !important; opacity: 0.6; }
+          .ask-fab-icon { animation: none; }
         }
         .ask-scroll { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.35) transparent; }
         .ask-scroll::-webkit-scrollbar { width: 6px; }
@@ -396,7 +438,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
           {/* Header */}
           <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.08] px-4 py-3">
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 text-blue-950 shadow-sm shadow-black/30 ring-1 ring-white/20">
-              <SparkleIcon className="h-5 w-5" />
+              <LibraryAssistantIcon className="h-5.5 w-5.5" />
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0B1226] bg-emerald-400" aria-hidden="true" />
             </div>
             <div className="min-w-0 flex-1">
@@ -413,7 +455,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
               </span>
             )}
             <button type="button" onClick={() => setOpen(false)}
-              aria-label="Close library assistant"
+              aria-label={t("close")}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-blue-300/60 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -426,7 +468,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
           {!isLoggedIn ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-10 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
-                <SparkleIcon className="h-8 w-8" />
+                <LibraryAssistantIcon className="h-8 w-8" />
               </div>
               <div>
                 <p className="text-[15px] font-semibold text-white">{t("title")}</p>
@@ -448,7 +490,7 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                   <div className="flex flex-col gap-4 py-3">
                     <div className="flex flex-col items-center gap-2 text-center">
                       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400/20 to-gold-500/5 text-gold-400 ring-1 ring-gold-400/20">
-                        <SparkleIcon className="h-6 w-6" />
+                        <LibraryAssistantIcon className="h-6 w-6" />
                       </div>
                       <p className="text-[12px] text-blue-300/70 max-w-[240px] leading-relaxed">{t("subtitle")}</p>
                     </div>
@@ -564,31 +606,39 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
 
       {/* ── FAB ───────────────────────────────────────────────────── */}
       <button type="button" onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close library assistant" : t("open")}
+        aria-label={open ? t("close") : t("open")}
         aria-expanded={open}
         className={`
-          fixed z-40
+          group fixed z-40
           ${open ? "hidden sm:flex" : "flex"}
           bottom-[calc(68px+env(safe-area-inset-bottom)+12px)] right-5
           sm:bottom-5 sm:right-5
-          h-14 w-14 rounded-full
+          h-13 w-13 sm:h-14 sm:w-14 rounded-full
           bg-gradient-to-br from-gold-400 to-gold-500
           text-blue-950
-          shadow-lg
+          ring-1 ring-white/50
+          shadow-[0_10px_28px_rgba(11,21,48,0.25),0_3px_8px_rgba(11,21,48,0.16)]
           transition-all duration-200
-          hover:brightness-110 hover:shadow-[0_0_24px_-4px_rgba(103,232,249,0.6)]
-          active:scale-95
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400
-          flex items-center justify-center
+          hover:brightness-105 hover:shadow-[0_14px_32px_rgba(11,21,48,0.3),0_4px_10px_rgba(11,21,48,0.2)]
+          motion-safe:hover:-translate-y-0.5
+          active:scale-95 active:translate-y-0
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring
+          items-center justify-center
         `}
-        style={{ boxShadow: open ? "0 0 24px -4px rgba(103,232,249,0.6), 0 4px 20px rgba(0,0,0,0.3)" : undefined }}
       >
+        {/* Hover/focus label — desktop pointer affordance; aria-label covers AT */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[calc(100%+12px)] top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-lg bg-blue-950/95 px-3 py-1.5 text-[12px] font-medium text-white opacity-0 shadow-lg shadow-black/25 ring-1 ring-white/15 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:block"
+        >
+          {open ? t("close") : t("open")}
+        </span>
         {open ? (
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg viewBox="0 0 24 24" className="ask-fab-icon h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         ) : (
-          <SparkleIcon className="h-6 w-6" />
+          <LibraryAssistantIcon className="ask-fab-icon h-6 w-6 sm:h-7 sm:w-7" />
         )}
       </button>
     </>
