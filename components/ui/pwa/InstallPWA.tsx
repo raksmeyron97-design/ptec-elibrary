@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import Icon from "@/components/ui/core/Icon";
 
-export default function InstallPWA() {
+export default function InstallPWA({ label = "Install App" }: { label?: string }) {
   const [installPromptEvent, setInstallPromptEvent] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -56,8 +56,14 @@ export default function InstallPWA() {
 
   return (
     <div className="relative flex items-center">
-      <button type="button" onClick={handleInstallClick} aria-label="Install app">
-        <Icon name="download" className="text-[16px]" />
+      <button
+        type="button"
+        onClick={handleInstallClick}
+        aria-label={label}
+        className="ptec-pwa h-9 px-3.5 rounded-xl bg-white/5 border border-white/10 inline-flex items-center gap-2 text-blue-100 text-xs font-semibold cursor-pointer"
+      >
+        <Icon name="download" className="text-[15px]" />
+        {label}
       </button>
 
       {showIOSHint && (

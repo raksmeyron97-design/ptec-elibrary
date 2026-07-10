@@ -325,13 +325,23 @@
     "locationValue": "St.271, Sangkat Teu Laork 3, Toul Kork, Phnom Penh.",
     "phoneLabel": "Phone",
     "hoursLabel": "Hours",
-    "hoursValue": "Mon–Sat: 7 AM – 5 PM",
+    "hoursValue": "Mon–Fri: 7 AM – 5 PM · Sat: 8 AM – 4 PM",
     "hoursClosed": "Sunday: Closed",
     "quickLinks": "Quick Links",
     "findPtec": "Find PTEC",
     "copyright": "© {year} PTEC Library. All Rights Reserved. — Phnom Penh Teacher Education College.",
     "getDirections": "Get directions",
-    "emailLabel": "Email"
+    "emailLabel": "Email",
+    "installApp": "Install App",
+    "links": {
+      "home": "Home",
+      "eResources": "E-Resources",
+      "posts": "Posts",
+      "aboutUs": "About Us",
+      "contact": "Contact",
+      "libraryRules": "Library Rules",
+      "privacy": "Privacy"
+    }
   },
   "catalogs": {
     "title": "Physical Library",

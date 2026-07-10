@@ -22,6 +22,23 @@ const footerStyles = `
     border-radius: 8px;
   }
 
+  /* ── Layered night-sky background ── */
+  .ptec-footer {
+    background:
+      radial-gradient(1200px 520px at 18% -10%, rgba(59,130,246,.16), transparent 62%),
+      radial-gradient(900px 500px at 100% 120%, rgba(79,70,229,.20), transparent 60%),
+      linear-gradient(160deg, #081436 0%, #0f1c4c 42%, #1c184a 100%);
+    background-color: #081436;
+  }
+  .ptec-vignette {
+    background: linear-gradient(
+      to bottom,
+      rgba(8,20,54,.55),
+      rgba(8,20,54,.30) 45%,
+      rgba(8,20,54,.90)
+    );
+  }
+
   /* ── Twinkling starfield (3 out-of-phase groups) ── */
   @keyframes ptec-twinkle-a {
     0%,100% { opacity: 0.12; }
@@ -106,9 +123,15 @@ const footerStyles = `
     transition: transform .28s cubic-bezier(.2,.8,.2,1),
                 background-color .25s ease,
                 border-color .25s ease,
-                box-shadow .28s ease;
+                box-shadow .28s ease,
+                color .25s ease;
   }
-  .ptec-social:hover { transform: translateY(-4px) scale(1.08); }
+  .ptec-social:hover {
+    transform: translateY(-4px) scale(1.08);
+    background-color: #FBBF24;
+    border-color: #FBBF24;
+    color: #1A1205;
+  }
   .ptec-social-fb:hover  { box-shadow: 0 8px 22px -4px rgba(24,119,242,.55); }
   .ptec-social-yt:hover  { box-shadow: 0 8px 22px -4px rgba(255,0,0,.55); }
   .ptec-social-web:hover { box-shadow: 0 8px 22px -4px rgba(251,191,36,.55); }
@@ -133,19 +156,38 @@ const footerStyles = `
     border: 1px solid rgba(255,255,255,.06);
     transition: background-color .35s ease,
                 border-color .35s ease,
-                box-shadow .35s ease;
+                box-shadow .35s ease,
+                transform .35s ease;
   }
   .ptec-col:hover {
-    background: rgba(255,255,255,.05);
+    background: rgba(120,150,255,.07);
     border-color: rgba(251,191,36,.2);
-    box-shadow: 0 0 32px rgba(251,191,36,.06) inset;
+    box-shadow: 0 0 32px rgba(251,191,36,.08) inset,
+                0 18px 40px -28px rgba(0,0,0,.8);
+    transform: translateY(-3px);
+  }
+
+  /* ── Install-app pill ── */
+  .ptec-pwa {
+    transition: transform .28s cubic-bezier(.2,.8,.2,1),
+                background-color .25s ease,
+                border-color .25s ease,
+                box-shadow .28s ease,
+                color .25s ease;
+  }
+  .ptec-pwa:hover {
+    transform: translateY(-3px);
+    background-color: rgba(251,191,36,.12);
+    border-color: rgba(251,191,36,.48);
+    color: #FBBF24;
+    box-shadow: 0 8px 22px -6px rgba(251,191,36,.40);
   }
 
   /* ── Quick links ── */
   .ptec-link {
     transition: color .2s ease, transform .2s ease;
   }
-  .ptec-link:hover { transform: translateX(5px); }
+  .ptec-link:hover { transform: translateX(5px); color: #FBBF24; }
   .ptec-dot {
     width: 5px; height: 5px;
     border-radius: 50%;
@@ -177,7 +219,7 @@ const footerStyles = `
     transform-origin: center bottom;
   }
   .ptec-seal:hover {
-    transform: scale(1.08) rotate(-2deg);
+    transform: scale(1.06) rotate(-2deg);
     filter: drop-shadow(0 0 14px rgba(251,191,36,.58));
   }
 
@@ -187,9 +229,9 @@ const footerStyles = `
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(251,191,36,.28) 30%,
+      rgba(251,191,36,.22) 30%,
       rgba(255,255,255,.08) 50%,
-      rgba(251,191,36,.28) 70%,
+      rgba(251,191,36,.22) 70%,
       transparent
     );
   }
@@ -242,13 +284,13 @@ export default async function Footer() {
     : null;
 
   const quickLinks: [string, string][] = [
-    ["Home", "/home"],
-    ["E-Resources", "/books"],
-    ["Posts", "/posts"],
-    ["About Us", "/about"],
-    ["Contact", "/contact"],
-    ["Library Rules", "/about/rules"],
-    ["Privacy", "/privacy"],
+    [t("links.home"), "/home"],
+    [t("links.eResources"), "/books"],
+    [t("links.posts"), "/posts"],
+    [t("links.aboutUs"), "/about"],
+    [t("links.contact"), "/contact"],
+    [t("links.libraryRules"), "/about/rules"],
+    [t("links.privacy"), "/privacy"],
   ];
 
   const headingClass =
@@ -257,7 +299,7 @@ export default async function Footer() {
     "after:bg-gradient-to-r after:from-amber-400/40 after:to-white/5";
 
   return (
-    <footer className="ptec-footer relative w-full mt-auto font-sans overflow-hidden bg-blue-950 dark:bg-bg-surface">
+    <footer className="ptec-footer relative w-full mt-auto font-sans overflow-hidden">
       <style dangerouslySetInnerHTML={{ __html: footerStyles }} />
 
       {/* ── Animated gradient top border ── */}
@@ -265,9 +307,9 @@ export default async function Footer() {
 
       {/* ── Background layer: aurora orbs ── */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="ptec-orb-1 absolute -top-1/3 -left-1/4 w-[55%] h-[55%] rounded-full bg-blue-700/10 blur-[80px]" />
-        <div className="ptec-orb-2 absolute -bottom-1/3 -right-1/4 w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[80px]" />
-        <div className="ptec-orb-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[35%] h-[35%] rounded-full bg-amber-500/5 blur-[60px]" />
+        <div className="ptec-orb-1 absolute -top-1/3 -left-1/4 w-[55%] h-[55%] rounded-full bg-[rgba(59,130,246,0.14)] blur-[80px]" />
+        <div className="ptec-orb-2 absolute -bottom-1/3 -right-1/4 w-[50%] h-[50%] rounded-full bg-[rgba(99,102,241,0.16)] blur-[80px]" />
+        <div className="ptec-orb-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[35%] h-[35%] rounded-full bg-[rgba(245,158,11,0.06)] blur-[60px]" />
       </div>
 
       {/* ── Background layer: twinkling starfield (3 groups) ── */}
@@ -314,7 +356,7 @@ export default async function Footer() {
       </div>
 
       {/* ── Gradient vignette overlay ── */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-blue-950/70 via-blue-950/50 to-blue-950/92" />
+      <div className="ptec-vignette pointer-events-none absolute inset-0 z-0" />
 
       {/* ── Footer Content ── */}
       <div className="relative z-10">
@@ -328,7 +370,7 @@ export default async function Footer() {
                   <Seal size={72} variant="footer" />
                 </span>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-200 mb-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FBBF24] font-khmer-serif mb-1">
                     បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
                   </p>
                   <h2 className="font-khmer-serif font-bold text-xl tracking-wide">
@@ -349,7 +391,7 @@ export default async function Footer() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Facebook"
-                  className="ptec-social ptec-social-fb w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#1877F2] hover:border-[#1877F2] text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-fb w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
@@ -360,7 +402,7 @@ export default async function Footer() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="YouTube"
-                  className="ptec-social ptec-social-yt w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-[#FF0000] hover:border-[#FF0000] text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-yt w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
@@ -371,11 +413,11 @@ export default async function Footer() {
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Website"
-                  className="ptec-social ptec-social-web w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-gold-500 hover:border-gold-500 text-blue-100 hover:text-white cursor-pointer"
+                  className="ptec-social ptec-social-web w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
                 >
                   <Icon name="globe" className="text-[16px]" />
                 </a>
-                <InstallPWA />
+                <InstallPWA label={t("installApp")} />
               </div>
             </div>
 
@@ -385,7 +427,7 @@ export default async function Footer() {
 
               <ul className="flex flex-col gap-5">
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
                     <Icon name="map-pin" className="text-[14px]" />
                   </div>
                   <div>
@@ -395,19 +437,19 @@ export default async function Footer() {
                 </li>
 
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
                     <Icon name="phone" className="text-[14px]" />
                   </div>
                   <div>
                     <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("phoneLabel")}</p>
-                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50 text-[13px] hover:text-gold-300 inline-block cursor-pointer">
+                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50 text-[13px] inline-block cursor-pointer">
                       {PTEC.phone}
                     </a>
                   </div>
                 </li>
 
                 <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-gold-300">
+                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
                     <Icon name="clock" className="text-[14px]" />
                   </div>
                   <div>
@@ -415,7 +457,7 @@ export default async function Footer() {
                     <p className="text-blue-50 text-[13px] leading-snug">
                       {t("hoursValue")}
                       <br />
-                      <span className="text-gold-400 text-[12px]">{t("hoursClosed")}</span>
+                      <span className="text-[#FBBF24] text-[12px]">{t("hoursClosed")}</span>
                     </p>
                   </div>
                 </li>
@@ -431,7 +473,7 @@ export default async function Footer() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="ptec-link group flex items-center gap-2.5 text-[13px] text-blue-100 hover:text-gold-300"
+                      className="ptec-link group flex items-center gap-2.5 text-[13px] text-blue-100"
                     >
                       <span className="ptec-dot" />
                       {label}
