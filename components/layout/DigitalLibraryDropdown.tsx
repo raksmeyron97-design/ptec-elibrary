@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, ExternalLink, LibraryBig } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
+import { NAV_TRIGGER_CLASS, NAV_TRIGGER_FOCUS_CLASS } from "./nav-chrome";
 import {
   DIGITAL_LIBRARY_ITEMS,
   type DigitalLibraryItem,
@@ -168,8 +169,11 @@ export default function DigitalLibraryDropdown() {
           setOpenPath((value) => (value === pathname ? null : pathname))
         }
         className={cx(
-          "inline-flex min-h-11 items-center gap-2 rounded-[10px] px-3.5 text-[15px] font-medium font-khmer-serif transition-colors duration-150 motion-reduce:transition-none",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface",
+          // NAV_TRIGGER_CLASS keeps this box in sync with PriorityNav's
+          // measuring clones — don't add width-affecting classes here.
+          NAV_TRIGGER_CLASS,
+          NAV_TRIGGER_FOCUS_CLASS,
+          "transition-colors duration-150 motion-reduce:transition-none",
           open || active
             ? "bg-brand/10 text-brand"
             : "text-text-body hover:bg-brand/5 hover:text-text-heading dark:hover:bg-white/[0.06]",

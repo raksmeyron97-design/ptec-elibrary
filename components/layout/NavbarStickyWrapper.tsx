@@ -52,6 +52,7 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
           --ptec-text-muted: #59677E !important;
           --ptec-brand: #1E3A8A !important;
           --ptec-brand-hover: #182E6E !important;
+          --ptec-brand-contrast: #FFFFFF !important;
           --ptec-accent: #DDB022 !important;
           --ptec-bg-surface: #FFFFFF !important;
           --ptec-bg-body: #F3F4F6 !important;

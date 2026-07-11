@@ -80,7 +80,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
       <button type="button" onClick={() => setOpenPath(pathname)}
         aria-label={t("openMenu")}
         aria-expanded={open}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
       >
         <svg
           className="h-6 w-6"

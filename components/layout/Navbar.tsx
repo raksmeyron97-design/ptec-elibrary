@@ -1,18 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
 import NavbarClient from "./NavbarClient";
 import MobileMenu from "./MobileMenu";
-import NavLinkActive from "./NavLinkActive";
 import NavSearch from "@/components/layout/NavSearch";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
 import NavbarStickyWrapper from "./NavbarStickyWrapper";
-import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
-import { getTranslations, getLocale } from 'next-intl/server';
-import DesktopNavLinks from "./DesktopNavLinks";
+import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
+import { getTranslations, getLocale } from "next-intl/server";
+import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import { PTEC } from "@/lib/ptec";
 
@@ -22,14 +19,6 @@ const HomeIcon = (
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
     <polyline points="9 22 9 12 15 12 15 22"/>
-  </svg>
-);
-
-const EResourcesIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
   </svg>
 );
 
@@ -60,59 +49,25 @@ const PostsIcon = (
   </svg>
 );
 
-const AboutIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="12" y1="8" x2="12" y2="8"/>
-    <line x1="12" y1="12" x2="12" y2="16"/>
-  </svg>
-);
-
-const ResearchIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-  </svg>
-);
-
-const PublicationsIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10l6 6v8a2 2 0 0 1-2 2z"/>
-    <path d="M15 4v6h6"/>
-    <line x1="8" y1="13" x2="16" y2="13"/>
-    <line x1="8" y1="17" x2="13" y2="17"/>
-  </svg>
-);
-
-const ExternalLinkIcon = (
-  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    <polyline points="15 3 21 3 21 9" />
-    <line x1="10" y1="14" x2="21" y2="3" />
-  </svg>
-);
-
-// ── Nav config ────────────────────────────────────────────────────────────────
-// Removed config arrays to place them inside the component
-
 export default async function Navbar() {
-  const t = await getTranslations('nav');
-  const locale = (await getLocale()) as 'en' | 'km';
+  const t = await getTranslations("nav");
+  const locale = (await getLocale()) as "en" | "km";
 
-  const navLinks = [
-    { label: t('home'),            href: "/home",     icon: HomeIcon },
-    { label: t('booksInLibrary'),  href: "/catalogs", icon: BooksIcon },
-    { label: t('posts'),           href: "/posts",    icon: PostsIcon },
+  // Priority order: items collapse into the "More" menu from the END of this
+  // list when horizontal space runs out (PriorityNav), so put the most
+  // important destinations first.
+  const navEntries: PriorityNavEntry[] = [
+    { kind: "link", href: "/home", label: t("home"), icon: HomeIcon },
+    { kind: "digitalLibrary" },
+    { kind: "link", href: "/catalogs", label: t("booksInLibrary"), icon: BooksIcon },
+    { kind: "link", href: "/posts", label: t("posts"), icon: PostsIcon },
+    { kind: "about" },
   ];
 
   const mobileNavLinks = [
-    { label: t('home'),            href: "/home" },
-    { label: t('booksInLibrary'),  href: "/catalogs" },
-    { label: t('posts'),           href: "/posts" },
+    { label: t("home"), href: "/home" },
+    { label: t("booksInLibrary"), href: "/catalogs" },
+    { label: t("posts"), href: "/posts" },
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────
@@ -145,7 +100,7 @@ export default async function Navbar() {
     <header className="w-full font-sans border-t-[3px] border-accent relative z-[100]">
       {/* Top utility strip */}
         <div className="hidden lg:block bg-blue-950 dark:bg-bg-surface text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5 dark:border-white/10">
-          <div className="flex items-center justify-between px-6 md:px-12 py-2 max-w-[1400px] mx-auto w-full">
+          <div className="flex items-center justify-between px-6 xl:px-10 py-2 max-w-[1400px] mx-auto w-full">
             {/* Left: Contact Info — single line: nowrap items, address truncates */}
             <div className="flex items-center gap-4 xl:gap-8 min-w-0 flex-1">
               <a href={PTEC.phoneTel} className="flex shrink-0 items-center gap-2 whitespace-nowrap hover:text-gold-400 transition-colors">
@@ -184,54 +139,55 @@ export default async function Navbar() {
         </div>
 
       <NavbarStickyWrapper>
-        <div className="flex justify-between items-center h-[72px] px-6 md:px-12 max-w-[1400px] mx-auto">
-            {/* Logo + Nav links */}
-            <div className="flex items-center gap-10">
-              <Link
-                href="/"
-                className="flex items-center gap-2 sm:gap-3 group shrink-0"
-              >
-                <div className="shrink-0 scale-90 sm:scale-100 origin-left">
-                  <Seal size={48} />
-                </div>
-                <div className="flex flex-col text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand whitespace-nowrap overflow-hidden">
-                  <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
-                  <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
-                </div>
-              </Link>
+        {/* Three-zone grid: [brand | primary nav | actions].
+            - Brand: minmax(0,auto) so the title can truncate on tiny screens.
+            - Nav:   minmax(0,1fr) — the only zone allowed to shrink; its
+                     items collapse into "More" (PriorityNav) as it narrows.
+            - Actions: auto + shrink-0 children — search, theme, bell, and
+                     the avatar can never be pushed off-viewport. */}
+        <div className="grid h-[72px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-2 xl:gap-3 px-4 sm:px-6 xl:px-8 max-w-[1400px] mx-auto">
+          {/* Zone 1: brand */}
+          <Link
+            href="/"
+            className="flex min-w-0 items-center gap-2 sm:gap-3 group"
+          >
+            <div className="shrink-0 scale-90 sm:scale-100 origin-left">
+              <Seal size={48} />
+            </div>
+            <div className="flex min-w-0 flex-col text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand whitespace-nowrap">
+              <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
+              <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
+            </div>
+          </Link>
 
-              {/* Desktop nav links */}
-              <DesktopNavLinks
-                navLinks={navLinks}
-              />
+          {/* Zone 2: primary nav (lg+) with priority overflow */}
+          <PriorityNav entries={navEntries} />
+
+          {/* Zone 3: protected actions */}
+          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5 xl:gap-2">
+            <div className="hidden sm:block">
+              <ThemeToggle />
             </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
+            {/* Search */}
+            <NavSearch />
+
+            {/* Bell (show only when logged in) — sm+ only; on phones the
+                header stays minimal (logo/search/menu, like the bottom nav) */}
+            {user && userInfo && (
               <div className="hidden sm:block">
-                <ThemeToggle />
+                <NotificationBell userId={user.id} userRole={userInfo.role} />
               </div>
-              
-              {/* Search */}
-              <NavSearch />
+            )}
 
-              {/* Bell (show only when logged in) */}
-              {user && userInfo && (
-                <div className="hidden sm:flex items-center gap-4 border-l border-divider pl-6">
-                  <NotificationBell userId={user.id} userRole={userInfo.role} />
-                </div>
-              )}
+            {/* Login button OR avatar dropdown — lg+ only; below lg the
+                bottom nav's Profile tab and the drawer own these actions */}
+            <NavbarClient user={userInfo} />
 
-              {/* Login button OR Avatar dropdown — desktop only (lg+) */}
-              <div className="hidden lg:block">
-                <NavbarClient user={userInfo} />
-              </div>
-
-              {/* Hamburger + drawer — mobile/tablet only (below lg) */}
-              <MobileMenu navLinks={mobileNavLinks} user={userInfo} locale={locale} />
-            </div>
-
+            {/* Hamburger + drawer — mobile/tablet only (below lg) */}
+            <MobileMenu navLinks={mobileNavLinks} user={userInfo} locale={locale} />
           </div>
+        </div>
       </NavbarStickyWrapper>
     </header>
   );

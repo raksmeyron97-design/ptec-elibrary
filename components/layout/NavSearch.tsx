@@ -36,27 +36,29 @@ export default function NavSearch() {
 
   return (
     <>
-      {/* Mobile: icon only */}
+      {/* Compact variant (below 1440px): icon-only button. Keeps the actions
+          zone narrow so long Khmer nav labels collapse into "More" instead of
+          fighting the search field for space. 44px tap target on touch. */}
       <Link
         href="/search"
         aria-label={t("searchLibrary")}
-        className="group sm:hidden relative flex h-10 w-10 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
+        className="group flex min-[1440px]:hidden relative h-11 w-11 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
       >
         <SearchIcon />
       </Link>
 
-      {/* sm+: label is always visible — hover feedback via color/shadow only,
-          never a width animation that shifts the rest of the navbar. */}
+      {/* Full variant (1440px+): label is always visible — hover feedback via
+          color/shadow only, never a width animation that shifts the navbar. */}
       <Link
         href="/search"
         aria-label={t("searchLibrary")}
-        className="hidden sm:flex items-center gap-2 h-10 rounded-full border border-divider bg-bg-surface pl-3.5 pr-4 shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand hover:shadow-[0_4px_16px_rgba(30,58,138,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
+        className="hidden min-[1440px]:flex shrink-0 items-center gap-2 h-10 rounded-full border border-divider bg-bg-surface pl-3.5 pr-4 shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand hover:shadow-[0_4px_16px_rgba(30,58,138,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
       >
         <SearchIcon />
         <span className="whitespace-nowrap text-sm">{t("searchLibrary")}</span>
         <kbd
           aria-hidden="true"
-          className="hidden lg:inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-divider bg-paper px-1.5 text-[11px] font-semibold text-text-muted"
+          className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-divider bg-paper px-1.5 text-[11px] font-semibold text-text-muted"
         >
           /
         </kbd>

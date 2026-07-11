@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import Icon from "@/components/ui/core/Icon";
@@ -35,17 +35,32 @@ export default function NavbarClient({ user }: NavbarClientProps) {
   const t = useTranslations('nav');
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    function handler(e: MouseEvent) {
+    if (!open) return;
+    function handler(e: PointerEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
+  }, [open]);
+
+  // Escape closes and returns focus to the avatar trigger
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   const [avatarFailed, setAvatarFailed] = useState(false);
   const initials = user ? getInitials(user.full_name, user.email) : "";
@@ -55,12 +70,13 @@ export default function NavbarClient({ user }: NavbarClientProps) {
   // ── Not logged in ─────────────────────────────────────────────
   if (!user) {
     // Plain next/link: /auth/login is outside the locale-prefixed tree.
+    // lg+ only — below lg the drawer and bottom nav carry the login action.
     return (
       <NextLink
         href="/auth/login"
-        className="rounded-lg bg-brand px-6 py-2.5 text-[14px] font-semibold text-brand-contrast transition-all hover:bg-brand-hover hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+        className="hidden lg:inline-flex min-h-11 items-center whitespace-nowrap rounded-lg bg-brand px-6 py-2.5 text-[14px] font-semibold text-brand-contrast transition-all hover:bg-brand-hover hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
       >
-        Login
+        {t('login')}
       </NextLink>
     );
   }
@@ -68,12 +84,16 @@ export default function NavbarClient({ user }: NavbarClientProps) {
   // ── Logged in ─────────────────────────────────────────────────
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Avatar button */}
-      <button type="button" onClick={() => setOpen((v) => !v)}
-        className="relative h-9 w-9 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus-ring/20"
-        aria-label="User menu"
+    <div className="relative hidden shrink-0 lg:block" ref={dropdownRef}>
+      {/* Avatar button — desktop only (lg+): the actions zone is shrink-0 so
+          it can never be pushed off-screen; below lg the bottom nav's
+          Profile tab takes over and the header stays minimal. */}
+      <button type="button" ref={triggerRef} onClick={() => setOpen((v) => !v)}
+        className="relative h-10 w-10 shrink-0 rounded-full border border-divider shadow-sm transition-all hover:border-brand/50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-focus-ring/20"
+        aria-label={t('profile')}
+        aria-haspopup="true"
         aria-expanded={open}
+        aria-controls={menuId}
       >
         {showAvatar ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -95,7 +115,10 @@ export default function NavbarClient({ user }: NavbarClientProps) {
 
       {/* ── Dropdown ── */}
       <div
-        className={`absolute right-0 top-[calc(100%+10px)] w-64 origin-top-right rounded-xl border border-divider bg-bg-surface shadow-xl ring-1 ring-black/5 transition-all duration-200 z-[100] ${
+        id={menuId}
+        inert={!open}
+        aria-hidden={!open}
+        className={`absolute right-0 top-[calc(100%+10px)] w-64 max-w-[calc(100vw-1rem)] origin-top-right rounded-xl border border-divider bg-bg-surface shadow-xl ring-1 ring-black/5 transition-all duration-200 z-[100] ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"

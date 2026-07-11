@@ -78,18 +78,21 @@ export default function NotificationBell({ userRole }: Props) {
     setUnreadCount(c => Math.max(0, c - 1));
   }
 
-  const badge = Math.min(unreadCount, 99);
+  // Badge stays readable at large counts and is absolutely positioned so it
+  // never affects the navbar's layout width.
+  const badge = unreadCount > 99 ? "99+" : unreadCount;
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
 
-      {/* ── Bell button ── */}
+      {/* ── Bell button — 44px tap target on touch, 40px with a pointer ── */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-label={t("bellLabel")}
         aria-expanded={open}
-        className="relative text-text-muted transition-colors hover:text-brand focus:outline-none rounded-lg p-1 cursor-pointer"
+        aria-controls="notification-panel"
+        className="relative flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-paper hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface cursor-pointer"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -97,7 +100,7 @@ export default function NotificationBell({ userRole }: Props) {
         </svg>
         {unreadCount > 0 && (
           <span
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-white font-bold ring-2 ring-white leading-none"
+            className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-white font-bold ring-2 ring-bg-surface leading-none"
             style={{ fontSize: "10px", background: "#EF4444", padding: "0 3px" }}
           >
             {badge}
@@ -107,7 +110,10 @@ export default function NotificationBell({ userRole }: Props) {
 
       {/* ── Dropdown panel ── */}
       <div
-        className={`absolute right-0 top-[calc(100%+10px)] w-[340px] origin-top-right rounded-2xl border border-divider bg-bg-surface shadow-2xl z-[100] flex flex-col overflow-hidden transition-all duration-200 ${
+        id="notification-panel"
+        inert={!open}
+        aria-hidden={!open}
+        className={`absolute right-0 top-[calc(100%+10px)] w-[340px] max-w-[calc(100vw-1rem)] origin-top-right rounded-2xl border border-divider bg-bg-surface shadow-2xl z-[100] flex flex-col overflow-hidden transition-all duration-200 ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"

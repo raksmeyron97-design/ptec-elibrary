@@ -48,7 +48,7 @@ export default function ThemeToggle() {
 
   // Prevent hydration mismatch by not rendering the icon until mounted
   if (theme === null) {
-    return <div className="w-9 h-9" aria-hidden="true" />;
+    return <div className="h-10 w-10" aria-hidden="true" />;
   }
 
   return (
@@ -56,6 +56,7 @@ export default function ThemeToggle() {
       type="button"
       onClick={toggleTheme}
       aria-label={theme === "light" ? t("switchToDark") : t("switchToLight")}
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-body transition-colors hover:bg-paper hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
     >
       {theme === "light" ? (
         <Icon name="moon" className="text-[18px]" />
