@@ -30,7 +30,7 @@ export default function MetricsPanel({
         <div className="text-[20px] font-bold tabular-nums text-emerald-800 dark:text-emerald-300">
           {formatCount(views)}
         </div>
-        <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-500">
+        <div className="text-[11px] uppercase tracking-wider text-emerald-700 dark:text-emerald-500">
           {labels?.views ?? "Views"}
         </div>
       </div>
@@ -41,7 +41,7 @@ export default function MetricsPanel({
         <div className="text-[20px] font-bold tabular-nums text-amber-800 dark:text-amber-300">
           {formatCount(downloads)}
         </div>
-        <div className="text-[11px] uppercase tracking-wider text-amber-600 dark:text-amber-500">
+        <div className="text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-500">
           {labels?.downloads ?? "Downloads"}
         </div>
       </div>

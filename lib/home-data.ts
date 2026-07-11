@@ -10,6 +10,11 @@
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook, BOOK_SELECT, type Book } from "@/lib/books";
+import {
+  academicTextToPlainText,
+  normalizePublicationReferences,
+} from "@/lib/publications/citations";
+import type { PublicationReference } from "@/lib/publications";
 
 const REVALIDATE = 300; // seconds
 
@@ -216,6 +221,7 @@ export type FeaturedPubRow = {
   publication_date: string | null;
   abstract: string | null;
   abstract_km: string | null;
+  references: PublicationReference[];
   author_names: string | null;
 };
 
@@ -225,7 +231,7 @@ export const getFeaturedPublicationsCached = unstable_cache(
     const { data, error } = await db
       .from("publications_with_stats")
       .select(
-        "id, slug, title, title_km, article_type, journal_name, doi, publication_date, abstract, abstract_km, author_names"
+        "id, slug, title, title_km, article_type, journal_name, doi, publication_date, abstract, abstract_km, references, author_names"
       )
       .eq("is_published", true)
       .order("publication_date", { ascending: false, nullsFirst: false })
@@ -237,11 +243,15 @@ export const getFeaturedPublicationsCached = unstable_cache(
       console.error("[home-data] featured publications:", error.message);
       return [];
     }
-    return ((data ?? []) as FeaturedPubRow[]).map((pub) => ({
-      ...pub,
-      abstract: toExcerpt(pub.abstract),
-      abstract_km: toExcerpt(pub.abstract_km),
-    }));
+    return ((data ?? []) as FeaturedPubRow[]).map((pub) => {
+      const references = normalizePublicationReferences(pub.references);
+      return {
+        ...pub,
+        references,
+        abstract: toExcerpt(academicTextToPlainText(pub.abstract, references) || null),
+        abstract_km: toExcerpt(academicTextToPlainText(pub.abstract_km, references) || null),
+      };
+    });
   },
   ["home-featured-publications"],
   { revalidate: REVALIDATE, tags: ["home-publications"] }

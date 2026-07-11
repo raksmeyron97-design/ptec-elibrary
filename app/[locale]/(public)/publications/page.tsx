@@ -6,6 +6,7 @@ import { getPublications } from "@/app/actions/publications";
 import { isSubscribed } from "@/app/actions/subscriptions";
 import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import type { Publication } from "@/lib/publications";
+import { academicTextToPlainText } from "@/lib/publications/citations";
 import { citationYear } from "@/lib/citations";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import PublicationFilters from "@/components/ui/publications/PublicationFilters";
@@ -60,7 +61,8 @@ export async function generateMetadata({
 
 function matchesQ(pub: Publication, q: string): boolean {
   const needle = q.toLowerCase();
-  return [pub.title, pub.title_km, pub.abstract, pub.author_names, pub.journal_name]
+  const abstract = academicTextToPlainText(pub.abstract, pub.references);
+  return [pub.title, pub.title_km, abstract, pub.author_names, pub.journal_name]
     .some((field) => field?.toLowerCase().includes(needle));
 }
 

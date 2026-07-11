@@ -80,7 +80,11 @@ export default async function AuthorBiosSection({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-text-muted transition-colors hover:text-brand"
                     >
-                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#A6CE39] text-[9px] font-bold italic text-white">
+                      {/* Decorative ORCID brand mark; the visible "ORCID" text is the label */}
+                      <span
+                        aria-hidden="true"
+                        className="flex h-4 w-4 items-center justify-center rounded-full bg-[#A6CE39] text-[9px] font-bold italic text-black"
+                      >
                         iD
                       </span>
                       ORCID

@@ -29,6 +29,10 @@
  */
 
 import { config } from "dotenv";
+import {
+  academicTextToPlainText,
+  normalizePublicationReferences,
+} from "../lib/publications/citations";
 // tsx does NOT auto-load env like Next.js. Load .env.local then .env explicitly.
 config({ path: ".env.local" });
 config();
@@ -129,13 +133,13 @@ const JOBS: TableJob[] = [
   },
   {
     table: "publications",
-    select: "id, title, title_km, journal_name, abstract, keywords, embedding",
+    select: "id, title, title_km, journal_name, abstract, references, keywords, embedding",
     toText: (p) =>
       [
         clean(p.title),
         clean(p.title_km),
         clean(p.journal_name),
-        clean(p.abstract),
+        clean(academicTextToPlainText(p.abstract, normalizePublicationReferences(p.references))),
         Array.isArray(p.keywords) ? p.keywords.map(clean).join(" ") : "",
       ]
         .filter(Boolean)

@@ -4,6 +4,8 @@
 // Components can use it freely. Fetch/mutation logic lives in
 // app/actions/publications.ts.
 
+import { normalizePublicationReferences } from "@/lib/publications/citations";
+
 export interface PublicationAuthor {
   id: string;
   full_name: string;
@@ -40,6 +42,8 @@ export interface PublicationFile {
 }
 
 export interface PublicationReference {
+  /** Stable semantic identity; visible numbering is derived from array order. */
+  id: string;
   index: number;
   text: string;
   doi?: string;
@@ -153,9 +157,7 @@ export function mapRowToPublication(row: any): Publication {
         ? authorships.map((a) => a.author.full_name).join(", ")
         : null;
 
-  const references: PublicationReference[] = Array.isArray(row.references)
-    ? row.references
-    : [];
+  const references = normalizePublicationReferences(row.references);
 
   return {
     id: row.id,

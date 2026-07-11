@@ -7,6 +7,7 @@
 import { SITE_URL, PTEC_NAME } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
 import { authorList } from "@/lib/citations";
+import { academicTextToPlainText } from "@/lib/publications/citations";
 
 export type ScholarMeta = Record<string, string | string[]>;
 
@@ -133,7 +134,7 @@ export function publicationScholarMeta(pub: Publication): ScholarMeta {
   if (pub.doi) tags.citation_doi = pub.doi;
   if (pub.isbn) tags.citation_isbn = pub.isbn;
   if (pub.publisher) tags.citation_publisher = pub.publisher;
-  if (pub.abstract) tags.citation_abstract = pub.abstract;
+  if (pub.abstract) tags.citation_abstract = academicTextToPlainText(pub.abstract, pub.references);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])];
   if (keywords.length > 0) tags.citation_keywords = keywords.join("; ");
   return tags;

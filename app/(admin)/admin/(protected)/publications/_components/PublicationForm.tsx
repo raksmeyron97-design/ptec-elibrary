@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createPublication,
@@ -8,7 +8,17 @@ import {
   type PublicationData,
   type PublicationFileInput,
 } from "@/app/actions/publications";
-import type { Publication, PublicationFile } from "@/lib/publications";
+import type { Publication, PublicationFile, PublicationReference } from "@/lib/publications";
+import {
+  countCitationsByReference,
+  removeCitationTokensForReference,
+  upgradeLegacyCitationTokens,
+  validatePublicationCitations,
+} from "@/lib/publications/citations";
+import AcademicAbstractField, {
+  type AcademicAbstractFieldHandle,
+} from "@/components/admin/publications/AcademicAbstractField";
+import ReferenceEditor from "@/components/admin/publications/ReferenceEditor";
 import {
   UploadCloud,
   Loader2,
@@ -110,6 +120,55 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     })) ?? [],
   );
 
+  // ── Abstracts & references ──
+  // Legacy positional tokens ([cite:2]) are upgraded to stable-ID tokens once
+  // at mount, so reordering references below can never change their meaning.
+  const [referenceRows, setReferenceRows] = useState<PublicationReference[]>(
+    initial?.references ?? [],
+  );
+  const [abstract, setAbstract] = useState(() =>
+    upgradeLegacyCitationTokens(initial?.abstract ?? "", initial?.references ?? []),
+  );
+  const [abstractKm, setAbstractKm] = useState(() =>
+    upgradeLegacyCitationTokens(initial?.abstract_km ?? "", initial?.references ?? []),
+  );
+  const abstractFieldRef = useRef<AcademicAbstractFieldHandle>(null);
+
+  const citationSources = useMemo(
+    () => [
+      { id: "abstract-en", text: abstract },
+      { id: "abstract-km", text: abstractKm },
+    ],
+    [abstract, abstractKm],
+  );
+  const citationValidation = useMemo(
+    () => validatePublicationCitations(referenceRows, citationSources),
+    [referenceRows, citationSources],
+  );
+  const citationCounts = useMemo(
+    () => countCitationsByReference(citationSources, referenceRows),
+    [citationSources, referenceRows],
+  );
+
+  const removeReference = (referenceId: string) => {
+    setAbstract((prev) => removeCitationTokensForReference(prev, referenceId, referenceRows));
+    setAbstractKm((prev) => removeCitationTokensForReference(prev, referenceId, referenceRows));
+    setReferenceRows((prev) =>
+      prev.filter((r) => r.id !== referenceId).map((r, i) => ({ ...r, index: i + 1 })),
+    );
+  };
+
+  // The reference list lives on another tab; reveal the abstract editor
+  // before inserting so the token lands at the remembered caret position.
+  const citeInAbstract = (referenceId: string) => {
+    setActiveTab("abstract");
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        abstractFieldRef.current?.insertCitation(referenceId);
+      }),
+    );
+  };
+
   // ── Files ──
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -148,14 +207,14 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     setSectionDone({
       basic: !!title.trim() && has("journal_name"),
       authors: authorRows.length > 0,
-      abstract: has("abstract") && has("keywords"),
+      abstract: !!abstract.trim() && has("keywords"),
       details:
         has("publisher") || has("isbn") || has("subjects") ||
         has("table_of_contents") || has("learning_outcomes") || has("faqs"),
-      references: has("references"),
+      references: referenceRows.length > 0,
       files: !!pdfFile || !!initial?.pdf_url,
     });
-  }, [title, authorRows, pdfFile, initial?.pdf_url]);
+  }, [title, authorRows, abstract, referenceRows, pdfFile, initial?.pdf_url]);
 
   useEffect(() => {
     recomputeProgress();
@@ -202,6 +261,17 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     if (!finalSlug) return fail("Please provide a valid slug.", "basic");
     if (!isEdit && !pdfFile) return fail("Please upload the article PDF.", "files");
 
+    // Ignore fully blank reference rows, then block on real citation problems
+    // (the Server Action re-validates the same rules).
+    const cleanRows = referenceRows.filter((r) => r.text.trim() || r.doi || r.url);
+    const submitValidation = validatePublicationCitations(cleanRows, citationSources);
+    if (submitValidation.errors.length > 0) {
+      return fail(
+        submitValidation.errors.slice(0, 3).map((issue) => issue.message).join(" "),
+        "references",
+      );
+    }
+
     setLoading(true);
 
     try {
@@ -236,11 +306,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
       const keywords = (formData.get("keywords") as string ?? "")
         .split(",").map((k) => k.trim()).filter(Boolean).slice(0, 20);
 
-      const references = (formData.get("references") as string ?? "")
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((text, index) => ({ index: index + 1, text }));
+      const references = submitValidation.references;
 
       const subjects = (formData.get("subjects") as string ?? "")
         .split(",").map((s) => s.trim()).filter(Boolean).slice(0, 12);
@@ -275,8 +341,8 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
         article_no: (formData.get("article_no") as string)?.trim() || null,
         doi: (formData.get("doi") as string)?.trim() || null,
         publication_date: (formData.get("publication_date") as string) || null,
-        abstract: (formData.get("abstract") as string)?.trim() || null,
-        abstract_km: (formData.get("abstract_km") as string)?.trim() || null,
+        abstract: abstract.trim() || null,
+        abstract_km: abstractKm.trim() || null,
         keywords,
         publisher: (formData.get("publisher") as string)?.trim() || null,
         isbn: (formData.get("isbn") as string)?.trim() || null,
@@ -527,27 +593,15 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
             </div>
 
             <div id="panel-abstract" role="tabpanel" aria-labelledby="tab-abstract" hidden={activeTab !== "abstract"} className="space-y-4">
-              <div>
-                <label className={LABEL_CLASS}>Abstract (EN)</label>
-                <textarea
-                  name="abstract"
-                  rows={8}
-                  defaultValue={initial?.abstract ?? ""}
-                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
-                  placeholder="Paste or write the article abstract…"
-                />
-              </div>
-
-              <div>
-                <label className={LABEL_CLASS}>Abstract (KH, optional)</label>
-                <textarea
-                  name="abstract_km"
-                  rows={6}
-                  defaultValue={initial?.abstract_km ?? ""}
-                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
-                  placeholder="សេចក្តីសង្ខេបជាភាសាខ្មែរ…"
-                />
-              </div>
+              <AcademicAbstractField
+                ref={abstractFieldRef}
+                value={abstract}
+                valueKm={abstractKm}
+                onChange={setAbstract}
+                onChangeKm={setAbstractKm}
+                references={referenceRows}
+                disabled={loading}
+              />
 
               <div>
                 <label className={LABEL_CLASS}>Keywords / Tags (ពាក្យគន្លឺះ)</label>
@@ -641,17 +695,15 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
             </div>
 
             <div id="panel-references" role="tabpanel" aria-labelledby="tab-references" hidden={activeTab !== "references"}>
-              <label className={LABEL_CLASS}>References — one per line</label>
-              <textarea
-                name="references"
-                rows={14}
-                defaultValue={(initial?.references ?? []).map((r) => r.text).join("\n")}
-                className={`${INPUT_CLASS} h-auto py-3 font-mono text-xs leading-relaxed`}
-                placeholder={"Smith, J. (2024). Teacher training in Southeast Asia. J. Educ. 12, 101–118.\nChan, D. (2023). …"}
+              <ReferenceEditor
+                references={referenceRows}
+                onChange={setReferenceRows}
+                onRemove={removeReference}
+                onInsertCitation={citeInAbstract}
+                citationCounts={citationCounts}
+                issues={citationValidation.errors}
+                disabled={loading}
               />
-              <p className="mt-1 text-[11px] text-text-muted">
-                Each line becomes a numbered reference on the article page.
-              </p>
             </div>
 
             <div id="panel-files" role="tabpanel" aria-labelledby="tab-files" hidden={activeTab !== "files"} className="space-y-6">

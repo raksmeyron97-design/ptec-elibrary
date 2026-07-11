@@ -40,7 +40,14 @@ describe('mapRowToPublication', () => {
     expect(pub.journal_name).toBe('PTEC Journal of Education');
     expect(pub.author_names).toBe('Sok San, Chan Dara');
     expect(pub.keywords).toEqual(['pedagogy', 'STEM']);
-    expect(pub.references).toEqual([{ index: 1, text: 'Smith, J. (2024). Teacher training.' }]);
+    // Legacy JSONB rows without a stable ID get a deterministic generated one.
+    expect(pub.references).toEqual([
+      {
+        id: expect.stringMatching(/^ref-/),
+        index: 1,
+        text: 'Smith, J. (2024). Teacher training.',
+      },
+    ]);
     expect(pub.is_published).toBe(true);
     expect(pub.view_count).toBe(42);
     expect(pub.download_count).toBe(7);

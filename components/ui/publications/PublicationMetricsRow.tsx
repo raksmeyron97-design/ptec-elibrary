@@ -66,21 +66,23 @@ export default function PublicationMetricsRow({
     ...(year ? [{ icon: CalendarDays, label: labels.year, value: year } as Metric] : []),
   ];
 
+  // A plain list, not a <dl>: the icon + value-above-label layout can't
+  // satisfy the strict dl > div > dt,dd content model (axe definition-list).
   return (
-    <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-divider bg-divider sm:grid-cols-4">
+    <ul className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-divider bg-divider sm:grid-cols-4">
       {metrics.map((m) => (
-        <div key={m.label} className="flex items-center gap-3 bg-bg-surface px-4 py-3.5">
+        <li key={m.label} className="flex items-center gap-3 bg-bg-surface px-4 py-3.5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-brand/15 bg-brand/5 text-brand">
-            <m.icon className="h-4 w-4" />
+            <m.icon className="h-4 w-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <dd className="text-[17px] font-semibold leading-6 text-text-heading">
+            <p className="text-[17px] font-semibold leading-6 text-text-heading">
               {typeof m.value === "number" && m.animate ? <CountUp target={m.value} /> : m.value}
-            </dd>
-            <dt className="truncate text-[11px] leading-4 text-text-muted">{m.label}</dt>
+            </p>
+            <p className="truncate text-[11px] leading-4 text-text-muted">{m.label}</p>
           </div>
-        </div>
+        </li>
       ))}
-    </dl>
+    </ul>
   );
 }

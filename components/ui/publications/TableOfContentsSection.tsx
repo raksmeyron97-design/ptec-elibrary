@@ -12,7 +12,7 @@ export default function TableOfContentsSection({ entries }: { entries: Publicati
           key={i}
           className="flex items-baseline gap-3 border-b border-divider/60 px-4 py-3 last:border-0 sm:px-5"
         >
-          <span className="w-7 shrink-0 font-mono text-[12px] font-semibold tabular-nums text-brand/70">
+          <span className="w-7 shrink-0 font-mono text-[12px] font-semibold tabular-nums text-brand">
             {String(i + 1).padStart(2, "0")}
           </span>
           <div className="min-w-0">

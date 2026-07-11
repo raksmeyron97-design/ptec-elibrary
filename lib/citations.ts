@@ -14,6 +14,7 @@
 
 import { SITE_URL } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
+import { academicTextToPlainText } from "@/lib/publications/citations";
 
 export type CiteFormat = "apa" | "mla" | "chicago" | "ieee" | "bibtex" | "ris";
 
@@ -260,7 +261,7 @@ export function publicationToCitationWork(pub: Publication): CitationWork {
     url: publicationUrl(pub.slug),
     language: pub.language,
     keywords: pub.keywords ?? [],
-    abstract: pub.abstract,
+    abstract: academicTextToPlainText(pub.abstract, pub.references) || null,
   };
 }
 

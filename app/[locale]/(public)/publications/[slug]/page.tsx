@@ -24,7 +24,11 @@ import PublicationFAQ from "@/components/ui/publications/PublicationFAQ";
 import SimilarBooks from "@/components/ui/publications/SimilarBooks";
 import PublicationReviewsSection from "@/components/ui/publications/PublicationReviewsSection";
 import { getPublicationRatingStats } from "@/app/actions/publication-reviews";
-import AbstractSection from "@/components/ui/detail/AbstractSection";
+import PublicationAbstractSection from "@/components/ui/publications/PublicationAbstractSection";
+import {
+  academicTextToPlainText,
+  collectCitationOccurrences,
+} from "@/lib/publications/citations";
 import KeywordList from "@/components/ui/detail/KeywordList";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/SectionQuickNav";
@@ -63,7 +67,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const alternates = localeAlternates(`/publications/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
-  const description = truncate(pub.abstract, 160) || "Journal article from Phnom Penh Teacher Education College.";
+  const description =
+    truncate(academicTextToPlainText(pub.abstract, pub.references), 160) ||
+    "Journal article from Phnom Penh Teacher Education College.";
 
   // Google Scholar citation_* meta tags — see lib/seo/citation.ts
   const citationOther = publicationScholarMeta(pub);
@@ -147,10 +153,15 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const shareUrl = `${SITE_URL}/publications/${slug}`;
   const year = citationYear(pub);
 
-  const referenceStrings = pub.references.map((r) => {
-    const link = r.url ?? (r.doi ? `https://doi.org/${r.doi}` : null);
-    return link && !r.text.includes(link) ? `${r.text} ${link}` : r.text;
-  });
+  // Inline-citation anchors rendered inside the abstracts, used by the
+  // References section to link each entry back into the text.
+  const citationOccurrences = collectCitationOccurrences(
+    [
+      { id: "abstract-en", text: pub.abstract },
+      { id: "abstract-km", text: pub.abstract_km },
+    ],
+    pub.references,
+  );
 
   const sections: QuickNavSection[] = [
     { id: "overview", label: t("sectionOverview") },
@@ -171,7 +182,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     "@context": "https://schema.org",
     "@type": "ScholarlyArticle",
     headline: pub.title,
-    abstract: pub.abstract || undefined,
+    abstract: academicTextToPlainText(pub.abstract, pub.references) || undefined,
     author: authorList(pub).length > 0
       ? authorList(pub).map((name) => ({ "@type": "Person", name }))
       : { "@type": "Organization", name: "Unknown Author" },
@@ -315,11 +326,10 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             </section>
 
             <section id="abstract" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="abstract-heading">
-              <AbstractSection
+              <PublicationAbstractSection
                 abstract={pub.abstract || ""}
-                abstractSecondary={pub.abstract_km}
-                keywords={[]}
-                basePath="/publications"
+                abstractKm={pub.abstract_km}
+                references={pub.references}
                 heading={t("sectionAbstract")}
               />
             </section>
@@ -358,13 +368,13 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             <section id="references" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="references-heading">
               <h2 id="references-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                 {t("sectionReferences")}
-                {referenceStrings.length > 0 && (
+                {pub.references.length > 0 && (
                   <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
-                    {referenceStrings.length}
+                    {pub.references.length}
                   </span>
                 )}
               </h2>
-              <ReferencesSection references={referenceStrings} />
+              <ReferencesSection references={pub.references} occurrences={citationOccurrences} />
             </section>
 
             {authorships.length > 0 && (

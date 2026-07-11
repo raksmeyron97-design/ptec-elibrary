@@ -9,6 +9,10 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import {
+  academicTextToPlainText,
+  normalizePublicationReferences,
+} from "@/lib/publications/citations";
+import {
   buildFacetCounts,
   hasAnySelection,
   hasNonTypeSelection,
@@ -579,7 +583,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
   let query: any = db
     .from("publications_with_stats")
     .select(
-      "id, slug, title, title_km, cover_url, abstract, abstract_km, author_names, journal_name, article_type, language, keywords, subjects, publisher, isbn, view_count, download_count, publication_date, published_at, created_at, pdf_url",
+      "id, slug, title, title_km, cover_url, abstract, abstract_km, references, author_names, journal_name, article_type, language, keywords, subjects, publisher, isbn, view_count, download_count, publication_date, published_at, created_at, pdf_url",
       { count: "exact" },
     )
     .eq("is_published", true)
@@ -601,6 +605,9 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     const keywords = cleanArray(p.keywords);
     const subjects = cleanArray(p.subjects);
     const subject = subjects[0] ?? p.journal_name ?? "Publication";
+    const references = normalizePublicationReferences(p.references);
+    const abstract = academicTextToPlainText(p.abstract, references);
+    const abstractKm = academicTextToPlainText(p.abstract_km, references);
     return {
       id: p.id,
       ref: p.slug,
@@ -618,7 +625,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       rating: null,
       views: p.view_count ?? 0,
       downloadCount: p.download_count ?? 0,
-      excerpt: makeExcerpt(p.abstract ?? p.abstract_km),
+      excerpt: makeExcerpt(abstract || abstractKm),
       keywords: [...new Set([...keywords, ...subjects])],
       format: p.pdf_url ? "PDF" : null,
       availability: p.pdf_url ? "Digital" : "Metadata only",
@@ -629,12 +636,12 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
         cite: `/publications/${p.slug}#cite-panel`,
         save: `/publications/${p.slug}#save`,
       },
-      searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, p.abstract, p.abstract_km, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
+      searchableText: [p.title, p.title_km, p.author_names, p.journal_name, p.publisher, abstract, abstractKm, keywords.join(" "), subjects.join(" ")].filter(Boolean).join(" "),
       titleText: [p.title, p.title_km].filter(Boolean).join(" "),
       authorText: p.author_names ?? "",
       subjectText: [subject, p.journal_name, subjects.join(" ")].filter(Boolean).join(" "),
       keywordText: [...keywords, ...subjects].join(" "),
-      bodyText: [p.abstract, p.abstract_km].filter(Boolean).join(" "),
+      bodyText: [abstract, abstractKm].filter(Boolean).join(" "),
       dateValue: year ?? 0,
       popularityValue: (p.view_count ?? 0) + (p.download_count ?? 0),
     };

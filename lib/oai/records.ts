@@ -12,6 +12,10 @@ import { SITE_URL } from "@/lib/seo/site";
 import { splitAuthorNames } from "@/lib/seo/citation";
 import { getKeywords } from "@/lib/theses/report-fields";
 import {
+  academicTextToPlainText,
+  normalizePublicationReferences,
+} from "@/lib/publications/citations";
+import {
   toOaiDatestamp,
   toDcDate,
   nowOaiDatestamp,
@@ -244,7 +248,7 @@ async function getThesisRecord(supabase: ServiceClient, slug: string): Promise<O
 // was frozen when the view was created, before migration 0056 added
 // `subjects` — selecting subjects through it 42703s. The base table plus an
 // embedded authorships select (ordered client-side) gets everything we need.
-const PUBLICATION_SELECT = `id, slug, title, abstract, language, publication_date,
+const PUBLICATION_SELECT = `id, slug, title, abstract, references, language, publication_date,
   published_at, created_at, updated_at, license, keywords, subjects, article_type, journal_name,
   publication_authorships(author_order, publication_authors(full_name))`;
 
@@ -274,7 +278,10 @@ function mapPublicationRow(row: any): OaiRecord {
     creators: publicationCreators(row),
     date: toDcDate(row.publication_date ?? row.published_at ?? row.created_at),
     subjects: dedupe([row.journal_name, ...((row.keywords as string[]) ?? []), ...((row.subjects as string[]) ?? [])]),
-    description: row.abstract ?? null,
+    description: academicTextToPlainText(
+      row.abstract,
+      normalizePublicationReferences(row.references),
+    ) || null,
     identifierUrl: `${SITE_URL}/publications/${row.slug}`,
     languages: normalizeDcLanguages(row.language),
     type: ARTICLE_TYPE_LABELS[row.article_type as string] ?? "Journal Article",

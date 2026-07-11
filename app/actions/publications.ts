@@ -20,6 +20,12 @@ import {
   type PublicationTocEntry,
   type PublicationFaq,
 } from "@/lib/publications";
+import {
+  academicTextToPlainText,
+  normalizePublicationReferences,
+  upgradeLegacyCitationTokens,
+  validatePublicationCitations,
+} from "@/lib/publications/citations";
 
 const REVALIDATE_PATHS = ["/admin/publications", "/publications"];
 
@@ -116,6 +122,30 @@ function sanitizePublicationData(formData: PublicationData): { data?: Partial<Pu
       return { error: `Publication year must be between 1900 and ${current + 1}` };
     }
   }
+
+  if (data.abstract != null && typeof data.abstract !== "string") {
+    return { error: "The English abstract must be text." };
+  }
+  if (data.abstract_km != null && typeof data.abstract_km !== "string") {
+    return { error: "The Khmer abstract must be text." };
+  }
+
+  const citationValidation = validatePublicationCitations(data.references ?? [], [
+    { id: "abstract-en", text: data.abstract as string | null | undefined },
+    { id: "abstract-km", text: data.abstract_km as string | null | undefined },
+  ]);
+  if (citationValidation.errors.length > 0) {
+    return {
+      error: citationValidation.errors.slice(0, 3).map((issue) => issue.message).join(" "),
+    };
+  }
+  data.references = citationValidation.references;
+  if (typeof data.abstract === "string") {
+    data.abstract = upgradeLegacyCitationTokens(data.abstract, citationValidation.references);
+  }
+  if (typeof data.abstract_km === "string") {
+    data.abstract_km = upgradeLegacyCitationTokens(data.abstract_km, citationValidation.references);
+  }
   return { data: data as Partial<PublicationData> };
 }
 
@@ -143,7 +173,7 @@ async function queuePublicationEmbedding(publicationId: string): Promise<void> {
     const supabase = createServiceClient();
     const { data: row } = await supabase
       .from("publications")
-      .select("title, title_km, journal_name, abstract, keywords")
+      .select("title, title_km, journal_name, abstract, keywords, references")
       .eq("id", publicationId)
       .single();
     if (!row) return;
@@ -152,7 +182,7 @@ async function queuePublicationEmbedding(publicationId: string): Promise<void> {
       row.title,
       row.title_km,
       row.journal_name,
-      row.abstract,
+      academicTextToPlainText(row.abstract, normalizePublicationReferences(row.references)),
       Array.isArray(row.keywords) ? row.keywords.join(" ") : "",
     ]
       .map((s) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : ""))
@@ -347,7 +377,7 @@ export async function createPublication(
       table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
       learning_outcomes: (formData.learning_outcomes ?? []).slice(0, 20),
       faqs: (formData.faqs ?? []).slice(0, 20),
-      references: formData.references ?? [],
+      references: sanitized.data.references ?? [],
       created_by: userId,
     }])
     .select("id, title, slug")
@@ -423,7 +453,7 @@ export async function updatePublication(
       table_of_contents: (formData.table_of_contents ?? []).slice(0, 100),
       learning_outcomes: (formData.learning_outcomes ?? []).slice(0, 20),
       faqs: (formData.faqs ?? []).slice(0, 20),
-      references: formData.references ?? [],
+      references: sanitized.data.references ?? [],
     })
     .eq("id", id);
 
