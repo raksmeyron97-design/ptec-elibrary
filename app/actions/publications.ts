@@ -7,9 +7,11 @@ import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
-import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
-import { broadcastPush } from "@/lib/push";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
+import {
+  notifyPublicationSubscribers,
+  queuePublicationEmbedding,
+} from "@/lib/publications/admin-side-effects";
 import {
   mapRowToPublication,
   PUBLICATION_DETAIL_SELECT,
@@ -21,8 +23,6 @@ import {
   type PublicationFaq,
 } from "@/lib/publications";
 import {
-  academicTextToPlainText,
-  normalizePublicationReferences,
   upgradeLegacyCitationTokens,
   validatePublicationCitations,
 } from "@/lib/publications/citations";
@@ -162,72 +162,6 @@ export interface PublicationFileInput {
   file_type?: string | null;
   size_bytes?: number | null;
   sort_order?: number;
-}
-
-// Embed title + abstract + keywords so the article is findable via
-// /api/search (match_library). Best-effort: an embedding failure must never
-// fail the admin save — the backfill script (scripts/embed-library.ts)
-// catches any rows left with a null embedding.
-async function queuePublicationEmbedding(publicationId: string): Promise<void> {
-  try {
-    const supabase = createServiceClient();
-    const { data: row } = await supabase
-      .from("publications")
-      .select("title, title_km, journal_name, abstract, keywords, references")
-      .eq("id", publicationId)
-      .single();
-    if (!row) return;
-
-    const text = [
-      row.title,
-      row.title_km,
-      row.journal_name,
-      academicTextToPlainText(row.abstract, normalizePublicationReferences(row.references)),
-      Array.isArray(row.keywords) ? row.keywords.join(" ") : "",
-    ]
-      .map((s) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : ""))
-      .filter(Boolean)
-      .join(" — ");
-    if (!text) return;
-
-    const embedding = await generateDocumentEmbedding(text);
-    const { error } = await supabase
-      .from("publications")
-      .update({ embedding })
-      .eq("id", publicationId);
-    if (error) console.error("[publications] embedding update failed:", error.message);
-  } catch (e) {
-    console.error("[publications] embedding generation failed:", errorMessage(e));
-  }
-}
-
-// Web-push everyone subscribed to the 'publications' channel (migration 0054).
-// Best-effort: a push failure must never fail the publish itself.
-async function notifyPublicationSubscribers(publicationId: string): Promise<void> {
-  try {
-    const supabase = createServiceClient();
-    const { data: pub } = await supabase
-      .from("publications")
-      .select("title, slug")
-      .eq("id", publicationId)
-      .single();
-    if (!pub) return;
-
-    const { data: subs } = await supabase
-      .from("content_subscriptions")
-      .select("user_id")
-      .eq("filter_type", "publications");
-    const userIds = [...new Set((subs ?? []).map((s) => s.user_id as string))];
-    if (userIds.length === 0) return;
-
-    await broadcastPush(userIds, {
-      title: "New publication",
-      body: pub.title,
-      url: `/publications/${pub.slug}`,
-    });
-  } catch (e) {
-    console.error("[publications] subscriber push failed:", errorMessage(e));
-  }
 }
 
 // ── Public queries ─────────────────────────────────────────────────────────────

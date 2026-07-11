@@ -52,7 +52,9 @@ describe("AcademicText", () => {
     );
 
     const links = [...container.querySelectorAll("a")];
-    expect(links.map((a) => a.textContent)).toEqual(["(1)", "(2)", "(1)"]);
+    expect(links.map((a) => a.textContent)).toEqual(["1", "2", "1"]);
+    expect(container.textContent).toContain("[1]");
+    expect(container.textContent).toContain("[2]");
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
       "#reference-ref-atoms",
       "#reference-ref-models",
@@ -78,7 +80,27 @@ describe("AcademicText", () => {
     );
 
     expect(container.querySelector("a")).toBeNull();
-    expect(container.querySelector("#citation-preview-en-ref-atoms-1")?.textContent).toBe("(1)");
+    expect(container.querySelector("#citation-preview-en-ref-atoms-1")?.textContent).toBe("1");
+  });
+
+  it("renders grouped tokens as one bracket with a link per resolved member", () => {
+    const { container } = render(
+      <AcademicText
+        text={"Both [cite:ref-atoms,ref-models]."}
+        references={references}
+        sourceId="abstract-en"
+      />,
+    );
+
+    const links = [...container.querySelectorAll("a")];
+    expect(links.map((a) => a.textContent)).toEqual(["1", "2"]);
+    expect(links.map((a) => a.id)).toEqual([
+      "citation-abstract-en-ref-atoms-1",
+      "citation-abstract-en-ref-models-1",
+    ]);
+    // One bracket pair around the whole group, not one per member.
+    expect(container.textContent?.match(/\[/g)).toHaveLength(1);
+    expect(container.textContent).toContain("[1, 2]");
   });
 
   it("marks unresolvable tokens only when a label is provided", () => {
@@ -90,7 +112,7 @@ describe("AcademicText", () => {
         missingCitationLabel={() => "Unknown reference"}
       />,
     );
-    expect(marked.container.textContent).toContain("(?)");
+    expect(marked.container.textContent).toContain("[?");
 
     const hidden = render(
       <AcademicText
@@ -100,6 +122,20 @@ describe("AcademicText", () => {
       />,
     );
     expect(hidden.container.textContent).toBe("Claim .");
+  });
+
+  it("keeps resolved members and appends a marked miss inside one group", () => {
+    const { container } = render(
+      <AcademicText
+        text={"Mixed [cite:ref-models,ref-missing]."}
+        references={references}
+        sourceId="abstract-en"
+        missingCitationLabel={(key) => `Unknown ${key}`}
+      />,
+    );
+
+    expect(container.querySelector("a")?.textContent).toBe("2");
+    expect(container.textContent).toContain("Unknown ref-missing");
   });
 
   it("never injects markup from the stored text", () => {

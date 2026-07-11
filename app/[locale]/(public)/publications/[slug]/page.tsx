@@ -98,7 +98,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PublicationDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug, locale } = await params;
   const { data: pub, error } = await getPublicationBySlug(slug);
 
   if (error || !pub) {
@@ -331,6 +331,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 abstractKm={pub.abstract_km}
                 references={pub.references}
                 heading={t("sectionAbstract")}
+                locale={locale}
               />
             </section>
 

@@ -9,7 +9,8 @@ import type { PublicationReference } from "@/lib/publications";
 import {
   getCitationOccurrenceId,
   getReferenceTargetId,
-  resolveCitation,
+  resolveCitationGroup,
+  splitCitationKeys,
 } from "@/lib/publications/citations";
 
 export interface AcademicTextProps {
@@ -63,35 +64,23 @@ function renderPlainRun(text: string, ctx: RenderContext): ReactNode[] {
   return nodes;
 }
 
-function renderCitation(rawKey: string, ctx: RenderContext): ReactNode {
-  const resolved = resolveCitation(rawKey, ctx.references);
-
-  if (!resolved) {
-    if (!ctx.missingCitationLabel) return null;
-    const label = ctx.missingCitationLabel(rawKey.trim() || "?");
-    return (
-      <span
-        key={ctx.nextKey()}
-        title={label}
-        className="mx-0.5 rounded-sm bg-danger/10 px-1 font-medium text-danger"
-      >
-        (?)<span className="sr-only"> {label}</span>
-      </span>
-    );
-  }
-
+function renderResolvedCitation(
+  resolved: ReturnType<typeof resolveCitationGroup>[number],
+  ctx: RenderContext,
+): ReactNode {
   const { reference, number } = resolved;
   const occurrence = (ctx.occurrenceByReference.get(reference.id) ?? 0) + 1;
   ctx.occurrenceByReference.set(reference.id, occurrence);
   const citationId = getCitationOccurrenceId(ctx.sourceId, reference.id, occurrence);
   const label = ctx.citationLabel?.(number) ?? `Reference ${number}`;
+  const preview = reference.text.replace(/\s+/g, " ").trim();
   const citationClass =
-    "mx-0.5 rounded-sm font-medium text-brand underline decoration-brand/30 decoration-dotted underline-offset-2 transition-colors hover:decoration-brand hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50";
+    "rounded-sm px-0.5 font-semibold text-brand underline decoration-brand/30 decoration-dotted underline-offset-2 transition-colors hover:bg-brand/8 hover:decoration-brand hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50";
 
   if (!ctx.linkCitations) {
     return (
-      <span key={ctx.nextKey()} id={citationId} title={label} className={citationClass}>
-        ({number})
+      <span key={ctx.nextKey()} id={citationId} title={preview || label} className={citationClass}>
+        {number}
       </span>
     );
   }
@@ -102,10 +91,50 @@ function renderCitation(rawKey: string, ctx: RenderContext): ReactNode {
       id={citationId}
       href={`#${getReferenceTargetId(reference.id)}`}
       aria-label={label}
+      title={preview || label}
       className={citationClass}
     >
-      ({number})
+      {number}
     </a>
+  );
+}
+
+function renderCitation(rawKey: string, ctx: RenderContext): ReactNode {
+  const keys = splitCitationKeys(rawKey);
+  const resolved = resolveCitationGroup(keys, ctx.references);
+  const missingCount = Math.max(0, keys.length - resolved.length);
+
+  if (resolved.length === 0 && (!ctx.missingCitationLabel || missingCount === 0)) {
+    return null;
+  }
+
+  const children: ReactNode[] = [];
+  resolved.forEach((item, index) => {
+    if (index > 0) children.push(<span key={ctx.nextKey()}>, </span>);
+    children.push(renderResolvedCitation(item, ctx));
+  });
+  if (missingCount > 0 && ctx.missingCitationLabel) {
+    if (children.length > 0) children.push(<span key={ctx.nextKey()}>, </span>);
+    const missingKey = keys.find(
+      (key) => resolveCitationGroup([key], ctx.references).length === 0,
+    ) ?? "?";
+    const label = ctx.missingCitationLabel(missingKey);
+    children.push(
+      <span key={ctx.nextKey()} title={label} className="font-semibold text-danger">
+        ?<span className="sr-only"> {label}</span>
+      </span>,
+    );
+  }
+
+  return (
+    <span
+      key={ctx.nextKey()}
+      className="mx-0.5 inline-flex whitespace-nowrap rounded-[0.3rem] bg-brand/8 px-0.5 font-medium tabular-nums text-brand"
+    >
+      <span aria-hidden="true">[</span>
+      {children}
+      <span aria-hidden="true">]</span>
+    </span>
   );
 }
 

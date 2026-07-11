@@ -5,6 +5,7 @@
 // app/actions/publications.ts.
 
 import { normalizePublicationReferences } from "@/lib/publications/citations";
+import type { StructuredReferenceMetadata } from "@/lib/publications/reference-metadata";
 
 export interface PublicationAuthor {
   id: string;
@@ -48,6 +49,12 @@ export interface PublicationReference {
   text: string;
   doi?: string;
   url?: string;
+  /**
+   * Optional structured academic metadata (additive JSONB keys). `text`
+   * remains the canonical display string so pre-existing readers keep
+   * working; `meta` powers structured editing and DOI import.
+   */
+  meta?: StructuredReferenceMetadata;
 }
 
 export interface PublicationTocEntry {
@@ -97,6 +104,11 @@ export interface Publication {
   view_count: number;
   download_count: number;
   created_at: string;
+  /**
+   * Optimistic-concurrency token (migration 0085). Undefined until the
+   * migration is applied — callers must treat that as "no revision guard".
+   */
+  content_revision?: number;
   /** Comma-joined byline. From the view's aggregate, or derived from embedded authorships. */
   author_names: string | null;
   /** Present only when the query embedded publication_authorships. */
@@ -193,6 +205,9 @@ export function mapRowToPublication(row: any): Publication {
     view_count: row.view_count ?? 0,
     download_count: row.download_count ?? 0,
     created_at: row.created_at,
+    ...(typeof row.content_revision === "number"
+      ? { content_revision: row.content_revision }
+      : {}),
     author_names: authorNames,
     authorships,
     files: Array.isArray(row.publication_files)

@@ -1,7 +1,12 @@
 import type { PublicationReference } from "@/lib/publications";
+import {
+  hasStructuredReferenceContent,
+  sanitizeStructuredReferenceMetadata,
+} from "@/lib/publications/reference-metadata";
 
 export const MAX_PUBLICATION_REFERENCES = 250;
 export const MAX_REFERENCE_TEXT_LENGTH = 5_000;
+export const MAX_REFERENCES_PER_CITATION = 25;
 export const CITATION_TOKEN_EXAMPLE = "[cite:reference-id]";
 
 // Canonical IDs are deliberately namespaced and lowercase so they can never
@@ -16,6 +21,9 @@ export type CitationSource = {
 };
 
 export type CitationTokenMatch = {
+  /** Comma-separated stable IDs (or legacy numbers) in source order. */
+  keys: string[];
+  /** Backward-compatible raw key string. Prefer `keys` for new code. */
   key: string;
   raw: string;
   start: number;
@@ -46,6 +54,7 @@ export type CitationValidationIssue = {
     | "duplicate_doi"
     | "invalid_url"
     | "invalid_citation_token"
+    | "citation_group_too_large"
     | "missing_citation_target";
   message: string;
   referenceIndex?: number;
@@ -94,9 +103,16 @@ export function deterministicReferenceId(
 }
 
 export function createPublicationReferenceId(): string {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  if (uuid) return `ref-${uuid.toLowerCase()}`;
-  return `ref-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  // Short IDs keep [cite:…] tokens readable while editing. 48 random bits is
+  // ample for ≤250 references per publication, and normalization resolves any
+  // collision deterministically. Legacy longer IDs remain valid.
+  const bytes = new Uint8Array(6);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return `ref-${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
 export function normalizeDoi(value: unknown): string | undefined {
@@ -123,6 +139,14 @@ export function normalizeReferenceUrl(value: unknown): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Split a singular or grouped citation payload without interpreting it. */
+export function splitCitationKeys(value: string): string[] {
+  return value
+    .split(",")
+    .map((key) => key.trim())
+    .filter(Boolean);
 }
 
 /**
@@ -157,20 +181,23 @@ export function normalizePublicationReferences(input: unknown): PublicationRefer
     const doiCandidate = normalizeDoi(row.doi);
     const doi = doiCandidate && isValidDoi(doiCandidate) ? doiCandidate : undefined;
     const url = normalizeReferenceUrl(row.url);
+    const meta = sanitizeStructuredReferenceMetadata(row.meta);
     normalized.push({
       id,
       index: normalized.length + 1,
       text,
       ...(doi ? { doi } : {}),
       ...(url ? { url } : {}),
+      ...(meta && hasStructuredReferenceContent(meta) ? { meta } : {}),
     });
   }
 
   return normalized;
 }
 
-export function citationToken(referenceId: string): string {
-  return `[cite:${referenceId}]`;
+export function citationToken(referenceId: string | readonly string[]): string {
+  const keys = typeof referenceId === "string" ? [referenceId] : referenceId;
+  return `[cite:${[...new Set(keys.map((key) => key.trim()).filter(Boolean))].join(",")}]`;
 }
 
 export function extractCitationTokens(content: string | null | undefined): CitationTokenMatch[] {
@@ -180,6 +207,7 @@ export function extractCitationTokens(content: string | null | undefined): Citat
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(content)) !== null) {
     matches.push({
+      keys: splitCitationKeys(match[1]),
       key: match[1].trim(),
       raw: match[0],
       start: match.index,
@@ -187,6 +215,55 @@ export function extractCitationTokens(content: string | null | undefined): Citat
     });
   }
   return matches;
+}
+
+/** Resolve every unique target in a grouped token, preserving source order. */
+export function resolveCitationGroup(
+  key: string | readonly string[],
+  references: readonly PublicationReference[],
+): ResolvedCitation[] {
+  const keys = typeof key === "string" ? splitCitationKeys(key) : key;
+  const seen = new Set<string>();
+  const resolved: ResolvedCitation[] = [];
+  for (const item of keys) {
+    const target = resolveCitation(item, references);
+    if (!target || seen.has(target.reference.id)) continue;
+    seen.add(target.reference.id);
+    resolved.push(target);
+  }
+  return resolved;
+}
+
+/** Academic display text for a set of visible reference numbers. */
+export function formatCitationNumbers(
+  input: readonly number[],
+  { compressRanges = true }: { compressRanges?: boolean } = {},
+): string {
+  const numbers = [...new Set(input.filter((value) => Number.isInteger(value) && value > 0))]
+    .sort((a, b) => a - b);
+  if (numbers.length === 0) return "[?]";
+  if (!compressRanges) return `[${numbers.join(", ")}]`;
+
+  const runs: string[] = [];
+  let start = numbers[0];
+  let end = start;
+  const flush = () => {
+    // Two adjacent references remain explicit; ranges become easier to scan
+    // once they contain at least three numbers.
+    runs.push(end - start >= 2 ? `${start}\u2013${end}` : end === start ? `${start}` : `${start}, ${end}`);
+  };
+  for (let index = 1; index < numbers.length; index += 1) {
+    const number = numbers[index];
+    if (number === end + 1) {
+      end = number;
+      continue;
+    }
+    flush();
+    start = number;
+    end = number;
+  }
+  flush();
+  return `[${runs.join(", ")}]`;
 }
 
 export function resolveCitation(
@@ -213,9 +290,17 @@ export function upgradeLegacyCitationTokens(
 ): string {
   if (!content) return content ?? "";
   return content.replace(CITATION_TOKEN_RE, (raw, key: string) => {
-    if (!/^[1-9]\d*$/.test(key.trim())) return raw;
-    const resolved = resolveCitation(key, references);
-    return resolved ? citationToken(resolved.reference.id) : raw;
+    const keys = splitCitationKeys(key);
+    if (keys.length === 0) return raw;
+    let changed = false;
+    const upgraded = keys.map((item) => {
+      if (!/^[1-9]\d*$/.test(item)) return item;
+      const resolved = resolveCitation(item, references);
+      if (!resolved) return item;
+      changed = true;
+      return resolved.reference.id;
+    });
+    return changed ? citationToken(upgraded) : raw;
   });
 }
 
@@ -229,8 +314,13 @@ export function removeCitationTokensForReference(
   // leave "word ;" or doubled spaces behind.
   const withLeadingSpace = new RegExp(`[ \\t]*${CITATION_TOKEN_RE.source}`, CITATION_TOKEN_RE.flags);
   return content.replace(withLeadingSpace, (raw, key: string) => {
-    const resolved = resolveCitation(key, references);
-    return resolved?.reference.id === referenceId ? "" : raw;
+    const leading = raw.slice(0, raw.indexOf("["));
+    const remaining = splitCitationKeys(key).filter((item) => {
+      const resolved = resolveCitation(item, references);
+      return resolved?.reference.id !== referenceId;
+    });
+    if (remaining.length === splitCitationKeys(key).length) return raw;
+    return remaining.length > 0 ? `${leading}${citationToken(remaining)}` : "";
   });
 }
 
@@ -261,19 +351,32 @@ export function collectCitationOccurrences(
   for (const source of sources) {
     const perReference = new Map<string, number>();
     for (const token of extractCitationTokens(source.text)) {
-      const resolved = resolveCitation(token.key, references);
-      if (!resolved) continue;
-      const occurrence = (perReference.get(resolved.reference.id) ?? 0) + 1;
-      perReference.set(resolved.reference.id, occurrence);
-      occurrences.push({
-        ...resolved,
-        sourceId: source.id,
-        occurrence,
-        citationId: getCitationOccurrenceId(source.id, resolved.reference.id, occurrence),
-      });
+      for (const resolved of resolveCitationGroup(token.keys, references)) {
+        const occurrence = (perReference.get(resolved.reference.id) ?? 0) + 1;
+        perReference.set(resolved.reference.id, occurrence);
+        occurrences.push({
+          ...resolved,
+          sourceId: source.id,
+          occurrence,
+          citationId: getCitationOccurrenceId(source.id, resolved.reference.id, occurrence),
+        });
+      }
     }
   }
   return occurrences;
+}
+
+export function countCitationsByReferenceAndSource(
+  sources: readonly CitationSource[],
+  references: readonly PublicationReference[],
+): Record<string, Record<string, number>> {
+  const counts: Record<string, Record<string, number>> = {};
+  for (const occurrence of collectCitationOccurrences(sources, references)) {
+    counts[occurrence.reference.id] ??= {};
+    counts[occurrence.reference.id][occurrence.sourceId] =
+      (counts[occurrence.reference.id][occurrence.sourceId] ?? 0) + 1;
+  }
+  return counts;
 }
 
 export function countCitationsByReference(
@@ -301,8 +404,10 @@ export function academicTextToPlainText(
 ): string {
   if (!content) return "";
   const withCitations = content.replace(CITATION_TOKEN_RE, (_raw, key: string) => {
-    const resolved = resolveCitation(key, references);
-    return resolved ? `(${resolved.number})` : "";
+    const resolved = resolveCitationGroup(key, references);
+    return resolved.length > 0
+      ? formatCitationNumbers(resolved.map((item) => item.number))
+      : "";
   });
   return stripInlineFormatting(withCitations).replace(/\s+/g, " ").trim();
 }
@@ -426,7 +531,7 @@ export function validatePublicationCitations(
   const references = normalizePublicationReferences(input);
   for (const source of sources) {
     for (const token of extractCitationTokens(source.text)) {
-      if (!token.key || (!isValidReferenceId(token.key) && !/^[1-9]\d*$/.test(token.key))) {
+      if (token.keys.length === 0) {
         errors.push({
           code: "invalid_citation_token",
           field: "citation",
@@ -435,14 +540,35 @@ export function validatePublicationCitations(
         });
         continue;
       }
-      if (!resolveCitation(token.key, references)) {
+      if (token.keys.length > MAX_REFERENCES_PER_CITATION) {
         errors.push({
-          code: "missing_citation_target",
+          code: "citation_group_too_large",
           field: "citation",
           token: token.raw,
-          referenceId: token.key,
-          message: `Citation “${token.raw}” does not match a reference.`,
+          message: `A citation can contain at most ${MAX_REFERENCES_PER_CITATION} references.`,
         });
+        continue;
+      }
+      for (const key of token.keys) {
+        if (!isValidReferenceId(key) && !/^[1-9]\d*$/.test(key)) {
+          errors.push({
+            code: "invalid_citation_token",
+            field: "citation",
+            token: token.raw,
+            referenceId: key,
+            message: `The citation target “${key}” in “${token.raw}” is malformed.`,
+          });
+          continue;
+        }
+        if (!resolveCitation(key, references)) {
+          errors.push({
+            code: "missing_citation_target",
+            field: "citation",
+            token: token.raw,
+            referenceId: key,
+            message: `Citation target “${key}” does not match a reference.`,
+          });
+        }
       }
     }
   }

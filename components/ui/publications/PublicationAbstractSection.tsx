@@ -154,16 +154,44 @@ export default function PublicationAbstractSection({
   abstractKm,
   references,
   heading,
+  locale = "en",
 }: {
   abstract: string;
   abstractKm: string | null;
   references: PublicationReference[];
   heading: string;
+  /** Page locale: on /km the Khmer abstract leads. Both stay in the DOM. */
+  locale?: string;
 }) {
   const t = useTranslations("publicationDetail");
   const plain = academicTextToPlainText(abstract, references);
   const words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
+  const khmerFirst = locale === "km" && !!abstractKm;
+
+  const englishBlock = abstract ? (
+    <ExpandableAcademicBlock
+      text={abstract}
+      references={references}
+      sourceId="abstract-en"
+      lang="en"
+      languageLabel={t("abstractEnglish")}
+      className="font-sans"
+    />
+  ) : (
+    <p className="text-[15px] text-text-muted">{t("abstractNone")}</p>
+  );
+
+  const khmerBlock = abstractKm ? (
+    <ExpandableAcademicBlock
+      text={abstractKm}
+      references={references}
+      sourceId="abstract-km"
+      lang="km"
+      languageLabel={t("abstractKhmer")}
+      className="font-khmer-serif"
+    />
+  ) : null;
 
   return (
     <article className="max-w-[70ch]">
@@ -185,31 +213,27 @@ export default function PublicationAbstractSection({
       </h2>
 
       <div className="mt-3">
-        {abstract ? (
-          <ExpandableAcademicBlock
-            text={abstract}
-            references={references}
-            sourceId="abstract-en"
-            lang="en"
-            languageLabel={t("abstractEnglish")}
-            className="font-sans"
-          />
-        ) : (
-          <p className="text-[15px] text-text-muted">{t("abstractNone")}</p>
-        )}
-
-        {abstractKm && (
-          <div className="mt-5 border-t border-divider pt-4">
+        {khmerFirst ? (
+          <>
             <h3 className="sr-only">{t("abstractKhmer")}</h3>
-            <ExpandableAcademicBlock
-              text={abstractKm}
-              references={references}
-              sourceId="abstract-km"
-              lang="km"
-              languageLabel={t("abstractKhmer")}
-              className="font-khmer-serif"
-            />
-          </div>
+            {khmerBlock}
+            {abstract && (
+              <div className="mt-5 border-t border-divider pt-4">
+                <h3 className="sr-only">{t("abstractEnglish")}</h3>
+                {englishBlock}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {englishBlock}
+            {khmerBlock && (
+              <div className="mt-5 border-t border-divider pt-4">
+                <h3 className="sr-only">{t("abstractKhmer")}</h3>
+                {khmerBlock}
+              </div>
+            )}
+          </>
         )}
       </div>
     </article>

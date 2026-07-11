@@ -4,15 +4,18 @@ import type { PublicationReference } from "@/lib/publications";
 import {
   CITATION_TOKEN_EXAMPLE,
   MAX_PUBLICATION_REFERENCES,
+  MAX_REFERENCES_PER_CITATION,
   MAX_REFERENCE_TEXT_LENGTH,
   academicTextToPlainText,
   citationToken,
   collectCitationOccurrences,
   countCitationsByReference,
+  countCitationsByReferenceAndSource,
   createPublicationReferenceId,
   deterministicReferenceId,
   domSafeCitationPart,
   extractCitationTokens,
+  formatCitationNumbers,
   getCitationOccurrenceId,
   getReferenceTargetId,
   isValidDoi,
@@ -22,6 +25,8 @@ import {
   normalizeReferenceUrl,
   removeCitationTokensForReference,
   resolveCitation,
+  resolveCitationGroup,
+  splitCitationKeys,
   upgradeLegacyCitationTokens,
   validatePublicationCitations,
 } from "./citations";
@@ -125,6 +130,31 @@ describe("publication reference IDs and normalization", () => {
     expect(normalizePublicationReferences({ references: [] })).toEqual([]);
   });
 
+  it("preserves bounded structured metadata and drops empty or invalid meta", () => {
+    const result = normalizePublicationReferences([
+      {
+        id: "ref-meta",
+        text: "Smith, J. (2024). Teacher training.",
+        meta: {
+          type: "journal-article",
+          title: "Teacher training",
+          year: 2024,
+          bogusKey: "dropped",
+        },
+      },
+      { id: "ref-bare", text: "Bare", meta: { type: "other" } },
+      { id: "ref-junk", text: "Junk meta", meta: "not-an-object" },
+    ]);
+
+    expect(result[0].meta).toEqual({
+      type: "journal-article",
+      title: "Teacher training",
+      year: 2024,
+    });
+    expect(result[1].meta).toBeUndefined();
+    expect(result[2].meta).toBeUndefined();
+  });
+
   it("caps defensive read normalization at the supported reference count", () => {
     const input = Array.from(
       { length: MAX_PUBLICATION_REFERENCES + 5 },
@@ -180,12 +210,14 @@ describe("citation token extraction and resolution", () => {
 
     expect(tokens).toEqual([
       {
+        keys: ["ref-atoms"],
         key: "ref-atoms",
         raw: "[cite:ref-atoms]",
         start: 6,
         end: 22,
       },
       {
+        keys: ["2"],
         key: "2",
         raw: "[CITE: 2 ]",
         start: 29,
@@ -239,6 +271,97 @@ describe("citation token extraction and resolution", () => {
         references,
       ),
     ).toBe("Atoms; models [cite:2]; again.");
+  });
+});
+
+describe("grouped citation tokens", () => {
+  const third: PublicationReference = {
+    id: "ref-third",
+    index: 3,
+    text: "Chan, D. Third reference.",
+  };
+  const many = [...references, third];
+
+  it("splits singular and grouped keys without interpreting them", () => {
+    expect(splitCitationKeys("ref-atoms")).toEqual(["ref-atoms"]);
+    expect(splitCitationKeys(" ref-a , 2 ,, ref-b ")).toEqual(["ref-a", "2", "ref-b"]);
+    expect(splitCitationKeys("  ,  ")).toEqual([]);
+  });
+
+  it("builds deduplicated grouped tokens", () => {
+    expect(citationToken(["ref-atoms", "ref-models"])).toBe("[cite:ref-atoms,ref-models]");
+    expect(citationToken(["ref-atoms", " ref-atoms ", ""])).toBe("[cite:ref-atoms]");
+  });
+
+  it("extracts grouped keys in source order", () => {
+    const [token] = extractCitationTokens("Both [cite:ref-models, 1].");
+    expect(token.keys).toEqual(["ref-models", "1"]);
+  });
+
+  it("resolves a group preserving source order and dropping misses and repeats", () => {
+    const resolved = resolveCitationGroup("ref-models, 1, ref-missing, ref-models", many);
+    expect(resolved.map((item) => item.number)).toEqual([2, 1]);
+    expect(resolveCitationGroup(["ref-missing"], many)).toEqual([]);
+  });
+
+  it("formats grouped display numbers with ranges for runs of three or more", () => {
+    expect(formatCitationNumbers([2])).toBe("[2]");
+    expect(formatCitationNumbers([2, 1])).toBe("[1, 2]");
+    expect(formatCitationNumbers([3, 1, 2])).toBe("[1–3]");
+    expect(formatCitationNumbers([1, 2, 3, 7, 9, 10, 11])).toBe("[1–3, 7, 9–11]");
+    expect(formatCitationNumbers([5, 5, 0, -1, 2.5])).toBe("[5]");
+    expect(formatCitationNumbers([])).toBe("[?]");
+    expect(formatCitationNumbers([1, 2, 3], { compressRanges: false })).toBe("[1, 2, 3]");
+  });
+
+  it("upgrades numeric keys inside grouped tokens without touching stable IDs", () => {
+    expect(upgradeLegacyCitationTokens("Pair [cite:1,ref-models,9].", many)).toBe(
+      "Pair [cite:ref-atoms,ref-models,9].",
+    );
+    expect(upgradeLegacyCitationTokens("Stable [cite:ref-atoms,ref-models].", many)).toBe(
+      "Stable [cite:ref-atoms,ref-models].",
+    );
+  });
+
+  it("shrinks a grouped token instead of deleting other members", () => {
+    expect(
+      removeCitationTokensForReference(
+        "Group [cite:ref-atoms,ref-models] solo [cite:ref-atoms].",
+        "ref-atoms",
+        many,
+      ),
+    ).toBe("Group [cite:ref-models] solo.");
+  });
+
+  it("counts each group member once per occurrence, split by source", () => {
+    const sources = [
+      { id: "abstract-en", text: "All [cite:ref-atoms,ref-models,ref-third] one [cite:ref-atoms]." },
+      { id: "abstract-km", text: "គូ [cite:ref-models,ref-third]." },
+    ];
+    expect(countCitationsByReferenceAndSource(sources, many)).toEqual({
+      "ref-atoms": { "abstract-en": 2 },
+      "ref-models": { "abstract-en": 1, "abstract-km": 1 },
+      "ref-third": { "abstract-en": 1, "abstract-km": 1 },
+    });
+  });
+
+  it("converts grouped tokens to compressed plain-text ranges", () => {
+    expect(
+      academicTextToPlainText("Runs [cite:ref-atoms,ref-models,ref-third].", many),
+    ).toBe("Runs [1–3].");
+  });
+
+  it("rejects oversized groups and malformed group members on validation", () => {
+    const oversized = `[cite:${Array.from({ length: MAX_REFERENCES_PER_CITATION + 1 }, (_, i) => `ref-${i}`).join(",")}]`;
+    const result = validatePublicationCitations(references, [
+      { id: "abstract", text: `${oversized} [cite:ref-atoms,bad key] [cite:ref-atoms,ref-missing]` },
+    ]);
+
+    expect(result.errors.map((error) => error.code)).toEqual([
+      "citation_group_too_large",
+      "invalid_citation_token",
+      "missing_citation_target",
+    ]);
   });
 });
 
@@ -330,7 +453,7 @@ describe("academic plain-text conversion", () => {
     ].join("\n\n");
 
     expect(academicTextToPlainText(content, references)).toBe(
-      "Atomic structure uses H2O and x2 (1). ΔG° remains scientific Unicode (2).",
+      "Atomic structure uses H2O and x2 [1]. ΔG° remains scientific Unicode [2].",
     );
   });
 
