@@ -122,5 +122,14 @@ test.describe("Responsive navbar", () => {
     await expect(
       header.getByRole("button", { name: "បើកម៉ឺនុយ" }),
     ).toBeVisible();
+
+    const menuBox = await header
+      .getByRole("button", { name: "បើកម៉ឺនុយ" })
+      .boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(menuBox).not.toBeNull();
+    expect(menuBox!.x + menuBox!.width).toBeGreaterThanOrEqual(
+      viewport.width - 20,
+    );
   });
 });

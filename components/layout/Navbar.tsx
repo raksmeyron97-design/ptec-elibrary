@@ -161,7 +161,7 @@ export default async function Navbar() {
           <PriorityNav entries={navEntries} />
 
           {/* Zone 3: protected actions */}
-          <div className="flex shrink-0 items-center gap-1 sm:gap-1.5 xl:gap-2">
+          <div className="col-start-3 flex shrink-0 items-center gap-1 sm:gap-1.5 xl:gap-2">
             <div className="hidden lg:block">
               <ThemeToggle />
             </div>
