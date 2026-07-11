@@ -1,5 +1,12 @@
 import type { Metadata } from "next";
-import { getTheses, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
+import { Link } from "@/i18n/navigation";
+import {
+  getTheses,
+  getThesisCohorts,
+  getThesisAcademicYears,
+  getThesisPrograms,
+  getThesisFaculties,
+} from "@/app/actions/theses";
 import ThesisCard from "@/components/ui/theses/ThesisCard";
 import ThesisListItem from "@/components/ui/theses/ThesisListItem";
 import ThesisSidebar from "@/components/ui/theses/ThesisSidebar";
@@ -13,6 +20,9 @@ import Pagination from "@/components/ui/core/Pagination";
 import { getTranslations } from "next-intl/server";
 import { getKeywords } from "@/lib/theses/report-fields";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import JsonLd from "@/components/seo/JsonLd";
+import { SITE_URL } from "@/lib/seo/site";
+import { thesisHref } from "@/lib/theses";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +115,7 @@ export default async function ThesesPage({
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/theses" : "/theses";
 
-  const [reportsRes, cohortRes, yearRes] = await Promise.all([
+  const [reportsRes, cohortRes, yearRes, programsRes, facultiesRes] = await Promise.all([
     getTheses({
       program: params.program,
       faculty: params.faculty,
@@ -116,7 +126,25 @@ export default async function ThesesPage({
     }),
     getThesisCohorts(),
     getThesisAcademicYears(),
+    getThesisPrograms(),
+    getThesisFaculties(),
   ]);
+
+  // One code → localized-name lookup for every card (the cards used to fetch
+  // programs each, an N+1 on the grid view). Faculty labels likewise — the
+  // cards' getDepartment() otherwise falls back to the raw code ("primary").
+  const programNames = new Map(
+    (programsRes.data ?? []).map((p) => [
+      p.code,
+      (locale === "km" && p.name_km) || p.name_en,
+    ]),
+  );
+  const facultyNames = new Map(
+    (facultiesRes.data ?? []).map((f) => [
+      f.code,
+      (locale === "km" && f.name_km) || f.name_en,
+    ]),
+  );
 
   // A real fetch failure (e.g. the database is unreachable) is distinct from a
   // successful query that simply returned zero rows — show it separately so
@@ -208,8 +236,26 @@ export default async function ThesesPage({
     params.keyword
   );
 
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: "Theses — PTEC Digital Library",
+    description:
+      "Student theses and research reports from Phnom Penh Teacher Education College.",
+    url: `${SITE_URL}/theses`,
+    isAccessibleForFree: true,
+    inLanguage: ["km", "en"],
+    hasPart: pagedReports.slice(0, 10).map((r) => ({
+      "@type": "ScholarlyArticle",
+      headline: r.title,
+      url: `${SITE_URL}${thesisHref(r)}`,
+      isAccessibleForFree: true,
+    })),
+  };
+
   return (
     <ClientNavWrapper>
+      <JsonLd data={collectionSchema} />
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8 space-y-6">
           {/* ── HERO SEARCH ─────────────────────────────────────────────── */}
@@ -287,7 +333,12 @@ export default async function ThesesPage({
                   <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
                   <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
                     {pagedReports.map((report) => (
-                      <ThesisCard key={report.id} report={report} />
+                      <ThesisCard
+                        key={report.id}
+                        report={report}
+                        programLabel={programNames.get(report.program) ?? null}
+                        facultyLabel={facultyNames.get(report.faculty) ?? null}
+                      />
                     ))}
                   </div>
                 </>
@@ -296,7 +347,12 @@ export default async function ThesesPage({
                   <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
                   <div className="flex flex-col gap-4">
                     {pagedReports.map((report) => (
-                      <ThesisListItem key={report.id} report={report} />
+                      <ThesisListItem
+                        key={report.id}
+                        report={report}
+                        programLabel={programNames.get(report.program) ?? null}
+                        facultyLabel={facultyNames.get(report.faculty) ?? null}
+                      />
                     ))}
                   </div>
                 </>
@@ -314,9 +370,18 @@ export default async function ThesesPage({
               )}
 
               {total > 0 && total < 5 && !hasFilters && !params.q && (
-                <p className="rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-3 text-center text-[13px] text-text-muted">
-                  {tTheses("growingNote")}
-                </p>
+                <div className="rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-4 text-center">
+                  <p className="text-[13.5px] font-semibold text-text-heading">
+                    {tTheses("growingTitle")}
+                  </p>
+                  <p className="mt-1 text-[13px] text-text-muted">{tTheses("growingNote")}</p>
+                  <Link
+                    href="/contact"
+                    className="mt-3 inline-flex items-center rounded-full border border-brand/20 bg-brand/5 px-4 py-1.5 text-[12.5px] font-semibold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                  >
+                    {tTheses("growingCta")}
+                  </Link>
+                </div>
               )}
             </div>
           </div>

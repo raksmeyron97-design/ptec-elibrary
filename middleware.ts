@@ -11,13 +11,14 @@ const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
 const LEGACY_THESIS_RE =
   /^\/theses\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
-export async function middleware(request: NextRequest) {
-  const nonce = crypto.randomUUID();
-  const nonceB64 = Buffer.from(nonce).toString('base64');
-
-    const cspHeader = `
+// Builds the CSP. `withEval` keeps 'unsafe-eval' in script-src: the enforced
+// policy still carries it (dev tooling + historical pdf.js need), while the
+// report-only policy drops it to prove nothing depends on eval in production
+// before we remove it for real — staged plan in docs/SECURITY-HEADERS.md.
+function buildCsp(nonceB64: string, { withEval }: { withEval: boolean }) {
+  return `
       default-src 'self';
-      script-src 'self' 'nonce-${nonceB64}' 'unsafe-eval' https://challenges.cloudflare.com https://va.vercel-scripts.com;
+      script-src 'self' 'nonce-${nonceB64}'${withEval ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com https://va.vercel-scripts.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online;
       font-src 'self' data: https://fonts.gstatic.com;
@@ -28,14 +29,40 @@ export async function middleware(request: NextRequest) {
       base-uri 'self';
       form-action 'self';
     `.replace(/\s{2,}/g, ' ').trim();
+}
+
+export async function middleware(request: NextRequest) {
+  const nonce = crypto.randomUUID();
+  const nonceB64 = Buffer.from(nonce).toString('base64');
+
+  // Correlation id for log lines: reuse the edge/CDN id when present
+  // (Cloudflare cf-ray) so app logs join up with WAF logs, else mint one.
+  // Propagated to route handlers via the request header and echoed on the
+  // response so users can quote it in bug reports.
+  const requestId =
+    request.headers.get('cf-ray') ?? request.headers.get('x-request-id') ?? crypto.randomUUID();
+
+  const cspHeader = buildCsp(nonceB64, { withEval: true });
+  // Production only: dev servers legitimately eval (react-refresh, source
+  // maps) and would flood the report endpoint with noise.
+  const cspReportOnly =
+    process.env.NODE_ENV === 'production'
+      ? `${buildCsp(nonceB64, { withEval: false })}; report-uri /api/csp-report; report-to csp-endpoint`
+      : null;
 
   request.headers.set('x-nonce', nonceB64);
+  request.headers.set('x-request-id', requestId);
   request.headers.set('Content-Security-Policy', cspHeader);
 
   // Attach the standard security headers to any response this middleware returns.
   const applySecurity = (res: NextResponse) => {
     res.headers.set('Content-Security-Policy', cspHeader);
+    if (cspReportOnly) {
+      res.headers.set('Content-Security-Policy-Report-Only', cspReportOnly);
+      res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
+    }
     res.headers.set('x-nonce', nonceB64);
+    res.headers.set('x-request-id', requestId);
     return res;
   };
 

@@ -399,6 +399,10 @@ export default function PDFViewer({
       cMapUrl: "/pdf/cmaps/",
       cMapPacked: true,
       standardFontDataUrl: "/pdf/standard_fonts/",
+      // Forces pdf.js onto its non-eval PostScript path so the CSP can drop
+      // 'unsafe-eval' (see docs/SECURITY-HEADERS.md). Only affects rare PDFs
+      // with Type 4 PostScript functions, and only their first render.
+      isEvalSupported: false,
       disableAutoFetch: true,
       disableStream: false,
       rangeChunkSize: 65536,

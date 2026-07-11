@@ -306,7 +306,15 @@
     "emptyHintFilters": "Try adjusting your filters.",
     "emptyHintEmpty": "The catalogue is empty.",
     "activeFilterLanguage": "Language: {value}",
-    "activeFilterFormat": "Format: {value}"
+    "activeFilterFormat": "Format: {value}",
+    "filtersAction": "Filters",
+    "filterSheetTitle": "Filter books",
+    "activeFilterCount": "{count, plural, =1 {1 filter active} other {# filters active}}",
+    "categoryLabel": "Category",
+    "allCategories": "All categories",
+    "allOption": "All",
+    "clearAll": "Clear all",
+    "done": "Done"
   },
   "bookDetail": {
     "read": "Read",
@@ -1006,6 +1014,12 @@
   },
   "theses": {
     "growingNote": "This repository is growing — more academic works will be added soon.",
-    "resultsHeading": "Thesis results"
+    "resultsHeading": "Thesis results",
+    "advisorLabel": "Advisor",
+    "viewAction": "View",
+    "downloadPdf": "Download PDF",
+    "pdfUnavailable": "PDF not yet available",
+    "growingTitle": "This repository is growing",
+    "growingCta": "Submit your research"
   }
 }

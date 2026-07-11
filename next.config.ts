@@ -20,7 +20,13 @@ const securityHeaders = [
   { key: "X-Content-Type-Options",    value: "nosniff" },
   { key: "Referrer-Policy",           value: "strict-origin-when-cross-origin" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "Permissions-Policy",        value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+  { key: "Permissions-Policy",        value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()" },
+  // allow-popups: OAuth and share flows may open windows; plain same-origin
+  // would sever their opener handle. Still isolates our browsing context group.
+  { key: "Cross-Origin-Opener-Policy",   value: "same-origin-allow-popups" },
+  // Nothing on this origin is meant to be embedded as a subresource elsewhere.
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
 ];
 
 const nextConfig: NextConfig = {

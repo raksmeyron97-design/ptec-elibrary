@@ -3,14 +3,23 @@ import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/core/Badge";
-import { getKeywords, getYear, getDepartment } from "@/lib/theses/report-fields";
-import { getThesisPrograms } from "@/app/actions/theses";
+import { getKeywords, getYear, getDepartment, getLanguageLabel } from "@/lib/theses/report-fields";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
 import { thesisHref } from "@/lib/theses";
+import { getTranslations } from "next-intl/server";
 
-export default async function ThesisCard({ report }: { report: any }) {
+export default async function ThesisCard({
+  report,
+  programLabel,
+  facultyLabel,
+}: {
+  report: any;
+  programLabel?: string | null;
+  facultyLabel?: string | null;
+}) {
+  const t = await getTranslations("theses");
   const formatCount = (n: number) =>
     n >= 1_000_000
       ? `${(n / 1_000_000).toFixed(1)}M`
@@ -22,10 +31,10 @@ export default async function ThesisCard({ report }: { report: any }) {
   const views = report.view_count || 0;
   const keywords = getKeywords(report).slice(0, 3);
   const year = getYear(report);
-  const department = getDepartment(report);
-  const { data: programs } = await getThesisPrograms();
-  const programLabel = programs?.find((p) => p.code === report.program)?.name_en;
-  const metaLine = [programLabel, department, year].filter(Boolean).join(" · ");
+  const department = facultyLabel ?? getDepartment(report);
+  const language = getLanguageLabel(report);
+  const hasFile = !!report.file_url;
+  const metaLine = [programLabel, department, year, language].filter(Boolean).join(" · ");
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-bg-surface border border-divider shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:border-brand/30">
@@ -101,9 +110,16 @@ export default async function ThesisCard({ report }: { report: any }) {
             </p>
           )}
 
-          {/* Program / Department / Year */}
+          {/* Program / Department / Year / Language */}
           {metaLine && (
             <p className="mt-1 text-[10.5px] text-text-muted line-clamp-1">{metaLine}</p>
+          )}
+
+          {/* Advisor */}
+          {report.advisor_name && (
+            <p className="mt-0.5 text-[10.5px] text-text-muted line-clamp-1">
+              {t("advisorLabel")}: {report.advisor_name}
+            </p>
           )}
 
           {/* Abstract preview */}
@@ -147,18 +163,20 @@ export default async function ThesisCard({ report }: { report: any }) {
             {/* Actions row — real controls, pointer events re-enabled */}
             <div className="pointer-events-auto mt-2.5 flex items-center gap-1.5">
               <span className="inline-flex flex-1 items-center justify-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-all duration-150 group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast group-active:scale-[0.97]">
-                View
+                {t("viewAction")}
                 <ArrowRight className="h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5" strokeWidth={2.5} />
               </span>
 
-              <a
-                href={`/api/theses/${report.id}/file?download=1`}
-                aria-label="Download PDF"
-                title="Download PDF"
-                className="relative z-10 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-              >
-                <Download className="h-3.5 w-3.5" />
-              </a>
+              {hasFile && (
+                <a
+                  href={`/api/theses/${report.id}/file?download=1`}
+                  aria-label={t("downloadPdf")}
+                  title={t("downloadPdf")}
+                  className="relative z-10 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </a>
+              )}
 
               <span className="relative z-10 shrink-0">
                 <ShareButton

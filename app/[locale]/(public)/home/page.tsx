@@ -18,8 +18,6 @@ import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import HowToUse from "@/components/ui/home/HowToUse";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
-import JsonLd from "@/components/seo/JsonLd";
-import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
@@ -83,44 +81,8 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "EducationalOrganization",
-              "@id": `${SITE_URL}/#organization`,
-              name: PTEC_NAME,
-              alternateName: "PTEC",
-              url: SITE_URL,
-              logo: `${SITE_URL}/logo.png`,
-              address: {
-                "@type": "PostalAddress",
-                streetAddress: "St. 271, Sangkat Teuk Laork 3, Khan Toul Kork",
-                addressLocality: "Phnom Penh",
-                addressCountry: "KH",
-              },
-              contactPoint: {
-                "@type": "ContactPoint",
-                telephone: "+85512950192",
-                contactType: "Library information",
-              },
-            },
-            {
-              "@type": "WebSite",
-              "@id": `${SITE_URL}/#website`,
-              name: PTEC_LIBRARY_NAME,
-              url: SITE_URL,
-              publisher: { "@id": `${SITE_URL}/#organization` },
-              potentialAction: {
-                "@type": "SearchAction",
-                target: `${SITE_URL}/search?q={search_term_string}`,
-                "query-input": "required name=search_term_string",
-              },
-            },
-          ],
-        }}
-      />
+      {/* Institutional JSON-LD (organization / library / website @graph) is
+          emitted site-wide by app/layout.tsx — do not re-declare it here. */}
 
       {/* ════════ HERO ════════ */}
       <section className="hero-ink relative isolate z-40 text-white">

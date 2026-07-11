@@ -16,6 +16,7 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { ClientNavWrapper, FilterLink, FilterSelect, SortSelect } from "@/components/ui/books/ClientNavWrapper";
 import { buttonClasses } from "@/components/ui/core/Button";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
+import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
@@ -131,7 +132,9 @@ export default async function BooksPage({
               <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
             </div>
             <div className="flex items-center gap-3">
-              <p className="shrink-0 text-sm text-text-muted">
+              {/* Hidden on mobile — the MobileFilterSheet toolbar owns the
+                  count there (and announces updates via aria-live). */}
+              <p className="hidden shrink-0 text-sm text-text-muted md:block">
                 {total > 0
                   ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
                   : t('noResults')}
@@ -149,8 +152,27 @@ export default async function BooksPage({
             </Suspense>
           </div>
 
-          {/* Filters row */}
-          <div className="flex flex-col gap-2 min-w-0 w-full">
+          {/* Mobile toolbar + filter sheet (md:hidden inside the component) */}
+          <MobileFilterSheet
+            basePath={basePath}
+            total={total}
+            dept={params.dept}
+            language={params.language}
+            format={params.format}
+            sort={params.sort}
+            departments={departments}
+            languages={languages}
+            formats={formats}
+            sortOptions={[
+              { value: "newest", label: t('sortNewest') },
+              { value: "oldest", label: t('sortOldest') },
+              { value: "title_asc", label: t('sortTitleAsc') },
+              { value: "downloads", label: t('sortDownloads') },
+            ]}
+          />
+
+          {/* Desktop filters row */}
+          <div className="hidden flex-col gap-2 min-w-0 w-full md:flex">
             {/* Category pills — horizontal scroll */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none min-w-0 w-full">
               {categoryPills.map((cat) => {
@@ -305,19 +327,6 @@ function buildHref(
   });
   const qs = p.toString();
   return `${basePath}${qs ? `?${qs}` : ""}`;
-}
-
-function sortPillClass(
-  current: string | undefined,
-  value: string,
-  isDefault: boolean
-): string {
-  const active = current === value || (isDefault && !current);
-  return `rounded-full border px-3 py-[5px] text-[11px] font-medium whitespace-nowrap transition-all sm:text-[12px] ${
-    active
-      ? "bg-brand text-brand-contrast border-brand shadow-sm shadow-brand/20"
-      : "bg-paper text-text-muted border-divider hover:bg-brand/5 hover:text-brand hover:border-brand/30"
-  }`;
 }
 
 function ActiveChip({

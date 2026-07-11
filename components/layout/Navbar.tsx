@@ -99,7 +99,7 @@ export default async function Navbar() {
   }
 
   return (
-    <header className="relative z-[100] w-full border-t-[3px] border-accent font-sans">
+    <header className="relative z-[100] w-full border-t-[3px] border-accent font-sans pt-[env(safe-area-inset-top)]">
       {/* Top utility strip */}
         <div className="relative z-[70] hidden border-b border-white/10 bg-blue-950 text-[13px] text-gold-100 dark:bg-bg-surface dark:text-text-body xl:block">
           <div className="mx-auto flex h-9 w-full max-w-[1536px] items-center justify-between gap-6 px-6 xl:px-8">

@@ -68,6 +68,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#172554",
+  // Edge-to-edge on notched phones (esp. the installed PWA). Every fixed
+  // surface must pad with env(safe-area-inset-*): navbar top, mobile drawer,
+  // MobileBottomNav (already does).
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({
@@ -78,59 +82,63 @@ export default async function RootLayout({
   
   const locale = await getLocale();
   const messages = await getMessages();
-  const websiteSchema = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "PTEC Library",
-    url: SITE_URL,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${SITE_URL}/books?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
+  // One canonical institutional identity, emitted site-wide from this layout
+  // as a single @graph with stable @id anchors. Nothing else may declare an
+  // Organization/Library/WebSite node — duplicates with diverging names/URLs
+  // read as conflicting entities to search engines (the home page used to).
+  const address = {
+    "@type": "PostalAddress",
+    streetAddress: PTEC.address.streetAddress,
+    addressLocality: PTEC.address.city,
+    addressCountry: PTEC.address.country,
   };
-
-  const orgSchema = {
+  const siteGraph = {
     "@context": "https://schema.org",
-    "@type": "EducationalOrganization",
-    name: PTEC.name.en,
-    alternateName: PTEC.name.short,
-    url: PTEC.links.website,
-    logo: `${SITE_URL}/logo.png`,
-    telephone: PTEC.phone,
-    email: PTEC.email,
-    sameAs: PTEC.sameAs,
-    description: "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: PTEC.address.streetAddress,
-      addressLocality: PTEC.address.city,
-      addressCountry: PTEC.address.country,
-    },
-  };
-
-  const librarySchema = {
-    "@context": "https://schema.org",
-    "@type": "Library",
-    name: "PTEC Digital Library",
-    url: SITE_URL,
-    image: `${SITE_URL}/logo.png`,
-    telephone: PTEC.phone,
-    description: "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
-    inLanguage: ["km", "en"],
-    isAccessibleForFree: true,
-    openingHours: PTEC.hours.openingHoursSpec,
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: PTEC.address.streetAddress,
-      addressLocality: PTEC.address.city,
-      addressCountry: PTEC.address.country,
-    },
-    parentOrganization: {
-      "@type": "EducationalOrganization",
-      name: PTEC.name.en,
-      url: PTEC.links.website,
-    },
+    "@graph": [
+      {
+        "@type": "EducationalOrganization",
+        "@id": `${SITE_URL}/#organization`,
+        name: PTEC.name.en,
+        alternateName: PTEC.name.short,
+        url: PTEC.links.website,
+        logo: `${SITE_URL}/logo.png`,
+        telephone: PTEC.phone,
+        email: PTEC.email,
+        sameAs: PTEC.sameAs,
+        description:
+          "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
+        address,
+      },
+      {
+        "@type": "Library",
+        "@id": `${SITE_URL}/#library`,
+        name: "PTEC Digital Library",
+        url: SITE_URL,
+        image: `${SITE_URL}/logo.png`,
+        telephone: PTEC.phone,
+        email: PTEC.email,
+        description:
+          "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
+        inLanguage: ["km", "en"],
+        isAccessibleForFree: true,
+        openingHours: PTEC.hours.openingHoursSpec,
+        address,
+        parentOrganization: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: "PTEC Digital Library",
+        url: SITE_URL,
+        inLanguage: ["km", "en"],
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/search?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
   };
 
   return (
@@ -149,9 +157,7 @@ export default async function RootLayout({
         className="bg-bg-app font-sans text-text-body antialiased"
       >
         <IntlProvider locale={locale} messages={messages}>
-          <JsonLd data={websiteSchema} />
-          <JsonLd data={orgSchema} />
-          <JsonLd data={librarySchema} />
+          <JsonLd data={siteGraph} />
           <Suspense fallback={null}>
             <NavigationProgress />
           </Suspense>

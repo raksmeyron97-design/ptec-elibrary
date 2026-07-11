@@ -1,22 +1,50 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
+import { Eye, Download, ArrowRight, GraduationCap, Languages, FileX2 } from "lucide-react";
 import CiteThis from "@/components/ui/theses/CiteThis";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import { SITE_URL } from "@/lib/seo/site";
 import { thesisHref } from "@/lib/theses";
+import { getTranslations } from "next-intl/server";
 import {
   getKeywords,
   getDoi,
-  getSourceLine,
+  getDepartment,
+  getThesisTypeLabel,
+  getLanguageLabel,
+  getCoAdvisor,
 } from "@/lib/theses/report-fields";
 
-export default function ThesisListItem({ report }: { report: any }) {
+export default async function ThesisListItem({
+  report,
+  programLabel,
+  facultyLabel,
+}: {
+  report: any;
+  programLabel?: string | null;
+  facultyLabel?: string | null;
+}) {
+  const t = await getTranslations("theses");
   const keywords = getKeywords(report).slice(0, 4);
   const doi = getDoi(report);
-  const source = getSourceLine(report);
+  // Type · Program · Cohort · Year · Department — every part optional.
+  // facultyLabel is the page-resolved name; getDepartment falls back to the
+  // raw code for call sites that don't resolve it.
+  const source = [
+    getThesisTypeLabel(report),
+    programLabel,
+    report.cohort ? `Cohort ${report.cohort}` : null,
+    report.academic_year || null,
+    facultyLabel ?? getDepartment(report),
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  const language = getLanguageLabel(report);
+  const advisor = report.advisor_name || null;
+  const coAdvisor = getCoAdvisor(report);
+  const hasFile = !!report.file_url;
 
   return (
     <article className="group relative flex gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-all duration-200 hover:border-brand/30 hover:shadow-md sm:gap-5 sm:p-5">
@@ -68,14 +96,27 @@ export default function ThesisListItem({ report }: { report: any }) {
           </p>
         )}
 
+        {advisor && (
+          <p className="mt-0.5 line-clamp-1 text-[12px] text-text-muted">
+            {t("advisorLabel")}: <span className="text-text-body">{advisor}</span>
+            {coAdvisor && <span>, {coAdvisor}</span>}
+          </p>
+        )}
+
         {report.abstract && (
           <p className="mt-2 line-clamp-3 text-[13.5px] leading-relaxed text-text-muted">
             {report.abstract}
           </p>
         )}
 
-        {keywords.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+        {(keywords.length > 0 || language) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {language && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-brand/15 bg-brand/5 px-2.5 py-0.5 text-[11px] font-medium text-brand">
+                <Languages className="h-3 w-3" aria-hidden="true" />
+                {language}
+              </span>
+            )}
             {keywords.map((kw) => (
               <Link
                 key={kw}
@@ -108,6 +149,12 @@ export default function ThesisListItem({ report }: { report: any }) {
               {doi.replace(/^https?:\/\/doi\.org\//, "")}
             </a>
           )}
+          {!hasFile && (
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-text-muted">
+              <FileX2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("pdfUnavailable")}
+            </span>
+          )}
 
           <div className="ml-auto flex items-center gap-2">
             <CiteThis report={report} reportId={report.slug ?? report.id} compact />
@@ -116,19 +163,21 @@ export default function ThesisListItem({ report }: { report: any }) {
               title={report.title}
               className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             />
-            <a
-              href={`/api/theses/${report.id}/file?download=1`}
-              aria-label="Download PDF"
-              title="Download PDF"
-              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-            >
-              <Download className="h-4 w-4" />
-            </a>
+            {hasFile && (
+              <a
+                href={`/api/theses/${report.id}/file?download=1`}
+                aria-label={t("downloadPdf")}
+                title={t("downloadPdf")}
+                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+              >
+                <Download className="h-4 w-4" />
+              </a>
+            )}
             <Link
               href={thesisHref(report)}
               className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-brand px-3.5 py-1.5 text-[12.5px] font-bold text-brand-contrast transition-all duration-150 hover:bg-brand-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 focus-visible:ring-offset-1"
             >
-              View
+              {t("viewAction")}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

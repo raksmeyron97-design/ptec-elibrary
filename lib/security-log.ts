@@ -17,7 +17,8 @@ export type SecurityEventType =
   | "upload_rejected" // file failed MIME/size/path validation
   | "virus_scan_blocked" // a file's hash matched known malware on VirusTotal
   | "virus_scan_error" // the VirusTotal lookup itself failed (fails open — logged, not blocking)
-  | "suspicious_input"; // input rejected at a trust boundary
+  | "suspicious_input" // input rejected at a trust boundary
+  | "csp_violation"; // browser reported a Content-Security-Policy violation
 
 export interface SecurityEvent {
   type: SecurityEventType;
@@ -29,6 +30,12 @@ export interface SecurityEvent {
   ip?: string;
   /** Short technical context — no secrets, no user content. */
   detail?: string;
+  /**
+   * Correlation id — middleware sets `x-request-id` on every request
+   * (reusing Cloudflare's cf-ray when present); read it via headers()
+   * where cheap so log lines join up across a request.
+   */
+  requestId?: string;
 }
 
 export function logSecurityEvent(event: SecurityEvent): void {

@@ -1,0 +1,77 @@
+# Post-deploy quality audits against production.
+#
+# Why production and not a CI build: CI has no real Supabase/storage env, so
+# a local `next start` renders empty/error states — scores would be
+# meaningless. Deploys track main closely (Vercel auto-deploy / ZimaOS pull),
+# so auditing the live site right after a push (with a settle delay), plus a
+# weekly schedule, gives honest regression signal without flaky PR gates.
+# Budgets and category thresholds live in lighthouserc.json.
+
+name: Lighthouse & links
+
+on:
+  push:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 2 * * 1" # Mondays 02:00 UTC (09:00 Phnom Penh)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SITE: https://library.ptec.edu.kh
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for deploy to settle (push only)
+        if: github.event_name == 'push'
+        run: sleep 180
+
+      - name: Resolve a live book + thesis detail URL from the sitemap
+        id: urls
+        run: |
+          BOOK=$(curl -sL "$SITE/sitemap.xml" | grep -o "$SITE/books/[^<]*" | head -1 || true)
+          THESIS=$(curl -sL "$SITE/sitemap.xml" | grep -o "$SITE/theses/[^<]*" | grep -v "/theses/summary" | head -1 || true)
+          echo "book=${BOOK:-$SITE/books}" >> "$GITHUB_OUTPUT"
+          echo "thesis=${THESIS:-$SITE/theses}" >> "$GITHUB_OUTPUT"
+
+      - name: Lighthouse CI (mobile)
+        run: |
+          npm install -g @lhci/cli@0.14.x
+          lhci autorun \
+            --collect.url="$SITE/home" \
+            --collect.url="$SITE/km/home" \
+            --collect.url="$SITE/books" \
+            --collect.url="${{ steps.urls.outputs.book }}" \
+            --collect.url="$SITE/theses" \
+            --collect.url="${{ steps.urls.outputs.thesis }}" \
+            --collect.url="$SITE/catalogs" \
+            --collect.url="$SITE/contact" \
+            --collect.url="$SITE/auth/login"
+
+  broken-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Weekly/manual only — link rot isn't introduced by a single push often
+    # enough to justify the crawl on every merge.
+    if: github.event_name != 'push'
+    steps:
+      - name: Crawl internal links
+        run: |
+          npx linkinator@6 "$SITE/home" \
+            --recurse \
+            --timeout 15000 \
+            --skip "^(?!https://library\\.ptec\\.edu\\.kh)" \
+            --skip "/api/" \
+            --skip "/admin" \
+            --verbosity error

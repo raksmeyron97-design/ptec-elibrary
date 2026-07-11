@@ -99,9 +99,12 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 ### Key Design Patterns
 
 - **Theme**: Dark/light toggled via `ptec.theme` in localStorage. Admin panel forces light mode (`AdminThemeEnforcer`). Theme applied before paint via inline script to avoid FOUC.
-- **Rate limiting**: `lib/rate-limit.ts` is in-memory (sliding window) — state resets on serverless cold starts. Durable quotas (AI usage) live in the DB instead.
+- **Rate limiting**: `lib/rate-limit.ts` is DB-backed (Supabase RPC `check_rate_limit`, sliding window); per-route policies + emergency env switches live in `lib/rate-limit-policy.ts`. Durable quotas (AI usage) also live in the DB.
 - **`books_with_stats` view**: Used in listing queries to get `review_count` and `avg_rating` without N+1 queries. `mapRowToBook()` also handles the embedded-reviews shape for detail page queries.
 - **Sanitization**: `lib/sanitize.ts` + `isomorphic-dompurify` for rendered markdown. When building PostgREST `.or(...)` filter strings from user input, strip filter metacharacters first (see `sanitizeSearchTerm` in `app/api/chat/route.ts`).
+- **RLS rule for new tables**: every migration that creates a `public` table MUST enable RLS (+ policies) or `REVOKE ALL … FROM public, anon, authenticated` in the same file — PostgREST exposes all public-schema tables by default. Policy matrix + behavioral probes: `docs/RLS-MATRIX.md`, `lib/rls.test.ts` (`RLS_PROBE=1`).
+- **Security headers / CSP**: static headers in `next.config.ts`, nonce CSP (plus a stricter report-only policy reporting to `/api/csp-report`) in `middleware.ts` — never add a second CSP in `next.config.ts`. Staged tightening plan: `docs/SECURITY-HEADERS.md`.
+- **Monitoring**: `/api/health` (DB + storage probes) for uptime monitors; alerts + incident runbooks in `docs/MONITORING.md`; `x-request-id` correlation is set by middleware on every request.
 
 ## Environment Variables
 
