@@ -162,7 +162,7 @@ const getBook = unstable_cache(
       .select(`
         id, title, slug, description,
         cover_color, cover_url,
-        language, department, pages, published_at, isbn, rating, tags,
+        language, department, pages, published_at, isbn, publisher, rating, tags,
         download_count, license, verified_at,
         authors ( name, bio ),
         categories ( name ),

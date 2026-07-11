@@ -405,16 +405,55 @@ describe('bookToCitationWork', () => {
     expect(entry.fields.publisher).toBe('PTEC Press');
   });
 
-  it('treats mapRowToBook placeholders as missing and falls back to the repository', () => {
+  it('treats mapRowToBook placeholders as missing and never fabricates a publisher', () => {
     const work = bookToCitationWork(sparseBook);
     expect(work.isbn).toBeNull();
     expect(work.pageCount).toBeNull();
     expect(work.year).toBeNull();
-    expect(work.publisher).toBe('Phnom Penh Teacher Education College');
+    // The repository hosts the copy but did not publish the work — a missing
+    // publisher must stay missing rather than being invented (2026-07-11 audit).
+    expect(work.publisher).toBeNull();
+    // "Unknown" is the mapRowToBook placeholder, not a person named Unknown.
+    expect(work.authors).toEqual([]);
     const entry = parseBibTeXEntry(buildBookCitation('bibtex', sparseBook));
     expect(entry.fields.isbn).toBeUndefined();
     expect(entry.fields.pages).toBeUndefined();
+    expect(entry.fields.publisher).toBeUndefined();
+    expect(entry.fields.author).toBeUndefined();
     expect(buildBookCitation('apa', sparseBook)).toContain('(n.d.)');
+    expect(buildBookCitation('apa', sparseBook)).toContain('Unknown author');
+  });
+
+  it('preserves accented author names end-to-end (Saldaña, Pérez Cañado)', () => {
+    const book: Book = { ...fullBook, author: 'Johnny Saldaña, María Luisa Pérez Cañado' };
+    const work = bookToCitationWork(book);
+    expect(work.authors).toEqual(['Johnny Saldaña', 'María Luisa Pérez Cañado']);
+    expect(buildBookCitation('apa', book)).toContain('Johnny Saldaña, María Luisa Pérez Cañado');
+    const entry = parseBibTeXEntry(buildBookCitation('bibtex', book));
+    expect(entry.fields.author).toBe('Johnny Saldaña and María Luisa Pérez Cañado');
+    expect(buildBookCitation('ris', book)).toContain('AU  - Johnny Saldaña');
+  });
+
+  it('handles Khmer author names without corrupting them', () => {
+    const book: Book = { ...fullBook, author: 'ក្រសួងអប់រំយុវជន និងកីឡា' };
+    const work = bookToCitationWork(book);
+    expect(work.authors).toEqual(['ក្រសួងអប់រំយុវជន និងកីឡា']);
+    expect(buildBookCitation('apa', book)).toContain('ក្រសួងអប់រំយុវជន និងកីឡា (2022)');
+    expect(buildBookCitation('ris', book)).toContain('AU  - ក្រសួងអប់រំយុវជន និងកីឡា');
+  });
+
+  it('cites organisation authors verbatim', () => {
+    const book: Book = { ...fullBook, author: 'American Psychological Association' };
+    expect(bookToCitationWork(book).authors).toEqual(['American Psychological Association']);
+    expect(buildBookCitation('apa', book)).toMatch(/^American Psychological Association \(2022\)\./);
+  });
+
+  it('author display names never carry degrees (degrees live in authors.credentials)', () => {
+    // Data invariant enforced by scripts/fix-metadata-2026-07-11.mjs + migration
+    // 0083: names like "Set Seng. Ph.D" are cleaned before they reach citations.
+    const book: Book = { ...fullBook, author: 'Set Seng' };
+    expect(buildBookCitation('apa', book)).toMatch(/^Set Seng \(2022\)\./);
+    expect(buildBookCitation('apa', book)).not.toContain('Ph.D');
   });
 });
 

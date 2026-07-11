@@ -19,17 +19,23 @@ export function bookUrl(slug: string): string {
 }
 
 /** Normalise a Book into the neutral CitationWork shape. Placeholder values
- *  from mapRowToBook ("N/A" isbn, pages 1) are treated as missing. */
+ *  from mapRowToBook ("N/A" isbn, pages 1) are treated as missing.
+ *  The publisher is only cited when the record actually has one — the
+ *  repository hosts the copy but did not publish the work, so inventing
+ *  "PTEC" as publisher for third-party books fabricates metadata. */
 export function bookToCitationWork(book: Book): CitationWork {
   return {
     kind: "book",
     title: (book.title || "").trim(),
-    authors: (book.author || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    authors:
+      book.author === "Unknown"
+        ? [] // mapRowToBook placeholder — not a person named "Unknown"
+        : (book.author || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
     year: book.year ? String(book.year) : null,
-    publisher: book.publisher?.trim() || REPOSITORY.name,
+    publisher: book.publisher?.trim() || null,
     isbn: book.isbn && book.isbn !== "N/A" ? book.isbn : null,
     pageCount: book.pages > 1 ? book.pages : null,
     language: book.language || null,

@@ -55,9 +55,12 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     department:    row.departments?.name ?? row.department ?? "General",
     category:      row.categories?.name  ?? "General",
     language:      row.language          ?? "English",
+    // 0 = unknown (books imported without a real publication date keep
+    // published_at NULL). Never default to the current year — that fabricates
+    // a publication year in displays and citations.
     year:          row.published_at
                      ? new Date(row.published_at).getFullYear()
-                     : new Date().getFullYear(),
+                     : 0,
     format:        "PDF",
     availability:  "Digital",
     // Real average (rounded to 1 decimal). Only shown when reviewCount > 0,

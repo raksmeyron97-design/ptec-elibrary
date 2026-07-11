@@ -59,7 +59,9 @@ describe('mapRowToBook', () => {
     expect(book.author).toBe('Unknown');
     expect(book.isbn).toBe('N/A');
     expect(book.department).toBe('General');
-    expect(book.year).toBe(new Date().getFullYear());
+    // 0 = unknown year. Defaulting to the current year would fabricate a
+    // publication date in displays and citations (2026-07-11 metadata audit).
+    expect(book.year).toBe(0);
     expect(book.pdfUrl).toBeNull();
     expect(book.rating).toBe(0);
   });

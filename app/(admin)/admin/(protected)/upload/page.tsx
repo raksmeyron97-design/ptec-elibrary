@@ -9,8 +9,9 @@ export default async function AdminUploadPage() {
 
   const { data: recentBooks } = await supabase
     .from("books")
-    .select(`id, title, slug, published_at, authors(name), book_files(file_size_kb)`)
-    .order("published_at", { ascending: false })
+    .select(`id, title, slug, published_at, created_at, authors(name), book_files(file_size_kb)`)
+    // Most recently *uploaded* — published_at is NULL for undated imports.
+    .order("created_at", { ascending: false })
     .limit(5);
 
   return (

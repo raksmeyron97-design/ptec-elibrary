@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Check, Copy, Download, Quote } from "lucide-react";
 import {
   buildCitation,
@@ -79,7 +80,7 @@ export default function CiteThis({
               aria-pressed={active}
               className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
                 active
-                  ? "bg-brand text-white shadow-sm"
+                  ? "bg-brand text-brand-contrast shadow-sm"
                   : "text-text-muted hover:bg-bg-surface hover:text-text-body"
               }`}
             >
@@ -93,6 +94,14 @@ export default function CiteThis({
       <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-divider bg-bg-app px-3.5 py-3 font-mono text-[11.5px] leading-relaxed text-text-body">
         {text}
       </pre>
+
+      {/* Records a librarian hasn't verified may carry imported/placeholder
+          metadata — warn instead of presenting the citation as authoritative. */}
+      {!report.verified_at && (
+        <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-[11.5px] leading-relaxed text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
+          {t("unverifiedNote")}
+        </p>
+      )}
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2">
@@ -113,6 +122,21 @@ export default function CiteThis({
           {format === "bibtex" || format === "ris" ? format.toUpperCase() : "TXT"}
         </button>
       </div>
+
+      {/* Route readers who spot bad metadata to the contact form with the
+          record pre-identified (the form clamps subject to its 200-char max). */}
+      <Link
+        href={{
+          pathname: "/contact",
+          query: {
+            subject: `Incorrect record details: ${report.title ?? reportId}`.slice(0, 200),
+            category: "other",
+          },
+        }}
+        className="mt-3 inline-block text-[11.5px] font-medium text-text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-brand"
+      >
+        {t("reportMetadata")}
+      </Link>
     </>
   );
 

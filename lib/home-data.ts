@@ -103,7 +103,9 @@ export const getRecentlyAddedCached = unstable_cache(
       .from("books")
       .select(BOOK_SELECT)
       .eq("is_published", true)
-      .order("published_at", { ascending: false })
+      // "Recently added" = when the book joined the library (created_at), not
+      // its publication year — published_at is NULL for undated imports.
+      .order("created_at", { ascending: false })
       .limit(12);
     if (error) {
       console.error("[home-data] recently added:", error.message);

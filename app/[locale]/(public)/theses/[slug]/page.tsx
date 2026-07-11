@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   ]);
   const { data: report } = await supabase
     .from('research_reports')
-    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, departments(name)')
+    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, verified_at, departments(name)')
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();

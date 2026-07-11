@@ -150,7 +150,8 @@ async function searchBooks(args: {
     .or(`title.ilike.%${q}%,description.ilike.%${q}%`);
 
   if (args.sort === "latest") {
-    query = query.order("published_at", { ascending: false });
+    // Undated imports keep published_at NULL — they must sort last, not first.
+    query = query.order("published_at", { ascending: false, nullsFirst: false });
   } else if (args.sort === "top_rated") {
     query = query.order("rating", { ascending: false });
   } else {

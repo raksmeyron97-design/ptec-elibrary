@@ -736,20 +736,41 @@ export default function PDFViewer({
     if (numPages > 0) setAriaPageAnnouncement(`${t("page")} ${fmtNum(currentPage)} / ${fmtNum(numPages)}`);
   }, [currentPage, numPages, t, fmtNum]);
 
-  /* ── Strip dangling aria-owns from the pdf.js text layer ────────
+  /* ── Sanitize pdf.js text-layer ARIA ────────────────────────────
      pdf.js links every text-layer span to a structure-tree element via
      aria-owns, but react-pdf never renders the structure tree, so each
-     reference dangles (axe: aria-valid-attr-value, critical). Removing
-     the attribute restores natural DOM reading order for screen readers. */
+     reference dangles (axe: aria-valid-attr-value, critical). It also
+     emits hyphenation markers as <span aria-label="-"> with no role —
+     aria-label is prohibited on a generic span (axe: aria-prohibited-attr,
+     serious). Removing both restores natural DOM reading order. */
   useEffect(() => {
     const root = docAreaRef.current;
     if (!root) return;
     const strip = (scope: ParentNode) => {
-      const els = scope.querySelectorAll("[aria-owns]");
-      els.forEach((el) => {
+      scope.querySelectorAll("[aria-owns]").forEach((el) => {
         const ids = el.getAttribute("aria-owns")?.split(/\s+/).filter(Boolean) ?? [];
         if (!ids.length || ids.some((id) => !document.getElementById(id))) {
           el.removeAttribute("aria-owns");
+        }
+      });
+      scope.querySelectorAll("span[aria-label]:not([role])").forEach((el) => {
+        if (el.closest(".textLayer, .react-pdf__Page__structTree")) {
+          el.removeAttribute("aria-label");
+        }
+      });
+      // Scanned/converted PDFs often carry malformed table tagging (rows and
+      // columnheaders without the required ancestry — axe: aria-required-
+      // children/parent, critical). A broken table announcement is worse for
+      // AT than the text layer's natural reading order, so hide those trees.
+      // Anchored on root: the tree element itself can be the mutated node,
+      // and querySelectorAll never matches the scope element itself.
+      root.querySelectorAll(".react-pdf__Page__structTree").forEach((tree) => {
+        if (
+          tree.querySelector(
+            '[role="table"], [role="row"], [role="rowgroup"], [role="columnheader"], [role="rowheader"], [role="cell"], [role="gridcell"]',
+          )
+        ) {
+          tree.setAttribute("aria-hidden", "true");
         }
       });
     };
@@ -769,7 +790,7 @@ export default function PDFViewer({
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["aria-owns"],
+      attributeFilter: ["aria-owns", "aria-label"],
     });
     return () => mo.disconnect();
   }, []);
@@ -1564,7 +1585,7 @@ export default function PDFViewer({
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                     </svg>
                     {annotations.length > 0 && (
-                      <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500 text-[9px] font-bold text-white">
+                      <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-700 text-[9px] font-bold text-white">
                         {annotations.length > 9 ? "9+" : annotations.length}
                       </span>
                     )}
@@ -1995,7 +2016,7 @@ export default function PDFViewer({
                     "hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition sm:inline-flex sm:px-3",
                     isSaved
                       ? "cursor-default bg-emerald-500/20 text-emerald-400"
-                      : "bg-cyan-500 text-white hover:bg-cyan-400",
+                      : "bg-cyan-700 text-white hover:bg-cyan-600",
                   )}
                 >
                   {isSaved ? (
@@ -2111,7 +2132,7 @@ export default function PDFViewer({
                   type="button"
                   onClick={handleSaveAnnotation}
                   disabled={savingAnnotation}
-                  className="flex-1 rounded-lg bg-cyan-500 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-cyan-400 disabled:opacity-60"
+                  className="flex-1 rounded-lg bg-cyan-700 px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-cyan-600 disabled:opacity-60"
                 >
                   {savingAnnotation ? "…" : locale === "km" ? "រក្សា" : "Save"}
                 </button>
@@ -2248,7 +2269,7 @@ export default function PDFViewer({
                           type="button"
                           onClick={() => runSearch(searchInput)}
                           aria-label={t("search")}
-                          className="rounded-md bg-cyan-500 px-2.5 text-white hover:bg-cyan-400"
+                          className="rounded-md bg-cyan-700 px-2.5 text-white hover:bg-cyan-600"
                         >
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                             <circle cx="11" cy="11" r="7" />
@@ -2435,7 +2456,7 @@ export default function PDFViewer({
                         setLoadErrorKind(null);
                         setDocKey((k) => k + 1);
                       }}
-                      className="rounded-md bg-cyan-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                      className="rounded-md bg-cyan-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-cyan-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
                     >
                       {t("retry")}
                     </button>

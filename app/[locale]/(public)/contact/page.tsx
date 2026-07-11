@@ -122,10 +122,24 @@ export default function ContactPage() {
   const formTimeRef = useRef(0);
   useEffect(() => {
     formTimeRef.current = Date.now();
+    // Prefill from ?subject=…&category=… (e.g. the "report incorrect details"
+    // links on book/thesis pages). Read from location so this client page
+    // needs no Suspense boundary for useSearchParams.
+    const params = new URLSearchParams(window.location.search);
+    const preSubject = params.get("subject");
+    const preCategory = params.get("category");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (preSubject) setSubject((prev) => prev || preSubject.slice(0, 200));
+    if (preCategory && (CONTACT_CATEGORIES as readonly string[]).includes(preCategory)) {
+      setCategory((prev) => prev || (preCategory as ContactCategory));
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Re-entry guard: the submit button is disabled while sending, but Enter
+    // in a text field still fires onSubmit — never allow parallel sends.
+    if (status === "loading" || status === "success") return;
     setErrorMsg("");
 
     const { valid, errors } = validateContactInput({ name, email, phone, subject, category, message });

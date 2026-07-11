@@ -121,7 +121,10 @@ export async function POST(req: NextRequest) {
   }
 
   const cleanName = name.trim();
-  const cleanEmail = email.trim();
+  // Normalise: the domain part of an address is case-insensitive and gmail
+  // treats the local part case-insensitively too — lowercasing prevents
+  // "User@x.com"/"user@x.com" from dodging the per-email limit below.
+  const cleanEmail = email.trim().toLowerCase();
   const cleanPhone = phone?.trim() || null;
   const cleanSubject = subject.trim();
   const cleanCategory = category.trim();
@@ -160,17 +163,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. Persistent Business Logic limit (3 per hour)
+  // 2. Persistent Business Logic limit (3 per hour) — enforced per IP AND per
+  // email identity, both durably in contact_rate_limit (the key column stores
+  // either an IP or an "email:<sha256>" identity; addresses are hashed so the
+  // table never holds raw emails for non-persisted attempts).
   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const limit = await checkLimit(ip, supabase);
+  const emailKey = `email:${createHash("sha256").update(cleanEmail).digest("hex").slice(0, 40)}`;
+  const [limit, emailLimit] = await Promise.all([
+    checkLimit(ip, supabase),
+    checkLimit(emailKey, supabase),
+  ]);
 
-  if (limit.blocked) {
+  const blocked = limit.blocked ? limit : emailLimit.blocked ? emailLimit : null;
+  if (blocked) {
     const msg =
-      limit.reason === "cooldown"
-        ? `Please wait ${limit.secondsLeft} seconds before sending again.`
-        : `Too many messages. Try again in ${Math.ceil(limit.secondsLeft! / 60)} minutes.`;
+      blocked.reason === "cooldown"
+        ? `Please wait ${blocked.secondsLeft} seconds before sending again.`
+        : `Too many messages. Try again in ${Math.ceil(blocked.secondsLeft! / 60)} minutes.`;
     return NextResponse.json(
-      { error: msg, secondsLeft: limit.secondsLeft, reason: limit.reason },
+      { error: msg, secondsLeft: blocked.secondsLeft, reason: blocked.reason },
       { status: 429 }
     );
   }
@@ -201,7 +212,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await recordSend(ip, limit.history, supabase);
+  await Promise.all([
+    recordSend(ip, limit.history, supabase),
+    recordSend(emailKey, emailLimit.history, supabase),
+  ]);
 
   // 4. Best-effort emails — never let a Gmail failure affect the response;
   // the message is already safely stored above.

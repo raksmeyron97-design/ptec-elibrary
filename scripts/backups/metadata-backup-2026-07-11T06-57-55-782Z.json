@@ -1,0 +1,439 @@
+{
+  "takenAt": "2026-07-11T06:57:55.782Z",
+  "authors": [
+    {
+      "id": "e85ab10d-85ad-434a-a998-42f1dd3e2ad6",
+      "name": "Katowice",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "a4718fb0-b32f-43e1-94a5-eaee87a50e96",
+      "name": "Leonard A. Jason,David S. Glenwick",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "85e30310-a991-45c7-b309-d0451ff061a8",
+      "name": "Mara Luisa Prez Caado (ed.)",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "3749ced8-4847-4481-b1b7-719a2dae55be",
+      "name": "Johnny Saldaza",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "88629ec7-6c6c-442b-b8ab-c8f837ee6819",
+      "name": "R. (Robert) Burke Johnson & Larry B. Christensen",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "5a86e3eb-52c7-4b9c-b61e-20fd502ac62b",
+      "name": "Riemer, Frances Julia,Quartaroli, Marylynn T.,Lapan, Stephen D.",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "a8fbae79-df53-4b9b-ba6a-9aaed96420ac",
+      "name": "Doug and Gabi",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "34042e70-119c-4a00-b952-ef7ca81668bd",
+      "name": "sreytouch",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "399bebbc-0a3f-415f-a376-5ae3f144fa94",
+      "name": "Johnny Salda",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "54fa6986-31e0-4dc7-b43e-1dec58087d8c",
+      "name": "Matthew B. Miles, A. Michael Huberman, Johnny Saldaa",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "65037ca3-ca39-4464-8c2c-9c340225235f",
+      "name": "Set Seng. Ph.D",
+      "bio": null,
+      "photo_url": null
+    },
+    {
+      "id": "241ad3e3-beda-4d54-99ee-5f791f77f8d3",
+      "name": "SEANGHAI NGET",
+      "bio": null,
+      "photo_url": null
+    }
+  ],
+  "books": [
+    {
+      "id": "04c4d4a9-4b4b-4366-a513-c596a33fa86f",
+      "slug": "action-research-in-teacher-education",
+      "title": "Action Research in Teacher Education",
+      "publisher": null,
+      "published_at": "2026-01-01",
+      "author_id": "e85ab10d-85ad-434a-a998-42f1dd3e2ad6"
+    },
+    {
+      "id": "ed478376-47cf-4811-b350-6588c2733ec5",
+      "slug": "ba-1",
+      "title": "កម្មវិធីសិក្សា BA+1 ស្រាវជ្រាវអប់រំ (ពង្រាងចុងក្រោយ ២០២៤)",
+      "publisher": null,
+      "published_at": "2024-01-01",
+      "author_id": "2987bc94-955e-4d84-8d33-5a6e600264a7"
+    },
+    {
+      "id": "bff6c9c9-4955-4f77-8f1e-e6f970b085bc",
+      "slug": "assessment-syllabus-ba-1",
+      "title": "Assessment Syllabus (BA+1)",
+      "publisher": null,
+      "published_at": "2026-01-01",
+      "author_id": "250efb82-d606-412d-9fef-b85a2cddeca8"
+    },
+    {
+      "id": "21f18b32-3f50-45d7-a40a-9c582a482826",
+      "slug": "educational-research-text",
+      "title": "Educational Research (Text)",
+      "publisher": null,
+      "published_at": "2026-01-01",
+      "author_id": "a8fbae79-df53-4b9b-ba6a-9aaed96420ac"
+    },
+    {
+      "id": "e07b126e-1e7c-40fe-b704-02ed7dee0b6c",
+      "slug": "the-coding-manual-for-qualitative-researchers",
+      "title": "The Coding Manual for Qualitative Researchers",
+      "publisher": null,
+      "published_at": "2015-01-01",
+      "author_id": "3749ced8-4847-4481-b1b7-719a2dae55be"
+    },
+    {
+      "id": "97b4285a-ea71-474c-8937-41c4faa733a9",
+      "slug": "book-1781238129420",
+      "title": "កម្មវិធីសិក្សាលម្អិតវិធីសាស្ត្របង្រៀនគណិតវិទ្យា ២",
+      "publisher": null,
+      "published_at": "2026-01-01",
+      "author_id": "f007a488-08f5-4d2f-b0f0-f87204eb39b4"
+    }
+  ],
+  "placeholderBooks": [
+    {
+      "id": "6afb1b30-d4e3-47e5-8b1d-0302af9e8bba",
+      "slug": "qualitative-data-analysis-a-methods-sourcebook",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "6dcdd76c-21e8-46b8-a43b-f1d66c4b1450",
+      "slug": "spss-survival-manual-a-step-by-step-guide-to-data-analysis",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "f2d91013-8513-4206-af06-5d94e170e1ad",
+      "slug": "the-action-research-guidebook-a-four-step-process-for-educators-and-school-teams",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "4d7db00a-dc57-4505-9db2-535ebd70cdc0",
+      "slug": "introduction-to-research-methods-a-practical-guide",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "87e5e0cd-d9c9-4e9d-bd46-cf1ac02856bb",
+      "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches-2",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "9f407d69-e159-4729-968e-555c64e51109",
+      "slug": "methods-in-educational-research-from-theory-to-practice",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "34294ac6-6dbc-4031-8c23-e63fce0dc5a2",
+      "slug": "educational-research-planning-conducting-and-evaluating-quantitative-and-qualitative-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "f1f16901-264b-4193-b1f5-5b3a45d18409",
+      "slug": "handbook-of-methodological-approaches-to-educational-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "e6228bcb-bfc0-44f4-b0e5-b06e3c75fc08",
+      "slug": "the-skillful-teacher-building-your-teaching-skills",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "861918c1-0acd-4fca-be7e-13c68a957144",
+      "slug": "the-good-research-guide-for-small-scale-social-research-projects",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "ea792a2b-94ec-4cfd-92a6-01e731c97679",
+      "slug": "action-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "2cb5a693-a532-4f00-bae4-2295b26380b3",
+      "slug": "book-1781238136253",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "d8efa956-adc3-432f-86a1-2f467720625c",
+      "slug": "introduction-to-research-in-education",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "04c4d4a9-4b4b-4366-a513-c596a33fa86f",
+      "slug": "action-research-in-teacher-education",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "36b93878-a295-403f-835b-94a6b722c043",
+      "slug": "interviewing-as-qualitative-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "3d947a31-153c-4207-a5f3-74f1509c9b1a",
+      "slug": "book-1781238135294",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "49646f01-a6f5-4485-9fcc-b0a72e1a3e07",
+      "slug": "book-1781238137178",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "73e91524-c761-4e0f-85df-6142d4401457",
+      "slug": "english-for-academic-research-writing-exercises",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "a71d5126-28e0-49b3-a1fe-b98426b4b678",
+      "slug": "spss-explained",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "bff6c9c9-4955-4f77-8f1e-e6f970b085bc",
+      "slug": "assessment-syllabus-ba-1",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "21f18b32-3f50-45d7-a40a-9c582a482826",
+      "slug": "educational-research-text",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "ab68bea2-afe5-4d38-b2da-e30381ce0a76",
+      "slug": "book-1783313246982",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "7c6bceb5-2402-4d90-8af7-0867dd7a2dbd",
+      "slug": "integrating-teaching-learning-and-action-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "b90e3e09-4cf1-401b-92fa-ea72c0319fd0",
+      "slug": "educational-research-contemporary-issues-and-practical-approaches",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "f7053abd-5b12-4eb1-bc40-d5b3d7cbfa09",
+      "slug": "methodology-of-educational-research-and-statistics",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "05a141cd-8445-46e1-9142-f2bde914d850",
+      "slug": "english-for-writing-research-papers",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "bfec3f67-850b-4ae7-bed1-5473a5870738",
+      "slug": "elementary-survey-sampling-7th-edition",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "dd3a837d-c771-4cf6-a8bb-c268d82d52a0",
+      "slug": "english-for-writing-research-papers-1",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "4082d272-5efd-4de4-b89a-072c8a30c720",
+      "slug": "phrase-book",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "7e88160b-f612-4522-8ea9-2b86ca9e0e04",
+      "slug": "introduction-to-qualitative-research-methods",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "1c2ccbcb-a438-4e27-b07a-25be4fc4b418",
+      "slug": "english-for-research-usage-style-and-grammar",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "2ff02030-fdef-4304-bde9-c39a2624eef4",
+      "slug": "vso-cambodia-action-research-guidebook",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "e3eed427-0f59-461c-89ad-802028a368cc",
+      "slug": "effective-school-management",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "d369bc40-839d-47a2-86a8-ada828aa6c21",
+      "slug": "qualitative-research-methods",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "90f3f0ce-3c7d-44c8-9f43-604c1dd61ae8",
+      "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches-1",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "a250c546-8771-48b4-8252-860e98850bcb",
+      "slug": "social-research-methods-qualitative-and-quantitative-approaches",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "adb85b1c-63a2-49f1-a505-9e4ddf5f1d97",
+      "slug": "qualitative-inquiry-and-research-design-choosing-among-five-approaches",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "da24357a-0d1b-4c77-81e6-7b052178a1a3",
+      "slug": "t-tests-and-anovas",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "f2cd4ba9-72f1-46e6-b123-67c18e6d3a85",
+      "slug": "student-statistics-challenges-in-data-collection-processes",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "749da4e1-36f0-401b-8558-64011b91c90e",
+      "slug": "action-research-in-practice",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "529ade47-302e-4170-92b1-503abe23418d",
+      "slug": "research-methods-in-education",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "5ffd15ac-55b5-4fe9-af30-5e6a39858ddf",
+      "slug": "qualitative-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "12ca2d37-c4b7-4353-9d69-26ad2d294772",
+      "slug": "book-1781238128375",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "5c889baf-a15b-40c6-95b5-6b491cdd5e32",
+      "slug": "thesis-guideline",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "c176a767-9a3b-4239-9761-67cab36d5fca",
+      "slug": "action-research-series-volume-1",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "0f6f39fb-0ded-4644-a4b2-464f0559c9e5",
+      "slug": "educational-research-competencies-for-analysis-and-applications-10th-edition",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "69951c4d-2381-4e6e-b250-8836e50699e3",
+      "slug": "research-activities-exercises",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "6cbaf093-6ac2-4301-abd2-80fbf794a309",
+      "slug": "educational-research-quantitative-approaches",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "97b4285a-ea71-474c-8937-41c4faa733a9",
+      "slug": "book-1781238129420",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "22838ea0-d6e9-4c58-b291-f280acbf1be6",
+      "slug": "book-1781238127030",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "612c9e9c-4a16-4018-ae85-fe329b5509f9",
+      "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "40bc8196-22a2-4f68-92d6-6dba59542d3e",
+      "slug": "chapter-12-action-research",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "0abba701-abe7-4a78-8739-3858d9a83f91",
+      "slug": "doing-data-analysis-with-spss",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "398d7e10-e0cb-47bb-8e43-74bd29b55b02",
+      "slug": "how-to-design-and-evaluate-research-in-education",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "c5a00991-bf01-4c86-9c26-1110faee4fbc",
+      "slug": "qualitative-data-analysis-with-nvivo",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "2a43d004-73ea-453d-9514-878d1d748a4d",
+      "slug": "action-research-series-volume-3",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "8d195ddd-1214-4cf2-b451-40047bc8625a",
+      "slug": "action-research-series-volume-2",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "c61a3e73-7d52-45dc-9e53-ff2efaeb7338",
+      "slug": "pedagogy-and-practice-teaching-and-learning-in-secondary-schools",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "85132e5c-faed-4fe0-85e3-13ef985e05b4",
+      "slug": "data-analysis-with-microsoft-excel",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "a5e7f4e9-ad6c-4da0-abc2-26933505d1c5",
+      "slug": "research-methods-and-statistics",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "b274394b-6ced-4318-9910-f41922a17ed2",
+      "slug": "becoming-a-teacher-through-action-research-process-context-and-self-study",
+      "published_at": "2026-01-01"
+    },
+    {
+      "id": "8fa2e858-393f-4e97-9fc4-8ceaa4e5acd9",
+      "slug": "operations-research-an-introduction-10th-edition",
+      "published_at": "2026-01-01"
+    }
+  ]
+}

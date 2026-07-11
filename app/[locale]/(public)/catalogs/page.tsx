@@ -15,6 +15,7 @@ import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import { PTEC } from "@/lib/ptec";
 
 export const revalidate = 3600;
 
@@ -162,6 +163,11 @@ export default async function CatalogsPage({
   const pageSize   = resolvePageSize(params.size);
   const totalPages = Math.ceil(total / pageSize);
   const hasFilters = !!(params.q || params.category || params.language || params.availability);
+  // The collection is still being catalogued: no records AND nothing filtered
+  // out. Search/filter/sort controls are useless against zero rows, so the
+  // header collapses to the title and the empty state carries the visit info.
+  // As soon as the first record is added this reverts to the normal layout.
+  const catalogEmpty = total === 0 && !hasFilters;
 
   const availOnlyCount = books.filter((b) => getAvailability(b) === "available").length;
 
@@ -181,12 +187,18 @@ export default async function CatalogsPage({
                 {t('subtitle')}
               </p>
             </div>
-            <p className="text-sm text-text-muted">
-              {t(total === 1 ? 'booksCount' : 'booksCountPlural', { count: total })}
-              {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
-            </p>
+            {/* "0 books" with no context reads as broken — the empty state
+                below explains the situation instead. */}
+            {!catalogEmpty && (
+              <p className="text-sm text-text-muted">
+                {t(total === 1 ? 'booksCount' : 'booksCountPlural', { count: total })}
+                {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
+              </p>
+            )}
           </div>
 
+          {catalogEmpty ? null : (
+          <>
           {/* Search bar */}
           <Suspense fallback={<div className="h-11 w-full rounded-xl bg-paper animate-pulse" />}>
             <CatalogSearchBar />
@@ -275,6 +287,8 @@ export default async function CatalogsPage({
               )}
             </div>
           )}
+          </>
+          )}
         </div>
       </div>
 
@@ -286,15 +300,41 @@ export default async function CatalogsPage({
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg>
             {!params.q && !hasFilters ? (
-              /* Catalog genuinely empty — the collection is still being catalogued */
+              /* Catalog genuinely empty — the collection is still being catalogued.
+                 Turn the dead end into a useful "visit the library" page. */
               <>
                 <h2 className="font-khmer-serif text-xl font-bold text-text-heading">{t('emptyPreparingTitle')}</h2>
                 <p className="mt-2 max-w-md text-sm text-text-muted">{t('emptyPreparingBody')}</p>
+
+                <div className="mt-6 grid w-full max-w-lg gap-3 text-left sm:grid-cols-2">
+                  <div className="rounded-xl border border-divider bg-paper p-4">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t('emptyHoursLabel')}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-text-body" lang={locale}>
+                      {locale === "km" ? PTEC.hours.km : PTEC.hours.en}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-divider bg-paper p-4">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t('emptyVisitLabel')}</h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-text-body" lang={locale}>
+                      {locale === "km" ? PTEC.address.km : PTEC.address.en}
+                    </p>
+                    <a
+                      href={PTEC.links.mapPlace}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-block text-sm font-semibold text-brand underline decoration-dotted underline-offset-2 transition-colors hover:text-brand-hover"
+                    >
+                      {t('emptyVisitCta')}
+                    </a>
+                  </div>
+                </div>
+                <p className="mt-3 max-w-lg text-sm text-text-muted">{t('emptyBorrowNote')}</p>
+
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                  <Link href="/books" className="inline-flex h-10 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
+                  <Link href="/books" className="inline-flex h-11 items-center rounded-xl bg-brand px-6 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover">
                     {t('emptyPreparingCtaBooks')}
                   </Link>
-                  <Link href="/contact" className="inline-flex h-10 items-center rounded-xl border border-divider px-6 text-sm font-semibold text-text-heading transition hover:bg-bg-muted">
+                  <Link href="/contact" className="inline-flex h-11 items-center rounded-xl border border-divider px-6 text-sm font-semibold text-text-heading transition hover:bg-bg-muted">
                     {t('emptyPreparingCtaContact')}
                   </Link>
                 </div>

@@ -363,7 +363,9 @@
     "copy": "Copy",
     "copied": "Copied!",
     "close": "Close",
-    "closeAria": "Close citation panel"
+    "closeAria": "Close citation panel",
+    "unverifiedNote": "This record's details have not yet been verified by library staff. Please double-check author, year, and publisher before citing.",
+    "reportMetadata": "Report incorrect details"
   },
   "footer": {
     "description": "The Phnom Penh Teacher Education College was established to train teachers with quality education, leading students toward a better future without discrimination.",
@@ -424,7 +426,11 @@
     "emptyPreparingTitle": "The physical library catalog is being prepared",
     "emptyPreparingBody": "Our librarians are cataloguing the physical collection now. Digital resources are available today — please check back soon, or contact the library team about physical book availability.",
     "emptyPreparingCtaBooks": "Browse digital books",
-    "emptyPreparingCtaContact": "Contact the library"
+    "emptyPreparingCtaContact": "Contact the library",
+    "emptyHoursLabel": "Opening hours",
+    "emptyVisitLabel": "Visit us",
+    "emptyVisitCta": "Get directions",
+    "emptyBorrowNote": "Physical books can be borrowed at the library front desk with your student or staff card."
   },
   "posts": {
     "eyebrow": "PTEC Library",
