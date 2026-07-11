@@ -111,41 +111,6 @@ function ThinkingDots() {
   );
 }
 
-// ── Book card row ────────────────────────────────────────────────────────────
-function BookCard({ book, onNavigate }: { book: Book; onNavigate: () => void }) {
-  const href = book.url ?? `/books/${book.slug}`;
-  const meta = book.type ? TYPE_META[book.type] : TYPE_META.book;
-  return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-2.5 py-2 transition-all duration-200 hover:border-gold-400/40 hover:bg-white/[0.09] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
-    >
-      <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-blue-900 ring-1 ring-white/10 shadow-md shadow-black/30">
-        {book.coverUrl ? (
-          <Image src={book.coverUrl} alt={book.title} fill sizes="44px" className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-800 to-blue-950">
-            <SparkleIcon className="h-4 w-4 text-gold-400/60" />
-          </div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <span className={`mb-1 inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ring-1 ${meta.badge}`}>
-          {meta.label}
-        </span>
-        <p className="line-clamp-1 text-[13px] font-semibold text-white">{book.title}</p>
-        <p className="line-clamp-1 text-[11px] text-blue-300/70">{book.author}</p>
-      </div>
-      <span className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-blue-300/50 transition-all duration-200 group-hover:bg-gold-400/20 group-hover:text-gold-300">
-        <svg className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M5 12h14M13 6l6 6-6 6" />
-        </svg>
-      </span>
-    </Link>
-  );
-}
-
 // ── Book carousel card ───────────────────────────────────────────────────────
 function BookCarouselCard({ book, onNavigate }: { book: Book; onNavigate: () => void }) {
   const href = book.url ?? `/books/${book.slug}`;
@@ -174,7 +139,7 @@ function BookCarouselCard({ book, onNavigate }: { book: Book; onNavigate: () => 
         <div>
           <p className="line-clamp-2 text-[12px] font-semibold leading-tight text-white transition-colors group-hover:text-gold-300">{book.title}</p>
         </div>
-        <p className="mt-1.5 line-clamp-1 text-[10px] text-blue-300/70">{book.author}</p>
+        <p className="mt-1.5 line-clamp-1 text-[11px] text-blue-300/70">{book.author}</p>
       </div>
     </Link>
   );
@@ -185,21 +150,22 @@ function parseMarkdown(text: string) {
   if (!text) return null;
   const parts = text.split(/(\[.*?\]\(.*?\)|\*\*.*?\*\*|\n)/g);
   return parts.map((part, i) => {
-    if (part === "\n") return <br key={i} />;
+    const key = `${part}-${i}`;
+    if (part === "\n") return <br key={key} />;
     if (part.startsWith("[") && part.includes("](")) {
       const match = part.match(/\[(.*?)\]\((.*?)\)/);
       if (match) {
         return (
-          <Link key={i} href={match[2]} className="text-gold-400 hover:underline">
+          <Link key={key} href={match[2]} className="text-gold-400 hover:underline">
             {match[1]}
           </Link>
         );
       }
     }
     if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
+      return <strong key={key} className="font-semibold text-white">{part.slice(2, -2)}</strong>;
     }
-    return <span key={i}>{part}</span>;
+    return <span key={key}>{part}</span>;
   });
 }
 
@@ -495,8 +461,8 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
                       <p className="text-[12px] text-blue-300/70 max-w-[240px] leading-relaxed">{t("subtitle")}</p>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {starters.map((s, i) => (
-                        <button key={i} type="button" onClick={() => sendMessage(s)}
+                      {starters.map((s) => (
+                        <button key={s} type="button" onClick={() => sendMessage(s)}
                           disabled={inputDisabled}
                           className="group flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-left text-[13px] text-blue-100 transition-all duration-200 hover:border-gold-400/40 hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:pointer-events-none disabled:opacity-40"
                         >
@@ -611,8 +577,8 @@ export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
         className={`
           group fixed z-40
           ${open ? "hidden sm:flex" : "flex"}
-          bottom-[calc(68px+env(safe-area-inset-bottom)+12px)] right-5
-          sm:bottom-5 sm:right-5
+          bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] right-4
+          lg:bottom-5 lg:right-5
           h-13 w-13 sm:h-14 sm:w-14 rounded-full
           bg-gradient-to-br from-gold-400 to-gold-500
           text-blue-950

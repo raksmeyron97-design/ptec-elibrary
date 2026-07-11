@@ -110,12 +110,17 @@
     "searchLibrary": "ស្វែងរកក្នុងបណ្ណាល័យ",
     "searchShort": "ស្វែងរក",
     "profile": "គណនី",
+    "profileMenu": "ម៉ឺនុយគណនី",
+    "signInHint": "សូមចូលគណនី ដើម្បីប្រើគណនីបណ្ណាល័យរបស់អ្នក។",
     "postsShort": "ព័ត៌មាន",
     "openMenu": "បើកម៉ឺនុយ",
     "closeMenu": "បិទម៉ឺនុយ",
     "menu": "ម៉ឺនុយ",
     "switchToDark": "ប្ដូរទៅផ្ទៃងងឹត",
-    "switchToLight": "ប្ដូរទៅផ្ទៃភ្លឺ"
+    "switchToLight": "ប្ដូរទៅផ្ទៃភ្លឺ",
+    "language": "ភាសា",
+    "languageEnglish": "English",
+    "languageKhmer": "ខ្មែរ"
   },
   "bookCard": {
     "view": "មើល",
@@ -380,6 +385,13 @@
     "getDirections": "មើលផែនទី",
     "emailLabel": "អ៊ីមែល",
     "installApp": "ដំឡើងកម្មវិធី",
+    "explore": "រុករក",
+    "helpInfo": "ជំនួយ និងព័ត៌មាន",
+    "visitPtec": "មកកាន់ PTEC",
+    "socialLinks": "តំណបណ្ដាញសង្គមរបស់ PTEC",
+    "officialWebsite": "គេហទំព័រផ្លូវការ PTEC",
+    "mapTitle": "ផែនទីទីតាំង PTEC",
+    "legal": "ច្បាប់ និងគោលការណ៍",
     "links": {
       "home": "ទំព័រដើម",
       "eResources": "បណ្ណាល័យឌីជីថល",
@@ -387,7 +399,8 @@
       "aboutUs": "អំពីយើង",
       "contact": "ទំនាក់ទំនង",
       "libraryRules": "បទបញ្ជាបណ្ណាល័យ",
-      "privacy": "គោលការណ៍ឯកជនភាព"
+      "privacy": "គោលការណ៍ឯកជនភាព",
+      "policy": "គោលការណ៍ប្រើប្រាស់"
     }
   },
   "catalogs": {
@@ -731,10 +744,12 @@
   },
   "notifications": {
     "bellLabel": "ការជូនដំណឹង",
+    "bellLabelWithCount": "ការជូនដំណឹង, {count, plural, =0 {មិនមានសារមិនទាន់អាន} other {# មិនទាន់អាន}}",
     "title": "ការជូនដំណឹង",
     "markAllRead": "សម្គាល់ទាំងអស់ថាបានអាន",
     "loading": "កំពុងផ្ទុក…",
     "empty": "មិនទាន់មានការជូនដំណឹង",
+    "emptyHint": "អ្នកបានអានទាំងអស់ហើយ",
     "manageAnnouncements": "គ្រប់គ្រងការប្រកាស"
   },
   "pushNotifications": {

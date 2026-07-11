@@ -42,9 +42,12 @@ export default function NavSearch() {
       <Link
         href="/search"
         aria-label={t("searchLibrary")}
-        className="group flex min-[1440px]:hidden relative h-11 w-11 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-divider bg-bg-surface shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
+        className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted shadow-sm transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none sm:h-10 sm:w-10 min-[1280px]:w-auto min-[1280px]:gap-2 min-[1280px]:px-3.5 min-[1440px]:hidden"
       >
         <SearchIcon />
+        <span className="hidden whitespace-nowrap text-sm min-[1280px]:inline">
+          {t("searchShort")}
+        </span>
       </Link>
 
       {/* Full variant (1440px+): label is always visible — hover feedback via
@@ -52,10 +55,10 @@ export default function NavSearch() {
       <Link
         href="/search"
         aria-label={t("searchLibrary")}
-        className="hidden min-[1440px]:flex shrink-0 items-center gap-2 h-10 rounded-full border border-divider bg-bg-surface pl-3.5 pr-4 shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand hover:shadow-[0_4px_16px_rgba(30,58,138,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none"
+        className="hidden h-10 w-[260px] shrink-0 items-center gap-2 rounded-full border border-divider bg-bg-surface pl-3.5 pr-3 shadow-sm text-text-muted transition-colors duration-200 hover:border-brand/30 hover:text-brand hover:shadow-[0_4px_16px_rgba(30,58,138,0.12)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none min-[1440px]:flex"
       >
         <SearchIcon />
-        <span className="whitespace-nowrap text-sm">{t("searchLibrary")}</span>
+        <span className="min-w-0 flex-1 truncate text-left text-sm">{t("searchLibrary")}</span>
         <kbd
           aria-hidden="true"
           className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-divider bg-paper px-1.5 text-[11px] font-semibold text-text-muted"

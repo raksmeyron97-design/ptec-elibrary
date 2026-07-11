@@ -51,6 +51,7 @@ const PostsIcon = (
 
 export default async function Navbar() {
   const t = await getTranslations("nav");
+  const footerT = await getTranslations("footer");
   const locale = (await getLocale()) as "en" | "km";
 
   // Priority order: items collapse into the "More" menu from the END of this
@@ -89,6 +90,7 @@ export default async function Navbar() {
     const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
 
     userInfo = {
+      id:         user.id,
       email:      user.email ?? "",
       full_name:  profile?.full_name  ?? googleName ?? null,
       avatar_url: profile?.avatar_url ?? googleAvatar ?? null,
@@ -97,43 +99,38 @@ export default async function Navbar() {
   }
 
   return (
-    <header className="w-full font-sans border-t-[3px] border-accent relative z-[100]">
+    <header className="relative z-[100] w-full border-t-[3px] border-accent font-sans">
       {/* Top utility strip */}
-        <div className="hidden lg:block bg-blue-950 dark:bg-bg-surface text-gold-200 text-[12px] relative z-10 font-sans border-b border-white/5 dark:border-white/10">
-          <div className="flex items-center justify-between px-6 xl:px-10 py-2 max-w-[1400px] mx-auto w-full">
-            {/* Left: Contact Info — single line: nowrap items, address truncates */}
-            <div className="flex items-center gap-4 xl:gap-8 min-w-0 flex-1">
-              <a href={PTEC.phoneTel} className="flex shrink-0 items-center gap-2 whitespace-nowrap hover:text-gold-400 transition-colors">
+        <div className="relative z-[70] hidden border-b border-white/10 bg-blue-950 text-[13px] text-gold-100 dark:bg-bg-surface dark:text-text-body xl:block">
+          <div className="mx-auto flex h-9 w-full max-w-[1536px] items-center justify-between gap-6 px-6 xl:px-8">
+            <div className="flex min-w-0 flex-1 items-center gap-5">
+              <a href={PTEC.phoneTel} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="phone" className="text-[14px] text-accent" />
-                <span className="tracking-wide">{PTEC.phoneIntl}</span>
+                <span>{PTEC.phoneIntl}</span>
               </a>
-              <span className="opacity-30">|</span>
-              <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <a href={`mailto:${PTEC.email}`} className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="mail" className="text-[14px] text-accent" />
-                <span>{PTEC.email}<span className="hidden 2xl:inline"> <span className="opacity-50 mx-1">|</span> {PTEC.emailInternational}</span></span>
-              </div>
-              <span className="opacity-30">|</span>
-              <a href={PTEC.links.mapPlace} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 hover:text-gold-400 transition-colors">
-                <Icon name="map-pin" className="shrink-0 text-[14px] text-accent" />
-                <span className="truncate">{PTEC.address.en}</span>
+                <span className="truncate">{PTEC.email}</span>
+              </a>
+              <a href={PTEC.links.mapPlace} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                <Icon name="map-pin" className="text-[14px] text-accent" />
+                <span>{footerT("getDirections")}</span>
               </a>
             </div>
 
-            {/* Right: Socials & Language */}
-            <div className="flex shrink-0 items-center gap-6 xl:gap-8 pl-6">
-              <div className="flex items-center gap-4">
-                <a href={PTEC.links.facebook} target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-white transition-colors" aria-label="Facebook">
+            <div className="flex shrink-0 items-center gap-4">
+              <div className="flex items-center gap-1.5" aria-label="PTEC social links">
+                <a href={PTEC.links.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="Facebook">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
-                <a href={PTEC.links.youtube} target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-[#FF0000] transition-colors" aria-label="YouTube">
+                <a href={PTEC.links.youtube} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="YouTube">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>
                 </a>
-                <a href={PTEC.links.website} target="_blank" rel="noreferrer" className="inline-flex h-6 w-6 items-center justify-center hover:text-accent transition-colors" aria-label="Website">
+                <a href={PTEC.links.website} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="PTEC official website">
                   <Icon name="globe" className="text-[15px]" />
                 </a>
               </div>
-              <span className="opacity-30">|</span>
-              <LanguageSwitcher locale={locale} />
+              <LanguageSwitcher locale={locale} className="text-gold-100 dark:text-text-body" />
             </div>
           </div>
         </div>
@@ -145,16 +142,16 @@ export default async function Navbar() {
                      items collapse into "More" (PriorityNav) as it narrows.
             - Actions: auto + shrink-0 children — search, theme, bell, and
                      the avatar can never be pushed off-viewport. */}
-        <div className="grid h-[72px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-2 xl:gap-3 px-4 sm:px-6 xl:px-8 max-w-[1400px] mx-auto">
+        <div className="mx-auto grid h-16 max-w-[1536px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-5 lg:h-[72px] xl:gap-3 xl:px-8">
           {/* Zone 1: brand */}
           <Link
-            href="/"
-            className="flex min-w-0 items-center gap-2 sm:gap-3 group"
+            href="/home"
+            className="group flex min-w-0 items-center gap-2 sm:gap-3"
           >
             <div className="shrink-0 scale-90 sm:scale-100 origin-left">
               <Seal size={48} />
             </div>
-            <div className="flex min-w-0 flex-col text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand whitespace-nowrap">
+            <div className="max-[360px]:hidden flex min-w-0 flex-col whitespace-nowrap text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand">
               <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
               <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
             </div>
@@ -165,7 +162,7 @@ export default async function Navbar() {
 
           {/* Zone 3: protected actions */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5 xl:gap-2">
-            <div className="hidden sm:block">
+            <div className="hidden lg:block">
               <ThemeToggle />
             </div>
 
@@ -175,7 +172,7 @@ export default async function Navbar() {
             {/* Bell (show only when logged in) — sm+ only; on phones the
                 header stays minimal (logo/search/menu, like the bottom nav) */}
             {user && userInfo && (
-              <div className="hidden sm:block">
+              <div className="hidden lg:block">
                 <NotificationBell userId={user.id} userRole={userInfo.role} />
               </div>
             )}

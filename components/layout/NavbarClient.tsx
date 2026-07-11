@@ -9,6 +9,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ROLE_META } from "@/lib/types/roles";
 
 type UserInfo = {
+  id?: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;

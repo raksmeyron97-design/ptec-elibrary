@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   getNotifications,
@@ -25,6 +26,8 @@ export default function NotificationBell({ userRole }: Props) {
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
   const fetchCount = useCallback(async () => {
     const count = await getUnreadCount();
@@ -47,6 +50,7 @@ export default function NotificationBell({ userRole }: Props) {
   }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     function handler(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -54,15 +58,18 @@ export default function NotificationBell({ userRole }: Props) {
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
+    if (!open) return;
     function handler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
     }
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [open]);
 
   async function handleMarkAll() {
     if (markingAll) return;
@@ -88,10 +95,11 @@ export default function NotificationBell({ userRole }: Props) {
       {/* ── Bell button — 44px tap target on touch, 40px with a pointer ── */}
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setOpen(v => !v)}
-        aria-label={t("bellLabel")}
+        aria-label={t("bellLabelWithCount", { count: unreadCount })}
         aria-expanded={open}
-        aria-controls="notification-panel"
+        aria-controls={panelId}
         className="relative flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-paper hover:text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface cursor-pointer"
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -100,8 +108,8 @@ export default function NotificationBell({ userRole }: Props) {
         </svg>
         {unreadCount > 0 && (
           <span
-            className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-white font-bold ring-2 ring-bg-surface leading-none"
-            style={{ fontSize: "10px", background: "#EF4444", padding: "0 3px" }}
+            className="absolute top-0.5 right-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white ring-2 ring-bg-surface"
+            style={{ background: "#EF4444" }}
           >
             {badge}
           </span>
@@ -110,10 +118,12 @@ export default function NotificationBell({ userRole }: Props) {
 
       {/* ── Dropdown panel ── */}
       <div
-        id="notification-panel"
+        id={panelId}
         inert={!open}
         aria-hidden={!open}
-        className={`absolute right-0 top-[calc(100%+10px)] w-[340px] max-w-[calc(100vw-1rem)] origin-top-right rounded-2xl border border-divider bg-bg-surface shadow-2xl z-[100] flex flex-col overflow-hidden transition-all duration-200 ${
+        role="region"
+        aria-label={t("title")}
+        className={`absolute right-0 top-[calc(100%+10px)] w-[340px] max-w-[calc(100vw-1rem)] origin-top-right rounded-xl border border-divider bg-bg-surface shadow-2xl z-[100] flex flex-col overflow-hidden transition-all duration-200 motion-reduce:transition-none ${
           open
             ? "pointer-events-auto translate-y-0 opacity-100 scale-100"
             : "pointer-events-none -translate-y-2 opacity-0 scale-95"
@@ -127,7 +137,7 @@ export default function NotificationBell({ userRole }: Props) {
             <span className="text-sm font-bold text-text-heading">{t("title")}</span>
             {unreadCount > 0 && (
               <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white leading-none"
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold text-white leading-none"
                 style={{ background: "#EF4444" }}
               >
                 {badge}
@@ -140,8 +150,7 @@ export default function NotificationBell({ userRole }: Props) {
               type="button"
               onClick={handleMarkAll}
               disabled={markingAll}
-              className="flex items-center gap-1.5 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
-              style={{ color: "#4f46e5" }}
+              className="flex items-center gap-1.5 text-xs font-semibold text-brand transition-colors hover:text-brand-hover disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
             >
               {markingAll ? (
                 <span className="w-3.5 h-3.5 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
@@ -157,9 +166,9 @@ export default function NotificationBell({ userRole }: Props) {
         </div>
 
         {/* Notification list */}
-        <div className="flex-1 overflow-y-auto" style={{ maxHeight: "380px" }}>
+        <div className="flex-1 overflow-y-auto" style={{ maxHeight: "380px" }} aria-live="polite">
           {loading ? (
-            <div className="flex items-center justify-center py-14">
+            <div className="flex items-center justify-center py-14" role="status" aria-label={t("loading")}>
               <div className="w-6 h-6 rounded-full border-2 border-slate-200 border-t-indigo-500 animate-spin" />
             </div>
           ) : notifications.length === 0 ? (
@@ -174,7 +183,7 @@ export default function NotificationBell({ userRole }: Props) {
                 </svg>
               </div>
               <p className="text-sm font-semibold text-text-heading mt-1">{t("empty")}</p>
-              <p className="text-xs text-slate-400">You&apos;re all caught up</p>
+              <p className="text-xs text-text-muted">{t("emptyHint")}</p>
             </div>
           ) : (
             notifications.map(n => (
@@ -191,21 +200,20 @@ export default function NotificationBell({ userRole }: Props) {
         {/* Footer */}
         {userRole === "admin" && (
           <div className="border-t border-divider px-4 py-2.5 shrink-0 flex items-center justify-between">
-            <a
+            <Link
               href="/admin/announcements"
-              className="text-xs font-semibold transition-colors hover:underline cursor-pointer"
-              style={{ color: "#4f46e5" }}
+              className="text-xs font-semibold text-brand transition-colors hover:text-brand-hover hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               onClick={() => setOpen(false)}
             >
               {t("manageAnnouncements")}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/logs"
-              className="text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              className="text-xs text-text-muted hover:text-text-body transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
               onClick={() => setOpen(false)}
             >
               View logs →
-            </a>
+            </Link>
           </div>
         )}
       </div>

@@ -105,12 +105,17 @@
     "searchLibrary": "Search the library",
     "searchShort": "Search",
     "profile": "Profile",
+    "profileMenu": "Profile menu",
+    "signInHint": "Sign in to access your library account.",
     "postsShort": "News",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "menu": "Menu",
     "switchToDark": "Switch to dark theme",
-    "switchToLight": "Switch to light theme"
+    "switchToLight": "Switch to light theme",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageKhmer": "ខ្មែរ"
   },
   "bookCard": {
     "view": "View",
@@ -375,6 +380,13 @@
     "getDirections": "Get directions",
     "emailLabel": "Email",
     "installApp": "Install App",
+    "explore": "Explore",
+    "helpInfo": "Help and Information",
+    "visitPtec": "Visit PTEC",
+    "socialLinks": "PTEC social links",
+    "officialWebsite": "PTEC official website",
+    "mapTitle": "PTEC location map",
+    "legal": "Legal",
     "links": {
       "home": "Home",
       "eResources": "E-Resources",
@@ -382,7 +394,8 @@
       "aboutUs": "About Us",
       "contact": "Contact",
       "libraryRules": "Library Rules",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "policy": "Policy"
     }
   },
   "catalogs": {
@@ -725,10 +738,12 @@
   },
   "notifications": {
     "bellLabel": "Notifications",
+    "bellLabelWithCount": "Notifications, {count, plural, =0 {no unread} one {# unread} other {# unread}}",
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "loading": "Loading…",
     "empty": "No notifications yet",
+    "emptyHint": "You're all caught up",
     "manageAnnouncements": "Manage announcements"
   },
   "pushNotifications": {

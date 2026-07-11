@@ -1,265 +1,133 @@
-/* eslint-disable @next/next/no-img-element */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import Icon from "@/components/ui/core/Icon";
 import MobileBottomNav from "./MobileBottomNav";
 import { createClient } from "@/lib/supabase/server";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { PTEC } from "@/lib/ptec";
+import { DIGITAL_LIBRARY_ITEMS } from "./digital-library-nav";
+import { ABOUT_NAV_ITEMS } from "./about-nav";
 
-/* ────────────────────────────────────────────────────────────
-   Footer styles — CSS-only animations, no runtime JS.
-   Respects prefers-reduced-motion throughout.
-   ──────────────────────────────────────────────────────────── */
-const footerStyles = `
-  /* Focus */
-  .ptec-footer :focus-visible {
-    outline: 2px solid #FBBF24;
-    outline-offset: 3px;
-    border-radius: 8px;
-  }
+type FooterLink = {
+  label: string;
+  href: string;
+  external?: boolean;
+};
 
-  /* ── Layered night-sky background ── */
-  .ptec-footer {
-    background:
-      radial-gradient(1200px 520px at 18% -10%, rgba(59,130,246,.16), transparent 62%),
-      radial-gradient(900px 500px at 100% 120%, rgba(79,70,229,.20), transparent 60%),
-      linear-gradient(160deg, #081436 0%, #0f1c4c 42%, #1c184a 100%);
-    background-color: #081436;
-  }
-  .ptec-vignette {
-    background: linear-gradient(
-      to bottom,
-      rgba(8,20,54,.55),
-      rgba(8,20,54,.30) 45%,
-      rgba(8,20,54,.90)
-    );
-  }
+function FooterLinkList({ links }: { links: FooterLink[] }) {
+  return (
+    <ul className="space-y-2.5">
+      {links.map((link) => (
+        <li key={`${link.label}-${link.href}`}>
+          {link.external ? (
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group inline-flex min-h-7 items-center gap-2 text-[14px] leading-snug text-blue-100/82 transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold-300/70 transition-transform group-hover:scale-125" aria-hidden="true" />
+              <span>{link.label}</span>
+              <Icon name="external-link" className="text-[13px] opacity-70" />
+            </a>
+          ) : (
+            <Link
+              href={link.href}
+              className="group inline-flex min-h-7 items-center gap-2 text-[14px] leading-snug text-blue-100/82 transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-gold-300/70 transition-transform group-hover:scale-125" aria-hidden="true" />
+              <span>{link.label}</span>
+            </Link>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-  /* ── Twinkling starfield (3 out-of-phase groups) ── */
-  @keyframes ptec-twinkle-a {
-    0%,100% { opacity: 0.12; }
-    50%      { opacity: 0.85; }
-  }
-  @keyframes ptec-twinkle-b {
-    0%,100% { opacity: 0.65; }
-    50%      { opacity: 0.08; }
-  }
-  @keyframes ptec-twinkle-c {
-    0%,33%  { opacity: 0.25; }
-    66%     { opacity: 0.90; }
-    100%    { opacity: 0.25; }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .ptec-stars-a { animation: ptec-twinkle-a 3.0s ease-in-out infinite; }
-    .ptec-stars-b { animation: ptec-twinkle-b 4.4s ease-in-out infinite; animation-delay: -1.6s; }
-    .ptec-stars-c { animation: ptec-twinkle-c 5.8s ease-in-out infinite; animation-delay: -3.1s; }
-  }
+function FooterHeading({ id, children }: { id?: string; children: React.ReactNode }) {
+  return (
+    <h2 id={id} className="mb-4 text-[16px] font-bold tracking-wide text-white">
+      {children}
+    </h2>
+  );
+}
 
-  /* ── Aurora orbs ── */
-  @keyframes ptec-orb1 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    33%     { transform: translate(9%,14%) scale(1.13); }
-    66%     { transform: translate(-7%,-9%) scale(0.91); }
-  }
-  @keyframes ptec-orb2 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    33%     { transform: translate(-11%,-16%) scale(1.09); }
-    66%     { transform: translate(13%,11%) scale(0.93); }
-  }
-  @keyframes ptec-orb3 {
-    0%,100% { transform: translate(0,0) scale(1); }
-    50%     { transform: translate(7%,-13%) scale(1.11); }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .ptec-orb-1 { animation: ptec-orb1 20s ease-in-out infinite; }
-    .ptec-orb-2 { animation: ptec-orb2 25s ease-in-out infinite; animation-delay: -9s; }
-    .ptec-orb-3 { animation: ptec-orb3 17s ease-in-out infinite; animation-delay: -5s; }
-  }
+function SocialLink({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/12 bg-white/[0.04] text-blue-100 transition-colors hover:border-gold-300/60 hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+    >
+      {children}
+    </a>
+  );
+}
 
-  /* ── Animated gradient top border ── */
-  @keyframes ptec-flow {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  .ptec-gradient-top {
-    height: 2px;
-    background: linear-gradient(
-      90deg,
-      #1E3A8A 0%, #3B82F6 18%, #FBBF24 36%,
-      #F59E0B 50%, #FBBF24 64%, #3B82F6 82%, #1E3A8A 100%
-    );
-    background-size: 300% 100%;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .ptec-gradient-top { animation: ptec-flow 6s ease infinite; }
-  }
+function FooterDetails({
+  title,
+  links,
+}: {
+  title: string;
+  links: FooterLink[];
+}) {
+  return (
+    <details className="group border-t border-white/10 py-1">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-bold text-white [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg text-blue-100/75 transition-transform group-open:rotate-90" aria-hidden="true">
+          <Icon name="chevron-right" className="text-[18px]" />
+        </span>
+      </summary>
+      <div className="pb-3 pl-1">
+        <FooterLinkList links={links} />
+      </div>
+    </details>
+  );
+}
 
-  /* ── Shimmer gold text ── */
-  @keyframes ptec-shimmer {
-    from { background-position: -200% center; }
-    to   { background-position:  200% center; }
-  }
-  .ptec-shimmer {
-    background: linear-gradient(
-      90deg,
-      #FBBF24 0%, #FEF9C3 30%, #FBBF24 50%, #F59E0B 70%, #FBBF24 100%
-    );
-    background-size: 200% auto;
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .ptec-shimmer { animation: ptec-shimmer 3s linear infinite; }
-  }
-
-  /* ── Social icons ── */
-  .ptec-social {
-    transition: transform .28s cubic-bezier(.2,.8,.2,1),
-                background-color .25s ease,
-                border-color .25s ease,
-                box-shadow .28s ease,
-                color .25s ease;
-  }
-  .ptec-social:hover {
-    transform: translateY(-4px) scale(1.08);
-    background-color: #FBBF24;
-    border-color: #FBBF24;
-    color: #1A1205;
-  }
-  .ptec-social-fb:hover  { box-shadow: 0 8px 22px -4px rgba(24,119,242,.55); }
-  .ptec-social-yt:hover  { box-shadow: 0 8px 22px -4px rgba(255,0,0,.55); }
-  .ptec-social-web:hover { box-shadow: 0 8px 22px -4px rgba(251,191,36,.55); }
-
-  /* ── Info cards (glassmorphism on hover) ── */
-  .ptec-card {
-    transition: background-color .3s ease, border-color .3s ease,
-                transform .3s ease, box-shadow .3s ease;
-  }
-  .ptec-row:hover .ptec-card {
-    background-color: rgba(251,191,36,.12);
-    border-color: rgba(251,191,36,.48);
-    transform: translateY(-1px);
-    box-shadow: 0 0 14px rgba(251,191,36,.22);
-  }
-
-  /* ── Column glass panels ── */
-  .ptec-col {
-    border-radius: 16px;
-    padding: 20px;
-    background: rgba(255,255,255,.025);
-    border: 1px solid rgba(255,255,255,.06);
-    transition: background-color .35s ease,
-                border-color .35s ease,
-                box-shadow .35s ease,
-                transform .35s ease;
-  }
-  .ptec-col:hover {
-    background: rgba(120,150,255,.07);
-    border-color: rgba(251,191,36,.2);
-    box-shadow: 0 0 32px rgba(251,191,36,.08) inset,
-                0 18px 40px -28px rgba(0,0,0,.8);
-    transform: translateY(-3px);
-  }
-
-  /* ── Install-app pill ── */
-  .ptec-pwa {
-    transition: transform .28s cubic-bezier(.2,.8,.2,1),
-                background-color .25s ease,
-                border-color .25s ease,
-                box-shadow .28s ease,
-                color .25s ease;
-  }
-  .ptec-pwa:hover {
-    transform: translateY(-3px);
-    background-color: rgba(251,191,36,.12);
-    border-color: rgba(251,191,36,.48);
-    color: #FBBF24;
-    box-shadow: 0 8px 22px -6px rgba(251,191,36,.40);
-  }
-
-  /* ── Quick links ── */
-  .ptec-link {
-    transition: color .2s ease, transform .2s ease;
-  }
-  .ptec-link:hover { transform: translateX(5px); color: #FBBF24; }
-  .ptec-dot {
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: rgba(251,191,36,.4);
-    flex-shrink: 0;
-    transition: background-color .2s ease, transform .2s ease, box-shadow .2s ease;
-  }
-  .ptec-link:hover .ptec-dot {
-    background: #FBBF24;
-    transform: scale(1.7);
-    box-shadow: 0 0 7px rgba(251,191,36,.65);
-  }
-
-  /* ── Map ── */
-  .ptec-mapwrap {
-    transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
-  }
-  .ptec-mapwrap:hover {
-    border-color: rgba(251,191,36,.52);
-    box-shadow: 0 0 26px -4px rgba(251,191,36,.22),
-                0 14px 34px -16px rgba(0,0,0,.7);
-    transform: translateY(-2px);
-  }
-
-  /* ── Seal ── */
-  .ptec-seal {
-    display: inline-flex;
-    transition: transform .5s cubic-bezier(.2,.8,.2,1), filter .5s ease;
-    transform-origin: center bottom;
-  }
-  .ptec-seal:hover {
-    transform: scale(1.06) rotate(-2deg);
-    filter: drop-shadow(0 0 14px rgba(251,191,36,.58));
-  }
-
-  /* ── Gradient divider ── */
-  .ptec-divider {
-    height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(251,191,36,.22) 30%,
-      rgba(255,255,255,.08) 50%,
-      rgba(251,191,36,.22) 70%,
-      transparent
-    );
-  }
-
-  /* ── Scroll-reveal (progressive enhancement) ── */
-  @keyframes ptec-rise {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0);    }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    @supports (animation-timeline: view()) {
-      .ptec-reveal {
-        opacity: 0;
-        animation-name: ptec-rise;
-        animation-fill-mode: both;
-        animation-timeline: view();
-        animation-range: entry 4% cover 26%;
-      }
-      .ptec-reveal.r2 { animation-range: entry  8% cover 28%; }
-      .ptec-reveal.r3 { animation-range: entry 12% cover 30%; }
-      .ptec-reveal.r4 { animation-range: entry 16% cover 32%; }
-      .ptec-reveal.rb { animation-range: entry 20% cover 42%; }
-    }
-  }
-`;
+function ContactRow({
+  icon,
+  label,
+  children,
+}: {
+  icon: "map-pin" | "phone" | "mail" | "clock";
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-3">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-gold-200" aria-hidden="true">
+        <Icon name={icon} className="text-[15px]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-blue-200/70">
+          {label}
+        </p>
+        <div className="mt-0.5 text-[14px] leading-relaxed text-blue-50/88">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default async function Footer() {
   const t = await getTranslations("footer");
+  const navT = await getTranslations("nav");
+  const locale = (await getLocale()) as "en" | "km";
   const supabase = await createClient();
   const {
     data: { user: authUser },
@@ -283,248 +151,151 @@ export default async function Footer() {
         })
     : null;
 
-  const quickLinks: [string, string][] = [
-    [t("links.home"), "/home"],
-    [t("links.eResources"), "/books"],
-    [t("links.posts"), "/posts"],
-    [t("links.aboutUs"), "/about"],
-    [t("links.contact"), "/contact"],
-    [t("links.libraryRules"), "/about/rules"],
-    [t("links.privacy"), "/privacy"],
+  const exploreLinks: FooterLink[] = [
+    ...DIGITAL_LIBRARY_ITEMS.filter((item) => !item.external).map((item) => ({
+      label: navT(item.labelKey),
+      href: item.href,
+    })),
+    { label: navT("booksInLibrary"), href: "/catalogs" },
+    { label: navT("posts"), href: "/posts" },
   ];
 
-  const headingClass =
-    "text-white font-khmer-serif font-bold text-[15px] flex items-center gap-3 " +
-    "after:content-[''] after:flex-1 after:h-px " +
-    "after:bg-gradient-to-r after:from-amber-400/40 after:to-white/5";
+  const helpLinks: FooterLink[] = [
+    { label: navT("about"), href: "/about" },
+    ...ABOUT_NAV_ITEMS.map((item) => ({
+      label: navT(item.labelKey),
+      href: item.href,
+    })),
+    { label: t("links.privacy"), href: "/privacy" },
+    { label: t("links.policy"), href: "/policy" },
+  ];
+
+  const legalLinks: FooterLink[] = [
+    { label: t("links.privacy"), href: "/privacy" },
+    { label: t("links.policy"), href: "/policy" },
+  ];
+
+  const address = locale === "km" ? PTEC.address.km : PTEC.address.en;
+  const hours = locale === "km" ? PTEC.hours.km : PTEC.hours.en;
 
   return (
-    <footer className="ptec-footer relative w-full mt-auto font-sans overflow-hidden">
-      <style dangerouslySetInnerHTML={{ __html: footerStyles }} />
+    <footer className="relative mt-auto w-full overflow-hidden border-t border-blue-900/35 bg-[#081436] text-blue-50">
+      <div className="h-1 bg-gradient-to-r from-blue-700 via-gold-400 to-blue-700" aria-hidden="true" />
 
-      {/* ── Animated gradient top border ── */}
-      <div className="ptec-gradient-top" />
-
-      {/* ── Background layer: aurora orbs ── */}
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="ptec-orb-1 absolute -top-1/3 -left-1/4 w-[55%] h-[55%] rounded-full bg-[rgba(59,130,246,0.14)] blur-[80px]" />
-        <div className="ptec-orb-2 absolute -bottom-1/3 -right-1/4 w-[50%] h-[50%] rounded-full bg-[rgba(99,102,241,0.16)] blur-[80px]" />
-        <div className="ptec-orb-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[35%] h-[35%] rounded-full bg-[rgba(245,158,11,0.06)] blur-[60px]" />
-      </div>
-
-      {/* ── Background layer: twinkling starfield (3 groups) ── */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        {/* Group A — fades in */}
-        <div
-          className="ptec-stars-a absolute inset-0"
-          style={{
-            backgroundImage: `
-              radial-gradient(1px 1px at 10% 15%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 25% 40%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 55% 28%, #fff 0%, transparent 100%),
-              radial-gradient(1.5px 1.5px at 80% 35%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 15% 55%, #fff 0%, transparent 100%)
-            `,
-          }}
-        />
-        {/* Group B — fades out */}
-        <div
-          className="ptec-stars-b absolute inset-0"
-          style={{
-            backgroundImage: `
-              radial-gradient(1.5px 1.5px at 40% 8%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 70% 12%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 92% 45%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 35% 65%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 5% 80%, #fff 0%, transparent 100%)
-            `,
-          }}
-        />
-        {/* Group C — phase-shifted */}
-        <div
-          className="ptec-stars-c absolute inset-0"
-          style={{
-            backgroundImage: `
-              radial-gradient(1.5px 1.5px at 60% 50%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 75% 60%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 90% 20%, #fff 0%, transparent 100%),
-              radial-gradient(1px 1px at 48% 75%, #fff 0%, transparent 100%),
-              radial-gradient(1.5px 1.5px at 85% 70%, #fff 0%, transparent 100%)
-            `,
-          }}
-        />
-      </div>
-
-      {/* ── Gradient vignette overlay ── */}
-      <div className="ptec-vignette pointer-events-none absolute inset-0 z-0" />
-
-      {/* ── Footer Content ── */}
-      <div className="relative z-10">
-        <div className="max-w-[1400px] mx-auto px-6 sm:px-8 lg:px-12 pt-12 sm:pt-16 pb-10 sm:pb-12">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 pb-10">
-
-            {/* ── Brand column ── */}
-            <div className="ptec-reveal ptec-col flex flex-col gap-5">
-              <div className="flex flex-col items-start gap-3">
-                <span className="ptec-seal">
-                  <Seal size={72} variant="footer" />
-                </span>
-                <div>
-                  <p lang="km" className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FBBF24] font-khmer-serif mb-1">
-                    បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
-                  </p>
-                  <h2 className="font-khmer-serif font-bold text-xl tracking-wide">
-                    <span className="text-white">PTEC </span>
-                    <span className="ptec-shimmer">Library</span>
-                  </h2>
-                </div>
-              </div>
-
-              <p className="text-blue-100/85 text-[13px] leading-relaxed max-w-xs">
-                {t("description")}
-              </p>
-
-              {/* Social icons */}
-              <div className="flex flex-wrap gap-2.5 mt-1">
-                <a
-                  href={PTEC.links.facebook}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Facebook"
-                  className="ptec-social ptec-social-fb w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-                  </svg>
-                </a>
-                <a
-                  href={PTEC.links.youtube}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="YouTube"
-                  className="ptec-social ptec-social-yt w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
-                  </svg>
-                </a>
-                <a
-                  href={PTEC.links.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Website"
-                  className="ptec-social ptec-social-web w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-blue-100 cursor-pointer"
-                >
-                  <Icon name="globe" className="text-[16px]" />
-                </a>
-                <InstallPWA label={t("installApp")} />
+      <div className="mx-auto max-w-[1360px] px-5 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-10 sm:px-8 md:pb-[calc(6rem+env(safe-area-inset-bottom))] lg:px-10 lg:pb-8 lg:pt-14">
+        <div className="grid gap-10 md:grid-cols-[1.35fr_1fr_1.1fr_1.25fr] md:gap-8 lg:gap-12">
+          <section aria-labelledby="footer-brand-heading" className="space-y-5">
+            <div className="flex items-center gap-4">
+              <Seal size={64} variant="footer" />
+              <div className="min-w-0">
+                <p lang="km" className="truncate font-khmer-serif text-[13px] font-bold leading-tight text-gold-200">
+                  បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
+                </p>
+                <h2 id="footer-brand-heading" className="mt-1 text-xl font-bold tracking-wide text-white">
+                  PTEC Library
+                </h2>
               </div>
             </div>
-
-            {/* ── Information ── */}
-            <div className="ptec-reveal r2 ptec-col flex flex-col gap-6">
-              <h3 className={headingClass}>{t("information")}</h3>
-
-              <ul className="flex flex-col gap-5">
-                <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
-                    <Icon name="map-pin" className="text-[14px]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("locationLabel")}</p>
-                    <p className="text-blue-50 text-[13px] leading-snug">{t("locationValue")}</p>
-                  </div>
-                </li>
-
-                <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
-                    <Icon name="phone" className="text-[14px]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("phoneLabel")}</p>
-                    <a href={PTEC.phoneTel} className="ptec-link text-blue-50 text-[13px] inline-block cursor-pointer">
-                      {PTEC.phone}
-                    </a>
-                  </div>
-                </li>
-
-                <li className="ptec-row flex items-start gap-3">
-                  <div className="ptec-card w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 text-[#FBBF24]">
-                    <Icon name="clock" className="text-[14px]" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] text-blue-200 uppercase tracking-wider mb-0.5">{t("hoursLabel")}</p>
-                    <p className="text-blue-50 text-[13px] leading-snug">
-                      {t("hoursValue")}
-                      <br />
-                      <span className="text-[#FBBF24] text-[12px]">{t("hoursClosed")}</span>
-                    </p>
-                  </div>
-                </li>
-              </ul>
+            <p className="max-w-sm text-[14px] leading-7 text-blue-100/82">
+              {t("description")}
+            </p>
+            <div className="flex flex-wrap items-center gap-2.5" aria-label={t("socialLinks")}>
+              <SocialLink href={PTEC.links.facebook} label="Facebook">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                </svg>
+              </SocialLink>
+              <SocialLink href={PTEC.links.youtube} label="YouTube">
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
+                </svg>
+              </SocialLink>
+              <SocialLink href={PTEC.links.website} label={t("officialWebsite")}>
+                <Icon name="globe" className="text-[16px]" />
+              </SocialLink>
+              <InstallPWA
+                label={t("installApp")}
+                className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/12 bg-white/[0.04] px-3 text-[12px] font-semibold text-blue-100 transition-colors hover:border-gold-300/60 hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+                hintClassName="absolute bottom-full left-0 z-[80] mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 text-text-body shadow-lg"
+              />
             </div>
+          </section>
 
-            {/* ── Quick Links ── */}
-            <div className="ptec-reveal r3 ptec-col flex flex-col gap-6">
-              <h3 className={headingClass}>{t("quickLinks")}</h3>
+          <section aria-labelledby="footer-explore-heading" className="hidden md:block">
+            <FooterHeading id="footer-explore-heading">{t("explore")}</FooterHeading>
+            <FooterLinkList links={exploreLinks} />
+          </section>
 
-              <ul className="flex flex-col gap-3.5">
-                {quickLinks.map(([label, href]) => (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      className="ptec-link group flex items-center gap-2.5 text-[13px] text-blue-100"
-                    >
-                      <span className="ptec-dot" />
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <section aria-labelledby="footer-help-heading" className="hidden md:block">
+            <FooterHeading id="footer-help-heading">{t("helpInfo")}</FooterHeading>
+            <FooterLinkList links={helpLinks} />
+          </section>
 
-            {/* ── Find PTEC ── */}
-            <div className="ptec-reveal r4 ptec-col flex flex-col gap-6 h-full">
-              <h3 className={headingClass}>{t("findPtec")}</h3>
-
-              <div className="ptec-mapwrap relative w-full flex-1 min-h-[180px] sm:min-h-[160px] rounded-xl overflow-hidden border border-white/10">
+          <section aria-labelledby="footer-visit-heading" className="space-y-4">
+            <FooterHeading id="footer-visit-heading">{t("visitPtec")}</FooterHeading>
+            <ContactRow icon="map-pin" label={t("locationLabel")}>
+              <span>{address}</span>
+            </ContactRow>
+            <ContactRow icon="phone" label={t("phoneLabel")}>
+              <a href={PTEC.phoneTel} className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                {PTEC.phoneIntl}
+              </a>
+            </ContactRow>
+            <ContactRow icon="mail" label={t("emailLabel")}>
+              <a href={`mailto:${PTEC.email}`} className="break-words transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                {PTEC.email}
+              </a>
+            </ContactRow>
+            <ContactRow icon="clock" label={t("hoursLabel")}>
+              <span>{hours}</span>
+            </ContactRow>
+            <div className="hidden sm:block">
+              <div className="overflow-hidden rounded-lg border border-white/10 bg-white/[0.04]">
                 <iframe
                   src={PTEC.links.mapEmbed}
+                  title={t("mapTitle")}
                   width="100%"
-                  height="100%"
-                  style={{ border: 0, pointerEvents: "none" }}
-                  allowFullScreen={false}
+                  height="128"
                   loading="lazy"
+                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
                   referrerPolicy="no-referrer-when-downgrade"
-                  title="PTEC Location Map"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-                <Link
-                  href={PTEC.links.mapPlace}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="absolute inset-0 z-10 block"
-                  aria-label="Open Map in new tab"
+                  style={{ border: 0, pointerEvents: "none" }}
+                  className="block h-32 w-full"
                 />
               </div>
-
-              {/* Flag Counter widget removed 2026-07-06: the middleware CSP
-                  (img-src) has never allowed flagcounter.com, so it rendered
-                  nothing and only produced a blocked request + console error
-                  on every page. */}
             </div>
-
-          </div>
-
-          {/* Gradient divider */}
-          <div className="ptec-divider" />
+            <a
+              href={PTEC.links.mapPlace}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-gold-300 px-4 text-sm font-bold text-blue-950 transition-colors hover:bg-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-100"
+            >
+              <Icon name="map-pin" className="text-[15px]" />
+              {t("getDirections")}
+            </a>
+          </section>
         </div>
 
-        {/* Copyright */}
-        <div className="ptec-reveal rb relative z-10 text-center px-6 pt-5 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-5">
-          <p className="text-[12px] text-blue-200/60">
-            {t("copyright", { year: new Date().getFullYear() })}
-          </p>
+        <div className="mt-8 md:hidden">
+          <FooterDetails title={t("explore")} links={exploreLinks} />
+          <FooterDetails title={t("helpInfo")} links={helpLinks} />
+        </div>
+
+        <div className="mt-9 border-t border-white/10 pt-5">
+          <div className="flex flex-col gap-3 text-[12px] text-blue-100/68 md:flex-row md:items-center md:justify-between">
+            <p>{t("copyright", { year: new Date().getFullYear() })}</p>
+            <nav aria-label={t("legal")} className="flex flex-wrap gap-x-4 gap-y-2">
+              {legalLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
       </div>
 

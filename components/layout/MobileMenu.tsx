@@ -1,25 +1,25 @@
-"use client"
- 
-;
-/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import NextLink from "next/link";
-import Image from "next/image";
 import Icon from "@/components/ui/core/Icon";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
-import { useTranslations } from 'next-intl';
-import LanguageSwitcher from '@/components/ui/core/LanguageSwitcher';
+import { useTranslations } from "next-intl";
+import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useMountTransition } from "@/lib/hooks/useMountTransition";
 import MobileDigitalLibraryAccordion from "./MobileDigitalLibraryAccordion";
 import MobileAboutAccordion from "./MobileAboutAccordion";
+import NotificationBell from "@/components/ui/notifications/NotificationBell";
+import InstallPWA from "@/components/ui/pwa/InstallPWA";
+import { Seal } from "@/components/ui/core/Seal";
+import { PTEC } from "@/lib/ptec";
 
 type NavItem = { label: string; href: string };
 
 type UserInfo = {
+  id: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;
@@ -29,14 +29,14 @@ type UserInfo = {
 type MobileMenuProps = {
   navLinks: NavItem[];
   user: UserInfo | null;
-  locale: 'en' | 'km';
+  locale: "en" | "km";
 };
 
 function getInitials(name: string | null, email: string) {
   if (name) {
     return name
       .split(" ")
-      .map((w) => w[0])
+      .map((word) => word[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
@@ -44,14 +44,23 @@ function getInitials(name: string | null, email: string) {
   return email.slice(0, 2).toUpperCase();
 }
 
+function sectionLabelClass() {
+  return "px-4 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted";
+}
+
 export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) {
-  const t = useTranslations('nav');
+  const t = useTranslations("nav");
+  const footerT = useTranslations("footer");
+  const notificationsT = useTranslations("notifications");
   const pathname = usePathname();
+  const drawerId = useId();
   const [openPath, setOpenPath] = useState<string | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const open = openPath === pathname;
   const drawer = useMountTransition(open);
 
-  // Lock body scroll while the drawer is open.
+  const closeDrawer = useCallback(() => setOpenPath(null), []);
+
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -59,27 +68,28 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
     };
   }, [open]);
 
-  // Close on Escape — listener only while the drawer is open.
   useEffect(() => {
     if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenPath(null);
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") closeDrawer();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [open, closeDrawer]);
 
-  // Keep keyboard focus inside the drawer while it is open; restore on close.
-  // Keyed to open && mounted: the trap must (re-)arm only after the drawer
-  // element actually exists, or the container ref is still null.
   const trapRef = useFocusTrap<HTMLDivElement>(open && drawer.mounted);
+
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   return (
     <div className="lg:hidden">
-      {/* Hamburger button (hidden on lg+) */}
-      <button type="button" onClick={() => setOpenPath(pathname)}
+      <button
+        type="button"
+        onClick={() => setOpenPath(pathname)}
         aria-label={t("openMenu")}
         aria-expanded={open}
+        aria-controls={drawerId}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-text-body transition-colors hover:bg-paper hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
       >
         <svg
@@ -90,6 +100,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
+          aria-hidden="true"
         >
           <line x1="4" y1="6" x2="20" y2="6" />
           <line x1="4" y1="12" x2="20" y2="12" />
@@ -97,162 +108,213 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
         </svg>
       </button>
 
-      {/* Backdrop — Using 100vw and 100dvh to escape the parent container */}
       {drawer.mounted && (
         <div
-          onClick={() => setOpenPath(null)}
+          onClick={closeDrawer}
           aria-hidden="true"
-          className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out"
+          className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out motion-reduce:transition-none"
           style={{ opacity: drawer.shown ? 1 : 0 }}
         />
       )}
 
-      {/* Drawer panel — Using 100dvh so it fills the screen properly on mobile Safari/Chrome */}
       {drawer.mounted && (
-          <div
-            ref={trapRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("menu")}
-            // Mounted-but-closing (exit transition): hide from AT and block focus.
-            inert={!open}
-            aria-hidden={!open}
-            tabIndex={-1}
-            className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[300px] max-w-[85vw] flex-col bg-bg-surface shadow-[-8px_0_30px_rgba(0,0,0,0.18)] outline-none transition-transform duration-[240ms] ease-[cubic-bezier(.3,1.25,.5,1)] motion-reduce:transition-none"
-            style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}
-          >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between border-b border-divider px-5 py-4 shrink-0">
-          <Link href="/" onClick={() => setOpenPath(null)} className="flex items-center gap-2">
-            <Image
-              src="/logo_top.png"
-              alt="PTEC Logo"
-              width={120}
-              height={38}
-              className="h-9 w-auto object-contain"
-            />
-          </Link>
-          <button type="button" onClick={() => setOpenPath(null)}
-            aria-label={t("closeMenu")}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <div
+          id={drawerId}
+          ref={trapRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("menu")}
+          inert={!open}
+          aria-hidden={!open}
+          tabIndex={-1}
+          className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[min(100vw,390px)] flex-col bg-bg-surface shadow-[-10px_0_32px_rgba(0,0,0,0.18)] outline-none transition-transform duration-[240ms] ease-out motion-reduce:transition-none"
+          style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-divider px-4 py-3">
+            <Link href="/home" onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
+              <Seal size={42} />
+              <span className="min-w-0">
+                <span lang="km" className="block truncate font-khmer-serif text-[13px] font-bold leading-tight text-brand">
+                  បណ្ណាល័យ វ.គ.ភ
+                </span>
+                <span className="block truncate text-[12px] font-semibold text-text-heading">
+                  PTEC Library
+                </span>
+              </span>
+            </Link>
+            <button
+              type="button"
+              onClick={closeDrawer}
+              aria-label={t("closeMenu")}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            >
+              <Icon name="x" className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
 
-        {/* Scrollable Nav Area */}
-        <div className="flex-1 overflow-y-auto">
-          {/* Nav links */}
-          <nav className="flex flex-col gap-1 px-3 py-4">
-            {user && (
-              <>
-                <Link
-                  href="/dashboard"
-                  onClick={() => setOpenPath(null)}
-                  className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
-                    pathname === "/dashboard"
-                      ? "bg-brand/10 text-brand"
-                      : "text-text-body hover:bg-paper hover:text-brand-hover"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon name="account" className="text-[18px] text-text-muted" />
-                    {t('myDashboard')}
+          <div className="flex-1 overflow-y-auto px-3 pb-5">
+            <Link
+              href="/search"
+              onClick={closeDrawer}
+              className="mt-4 flex min-h-12 items-center gap-3 rounded-xl border border-divider bg-paper px-4 text-[15px] font-semibold text-text-heading transition-colors hover:border-brand/30 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+            >
+              <Icon name="search" className="h-5 w-5 text-text-muted" aria-hidden="true" />
+              {t("searchLibrary")}
+            </Link>
+
+            <nav aria-label={t("menu")} className="mt-2">
+              <p className={sectionLabelClass()}>{t("digitalLibraryTitle")}</p>
+              <div className="space-y-1">
+                {navLinks.map((link, index) => {
+                  const active = isActive(link.href);
+                  return (
+                    <div key={link.href}>
+                      <Link
+                        href={link.href}
+                        aria-current={active ? "page" : undefined}
+                        onClick={closeDrawer}
+                        className={`flex min-h-12 items-center justify-between rounded-lg px-4 py-3 text-[15px] font-semibold transition-colors ${
+                          active
+                            ? "bg-brand/10 text-brand"
+                            : "text-text-body hover:bg-paper hover:text-brand-hover"
+                        }`}
+                      >
+                        <span className="min-w-0 break-words">{link.label}</span>
+                        {active && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden="true" />}
+                      </Link>
+
+                      {index === 0 && (
+                        <MobileDigitalLibraryAccordion
+                          pathname={pathname}
+                          onNavigate={closeDrawer}
+                        />
+                      )}
+
+                      {index === 2 && (
+                        <MobileAboutAccordion
+                          pathname={pathname}
+                          onNavigate={closeDrawer}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </nav>
+
+            <div className="mt-2 border-t border-divider">
+              <p className={sectionLabelClass()}>{t("profile")}</p>
+              {user ? (
+                <div className="space-y-2">
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl bg-paper px-4 py-3">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-brand text-brand-contrast">
+                      {user.avatar_url && !avatarFailed ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={user.avatar_url}
+                          alt={user.full_name || user.email}
+                          referrerPolicy="no-referrer"
+                          onError={() => setAvatarFailed(true)}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-xs font-bold">
+                          {getInitials(user.full_name, user.email)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-text-heading">
+                        {user.full_name || user.email}
+                      </p>
+                      {user.full_name && <p className="truncate text-xs text-text-muted">{user.email}</p>}
+                    </div>
                   </div>
-                  {pathname === "/dashboard" && <span className="h-2 w-2 rounded-full bg-brand" />}
-                </Link>
-                <Link
-                  href="/dashboard#saved"
-                  onClick={() => setOpenPath(null)}
-                  className="flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium text-text-body transition-colors hover:bg-paper hover:text-brand-hover"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon name="bookmark" className="text-[18px] text-text-muted" />
-                    {t('savedBooks')}
+
+                  <div className="grid grid-cols-1 gap-1">
+                    <Link href="/dashboard" onClick={closeDrawer} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                      <Icon name="account" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                      {t("myDashboard")}
+                    </Link>
+                    <Link href="/dashboard#saved" onClick={closeDrawer} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                      <Icon name="bookmark" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                      {t("savedBooks")}
+                    </Link>
+                    <Link href="/dashboard/settings" onClick={closeDrawer} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                      <Icon name="settings" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                      {t("settings")}
+                    </Link>
+                    <div className="flex min-h-11 items-center justify-between rounded-lg px-4 text-sm font-medium text-text-body">
+                      <span className="flex items-center gap-3">
+                        <Icon name="bell" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                        {notificationsT("title")}
+                      </span>
+                      <NotificationBell userId={user.id} userRole={user.role} />
+                    </div>
                   </div>
-                </Link>
-                <div className="my-2 h-px w-full bg-divider" />
-              </>
-            )}
-
-            {navLinks.map((link, index) => {
-              const isActive =
-                pathname === link.href ||
-                (link.href !== "/" && pathname.startsWith(link.href));
-              return (
-                <div key={link.href}>
-                  <Link
-                    href={link.href}
-                    onClick={() => setOpenPath(null)}
-                    className={`flex items-center justify-between rounded-lg px-4 py-3 text-[15px] font-medium transition-colors ${
-                      isActive
-                        ? "bg-brand/10 text-brand"
-                        : "text-text-body hover:bg-paper hover:text-brand-hover"
-                    }`}
-                  >
-                    {link.label}
-                    {isActive && <span className="h-2 w-2 rounded-full bg-brand" />}
-                  </Link>
-
-                  {index === 0 && (
-                    <MobileDigitalLibraryAccordion
-                      pathname={pathname}
-                      onNavigate={() => setOpenPath(null)}
-                    />
-                  )}
-
-                  {index === 2 && (
-                    <MobileAboutAccordion
-                      pathname={pathname}
-                      onNavigate={() => setOpenPath(null)}
-                    />
-                  )}
                 </div>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Footer action: login or sign out */}
-        <div className="mt-auto border-t border-divider px-5 py-4 shrink-0">
-          <div className="mb-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between rounded-lg border border-divider px-4 py-2">
-              <span className="text-sm font-medium text-text-muted">{t('appearance')}</span>
-              <ThemeToggle />
+              ) : (
+                <NextLink
+                  href="/auth/login"
+                  onClick={closeDrawer}
+                  className="flex min-h-11 w-full items-center justify-center rounded-lg bg-brand px-4 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
+                >
+                  {t("login")}
+                </NextLink>
+              )}
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-divider px-4 py-2">
-              <span className="text-sm font-medium text-text-muted">Language</span>
-              <LanguageSwitcher locale={locale} className="flex items-center gap-2 text-sm font-medium text-text-body hover:text-brand transition-colors cursor-pointer" />
+
+            <div className="mt-2 border-t border-divider">
+              <p className={sectionLabelClass()}>{t("appearance")}</p>
+              <div className="space-y-2">
+                <div className="flex min-h-12 items-center justify-between rounded-lg border border-divider px-4 py-2">
+                  <span className="text-sm font-medium text-text-muted">{t("appearance")}</span>
+                  <ThemeToggle />
+                </div>
+                <div className="flex min-h-12 items-center justify-between rounded-lg border border-divider px-4 py-2">
+                  <span className="text-sm font-medium text-text-muted">{t("language")}</span>
+                  <LanguageSwitcher locale={locale} />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2 border-t border-divider">
+              <p className={sectionLabelClass()}>{footerT("information")}</p>
+              <div className="space-y-1">
+                <a href={PTEC.phoneTel} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                  <Icon name="phone" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                  {PTEC.phone}
+                </a>
+                <a href={`mailto:${PTEC.email}`} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                  <Icon name="mail" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                  {PTEC.email}
+                </a>
+                <a href={PTEC.links.mapPlace} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                  <Icon name="map-pin" className="h-4 w-4 text-text-muted" aria-hidden="true" />
+                  {footerT("getDirections")}
+                </a>
+                <InstallPWA
+                  label={footerT("installApp")}
+                  className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-divider bg-paper px-4 text-sm font-semibold text-text-heading transition-colors hover:border-brand/30 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                  hintClassName="absolute bottom-full right-0 z-[80] mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg"
+                />
+              </div>
             </div>
           </div>
-          {user ? (
-            <form action="/auth/signout" method="POST">
-              <button
-                type="submit"
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-divider px-4 py-2.5 text-sm font-medium text-text-body transition-colors hover:bg-red-50 hover:text-red-600"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                {t('logout')}
-              </button>
-            </form>
-          ) : (
-            // Plain next/link: /auth/login is outside the locale-prefixed tree.
-            <NextLink
-              href="/auth/login"
-              onClick={() => setOpenPath(null)}
-              className="flex w-full items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-brand-contrast transition-colors hover:bg-brand-hover"
-            >
-              {t('login')}
-            </NextLink>
+
+          {user && (
+            <div className="shrink-0 border-t border-divider px-4 py-3">
+              <form action="/auth/signout" method="POST">
+                <button
+                  type="submit"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-divider px-4 text-sm font-semibold text-text-body transition-colors hover:bg-red-50 hover:text-red-600"
+                >
+                  {t("logout")}
+                </button>
+              </form>
+            </div>
           )}
         </div>
-          </div>
       )}
     </div>
   );

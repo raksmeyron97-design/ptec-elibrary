@@ -35,15 +35,6 @@ const PostsIcon = () => (
   </svg>
 );
 
-const AboutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
-    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="12" y1="8" x2="12" y2="8"/>
-    <line x1="12" y1="12" x2="12" y2="16"/>
-  </svg>
-);
-
 const PersonIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -66,9 +57,10 @@ function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC
   return (
     <Link
       href={href}
+      aria-current={isActive ? "page" : undefined}
       className={`relative flex flex-col items-center gap-[3px] min-w-[52px] py-1.5 group ${
         isActive ? "text-brand font-bold" : "text-text-muted font-medium"
-      }`}
+      } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface rounded-lg`}
     >
       <span
         className="transition-transform duration-200 ease-out"
@@ -185,7 +177,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
           <Link
             href="/search"
             aria-label={t("searchLibrary")}
-            className="relative z-10 -mt-5 flex flex-col items-center gap-[3px]"
+            aria-current={pathname.startsWith("/search") ? "page" : undefined}
+            className="relative z-10 -mt-5 flex flex-col items-center gap-[3px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
           >
             <span
               className={`flex h-[50px] w-[50px] items-center justify-center rounded-full shadow-[0_2px_10px_rgba(30,58,138,0.35)] transition-transform active:scale-95 ${
@@ -207,9 +200,9 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            aria-label="Open profile menu"
+            aria-label={t("profileMenu")}
             aria-expanded={sheetOpen}
-            className="relative flex min-w-[52px] flex-col items-center gap-[3px] py-1.5 text-text-muted"
+            className="relative flex min-w-[52px] flex-col items-center gap-[3px] rounded-lg py-1.5 text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
           >
             <span className="flex h-[22px] w-[22px] items-center justify-center overflow-hidden rounded-full">
               {showAvatar ? (
@@ -254,7 +247,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             ref={sheetTrapRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Profile menu"
+            aria-label={t("profileMenu")}
             // Mounted-but-closing (exit transition): hide from AT and block focus.
             inert={!sheetOpen}
             aria-hidden={!sheetOpen}
@@ -301,7 +294,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
               </div>
             ) : (
               <div className="px-5 py-4 border-b border-divider">
-                <p className="text-sm text-text-muted">Sign in to access your library account.</p>
+                <p className="text-sm text-text-muted">{t("signInHint")}</p>
               </div>
             )}
 

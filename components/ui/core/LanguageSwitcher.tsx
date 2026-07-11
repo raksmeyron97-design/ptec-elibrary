@@ -1,9 +1,10 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useEffect, useId, useRef, useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
-import { Globe } from 'lucide-react';
+import { Check, ChevronDown, Globe } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { setLocaleCookie } from '@/app/actions/locale';
 
 interface Props {
@@ -12,49 +13,117 @@ interface Props {
 }
 
 export default function LanguageSwitcher({ locale, className }: Props) {
+  const t = useTranslations('nav');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
 
   const switchTo = (next: 'en' | 'km') => {
-    if (next === locale) return;
+    if (next === locale) {
+      setOpen(false);
+      return;
+    }
     const qs = searchParams.toString();
     startTransition(async () => {
       await setLocaleCookie(next);
       router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { locale: next, scroll: false });
+      setOpen(false);
     });
   };
 
-  const enLabel = locale === 'km' ? 'អង់គ្លេស' : 'EN';
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
+  const currentLabel = locale === 'km' ? t('languageKhmer') : t('languageEnglish');
+  const options = [
+    { locale: 'en' as const, label: t('languageEnglish'), lang: 'en' },
+    { locale: 'km' as const, label: t('languageKhmer'), lang: 'km' },
+  ];
 
   return (
     <div
-      className={`flex items-center gap-2 text-sm ${className || ''}`}
-      role="group"
-      aria-label={locale === 'km' ? 'ភាសា' : 'Language'}
+      ref={rootRef}
+      className={`relative inline-flex ${className || 'text-text-body'}`}
     >
-      <Globe className="w-4 h-4 shrink-0" aria-hidden="true" />
       <button
         type="button"
-        onClick={() => switchTo('en')}
-        aria-pressed={locale === 'en'}
-        aria-label="English"
-        className={`transition-colors hover:text-white ${locale === 'en' ? 'underline font-semibold text-white' : ''}`}
+        ref={triggerRef}
+        onClick={() => setOpen((value) => !value)}
+        aria-label={t('language')}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-controls={menuId}
+        className="inline-flex min-h-9 items-center gap-2 rounded-full border border-current/15 bg-transparent px-3 text-sm font-medium text-current transition-colors hover:bg-current/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
       >
-        {enLabel}
+        <Globe className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="whitespace-nowrap">{currentLabel}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
       </button>
-      <span className="opacity-40 select-none" aria-hidden="true">|</span>
-      <button
-        type="button"
-        onClick={() => switchTo('km')}
-        aria-pressed={locale === 'km'}
-        aria-label="ភាសាខ្មែរ"
-        lang="km"
-        className={`transition-colors hover:text-white ${locale === 'km' ? 'underline font-semibold text-white' : ''}`}
+
+      <div
+        id={menuId}
+        inert={!open}
+        aria-hidden={!open}
+        className={`absolute right-0 top-[calc(100%+8px)] z-[120] w-44 origin-top-right rounded-xl border border-divider bg-bg-surface p-1.5 text-text-body shadow-lg ring-1 ring-black/5 transition-[opacity,transform] duration-150 motion-reduce:transition-none ${
+          open
+            ? 'pointer-events-auto translate-y-0 opacity-100'
+            : 'pointer-events-none -translate-y-1 opacity-0'
+        }`}
       >
-        KH
-      </button>
+        <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+          {t('language')}
+        </div>
+        {options.map((option) => {
+          const active = option.locale === locale;
+          return (
+            <button
+              key={option.locale}
+              type="button"
+              lang={option.lang}
+              onClick={() => switchTo(option.locale)}
+              aria-current={active ? 'true' : undefined}
+              className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 text-left text-sm transition-colors ${
+                active
+                  ? 'bg-brand/10 font-semibold text-brand'
+                  : 'text-text-body hover:bg-paper hover:text-brand'
+              }`}
+            >
+              <Check
+                className={`h-4 w-4 shrink-0 ${active ? 'opacity-100' : 'opacity-0'}`}
+                aria-hidden="true"
+              />
+              <span>{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

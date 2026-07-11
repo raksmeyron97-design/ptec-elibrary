@@ -79,7 +79,7 @@ function ActiveUnderline() {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute bottom-0 left-2 right-2 h-[3px] rounded-t-md bg-accent"
+      className="pointer-events-none absolute bottom-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-t-md bg-accent"
     />
   );
 }

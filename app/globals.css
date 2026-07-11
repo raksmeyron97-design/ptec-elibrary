@@ -199,6 +199,14 @@ body {
   color: var(--color-text-body);
 }
 
+html:lang("km") body {
+  font-family: "Hanuman", var(--font-var-hanuman), "Noto Sans Khmer", "Kantumruy Pro", system-ui, sans-serif;
+}
+
+html:lang("en") body {
+  font-family: var(--font-var-sans), "Inter", "Noto Sans Khmer", "Kantumruy Pro", system-ui, sans-serif;
+}
+
 /* ── Keyboard focus visibility (WCAG 2.4.7) ─────────────────────────
    Zero-specificity fallback: any interactive element gets a visible
    focus ring unless a component supplies its own (a `focus-visible:*`

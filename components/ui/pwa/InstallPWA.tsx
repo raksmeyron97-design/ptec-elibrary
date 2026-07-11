@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import Icon from "@/components/ui/core/Icon";
 import { PUSH_ONBOARDING_KEYS } from "@/lib/push-client";
 
@@ -12,8 +12,18 @@ type BeforeInstallPromptEvent = Event & {
 
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 
-export default function InstallPWA({ label = "Install App" }: { label?: string }) {
-  const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
+type InstallPWAProps = {
+  label?: string;
+  className?: string;
+  hintClassName?: string;
+};
+
+export default function InstallPWA({
+  label = "Install App",
+  className,
+  hintClassName,
+}: InstallPWAProps) {
+  const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showIOSHint, setShowIOSHint] = useState(false);
@@ -35,12 +45,12 @@ export default function InstallPWA({ label = "Install App" }: { label?: string }
     // Listen for PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setInstallPromptEvent(e as BeforeInstallPromptEvent);
+      installPromptRef.current = e as BeforeInstallPromptEvent;
     };
 
     const handleAppInstalled = () => {
       window.localStorage.setItem(PUSH_ONBOARDING_KEYS.installedAt, new Date().toISOString());
-      setInstallPromptEvent(null);
+      installPromptRef.current = null;
       setShowIOSHint(false);
     };
 
@@ -54,11 +64,12 @@ export default function InstallPWA({ label = "Install App" }: { label?: string }
   }, []);
 
   const handleInstallClick = async () => {
+    const installPromptEvent = installPromptRef.current;
     if (installPromptEvent) {
       installPromptEvent.prompt();
       const { outcome } = await installPromptEvent.userChoice;
       if (outcome === 'accepted') {
-        setInstallPromptEvent(null);
+        installPromptRef.current = null;
       }
     } else {
       setShowIOSHint(true);
@@ -73,15 +84,19 @@ export default function InstallPWA({ label = "Install App" }: { label?: string }
         type="button"
         onClick={handleInstallClick}
         aria-label={label}
-        className="ptec-pwa h-9 px-3.5 rounded-xl bg-white/5 border border-white/10 inline-flex items-center gap-2 text-blue-100 text-xs font-semibold cursor-pointer"
+        className={
+          className ||
+          "inline-flex h-10 items-center gap-2 rounded-lg border border-divider bg-paper px-3.5 text-sm font-semibold text-text-body transition-colors hover:border-brand/30 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+        }
       >
         <Icon name="download" className="text-[15px]" />
         {label}
       </button>
 
       {showIOSHint && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg z-50">
+        <div className={hintClassName || "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 rounded-xl border border-divider bg-bg-surface p-4 shadow-lg z-50"}>
           <button type="button" onClick={() => setShowIOSHint(false)}
+            aria-label="Close install instructions"
             className="absolute right-2 top-2 text-text-muted hover:text-text-heading"
           >
             <Icon name="x" className="text-lg" />
