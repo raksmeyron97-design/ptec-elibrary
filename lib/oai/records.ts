@@ -105,6 +105,9 @@ async function fetchAllBookRows(supabase: ServiceClient, range: OaiDateRange, wi
       .select(bookSelect(withUpdatedAt))
       .eq("is_published", true)
       .in("license", OAI_ALLOWED_LICENSES)
+      // Authoritative-feed contract (docs/METADATA-EXPORTS.md): only
+      // librarian-verified metadata is harvestable.
+      .not("verified_at", "is", null)
       .order("id", { ascending: true })
       .range(from, from + FETCH_PAGE_SIZE - 1);
     if (dateColumn === "updated_at") {
@@ -159,6 +162,7 @@ async function getBookRecord(supabase: ServiceClient, slug: string): Promise<Oai
     .eq("slug", slug)
     .eq("is_published", true)
     .in("license", OAI_ALLOWED_LICENSES)
+    .not("verified_at", "is", null)
     .maybeSingle();
 
   let effectiveHasUpdatedAt = withUpdatedAt;
@@ -171,6 +175,7 @@ async function getBookRecord(supabase: ServiceClient, slug: string): Promise<Oai
       .eq("slug", slug)
       .eq("is_published", true)
       .in("license", OAI_ALLOWED_LICENSES)
+      .not("verified_at", "is", null)
       .maybeSingle());
   }
   if (error) throw new Error(`[oai] book lookup failed: ${error.message}`);
@@ -209,6 +214,7 @@ async function fetchThesisRecords(supabase: ServiceClient, range: OaiDateRange):
       .select(THESIS_SELECT)
       .eq("is_published", true)
       .in("license", OAI_ALLOWED_LICENSES)
+      .not("verified_at", "is", null)
       .order("id", { ascending: true })
       .range(from, from + FETCH_PAGE_SIZE - 1);
     if (range.from) {
@@ -237,6 +243,7 @@ async function getThesisRecord(supabase: ServiceClient, slug: string): Promise<O
     .eq("slug", slug)
     .eq("is_published", true)
     .in("license", OAI_ALLOWED_LICENSES)
+    .not("verified_at", "is", null)
     .maybeSingle();
   if (error) throw new Error(`[oai] thesis lookup failed: ${error.message}`);
   return data ? mapThesisRow(data) : null;

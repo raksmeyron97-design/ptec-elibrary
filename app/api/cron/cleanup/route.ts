@@ -47,5 +47,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, cleaned: "rate_limit" });
+  // Retention purges (docs/DATA-GOVERNANCE.md): raw search analytics after
+  // 365 days, content version snapshots after 400. Both RPCs ship with
+  // migrations 0086/0087 — a missing-function error just means they aren't
+  // applied yet, so the sweep skips them rather than failing the cron.
+  const retention: Record<string, number | string> = {};
+  for (const [fn, args] of [
+    ["purge_search_analytics", { retain_days: 365 }],
+    ["purge_content_versions", { retain_days: 400 }],
+  ] as const) {
+    const { data, error: purgeError } = await db.rpc(fn, args);
+    if (purgeError) {
+      if (!/could not find|does not exist/i.test(purgeError.message)) {
+        console.error(`[/api/cron/cleanup] ${fn} failed:`, purgeError.message);
+        retention[fn] = "error";
+      }
+    } else {
+      retention[fn] = data ?? 0;
+    }
+  }
+
+  return NextResponse.json({ ok: true, cleaned: "rate_limit", retention });
 }

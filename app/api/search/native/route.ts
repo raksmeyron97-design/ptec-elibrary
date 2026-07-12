@@ -21,6 +21,11 @@ import {
   type FacetSelections,
   type SearchFacetCounts,
 } from "@/lib/search/facets";
+import {
+  anonymousSessionHash,
+  isLikelyBot,
+  normalizeSearchTerm,
+} from "@/lib/search/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -245,22 +250,91 @@ async function logSearchQuery(
   resultCount: number,
   type: ActiveSearchType,
   sort: SearchSort,
+  sessionHash: string | null = null,
 ): Promise<void> {
   try {
-    const payload = {
+    const payload: Record<string, unknown> = {
       term,
       result_count: resultCount,
       query_language: hasKhmer(term) ? "km" : "en",
       resource_type: type,
       sort,
     };
-    const { error } = await db.from("search_queries").insert(payload);
+    if (sessionHash) payload.session_hash = sessionHash;
+    let { error } = await db.from("search_queries").insert(payload);
+    if (sessionHash && (error?.code === "42703" || error?.code === "PGRST204")) {
+      // Pre-0087: session_hash column doesn't exist — keep the rich columns.
+      delete payload.session_hash;
+      ({ error } = await db.from("search_queries").insert(payload));
+    }
     if (error?.code === "42703" || error?.code === "PGRST204") {
       await db.from("search_queries").insert({ term, result_count: resultCount });
     }
   } catch (err) {
     console.error("[native-search] query log failed:", err);
   }
+}
+
+/**
+ * Admin-curated synonym lookup (0087): returns replacement queries to retry
+ * when the raw term finds nothing. Only rows a librarian explicitly created
+ * are ever applied — analytics data itself never mutates search behavior.
+ */
+async function synonymAlternatives(db: DB, q: string): Promise<string[]> {
+  try {
+    const norm = normalizeSearchTerm(q);
+    const { data, error } = await db
+      .from("search_synonyms")
+      .select("synonyms")
+      .eq("term", norm)
+      .eq("is_active", true)
+      .limit(1);
+    if (error || !data?.length) return [];
+    return (data[0].synonyms ?? []).filter((s: unknown): s is string => typeof s === "string" && s.trim() !== "").slice(0, 2);
+  } catch {
+    return [];
+  }
+}
+
+/** Librarian-pinned results for a term (0087), rendered ahead of organic hits. */
+async function curatedResultsFor(db: DB, q: string): Promise<SearchResult[]> {
+  try {
+    const norm = normalizeSearchTerm(q);
+    const { data, error } = await db
+      .from("search_curated_results")
+      .select("id, result_type, result_url, result_title")
+      .eq("term", norm)
+      .eq("is_active", true)
+      .limit(3);
+    if (error || !data?.length) return [];
+    return data.map((row: any) => {
+      const type: SearchResultType =
+        row.result_type === "thesis" ? "research" :
+        row.result_type === "book" || row.result_type === "publication" || row.result_type === "post"
+          ? row.result_type
+          : "post";
+      return {
+        id: `curated-${row.id}`,
+        ref: row.result_url,
+        type,
+        title: row.result_title,
+        author: "",
+        coverUrl: null,
+        url: row.result_url,
+        matchedFields: ["curated"],
+        actions: { view: row.result_url },
+      } satisfies SearchResult;
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Prepends curated pins, dropping organic duplicates of the same URL. */
+function withCurated(curated: SearchResult[], results: SearchResult[]): SearchResult[] {
+  if (curated.length === 0) return results;
+  const pinned = new Set(curated.map((c) => c.url));
+  return [...curated, ...results.filter((r) => !pinned.has(r.url))];
 }
 
 function searchScore(row: Candidate, q: string, pageHitIds: Set<string>): SearchResult {
@@ -960,6 +1034,15 @@ export async function GET(req: Request) {
     return Response.json({ error: "Too many requests." }, { status: 429 });
   }
 
+  // Analytics context: obvious bots still get results but never enter the
+  // query log; humans get a daily-rotating anonymous session hash (no raw
+  // IP is ever stored — see lib/search/analytics.ts).
+  const userAgent = req.headers.get("user-agent");
+  const skipLogging = isLikelyBot(userAgent);
+  const sessionHash = skipLogging
+    ? null
+    : anonymousSessionHash(ip, userAgent ?? "", process.env.SUPABASE_SERVICE_ROLE_KEY);
+
   const { searchParams } = new URL(req.url);
   const rawQ = searchParams.get("q")?.trim() ?? "";
   if (!rawQ || rawQ.length > 300) {
@@ -999,9 +1082,9 @@ export async function GET(req: Request) {
   if (cached) {
     // With facets active, cached counts.total is post-filter — not the "does
     // the library have this" signal — so those repeats go unlogged (45s TTL).
-    if (type === "all" && page === 1 && !hasFilters) {
+    if (type === "all" && page === 1 && !hasFilters && !skipLogging) {
       const dbForLog = createServiceClient();
-      logSearchQuery(dbForLog, q, cached.counts.total, type, sort);
+      logSearchQuery(dbForLog, q, cached.counts.total, type, sort, sessionHash);
     }
     return Response.json(cached, { headers: { "Cache-Control": "public, s-maxage=45, stale-while-revalidate=120" } });
   }
@@ -1014,12 +1097,12 @@ export async function GET(req: Request) {
     const candidateLimit = type === "all" ? CANDIDATE_LIMIT_ALL : CANDIDATE_LIMIT_TYPE;
 
     const run = {
-      book: () => searchBooks(db, q, filters, candidateLimit, pageHitIds, sort),
-      research: () => searchResearch(db, q, filters, candidateLimit, pageHitIds, sort),
-      publication: () => searchPublications(db, q, filters, candidateLimit, pageHitIds, sort),
-      catalog: () => searchCatalog(db, q, filters, candidateLimit, pageHitIds, sort),
-      post: () => searchPosts(db, q, filters, candidateLimit, pageHitIds, sort),
-    } satisfies Record<SearchResultType, () => Promise<PerTypeSearch>>;
+      book: (qx: string = q) => searchBooks(db, qx, filters, candidateLimit, pageHitIds, sort),
+      research: (qx: string = q) => searchResearch(db, qx, filters, candidateLimit, pageHitIds, sort),
+      publication: (qx: string = q) => searchPublications(db, qx, filters, candidateLimit, pageHitIds, sort),
+      catalog: (qx: string = q) => searchCatalog(db, qx, filters, candidateLimit, pageHitIds, sort),
+      post: (qx: string = q) => searchPosts(db, qx, filters, candidateLimit, pageHitIds, sort),
+    } satisfies Record<SearchResultType, (qx?: string) => Promise<PerTypeSearch>>;
 
     let response: NativeSearchResponse;
 
@@ -1079,6 +1162,36 @@ export async function GET(req: Request) {
       );
 
       if (counts.total === 0 && !hasFilters) {
+        // Librarian-curated synonyms first (0087): a reviewed mapping beats a
+        // fuzzy guess. Only fires on zero results, so normal ranking is
+        // untouched. Logged with the recovered count — the term is no longer
+        // "missing content", which keeps the acquisition report clean.
+        for (const alt of await synonymAlternatives(db, q)) {
+          const [b2, r2, p2, c2, s2] = await Promise.all([
+            run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.post(alt),
+          ]);
+          const altResults = [b2, r2, p2, c2, s2].flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
+          if (altResults.length > 0) {
+            response = {
+              results: altResults,
+              counts: countsOf(altResults),
+              page: 1,
+              hasMore: false,
+              fuzzy: true,
+              didYouMean: alt,
+              pageHits: mergedPageHits,
+              facets: facetsOf(altResults),
+              facetCounts: buildFacetCounts(altResults, selections),
+              relatedSubjects: facetsOf(altResults).subjects.slice(0, 8),
+              popularResources: [],
+              sort,
+            };
+            if (!skipLogging) logSearchQuery(db, q, altResults.length, type, sort, sessionHash);
+            cacheSet(cacheKey, response);
+            return Response.json(response);
+          }
+        }
+
         const fuzzy = await fuzzySearch(db, q);
         if (fuzzy.length > 0) {
           response = {
@@ -1095,14 +1208,18 @@ export async function GET(req: Request) {
             popularResources: [],
             sort,
           };
-          logSearchQuery(db, q, 0, type, sort);
+          if (!skipLogging) logSearchQuery(db, q, 0, type, sort, sessionHash);
           cacheSet(cacheKey, response);
           return Response.json(response);
         }
       }
 
+      // Curated pins (0087): librarian-selected results render first for
+      // this exact term; organic duplicates of the same URL are dropped.
+      const curated = page === 1 && !hasFilters ? await curatedResultsFor(db, q) : [];
+
       response = {
-        results,
+        results: withCurated(curated, results),
         counts,
         page: 1,
         hasMore: false,
@@ -1113,7 +1230,7 @@ export async function GET(req: Request) {
         popularResources: allCandidates.slice(0, 5),
         sort,
       };
-      logSearchQuery(db, q, preFacetTotal, type, sort);
+      if (!skipLogging) logSearchQuery(db, q, preFacetTotal, type, sort, sessionHash);
     } else {
       const result = await run[type]();
       const sorted = result.allCandidates.sort((a, b) => compareBySort(a, b, sort));

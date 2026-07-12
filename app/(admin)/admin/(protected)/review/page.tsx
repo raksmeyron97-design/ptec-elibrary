@@ -1,12 +1,20 @@
 import { ClipboardCheck } from "lucide-react";
-import { getReviewQueue } from "@/app/actions/review";
+import { getReviewQueue, getReviewerOptions } from "@/app/actions/review";
+import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { ADMIN_ROLES } from "@/lib/types/roles";
 import ReviewQueueClient from "./ReviewQueueClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReviewQueuePage() {
-  const items = await getReviewQueue();
-  const pendingCount = items.filter((i) => i.status === "pending_review").length;
+  const [{ userId, role }, items, reviewers] = await Promise.all([
+    requireLibrarian(),
+    getReviewQueue(),
+    getReviewerOptions(),
+  ]);
+  const actionable = items.filter(
+    (i) => i.status === "needs_review" || i.status === "in_review" || i.status === "imported",
+  ).length;
 
   return (
     <div className="p-6 md:p-10">
@@ -15,19 +23,26 @@ export default async function ReviewQueuePage() {
           <div className="flex items-center gap-2.5">
             <ClipboardCheck className="h-6 w-6 text-brand" />
             <h1 className="text-[22px] font-bold text-text-heading">Review Queue</h1>
-            {pendingCount > 0 && (
+            {actionable > 0 && (
               <span className="rounded-full bg-brand px-2.5 py-0.5 text-[11px] font-bold text-white">
-                {pendingCount} pending
+                {actionable} waiting
               </span>
             )}
           </div>
           <p className="mt-1 text-[13px] text-text-muted">
-            Books and theses submitted for review. Approving publishes them immediately.
+            Books and theses in the verification workflow. Approving verifies the metadata and
+            publishes; “verify only” marks it checked without publishing. Editors cannot verify
+            their own records.
           </p>
         </div>
       </div>
 
-      <ReviewQueueClient items={items} />
+      <ReviewQueueClient
+        items={items}
+        reviewers={reviewers}
+        viewerId={userId}
+        canRestore={ADMIN_ROLES.includes(role)}
+      />
     </div>
   );
 }

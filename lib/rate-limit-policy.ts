@@ -96,6 +96,12 @@ const POLICIES = {
     limit: strictDiv(envInt("RL_OAI_PER_MIN", 30)),
     windowMs: 60_000,
   }),
+  /** Metadata export feeds (/api/export) — per IP. Same harvest cadence
+   *  assumptions as OAI; responses are also CDN-cached for an hour. */
+  export: () => ({
+    limit: strictDiv(envInt("RL_EXPORT_PER_MIN", 30)),
+    windowMs: 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

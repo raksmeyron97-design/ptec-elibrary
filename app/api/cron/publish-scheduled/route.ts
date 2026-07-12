@@ -7,10 +7,13 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/publish-scheduled
  *
- * Flips posts and theses from `status = 'scheduled'` to `'published'` once
- * their `scheduled_at` has passed. The `posts_sync_publish_status` (0073)
- * and `research_reports_sync_publish_status` (0075) triggers then cascade
- * `is_published`/`published_at` automatically.
+ * Flips posts, theses, and books from `status = 'scheduled'` to `'published'`
+ * once their `scheduled_at` has passed. The `posts_sync_publish_status`
+ * (0073), `research_reports_sync_publish_status` (0075), and
+ * `books_sync_publish_status` (0086) triggers then cascade
+ * `is_published`/`published_at` automatically. Books only gain the
+ * scheduled state with 0086 — before that migration the sweep finds no
+ * matching book rows, which is harmless.
  *
  * ── Setup ─────────────────────────────────────────────────────────────────
  * Same CRON_SECRET pattern as /api/cron/cleanup — add to vercel.json:
@@ -35,21 +38,27 @@ export async function GET(request: NextRequest) {
   const db = createServiceClient();
   const now = new Date().toISOString();
 
-  const [posts, theses] = await Promise.all([
+  const [posts, theses, books] = await Promise.all([
     db.from("posts").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
     db.from("research_reports").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
+    db.from("books").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
   ]);
 
   if (posts.error) console.error("[/api/cron/publish-scheduled] posts update failed:", posts.error.message);
   if (theses.error) console.error("[/api/cron/publish-scheduled] theses update failed:", theses.error.message);
+  // 42703 just means 0086 isn't applied yet — books have no scheduled_at.
+  if (books.error && books.error.code !== "42703") {
+    console.error("[/api/cron/publish-scheduled] books update failed:", books.error.message);
+  }
   if (posts.error && theses.error) {
     return NextResponse.json({ error: "Publish sweep failed" }, { status: 500 });
   }
 
   return NextResponse.json({
     ok: true,
-    published: (posts.data ?? []).length + (theses.data ?? []).length,
+    published: (posts.data ?? []).length + (theses.data ?? []).length + (books.data ?? []).length,
     postSlugs: (posts.data ?? []).map((p) => p.slug),
     thesisSlugs: (theses.data ?? []).map((t) => t.slug),
+    bookSlugs: (books.data ?? []).map((b) => b.slug),
   });
 }

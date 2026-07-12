@@ -7,7 +7,8 @@ import {
   SearchX,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { getSearchAnalytics } from "@/app/actions/search-insights";
+import { getSearchAnalytics, getZeroResultReport } from "@/app/actions/search-insights";
+import ZeroResultActionCenter from "./ZeroResultActionCenter";
 
 export const dynamic = "force-dynamic";
 
@@ -104,7 +105,10 @@ function TrendBars({ title, points }: { title: string; points: { label: string; 
 }
 
 export default async function SearchInsightsPage() {
-  const analytics = await getSearchAnalytics();
+  const [analytics, zeroResultReport] = await Promise.all([
+    getSearchAnalytics(),
+    getZeroResultReport(),
+  ]);
   const languageTotal = analytics.languageUsage.km + analytics.languageUsage.en + analytics.languageUsage.other || 1;
   const kmPct = Math.round((analytics.languageUsage.km / languageTotal) * 100);
   const enPct = Math.round((analytics.languageUsage.en / languageTotal) * 100);
@@ -147,6 +151,10 @@ export default async function SearchInsightsPage() {
           hint="Khmer / English search usage"
           icon={<Languages className="h-5 w-5" />}
         />
+      </div>
+
+      <div className="mt-6">
+        <ZeroResultActionCenter entries={zeroResultReport} />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
