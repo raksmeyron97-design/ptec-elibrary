@@ -1,75 +1,75 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import UsersClient from "./UsersClient";
+import UserStats from "@/components/admin/users/UserStats";
+import { getUsers, getUsersSummary } from "@/lib/admin/users";
 import type { AppRole } from "@/lib/types/roles";
+import {
+  USER_SORT_OPTIONS, JOINED_RANGE_OPTIONS,
+  type UserSort, type JoinedRange,
+} from "@/lib/admin/users-shared";
 
 const PAGE_SIZE = 20;
 
-export default async function AdminUsersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const supabase = createServiceClient();
+type SP = { [key: string]: string | string[] | undefined };
+
+function str(v: string | string[] | undefined): string {
+  return (Array.isArray(v) ? v[0] : v ?? "").trim();
+}
+
+export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<SP> }) {
   const params = await searchParams;
 
-  const page = parseInt(params.page as string || "1", 10);
-  const safePage = isNaN(page) || page < 1 ? 1 : page;
-  const q    = (params.q    as string || "").trim();
-  const role = (params.role as string || "").trim();
+  const page = Math.max(1, parseInt(str(params.page) || "1", 10) || 1);
+  const q = str(params.q);
+  const role = str(params.role);
+  const status = str(params.status);
+  const joinedRaw = str(params.joined);
+  const sortRaw = str(params.sort);
+  const joined = (JOINED_RANGE_OPTIONS as readonly string[]).includes(joinedRaw) ? (joinedRaw as JoinedRange) : "all";
+  const sort = (USER_SORT_OPTIONS as readonly string[]).includes(sortRaw) ? (sortRaw as UserSort) : "newest";
 
-  let query = supabase
-    .from("profiles")
-    .select("id, full_name, email, role, created_at, avatar_url, is_super_admin", { count: "exact" });
+  const [summary, result, callerIdentity] = await Promise.all([
+    getUsersSummary(),
+    getUsers({ q, role, status, joined, sort, page, pageSize: PAGE_SIZE }),
+    (async () => {
+      const authClient = await createClient();
+      const { data: { user } } = await authClient.auth.getUser();
+      const svc = createServiceClient();
+      const { data: profile } = await svc
+        .from("profiles")
+        .select("role, is_super_admin")
+        .eq("id", user?.id ?? "")
+        .single();
+      return {
+        id: user?.id ?? "",
+        role: (profile?.role ?? "admin") as AppRole,
+        isSuperAdmin: Boolean(profile?.is_super_admin) || profile?.role === "super_admin",
+      };
+    })(),
+  ]);
 
-  if (q) {
-    query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%`);
-  }
-  if (role) {
-    query = query.eq("role", role);
-  }
-
-  const from = (safePage - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-
-  const { data: users, count } = await query
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  const totalItems = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-
-  const rows = (users ?? []).map((u: any) => ({
-    id:           u.id as string,
-    fullName:     u.full_name as string | null,
-    email:        u.email as string,
-    role:         u.role as AppRole,
-    createdAt:    u.created_at as string,
-    avatarUrl:    u.avatar_url as string | null,
-    isSuperAdmin: u.is_super_admin as boolean,
-  }));
-
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-
-  const { data: callerProfile } = await supabase
-    .from("profiles")
-    .select("role, is_super_admin")
-    .eq("id", user?.id ?? "")
-    .single();
+  const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6">
+    <div className="mx-auto max-w-[1280px] space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-text-heading">Users</h1>
+        <p className="text-sm text-text-muted">Manage members, roles, and account access.</p>
+      </div>
+
+      <UserStats summary={summary} />
+
       <UsersClient
-        users={rows}
-        currentUserId={user?.id ?? ""}
-        callerRole={(callerProfile?.role ?? "admin") as AppRole}
-        callerIsSuperAdmin={callerProfile?.is_super_admin ?? false}
-        totalItems={totalItems}
+        rows={result.rows}
+        total={result.total}
         totalPages={totalPages}
-        currentPage={safePage}
+        currentPage={page}
+        pageSize={PAGE_SIZE}
         searchParams={params as Record<string, string | undefined>}
-        activeRole={(role as AppRole) || "all"}
+        filterValue={{ role: role || "all", status: status || "all", joined, sort }}
+        currentUserId={callerIdentity.id}
+        callerCanAssignAdmin={callerIdentity.isSuperAdmin}
+        hasAnyAtAll={result.hasAnyAtAll}
       />
     </div>
   );

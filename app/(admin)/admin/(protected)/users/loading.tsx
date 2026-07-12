@@ -1,9 +1,5 @@
-import AdminTableSkeleton from '@/components/ui/skeletons/AdminTableSkeleton'
+import UserSkeleton from "@/components/admin/users/UserSkeleton";
 
 export default function AdminUsersLoading() {
-  return (
-    <div className="w-full p-6">
-      <AdminTableSkeleton rows={10} columns={[40, 180, 160, 100, 80, 70]} />
-    </div>
-  )
+  return <UserSkeleton />;
 }
