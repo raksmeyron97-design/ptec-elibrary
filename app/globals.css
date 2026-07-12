@@ -343,6 +343,76 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in { animation: none !important; }
 }
 
+/* ── Footer redesign (night sky + aurora + motion) ──────────────── */
+/* Layered deep-navy radial bed that anchors the constellation canvas. */
+.footer-night {
+  background:
+    radial-gradient(120% 140% at 15% 0%, #0d1c46 0%, #081436 45%, #050d26 100%);
+}
+
+/* Animated aurora accent bar: a blue→gold gradient that slowly flows. */
+@keyframes footer-aurora-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: -200% 50%; }
+}
+.footer-aurora {
+  background: linear-gradient(90deg, #1E3A8A, #3A5FC4, #EDCB55, #E4BB30, #3A5FC4, #1E3A8A);
+  background-size: 200% 100%;
+  animation: footer-aurora-flow 9s linear infinite;
+  will-change: background-position;
+}
+
+/* A soft highlight that sweeps across the aurora bar. */
+@keyframes footer-bar-shimmer {
+  0%        { transform: translateX(-130%); }
+  60%, 100% { transform: translateX(360%); }
+}
+.footer-shimmer {
+  animation: footer-bar-shimmer 5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* The brand seal breathes gently. */
+@keyframes footer-seal-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+.footer-seal { animation: footer-seal-float 6s ease-in-out infinite; }
+
+/* Gold shine that travels across the "PTEC Library" wordmark. */
+@keyframes footer-text-shine {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.footer-shine {
+  background: linear-gradient(100deg, #ffffff 0%, #F4DE8A 35%, #ffffff 55%, #EDCB55 75%, #ffffff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: footer-text-shine 6s linear infinite;
+}
+
+/* Scroll-reveal is progressive: columns are fully visible by default, and
+   only hidden once the client island marks the footer JS-ready — so no-JS
+   and reduced-motion visitors always see content. */
+[data-footer-reveal-ready] [data-fx-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1);
+}
+[data-footer-reveal-ready] [data-fx-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-aurora, .footer-shimmer, .footer-seal, .footer-shine { animation: none !important; }
+  /* Keep the wordmark legible without the moving gradient. */
+  .footer-shine { -webkit-text-fill-color: #ffffff; color: #ffffff; }
+}
+
 /* Gradient top-border card — use as parent wrapper */
 .gradient-top-border {
   position: relative;

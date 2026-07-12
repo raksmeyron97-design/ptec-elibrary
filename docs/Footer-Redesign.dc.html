@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Hanuman:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #e7ebf3; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+  a:hover { color: inherit; }
+  @keyframes accentFlow { 0% { background-position: 0% 50%; } 100% { background-position: -200% 50%; } }
+  @keyframes barShimmer { 0% { transform: translateX(-130%); } 60%,100% { transform: translateX(260%); } }
+  @keyframes floatSeal { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes glowPulse { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
+  @keyframes orbFloatA { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(40px,-30px) scale(1.12); } }
+  @keyframes orbFloatB { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-50px,26px) scale(1.08); } }
+  @keyframes textShine { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+  @keyframes underlineGrow { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; padding: 56px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+
+  <div style="width: 100%; max-width: 1440px; margin-bottom: 8px;">
+    <p style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #6b7280;">PTEC Library · footer redesign</p>
+    <h1 style="font-family: 'Crimson Pro', serif; font-size: 30px; font-weight: 700; color: #0B1530; margin-top: 4px;">Wireframe &amp; hi-fi direction</h1>
+    <p style="font-size: 14px; color: #5b6472; margin-top: 6px; max-width: 640px; line-height: 1.6;">Reference <a href="#1a" style="color: #2A47A6; font-weight: 600;">1a</a> for structure and where motion lives, and <a href="#1b" style="color: #2A47A6; font-weight: 600;">1b</a> for the animated redesign. Both use the real PTEC content, palette, and links. Hi-fi is responsive — resize to see it stack.</p>
+  </div>
+
+  <section style="width: 100%; display: flex; flex-wrap: wrap; gap: 40px; justify-content: center;">
+
+    <!-- ============ 1a WIREFRAME ============ -->
+    <div id="1a" style="scroll-margin-top: 40px; width: 1180px; max-width: 100%;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: #0B1530; background: #fff; border: 1.5px solid #0B1530; border-radius: 999px; padding: 3px 11px;">1a</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #6b7280;">Wireframe — structure + motion map</span>
+      </div>
+
+      <div style="background: #f4f6fa; border: 1.5px solid #c5ccd8; border-radius: 14px; overflow: hidden;">
+        <!-- accent bar -->
+        <div style="position: relative; height: 26px; background: repeating-linear-gradient(135deg, #dfe4ec 0 8px, #eef1f6 8px 16px); border-bottom: 1.5px dashed #c5ccd8; display: flex; align-items: center; padding: 0 14px;">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #7a8394;">◄ animated aurora accent bar (blue→gold flow + shimmer sweep)</span>
+        </div>
+
+        <div style="padding: 34px 34px 26px; position: relative;">
+          <!-- constellation note -->
+          <div style="position: absolute; top: 14px; right: 16px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #8b93a3; border: 1px dashed #b9c1cf; border-radius: 6px; padding: 4px 8px; background: #fff;">✦ drifting constellation canvas (bg)</div>
+
+          <div style="display: grid; grid-template-columns: 1.35fr 1fr 1.1fr 1.25fr; gap: 30px;">
+            <!-- brand -->
+            <div>
+              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 14px;">
+                <div style="width: 52px; height: 52px; border: 1.5px dashed #aab2c0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #9099a8; text-align: center;">seal</div>
+                <div style="flex: 1;">
+                  <div style="height: 8px; width: 90%; background: #d3d9e3; border-radius: 4px; margin-bottom: 6px;"></div>
+                  <div style="height: 12px; width: 60%; background: #b7c0cf; border-radius: 4px;"></div>
+                </div>
+              </div>
+              <div style="height: 7px; width: 100%; background: #dde2ea; border-radius: 4px; margin-bottom: 6px;"></div>
+              <div style="height: 7px; width: 92%; background: #dde2ea; border-radius: 4px; margin-bottom: 6px;"></div>
+              <div style="height: 7px; width: 70%; background: #dde2ea; border-radius: 4px; margin-bottom: 16px;"></div>
+              <div style="display: flex; gap: 8px;">
+                <div style="width: 34px; height: 34px; border: 1.5px dashed #aab2c0; border-radius: 8px;"></div>
+                <div style="width: 34px; height: 34px; border: 1.5px dashed #aab2c0; border-radius: 8px;"></div>
+                <div style="width: 34px; height: 34px; border: 1.5px dashed #aab2c0; border-radius: 8px;"></div>
+                <div style="width: 96px; height: 34px; border: 1.5px dashed #aab2c0; border-radius: 8px;"></div>
+              </div>
+              <p style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8b93a3; margin-top: 10px;">social + install · hover lift/glow</p>
+            </div>
+
+            <!-- explore -->
+            <div>
+              <div style="height: 11px; width: 55%; background: #b7c0cf; border-radius: 4px; margin-bottom: 16px;"></div>
+              <div style="display: flex; flex-direction: column; gap: 11px;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 70%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 58%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 66%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 50%; background: #dde2ea; border-radius: 4px;"></div></div>
+              </div>
+              <p style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8b93a3; margin-top: 12px;">hover: dot fills + row slides →</p>
+            </div>
+
+            <!-- help -->
+            <div>
+              <div style="height: 11px; width: 70%; background: #b7c0cf; border-radius: 4px; margin-bottom: 16px;"></div>
+              <div style="display: flex; flex-direction: column; gap: 11px;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 64%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 52%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 60%; background: #dde2ea; border-radius: 4px;"></div></div>
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #c0a020;"></span><div style="height: 7px; width: 46%; background: #dde2ea; border-radius: 4px;"></div></div>
+              </div>
+            </div>
+
+            <!-- visit -->
+            <div>
+              <div style="height: 11px; width: 50%; background: #b7c0cf; border-radius: 4px; margin-bottom: 16px;"></div>
+              <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px;">
+                <div style="display: flex; gap: 8px;"><div style="width: 26px; height: 26px; border: 1.5px dashed #aab2c0; border-radius: 7px;"></div><div style="flex:1; padding-top: 3px;"><div style="height: 6px; width: 40%; background: #cdd4de; border-radius: 4px; margin-bottom: 5px;"></div><div style="height: 6px; width: 80%; background: #dde2ea; border-radius: 4px;"></div></div></div>
+                <div style="display: flex; gap: 8px;"><div style="width: 26px; height: 26px; border: 1.5px dashed #aab2c0; border-radius: 7px;"></div><div style="flex:1; padding-top: 3px;"><div style="height: 6px; width: 40%; background: #cdd4de; border-radius: 4px; margin-bottom: 5px;"></div><div style="height: 6px; width: 60%; background: #dde2ea; border-radius: 4px;"></div></div></div>
+              </div>
+              <div style="height: 72px; border: 1.5px dashed #aab2c0; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9099a8; margin-bottom: 12px;">map embed</div>
+              <div style="width: 140px; height: 36px; border-radius: 8px; background: #e6d38f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #6b5a10; position: relative;">get directions
+                <span style="position: absolute; top: -22px; left: 0; font-size: 9.5px; color: #8b93a3; white-space: nowrap;">↳ magnetic + glow</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top: 1.5px dashed #c5ccd8; margin-top: 26px; padding-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="height: 7px; width: 240px; background: #dde2ea; border-radius: 4px;"></div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+              <div style="height: 7px; width: 50px; background: #dde2ea; border-radius: 4px;"></div>
+              <div style="height: 7px; width: 50px; background: #dde2ea; border-radius: 4px;"></div>
+              <div style="width: 30px; height: 30px; border: 1.5px dashed #aab2c0; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-size:12px; color:#9099a8;">↑</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">① aurora bar flow + shimmer</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">② column scroll-reveal (staggered)</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">③ link hover dot-fill + slide</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">④ magnetic CTA + glow</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">⑤ constellation canvas</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #5b6472; background: #fff; border: 1px solid #d3d9e3; border-radius: 6px; padding: 5px 10px;">⑥ back-to-top</span>
+      </div>
+    </div>
+
+    <!-- ============ 1b HI-FI ============ -->
+    <div id="1b" style="scroll-margin-top: 40px; width: 1360px; max-width: 100%;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: #fff; background: #0B1530; border-radius: 999px; padding: 3px 11px;">1b</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #6b7280;">Hi-fi redesign — hover links · magnetic CTA · live motion</span>
+      </div>
+
+      <footer ref="{{ bindRoot }}" data-fr-root style="--gold: #EDCB55; --gold-soft: #F4DE8A; position: relative; width: 100%; overflow: hidden; border-radius: 16px; background: radial-gradient(120% 140% at 15% 0%, #0d1c46 0%, #081436 45%, #050d26 100%); color: #EEF2FB; box-shadow: 0 30px 70px -30px rgba(5,13,38,.7); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;">
+
+        <!-- ambient glow orbs -->
+        <div style="position: absolute; top: -120px; left: -80px; width: 420px; height: 420px; border-radius: 999px; background: radial-gradient(circle, rgba(58,95,196,.45), transparent 68%); filter: blur(30px); pointer-events: none; z-index: 0; animation: orbFloatA 16s ease-in-out infinite;"></div>
+        <div style="position: absolute; bottom: -140px; right: -60px; width: 460px; height: 460px; border-radius: 999px; background: radial-gradient(circle, rgba(237,203,85,.26), transparent 66%); filter: blur(34px); pointer-events: none; z-index: 0; animation: orbFloatB 20s ease-in-out infinite;"></div>
+
+        <canvas data-constellation style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .55; z-index: 1;"></canvas>
+
+        <!-- cursor spotlight -->
+        <div data-spotlight style="position: absolute; width: 460px; height: 460px; border-radius: 999px; background: radial-gradient(circle, rgba(244,222,138,.14), transparent 62%); pointer-events: none; z-index: 1; opacity: 0; transform: translate(-50%,-50%); transition: opacity .4s; left: 0; top: 0;"></div>
+
+        <!-- aurora accent bar -->
+        <div style="position: relative; height: 4px; overflow: hidden; z-index: 2;">
+          <div style="position: absolute; inset: 0; background: linear-gradient(90deg, #1E3A8A, #3A5FC4, var(--gold), #E4BB30, #3A5FC4, #1E3A8A); background-size: 200% 100%; animation: accentFlow 9s linear infinite;"></div>
+          <div style="position: absolute; top: 0; left: 0; width: 30%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.85), transparent); filter: blur(2px); animation: barShimmer 5s ease-in-out infinite;"></div>
+        </div>
+
+        <div style="position: relative; z-index: 2; padding: 56px 52px 30px;">
+          <div class="fr-grid" style="display: grid; grid-template-columns: 1.4fr 1fr 1.15fr 1.25fr; gap: 48px;">
+
+            <!-- BRAND -->
+            <section data-reveal>
+              <div style="display: flex; align-items: center; gap: 16px;">
+                <div style="animation: floatSeal 6s ease-in-out infinite; filter: drop-shadow(0 6px 16px rgba(237,203,85,.28));">
+                  <img src="assets/logo_footer.webp" alt="PTEC Library seal" width="64" height="64" style="display: block; width: 64px; height: 64px; object-fit: contain;">
+                </div>
+                <div style="min-width: 0;">
+                  <p lang="km" style="font-family: 'Hanuman', serif; font-size: 12.5px; font-weight: 700; line-height: 1.3; color: var(--gold-soft);">បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ</p>
+                  <h2 style="font-family: 'Crimson Pro', serif; font-size: 27px; font-weight: 700; letter-spacing: .01em; margin-top: 3px; background: linear-gradient(100deg, #ffffff 0%, var(--gold-soft) 35%, #fff 55%, var(--gold) 75%, #ffffff 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: textShine 6s linear infinite;">PTEC Library</h2>
+                </div>
+              </div>
+              <p style="max-width: 22rem; font-size: 14px; line-height: 1.75; color: rgba(217,226,247,.82); margin-top: 20px;">The Phnom Penh Teacher Education College was established to train teachers with quality education, leading students toward a better future without discrimination.</p>
+
+              <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px;">
+                <a data-social href="https://web.facebook.com/ptec.edu" target="_blank" rel="noopener noreferrer" aria-label="Facebook" style="display: inline-flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #D9E2F7; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s, color .25s, box-shadow .25s;" style-hover="transform: translateY(-3px); border-color: rgba(237,203,85,.6); color: var(--gold-soft); box-shadow: 0 10px 22px -8px rgba(237,203,85,.5);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+                </a>
+                <a data-social href="https://www.youtube.com/@phnompenhteachereducationc3430" target="_blank" rel="noopener noreferrer" aria-label="YouTube" style="display: inline-flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #D9E2F7; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s, color .25s, box-shadow .25s;" style-hover="transform: translateY(-3px); border-color: rgba(237,203,85,.6); color: var(--gold-soft); box-shadow: 0 10px 22px -8px rgba(237,203,85,.5);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"></path></svg>
+                </a>
+                <a data-social href="https://www.ptec.edu.kh" target="_blank" rel="noopener noreferrer" aria-label="PTEC official website" style="display: inline-flex; height: 38px; width: 38px; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #D9E2F7; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s, color .25s, box-shadow .25s;" style-hover="transform: translateY(-3px); border-color: rgba(237,203,85,.6); color: var(--gold-soft); box-shadow: 0 10px 22px -8px rgba(237,203,85,.5);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                </a>
+                <a data-social href="https://www.ptec.edu.kh" target="_blank" rel="noopener noreferrer" style="display: inline-flex; height: 38px; align-items: center; gap: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); padding: 0 14px; font-size: 12.5px; font-weight: 600; color: #D9E2F7; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .25s, color .25s, box-shadow .25s;" style-hover="transform: translateY(-3px); border-color: rgba(237,203,85,.6); color: var(--gold-soft); box-shadow: 0 10px 22px -8px rgba(237,203,85,.5);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v13M7 11l5 5 5-5M5 21h14"></path></svg>
+                  <span>Install App</span>
+                </a>
+              </div>
+            </section>
+
+            <!-- EXPLORE -->
+            <section data-reveal>
+              <h3 style="font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 700; letter-spacing: .02em; color: #fff; margin-bottom: 18px; display: flex; align-items: center; gap: 9px;"><span style="width: 22px; height: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); border-radius: 3px; box-shadow: 0 0 12px rgba(237,203,85,.55);"></span>Explore</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 3px;">
+                <li><a data-flink href="/books" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Books</a></li>
+                <li><a data-flink href="/theses" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Theses</a></li>
+                <li><a data-flink href="/publications" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Publications</a></li>
+                <li><a data-flink href="/paths" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Learning Paths</a></li>
+                <li><a data-flink href="/catalogs" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Physical Library</a></li>
+                <li><a data-flink href="/posts" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>News &amp; Events</a></li>
+              </ul>
+            </section>
+
+            <!-- HELP -->
+            <section data-reveal>
+              <h3 style="font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 700; letter-spacing: .02em; color: #fff; margin-bottom: 18px; display: flex; align-items: center; gap: 9px;"><span style="width: 22px; height: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); border-radius: 3px; box-shadow: 0 0 12px rgba(237,203,85,.55);"></span>Help &amp; Information</h3>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 3px;">
+                <li><a data-flink href="/about" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>About</a></li>
+                <li><a data-flink href="/about/our-journey" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Our Journey</a></li>
+                <li><a data-flink href="/contact" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Contact</a></li>
+                <li><a data-flink href="/about/rules" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Library Rules</a></li>
+                <li><a data-flink href="/about/timings" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Library Timings</a></li>
+                <li><a data-flink href="/about/collection" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Library Collection</a></li>
+                <li><a data-flink href="/about/team" style="display: inline-flex; align-items: center; gap: 10px; min-height: 30px; font-size: 14px; color: rgba(226,233,250,.92); transition: transform .28s cubic-bezier(.2,.7,.2,1), color .28s;" style-hover="transform: translateX(6px); color: var(--gold-soft);"><span data-dot style="width: 6px; height: 6px; border-radius: 999px; border: 1.4px solid currentColor; transition: background .28s;"></span>Library Team</a></li>
+              </ul>
+            </section>
+
+            <!-- VISIT -->
+            <section data-reveal>
+              <h3 style="font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 700; letter-spacing: .02em; color: #fff; margin-bottom: 18px; display: flex; align-items: center; gap: 9px;"><span style="width: 22px; height: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-soft)); border-radius: 3px; box-shadow: 0 0 12px rgba(237,203,85,.55);"></span>Visit PTEC</h3>
+              <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div style="display: flex; gap: 12px;">
+                  <span style="margin-top: 2px; display: flex; height: 32px; width: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,.05); color: var(--gold-soft);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></span>
+                  <div style="min-width: 0;"><p style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(179,197,239,.7);">Location</p><p style="font-size: 13.5px; line-height: 1.55; color: rgba(238,242,251,.88); margin-top: 3px;">St. 271, Sangkat Teuk Laork 3, Khan Toul Kork, Phnom Penh, Cambodia</p></div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                  <span style="margin-top: 2px; display: flex; height: 32px; width: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,.05); color: var(--gold-soft);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></span>
+                  <div style="min-width: 0;"><p style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(179,197,239,.7);">Phone</p><a data-flink href="tel:+85592788990" style="font-size: 13.5px; color: rgba(238,242,251,.88); transition: color .25s;" style-hover="color: var(--gold-soft);">(+855) 92 788 990</a></div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                  <span style="margin-top: 2px; display: flex; height: 32px; width: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,.05); color: var(--gold-soft);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m2 6 10 7 10-7"></path></svg></span>
+                  <div style="min-width: 0;"><p style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: rgba(179,197,239,.7);">Email</p><a data-flink href="mailto:info@ptec.edu.kh" style="font-size: 13.5px; color: rgba(238,242,251,.88); transition: color .25s;" style-hover="color: var(--gold-soft);">info@ptec.edu.kh</a></div>
+                </div>
+              </div>
+
+              <div style="overflow: hidden; border-radius: 11px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); margin-top: 16px;">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.772583842131!2d104.88470327464049!3d11.568153444093952!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x310951a618265c67%3A0x159b1d2bb350bbae!2sPhnom%20Penh%20Teacher%20Education%20College!5e0!3m2!1sen!2skh!4v1717904033000!5m2!1sen!2skh" title="PTEC location map" width="100%" height="120" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="border: 0; display: block; height: 120px; width: 100%; filter: grayscale(.3) contrast(1.05);"></iframe>
+              </div>
+
+              <a data-magnetic href="https://www.google.com/maps/place/Phnom+Penh+Teacher+Education+College/@11.5574509,104.8872382,1090m/data=!3m1!1e3" target="_blank" rel="noopener noreferrer" style="position: relative; margin-top: 14px; display: inline-flex; min-height: 42px; align-items: center; gap: 9px; border-radius: 11px; background: linear-gradient(135deg, var(--gold-soft), var(--gold)); padding: 0 20px; font-size: 14px; font-weight: 700; color: #0B1530; box-shadow: 0 12px 26px -10px rgba(237,203,85,.6); transition: box-shadow .3s;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                Get directions
+              </a>
+            </section>
+          </div>
+
+          <!-- bottom bar -->
+          <div style="margin-top: 40px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.1); display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+            <p style="font-size: 12px; color: rgba(217,226,247,.68);">© 2026 PTEC Library. All Rights Reserved. — Phnom Penh Teacher Education College.</p>
+            <nav style="display: flex; flex-wrap: wrap; align-items: center; gap: 18px;">
+              <a data-flink href="/privacy" style="font-size: 12px; color: rgba(217,226,247,.68); transition: color .25s;" style-hover="color: var(--gold-soft);">Privacy</a>
+              <a data-flink href="/policy" style="font-size: 12px; color: rgba(217,226,247,.68); transition: color .25s;" style-hover="color: var(--gold-soft);">Policy</a>
+              <a data-backtotop href="#top" aria-label="Back to top" style="display: inline-flex; height: 34px; width: 34px; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: rgba(238,242,251,.8); transition: transform .3s cubic-bezier(.2,.7,.2,1), border-color .3s, color .3s;" style-hover="transform: translateY(-3px); border-color: var(--gold); color: var(--gold-soft);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></a>
+            </nav>
+          </div>
+        </div>
+      </footer>
+    </div>
+
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1440, &quot;height&quot;: 900}, &quot;accent&quot;: {&quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#EDCB55&quot;, &quot;options&quot;: [&quot;#EDCB55&quot;, &quot;#F4DE8A&quot;, &quot;#E4BB30&quot;, &quot;#5B7FD6&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Style&quot;}, &quot;constellation&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Motion&quot;}, &quot;reveal&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Motion&quot;}}">
+class Component extends DCLogic {
+  bindRoot = (el) => { if (el) this.root = el; };
+
+  boot() {
+    if (this._done) return;
+    const root = this.root || document.querySelector('[data-fr-root]');
+    if (!root) { if ((this._tries = (this._tries || 0) + 1) < 40) setTimeout(() => this.boot(), 60); return; }
+    this.root = root;
+    this._done = true;
+    if (!this._onResize) {
+      this._onResize = () => this.sizeCanvas();
+      window.addEventListener('resize', this._onResize);
+    }
+    this.setup();
+  }
+
+  componentDidMount() {
+    requestAnimationFrame(() => this.boot());
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('resize', this._onResize);
+    if (this._raf) cancelAnimationFrame(this._raf);
+  }
+
+  setup() {
+    const root = this.root;
+    if (!root) return;
+    const reveal = this.props.reveal !== false;
+
+    // ── scroll-reveal (staggered) ──
+    const items = Array.from(root.querySelectorAll('[data-reveal]'));
+    if (reveal && 'IntersectionObserver' in window) {
+      items.forEach((el, i) => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(28px)';
+        el.style.transition = 'opacity .75s cubic-bezier(.2,.7,.2,1), transform .75s cubic-bezier(.2,.7,.2,1)';
+        el.style.transitionDelay = (i * 100) + 'ms';
+      });
+      const show = (el) => { el.style.opacity = '1'; el.style.transform = 'none'; };
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) { show(e.target); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.12 });
+      items.forEach((el) => io.observe(el));
+      // Fallback: if the observer never fires (scaled/panned canvas, or footer
+      // already on-screen), reveal after a short beat so content is never stuck.
+      setTimeout(() => { items.forEach((el) => { if (el.style.opacity === '0') show(el); }); }, 1100);
+    }
+
+    // ── link hover: dot fill + gold underline sweep + text glow ──
+    root.querySelectorAll('[data-flink]').forEach((a) => {
+      const dot = a.querySelector('[data-dot]');
+      a.style.position = a.style.position || 'relative';
+      // underline sweep bar
+      const bar = document.createElement('span');
+      bar.style.cssText = 'position:absolute;left:0;right:0;bottom:2px;height:1.5px;background:linear-gradient(90deg,var(--gold),var(--gold-soft));border-radius:2px;transform:scaleX(0);transform-origin:left center;transition:transform .34s cubic-bezier(.2,.8,.2,1);opacity:.9;pointer-events:none;';
+      // keep the dot area clear of the underline
+      if (dot) bar.style.left = '16px';
+      a.appendChild(bar);
+      a.addEventListener('mouseenter', () => {
+        if (dot) { dot.style.background = 'currentColor'; dot.style.boxShadow = '0 0 8px rgba(237,203,85,.8)'; }
+        bar.style.transform = 'scaleX(1)';
+        a.style.textShadow = '0 0 14px rgba(237,203,85,.45)';
+      });
+      a.addEventListener('mouseleave', () => {
+        if (dot) { dot.style.background = 'transparent'; dot.style.boxShadow = 'none'; }
+        bar.style.transformOrigin = 'right center';
+        bar.style.transform = 'scaleX(0)';
+        a.style.textShadow = 'none';
+        setTimeout(() => { bar.style.transformOrigin = 'left center'; }, 340);
+      });
+    });
+
+    // ── cursor spotlight ──
+    const spot = root.querySelector('[data-spotlight]');
+    if (spot) {
+      root.addEventListener('mousemove', (e) => {
+        const r = root.getBoundingClientRect();
+        spot.style.left = (e.clientX - r.left) + 'px';
+        spot.style.top = (e.clientY - r.top) + 'px';
+        spot.style.opacity = '1';
+      });
+      root.addEventListener('mouseleave', () => { spot.style.opacity = '0'; });
+    }
+
+    // ── magnetic CTA ──
+    root.querySelectorAll('[data-magnetic]').forEach((btn) => this.initMagnetic(btn));
+
+    // ── back to top ──
+    const top = root.querySelector('[data-backtotop]');
+    if (top) top.addEventListener('click', (e) => {
+      e.preventDefault();
+      const sc = root.closest('[data-scroll]') || window;
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
+    });
+
+    // ── constellation ──
+    this.canvas = root.querySelector('[data-constellation]');
+    if (this.canvas && this.props.constellation !== false) {
+      this.sizeCanvas();
+      this.startConstellation();
+    } else if (this.canvas) {
+      this.canvas.style.display = 'none';
+    }
+
+    // apply accent tweak
+    if (this.props.accent) root.style.setProperty('--gold', this.props.accent);
+  }
+
+  initMagnetic(btn) {
+    const strength = 0.35;
+    const zone = () => btn.getBoundingClientRect();
+    const move = (e) => {
+      const r = zone();
+      const x = e.clientX - (r.left + r.width / 2);
+      const y = e.clientY - (r.top + r.height / 2);
+      btn.style.transform = 'translate(' + (x * strength) + 'px,' + (y * strength) + 'px)';
+      btn.style.boxShadow = '0 18px 34px -10px rgba(237,203,85,.75)';
+    };
+    const reset = () => {
+      btn.style.transform = 'translate(0,0)';
+      btn.style.boxShadow = '0 12px 26px -10px rgba(237,203,85,.6)';
+    };
+    btn.style.transition = 'transform .2s cubic-bezier(.2,.7,.2,1), box-shadow .3s';
+    // listen on a padded parent region for a smooth pull
+    const pad = 60;
+    btn.addEventListener('mousemove', move);
+    btn.addEventListener('mouseenter', () => { btn.style.transition = 'transform .08s linear, box-shadow .3s'; });
+    btn.addEventListener('mouseleave', () => { btn.style.transition = 'transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .3s'; reset(); });
+  }
+
+  sizeCanvas() {
+    const c = this.canvas;
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.width = Math.max(1, Math.floor(r.width * dpr));
+    c.height = Math.max(1, Math.floor(r.height * dpr));
+    this._dpr = dpr;
+    this._w = r.width;
+    this._h = r.height;
+    this.seedStars();
+  }
+
+  seedStars() {
+    const count = Math.round((this._w * this._h) / 22000);
+    this.stars = [];
+    for (let i = 0; i < count; i++) {
+      this.stars.push({
+        x: Math.random() * this._w,
+        y: Math.random() * this._h,
+        vx: (Math.random() - 0.5) * 0.16,
+        vy: (Math.random() - 0.5) * 0.16,
+        r: Math.random() * 1.4 + 0.5,
+        tw: Math.random() * Math.PI * 2,
+      });
+    }
+  }
+
+  startConstellation() {
+    const c = this.canvas;
+    const ctx = c.getContext('2d');
+    const draw = () => {
+      const dpr = this._dpr, w = this._w, h = this._h;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      const s = this.stars;
+      for (let i = 0; i < s.length; i++) {
+        const p = s[i];
+        p.x += p.vx; p.y += p.vy; p.tw += 0.02;
+        if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+        // links
+        for (let j = i + 1; j < s.length; j++) {
+          const q = s[j];
+          const dx = p.x - q.x, dy = p.y - q.y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 118) {
+            const a = (1 - d / 118) * 0.22;
+            ctx.strokeStyle = 'rgba(237,203,85,' + a + ')';
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(q.x, q.y);
+            ctx.stroke();
+          }
+        }
+      }
+      for (let i = 0; i < s.length; i++) {
+        const p = s[i];
+        const alpha = 0.35 + Math.sin(p.tw) * 0.3;
+        ctx.fillStyle = 'rgba(244,222,138,' + Math.max(0.1, alpha) + ')';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      this._raf = requestAnimationFrame(draw);
+    };
+    draw();
+  }
+
+  renderVals() {
+    if (!this._booted) { this._booted = true; setTimeout(() => this.boot(), 60); }
+    return { bindRoot: this.bindRoot };
+  }
+}
+</script>
+</body>
+</html>
