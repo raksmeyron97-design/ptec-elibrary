@@ -152,6 +152,9 @@ function TopLevelLink({
       <Link
         href={link.href}
         onClick={onClick}
+        aria-current={active ? "page" : undefined}
+        aria-label={collapsed ? link.name : undefined}
+        title={collapsed ? undefined : link.name}
         className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
         style={{
           padding: collapsed ? "10px" : "10px 12px",
@@ -218,7 +221,9 @@ function ChildLink({
     <Link
       href={link.href}
       onClick={onClick}
-      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+      aria-current={active ? "page" : undefined}
+      title={link.name}
+      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
       style={{
         padding: "7px 10px",
         color: active ? "#FFFFFF" : "rgba(255,255,255,0.60)",
@@ -272,17 +277,25 @@ function NavGroup({
   // header (~34px) + rows (~36px each) + padding
   const [flyRef, flyTop, showFly, hideFly] = useFlyout(50 + group.children.length * 36);
 
-  // ── Collapsed sidebar: icon + hover flyout submenu ──
+  // ── Collapsed sidebar: icon + hover/focus flyout submenu ──
   if (collapsed) {
+    const flyoutOpen = flyTop !== null;
     return (
       <div
         ref={flyRef}
         className="relative group/nav-item"
         onMouseEnter={showFly}
         onMouseLeave={hideFly}
+        onFocus={showFly}
+        onKeyDown={e => { if (e.key === "Escape") hideFly(); }}
       >
-        <div
-          className="flex items-center justify-center rounded-xl transition-all duration-200 cursor-pointer"
+        <button
+          type="button"
+          aria-label={group.name}
+          aria-haspopup="menu"
+          aria-expanded={flyoutOpen}
+          onClick={flyoutOpen ? hideFly : showFly}
+          className="relative flex w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
           style={{
             padding: "10px",
             background: childActive ? "rgba(255,255,255,0.14)" : undefined,
@@ -303,11 +316,13 @@ function NavGroup({
               color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
             }}
           />
-        </div>
+        </button>
 
-        {/* Flyout submenu — hover to open, links are clickable */}
-        {flyTop !== null && (
+        {/* Flyout submenu — hover or keyboard focus to open, links are clickable */}
+        {flyoutOpen && (
         <div
+          role="menu"
+          aria-label={group.name}
           className="fixed z-50 pl-2"
           style={{ left: "64px", top: flyTop }}
         >
@@ -329,8 +344,11 @@ function NavGroup({
                   <Link
                     key={child.href}
                     href={child.href}
+                    role="menuitem"
+                    aria-current={active ? "page" : undefined}
+                    title={child.name}
                     onClick={() => { hideFly(); onNavigate(); }}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer"
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
                     style={{
                       color: active ? "#FFFFFF" : "rgba(255,255,255,0.65)",
                       background: active ? "rgba(255,255,255,0.12)" : undefined,
@@ -389,7 +407,7 @@ function NavGroup({
             color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
           }}
         />
-        <span className="flex-1 text-left truncate">{group.name}</span>
+        <span className="flex-1 text-left truncate leading-5" title={group.name}>{group.name}</span>
         {/* Active dot when the group is closed but holds the current page */}
         {childActive && !open && (
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#DDB022" }} />
@@ -532,6 +550,16 @@ export default function AdminSidebar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Close the mobile drawer on Escape.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMobileOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
   function handleSearch(e: React.SyntheticEvent) {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -583,9 +611,11 @@ export default function AdminSidebar({
         <button
           type="button"
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-lg cursor-pointer transition-colors"
+          className="p-2 rounded-lg cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#DDB022]"
           style={{ color: "rgba(255,255,255,0.80)" }}
-          aria-label="Toggle navigation menu"
+          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="admin-mobile-nav"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -601,6 +631,10 @@ export default function AdminSidebar({
 
       {/* ── Sidebar ── */}
       <aside
+        id="admin-mobile-nav"
+        aria-label="Admin navigation"
+        role={mobileOpen ? "dialog" : undefined}
+        aria-modal={mobileOpen ? true : undefined}
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col admin-sidebar
           transform transition-all duration-300 ease-in-out
@@ -640,30 +674,51 @@ export default function AdminSidebar({
 
         {/* ── Navigation: parent groups with expandable children ── */}
         <nav
+          aria-label="Admin sections"
           className="flex-1 overflow-y-auto space-y-1"
           style={{ padding: collapsed ? "12px 8px" : "12px 10px" }}
         >
-          {navTree.map(node =>
-            node.type === "link" ? (
-              <TopLevelLink
-                key={node.href}
-                link={node}
-                active={isActive(node.href)}
-                collapsed={collapsed}
-                onClick={() => setMobileOpen(false)}
-              />
-            ) : (
-              <NavGroup
-                key={node.name}
-                group={node}
-                collapsed={collapsed}
-                open={!!openGroups[node.name]}
-                onToggle={() => toggleGroup(node.name)}
-                isActive={isActive}
-                onNavigate={() => setMobileOpen(false)}
-              />
-            ),
+          {!collapsed && (
+            <div
+              className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-widest select-none"
+              style={{ color: "rgba(255,255,255,0.32)" }}
+            >
+              Menu
+            </div>
           )}
+          {navTree.map((node, i) => {
+            const prev = navTree[i - 1];
+            // Divider between the run of standalone links and the first group.
+            const showDivider = node.type === "group" && prev?.type === "link";
+            return (
+              <div key={node.type === "link" ? node.href : node.name}>
+                {showDivider && (
+                  <div
+                    className="my-2"
+                    style={{ borderTop: "1px solid rgba(255,255,255,0.08)", marginInline: collapsed ? 4 : 6 }}
+                    aria-hidden="true"
+                  />
+                )}
+                {node.type === "link" ? (
+                  <TopLevelLink
+                    link={node}
+                    active={isActive(node.href)}
+                    collapsed={collapsed}
+                    onClick={() => setMobileOpen(false)}
+                  />
+                ) : (
+                  <NavGroup
+                    group={node}
+                    collapsed={collapsed}
+                    open={!!openGroups[node.name]}
+                    onToggle={() => toggleGroup(node.name)}
+                    isActive={isActive}
+                    onNavigate={() => setMobileOpen(false)}
+                  />
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* ── Footer ── */}
