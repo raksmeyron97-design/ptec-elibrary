@@ -1,4 +1,20 @@
 {
+  "abstractReader": {
+    "toolbarLabel": "Abstract reading controls",
+    "open": "Open abstract reader",
+    "close": "Close abstract reader",
+    "increaseTextSize": "Increase text size",
+    "decreaseTextSize": "Decrease text size",
+    "resetTextSize": "Reset text size",
+    "currentTextSize": "Current text size: {size}%",
+    "textSizeAnnouncement": "Text size {size}%",
+    "mode": "Fullscreen reading mode",
+    "heading": "Abstract",
+    "minRead": "{count} min read",
+    "wordCount": "{count, plural, one {# word} other {# words}}",
+    "none": "No abstract provided.",
+    "keywordsHeading": "Keywords"
+  },
   "reader": {
     "readOnline": "Read online",
     "download": "Download",

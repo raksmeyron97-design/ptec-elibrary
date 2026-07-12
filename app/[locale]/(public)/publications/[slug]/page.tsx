@@ -331,6 +331,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 abstractKm={pub.abstract_km}
                 references={pub.references}
                 heading={t("sectionAbstract")}
+                publicationTitle={locale === "km" && pub.title_km ? pub.title_km : pub.title}
                 locale={locale}
               />
             </section>

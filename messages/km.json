@@ -1,4 +1,20 @@
 {
+  "abstractReader": {
+    "toolbarLabel": "របារឧបករណ៍សម្រាប់អានសេចក្តីសង្ខេប",
+    "open": "បើកផ្ទាំងអានសេចក្តីសង្ខេប",
+    "close": "បិទផ្ទាំងអានសេចក្តីសង្ខេប",
+    "increaseTextSize": "បង្កើនទំហំអក្សរ",
+    "decreaseTextSize": "បន្ថយទំហំអក្សរ",
+    "resetTextSize": "កំណត់ទំហំអក្សរទៅទំហំដើមវិញ",
+    "currentTextSize": "ទំហំអក្សរបច្ចុប្បន្ន៖ {size} ភាគរយ",
+    "textSizeAnnouncement": "ទំហំអក្សរ {size} ភាគរយ",
+    "mode": "របៀបអានពេញអេក្រង់",
+    "heading": "សេចក្តីសង្ខេប",
+    "minRead": "អាន {count} នាទី",
+    "wordCount": "{count} ពាក្យ",
+    "none": "មិនមានសេចក្តីសង្ខេបទេ។",
+    "keywordsHeading": "ពាក្យគន្លឹះ"
+  },
   "reader": {
     "readOnline": "អានតាមអនឡាញ",
     "download": "ទាញយក",

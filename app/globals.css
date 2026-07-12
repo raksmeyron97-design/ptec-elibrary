@@ -24,6 +24,7 @@
   --ptec-accent-line: #DDB022;
   --ptec-focus-ring: #3A5FC4;
   --ptec-divider: #E5E7EB;
+  --ptec-reader-control-border: #8A94A5;
   --ptec-success: #15803D;
   --ptec-warning: #806211;
   --ptec-danger: #B91C1C;
@@ -115,6 +116,7 @@
   --ptec-accent-line: #F4DE8A;
   --ptec-focus-ring: #8AA4E4;
   --ptec-divider: #2B3347;
+  --ptec-reader-control-border: #64748B;
   --ptec-success: #5EE9B5;
   --ptec-warning: #F4DE8A;
   --ptec-danger: #FF6568;
@@ -171,6 +173,7 @@
   --color-accent-line: var(--ptec-accent-line);
   --color-focus-ring: var(--ptec-focus-ring);
   --color-divider: var(--ptec-divider);
+  --color-reader-control-border: var(--ptec-reader-control-border);
   --color-success: var(--ptec-success);
   --color-warning: var(--ptec-warning);
   --color-danger: var(--ptec-danger);
@@ -225,6 +228,54 @@ html:lang("en") body {
 h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   font-family: var(--font-khmer-serif);
   line-height: 1.4;
+}
+
+/* Abstract reader typography is scoped so zoom never affects page chrome.
+   `ch` sizing lives on the scaled fullscreen article, keeping lines near
+   72 characters at every supported reader size on sufficiently wide screens. */
+.abstract-reader-copy {
+  font-size: calc(1rem * var(--reader-scale, 1));
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+  hyphens: auto;
+}
+
+.abstract-reader-copy--fullscreen {
+  font-size: calc(1.0625rem * var(--reader-scale, 1));
+  line-height: 1.85;
+}
+
+.abstract-reader-copy:lang(km),
+.abstract-reader-copy [lang="km"] {
+  line-height: 2;
+}
+
+.abstract-reader-copy :where(p, h1, h2, h3, h4, h5, h6, li, blockquote, figcaption, a) {
+  max-width: 100%;
+}
+
+.abstract-reader-copy :where(pre, code) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.abstract-reader-copy :where(img, video, svg, table) {
+  max-width: 100%;
+}
+
+.abstract-reader-copy :where(sub, sup) {
+  line-height: 0;
+}
+
+@media (min-width: 640px) {
+  .abstract-reader-copy {
+    font-size: calc(1.0625rem * var(--reader-scale, 1));
+  }
+
+  .abstract-reader-copy--fullscreen {
+    font-size: calc(1.125rem * var(--reader-scale, 1));
+  }
 }
 
 .line-clamp-2 {

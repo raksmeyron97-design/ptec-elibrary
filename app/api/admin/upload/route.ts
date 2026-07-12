@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
-import { validateMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
+import { validateMimeType, detectMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
@@ -48,12 +48,27 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
 
-    // CSV has no magic-byte signature to verify (it's plain text), so it
-    // can't go through validateMimeType() — isPlausibleTextFile() is a
-    // weaker heuristic check instead (rejects obvious disguised binaries).
-    const contentOk = file.type === "text/csv"
-      ? isPlausibleTextFile(bytes)
-      : validateMimeType(bytes, file.type);
+    // ── Content-type verification (magic bytes, never the spoofable extension) ──
+    // A file's extension is OS/user-controlled: a WebP saved as `.jpg` still
+    // reports image/jpeg. We sniff the real bytes. For images we trust the
+    // sniffed type over the declared one and carry it downstream (`effectiveType`)
+    // — sharp re-encodes to WebP regardless, so a mislabeled-but-valid image is
+    // safe to accept. CSV has no signature (weaker heuristic). Everything else
+    // must still match its declared type exactly.
+    const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+    let effectiveType = file.type;
+    let contentOk: boolean;
+    if (file.type === "text/csv") {
+      contentOk = isPlausibleTextFile(bytes);
+    } else {
+      const detected = detectMimeType(bytes);
+      if (detected && IMAGE_MIMES.has(detected) && IMAGE_MIMES.has(file.type)) {
+        effectiveType = detected; // real image, just wrong extension — trust the bytes
+        contentOk = true;
+      } else {
+        contentOk = validateMimeType(bytes, file.type);
+      }
+    }
     if (!contentOk) {
       logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: `content does not match declared type ${file.type}` });
       return NextResponse.json(
@@ -79,7 +94,7 @@ export async function POST(request: NextRequest) {
     // Forms editing an existing record pass excludeType/excludeId so replacing
     // a file with the identical bytes is not flagged against itself.
     let contentHash: string | null = null;
-    if (file.type === "application/pdf") {
+    if (effectiveType === "application/pdf") {
       contentHash = fileHash;
       const excludeType = formData.get("excludeType") as string | null;
       const excludeId = (formData.get("excludeId") as string | null)?.trim();
@@ -100,8 +115,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Optimize image before upload ──
+    // Pass the sniffed type so a mislabeled image (e.g. a WebP named `.jpg`)
+    // is still routed through sharp rather than passed through untouched.
     const opts = presetsForFolder(key);
-    const optimized = await optimizeImage(bytes, file.name, file.type, opts);
+    const optimized = await optimizeImage(bytes, file.name, effectiveType, opts);
 
     const lastSlash = key.lastIndexOf("/");
     const subfolder = lastSlash > 0 ? key.slice(0, lastSlash) : key;

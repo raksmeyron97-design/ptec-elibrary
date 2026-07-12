@@ -8,16 +8,28 @@
 // so SEO, printing (print: overrides), no-JS readers (noscript override), and
 // citation fragment anchors all see the complete text.
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Clock, FileText } from "lucide-react";
+import AbstractReaderDialog from "@/components/ui/publications/AbstractReaderDialog";
 import AcademicText from "@/components/ui/publications/AcademicText";
+import ReaderToolbar from "@/components/ui/reader/ReaderToolbar";
+import { useReaderPreferences } from "@/components/ui/reader/useReaderPreferences";
 import type { PublicationReference } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 
 const WORDS_PER_MINUTE = 200;
 // ~6 clipped lines at the block's own 1.8 line-height.
 const COLLAPSED_MAX_HEIGHT = "10.8em";
+
+type ReaderScaleStyle = CSSProperties & { "--reader-scale": number };
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -29,6 +41,7 @@ function ExpandableAcademicBlock({
   sourceId,
   lang,
   languageLabel,
+  textSize,
   className = "",
 }: {
   text: string;
@@ -36,6 +49,7 @@ function ExpandableAcademicBlock({
   sourceId: string;
   lang: "en" | "km";
   languageLabel: string;
+  textSize: number;
   className?: string;
 }) {
   const t = useTranslations("publicationDetail");
@@ -45,6 +59,10 @@ function ExpandableAcademicBlock({
   const contentRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
+  const contentStyle: ReaderScaleStyle = {
+    "--reader-scale": textSize / 100,
+    ...(expanded ? {} : { maxHeight: COLLAPSED_MAX_HEIGHT }),
+  };
 
   // Only show the control when the collapsed block actually clips content.
   useLayoutEffect(() => {
@@ -105,14 +123,14 @@ function ExpandableAcademicBlock({
           id={contentId}
           ref={contentRef}
           lang={lang}
-          className={`overflow-hidden text-[16px] leading-[1.8] text-text-body sm:text-[17px] print:!max-h-none ${className}`}
-          style={expanded ? undefined : { maxHeight: COLLAPSED_MAX_HEIGHT }}
+          className={`abstract-reader-copy overflow-hidden text-text-body print:!max-h-none ${className}`}
+          style={contentStyle}
         >
           <AcademicText
             text={text}
             references={references}
             sourceId={sourceId}
-            paragraphClassName="mt-3 first:mt-0"
+            paragraphClassName="mt-[0.75em] first:mt-0"
             citationLabel={(number) => t("citationReference", { number })}
             missingCitationLabel={() => t("citationMissing")}
           />
@@ -154,16 +172,28 @@ export default function PublicationAbstractSection({
   abstractKm,
   references,
   heading,
+  publicationTitle,
   locale = "en",
 }: {
   abstract: string;
   abstractKm: string | null;
   references: PublicationReference[];
   heading: string;
+  publicationTitle: string;
   /** Page locale: on /km the Khmer abstract leads. Both stay in the DOM. */
   locale?: string;
 }) {
   const t = useTranslations("publicationDetail");
+  const [readerOpen, setReaderOpen] = useState(false);
+  const openReaderButtonRef = useRef<HTMLButtonElement>(null);
+  const {
+    textSize,
+    decreaseTextSize,
+    increaseTextSize,
+    resetTextSize,
+    canDecrease,
+    canIncrease,
+  } = useReaderPreferences();
   const plain = academicTextToPlainText(abstract, references);
   const words = plain ? plain.split(/\s+/).filter(Boolean).length : 0;
   const readingMinutes = words > 0 ? Math.max(1, Math.round(words / WORDS_PER_MINUTE)) : 0;
@@ -176,6 +206,7 @@ export default function PublicationAbstractSection({
       sourceId="abstract-en"
       lang="en"
       languageLabel={t("abstractEnglish")}
+      textSize={textSize}
       className="font-sans"
     />
   ) : (
@@ -189,6 +220,7 @@ export default function PublicationAbstractSection({
       sourceId="abstract-km"
       lang="km"
       languageLabel={t("abstractKhmer")}
+      textSize={textSize}
       className="font-khmer-serif"
     />
   ) : null;
@@ -208,9 +240,23 @@ export default function PublicationAbstractSection({
         </header>
       )}
 
-      <h2 id="abstract-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-        {heading}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <h2 id="abstract-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+          {heading}
+        </h2>
+        <ReaderToolbar
+          textSize={textSize}
+          canDecrease={canDecrease}
+          canIncrease={canIncrease}
+          onDecrease={decreaseTextSize}
+          onIncrease={increaseTextSize}
+          onReset={resetTextSize}
+          mode="inline"
+          onOpen={() => setReaderOpen(true)}
+          announce={!readerOpen}
+          actionButtonRef={openReaderButtonRef}
+        />
+      </div>
 
       <div className="mt-3">
         {khmerFirst ? (
@@ -236,6 +282,24 @@ export default function PublicationAbstractSection({
           </>
         )}
       </div>
+
+      <AbstractReaderDialog
+        open={readerOpen}
+        onClose={() => setReaderOpen(false)}
+        publicationTitle={publicationTitle}
+        heading={heading}
+        abstract={abstract}
+        abstractKm={abstractKm}
+        references={references}
+        locale={locale}
+        textSize={textSize}
+        canDecrease={canDecrease}
+        canIncrease={canIncrease}
+        onDecrease={decreaseTextSize}
+        onIncrease={increaseTextSize}
+        onReset={resetTextSize}
+        returnFocusRef={openReaderButtonRef}
+      />
     </article>
   );
 }

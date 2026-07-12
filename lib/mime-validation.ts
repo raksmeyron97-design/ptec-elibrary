@@ -49,6 +49,42 @@ export function validateMimeType(
   );
 }
 
+/**
+ * Types that can be uniquely identified from their magic bytes. OOXML
+ * (.docx/.xlsx/.pptx) is intentionally excluded — they all share the ZIP
+ * signature and can't be told apart by magic bytes, so they have no place in
+ * a "detect the real type" list.
+ */
+const DETECTABLE: { type: string; sigs: { bytes: number[]; offset: number }[] }[] = [
+  { type: "application/pdf", sigs: SIGNATURES["application/pdf"]! },
+  { type: "image/png", sigs: SIGNATURES["image/png"]! },
+  { type: "image/jpeg", sigs: SIGNATURES["image/jpeg"]! },
+  { type: "image/webp", sigs: SIGNATURES["image/webp"]! },
+  { type: "image/avif", sigs: SIGNATURES["image/avif"]! },
+];
+
+/**
+ * Detect a file's real MIME type from its magic bytes, ignoring the declared
+ * (extension-derived, spoofable) type. Returns the detected type, or `null`
+ * when the content matches no uniquely-identifiable signature — e.g. an OOXML
+ * ZIP container, plain text, or an unrecognised/corrupt file.
+ *
+ * Use this where a valid file may carry a misleading extension (a WebP saved
+ * as `.jpg` still reports `image/jpeg`); use `validateMimeType()` when you
+ * need to confirm content matches a *specific* declared type.
+ */
+export function detectMimeType(buffer: ArrayBuffer): string | null {
+  const view = new Uint8Array(buffer);
+  if (view.length < 12) return null;
+
+  for (const { type, sigs } of DETECTABLE) {
+    if (sigs.every((sig) => sig.bytes.every((b, i) => view[sig.offset + i] === b))) {
+      return type;
+    }
+  }
+  return null;
+}
+
 // Reject a file outright if it opens with a known binary/executable/document
 // signature while being uploaded as plain text (CSV) — catches the obvious
 // "renamed .exe to .csv" case even though CSV itself has no signature of its
