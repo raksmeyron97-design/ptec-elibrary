@@ -45,6 +45,7 @@ export default async function EditBookPage({
   // Flatten relations for the form
   const initial = {
     id:         book.id as string,
+    slug:       (book.slug as string) ?? "",
     title:      (book.title as string) ?? "",
     author:     ((book.authors as any)?.name as string) ?? "",
     category:   ((book.categories as any)?.name as string) ?? "",

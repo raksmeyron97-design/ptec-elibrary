@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { gateBookSlug } from "@/lib/book-slug-gate";
 
 // Paths that require an active session on the main domain
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
@@ -241,6 +242,40 @@ export async function middleware(request: NextRequest) {
       }
     } catch {
       // Lookup failed — let the page route resolve or 404 the id itself.
+    }
+  }
+
+  // ── Book detail slugs: real 301s for retired duplicates, real 404s ──
+  // The (public) loading boundary streams a 200 shell before the page can
+  // notFound(), so unknown slugs were soft-404s. The gate is an in-memory
+  // published-slug snapshot per edge isolate (zero added latency on the hot
+  // path; one confirming lookup on misses) and FAILS OPEN if Supabase is
+  // unreachable. See lib/book-slug-gate.ts.
+  const bookDetail = pathWithoutLocale.match(/^\/books\/([^/]+)$/);
+  if (bookDetail) {
+    let bookSlug: string | null = null;
+    try {
+      bookSlug = decodeURIComponent(bookDetail[1]);
+    } catch {
+      bookSlug = null; // malformed escape — let the route 404 it
+    }
+    if (bookSlug) {
+      const verdict = await gateBookSlug(bookSlug, {
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+      });
+      if (verdict?.kind === "redirect") {
+        const res = NextResponse.redirect(
+          new URL(`${localePrefix}/books/${encodeURIComponent(verdict.slug)}`, request.url),
+          301,
+        );
+        return applySecurity(res);
+      }
+      if (verdict?.kind === "not-found") {
+        const res = NextResponse.rewrite(new URL('/__not-found__', request.url));
+        return applySecurity(res);
+      }
+      // ok / null → fall through to the page unchanged.
     }
   }
 

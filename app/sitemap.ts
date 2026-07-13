@@ -2,6 +2,7 @@ import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
 import { SITE_URL } from '@/lib/seo/site';
 import { slugify } from '@/lib/books';
+import { sitemapLastmod } from '@/lib/seo/book-seo';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -19,6 +20,27 @@ function withAlternates(path: string) {
         km: `${SITE_URL}/km${path}`,
       },
     },
+  };
+}
+
+// `lastmod` must be the resource's real significant-update time — never the
+// sitemap-generation/deploy time. When no trustworthy timestamp exists we OMIT
+// lastModified entirely (an untruthful lastmod trains crawlers to ignore it).
+type Entry = MetadataRoute.Sitemap[number];
+function entry(
+  path: string,
+  opts: {
+    lastModified?: string | null | undefined;
+    changeFrequency?: Entry['changeFrequency'];
+    priority?: number;
+  },
+): Entry {
+  const lastmod = opts.lastModified ? sitemapLastmod(opts.lastModified) : undefined;
+  return {
+    ...withAlternates(path),
+    ...(lastmod ? { lastModified: lastmod } : {}),
+    ...(opts.changeFrequency ? { changeFrequency: opts.changeFrequency } : {}),
+    ...(opts.priority != null ? { priority: opts.priority } : {}),
   };
 }
 
@@ -64,11 +86,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     authors,
     publicationAuthors,
   ] = await Promise.all([
-    fetchAllRows<{ slug: string; published_at: string | null; created_at: string | null }>(
+    fetchAllRows<{ slug: string; published_at: string | null; created_at: string | null; updated_at: string | null }>(
       (from, to) =>
         supabase
           .from('books')
-          .select('slug, published_at, created_at')
+          .select('slug, published_at, created_at, updated_at')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
           .range(from, to),
@@ -148,90 +170,60 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     ),
   ]);
 
-  const bookUrls: MetadataRoute.Sitemap = books.map((book) => ({
-    ...withAlternates(`/books/${book.slug}`),
-    lastModified: book.published_at ?? book.created_at ?? new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.8,
-  }));
+  // Books gained updated_at + a BEFORE UPDATE trigger in migration 0077, so it
+  // reflects the last real admin edit; fall back to publication, then creation.
+  const bookUrls: MetadataRoute.Sitemap = books.map((book) =>
+    entry(`/books/${book.slug}`, {
+      lastModified: sitemapLastmod(book.updated_at, book.published_at, book.created_at),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    }),
+  );
 
-  const postUrls: MetadataRoute.Sitemap = posts.map((post) => ({
-    ...withAlternates(`/posts/${post.slug}`),
-    lastModified: post.updated_at ?? post.created_at ?? new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.7,
-  }));
+  const postUrls: MetadataRoute.Sitemap = posts.map((post) =>
+    entry(`/posts/${post.slug}`, {
+      lastModified: sitemapLastmod(post.updated_at, post.created_at),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    }),
+  );
 
-  const reportUrls: MetadataRoute.Sitemap = reports.map((r) => ({
-    ...withAlternates(`/theses/${r.slug ?? r.id}`),
-    lastModified: r.published_at ?? r.created_at ?? new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.9,
-  }));
-
-  const catalogUrls: MetadataRoute.Sitemap = catalogBooks.map((b) => ({
-    ...withAlternates(`/catalogs/${b.slug}`),
-    lastModified: b.updated_at ?? b.created_at ?? new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.6,
-  }));
-
-  const publicationUrls: MetadataRoute.Sitemap = publications.map((p) => ({
-    ...withAlternates(`/publications/${p.slug}`),
-    lastModified: p.updated_at ?? p.created_at ?? new Date(),
-    changeFrequency: 'monthly',
-    priority: 0.9,
-  }));
-
-  const staticUrls: MetadataRoute.Sitemap = [
-    {
-      ...withAlternates('/home'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      ...withAlternates('/books'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
+  const reportUrls: MetadataRoute.Sitemap = reports.map((r) =>
+    entry(`/theses/${r.slug ?? r.id}`, {
+      lastModified: sitemapLastmod(r.published_at, r.created_at),
+      changeFrequency: 'monthly',
       priority: 0.9,
-    },
-    {
-      ...withAlternates('/theses'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      ...withAlternates('/theses/summary'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
+    }),
+  );
+
+  const catalogUrls: MetadataRoute.Sitemap = catalogBooks.map((b) =>
+    entry(`/catalogs/${b.slug}`, {
+      lastModified: sitemapLastmod(b.updated_at, b.created_at),
+      changeFrequency: 'weekly',
       priority: 0.6,
-    },
-    {
-      ...withAlternates('/catalogs'),
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      ...withAlternates('/posts'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      ...withAlternates('/publications'),
-      lastModified: new Date(),
-      changeFrequency: 'daily',
+    }),
+  );
+
+  const publicationUrls: MetadataRoute.Sitemap = publications.map((p) =>
+    entry(`/publications/${p.slug}`, {
+      lastModified: sitemapLastmod(p.updated_at, p.created_at),
+      changeFrequency: 'monthly',
       priority: 0.9,
-    },
-    {
-      ...withAlternates('/paths'),
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
+    }),
+  );
+
+  // Listing/informational pages are evergreen navigation, not resources with a
+  // single significant-update time — so they carry a changeFrequency/priority
+  // hint but NO lastmod (a fabricated per-deploy timestamp is worse than none).
+  const staticUrls: MetadataRoute.Sitemap = [
+    entry('/home', { changeFrequency: 'daily', priority: 1.0 }),
+    entry('/books', { changeFrequency: 'daily', priority: 0.9 }),
+    entry('/theses', { changeFrequency: 'daily', priority: 0.9 }),
+    entry('/theses/summary', { changeFrequency: 'daily', priority: 0.6 }),
+    entry('/catalogs', { changeFrequency: 'weekly', priority: 0.8 }),
+    entry('/posts', { changeFrequency: 'daily', priority: 0.8 }),
+    entry('/publications', { changeFrequency: 'daily', priority: 0.9 }),
+    entry('/paths', { changeFrequency: 'weekly', priority: 0.8 }),
     // Informational pages — rarely change
     ...[
       '/about',
@@ -244,43 +236,41 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
       '/contact',
       '/policy',
       '/privacy',
-    ].map((path) => ({
-      ...withAlternates(path),
-      lastModified: new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.4,
-    })),
+    ].map((path) => entry(path, { changeFrequency: 'monthly', priority: 0.4 })),
   ];
 
-  const pathUrls: MetadataRoute.Sitemap = paths.map((p) => ({
-    ...withAlternates(`/paths/${p.slug}`),
-    lastModified: p.updated_at ?? p.created_at ?? new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }));
+  const pathUrls: MetadataRoute.Sitemap = paths.map((p) =>
+    entry(`/paths/${p.slug}`, {
+      lastModified: sitemapLastmod(p.updated_at, p.created_at),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    }),
+  );
 
-  const subjectUrls: MetadataRoute.Sitemap = categories.map((c) => ({
-    ...withAlternates(`/subjects/${c.slug}`),
-    lastModified: c.created_at ?? new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.6,
-  }));
+  const subjectUrls: MetadataRoute.Sitemap = categories.map((c) =>
+    entry(`/subjects/${c.slug}`, {
+      lastModified: sitemapLastmod(c.created_at),
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }),
+  );
 
-  const authorSlugSet = new Map<string, string>();
+  const authorSlugSet = new Map<string, string | null>();
   for (const a of authors) {
     const slug = slugify(a.name);
-    if (slug) authorSlugSet.set(slug, a.created_at ?? new Date().toISOString());
+    if (slug) authorSlugSet.set(slug, a.created_at ?? null);
   }
   for (const a of publicationAuthors) {
     const slug = slugify(a.full_name);
-    if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? new Date().toISOString());
+    if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }
-  const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) => ({
-    ...withAlternates(`/authors/${slug}`),
-    lastModified: createdAt,
-    changeFrequency: 'monthly',
-    priority: 0.5,
-  }));
+  const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) =>
+    entry(`/authors/${slug}`, {
+      lastModified: sitemapLastmod(createdAt),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    }),
+  );
 
   return [
     ...staticUrls,

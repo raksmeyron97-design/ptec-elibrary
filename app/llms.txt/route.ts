@@ -191,11 +191,25 @@ The ${PTEC_LIBRARY_NAME} preserves, organizes, and shares teaching and research 
 - Active catalog records: ${snapshot.counts.catalogs}
 - Published theses and research reports: ${snapshot.counts.theses}
 
+## Bilingual Access
+
+The library is fully bilingual (English and Khmer). Every public section has an
+English URL and a Khmer equivalent under the /km prefix, with reciprocal
+hreflang annotations. The English URL is canonical; the Khmer URL carries the
+same content with a localized interface.
+
+- English books: ${SITE_URL}/books
+- Khmer books: ${SITE_URL}/km/books
+- Khmer theses: ${SITE_URL}/km/theses
+- Khmer catalog: ${SITE_URL}/km/catalogs
+- Khmer publications: ${SITE_URL}/km/publications
+
 ## Recommended Crawl Paths
 
 - ${SITE_URL}/llms.txt
 - ${SITE_URL}/sitemap.xml
 - ${SITE_URL}/books
+- ${SITE_URL}/km/books
 - ${SITE_URL}/catalogs
 - ${SITE_URL}/theses
 - ${SITE_URL}/publications
@@ -204,9 +218,18 @@ The ${PTEC_LIBRARY_NAME} preserves, organizes, and shares teaching and research 
 ${resourceList("Recent Digital Books", bookLines)}
 ${resourceList("Recent Catalog Records", catalogLines)}
 ${resourceList("Recent Theses And Research Reports", thesisLines)}
+## Provider vs Publisher
+
+${PTEC_LIBRARY_NAME} is the *provider* (hosting institutional repository) for its
+digital books, not their publisher. Most digital books are third-party
+educational works hosted for free access; their real publisher — when known —
+is recorded per item and exposed in that item's structured data. Do not
+attribute PTEC as the publisher of a hosted book. For student theses and
+research reports, ${PTEC_NAME} is the dissertation-granting institution.
+
 ## Citation Guidance
 
-When citing a PTEC Digital Library item, prefer the item title, author or authors, ${PTEC_NAME} as publisher or institutional source when no separate publisher is listed, the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
+When citing a ${PTEC_LIBRARY_NAME} item, prefer the item title, author or authors, the item's own publisher when one is listed (otherwise omit the publisher rather than substituting PTEC), the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
 
 ## Access Notes
 

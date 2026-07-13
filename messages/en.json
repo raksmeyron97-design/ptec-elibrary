@@ -354,6 +354,11 @@
   },
   "books": {
     "title": "Books",
+    "h1": "Free Educational Books and Teaching Resources",
+    "seoTitle": "Free Educational Books & Teaching Resources",
+    "seoDescription": "Browse {count} free educational books and teaching resources — research methods, pedagogy, Khmer and English materials. Read online or download as PDF.",
+    "seoDescriptionEvergreen": "Browse free educational books and teaching resources — research methods, pedagogy, Khmer and English materials. Read online or download as PDF.",
+    "pageLabel": "Page",
     "subtitle": "Textbooks, research papers and teaching materials, all in one place.",
     "noResults": "No resources found",
     "resources": "{count} resource",

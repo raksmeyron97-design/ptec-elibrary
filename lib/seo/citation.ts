@@ -58,18 +58,27 @@ export interface BookCitationRow {
   isbn?: string | null;
   language?: string | null;
   published_at?: string | null;
+  /** The book's ACTUAL publisher — PTEC hosts most books but publishes almost
+   *  none of them, so this is null for the majority. */
+  publisher?: string | null;
   tags?: string[] | null;
 }
 
 /** citation_pdf_url points at /api/books/[id]/file, which is anonymously
  * readable (auth is only enforced for ?download=1) and serves
- * Content-Type: application/pdf directly — no presigned-URL redirect. */
+ * Content-Type: application/pdf directly — no presigned-URL redirect.
+ *
+ * citation_publisher is emitted ONLY when the record names a real publisher.
+ * PTEC is the providing library, not the publisher of these third-party
+ * textbooks — asserting citation_publisher=PTEC to Google Scholar would be a
+ * factual misattribution. */
 export function bookScholarMeta(book: BookCitationRow, authors: string[]): ScholarMeta {
   const tags: ScholarMeta = {
     citation_title: book.title,
-    citation_publisher: PTEC_NAME,
     citation_pdf_url: `${SITE_URL}/api/books/${book.id}/file`,
   };
+  const publisher = book.publisher?.trim();
+  if (publisher) tags.citation_publisher = publisher;
   if (authors.length > 0) tags.citation_author = authors;
   if (book.published_at) tags.citation_publication_date = book.published_at;
   if (book.isbn && book.isbn !== "N/A") tags.citation_isbn = book.isbn;

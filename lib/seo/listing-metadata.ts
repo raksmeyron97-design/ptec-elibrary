@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { PTEC_LIBRARY_NAME } from "@/lib/seo/site";
 
 /**
  * Metadata for paginated listing pages (/books, /theses, /posts, …).
@@ -10,6 +11,8 @@ import { localeAlternates } from "@/lib/seo/alternates";
  * - Filtered / searched variants (?q=, ?dept=, ?sort=, …) are kept out of the
  *   index (`noindex, follow`): the links are still crawled, but the
  *   near-duplicate filter permutations don't pollute search results.
+ * - Pages beyond the last result page (?page=999) are `noindex, follow` too —
+ *   an empty grid is not a useful index entry (pass `outOfRange`).
  */
 export function buildListingMetadata({
   path,
@@ -19,38 +22,57 @@ export function buildListingMetadata({
   page,
   hasFilters,
   ogType = "website",
+  image,
+  imageAlt,
+  pageLabel = "Page",
+  outOfRange = false,
 }: {
   /** Route path starting with "/", e.g. "/books". */
   path: string;
   /** Current request locale ("en" | "km") — drives canonical + hreflang. */
   locale: string;
+  /** Localized title for the current locale. */
   title: string;
+  /** Localized description for the current locale. */
   description: string;
   /** Current 1-based page number (from ?page=). */
   page: number;
   /** True when any filter/search/sort param other than `page` is active. */
   hasFilters: boolean;
   ogType?: "website";
+  /** Social-sharing image URL (absolute or /public path). */
+  image?: string;
+  imageAlt?: string;
+  /** Localized "Page" label for paginated titles (e.g. "ទំព័រ"). */
+  pageLabel?: string;
+  /** True when the requested page is past the last page of results. */
+  outOfRange?: boolean;
 }): Metadata {
   const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
   const alternates = localeAlternates(pathWithQuery, locale);
-  const pagedTitle = page > 1 ? `${title} — Page ${page}` : title;
+  const pagedTitle = page > 1 ? `${title} — ${pageLabel} ${page}` : title;
+  const images = image ? [{ url: image, alt: imageAlt ?? PTEC_LIBRARY_NAME }] : undefined;
 
   return {
     title: pagedTitle,
     description,
     alternates,
-    robots: hasFilters ? { index: false, follow: true } : undefined,
+    robots: hasFilters || outOfRange ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `${pagedTitle} | PTEC Library`,
       description,
       url: alternates.canonical,
       type: ogType,
+      siteName: PTEC_LIBRARY_NAME,
+      locale: locale === "km" ? "km_KH" : "en_US",
+      alternateLocale: locale === "km" ? "en_US" : "km_KH",
+      images,
     },
     twitter: {
       card: "summary_large_image",
       title: `${pagedTitle} | PTEC Library`,
       description,
+      images: image ? [image] : undefined,
     },
   };
 }

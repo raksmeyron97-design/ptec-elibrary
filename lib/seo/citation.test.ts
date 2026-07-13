@@ -63,7 +63,6 @@ describe("bookScholarMeta", () => {
     expect(meta).toMatchObject({
       citation_title: "PISA-D Assessment Framework",
       citation_author: ["Jane Doe"],
-      citation_publisher: "Phnom Penh Teacher Education College",
       citation_publication_date: "2024-06-15",
       citation_isbn: "978-1-234567-89-0",
       citation_language: "English",
@@ -74,6 +73,16 @@ describe("bookScholarMeta", () => {
     expect(meta.citation_pdf_url).toBe(
       "https://library.ptec.edu.kh/api/books/163f853f-e68c-4ae9-a23f-1f18ffa3e8b7/file",
     );
+  });
+
+  it("does NOT assert PTEC as citation_publisher (PTEC is the provider)", () => {
+    const meta = bookScholarMeta(sampleRow, ["Jane Doe"]);
+    expect(meta.citation_publisher).toBeUndefined();
+  });
+
+  it("emits citation_publisher only when the record names a real publisher", () => {
+    const meta = bookScholarMeta({ ...sampleRow, publisher: "Routledge" }, ["Jane Doe"]);
+    expect(meta.citation_publisher).toBe("Routledge");
   });
 
   it("omits citation_isbn for a placeholder N/A value", () => {

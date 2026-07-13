@@ -17,10 +17,12 @@ import { formatFileSize } from "@/lib/admin/ebooks-shared";
 import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
+import BookSeoPanel from "@/components/admin/ebooks/BookSeoPanel";
 import { ImagePlus, UploadCloud, Save, BookOpen, AlertCircle, X, FileText, Info, Download } from "lucide-react";
 
 type Initial = {
   id: string;
+  slug: string;
   title: string;
   author: string;
   category: string;
@@ -157,6 +159,40 @@ export default function EditForm({
   const [pdfFile, setPdfFile]     = useState<File | null>(null);
   const pdfInputRef               = useRef<HTMLInputElement>(null);
 
+  // Live snapshot of the SEO-relevant fields for the quality panel. Read from
+  // the form on every input so the panel + Google preview stay in sync without
+  // converting every field to a controlled input.
+  const [seoState, setSeoState] = useState({
+    title: initial.title,
+    summary: initial.summary,
+    author: initial.author,
+    language: initial.language,
+    isbn: initial.isbn,
+    publisher: initial.publisher,
+    year: initial.year || null,
+    pages: initial.pages || null,
+    tags: initial.tags,
+  });
+
+  function handleFormInput(e: React.FormEvent<HTMLFormElement>) {
+    const fd = new FormData(e.currentTarget);
+    const num = (v: FormDataEntryValue | null) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
+    setSeoState({
+      title: String(fd.get("title") ?? ""),
+      summary: String(fd.get("summary") ?? ""),
+      author: String(fd.get("author") ?? ""),
+      language: String(fd.get("language") ?? ""),
+      isbn: String(fd.get("isbn") ?? ""),
+      publisher: String(fd.get("publisher") ?? ""),
+      year: num(fd.get("year")),
+      pages: num(fd.get("pages")),
+      tags: fd.getAll("tags").map(String).filter(Boolean),
+    });
+  }
+
   const saving = phase !== "idle";
 
   function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -268,7 +304,7 @@ export default function EditForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} onInput={handleFormInput} className="space-y-5">
 
       {/* ── Phase progress ── */}
       <PhaseStepper phase={phase} />
@@ -616,6 +652,12 @@ export default function EditForm({
           </div>
         </div>
       </div>
+
+      {/* ── SEO & metadata quality ── */}
+      <BookSeoPanel
+        slug={initial.slug}
+        fields={{ ...seoState, coverPresent: preview !== null }}
+      />
 
       {/* Error */}
       {error && (

@@ -18,8 +18,8 @@ import { buttonClasses } from "@/components/ui/core/Button";
 import BookRequestForm from "@/components/ui/books/BookRequestForm";
 import MobileFilterSheet from "@/components/ui/books/MobileFilterSheet";
 import { getTranslations } from 'next-intl/server';
-import { SITE_URL } from "@/lib/seo/site";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import { booksCollectionJsonLd, FALLBACK_OG_IMAGE } from "@/lib/seo/book-seo";
 import JsonLd from "@/components/seo/JsonLd";
 
 // The route renders per-request (it reads searchParams), but every Supabase
@@ -45,21 +45,42 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const { locale } = await routeParams;
+  const t = await getTranslations({ locale, namespace: "books" });
+  const page = parsePageParam(params.page);
+  const hasFilters = !!(
+    params.q ||
+    params.dept ||
+    params.format ||
+    params.language ||
+    params.sort ||
+    params.size
+  );
+
+  // Clean (indexable) listing pages get the live collection count in the
+  // description and noindex past the last page. Served from the same
+  // unstable_cache entry the page render uses, so this adds no extra query.
+  let total = 0;
+  let onPageCount = -1;
+  if (!hasFilters) {
+    const res = await getBooksPage({}, page, resolvePageSize(undefined));
+    total = res.total;
+    onPageCount = res.books.length;
+  }
+
   return buildListingMetadata({
     path: "/books",
     locale,
-    title: "Books",
+    title: t("seoTitle"),
     description:
-      "Browse the PTEC digital library collection — teaching resources, textbooks, and educational materials available to read online or download.",
-    page: parsePageParam(params.page),
-    hasFilters: !!(
-      params.q ||
-      params.dept ||
-      params.format ||
-      params.language ||
-      params.sort ||
-      params.size
-    ),
+      total > 0
+        ? t("seoDescription", { count: total })
+        : t("seoDescriptionEvergreen"),
+    page,
+    hasFilters,
+    image: FALLBACK_OG_IMAGE,
+    imageAlt: t("seoTitle"),
+    pageLabel: t("pageLabel"),
+    outOfRange: page > 1 && onPageCount === 0,
   });
 }
 
@@ -101,26 +122,35 @@ export default async function BooksPage({
   );
   const categoryPills = ["All", ...departments];
 
-  const collectionSchema = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Books — PTEC Digital Library",
-    description: "Browse free teaching resources, textbooks, and educational materials from Phnom Penh Teacher Education College.",
-    url: `${SITE_URL}/books`,
-    isAccessibleForFree: true,
-    inLanguage: ["km", "en"],
-    hasPart: books.slice(0, 10).map((b) => ({
-      "@type": "Book",
-      name: b.title,
-      url: `${SITE_URL}/books/${b.slug}`,
-      isAccessibleForFree: true,
-      bookFormat: "https://schema.org/EBook",
-    })),
-  };
+  // Structured data only for the clean, indexable listing (no filter/search/
+  // sort params): the schema URL must equal the page's canonical URL, and
+  // filtered variants are noindex anyway.
+  const isCleanListing = !(
+    params.q ||
+    params.dept ||
+    params.format ||
+    params.language ||
+    params.sort ||
+    params.size
+  );
+  const collectionSchema = isCleanListing
+    ? booksCollectionJsonLd({
+        locale,
+        page: requestedPage,
+        pageSize,
+        total,
+        name: t("seoTitle"),
+        description:
+          total > 0
+            ? t("seoDescription", { count: total })
+            : t("seoDescriptionEvergreen"),
+        books: books.map((b) => ({ slug: b.slug, title: b.title })),
+      })
+    : null;
 
   return (
     <ClientNavWrapper>
-    <JsonLd data={collectionSchema} />
+    {collectionSchema && <JsonLd data={collectionSchema} />}
     <div className="min-h-screen bg-bg-body">
       {/* ── Header ── */}
       <div className="border-b border-divider bg-bg-surface px-4 py-4 md:px-12 md:py-7">
@@ -128,7 +158,7 @@ export default async function BooksPage({
           {/* Title row */}
           <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('title')}</h1>
+              <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('h1')}</h1>
               <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
             </div>
             <div className="flex items-center gap-3">

@@ -19,7 +19,7 @@ import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getBookNote } from "@/app/actions/book-notes";
@@ -32,7 +32,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
-import { BookJsonLd } from "@/components/seo/ResourceJsonLd";
+import { buildBookMetadata, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
 import BookNotes from "@/components/ui/books/BookNotes";
@@ -47,27 +47,21 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 // Suspense-wrapped async components below and streams in after the shell —
 // nothing personal is ever baked into a shared cache.
 
-import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { SITE_URL } from "@/lib/seo/site";
 import { bookScholarMeta } from "@/lib/seo/citation";
 
 type BookDetailPageProps = {
   params: Promise<{ slug: string; locale: string }>;
 };
 
-function truncateMetaDescription(value: string | null | undefined, fallback: string) {
-  const text = value?.replace(/\s+/g, " ").trim() || fallback;
-  return text.length > 157 ? `${text.slice(0, 157)}...` : text;
-}
-
+/** Verified author names only — an empty array when the author is unknown.
+ *  Never fabricates an "Unknown Author" entity. */
 function authorNamesFromRelation(authors: any): string[] {
   const authorRows = Array.isArray(authors) ? authors : [authors];
-  const cleanNames = authorRows.flatMap((author) => {
+  return authorRows.flatMap((author) => {
     const name = String(author?.name ?? "").trim();
-    return name ? [name] : [];
+    return name && name !== "Unknown" && name !== "Unknown Author" ? [name] : [];
   });
-
-  return cleanNames.length > 0 ? cleanNames : ["Unknown Author"];
 }
 
 const getBookMeta = unstable_cache(
@@ -75,13 +69,13 @@ const getBookMeta = unstable_cache(
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("books")
-      .select("id, title, description, cover_url, language, published_at, isbn, department, tags, authors(name), categories(name), departments(name)")
+      .select("id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, authors(name), categories(name), departments(name)")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle();
     return data;
   },
-  ["book-meta"],
+  ["book-meta-v2"],
   { revalidate: 3600, tags: ["books"] }
 );
 
@@ -94,61 +88,34 @@ export async function generateMetadata({
   const book = await getBookMeta(slug);
 
   if (!book) {
-    return { title: "Book not found" };
+    return { title: "Book not found", robots: { index: false } };
   }
 
-  const desc = truncateMetaDescription(book.description, "Read this book on PTEC Digital Library.");
   const authorNames = authorNamesFromRelation(book.authors);
-
-  const alternates = localeAlternates(`/books/${slug}`, locale);
-  const canonicalUrl = alternates.canonical;
-  const tags: string[] = Array.isArray(book.tags) ? book.tags : [];
-  const section =
-    (book.departments as any)?.name ||
-    book.department ||
-    (book.categories as any)?.name ||
-    "Books";
+  const seoInput: BookSeoInput = {
+    slug,
+    title: book.title,
+    description: book.description,
+    coverUrl: book.cover_url,
+    language: book.language,
+    publisher: book.publisher,
+    isbn: book.isbn,
+    publishedAt: book.published_at,
+    authors: authorNames,
+    department: (book.departments as any)?.name || book.department,
+    category: (book.categories as any)?.name,
+    tags: Array.isArray(book.tags) ? book.tags : [],
+  };
 
   return {
-    title: book.title,
-    description: desc,
-    keywords: tags.length > 0 ? tags : undefined,
-    authors: authorNames.map((name) => ({ name })),
-    publisher: PTEC_NAME,
-    category: section,
-    alternates,
-    openGraph: {
-      title: book.title,
-      description: desc,
-      type: "article",
-      url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
-      authors: authorNames,
-      publishedTime: book.published_at ?? undefined,
-      section,
-      tags: tags.length > 0 ? tags : undefined,
-      images: book.cover_url
-        ? [
-            {
-              url: book.cover_url,
-              width: 800,
-              height: 1200,
-              alt: book.title,
-            },
-          ]
-        : [],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: book.title,
-      description: desc,
-      images: book.cover_url ? [book.cover_url] : undefined,
-    },
+    ...buildBookMetadata(seoInput, locale),
     other: {
-      // Google Scholar citation_* meta tags — see lib/seo/citation.ts
+      // Google Scholar citation_* meta tags — see lib/seo/citation.ts.
+      // citation_publisher / dc.publisher only when the record names a real
+      // publisher; PTEC is the providing library, not the publisher.
       ...bookScholarMeta(book, authorNames),
-      "dc.publisher": PTEC_NAME,
       "dc.type": "Book",
+      ...(book.publisher ? { "dc.publisher": book.publisher } : {}),
     },
   };
 }
@@ -239,36 +206,40 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   const fileSrc = book.dbId ? `/api/books/${book.dbId}/file` : book.pdfUrl;
 
-  const bookUrl = `${SITE_URL}/books/${slug}`;
+  // Locale-correct canonical + breadcrumb URLs (Khmer under /km) so the
+  // structured data matches the visible breadcrumbs and the page's canonical.
+  const localePrefix = locale === "km" ? "/km" : "";
+  const bookAuthors =
+    book.author && book.author !== "Unknown" ? [book.author] : [];
+  const bookSchema = bookJsonLd(
+    {
+      slug,
+      title: book.title,
+      description: book.summary,
+      coverUrl: book.coverUrl,
+      language: book.language,
+      publisher: book.publisher,
+      isbn: book.isbn,
+      publishedAt: book.uploadedAt ?? null,
+      pages: book.pages,
+      authors: bookAuthors,
+      department: book.department,
+      category: book.category,
+      tags: book.tags,
+    },
+    locale,
+    avgRating > 0 ? { ratingValue: avgRating.toFixed(1), reviewCount } : null,
+  );
   const bookBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/home" },
-    { name: "Books", path: "/books" },
-    { name: book.department, path: `/books?dept=${encodeURIComponent(book.department)}` },
+    { name: t("home"), path: `${localePrefix}/home` },
+    { name: t("books"), path: `${localePrefix}/books` },
+    { name: book.department, path: `${localePrefix}/books?dept=${encodeURIComponent(book.department)}` },
     { name: book.title },
   ]);
 
   return (
     <article className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
-      <BookJsonLd
-        title={book.title}
-        url={bookUrl}
-        author={book.author}
-        description={book.summary}
-        image={book.coverUrl}
-        language={book.language}
-        isbn={book.isbn}
-        datePublished={book.uploadedAt}
-        keywords={book.tags}
-        pages={book.pages}
-        aggregateRating={
-          avgRating > 0
-            ? {
-                ratingValue: avgRating.toFixed(1),
-                reviewCount,
-              }
-            : null
-        }
-      />
+      <JsonLd data={bookSchema} />
       <JsonLd data={bookBreadcrumbSchema} />
       {book.dbId && <BookViewPing bookId={book.dbId} />}
       <div className="mx-auto max-w-[1200px]">
