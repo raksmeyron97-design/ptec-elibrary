@@ -19,16 +19,24 @@ function ageDays(iso: string | null, now: number): number | null {
 }
 
 /**
- * Compact, decision-oriented queue: the most urgent items (severity-ordered,
- * capped) with one clear destination each; the rest behind "view all";
- * healthy checks reduced to a one-line footer. Severity is conveyed by icon
- * shape + sr-only text, not colour alone.
+ * Decision-oriented "needs your attention" queue: the most urgent items
+ * (severity-ordered, capped) with one clear destination each; the rest behind
+ * "view all"; healthy checks reduced to a one-line footer. Severity is
+ * conveyed by icon shape + sr-only text (and a visible chip in banner mode),
+ * never colour alone.
+ *
+ * `variant`:
+ *  - "panel"  — a tall side card (default), items stacked vertically.
+ *  - "banner" — a full-width band placed above the KPI row, items laid out in
+ *    a responsive grid so the administrator sees what needs doing first.
  */
 export default async function ActionCenter({
   data,
-  maxVisible = 4,
+  variant = "panel",
+  maxVisible,
 }: {
   data: ActionCenterData;
+  variant?: "panel" | "banner";
   maxVisible?: number;
 }) {
   const t = await getTranslations("adminDashboard.actionCenter");
@@ -36,8 +44,10 @@ export default async function ActionCenter({
   const nf = new Intl.NumberFormat(locale === "km" ? "km-KH" : "en-US");
   const now = new Date(data.generatedAt).getTime();
 
-  const visible = data.items.slice(0, maxVisible);
-  const overflow = data.items.slice(maxVisible);
+  const isBanner = variant === "banner";
+  const cap = maxVisible ?? (isBanner ? 6 : 4);
+  const visible = data.items.slice(0, cap);
+  const overflow = data.items.slice(cap);
   const criticalCount = data.items.filter((i) => i.severity === "critical").length;
 
   const renderItem = (item: ActionItem) => {
@@ -48,17 +58,26 @@ export default async function ActionCenter({
       <li key={item.key} className={`dash-sev ${style.rail}`}>
         <Link
           href={item.href}
-          className="group flex items-center gap-2.5 rounded-xl py-2 ps-3.5 pe-2 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+          className={`group flex items-center gap-2.5 rounded-xl transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand ${
+            isBanner ? "h-full py-2.5 ps-3.5 pe-2.5" : "py-2 ps-3.5 pe-2"
+          }`}
         >
           <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ring-inset ${style.tile}`} aria-hidden="true">
             <IconCmp className="h-3.5 w-3.5" />
           </span>
           <span className="sr-only">{t(`severity.${item.severity}`)}:</span>
-          <span className="min-w-0 flex-1 text-[12.5px] font-medium leading-4 text-text-body">
-            {t(`items.${item.key}`, { count: item.count })}
-            {days !== null && days > 0 && (
-              <span className="ms-1 text-[11px] text-text-muted">· {t("oldest", { days: nf.format(days) })}</span>
+          <span className="min-w-0 flex-1">
+            {isBanner && (
+              <span className={`mb-0.5 block text-[10px] font-bold uppercase tracking-wide ${style.iconColor}`}>
+                {t(`severity.${item.severity}`)}
+              </span>
             )}
+            <span className="block text-[12.5px] font-medium leading-4 text-text-body">
+              {t(`items.${item.key}`, { count: item.count })}
+              {days !== null && days > 0 && (
+                <span className="ms-1 text-[11px] text-text-muted">· {t("oldest", { days: nf.format(days) })}</span>
+              )}
+            </span>
           </span>
           <ChevronRight
             className="h-3.5 w-3.5 shrink-0 text-text-muted/60 transition-transform group-hover:translate-x-0.5"
@@ -70,7 +89,10 @@ export default async function ActionCenter({
   };
 
   return (
-    <section aria-labelledby="action-center-heading" className="dash-card flex h-full flex-col p-4">
+    <section
+      aria-labelledby="action-center-heading"
+      className={`dash-card flex flex-col p-4 ${isBanner ? "" : "h-full"}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="dash-ico dash-ico--md dash-ico--brand" aria-hidden="true">
@@ -101,13 +123,17 @@ export default async function ActionCenter({
         </p>
       ) : (
         <>
-          <ul className="mt-3 flex-1 space-y-1">{visible.map(renderItem)}</ul>
+          <ul className={isBanner ? "mt-3 grid flex-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-3" : "mt-3 flex-1 space-y-1"}>
+            {visible.map(renderItem)}
+          </ul>
           {overflow.length > 0 && (
             <details className="mt-1.5">
               <summary className="cursor-pointer rounded-md px-2 py-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
                 {t("viewAll", { count: overflow.length })}
               </summary>
-              <ul className="mt-1.5 space-y-1">{overflow.map(renderItem)}</ul>
+              <ul className={isBanner ? "mt-1.5 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3" : "mt-1.5 space-y-1"}>
+                {overflow.map(renderItem)}
+              </ul>
             </details>
           )}
         </>

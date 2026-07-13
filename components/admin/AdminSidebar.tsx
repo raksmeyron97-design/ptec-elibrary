@@ -38,26 +38,79 @@ import {
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
-import { useState, useEffect, useRef } from "react";
+// Client-safe half only — lib/admin/sidebar-badges.ts is `server-only`.
+import { EMPTY_SIDEBAR_BADGES, type SidebarBadges } from "@/lib/admin/sidebar-badges-shared";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Avatar from "@/components/ui/Avatar";
 import NotificationBell from "@/components/admin/NotificationBell";
+import AdminCommandPalette, {
+  type AdminCommand,
+  type AdminCommandPaletteHandle,
+} from "@/components/admin/AdminCommandPalette";
 
 type NavIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+
+/** An actionable count attached to a nav destination.
+ *  "critical" → something is broken; "attention" → work is waiting. */
+type BadgeInfo = { count: number; severity: "critical" | "attention" };
 
 type NavChild = {
   name: string;
   href: string;
   icon: NavIcon;
+  badge?: BadgeInfo;
 };
 
 type NavNode =
-  | { type: "link"; name: string; href: string; icon: NavIcon }
+  | { type: "link"; name: string; href: string; icon: NavIcon; badge?: BadgeInfo }
   | { type: "group"; name: string; icon: NavIcon; children: NavChild[] };
 
 function perm(perms: Record<string, PermLevel>, resource: string, minLevel: "read" | "write"): boolean {
   const level = perms[resource] ?? "none";
   return minLevel === "write" ? level === "write" : level !== "none";
+}
+
+/** Sum of a group's child badges, so a collapsed / closed group still signals
+ *  that something inside it needs attention. */
+function groupBadgeOf(children: NavChild[]): BadgeInfo | undefined {
+  const badges = children.map((c) => c.badge).filter((b): b is BadgeInfo => !!b);
+  if (badges.length === 0) return undefined;
+  return {
+    count: badges.reduce((sum, b) => sum + b.count, 0),
+    severity: badges.some((b) => b.severity === "critical") ? "critical" : "attention",
+  };
+}
+
+/** Visible count pill. Gold = work waiting, rose = something broken; the number
+ *  itself carries the meaning, so status is never conveyed by colour alone. */
+function CountPill({ badge, className = "" }: { badge: BadgeInfo; className?: string }) {
+  const critical = badge.severity === "critical";
+  return (
+    <span
+      className={`inline-flex min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-[17px] tabular-nums ${className}`}
+      style={{ background: critical ? "#E11D48" : "#DDB022", color: critical ? "#FFFFFF" : "#0B1530" }}
+    >
+      <span aria-hidden="true">{badge.count > 99 ? "99+" : badge.count}</span>
+      <span className="sr-only">
+        {badge.count} {critical ? "items need attention" : "items awaiting action"}
+      </span>
+    </span>
+  );
+}
+
+/** Small dot on a collapsed-mode icon (the count itself lives in the flyout). */
+function CountDot({ severity }: { severity: BadgeInfo["severity"] }) {
+  return (
+    <span
+      className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
+      style={{
+        background: severity === "critical" ? "#F43F5E" : "#DDB022",
+        boxShadow: "0 0 0 2px rgba(13,24,54,0.95)",
+      }}
+      aria-hidden="true"
+    />
+  );
 }
 
 /**
@@ -68,18 +121,23 @@ function getNavTree(
   role: AppRole,
   isSuperAdmin: boolean,
   userPermissions: Record<string, PermLevel>,
+  badges: SidebarBadges = EMPTY_SIDEBAR_BADGES,
 ): NavNode[] {
   const isSA    = isSuperAdmin || role === "super_admin";
   const isAdmin = ADMIN_ROLES.includes(role) || isSA;
   const p = userPermissions;
 
+  // Only surface a badge when there is genuinely something to act on.
+  const attn = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "attention" } : undefined);
+  const crit = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "critical" } : undefined);
+
   const books: NavChild[] = [];
   if (perm(p, "books",   "write")) books.push({ name: "Upload Book",   href: "/admin/upload",        icon: Upload         });
-  if (perm(p, "books",   "write")) books.push({ name: "Review Queue",  href: "/admin/review",        icon: ClipboardCheck });
+  if (perm(p, "books",   "write")) books.push({ name: "Review Queue",  href: "/admin/review",        icon: ClipboardCheck, badge: attn(badges.review) });
   if (perm(p, "books",   "read"))  books.push({ name: "Manage E-books", href: "/admin/manage",        icon: BookCopy       });
   if (perm(p, "books",   "write")) books.push({ name: "Duplicates",     href: "/admin/manage/duplicates", icon: Copy       });
   if (perm(p, "catalog", "read"))  books.push({ name: "Catalog",       href: "/admin/catalogs",      icon: Library        });
-  if (perm(p, "books",   "read"))  books.push({ name: "Book Requests", href: "/admin/book-requests", icon: BookPlus       });
+  if (perm(p, "books",   "read"))  books.push({ name: "Book Requests", href: "/admin/book-requests", icon: BookPlus, badge: attn(badges.bookRequests) });
 
   const content: NavChild[] = [];
   if (perm(p, "posts",          "read")) content.push({ name: "Posts",          href: "/admin/posts",         icon: FileText      });
@@ -90,7 +148,7 @@ function getNavTree(
 
   const insights: NavChild[] = [];
   if (perm(p, "books", "read")) insights.push({ name: "Search Insights", href: "/admin/search-insights", icon: SearchX });
-  if (perm(p, "books", "read")) insights.push({ name: "Data Quality",    href: "/admin/data-quality",    icon: Gauge   });
+  if (perm(p, "books", "read")) insights.push({ name: "Data Quality",    href: "/admin/data-quality",    icon: Gauge, badge: crit(badges.dataQuality) });
 
   // Administration — role-gated items (security-sensitive) live here too
   const administration: NavChild[] = [];
@@ -102,7 +160,7 @@ function getNavTree(
   const tree: NavNode[] = [
     { type: "link", name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   ];
-  if (perm(p, "contact", "read")) tree.push({ type: "link", name: "Inbox", href: "/admin/inbox", icon: Inbox });
+  if (perm(p, "contact", "read")) tree.push({ type: "link", name: "Inbox", href: "/admin/inbox", icon: Inbox, badge: attn(badges.inbox) });
   if (books.length)          tree.push({ type: "group", name: "Books",          icon: BookOpen,  children: books          });
   if (content.length)        tree.push({ type: "group", name: "Content",        icon: Newspaper, children: content        });
   if (insights.length)       tree.push({ type: "group", name: "Insights",       icon: BarChart3, children: insights       });
@@ -136,7 +194,7 @@ function TopLevelLink({
   collapsed,
   onClick,
 }: {
-  link: { name: string; href: string; icon: NavIcon };
+  link: { name: string; href: string; icon: NavIcon; badge?: BadgeInfo };
   active: boolean;
   collapsed: boolean;
   onClick: () => void;
@@ -189,7 +247,9 @@ function TopLevelLink({
             color: active ? "#DDB022" : "rgba(255,255,255,0.55)",
           }}
         />
-        {!collapsed && <span className="truncate">{link.name}</span>}
+        {!collapsed && <span className="flex-1 truncate">{link.name}</span>}
+        {!collapsed && link.badge && <CountPill badge={link.badge} />}
+        {collapsed && link.badge && <CountDot severity={link.badge.severity} />}
       </Link>
 
       {/* Tooltip — shown only in collapsed mode */}
@@ -253,7 +313,8 @@ function ChildLink({
           color: active ? "#DDB022" : "rgba(255,255,255,0.42)",
         }}
       />
-      <span className="truncate">{link.name}</span>
+      <span className="flex-1 truncate">{link.name}</span>
+      {link.badge && <CountPill badge={link.badge} />}
     </Link>
   );
 }
@@ -276,6 +337,7 @@ function NavGroup({
 }) {
   const Icon = group.icon;
   const childActive = group.children.some(c => isActive(c.href));
+  const groupBadge = groupBadgeOf(group.children);
   // header (~34px) + rows (~36px each) + padding
   const [flyRef, flyTop, showFly, hideFly] = useFlyout(50 + group.children.length * 36);
 
@@ -318,6 +380,7 @@ function NavGroup({
               color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
             }}
           />
+          {groupBadge && <CountDot severity={groupBadge.severity} />}
         </button>
 
         {/* Flyout submenu — hover or keyboard focus to open, links are clickable */}
@@ -370,7 +433,8 @@ function NavGroup({
                         color: active ? "#DDB022" : "rgba(255,255,255,0.45)",
                       }}
                     />
-                    <span className="truncate">{child.name}</span>
+                    <span className="flex-1 truncate">{child.name}</span>
+                    {child.badge && <CountPill badge={child.badge} />}
                   </Link>
                 );
               })}
@@ -410,10 +474,13 @@ function NavGroup({
           }}
         />
         <span className="flex-1 text-left truncate leading-5" title={group.name}>{group.name}</span>
-        {/* Active dot when the group is closed but holds the current page */}
-        {childActive && !open && (
+        {/* When closed, a count pill surfaces waiting work inside; fall back to
+            a plain active dot only when the current page lives in the group. */}
+        {!open && groupBadge ? (
+          <CountPill badge={groupBadge} />
+        ) : childActive && !open ? (
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#DDB022" }} />
-        )}
+        ) : null}
         <ChevronRight
           className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
           style={{ width: "14px", height: "14px", color: "rgba(255,255,255,0.40)" }}
@@ -463,6 +530,7 @@ export default function AdminSidebar({
   role = "admin",
   isSuperAdmin = false,
   userPermissions = {},
+  badges = EMPTY_SIDEBAR_BADGES,
 }: {
   children: React.ReactNode;
   email: string | undefined;
@@ -471,6 +539,7 @@ export default function AdminSidebar({
   role?: AppRole;
   isSuperAdmin?: boolean;
   userPermissions?: Record<string, PermLevel>;
+  badges?: SidebarBadges;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -478,24 +547,44 @@ export default function AdminSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const profileRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const paletteRef = useRef<AdminCommandPaletteHandle>(null);
 
-  // Cmd/Ctrl+K focuses the admin search from anywhere in the panel.
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
+  const navTree = getNavTree(role, isSuperAdmin, userPermissions, badges);
+  const roleLabel = getRoleLabel(role, isSuperAdmin);
+
+  const publicSiteUrl = process.env.NEXT_PUBLIC_ROOT_DOMAIN
+    ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+    : "https://library.ptec.edu.kh";
+
+  // Command palette (⌘K) menu — built from the same permission-gated tree as
+  // the sidebar plus the write-scoped create flows, so it can only ever offer
+  // destinations this administrator is authorised to open.
+  const commands = useMemo<AdminCommand[]>(() => {
+    const canWrite = (resource: string) => (userPermissions[resource] ?? "none") === "write";
+    const list: AdminCommand[] = [];
+
+    if (canWrite("books")) list.push({ id: "act-upload", label: "Add e-book", group: "Actions", href: "/admin/upload", icon: Upload, keywords: "new create book pdf" });
+    if (canWrite("research")) list.push({ id: "act-thesis", label: "Add thesis", group: "Actions", href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
+    if (canWrite("publications")) list.push({ id: "act-pub", label: "Add publication", group: "Actions", href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
+    if (canWrite("posts")) list.push({ id: "act-post", label: "Create post", group: "Actions", href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
+    if (canWrite("users")) list.push({ id: "act-users", label: "Invite or manage users", group: "Actions", href: "/admin/users", icon: Users, keywords: "invite people accounts staff" });
+
+    for (const node of navTree) {
+      if (node.type === "link") {
+        list.push({ id: `nav-${node.href}`, label: node.name, group: "Go to", href: node.href, icon: node.icon });
+      } else {
+        for (const child of node.children) {
+          list.push({ id: `nav-${child.href}`, label: child.name, group: "Go to", href: child.href, icon: child.icon, keywords: node.name });
+        }
       }
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
-  const navTree = getNavTree(role, isSuperAdmin, userPermissions);
-  const roleLabel = getRoleLabel(role, isSuperAdmin);
+    list.push({ id: "ext-site", label: "View public site", group: "Go to", href: publicSiteUrl, icon: ExternalLink, external: true, keywords: "open website live" });
+    return list;
+    // navTree is derived from these inputs; rebuild the list when they change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, isSuperAdmin, userPermissions, badges, publicSiteUrl]);
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
@@ -562,14 +651,6 @@ export default function AdminSidebar({
     return () => document.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
-  function handleSearch(e: React.SyntheticEvent) {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/admin/manage?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery("");
-    }
-  }
-
   const toggleCollapsed = () => {
     setCollapsed(prev => {
       const next = !prev;
@@ -595,6 +676,9 @@ export default function AdminSidebar({
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-app text-text-heading font-body">
+
+      {/* ── Command palette (⌘K) — permission-scoped actions + navigation ── */}
+      <AdminCommandPalette ref={paletteRef} commands={commands} />
 
       {/* ── Mobile topbar ── */}
       <div
@@ -841,32 +925,29 @@ export default function AdminSidebar({
 
           </div>
 
-          {/* Center: search bar */}
-          <form onSubmit={handleSearch} className="hidden xl:flex flex-1 max-w-sm">
-            <div
-              className="flex items-center gap-2 w-full rounded-xl border px-3 py-2 transition-all duration-200 focus-within:ring-2"
-              style={{
-                background: "var(--color-bg-app, #F8FAFC)",
-                borderColor: "var(--color-divider, #E2E8F0)",
-                // @ts-expect-error: custom property
-                "--tw-ring-color": "rgba(79,70,229,0.25)",
-              }}
-            >
-              <Search className="w-4 h-4 shrink-0" style={{ color: "#94A3B8" }} />
-              <input
-                ref={searchInputRef}
-                type="search"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search books, theses, users…"
-                className="flex-1 bg-transparent text-sm outline-none text-text-heading placeholder:text-slate-400"
-                aria-label="Search books, theses, and users"
-              />
-              <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
-                {searchQuery ? "↵" : "⌘K"}
-              </kbd>
-            </div>
-          </form>
+          {/* Center: one search surface — opens the ⌘K command palette (actions,
+              pages and an e-book search) instead of a second, separate box. */}
+          <button
+            type="button"
+            onClick={() => paletteRef.current?.open()}
+            aria-haspopup="dialog"
+            aria-keyshortcuts="Meta+K Control+K"
+            className="hidden xl:flex flex-1 max-w-sm items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors hover:border-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            style={{
+              background: "var(--color-bg-app, #F8FAFC)",
+              borderColor: "var(--color-divider, #E2E8F0)",
+            }}
+          >
+            <Search className="w-4 h-4 shrink-0" style={{ color: "#64748B" }} />
+            {/* slate-600 — this is a real label (not a placeholder), so it must
+                clear WCAG AA 4.5:1 against the near-white field. */}
+            <span className="flex-1 text-sm" style={{ color: "#475569" }}>
+              Search actions, pages, e-books…
+            </span>
+            <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
+              ⌘K
+            </kbd>
+          </button>
 
           {/* Right: actions + avatar */}
           <div className="flex items-center gap-2 shrink-0">
@@ -903,7 +984,9 @@ export default function AdminSidebar({
                   <span className="text-xs font-semibold text-text-heading truncate leading-tight max-w-full">
                     {fullName ?? email?.split("@")[0] ?? "Admin"}
                   </span>
-                  <span className="text-[10px] leading-tight truncate max-w-full" style={{ color: "#94A3B8" }}>
+                  {/* slate-500: #94A3B8 on white was 2.8:1 — below WCAG AA for
+                      this 10px label; #64748B clears 4.5:1. */}
+                  <span className="text-[10px] leading-tight truncate max-w-full" style={{ color: "#64748B" }}>
                     {roleLabel}
                   </span>
                 </div>

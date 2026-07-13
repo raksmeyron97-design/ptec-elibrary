@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
-import { Eye, Users, BookOpenCheck, Download, Percent, Library, ArrowRight } from "lucide-react";
+import { Eye, Users, BookOpenCheck, Download, Library, ArrowRight } from "lucide-react";
 import { getOverviewData, getActionCenter } from "@/lib/admin/intelligence";
 import type { DashboardFilters } from "@/lib/admin/dashboard-shared";
 import { serializeDashboardFilters } from "@/lib/admin/dashboard-shared";
@@ -30,30 +30,13 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
 
   return (
     <div className="space-y-4">
-      {/* ── Row 1: hero KPI + compact secondaries (12-col) ── */}
+      {/* ── Row 1: NEEDS YOUR ATTENTION — before the KPIs, so the most urgent
+           work is answered first (spec: critical issues before analytics). ── */}
+      <ActionCenter data={actions} variant="banner" />
+
+      {/* ── Row 2: four equal primary KPIs (no disproportionate hero card) ── */}
       <section aria-label={t("kpi.sectionLabel", { range: rangeLabel })}>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
-          <div className="col-span-2 lg:col-span-3">
-            <KpiCard
-              emphasis
-              title={t("kpi.conversion")}
-              value={
-                kpis.conversion.insufficient || kpis.conversion.valuePct === null
-                  ? "—"
-                  : `${kpis.conversion.valuePct}%`
-              }
-              definition={t("kpi.conversionDef")}
-              trend={null}
-              badge={
-                kpis.conversion.insufficient
-                  ? t("kpi.insufficientData")
-                  : kpis.conversion.prevPct !== null
-                    ? t("kpi.prevPct", { pct: kpis.conversion.prevPct })
-                    : null
-              }
-              icon={Percent}
-            />
-          </div>
           <div className="lg:col-span-3">
             <KpiCard
               accent="visitors"
@@ -69,7 +52,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               icon={Users}
             />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <KpiCard
               accent="views"
               title={t("kpi.detailViews")}
@@ -82,7 +65,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               icon={Eye}
             />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <KpiCard
               accent="reader"
               title={t("kpi.readerOpens")}
@@ -94,7 +77,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               icon={BookOpenCheck}
             />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-3">
             <KpiCard
               accent="downloads"
               title={t("kpi.downloads")}
@@ -108,7 +91,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
         </div>
       </section>
 
-      {/* ── Row 2: engagement chart (8) + action center (4) ── */}
+      {/* ── Row 3: engagement chart (8) + discovery & conversion (4) ── */}
       <div className="grid gap-4 lg:grid-cols-12">
         <section aria-labelledby="engagement-heading" className="dash-card p-4 lg:col-span-8">
           <h3 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
@@ -126,14 +109,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
           />
         </section>
 
-        <div className="lg:col-span-4">
-          <ActionCenter data={actions} />
-        </div>
-      </div>
-
-      {/* ── Row 3: discovery rates + insights & collection preview ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <section aria-labelledby="discovery-heading" className="dash-card p-4 lg:col-span-5">
+        <section aria-labelledby="discovery-heading" className="dash-card p-4 lg:col-span-4">
           <h3 id="discovery-heading" className="text-[14px] font-bold text-text-heading">
             {t("discovery.title")}
           </h3>
@@ -146,25 +122,29 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
             rates={data.discovery.rates}
             prevRates={data.discovery.prevRates}
             compare={filters.compare}
+            conversion={kpis.conversion}
           />
         </section>
+      </div>
 
-        <div className="flex flex-col gap-4 lg:col-span-7">
+      {/* ── Row 4: insights + collection preview ── */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-7">
           <InsightsPanel insights={data.insights} />
-          <Link
-            href={link("content")}
-            className="dash-card dash-card--interactive group flex items-center gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <span className="dash-ico dash-ico--brand dash-ico--lg" aria-hidden="true">
-              <Library className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold text-text-heading">{t("overview.collectionLink")}</span>
-              <span className="block text-[11.5px] text-text-muted">{t("overview.collectionLinkHint")}</span>
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-          </Link>
         </div>
+        <Link
+          href={link("content")}
+          className="dash-card dash-card--interactive group flex items-center gap-3 p-4 lg:col-span-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          <span className="dash-ico dash-ico--brand dash-ico--lg" aria-hidden="true">
+            <Library className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-semibold text-text-heading">{t("overview.collectionLink")}</span>
+            <span className="block text-[11.5px] text-text-muted">{t("overview.collectionLinkHint")}</span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </Link>
       </div>
 
       <FreshnessLine generatedAt={data.generatedAt} note={t("kpi.internalExcluded")} />

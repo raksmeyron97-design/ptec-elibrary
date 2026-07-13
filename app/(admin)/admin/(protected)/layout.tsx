@@ -7,6 +7,7 @@ import { pickMessages, ADMIN_NAMESPACES } from "@/i18n/pick-messages";
 import { MFA_ENROLL_PATH, MFA_VERIFY_PATH } from "@/lib/auth/requireAdmin";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
+import { getSidebarBadges } from "@/lib/admin/sidebar-badges";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -47,7 +48,11 @@ export default async function AdminLayout({
     }
   }
 
-  const [locale, allMessages] = await Promise.all([getLocale(), getMessages()]);
+  const [locale, allMessages, badges] = await Promise.all([
+    getLocale(),
+    getMessages(),
+    getSidebarBadges(identity.perms),
+  ]);
 
   return (
     <IntlProvider
@@ -61,6 +66,7 @@ export default async function AdminLayout({
         role={identity.role}
         isSuperAdmin={identity.isSuperAdmin}
         userPermissions={identity.perms}
+        badges={badges}
       >
         {children}
       </AdminSidebar>

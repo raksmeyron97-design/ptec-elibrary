@@ -1136,7 +1136,7 @@
       "ariaLabel": "Dashboard views",
       "overview": "Overview",
       "content": "Content",
-      "search": "Search & AI",
+      "search": "Search & Discovery",
       "audience": "Audience",
       "system": "System & Operations"
     },
@@ -1567,6 +1567,9 @@
     "discovery": {
       "title": "Discovery & engagement",
       "subtitle": "Independent activity streams · {range}",
+      "conversion": "Engagement conversion",
+      "conversionDef": "Identified visitors who opened the reader or downloaded a file ÷ identified visitors who viewed a content detail page.",
+      "conversionInsufficient": "Not enough data yet",
       "rates": {
         "searchCtr": "Search click-through",
         "searchCtrDef": "Result clicks ÷ searches",

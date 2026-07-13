@@ -5,7 +5,9 @@
 //   1. after the browser goes idle (so the shortcut works without a hitch), or
 //   2. immediately on the first Cmd+K / Ctrl+K press, opening once loaded.
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { isAdminPath } from "@/lib/is-admin-path";
 
 const GoogleSearchModal = dynamic(
   () => import("@/components/ui/search/GoogleSearchModal"),
@@ -13,11 +15,19 @@ const GoogleSearchModal = dynamic(
 );
 
 export default function SearchModalLazy() {
+  const pathname = usePathname();
+  // This modal is mounted by the ROOT layout, so it would otherwise also load
+  // inside the admin panel — where it hijacks ⌘K (it searches the *public*
+  // library and navigates to public routes) and fights AdminCommandPalette.
+  // The admin panel has its own ⌘K palette, so skip it entirely there: no
+  // shortcut collision, and its chunk + gcse.css never load on admin pages.
+  const isAdmin = isAdminPath(pathname);
+
   const [load, setLoad] = useState(false);
   const [openOnMount, setOpenOnMount] = useState(false);
 
   useEffect(() => {
-    if (load) return;
+    if (isAdmin || load) return;
 
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -38,8 +48,8 @@ export default function SearchModalLazy() {
       if (hasIdle) window.cancelIdleCallback(idle);
       else window.clearTimeout(idle);
     };
-  }, [load]);
+  }, [load, isAdmin]);
 
-  if (!load) return null;
+  if (isAdmin || !load) return null;
   return <GoogleSearchModal defaultOpen={openOnMount} />;
 }
