@@ -13,6 +13,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { GoogleGenAI } from "@google/genai";
 import { rateLimit } from "@/lib/rate-limit";
+import { logAppEvent } from "@/lib/analytics/events";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 
@@ -322,6 +323,7 @@ ${bookList}
 ${passageList}
 Write 1–3 concise sentences: briefly explain the topic and how the listed books relate to it. If a PDF passage is directly relevant, mention its page number (e.g. "p. 42"). If no books were found, suggest alternative search terms. Detect the language of the query and reply in the same language (Khmer if Khmer, English if English).`;
 
+  const aiStarted = Date.now();
   try {
     const ai = new GoogleGenAI({ apiKey: key });
     const res = await ai.models.generateContent({
@@ -329,9 +331,21 @@ Write 1–3 concise sentences: briefly explain the topic and how the listed book
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 250, thinkingConfig: { thinkingBudget: 0 } },
     });
+    logAppEvent({
+      kind: "ai_request",
+      status: "ok",
+      route: "/api/search",
+      latencyMs: Date.now() - aiStarted,
+    });
     return res.text ?? "";
   } catch (err) {
     console.error("[/api/search] Gemini error:", err);
+    logAppEvent({
+      kind: "ai_request",
+      status: "error",
+      route: "/api/search",
+      latencyMs: Date.now() - aiStarted,
+    });
     return "";
   }
 }

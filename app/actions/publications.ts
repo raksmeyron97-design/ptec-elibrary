@@ -8,6 +8,7 @@ import { createAdminNotification } from "@/lib/admin-notifications";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
+import { logContentView } from "@/lib/analytics/events";
 import {
   notifyPublicationSubscribers,
   queuePublicationEmbedding,
@@ -235,19 +236,19 @@ export async function getPublicationBySlug(slug: string): Promise<{
 }
 
 export async function incrementPublicationViewCount(id: string) {
-  // Only count views from signed-in users (matches book/thesis behavior).
+  // The lifetime counter stays signed-in-only (spam-resistant public badge);
+  // view_logs analytics record every human visitor — anonymous included,
+  // bot-filtered and rate-limited inside logContentView.
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return;
 
-  const supabase = createServiceClient();
-  const { error } = await supabase.rpc("increment_publication_view_count", { row_id: id });
+  let error: { message: string } | null = null;
+  if (user) {
+    const supabase = createServiceClient();
+    ({ error } = await supabase.rpc("increment_publication_view_count", { row_id: id }));
+  }
 
-  await supabase.from("view_logs").insert({
-    content_type: "publication",
-    content_id: id,
-    user_id: user.id,
-  });
+  await logContentView("publication", id);
   if (error) {
     console.error("Failed to increment publication view count:", error);
   }

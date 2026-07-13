@@ -10,6 +10,7 @@ import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { logAppEvent } from "@/lib/analytics/events";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -119,6 +120,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "db_error" }, { status: 503 });
     }
     if ((quota as number) === -1) {
+      logAppEvent({ kind: "ai_request", status: "quota", route: "/api/chat" });
       return Response.json({ error: "quota" }, { status: 429 });
     }
   }
@@ -194,9 +196,26 @@ ${passageBlock}
     return Response.json({ error: "unavailable" }, { status: 503 });
   }
 
+  const aiStarted = Date.now();
   try {
     const google = createGoogleGenerativeAI({ apiKey });
     const result = streamText({
+      onFinish: () => {
+        logAppEvent({
+          kind: "ai_request",
+          status: "ok",
+          route: "/api/chat",
+          latencyMs: Date.now() - aiStarted,
+        });
+      },
+      onError: () => {
+        logAppEvent({
+          kind: "ai_request",
+          status: "error",
+          route: "/api/chat",
+          latencyMs: Date.now() - aiStarted,
+        });
+      },
       model: google(MODEL),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       // Same as /api/search: don't let thinking tokens eat the output cap.
@@ -216,6 +235,12 @@ ${libraryContext}`,
     return result.toUIMessageStreamResponse();
   } catch (err) {
     console.error("[/api/chat] stream error:", err);
+    logAppEvent({
+      kind: "ai_request",
+      status: "error",
+      route: "/api/chat",
+      latencyMs: Date.now() - aiStarted,
+    });
     return Response.json({ error: "unavailable" }, { status: 503 });
   }
 }

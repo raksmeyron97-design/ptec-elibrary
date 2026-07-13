@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { compareTrend, type TrendInfo } from "./dashboard-shared";
 
 /**
  * Aggregated data layer for the admin dashboard.
@@ -69,13 +70,7 @@ type Granularity = "hour" | "day";
 export type TrendPoint = { date: string; value: number };
 export type GrowthPoint = { date: string; value: number; added: number };
 
-export type TrendInfo = {
-  direction: "up" | "down" | "neutral";
-  /** Short badge text, e.g. "+18%", "-2", "New". */
-  value: string;
-  /** Context line, e.g. "vs previous 30 days", "no previous data". */
-  label: string;
-};
+export type { TrendInfo } from "./dashboard-shared";
 
 export type TopBookItem = {
   id: string;
@@ -188,7 +183,7 @@ const hourFmt = new Intl.DateTimeFormat("en-GB", {
   hour12: false,
 });
 
-function dayKey(d: Date): string {
+export function dayKey(d: Date): string {
   return dayFmt.format(d);
 }
 
@@ -201,7 +196,7 @@ function startOfDayLocal(ymd: string): Date {
   return new Date(`${ymd}T00:00:00${TZ_OFFSET}`);
 }
 
-type Window = {
+export type Window = {
   /** Start of the current period. */
   start: Date;
   /** End of the current period (now, or end of a past custom range). */
@@ -225,7 +220,7 @@ function formatDayLabel(ymd: string): string {
   });
 }
 
-function buildWindow(spec: DashboardRangeSpec, now: Date): Window {
+export function buildWindow(spec: DashboardRangeSpec, now: Date): Window {
   if (spec.range === "today") {
     const start = startOfDayLocal(dayKey(now));
     const prevStart = new Date(start.getTime() - ONE_DAY);
@@ -275,25 +270,7 @@ function buildWindow(spec: DashboardRangeSpec, now: Date): Window {
   };
 }
 
-/** Percent (or absolute for tiny bases) change vs the previous period. */
-function compareTrend(current: number, previous: number, vsLabel: string): TrendInfo {
-  if (previous === 0 && current === 0) {
-    return { direction: "neutral", value: "—", label: "no previous data" };
-  }
-  if (previous === 0) {
-    return { direction: "up", value: "New", label: `new activity ${vsLabel}` };
-  }
-  const diff = current - previous;
-  if (diff === 0) {
-    return { direction: "neutral", value: "±0", label: vsLabel };
-  }
-  // Percentages mislead on tiny bases (e.g. 1 → 3 is "+200%"); show absolutes there.
-  const value =
-    previous < 10
-      ? `${diff > 0 ? "+" : ""}${diff}`
-      : `${diff > 0 ? "+" : ""}${Math.round((diff / previous) * 100)}%`;
-  return { direction: diff > 0 ? "up" : "down", value, label: vsLabel };
-}
+
 
 function attentionStatus(count: number): AttentionStatus {
   if (count === 0) return "success";
@@ -350,7 +327,7 @@ type SignupEvent = { bucketKey: string; count: number; current: boolean };
  * PostgREST caps responses at 1000 rows; page through so long windows are
  * not silently truncated.
  */
-async function fetchAllRows<T>(
+export async function fetchAllRows<T>(
   page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
 ): Promise<T[]> {
   const PAGE = 1000;
@@ -513,15 +490,15 @@ async function fetchActivity(supabase: ServiceClient, win: Window): Promise<Acti
 
 // ── Small aggregation helpers ────────────────────────────────────────────────
 
-function sumCurrent(events: { count: number; current: boolean }[]): number {
+export function sumCurrent(events: { count: number; current: boolean }[]): number {
   return events.reduce((s, e) => s + (e.current ? e.count : 0), 0);
 }
 
-function sumPrevious(events: { count: number; current: boolean }[]): number {
+export function sumPrevious(events: { count: number; current: boolean }[]): number {
   return events.reduce((s, e) => s + (e.current ? 0 : e.count), 0);
 }
 
-function trendSeries(events: { bucketKey: string; count: number; current: boolean }[], win: Window): TrendPoint[] {
+export function trendSeries(events: { bucketKey: string; count: number; current: boolean }[], win: Window): TrendPoint[] {
   const buckets = new Map<string, number>(win.bucketKeys.map((k) => [k, 0]));
   for (const e of events) {
     if (e.current && buckets.has(e.bucketKey)) {

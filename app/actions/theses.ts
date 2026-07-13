@@ -12,6 +12,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeStatus, slugify, type ThesisStatus } from "@/lib/admin/theses-shared";
 import { validateThesisPublish, firstValidationError } from "@/lib/admin/thesis-validation";
+import { logContentView } from "@/lib/analytics/events";
 
 
 const REVALIDATE_PATHS = [
@@ -311,20 +312,19 @@ export async function getThesisBySlug(slug: string) {
 }
 
 export async function incrementThesisViewCount(id: string) {
-  // Only count views from signed-in users (matches the book view-count behavior)
-  // and prevents anonymous callers from spamming the counter via this action.
+  // The lifetime counter stays signed-in-only (spam-resistant public badge);
+  // view_logs analytics record every human visitor — anonymous included,
+  // bot-filtered and rate-limited inside logContentView.
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return;
 
-  const supabase = createServiceClient();
-  const { error } = await supabase.rpc("increment_research_view_count", { row_id: id });
+  let error: { message: string } | null = null;
+  if (user) {
+    const supabase = createServiceClient();
+    ({ error } = await supabase.rpc("increment_research_view_count", { row_id: id }));
+  }
 
-  await supabase.from("view_logs").insert({
-    content_type: "research_report",
-    content_id: id,
-    user_id: user.id,
-  });
+  await logContentView("research_report", id);
   if (error) {
     console.error("Failed to increment view count:", error);
   }

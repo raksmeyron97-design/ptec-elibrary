@@ -94,3 +94,323 @@
   to { opacity: 1; transform: none; }
 }
 .ptec-reveal { animation: ptecFadeUp .5s both; }
+/* ── Intelligence dashboard (second pass, 2026-07-12) ─────────────────
+   Data-friendly sans stack for both locales (Khmer prefers a sans face
+   over Hanuman's serif flavour in dense tables). */
+.dash-sans {
+  font-family: var(--font-var-sans), "Noto Sans Khmer", "Kantumruy Pro",
+    "Hanuman", var(--font-var-hanuman), system-ui, sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PTEC LIBRARY COMMAND CENTER — third pass, 2026-07-13
+   "Institutional Modernism": royal-blue + restrained gold on warm ivory,
+   with a real three-level elevation system and per-metric colour identity.
+   Everything here is scoped under .dash-* selectors used only by the
+   dashboard components, so no other admin surface is affected.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Dashboard-only tokens (light — the admin panel is always light). */
+  --dash-ivory: #FAF7F0;
+  --dash-ink: #0B1530;                 /* deep navy — titles / emphasis */
+  --dash-blue: var(--ptec-brand);      /* royal blue #1E3A8A */
+  --dash-gold: var(--ptec-accent);     /* #DDB022 */
+  --dash-gold-ink: var(--ptec-accent-text); /* #806211 — AA gold text */
+
+  --dash-elev-1: 0 1px 2px rgba(11, 21, 48, .05), 0 1px 1px rgba(11, 21, 48, .03);
+  --dash-elev-2: 0 2px 4px rgba(11, 21, 48, .04), 0 10px 24px -12px rgba(11, 21, 48, .16);
+  --dash-elev-3: 0 4px 10px -4px rgba(11, 21, 48, .08), 0 18px 40px -16px rgba(30, 58, 138, .26);
+}
+
+/* ── Level 1: the page surface — cool-gray → warm-ivory with a faint,
+   masked academic grid (book-page structure) at the top edge only. ── */
+.dash-shell {
+  position: relative;
+  background:
+    linear-gradient(180deg, #F5F8FD 0%, #F2F4F8 32%, var(--dash-ivory) 100%);
+}
+.dash-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--dash-blue) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--dash-blue) 5%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent 420px);
+          mask-image: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent 420px);
+  opacity: .6;
+  pointer-events: none;
+}
+.dash-shell > * { position: relative; }
+
+/* ── Level 2 / 3: cards ── */
+.dash-card {
+  background: var(--color-bg-surface, #fff);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ptec-divider) 72%, transparent);
+  box-shadow: var(--dash-elev-1);
+}
+.dash-card--emphasis {
+  border-color: color-mix(in srgb, var(--dash-blue) 22%, transparent);
+  box-shadow: var(--dash-elev-2);
+}
+/* Interactive / drill-down cards lift on hover (Level 3). */
+.dash-card--interactive {
+  transition: box-shadow .16s ease, border-color .16s ease, transform .16s ease;
+}
+.dash-card--interactive:hover {
+  box-shadow: var(--dash-elev-3);
+  border-color: color-mix(in srgb, var(--dash-blue) 30%, transparent);
+  transform: translateY(-2px);
+}
+.dash-card--interactive:focus-within {
+  border-color: color-mix(in srgb, var(--dash-blue) 34%, transparent);
+}
+
+/* ── Branded command header ──────────────────────────────────────────
+   Warm-white panel, thin gold brand line, restrained seal watermark. */
+.dash-header {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    radial-gradient(130% 150% at 100% -20%, color-mix(in srgb, var(--dash-blue) 8%, #fff) 0%, #fff 52%),
+    var(--dash-ivory);
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 14%, var(--ptec-divider));
+  box-shadow: var(--dash-elev-2);
+}
+.dash-header::before {   /* thin gold + blue brand line */
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--dash-blue) 0%, var(--dash-gold) 42%, color-mix(in srgb, var(--dash-gold) 30%, transparent) 70%, transparent 100%);
+}
+.dash-seal {   /* seal watermark — sits behind the header text */
+  position: absolute;
+  inset-inline-end: -34px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 210px;
+  height: 210px;
+  opacity: .045;
+  pointer-events: none;
+  color: var(--dash-blue);
+}
+
+/* Header brand medallion (royal-blue icon container). */
+.dash-medallion {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(150deg, var(--ptec-navy-700) 0%, var(--dash-blue) 55%, var(--ptec-navy-950) 100%);
+  box-shadow: 0 6px 16px -8px rgba(30, 58, 138, .7), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.dash-medallion::after {   /* gold ring accent */
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--dash-gold) 55%, transparent);
+  opacity: .5;
+}
+
+/* Small caps eyebrow used across the dashboard. */
+.dash-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--dash-gold-ink);
+}
+
+/* ── Segmented control (toolbar range + chart metric + query views) ── */
+.dash-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--dash-blue) 6%, var(--ptec-paper));
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 10%, transparent);
+}
+.dash-seg-btn {
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ptec-text-muted);
+  transition: color .15s ease, background .15s ease;
+}
+.dash-seg-btn:hover { color: var(--dash-ink); }
+.dash-seg-btn[aria-pressed="true"],
+.dash-seg-btn[data-active="true"] {
+  color: #fff;
+  background: linear-gradient(160deg, var(--ptec-navy-700), var(--dash-blue));
+  box-shadow: 0 2px 6px -1px rgba(30, 58, 138, .4), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+.dash-seg-btn:focus-visible {
+  outline: 2px solid var(--dash-gold);
+  outline-offset: 1px;
+}
+
+/* ── View tab rail: tinted rail, blue active pill, gold 2px indicator ── */
+.dash-tabrail {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--dash-blue) 5%, #fff);
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 11%, var(--ptec-divider));
+  box-shadow: var(--dash-elev-1);
+}
+.dash-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 7px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ptec-text-muted);
+  transition: color .15s ease, background .15s ease;
+}
+.dash-tab:hover { color: var(--dash-ink); background: color-mix(in srgb, var(--dash-blue) 6%, transparent); }
+.dash-tab .dash-tab-ico { opacity: .7; transition: opacity .15s ease; }
+.dash-tab[aria-current="page"] {
+  color: var(--dash-blue);
+  background: #fff;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(11, 21, 48, .07), 0 2px 8px -3px rgba(30, 58, 138, .28);
+}
+.dash-tab[aria-current="page"] .dash-tab-ico { opacity: 1; }
+.dash-tab[aria-current="page"]::after {   /* gold indicator */
+  content: "";
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--dash-gold);
+}
+.dash-tab:focus-visible { outline: 2px solid var(--dash-blue); outline-offset: 2px; }
+
+/* ── Icon tiles: royal-blue container by default, per-metric tints ──── */
+.dash-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 11px;
+  color: var(--dash-blue);
+  background: color-mix(in srgb, var(--dash-blue) 11%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 12%, transparent);
+}
+.dash-ico--sm { width: 30px; height: 30px; }
+.dash-ico--md { width: 38px; height: 38px; }
+.dash-ico--lg { width: 44px; height: 44px; }
+.dash-ico--visitors { color: #0E7490; background: color-mix(in srgb, #0E7490 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #0E7490 14%, transparent); }
+.dash-ico--views    { color: var(--dash-blue); background: color-mix(in srgb, var(--dash-blue) 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 13%, transparent); }
+.dash-ico--reader   { color: #6D28D9; background: color-mix(in srgb, #6D28D9 10%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #6D28D9 13%, transparent); }
+.dash-ico--downloads{ color: #B45309; background: color-mix(in srgb, #D97706 12%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #D97706 16%, transparent); }
+.dash-ico--gold     { color: var(--dash-gold-ink); background: color-mix(in srgb, var(--dash-gold) 16%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-gold) 26%, transparent); }
+.dash-ico--emerald  { color: #047857; background: color-mix(in srgb, #059669 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #059669 14%, transparent); }
+
+/* Per-metric top accent strip on supporting KPI cards. */
+.dash-kpi { position: relative; overflow: hidden; }
+.dash-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--dash-kpi-accent, transparent);
+  opacity: .85;
+}
+.dash-kpi--visitors  { --dash-kpi-accent: linear-gradient(90deg, #22D3EE, #0E7490); }
+.dash-kpi--views     { --dash-kpi-accent: linear-gradient(90deg, #5B7FD6, var(--dash-blue)); }
+.dash-kpi--reader    { --dash-kpi-accent: linear-gradient(90deg, #A78BFA, #6D28D9); }
+.dash-kpi--downloads { --dash-kpi-accent: linear-gradient(90deg, #FBBF24, #B45309); }
+
+/* ── Hero KPI: blue-tinted institutional surface ─────────────────────── */
+.dash-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  color: #EAF0FF;
+  background:
+    radial-gradient(120% 120% at 110% -10%, color-mix(in srgb, var(--dash-gold) 22%, transparent) 0%, transparent 42%),
+    linear-gradient(155deg, var(--ptec-navy-700) 0%, var(--dash-blue) 46%, var(--ptec-navy-950) 100%);
+  border: 1px solid color-mix(in srgb, var(--dash-blue) 40%, #000 4%);
+  box-shadow: var(--dash-elev-3);
+}
+.dash-hero::before {   /* gold hairline under the top edge */
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--dash-gold), transparent 70%);
+}
+
+/* ── Severity rails (Action Center) ──────────────────────────────────── */
+.dash-sev { position: relative; border-radius: 12px; }
+.dash-sev::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--dash-sev-color, transparent);
+}
+.dash-sev--critical { --dash-sev-color: #DC2626; }
+.dash-sev--warning  { --dash-sev-color: #D97706; }
+.dash-sev--pending  { --dash-sev-color: #2A47A6; }
+.dash-sev--info     { --dash-sev-color: #94A3B8; }
+
+/* ── Insight surface: warm gold / ivory — distinct from red/amber alerts ─ */
+.dash-insight-panel {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--dash-gold) 30%, var(--ptec-divider));
+  background:
+    radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--dash-gold) 12%, #fff) 0%, transparent 46%),
+    linear-gradient(180deg, #FEFCF5 0%, #fff 100%);
+  box-shadow: var(--dash-elev-1);
+}
+.dash-insight {
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dash-gold) 7%, #fff);
+  border: 1px solid color-mix(in srgb, var(--dash-gold) 22%, transparent);
+}
+.dash-insight--positive { border-inline-start: 3px solid #059669; }
+.dash-insight--warning  { border-inline-start: 3px solid #D97706; }
+.dash-insight--info     { border-inline-start: 3px solid var(--dash-blue); }
+
+/* ── Data tables: faint navy header, quiet zebra, clear hover ────────── */
+.dash-thead th {
+  background: color-mix(in srgb, var(--dash-blue) 5%, var(--ptec-paper));
+  color: color-mix(in srgb, var(--dash-ink) 62%, transparent);
+  border-block: 1px solid color-mix(in srgb, var(--dash-blue) 10%, var(--ptec-divider));
+}
+.dash-row { transition: background .13s ease; }
+.dash-row:hover { background: color-mix(in srgb, var(--dash-blue) 4%, transparent); }
+
+/* Micro-interaction: staggered section reveal, honoured only with motion. */
+.dash-tab-active::before {   /* legacy dot — retained for any stragglers */
+  content: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ptec-reveal { animation: none; }
+  .dash-card--interactive,
+  .dash-tab,
+  .dash-seg-btn { transition: none; }
+  .dash-card--interactive:hover { transform: none; }
+}

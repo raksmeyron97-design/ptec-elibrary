@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { BookOpen, ExternalLink, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
+import { recordReaderOpen } from "@/app/actions/reader-events";
 
 type PDFReaderLauncherProps = {
   title: string;
@@ -32,6 +33,19 @@ export default function PDFReaderLauncher({
   const t = useTranslations("reader");
   const bookT = useTranslations("bookDetail");
   const [open, setOpen] = useState(false);
+
+  // Funnel analytics: one "reader opened" event per book per tab session.
+  const openReader = () => {
+    setOpen(true);
+    const key = `ptec.readeropen.book.${bookId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      // Private mode — ping anyway.
+    }
+    recordReaderOpen("book", bookId).catch(() => {});
+  };
 
   if (open) {
     return (
@@ -91,7 +105,7 @@ export default function PDFReaderLauncher({
       <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row">
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openReader}
           disabled={!pdfUrl}
           className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >

@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { getViewerContext, logAppEvent } from "@/lib/analytics/events";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -66,14 +67,22 @@ export async function GET(
     return new NextResponse("File not found", { status: 404 });
   }
 
-  // Log download + increment counter (non-blocking)
-  await Promise.all([
-    supabase.from("download_logs").insert({
-      user_id: user.id,
-      book_file_id: pdfFile.id,
-    }),
+  // Log download + increment counter (non-blocking). session_hash column is
+  // nullable pre-0090; on unknown-column errors, retry with the legacy shape.
+  const viewer = await getViewerContext();
+  const dlRow: Record<string, unknown> = {
+    user_id: user.id,
+    book_file_id: pdfFile.id,
+    session_hash: viewer.sessionHash,
+  };
+  const [dlRes] = await Promise.all([
+    supabase.from("download_logs").insert(dlRow),
     supabase.rpc("increment_download_count", { book_id: book.id }),
   ]);
+  if (dlRes.error && (dlRes.error.code === "42703" || dlRes.error.code === "PGRST204")) {
+    delete dlRow.session_hash;
+    await supabase.from("download_logs").insert(dlRow);
+  }
 
   const fileUrl = pdfFile.file_url as string;
   const safeTitle = encodeURIComponent(`${book.title}.pdf`);
@@ -81,7 +90,15 @@ export async function GET(
 
   // ── Zima CDN or any full HTTP(S) URL — proxy download server-side ─
   if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
+    const started = Date.now();
     const upstream = await zimaFetch(fileUrl);
+    logAppEvent({
+      kind: "storage_operation",
+      status: upstream.ok ? "ok" : "error",
+      route: "/api/books/[slug]/download",
+      latencyMs: Date.now() - started,
+      detail: { backend: "zima", op: "download", httpStatus: upstream.status },
+    });
     if (!upstream.ok) {
       return new NextResponse("File not found in storage", { status: 404 });
     }
@@ -108,5 +125,11 @@ export async function GET(
   });
 
   const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+  logAppEvent({
+    kind: "storage_operation",
+    status: "fallback",
+    route: "/api/books/[slug]/download",
+    detail: { backend: "r2", op: "presign" },
+  });
   return NextResponse.redirect(presignedUrl, 302);
 }

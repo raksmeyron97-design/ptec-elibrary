@@ -7,6 +7,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { mapRowToBook } from "@/lib/books";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
+import ReaderOpenPing from "@/components/ui/reader/ReaderOpenPing";
 import Icon from "@/components/ui/core/Icon";
 import { getTranslations } from "next-intl/server";
 import { localeAlternates } from "@/lib/seo/alternates";
@@ -87,6 +88,7 @@ export default async function BookReadPage({ params }: ReadPageProps) {
         </div>
       </div>
 
+      <ReaderOpenPing contentType="book" contentId={book.dbId} />
       <div className="mx-auto max-w-[1400px] px-2 py-3 sm:px-4 sm:py-4">
         <PDFViewer
           title={book.title}

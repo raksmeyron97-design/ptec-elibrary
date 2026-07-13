@@ -8,7 +8,6 @@ import type { Book } from "@/lib/books";
 import BookCover from "@/components/ui/books/BookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
 import Icon from "@/components/ui/core/Icon";
-import { incrementViewCount } from "@/app/actions/view-count";
 import { useTranslations } from "next-intl";
 
 type BookCardProps = {
@@ -64,10 +63,8 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
 
 
-  // Fire-and-forget analytics; Link handles navigation (and viewport prefetch).
-  function handleClick() {
-    if (book.dbId) incrementViewCount(book.dbId).catch(() => {});
-  }
+  // View analytics moved to the detail page's BookViewPing (one event per
+  // real detail view, anonymous included) — card clicks no longer log.
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)] transform-gpu will-change-transform">
@@ -80,7 +77,6 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
       <Link
         href={`/books/${book.slug}`}
-        onClick={handleClick}
         className="flex h-full flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {/* ── Cover ── */}

@@ -8,6 +8,7 @@ import { LIBRARY_INFO, LibraryInfoTopic } from "@/lib/library-info";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { generateEmbedding } from "@/lib/gemini-embeddings";
+import { logAppEvent } from "@/lib/analytics/events";
 export const runtime = "nodejs";
 
 // ── Cost-control constants ────────────────────────────────────────────────────
@@ -587,6 +588,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "db_error" }, { status: 503 });
     }
     if ((quotaResult as number) === -1) {
+      logAppEvent({ kind: "ai_request", status: "quota", route: "/api/ask" });
       return Response.json({ error: "quota", remaining: 0 }, { status: 429 });
     }
     remaining = quotaResult as number;
@@ -618,6 +620,7 @@ export async function POST(req: Request) {
   const allBooks: BookResult[] = [];
   const seenSlugs = new Set<string>();
 
+  const aiStarted = Date.now();
   try {
     const ai = getAI();
     const geminiConfig = {
@@ -678,9 +681,21 @@ export async function POST(req: Request) {
 
     const answer = response.text ?? "";
 
+    logAppEvent({
+      kind: "ai_request",
+      status: "ok",
+      route: "/api/ask",
+      latencyMs: Date.now() - aiStarted,
+    });
     return Response.json({ answer, books: allBooks.slice(0, 5), remaining });
   } catch (err) {
     console.error("[/api/ask] Gemini error:", err);
+    logAppEvent({
+      kind: "ai_request",
+      status: "error",
+      route: "/api/ask",
+      latencyMs: Date.now() - aiStarted,
+    });
     return Response.json({ error: "unavailable" }, { status: 503 });
   }
 }

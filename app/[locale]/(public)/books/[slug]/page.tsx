@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { notFound } from "next/navigation";
 import Icon from "@/components/ui/core/Icon";
 import PDFReaderLauncher from "@/components/ui/reader/PDFReaderLauncher";
+import BookViewPing from "@/components/ui/books/BookViewPing";
 import PDFCover from "@/components/ui/reader/PDFCover";
 import BookCover from "@/components/ui/books/BookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
@@ -275,6 +276,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
         }
       />
       <JsonLd data={bookBreadcrumbSchema} />
+      {book.dbId && <BookViewPing bookId={book.dbId} />}
       <div className="mx-auto max-w-[1200px]">
         <BookQuickNav
           hasPdf={book.fromSupabase && !!book.pdfUrl && !!book.dbId}
