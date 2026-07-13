@@ -20,6 +20,8 @@ type Props = {
   /** Pre-grouped books per department (trending order, max 10 each) */
   deptBooks?: Record<string, BookCardData[]>;
   layout?: "carousel" | "grid";
+  /** Cap the number of cards shown per tab (homepage preview keeps this ≤ 8). */
+  maxItems?: number;
 };
 
 const TAB_HREFS: Record<TabKey, string> = {
@@ -33,6 +35,7 @@ export default function BookShowcaseTabs({
   depts = [],
   deptBooks = {},
   layout = "carousel",
+  maxItems,
 }: Props) {
   const t = useTranslations("home");
   const [tab, setTab] = useState<TabKey>("trending");
@@ -40,11 +43,12 @@ export default function BookShowcaseTabs({
 
   // When a dept chip is active, show its pre-fetched books (trending order).
   // Sort toggle only applies to the "All" view.
-  const books = activeDept
+  const allBooks = activeDept
     ? (deptBooks[activeDept] ?? [])
     : tab === "trending"
       ? trending
       : recent;
+  const books = maxItems ? allBooks.slice(0, maxItems) : allBooks;
 
   const viewAllHref = activeDept
     ? `/books?department=${encodeURIComponent(activeDept)}`
@@ -134,7 +138,7 @@ export default function BookShowcaseTabs({
               : "Nothing added recently."}
         </div>
       ) : layout === "grid" ? (
-        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
           {books.map((book) => (
             <StaggerRevealItem key={book.slug} className="h-full">
               <BookCard book={book} />

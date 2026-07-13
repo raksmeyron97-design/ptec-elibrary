@@ -17,7 +17,15 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
   ]);
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
-  const trending12 = trendingBooks.slice(0, 12);
+  // Homepage preview keeps a tight, readable set — no more than 8 cards per tab
+  // (brief), rendered 4-per-row on desktop. Only the shown slice is serialized
+  // to the client, so we cap here rather than hide with CSS.
+  const PREVIEW = 8;
+  const trendingPreview = trendingBooks.slice(0, PREVIEW);
+  const recentPreview = recentlyAdded.slice(0, PREVIEW);
+  const deptBooksPreview = Object.fromEntries(
+    Object.entries(deptBooks).map(([k, v]) => [k, v.slice(0, PREVIEW)]),
+  );
 
   return (
     <section className="border-y border-divider/70 bg-gradient-to-b from-paper via-bg-surface to-paper overflow-hidden">
@@ -31,11 +39,12 @@ export default async function BrowseBooksSection({ trendingBooks }: { trendingBo
         </ScrollRevealWrapper>
         <ScrollRevealWrapper>
           <BookShowcaseTabs
-            trending={trending12}
-            recent={recentlyAdded}
+            trending={trendingPreview}
+            recent={recentPreview}
             depts={depts}
-            deptBooks={deptBooks}
+            deptBooks={deptBooksPreview}
             layout="grid"
+            maxItems={PREVIEW}
           />
         </ScrollRevealWrapper>
       </div>

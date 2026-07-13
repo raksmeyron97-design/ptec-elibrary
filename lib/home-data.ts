@@ -256,3 +256,60 @@ export const getFeaturedPublicationsCached = unstable_cache(
   ["home-featured-publications"],
   { revalidate: REVALIDATE, tags: ["home-publications"] }
 );
+
+// ── Editor's-pick candidates (This Week) ───────────────────────────────────
+// Ranked by view_count so the pick differs from the hero stack (which ranks by
+// download_count). The consuming component excludes any slug already shown in
+// the hero, so the same title never appears twice above the fold.
+export const getMostViewedBooksCached = unstable_cache(
+  async (): Promise<Book[]> => {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("books")
+      .select(BOOK_SELECT)
+      .eq("is_published", true)
+      .order("view_count", { ascending: false, nullsFirst: false })
+      .limit(8);
+    if (error) {
+      console.error("[home-data] most viewed:", error.message);
+      return [];
+    }
+    return (data ?? []).map(mapRowToBook);
+  },
+  ["home-most-viewed"],
+  { revalidate: REVALIDATE, tags: ["home-books"] }
+);
+
+// ── Latest published post (This Week editorial) ────────────────────────────
+export type LatestPostRow = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  category: string | null;
+  published_at: string | null;
+  created_at: string | null;
+};
+
+export const getLatestPostCached = unstable_cache(
+  async (): Promise<LatestPostRow | null> => {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("posts")
+      .select("id, title, slug, excerpt, category, published_at, created_at")
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      // posts table/status column may be absent on older deployments — hide
+      // the post card rather than break This Week.
+      console.error("[home-data] latest post:", error.message);
+      return null;
+    }
+    return (data as LatestPostRow) ?? null;
+  },
+  ["home-latest-post"],
+  { revalidate: REVALIDATE, tags: ["home-posts"] }
+);

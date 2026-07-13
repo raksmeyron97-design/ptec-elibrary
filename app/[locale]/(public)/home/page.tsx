@@ -3,19 +3,20 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
+import { getPublishedPaths } from "@/app/actions/learning-paths";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, getLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
-import ContinueReading from "@/components/ui/home/ContinueReading";
+import StartWithGoal from "@/components/ui/home/StartWithGoal";
+import ForYouShelf from "@/components/ui/home/ForYouShelf";
+import ThisWeekAtPtec from "@/components/ui/home/ThisWeekAtPtec";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
-import FeaturedBooksSection from "@/components/ui/home/FeaturedBooksSection";
-import FeaturedPublications from "@/components/ui/home/FeaturedPublications";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
-import HowToUse from "@/components/ui/home/HowToUse";
+import LibraryNow from "@/components/ui/home/LibraryNow";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import { localeAlternates } from "@/lib/seo/alternates";
@@ -61,11 +62,12 @@ export default async function HomePage() {
     fetchPriority: "high",
   });
 
-  const [t, locale, trendingBooks, trendingTerms] = await Promise.all([
+  const [t, locale, trendingBooks, trendingTerms, paths] = await Promise.all([
     getTranslations("home"),
     getLocale(),
     getTrendingBooksCached(),
     getTrendingTermsCached(),
+    getPublishedPaths(),
   ]);
 
   const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
@@ -226,42 +228,42 @@ export default async function HomePage() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
-      {/* ════════ FEATURED PUBLICATIONS — journal articles, slot 2 ════════ */}
-      <Suspense fallback={<div className="h-56 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-        <FeaturedPublications />
-      </Suspense>
+      {/* ════════ START WITH YOUR GOAL — task-first discovery, slot 2 ════════
+          Wired to real learning paths (or curated routes); no data round-trip
+          beyond the paths already fetched above, so it renders immediately. */}
+      <StartWithGoal paths={paths} />
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near. */}
 
-      {/* ════════ CATEGORIES — browse by subject, slot 3 ════════ */}
+      {/* ════════ FOR YOU — continue reading (auth) or popular shelf (anon) ════════
+          Owns a per-request auth read; behind Suspense so the hero HTML still
+          flushes in the first streamed chunk. */}
+      <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+        <ForYouShelf popularBooks={trendingBooks} />
+      </Suspense>
+
+      {/* ════════ THIS WEEK AT PTEC — one editorial band ════════
+          Editor's pick + publication + learning path + news, replacing the two
+          old repetitive "featured" sections. Editor's pick excludes the hero
+          books so nothing appears twice above the fold. */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <CategoryGrid />
+        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+          <ThisWeekAtPtec paths={paths} excludeSlugs={heroBooks.map((b) => b.slug)} />
         </Suspense>
       </div>
 
-      {/* ════════ FEATURED EDITORIAL ════════ */}
-      <div className="cv-auto">
-        <FeaturedBooksSection books={trendingBooks.slice(0, 4).map((b) => ({
-          slug: b.slug,
-          title: b.title,
-          author: b.author,
-          coverUrl: b.coverUrl ?? null,
-          cover: b.cover,
-          department: b.department,
-        }))} />
-      </div>
-
-      {/* ════════ CONTINUE READING ════════ */}
-      <Suspense fallback={null}>
-        <ContinueReading />
-      </Suspense>
-
-      {/* ════════ BROWSE: Trending / Recently Added + Dept chips ════════ */}
+      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row ════════ */}
       <div className="cv-auto">
         <Suspense fallback={<BrowseBooksSkeleton />}>
           <BrowseBooksSection trendingBooks={trendingBooks} />
+        </Suspense>
+      </div>
+
+      {/* ════════ BROWSE BY SUBJECT ════════ */}
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
+          <CategoryGrid />
         </Suspense>
       </div>
 
@@ -272,18 +274,9 @@ export default async function HomePage() {
         </Suspense>
       </div>
 
-      {/*
-        Trimmed 2026-07-06 (UX audit): the homepage previously stacked 17
-        sections (~8,800px desktop / ~13,700px mobile) — scroll-depth dies
-        after ~3 viewports, so sections 8+ were effectively unreachable while
-        still costing data fetches. Bento, stats band, research collections,
-        popular authors, recently added, catalogs, and latest posts now live
-        on their own landing pages (/theses, /catalogs, /posts).
-      */}
-
-      {/* ════════ HOW TO USE — 3-step orientation ════════ */}
+      {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
       <div className="cv-auto">
-        <HowToUse />
+        <LibraryNow />
       </div>
 
       {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
@@ -294,8 +287,8 @@ export default async function HomePage() {
       </div>
 
       {/* ════════ CTA BANNER — logged-out visitors only ════════
-          Owns the only cookie/auth read on the page; keeping it behind
-          Suspense keeps the hero out of the auth round-trip's shadow. */}
+          Owns a cookie/auth read; keeping it behind Suspense keeps the hero out
+          of the auth round-trip's shadow. */}
       <Suspense fallback={null}>
         <SignupCta />
       </Suspense>
