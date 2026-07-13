@@ -232,7 +232,17 @@ export async function getPublicationBySlug(slug: string): Promise<{
   if (error || !data) {
     return { data: null, error: error?.message ?? "Not found" };
   }
-  return { data: mapRowToPublication(data), error: null };
+  const pub = mapRowToPublication(data);
+  // Never expose a personal author email on the PUBLIC detail page — it would
+  // otherwise be serialized into client-component props even when not displayed.
+  // Admin fetches (getPublicationForAdmin) keep the email for editing.
+  if (pub.authorships) {
+    pub.authorships = pub.authorships.map((a) => ({
+      ...a,
+      author: { ...a.author, email: null },
+    }));
+  }
+  return { data: pub, error: null };
 }
 
 export async function incrementPublicationViewCount(id: string) {

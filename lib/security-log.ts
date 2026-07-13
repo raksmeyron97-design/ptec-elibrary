@@ -18,6 +18,7 @@ export type SecurityEventType =
   | "virus_scan_blocked" // a file's hash matched known malware on VirusTotal
   | "virus_scan_error" // the VirusTotal lookup itself failed (fails open — logged, not blocking)
   | "suspicious_input" // input rejected at a trust boundary
+  | "rights_blocked" // full-text redistribution not authorized (citation-only record)
   | "csp_violation"; // browser reported a Content-Security-Policy violation
 
 export interface SecurityEvent {

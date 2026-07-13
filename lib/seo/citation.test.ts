@@ -103,7 +103,7 @@ describe("thesisScholarMeta", () => {
     abstract: "A study of formative assessment practices.",
     author_names: "Sok San, Chan Dara",
     keywords: ["Action Research", "Primary Education"],
-    doi: "10.1234/ptec.2026.001",
+    doi: "10.5281/ptec.2026.001",
     published_at: "2026-05-01",
     created_at: "2026-01-10T00:00:00.000Z",
   };
@@ -117,8 +117,13 @@ describe("thesisScholarMeta", () => {
       citation_author: ["Sok San", "Chan Dara"],
       citation_abstract: "A study of formative assessment practices.",
       citation_keywords: "Action Research; Primary Education",
-      citation_doi: "10.1234/ptec.2026.001",
+      citation_doi: "10.5281/ptec.2026.001",
     });
+  });
+
+  it("drops a placeholder DOI (10.1234/…) instead of publishing it", () => {
+    const meta = thesisScholarMeta({ ...sampleRow, doi: "10.1234/eds" });
+    expect(meta.citation_doi).toBeUndefined();
   });
 
   it("points citation_pdf_url at /file (not /file.pdf, which 404s)", () => {
@@ -154,6 +159,7 @@ describe("publicationScholarMeta", () => {
     page_end: "118",
     article_no: null,
     doi: "10.5678/jce.2026.012",
+    issn: null,
     publication_date: "2026-02-20",
     abstract: "An evaluation of inquiry-based chemistry instruction.",
     abstract_km: null,
@@ -197,6 +203,18 @@ describe("publicationScholarMeta", () => {
     expect(meta.citation_pdf_url).toBe(
       "https://library.ptec.edu.kh/api/publications/journal-of-chemical-education/file",
     );
+  });
+
+  it("emits a validated ISSN, never a reviewed-book ISBN, and drops a bad DOI", () => {
+    const meta = publicationScholarMeta({
+      ...samplePub,
+      doi: "10.1234/eds", // placeholder → dropped
+      issn: "0021-9584", // valid ISSN → emitted
+      isbn: "978-0-470-50552-6", // reviewed book's ISBN → NOT emitted as citation_isbn
+    });
+    expect(meta.citation_doi).toBeUndefined();
+    expect(meta.citation_issn).toBe("0021-9584");
+    expect(meta.citation_isbn).toBeUndefined();
   });
 
   it("merges keywords and subjects with de-duplication", () => {

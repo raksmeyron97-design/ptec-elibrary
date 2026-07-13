@@ -83,6 +83,8 @@ export interface Publication {
   page_end: string | null;
   article_no: string | null;
   doi: string | null;
+  /** Journal ISSN (migration 0092). Distinct from a reviewed book's ISBN. */
+  issn: string | null;
   publication_date: string | null;
   abstract: string | null;
   abstract_km: string | null;
@@ -184,6 +186,7 @@ export function mapRowToPublication(row: any): Publication {
     page_end: row.page_end ?? null,
     article_no: row.article_no ?? null,
     doi: row.doi ?? null,
+    issn: row.issn ?? null,
     publication_date: row.publication_date ?? null,
     abstract: row.abstract ?? null,
     abstract_km: row.abstract_km ?? null,

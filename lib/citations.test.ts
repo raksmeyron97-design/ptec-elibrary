@@ -54,6 +54,7 @@ const pub: Publication = {
   page_end: '118',
   article_no: null,
   doi: '10.1234/ptec.2026.001',
+  issn: null,
   publication_date: '2026-03-15',
   abstract: 'A study of   digital pedagogy\nacross programs.',
   abstract_km: null,

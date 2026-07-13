@@ -679,7 +679,13 @@
     "statJournals": "Journals",
     "statYears": "Years covered",
     "statDownloads": "Downloads",
-    "growingNote": "This repository is growing — more academic works will be added soon."
+    "growingNote": "This repository is growing — more academic works will be added soon.",
+    "seoTitle": "Academic Publications & Journal Articles",
+    "seoDescription": "Browse {count} academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
+    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
+    "collectionName": "Academic Publications — PTEC Digital Library",
+    "collectionDescription": "Academic journal articles and scholarly publications in the PTEC Digital Library.",
+    "pageLabel": "Page"
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",
@@ -1092,7 +1098,13 @@
     "downloadPdf": "Download PDF",
     "pdfUnavailable": "PDF not yet available",
     "growingTitle": "This repository is growing",
-    "growingCta": "Submit your research"
+    "growingCta": "Submit your research",
+    "seoTitle": "Student Theses & Research Reports",
+    "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keyword.",
+    "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keyword.",
+    "collectionName": "Student Theses — PTEC Digital Library",
+    "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
+    "pageLabel": "Page"
   },
   "adminDashboard": {
     "header": {
@@ -1577,5 +1589,27 @@
       },
       "definition": "These are independent event volumes — visitors also arrive through direct links, so the streams do not form a sequential funnel. Rates compare only pairs measured on comparable populations."
     }
+  },
+  "paths": {
+    "eyebrow": "Teacher Learning Paths",
+    "h1": "Learn with purpose, not just search",
+    "intro": "Curated, ordered reading paths built from the library's own collection — designed around real PTEC teacher-training topics, from foundational pedagogy to classroom action research.",
+    "seoTitle": "Teacher Learning Paths",
+    "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around real teacher-training topics.",
+    "collectionName": "Teacher Learning Paths — PTEC Digital Library",
+    "collectionDescription": "Curated, ordered learning paths built from the PTEC Digital Library's own collection.",
+    "emptyTitle": "No learning paths published yet",
+    "emptyHint": "Check back soon — librarians are curating these now.",
+    "steps": "{count, plural, =1 {# step} other {# steps}}",
+    "modules": "{count, plural, =1 {# module} other {# modules}}",
+    "breadcrumbHome": "Home",
+    "breadcrumbPaths": "Learning Paths",
+    "yourProgress": "Your progress",
+    "noContent": "This path has no content yet",
+    "typeLink": "Link",
+    "typeThesis": "Thesis",
+    "typePhysical": "Physical Copy",
+    "typeEbook": "E-Book",
+    "minutes": "{count} min"
   }
 }

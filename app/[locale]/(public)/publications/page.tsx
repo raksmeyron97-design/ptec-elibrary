@@ -7,7 +7,9 @@ import { isSubscribed } from "@/app/actions/subscriptions";
 import SubscribeButton from "@/components/ui/books/SubscribeButton";
 import type { Publication } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
-import { citationYear } from "@/lib/citations";
+import { citationYear, authorList } from "@/lib/citations";
+import JsonLd from "@/components/seo/JsonLd";
+import { publicationsCollectionJsonLd } from "@/lib/seo/publication-seo";
 import PublicationCard from "@/components/ui/publications/PublicationCard";
 import PublicationFilters from "@/components/ui/publications/PublicationFilters";
 import PublicationsHero from "@/components/ui/publications/PublicationsHero";
@@ -40,12 +42,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const { locale } = await routeParams;
+  const tSeo = await getTranslations({ locale, namespace: "publications" });
   return buildListingMetadata({
     path: "/publications",
     locale,
-    title: "Publications",
-    description:
-      "Browse academic journal articles published through the Phnom Penh Teacher Education College (PTEC). Search by journal, year, keywords, and article type.",
+    title: tSeo("seoTitle"),
+    description: tSeo("seoDescriptionEvergreen"),
+    pageLabel: tSeo("pageLabel"),
     page: parsePageParam(params.page),
     hasFilters: !!(
       params.q ||
@@ -139,8 +142,30 @@ export default async function PublicationsPage({
 
   const hasFilters = !!(params.q || params.keyword || params.type || params.journal || params.year || params.language);
 
+  // Locale-aware CollectionPage + ItemList for the clean (indexable) listing.
+  const isCleanListing = !hasFilters && !params.size;
+  const collectionSchema = isCleanListing
+    ? publicationsCollectionJsonLd({
+        locale,
+        page,
+        pageSize,
+        total,
+        name: t("collectionName"),
+        description: t("collectionDescription"),
+        publications: paged.map((p) => ({
+          slug: p.slug,
+          title: p.title,
+          authors: authorList(p),
+          journalName: p.journal_name,
+          year: citationYear(p),
+          doi: p.doi,
+        })),
+      })
+    : null;
+
   return (
     <ClientNavWrapper>
+      {collectionSchema && <JsonLd data={collectionSchema} />}
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8">
           {/* ── Hero: search-first header (Scholar-style) ── */}

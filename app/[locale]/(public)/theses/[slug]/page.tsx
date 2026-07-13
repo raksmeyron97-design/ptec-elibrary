@@ -17,20 +17,31 @@ import StickySidebar from "@/components/ui/theses/detail/StickySidebar";
 import ThesisAbstractReader from "@/components/ui/theses/ThesisAbstractReader";
 import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
+import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
-import { ScholarlyArticleJsonLd } from "@/components/seo/ResourceJsonLd";
 import { createClient } from "@/lib/supabase/server";
 import {
   getKeywords,
   getReferences,
   getDoi,
   getDepartment,
+  getLanguageLabel,
 } from "@/lib/theses/report-fields";
-import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
-import { localeAlternates } from "@/lib/seo/alternates";
+import { PTEC_NAME, SITE_URL } from "@/lib/seo/site";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { thesisScholarMeta } from "@/lib/seo/citation";
+import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
 import { Pencil, FileX2 } from "lucide-react";
+
+/** Split "Sok San, Chan Dara" → ["Sok San", "Chan Dara"]. */
+function splitAuthors(authorNames: string | null | undefined): string[] {
+  return authorNames
+    ? authorNames.split(",").flatMap((s: string) => {
+        const name = s.trim();
+        return name ? [name] : [];
+      })
+    : [];
+}
 
 export const revalidate = 3600;
 
@@ -41,11 +52,6 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 // middleware matcher, and produces the 404 when the id doesn't exist.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function truncate(text: string | null | undefined, max: number): string {
-  if (!text) return '';
-  return text.length > max ? text.slice(0, max - 1) + '…' : text;
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const [{ slug, locale }, supabase] = await Promise.all([
     params,
@@ -53,7 +59,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   ]);
   const { data: report } = await supabase
     .from('research_reports')
-    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, keywords, doi, is_published, program, faculty, subject, department_id, verified_at, departments(name)')
+    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, updated_at, keywords, doi, is_published, program, faculty, subject, language, department_id, verified_at, departments(name)')
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -76,65 +82,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     .eq('id', report.id)
     .maybeSingle();
 
-  const alternates = localeAlternates(`/theses/${report.slug}`, locale);
-  const canonicalUrl = alternates.canonical;
-  // Admin-set SEO overrides (migration 0076) win when present; otherwise
-  // fall back to the title/abstract-derived defaults already used below.
-  const seoTitle: string = seoRow?.seo_title || report.title;
-  const description = seoRow?.seo_description || truncate(report.abstract, 160) || 'Thesis from Phnom Penh Teacher Education College.';
-  const ogImage: string | null = seoRow?.og_image || report.cover_url;
+  const seoInput: ThesisSeoInput = {
+    slug: report.slug,
+    title: report.title,
+    abstract: report.abstract,
+    authors: splitAuthors(report.author_names),
+    coverUrl: report.cover_url,
+    // published_at is the academic publication date; the website deposit time
+    // (created_at) is NOT used as datePublished. verified_at/updated_at is the
+    // last significant metadata change.
+    datePublished: report.published_at,
+    dateModified: report.verified_at ?? report.updated_at ?? null,
+    keywords: getKeywords(report),
+    doi: report.doi,
+    department: getDepartment(report),
+    program: report.program,
+    language: getLanguageLabel(report),
+  };
 
-  // Split "Sok San, Chan Dara" → ['Sok San', 'Chan Dara']
-  const authors: string[] = report.author_names
-    ? report.author_names.split(',').flatMap((s: string) => {
-        const name = s.trim();
-        return name ? [name] : [];
-      })
-    : [];
-  const metadataAuthors = authors.length > 0 ? authors : ['Unknown Author'];
-
-  const keywords: string[] = Array.isArray(report.keywords)
-    ? report.keywords
-    : typeof report.keywords === 'string' && report.keywords
-      ? report.keywords.split(',').flatMap((s: string) => {
-          const keyword = s.trim();
-          return keyword ? [keyword] : [];
-        })
-      : [];
-
-  const section = getDepartment(report) || report.program || 'Theses';
-
-  // Google Scholar citation_* meta tags — see lib/seo/citation.ts
-  const citationOther = thesisScholarMeta(report);
+  // Admin-set SEO overrides (migration 0076) win when present.
+  const base = buildThesisMetadata(seoInput, locale, {
+    seoTitle: seoRow?.seo_title,
+    seoDescription: seoRow?.seo_description,
+    ogImage: seoRow?.og_image,
+  });
 
   return {
-    title: seoTitle,
-    description,
-    keywords: keywords.length > 0 ? keywords : undefined,
-    authors: metadataAuthors.map((name) => ({ name })),
-    publisher: PTEC_NAME,
-    category: section,
-    alternates,
-    openGraph: {
-      title: seoTitle,
-      description,
-      type: 'article',
-      url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
-      authors: metadataAuthors,
-      publishedTime: report.published_at ?? report.created_at ?? undefined,
-      section,
-      tags: keywords.length > 0 ? keywords : undefined,
-      images: ogImage ? [{ url: ogImage, alt: report.title }] : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: seoTitle,
-      description,
-      images: ogImage ? [ogImage] : undefined,
-    },
+    ...base,
+    // Google Scholar citation_* meta tags — see lib/seo/citation.ts
     other: {
-      ...citationOther,
+      ...thesisScholarMeta(report),
       'dc.publisher': PTEC_NAME,
       'dc.type': 'ScholarlyArticle',
     },
@@ -237,35 +214,36 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     content: <ReferenceList references={references} />,
   });
 
-  const reportAuthors = report.author_names
-    ? (report.author_names as string).split(',').flatMap((s: string) => {
-        const name = s.trim();
-        return name ? [name] : [];
-      })
-    : [];
+  const tNav = await getTranslations("nav");
 
-  const reportUrl = `${SITE_URL}/theses/${canonicalSlug}`;
+  // Validated, sanitized ScholarlyArticle JSON-LD — see lib/seo/thesis-seo.ts.
+  const thesisArticleSchema = thesisJsonLd(
+    {
+      slug: canonicalSlug,
+      title: report.title,
+      abstract: report.abstract,
+      authors: splitAuthors(report.author_names),
+      coverUrl: report.cover_url,
+      datePublished: report.published_at,
+      dateModified: report.verified_at ?? report.updated_at ?? null,
+      keywords,
+      doi,
+      department,
+      program: report.program,
+      language: getLanguageLabel(report),
+      references,
+    },
+    locale,
+  );
   const thesisBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/home" },
-    { name: "Theses", path: "/theses" },
+    { name: tNav("home"), path: "/home" },
+    { name: tNav("theses"), path: "/theses" },
     { name: report.title },
   ]);
 
   return (
     <article className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">
-      <ScholarlyArticleJsonLd
-        title={report.title}
-        url={reportUrl}
-        authors={reportAuthors}
-        abstract={report.abstract}
-        image={report.cover_url}
-        datePublished={report.published_at}
-        dateCreated={report.created_at}
-        keywords={keywords}
-        doi={doi}
-        department={department}
-        references={references}
-      />
+      <JsonLd data={thesisArticleSchema} />
       <JsonLd data={thesisBreadcrumbSchema} />
       <ThesisViewPing id={id} />
       <ReadingProgress />
@@ -276,9 +254,9 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             aria-label="Breadcrumb"
             className="flex flex-wrap items-center gap-1.5 overflow-hidden text-[13px] font-medium text-text-muted sm:gap-2 sm:text-[14.5px]"
           >
-            <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">Home</Link>
+            <Link href="/" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">{tNav("home")}</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
-            <Link href="/theses" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">Theses</Link>
+            <Link href="/theses" className="rounded-sm transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50">{tNav("theses")}</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
             <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[340px]" title={report.title}>
               {report.title}

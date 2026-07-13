@@ -36,11 +36,42 @@ import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { publicationScholarMeta } from "@/lib/seo/citation";
+import {
+  buildPublicationMetadata,
+  publicationJsonLd,
+  type PublicationSeoInput,
+} from "@/lib/seo/publication-seo";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
-import { localeAlternates } from "@/lib/seo/alternates";
 import { Pencil } from "lucide-react";
+
+/** Adapt a Publication row into the typed, browser-safe SEO input. */
+function toPublicationSeoInput(pub: import("@/lib/publications").Publication): PublicationSeoInput {
+  return {
+    slug: pub.slug,
+    title: pub.title,
+    titleKm: pub.title_km,
+    abstractText: academicTextToPlainText(pub.abstract, pub.references),
+    authors: authorList(pub),
+    journalName: pub.journal_name,
+    volume: pub.volume,
+    issue: pub.issue_no,
+    pageStart: pub.page_start,
+    pageEnd: pub.page_end,
+    doi: pub.doi,
+    issn: pub.issn,
+    // The article's OWN date — never the repository import timestamp (created_at).
+    publicationDate: pub.publication_date ?? pub.published_at,
+    keywords: pub.keywords,
+    subjects: pub.subjects,
+    publisher: pub.publisher,
+    license: pub.license,
+    copyright: pub.copyright,
+    language: pub.language,
+    coverUrl: pub.cover_url,
+  };
+}
 
 export const revalidate = 3600;
 
@@ -49,11 +80,6 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 // generateMetadata and the page render both need the publication;
 // React cache() collapses them into one query per request.
 const getPublicationOnce = cache(getPublicationBySlug);
-
-function truncate(text: string | null | undefined, max: number): string {
-  if (!text) return "";
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
-}
 
 function formatDate(dateStr: string | null): string | null {
   if (!dateStr) return null;
@@ -70,36 +96,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Publication not found" };
   }
 
-  const alternates = localeAlternates(`/publications/${slug}`, locale);
-  const canonicalUrl = alternates.canonical;
-  const description =
-    truncate(academicTextToPlainText(pub.abstract, pub.references), 160) ||
-    "Journal article from Phnom Penh Teacher Education College.";
-
-  // Google Scholar citation_* meta tags — see lib/seo/citation.ts
-  const citationOther = publicationScholarMeta(pub);
-  const allKeywords = [...new Set([...pub.keywords, ...pub.subjects])];
-
-  return {
-    title: pub.title,
-    description,
-    keywords: allKeywords.length > 0 ? allKeywords : undefined,
-    alternates,
-    openGraph: {
-      title: pub.title,
-      description,
-      type: "article",
-      url: canonicalUrl,
-      images: pub.cover_url ? [{ url: pub.cover_url, alt: pub.title }] : [],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: pub.title,
-      description,
-      images: pub.cover_url ? [pub.cover_url] : undefined,
-    },
-    other: citationOther,
-  };
+  // Typed, localized metadata (validated identifiers, Khmer-aware). Google
+  // Scholar citation_* tags are merged in via `other`.
+  const base = buildPublicationMetadata(toPublicationSeoInput(pub), locale);
+  return { ...base, other: publicationScholarMeta(pub) };
 }
 
 export default async function PublicationDetailPage({ params }: PageProps) {
@@ -189,55 +189,15 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   ];
 
   // ── JSON-LD (ScholarlyArticle) ────────────────────────────────────────────
-  const scholarlyArticleSchema = {
-    "@context": "https://schema.org",
-    "@type": "ScholarlyArticle",
-    headline: pub.title,
-    abstract: academicTextToPlainText(pub.abstract, pub.references) || undefined,
-    author: authorList(pub).length > 0
-      ? authorList(pub).map((name) => ({ "@type": "Person", name }))
-      : { "@type": "Organization", name: "Unknown Author" },
-    datePublished: pub.publication_date ?? pub.published_at ?? pub.created_at ?? undefined,
-    keywords: pub.keywords.length > 0 ? pub.keywords.join(", ") : undefined,
-    image: pub.cover_url || `${SITE_URL}/og-default.png`,
-    url: shareUrl,
-    isAccessibleForFree: true,
-    ...(pub.journal_name
-      ? {
-          isPartOf: {
-            "@type": "Periodical",
-            name: pub.journal_name,
-          },
-        }
-      : {}),
-    ...(pub.license ? { license: pub.license } : {}),
-    publisher: pub.publisher
-      ? { "@type": "Organization", name: pub.publisher }
-      : {
-          "@type": "EducationalOrganization",
-          name: "Phnom Penh Teacher Education College",
-          url: SITE_URL,
-        },
-    ...(pub.doi || pub.isbn
-      ? {
-          identifier: [
-            ...(pub.doi ? [{ "@type": "PropertyValue", propertyID: "DOI", value: pub.doi }] : []),
-            ...(pub.isbn ? [{ "@type": "PropertyValue", propertyID: "ISBN", value: pub.isbn }] : []),
-          ],
-        }
-      : {}),
-    ...(ratingStats.count > 0
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: ratingStats.average,
-            reviewCount: ratingStats.count,
-            bestRating: 5,
-            worstRating: 1,
-          },
-        }
-      : {}),
-  };
+  // Validated identifiers, verified-license-only, locale-correct URLs, and no
+  // "Unknown Author" fabrication — see lib/seo/publication-seo.ts.
+  const scholarlyArticleSchema = publicationJsonLd(
+    toPublicationSeoInput(pub),
+    locale,
+    ratingStats.count > 0
+      ? { ratingValue: ratingStats.average, reviewCount: ratingStats.count }
+      : null,
+  );
 
   const faqSchema =
     pub.faqs.length > 0

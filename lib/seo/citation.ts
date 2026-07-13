@@ -8,6 +8,7 @@ import { SITE_URL, PTEC_NAME } from "@/lib/seo/site";
 import type { Publication } from "@/lib/publications";
 import { authorList } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
+import { normalizeDoi, normalizeIssn } from "@/lib/seo/identifiers";
 
 export type ScholarMeta = Record<string, string | string[]>;
 
@@ -118,7 +119,9 @@ export function thesisScholarMeta(report: ThesisCitationRow): ScholarMeta {
   if (authors.length > 0) tags.citation_author = authors;
   if (report.abstract) tags.citation_abstract = report.abstract;
   if (keywords.length > 0) tags.citation_keywords = keywords.join("; ");
-  if (report.doi) tags.citation_doi = report.doi;
+  // Only a structurally-valid, non-placeholder DOI reaches Google Scholar.
+  const doi = normalizeDoi(report.doi);
+  if (doi) tags.citation_doi = doi;
   return tags;
 }
 
@@ -140,8 +143,14 @@ export function publicationScholarMeta(pub: Publication): ScholarMeta {
   if (pub.issue_no) tags.citation_issue = pub.issue_no;
   if (pub.page_start) tags.citation_firstpage = pub.page_start;
   if (pub.page_end) tags.citation_lastpage = pub.page_end;
-  if (pub.doi) tags.citation_doi = pub.doi;
-  if (pub.isbn) tags.citation_isbn = pub.isbn;
+  // Validate before publishing to Google Scholar — a placeholder DOI
+  // (10.1234/eds) or bad ISSN checksum must never be asserted.
+  const doi = normalizeDoi(pub.doi);
+  if (doi) tags.citation_doi = doi;
+  // A journal article's identifier is its ISSN, NOT the reviewed book's ISBN —
+  // emitting citation_isbn from pub.isbn conflates the two, so we don't.
+  const issn = normalizeIssn(pub.issn);
+  if (issn) tags.citation_issn = issn;
   if (pub.publisher) tags.citation_publisher = pub.publisher;
   if (pub.abstract) tags.citation_abstract = academicTextToPlainText(pub.abstract, pub.references);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])];

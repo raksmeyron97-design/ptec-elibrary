@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
-import { Mail } from "lucide-react";
 import type { PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
+import { normalizeOrcid, orcidUrl } from "@/lib/seo/identifiers";
 
 export default async function AuthorAffiliationPanel({
   orderedAffiliations,
@@ -37,22 +37,15 @@ export default async function AuthorAffiliationPanel({
           <p key={a.author.id} className="flex items-center gap-2 text-[13px] text-text-body">
             <sup className="font-bold text-brand">*</sup>
             <span className="font-medium">{a.author.full_name}</span>
-            {a.author.email && (
+            {/* Personal email intentionally not published (no recorded consent). */}
+            {orcidUrl(a.author.orcid) && (
               <a
-                href={`mailto:${a.author.email}`}
-                className="inline-flex items-center gap-1 text-brand hover:underline"
-              >
-                <Mail className="h-3.5 w-3.5" /> {a.author.email}
-              </a>
-            )}
-            {a.author.orcid && (
-              <a
-                href={`https://orcid.org/${a.author.orcid.replace(/^https?:\/\/orcid\.org\//, "")}`}
+                href={orcidUrl(a.author.orcid)!}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-mono text-[11px] text-text-muted hover:text-brand"
               >
-                ORCID: {a.author.orcid.replace(/^https?:\/\/orcid\.org\//, "")}
+                ORCID: {normalizeOrcid(a.author.orcid)}
               </a>
             )}
           </p>

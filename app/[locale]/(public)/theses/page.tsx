@@ -21,8 +21,8 @@ import { getTranslations } from "next-intl/server";
 import { getKeywords } from "@/lib/theses/report-fields";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import JsonLd from "@/components/seo/JsonLd";
-import { SITE_URL } from "@/lib/seo/site";
-import { thesisHref } from "@/lib/theses";
+import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
+import { getYear } from "@/lib/theses/report-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -50,12 +50,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const { locale } = await routeParams;
+  const t = await getTranslations({ locale, namespace: "theses" });
   return buildListingMetadata({
     path: "/theses",
     locale,
-    title: "Theses",
-    description:
-      "Browse student theses from the Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keywords.",
+    title: t("seoTitle"),
+    description: t("seoDescriptionEvergreen"),
+    pageLabel: t("pageLabel"),
     page: parsePageParam(params.page),
     hasFilters: !!(
       params.q ||
@@ -236,26 +237,33 @@ export default async function ThesesPage({
     params.keyword
   );
 
-  const collectionSchema = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "Theses — PTEC Digital Library",
-    description:
-      "Student theses and research reports from Phnom Penh Teacher Education College.",
-    url: `${SITE_URL}/theses`,
-    isAccessibleForFree: true,
-    inLanguage: ["km", "en"],
-    hasPart: pagedReports.slice(0, 10).map((r) => ({
-      "@type": "ScholarlyArticle",
-      headline: r.title,
-      url: `${SITE_URL}${thesisHref(r)}`,
-      isAccessibleForFree: true,
-    })),
-  };
+  // Locale-aware CollectionPage + ItemList — schema URL matches the page's
+  // canonical URL for this locale, item URLs are locale-correct, and positions
+  // are absolute across pagination. Only for the clean (indexable) listing.
+  const isCleanListing = !hasFilters && !params.sort && !params.view && !params.size;
+  const collectionSchema = isCleanListing
+    ? thesesCollectionJsonLd({
+        locale,
+        page,
+        pageSize,
+        total,
+        name: tTheses("collectionName"),
+        description: tTheses("collectionDescription"),
+        theses: pagedReports.map((r) => ({
+          slug: r.slug ?? r.id,
+          title: r.title,
+          authors: r.author_names
+            ? String(r.author_names).split(",").map((s: string) => s.trim()).filter(Boolean)
+            : [],
+          year: getYear(r),
+          program: programNames.get(r.program) ?? r.program ?? null,
+        })),
+      })
+    : null;
 
   return (
     <ClientNavWrapper>
-      <JsonLd data={collectionSchema} />
+      {collectionSchema && <JsonLd data={collectionSchema} />}
       <div className="min-h-screen bg-bg-body">
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8 space-y-6">
           {/* ── HERO SEARCH ─────────────────────────────────────────────── */}

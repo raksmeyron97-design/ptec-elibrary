@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { Mail } from "lucide-react";
 import type { PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
+import { orcidUrl } from "@/lib/seo/identifiers";
 
 function initials(name: string): string {
   return name
@@ -69,13 +69,9 @@ export default async function AuthorBiosSection({
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                  {author.orcid && (
+                  {orcidUrl(author.orcid) && (
                     <a
-                      href={
-                        author.orcid.startsWith("http")
-                          ? author.orcid
-                          : `https://orcid.org/${author.orcid}`
-                      }
+                      href={orcidUrl(author.orcid)!}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-text-muted transition-colors hover:text-brand"
@@ -90,15 +86,9 @@ export default async function AuthorBiosSection({
                       ORCID
                     </a>
                   )}
-                  {is_corresponding && author.email && (
-                    <a
-                      href={`mailto:${author.email}`}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-text-muted transition-colors hover:text-brand"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      {author.email}
-                    </a>
-                  )}
+                  {/* A personal email is NOT published without a recorded
+                      public-corresponding-author consent; the corresponding-author
+                      badge above signals who to reach via the library contact route. */}
                 </div>
               </div>
             </div>

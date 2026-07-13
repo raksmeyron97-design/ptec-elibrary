@@ -6,6 +6,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { isFreelyAccessible } from "@/lib/seo/publication-seo";
+import { doiUrl } from "@/lib/seo/identifiers";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -51,13 +53,46 @@ export async function GET(
   const supabase = createServiceClient();
   const { data: publication, error } = await supabase
     .from("publications")
-    .select("id, title, pdf_url")
+    .select("id, title, pdf_url, doi, publisher, license")
     .eq("slug", slug)
     .eq("is_published", true)
     .single();
 
   if (error || !publication?.pdf_url) {
     return new NextResponse("Not found", { status: 404 });
+  }
+
+  // ── Full-text redistribution gate ────────────────────────────────────────
+  // A third-party © article with no verified redistributable license is
+  // citation-only: the bibliographic landing page + DOI stay public, but we do
+  // NOT hand out the hosted PDF as a download. An authorized admin can override
+  // per record by setting fulltext_redistributable=true (column from 0092;
+  // the read is best-effort so this works before the migration lands).
+  if (download) {
+    let redistributable = isFreelyAccessible({
+      slug,
+      title: publication.title,
+      publisher: publication.publisher,
+      license: publication.license,
+    });
+    const { data: rights } = await supabase
+      .from("publications")
+      .select("fulltext_redistributable")
+      .eq("id", publication.id)
+      .maybeSingle();
+    if (rights?.fulltext_redistributable === true) redistributable = true;
+
+    if (!redistributable) {
+      const link = doiUrl(publication.doi);
+      logSecurityEvent({ type: "rights_blocked", where: "/api/publications/[slug]/file?download", ip });
+      return NextResponse.json(
+        {
+          error: "This publication is a citation-only bibliographic record. Full-text redistribution is not authorized.",
+          ...(link ? { doi: link } : {}),
+        },
+        { status: 403 },
+      );
+    }
   }
 
   // Count explicit downloads (inline viewer reads are counted as views instead)

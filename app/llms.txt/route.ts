@@ -60,7 +60,7 @@ function detail(parts: Array<string | number | null | undefined>) {
 }
 
 async function countPublished(
-  table: "books" | "catalog_books" | "research_reports",
+  table: "books" | "catalog_books" | "research_reports" | "publications" | "learning_paths",
   column: "is_published" | "is_active",
 ) {
   const supabase = createPublicClient();
@@ -79,6 +79,8 @@ const getLlmsSnapshot = unstable_cache(
       bookCount,
       catalogCount,
       thesisCount,
+      publicationCount,
+      pathCount,
       { data: books },
       { data: catalogs },
       { data: theses },
@@ -86,6 +88,8 @@ const getLlmsSnapshot = unstable_cache(
       countPublished("books", "is_published"),
       countPublished("catalog_books", "is_active"),
       countPublished("research_reports", "is_published"),
+      countPublished("publications", "is_published"),
+      countPublished("learning_paths", "is_published"),
       supabase
         .from("books")
         .select("title, slug, language, department, authors(name), categories(name), departments(name)")
@@ -111,6 +115,8 @@ const getLlmsSnapshot = unstable_cache(
         books: bookCount,
         catalogs: catalogCount,
         theses: thesisCount,
+        publications: publicationCount,
+        paths: pathCount,
       },
       books: (books ?? []) as BookRow[],
       catalogs: (catalogs ?? []) as CatalogRow[],
@@ -183,13 +189,16 @@ The ${PTEC_LIBRARY_NAME} preserves, organizes, and shares teaching and research 
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
 - Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the PTEC library collection.
 - Student theses and research reports: ${SITE_URL}/theses - scholarly student research from PTEC programs, cohorts, departments, and academic years.
-- Publications and research outputs: ${SITE_URL}/publications - additional scholarly and institutional publications where available.
+- Academic publications and journal articles: ${SITE_URL}/publications - scholarly journal articles and publications, each with a bibliographic landing page, references, and citation metadata.
+- Teacher learning paths: ${SITE_URL}/paths - curated, ordered reading paths (books, theses, and resources) built around real teacher-training topics.
 
 ## Current Public Collection Snapshot
 
 - Published digital books: ${snapshot.counts.books}
 - Active catalog records: ${snapshot.counts.catalogs}
 - Published theses and research reports: ${snapshot.counts.theses}
+- Published academic publications: ${snapshot.counts.publications}
+- Published teacher learning paths: ${snapshot.counts.paths}
 
 ## Bilingual Access
 
@@ -200,9 +209,13 @@ same content with a localized interface.
 
 - English books: ${SITE_URL}/books
 - Khmer books: ${SITE_URL}/km/books
+- English theses: ${SITE_URL}/theses
 - Khmer theses: ${SITE_URL}/km/theses
 - Khmer catalog: ${SITE_URL}/km/catalogs
+- English publications: ${SITE_URL}/publications
 - Khmer publications: ${SITE_URL}/km/publications
+- English learning paths: ${SITE_URL}/paths
+- Khmer learning paths: ${SITE_URL}/km/paths
 
 ## Recommended Crawl Paths
 
@@ -213,6 +226,7 @@ same content with a localized interface.
 - ${SITE_URL}/catalogs
 - ${SITE_URL}/theses
 - ${SITE_URL}/publications
+- ${SITE_URL}/paths
 - ${SITE_URL}/about
 
 ${resourceList("Recent Digital Books", bookLines)}
@@ -226,6 +240,19 @@ educational works hosted for free access; their real publisher — when known �
 is recorded per item and exposed in that item's structured data. Do not
 attribute PTEC as the publisher of a hosted book. For student theses and
 research reports, ${PTEC_NAME} is the dissertation-granting institution.
+
+## Rights And Access
+
+Not every record is full-text open access. PTEC's own works (student theses, most
+hosted books, and curated learning paths) are free to read and download. Some
+publications are bibliographic landing pages for third-party © journal articles:
+the metadata (title, authors, journal, DOI) is public, but the full text may be
+paywalled at the publisher and is not necessarily redistributable here. Only trust
+an open-access / free-redistribution claim when a specific verified license is
+present in that item's structured data (schema.org \`license\` + \`isAccessibleForFree\`);
+when no verified license is present, treat the item as citation-only and link to the
+official DOI for the full text. Academic identifiers (DOI, ORCID, ISSN) are validated
+before publication, so any identifier present in the structured data is well-formed.
 
 ## Citation Guidance
 

@@ -12,6 +12,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeStatus, slugify, type ThesisStatus } from "@/lib/admin/theses-shared";
 import { validateThesisPublish, firstValidationError } from "@/lib/admin/thesis-validation";
+import { isGenericThesisTitle } from "@/lib/seo/thesis-seo";
 import { logContentView } from "@/lib/analytics/events";
 
 
@@ -85,6 +86,15 @@ function sanitizeThesisData(formData: ThesisData, { requireCore = false } = {}):
 /** Blocks the transition to published/scheduled when required fields (spec §26) are missing. */
 function checkPublishReady(merged: Partial<ThesisData>): string | null {
   if (merged.status !== "published" && merged.status !== "scheduled") return null;
+  // A generic title ("Report" / "របាយការណ៍" / "Thesis") is too weak for academic
+  // discovery. Block publication unless an authorized admin has recorded that
+  // the official title was verified against the source document.
+  if (
+    isGenericThesisTitle(merged.title as string) &&
+    !(merged as { official_title_verified?: boolean }).official_title_verified
+  ) {
+    return 'This title is too generic for an academic record (e.g. "Report", "Thesis", "របាយការណ៍"). Enter the thesis’s official title, or mark the official title as verified to publish an exception.';
+  }
   const errors = validateThesisPublish({
     title: (merged.title as string) ?? "",
     slug: (merged.slug as string) ?? "",
