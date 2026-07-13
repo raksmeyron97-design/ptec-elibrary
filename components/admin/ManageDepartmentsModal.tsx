@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { addDepartment, updateDepartment, deleteDepartment } from "@/app/(admin)/admin/(protected)/actions";
+import { addDepartment, updateDepartment, deleteDepartment } from "@/app/(admin)/admin/(protected)/books/actions";
 
 interface Department {
   id: string;

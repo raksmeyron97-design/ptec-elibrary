@@ -8,7 +8,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
+import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
 import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
 import {
   FileSpreadsheet, FolderOpen, Image as ImageIcon, Upload as UploadIcon,

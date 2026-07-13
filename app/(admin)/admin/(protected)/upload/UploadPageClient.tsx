@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import UploadForm from "../UploadForm";
-import BulkUploadForm from "../BulkUploadForm";
+import UploadForm from "../books/UploadForm";
+import BulkUploadForm from "../books/BulkUploadForm";
 import ManageCategoriesModal from "@/components/admin/ManageCategoriesModal";
 import ManageDepartmentsModal from "@/components/admin/ManageDepartmentsModal";
 

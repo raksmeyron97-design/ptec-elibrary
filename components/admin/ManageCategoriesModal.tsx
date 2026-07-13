@@ -7,7 +7,7 @@
 import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { addCategory, updateCategory, deleteCategory } from "@/app/(admin)/admin/(protected)/actions";
+import { addCategory, updateCategory, deleteCategory } from "@/app/(admin)/admin/(protected)/books/actions";
 
 interface Category {
   id: string;

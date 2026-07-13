@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { saveBookRecord } from "@/app/(admin)/admin/(protected)/actions";
+import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
 import { extractBookMetadata } from "@/app/actions/ai-extraction";
 import {
   departments as defaultDepartments,

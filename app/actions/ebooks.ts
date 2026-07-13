@@ -1,7 +1,7 @@
 "use server";
 
 // Row/bulk mutations for the admin Manage E-books page (/admin/manage).
-// Create/update/delete live in app/(admin)/admin/(protected)/actions.ts —
+// Create/update/delete live in app/(admin)/admin/(protected)/books/actions.ts —
 // this file only adds the status transitions and bulk operations the list
 // page needs, following app/actions/theses.ts conventions (books:write
 // permission, DB-backed rate limit, audit log with request metadata).
@@ -10,7 +10,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
-import { deleteBook } from "@/app/(admin)/admin/(protected)/actions";
+import { deleteBook } from "@/app/(admin)/admin/(protected)/books/actions";
 import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { zimaDelete } from "@/lib/zima";

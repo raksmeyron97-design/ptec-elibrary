@@ -3,7 +3,7 @@
 
 import { useState, useRef, Fragment } from "react";
 import Image from "next/image";
-import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
+import { updateBook } from "@/app/(admin)/admin/(protected)/books/actions";
 import { replaceBookFile } from "@/app/actions/ebooks";
 import {
   makeUid,

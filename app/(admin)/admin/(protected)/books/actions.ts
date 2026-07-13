@@ -1,6 +1,6 @@
 "use server";
 
-// app/admin/actions.ts
+// app/admin/books/actions.ts
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";

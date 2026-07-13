@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { updateBook } from "@/app/(admin)/admin/(protected)/actions";
+import { updateBook } from "@/app/(admin)/admin/(protected)/books/actions";
 import Icon from "@/components/ui/core/Icon";
 
 type Initial = {
