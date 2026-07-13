@@ -75,8 +75,12 @@ export default function BookCard({ book, variant = "browse", priority = false }:
         className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-brand transition-transform duration-250 group-hover:scale-x-100"
       />
 
+      {/* prefetch={false}: a grid of cards would otherwise fire one RSC
+          prefetch per card on viewport entry — a request storm on listing
+          pages. Navigation still streams the detail loading skeleton. */}
       <Link
         href={`/books/${book.slug}`}
+        prefetch={false}
         className="flex h-full flex-col rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
       >
         {/* ── Cover ── */}

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
@@ -37,6 +37,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { publicationScholarMeta } from "@/lib/seo/citation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { Pencil } from "lucide-react";
@@ -44,6 +45,10 @@ import { Pencil } from "lucide-react";
 export const revalidate = 3600;
 
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
+
+// generateMetadata and the page render both need the publication;
+// React cache() collapses them into one query per request.
+const getPublicationOnce = cache(getPublicationBySlug);
 
 function truncate(text: string | null | undefined, max: number): string {
   if (!text) return "";
@@ -59,7 +64,7 @@ function formatDate(dateStr: string | null): string | null {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, locale } = await params;
-  const { data: pub } = await getPublicationBySlug(slug);
+  const { data: pub } = await getPublicationOnce(slug);
 
   if (!pub) {
     return { title: "Publication not found" };
@@ -99,7 +104,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PublicationDetailPage({ params }: PageProps) {
   const { slug, locale } = await params;
-  const { data: pub, error } = await getPublicationBySlug(slug);
+  const { data: pub, error } = await getPublicationOnce(slug);
 
   if (error || !pub) {
     notFound();
@@ -108,31 +113,39 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const t = await getTranslations("publicationDetail");
   const supabase = await createClient();
 
-  // Admin-only edit link — best-effort, non-blocking
-  let isAdmin = false;
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
-    }
-  } catch { /* non-fatal */ }
-
-  // ── Affiliations for superscript markers ──────────────────────────────────
   const authorships = pub.authorships ?? [];
   const affiliationIds = [...new Set(authorships.flatMap((a) => a.affiliation_ids))];
-  let affiliations: PublicationAffiliation[] = [];
-  if (affiliationIds.length > 0) {
-    const { data: affRows } = await supabase
-      .from("publication_affiliations")
-      .select("id, name, name_km, city, country")
-      .in("id", affiliationIds);
-    affiliations = (affRows ?? []) as PublicationAffiliation[];
-  }
+
+  // Admin check, affiliations and rating stats are independent — run them
+  // concurrently instead of stacking three sequential DB round-trips.
+  const [isAdmin, affiliations, ratingStats] = await Promise.all([
+    // Admin-only edit link — best-effort, non-blocking
+    (async () => {
+      try {
+        const user = await getSessionUser();
+        if (!user) return false;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        return ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
+      } catch {
+        return false; // non-fatal
+      }
+    })(),
+    // ── Affiliations for superscript markers ────────────────────────────
+    (async (): Promise<PublicationAffiliation[]> => {
+      if (affiliationIds.length === 0) return [];
+      const { data: affRows } = await supabase
+        .from("publication_affiliations")
+        .select("id, name, name_km, city, country")
+        .in("id", affiliationIds);
+      return (affRows ?? []) as PublicationAffiliation[];
+    })(),
+    getPublicationRatingStats(pub.id),
+  ]);
+
   // Stable superscript numbering: order of first appearance in the byline
   const markerFor = new Map<string, number>();
   for (const a of authorships) {
@@ -145,8 +158,6 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     .filter((x): x is { marker: number; affiliation: PublicationAffiliation } => !!x.affiliation);
   const correspondingAuthors = authorships.filter((a) => a.is_corresponding);
   const primaryAuthor = authorships[0]?.author ?? null;
-
-  const ratingStats = await getPublicationRatingStats(pub.id);
   const citationLine = toCitationLine(pub);
   const publishedOn = formatDate(pub.publication_date ?? pub.published_at);
   const fileHref = `/api/publications/${slug}/file`;

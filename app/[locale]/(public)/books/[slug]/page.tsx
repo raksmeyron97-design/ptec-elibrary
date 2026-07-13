@@ -20,6 +20,7 @@ import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/session";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import { getBookNote } from "@/app/actions/book-notes";
 import { getListsContainingBook } from "@/app/actions/reading-lists";
@@ -198,15 +199,8 @@ const getBook = unstable_cache(
 );
 
 // Per-request memoization: several streamed sections below need the current
-// user / reading progress; cache() ensures the network call happens once.
-const getSessionUser = cache(async () => {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-});
-
+// user / reading progress. getSessionUser (lib/auth/session) is shared with
+// the layout/navbar so the whole request makes one auth round-trip.
 const getProgressOnce = cache((bookId: string) => getReadingProgress(bookId));
 
 // Physical copies are public, admin-managed data — cache with the book shell.

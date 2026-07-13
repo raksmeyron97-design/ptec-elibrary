@@ -1,5 +1,6 @@
 import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/session";
 import NavbarClient from "./NavbarClient";
 import MobileMenu from "./MobileMenu";
 import NavSearch from "@/components/layout/NavSearch";
@@ -72,14 +73,14 @@ export default async function Navbar() {
   ];
 
   // ── Fetch user + profile server-side ─────────────────────────
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getSessionUser is React-cached: pages/sections that also need the user
+  // in the same request share this one auth round-trip.
+  const user = await getSessionUser();
 
   let userInfo = null;
 
   if (user) {
+    const supabase = await createClient();
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, avatar_url, role")

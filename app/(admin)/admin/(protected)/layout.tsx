@@ -1,11 +1,12 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import IntlProvider from "@/components/providers/IntlProvider";
+import { getLocale, getMessages } from "next-intl/server";
+import { pickMessages, ADMIN_NAMESPACES } from "@/i18n/pick-messages";
 import { MFA_ENROLL_PATH, MFA_VERIFY_PATH } from "@/lib/auth/requireAdmin";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
-import type { AppRole } from "@/lib/types/roles";
-import { getPermissionsForRole } from "@/lib/permissions";
-import type { PermLevel } from "@/lib/types/roles";
+import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -17,30 +18,19 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // Request-deduped: pages inside this layout share the same lookups.
+  const identity = await getAdminIdentity();
 
-  if (error || !user) {
+  if (!identity.user) {
     redirect("/admin/login");
   }
 
-  const supabaseService = createServiceClient();
-  const { data: profile } = await supabaseService
-    .from("profiles")
-    .select("role, is_super_admin, full_name, avatar_url")
-    .eq("id", user.id)
-    .single();
-
-  const role = (profile?.role ?? "reader") as AppRole;
-  const isSuperAdmin = (profile?.is_super_admin ?? false) as boolean;
-  const fullName = (profile?.full_name ?? null) as string | null;
-  const avatarUrl = (profile?.avatar_url ?? null) as string | null;
-
-  if (!ADMIN_PANEL_ROLES.includes(role)) {
+  if (!ADMIN_PANEL_ROLES.includes(identity.role)) {
     redirect("/admin/login");
   }
 
   // ── MFA / AAL2 enforcement ──────────────────────────────────────────────
+  const supabase = await createClient();
   const { data: aalData } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
@@ -57,23 +47,23 @@ export default async function AdminLayout({
     }
   }
 
-  // Fetch the DB-stored permissions for this role (falls back to hardcoded defaults)
-  const effectiveRole = (isSuperAdmin || role === "super_admin") ? "super_admin" : role;
-  const userPermissions: Record<string, PermLevel> = await getPermissionsForRole(
-    effectiveRole,
-    supabaseService,
-  );
+  const [locale, allMessages] = await Promise.all([getLocale(), getMessages()]);
 
   return (
-    <AdminSidebar
-      email={user.email}
-      fullName={fullName}
-      avatarUrl={avatarUrl}
-      role={role}
-      isSuperAdmin={isSuperAdmin}
-      userPermissions={userPermissions}
+    <IntlProvider
+      locale={locale}
+      messages={pickMessages(allMessages, ADMIN_NAMESPACES)}
     >
-      {children}
-    </AdminSidebar>
+      <AdminSidebar
+        email={identity.user.email}
+        fullName={identity.fullName}
+        avatarUrl={identity.avatarUrl}
+        role={identity.role}
+        isSuperAdmin={identity.isSuperAdmin}
+        userPermissions={identity.perms}
+      >
+        {children}
+      </AdminSidebar>
+    </IntlProvider>
   );
 }

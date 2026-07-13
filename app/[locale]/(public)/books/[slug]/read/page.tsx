@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Link } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
-import { cache } from "react";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/auth/session";
 import { mapRowToBook } from "@/lib/books";
 import { getReadingProgress } from "@/app/actions/reading-progress";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
@@ -41,11 +41,6 @@ const getReadableBook = unstable_cache(
   { revalidate: 3600, tags: ["books"] },
 );
 
-const getSessionUser = cache(async () => {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-});
 
 export async function generateMetadata({ params }: ReadPageProps): Promise<Metadata> {
   const { slug, locale } = await params;

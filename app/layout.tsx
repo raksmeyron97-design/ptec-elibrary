@@ -11,6 +11,7 @@ import NavigationProgress from "@/components/ui/NavigationProgress";
 import PushNotificationOnboarding from "@/components/ui/notifications/PushNotificationOnboarding";
 import { getLocale, getMessages } from 'next-intl/server';
 import IntlProvider from '@/components/providers/IntlProvider';
+import { pickMessages, ROOT_NAMESPACES } from '@/i18n/pick-messages';
 import { SITE_URL } from '@/lib/seo/site';
 import { PTEC } from '@/lib/ptec';
 const THEME_INIT_SCRIPT = `
@@ -81,7 +82,10 @@ export default async function RootLayout({
   const nonce = headersList.get("x-nonce") || undefined;
   
   const locale = await getLocale();
-  const messages = await getMessages();
+  // Root provider carries only what root-level client components use;
+  // each route-group layout provides its own (complete) namespace set.
+  // See i18n/pick-messages.ts before adding namespaces here.
+  const messages = pickMessages(await getMessages(), ROOT_NAMESPACES);
   // One canonical institutional identity, emitted site-wide from this layout
   // as a single @graph with stable @id anchors. Nothing else may declare an
   // Organization/Library/WebSite node — duplicates with diverging names/URLs
@@ -144,6 +148,15 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning className={`${angkor.variable} ${inter.variable} ${hanuman.variable} ${crimsonPro.variable}`}>
       <head>
+        {/* Client-side data (covers, suggestions, auth refresh) hits these
+            origins on nearly every page; warming DNS+TLS early saves a
+            round-trip on slow mobile connections. */}
+        <link
+          rel="preconnect"
+          href={process.env.NEXT_PUBLIC_SUPABASE_URL}
+          crossOrigin="anonymous"
+        />
+        <link rel="preconnect" href="https://storage-ptec.online" />
         <script
           nonce={nonce}
           suppressHydrationWarning

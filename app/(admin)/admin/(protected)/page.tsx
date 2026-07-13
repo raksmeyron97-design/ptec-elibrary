@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { ADMIN_ROLES, type AppRole } from "@/lib/types/roles";
-import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions";
+import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import {
   parseDashboardFilters,
   serializeDashboardFilters,
@@ -39,26 +39,19 @@ const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_ROOT_DOMAIN
  * filters, table preset/page) lives in URL search params, so any dashboard
  * state is bookmarkable and shareable between authorized administrators.
  */
-async function getAdminIdentity(): Promise<{
+async function getPageIdentity(): Promise<{
   name: string | null;
   role: AppRole;
   perms: Record<string, "none" | "read" | "write">;
 }> {
-  const authClient = await createClient();
-  const { data: { user } } = await authClient.auth.getUser();
-  if (!user) return { name: null, role: "reader", perms: {} };
-  const supabase = createServiceClient();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .maybeSingle();
-  const role = ((profile?.role as AppRole | null) ?? "reader") as AppRole;
-  const perms = await getPermissionsForRole(role, supabase);
+  // Shared (React-cached) with the (protected) layout — no repeated
+  // auth/profile/permissions round-trips for the same request.
+  const identity = await getAdminIdentity();
+  if (!identity.user) return { name: null, role: "reader", perms: {} };
   return {
-    name: (profile?.full_name as string | null) ?? user.email?.split("@")[0] ?? null,
-    role,
-    perms,
+    name: identity.fullName ?? identity.user.email?.split("@")[0] ?? null,
+    role: identity.role,
+    perms: identity.perms,
   };
 }
 
@@ -71,7 +64,7 @@ export default async function AdminDashboardPage({
   const filters = parseDashboardFilters(sp);
 
   const [{ name, role, perms }, departments] = await Promise.all([
-    getAdminIdentity(),
+    getPageIdentity(),
     getDepartmentOptions(),
   ]);
 

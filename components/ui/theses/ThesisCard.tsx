@@ -49,6 +49,7 @@ export default async function ThesisCard({
           focus ring is inset because the article clips overflow. */}
       <Link
         href={thesisHref(report)}
+        prefetch={false}
         aria-label={report.title}
         className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
       />

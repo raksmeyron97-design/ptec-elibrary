@@ -115,6 +115,10 @@ export default function ContactPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
+  // The Cloudflare Turnstile script is ~100 KB of third-party JS; mount the
+  // widget only once the visitor engages the form (focus/tap). Protection is
+  // unchanged — the API still requires a valid token on submit.
+  const [captchaWanted, setCaptchaWanted] = useState(false);
   const turnstileRef = useRef<TurnstileInstance>(null);
   // Anti-bot: honeypot field (must stay empty) + form render time (server
   // rejects submissions faster than a human could type).
@@ -311,6 +315,8 @@ export default function ContactPage() {
           {/* Contact form */}
           <form
             onSubmit={handleSubmit}
+            onFocusCapture={() => setCaptchaWanted(true)}
+            onPointerDownCapture={() => setCaptchaWanted(true)}
             className="rounded-2xl border border-divider bg-bg-surface p-7 shadow-sm"
           >
             <h2 className="text-xl font-bold text-text-heading mb-1">Send a request</h2>
@@ -445,14 +451,23 @@ export default function ContactPage() {
             </div>
 
             {TURNSTILE_SITE_KEY && (
-              <div className="mt-4">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  onSuccess={setCaptchaToken}
-                  onExpire={() => setCaptchaToken(undefined)}
-                  onError={() => setCaptchaToken(undefined)}
-                />
+              <div className="mt-4 min-h-[65px]">
+                {captchaWanted ? (
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={setCaptchaToken}
+                    onExpire={() => setCaptchaToken(undefined)}
+                    onError={() => setCaptchaToken(undefined)}
+                  />
+                ) : (
+                  // Same footprint as the Turnstile widget so nothing shifts
+                  // when it mounts on first interaction.
+                  <div
+                    aria-hidden="true"
+                    className="h-[65px] w-[300px] max-w-full rounded-md border border-divider bg-paper"
+                  />
+                )}
               </div>
             )}
 

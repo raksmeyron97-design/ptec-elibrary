@@ -32,6 +32,7 @@ export default function CatalogCard({ book }: Props) {
   return (
     <Link
       href={`/catalogs/${book.slug}`}
+      prefetch={false}
       className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
       {/* Gold top-rule on hover (brand signature) */}
