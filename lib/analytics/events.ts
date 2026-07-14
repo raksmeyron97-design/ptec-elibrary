@@ -131,6 +131,96 @@ export async function logReaderOpen(
   }
 }
 
+/** Coarse device/browser summary from a UA string — never the raw UA (keeps
+ *  the event non-fingerprinting). Best-effort; unknowns collapse to "other". */
+function summarizeUserAgent(ua: string | null | undefined): string {
+  if (!ua) return "unknown";
+  const s = ua.toLowerCase();
+  const device = /mobile|iphone|android|ipad/.test(s) ? "mobile" : "desktop";
+  const browser = s.includes("edg/")
+    ? "edge"
+    : s.includes("chrome") && !s.includes("chromium")
+      ? "chrome"
+      : s.includes("firefox")
+        ? "firefox"
+        : s.includes("safari")
+          ? "safari"
+          : "other";
+  const os = s.includes("windows")
+    ? "windows"
+    : /mac os|macintosh/.test(s)
+      ? "macos"
+      : s.includes("android")
+        ? "android"
+        : /iphone|ipad|ios/.test(s)
+          ? "ios"
+          : s.includes("linux")
+            ? "linux"
+            : "other";
+  return `${device}/${browser}/${os}`;
+}
+
+/**
+ * Record a DENIED or FAILED download attempt in the unified `activity_events`
+ * table (migration 0094). Successful downloads are NEVER written here — they
+ * stay in download_logs / research_report_downloads so the /admin/logs
+ * read-model does not double-count. Fire-and-forget: swallows all errors,
+ * including PGRST205/42P01 when 0094 has not been applied yet.
+ *
+ * `ipHash` is a daily-rotating keyed HMAC (never a raw IP). `idempotencyKey`
+ * de-dupes retried denials (the unique partial index enforces it at the DB).
+ */
+export async function logDownloadAttempt(input: {
+  status: "denied" | "failed";
+  resourceType: "book" | "thesis" | "publication" | "post";
+  resourceId: string | null;
+  userId: string | null;
+  reason: string; // DenialReason enum value
+  permissionSource?: string | null;
+  rankAtEvent?: number | null;
+  institutionType?: string | null;
+  role?: string | null;
+  purpose?: string | null;
+  idempotencyKey?: string | null;
+}): Promise<void> {
+  try {
+    const h = await headers();
+    const ua = h.get("user-agent");
+    const ip =
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+    const requestId = h.get("x-request-id") ?? null;
+    const localeHeader = h.get("x-locale");
+    const locale = localeHeader === "km" || localeHeader === "en" ? localeHeader : null;
+
+    const supabase = createServiceClient();
+    const { error } = await supabase.from("activity_events").insert({
+      event_type: "download",
+      event_status: input.status,
+      resource_type: input.resourceType,
+      resource_id: input.resourceId,
+      user_id: input.userId,
+      request_id: requestId,
+      idempotency_key: input.idempotencyKey ?? null,
+      permission_source: input.permissionSource ?? null,
+      permission_reason: input.reason,
+      rank_at_event: input.rankAtEvent ?? null,
+      institution_type_snapshot: input.institutionType ?? null,
+      role_snapshot: input.role ?? null,
+      purpose_snapshot: input.purpose ?? null,
+      locale,
+      ip_hash: anonymousSessionHash(ip, ua ?? "", process.env.SUPABASE_SERVICE_ROLE_KEY),
+      user_agent_summary: summarizeUserAgent(ua),
+    });
+    // 23505 = duplicate idempotency key (already recorded) → not an error.
+    // 42P01/PGRST205 = table absent (0094 pending) → silently degrade.
+    if (error && !["23505", "42P01", "PGRST205"].includes(error.code ?? "")) {
+      console.error("[logDownloadAttempt]", error.message);
+    }
+  } catch (err) {
+    console.error("[logDownloadAttempt]", err instanceof Error ? err.message : err);
+  }
+}
+
 export type AppEventKind = "ai_request" | "storage_operation" | "notification" | "export";
 export type AppEventStatus = "ok" | "error" | "timeout" | "quota" | "fallback";
 

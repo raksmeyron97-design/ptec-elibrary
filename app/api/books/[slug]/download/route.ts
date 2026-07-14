@@ -7,7 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
-import { getViewerContext, logAppEvent } from "@/lib/analytics/events";
+import { getViewerContext, logAppEvent, logDownloadAttempt } from "@/lib/analytics/events";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -100,6 +100,11 @@ export async function GET(
       detail: { backend: "zima", op: "download", httpStatus: upstream.status },
     });
     if (!upstream.ok) {
+      await logDownloadAttempt({
+        status: "failed", resourceType: "book", resourceId: book.id, userId: user.id,
+        reason: "STORAGE_ERROR",
+        idempotencyKey: `dl-fail:${user.id}:${book.id}:${Math.floor(Date.now() / 60_000)}`,
+      });
       return new NextResponse("File not found in storage", { status: 404 });
     }
     const headers = new Headers();

@@ -1,95 +1,78 @@
-import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
-import SecurityLogsClient, { type LogRow, type LogStats } from "./SecurityLogsClient";
+import { getAdminIdentity } from "@/lib/auth/admin-identity";
+import SecurityLogsClient from "./SecurityLogsClient";
+import { queryActivity, type ActivityFilters } from "@/lib/admin/activity-log";
+import {
+  RESOURCE_TYPES,
+  maskEmail,
+  type ActivityTab,
+  type EventStatus,
+  type RangePreset,
+  type ResourceType,
+} from "@/lib/admin/activity-log-shared";
+import type { Metadata } from "next";
 
-export default async function AdminLogsPage() {
+// Logs are session-dependent + contain personal data: never prerender or cache.
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Activity & Security Logs - PTEC Library",
+  robots: { index: false, follow: false },
+};
+
+const TABS: ActivityTab[] = ["all", "downloads", "views", "security", "account", "admin"];
+const RANGES: RangePreset[] = ["24h", "7d", "30d", "90d", "custom"];
+const STATUSES: EventStatus[] = ["authorized", "denied", "failed", "success"];
+const PAGE_SIZE = 20;
+
+function pick<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
+  return value && (allowed as readonly string[]).includes(value) ? (value as T) : fallback;
+}
+
+export default async function AdminLogsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAdmin();
-  const supabase = createServiceClient();
+  const identity = await getAdminIdentity();
+  const canSeePersonal = identity.isSuperAdmin || identity.role === "super_admin";
 
-  const [{ data: downloadLogs }, { data: rawViewLogs }] = await Promise.all([
-    supabase
-      .from("download_logs")
-      .select(`id, downloaded_at, user:profiles(email, full_name, avatar_url)`)
-      .order("downloaded_at", { ascending: false })
-      .limit(200),
+  const sp = await searchParams;
+  const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]) as string | undefined;
 
-    supabase
-      .from("view_logs")
-      .select(`id, viewed_at, content_id, content_type, user:profiles(email, full_name, avatar_url)`)
-      .eq("content_type", "book")
-      .order("viewed_at", { ascending: false })
-      .limit(200),
-  ]);
+  const filters: ActivityFilters = {
+    range: pick<RangePreset>(one("range"), RANGES, "24h"),
+    customStart: one("start") ?? null,
+    customEnd: one("end") ?? null,
+    tab: pick<ActivityTab>(one("tab"), TABS, "all"),
+    resourceType: pick<ResourceType | "all">(one("resource"), ["all", ...RESOURCE_TYPES], "all"),
+    status: pick<EventStatus | "all">(one("status"), ["all", ...STATUSES], "all"),
+    search: (one("q") ?? "").slice(0, 120),
+    page: Math.max(0, parseInt(one("page") ?? "0", 10) || 0),
+    pageSize: PAGE_SIZE,
+  };
 
-  // Fetch book titles for view logs
-  const bookIds = [...new Set((rawViewLogs ?? []).map((l: any) => l.content_id))];
-  const { data: viewBooks } = bookIds.length
-    ? await supabase.from("books").select("id, title").in("id", bookIds)
-    : { data: [] };
+  const result = await queryActivity(filters);
 
-  const bookTitleMap = new Map((viewBooks ?? []).map((b: any) => [b.id, b.title as string]));
+  // Never ship raw personal data to admins who lack the reveal privilege — mask
+  // the email at the server boundary so it isn't even present in the payload.
+  if (!canSeePersonal) {
+    result.events = result.events.map((e) => ({ ...e, actorEmail: maskEmail(e.actorEmail) }));
+  }
 
-  // Also fetch book titles for download_logs via a separate join
-  const dlBookIds = [...new Set((downloadLogs ?? []).map((l: any) => l.book_id).filter(Boolean))];
-  const { data: dlBooks } = dlBookIds.length
-    ? await supabase.from("books").select("id, title").in("id", dlBookIds)
-    : { data: [] };
-
-  const dlBookTitleMap = new Map((dlBooks ?? []).map((b: any) => [b.id, b.title as string]));
-
-  // Normalize download logs
-  const dlRows: LogRow[] = (downloadLogs ?? []).map((l: any) => ({
-    id: l.id,
-    type: "download",
-    name: l.user?.full_name || "Unknown",
-    email: l.user?.email || "",
-    book: dlBookTitleMap.get(l.book_id) || "Unknown Book",
-    time: l.downloaded_at,
-    isAnon: !l.user,
-    avatarUrl: l.user?.avatar_url,
-  }));
-
-  // Normalize view logs
-  const vwRows: LogRow[] = (rawViewLogs ?? []).map((l: any) => ({
-    id: l.id,
-    type: "view",
-    name: l.user?.full_name || "Anonymous",
-    email: l.user?.email || "unauthenticated session",
-    book: bookTitleMap.get(l.content_id) || "Unknown Book",
-    time: l.viewed_at,
-    isAnon: !l.user,
-    avatarUrl: l.user?.avatar_url,
-  }));
-
-  // Merge and sort by recency
-  const allLogs = [...dlRows, ...vwRows].sort(
-    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+  return (
+    <SecurityLogsClient
+      result={result}
+      filters={{
+        range: filters.range,
+        tab: filters.tab,
+        resourceType: filters.resourceType,
+        status: filters.status,
+        search: filters.search,
+        customStart: filters.customStart ?? null,
+        customEnd: filters.customEnd ?? null,
+      }}
+      canSeePersonal={canSeePersonal}
+    />
   );
-
-  // Compute 24h stats
-  const downloads24h = dlRows.filter(
-    (r) => new Date(r.time).getTime() > Date.now() - 86_400_000
-  ).length;
-
-  const views24h = vwRows.filter(
-    (r) => new Date(r.time).getTime() > Date.now() - 86_400_000
-  ).length;
-
-  const recentDlUserIds = new Set(
-    (downloadLogs ?? [])
-      .filter((l: any) => l.user && new Date(l.downloaded_at).getTime() > Date.now() - 86_400_000)
-      .map((l: any) => l.user?.email)
-      .filter(Boolean)
-  );
-  const recentVwUserIds = new Set(
-    (rawViewLogs ?? [])
-      .filter((l: any) => l.user && new Date(l.viewed_at).getTime() > Date.now() - 86_400_000)
-      .map((l: any) => l.user?.email)
-      .filter(Boolean)
-  );
-  const activeUsers = new Set([...recentDlUserIds, ...recentVwUserIds]).size;
-
-  const stats: LogStats = { downloads24h, views24h, activeUsers };
-
-  return <SecurityLogsClient logs={allLogs} stats={stats} />;
 }

@@ -16,6 +16,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import { logDownloadAttempt } from "@/lib/analytics/events";
 import { zimaFetch } from "@/lib/zima";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
 
@@ -46,11 +47,20 @@ export async function GET(
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return deny("AUTHENTICATION_REQUIRED", 401);
 
+  // Idempotency key for denied/failed events: collapses double-clicks/retries
+  // within the same minute so one accidental burst is a single recorded event.
+  const denyIdem = (reason: string) =>
+    `dl-deny:${user.id}:${id}:${reason}:${Math.floor(Date.now() / 60_000)}`;
+
   // 2. Per-user rate limit.
   const { limit, windowMs } = ratePolicy("download");
   const rl = await rateLimit(`thesis-download:${user.id}`, limit, windowMs);
   if (!rl.success) {
     logSecurityEvent({ type: "rate_limited", where: "/api/theses/[id]/download", userId: user.id });
+    await logDownloadAttempt({
+      status: "denied", resourceType: "thesis", resourceId: id, userId: user.id,
+      reason: "RATE_LIMITED", idempotencyKey: denyIdem("RATE_LIMITED"),
+    });
     return new NextResponse("Too Many Requests", {
       status: 429,
       headers: {
@@ -72,12 +82,26 @@ export async function GET(
     .eq("id", id)
     .maybeSingle();
 
-  if (error || !report) return deny("THESIS_UNPUBLISHED", 404);
+  if (error || !report) {
+    await logDownloadAttempt({
+      status: "denied", resourceType: "thesis", resourceId: id, userId: user.id,
+      reason: "THESIS_UNPUBLISHED", idempotencyKey: denyIdem("THESIS_UNPUBLISHED"),
+    });
+    return deny("THESIS_UNPUBLISHED", 404);
+  }
 
   // 4–8. Centralized, server-side permission decision (re-evaluated now).
   const decision = await evaluateThesisDownload({ service, report: report as ThesisPolicyRow, userId: user.id });
 
   if (!decision.allowed) {
+    // Record the denial (with rank + policy source) so /admin/logs shows WHY —
+    // and so it is counted as a denied attempt, never a successful download.
+    await logDownloadAttempt({
+      status: decision.reason === "FILE_UNAVAILABLE" ? "failed" : "denied",
+      resourceType: "thesis", resourceId: report.id as string, userId: user.id,
+      reason: decision.reason, permissionSource: decision.policySource,
+      rankAtEvent: decision.rank, idempotencyKey: denyIdem(decision.reason),
+    });
     if (decision.reason === "THESIS_UNPUBLISHED") return deny(decision.reason, 404);
     if (decision.reason === "FILE_UNAVAILABLE") return deny(decision.reason, 404);
     // TOP_TEN_RESTRICTED / ADMIN_BLOCKED / PROFILE_INCOMPLETE → 403.
@@ -87,10 +111,62 @@ export async function GET(
 
   const fileUrl = report.file_url as string;
 
-  // 9. Record the successful download exactly once. Idempotency window: skip
-  //    the counter + event if the same reader downloaded this thesis in the
-  //    last 30s (double-click, retry, StrictMode remount, reconnect). The file
-  //    is still served — only the analytics write is de-duplicated.
+  // 9. Verify the file is actually retrievable BEFORE counting. A "successful
+  //    download" is only recorded once the server has an eligible file response
+  //    in hand — storage/signing failures are recorded as `failed`, never as a
+  //    successful download (they must not inflate the counter).
+  let body: ReadableStream<Uint8Array> | null = null;
+  let contentLength: string | null = null;
+
+  if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
+    const upstream = await zimaFetch(fileUrl, null);
+    if (!upstream.ok && upstream.status !== 206) {
+      await logDownloadAttempt({
+        status: "failed", resourceType: "thesis", resourceId: report.id as string, userId: user.id,
+        reason: "STORAGE_ERROR", permissionSource: decision.policySource, rankAtEvent: decision.rank,
+        idempotencyKey: denyIdem("STORAGE_ERROR"),
+      });
+      return deny("FILE_UNAVAILABLE", 404);
+    }
+    body = upstream.body;
+    contentLength = upstream.headers.get("content-length");
+  } else {
+    // Legacy bare R2 key — short-lived (60s) presigned GET, streamed server-side.
+    const key = fileUrl.startsWith("https://")
+      ? new URL(fileUrl).pathname.replace(/^\//, "")
+      : fileUrl;
+    let r2Res: Response;
+    try {
+      const presignedUrl = await getSignedUrl(
+        s3,
+        new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }),
+        { expiresIn: 60 },
+      );
+      r2Res = await fetch(presignedUrl);
+    } catch {
+      await logDownloadAttempt({
+        status: "failed", resourceType: "thesis", resourceId: report.id as string, userId: user.id,
+        reason: "STORAGE_ERROR", permissionSource: decision.policySource, rankAtEvent: decision.rank,
+        idempotencyKey: denyIdem("STORAGE_ERROR"),
+      });
+      return deny("FILE_UNAVAILABLE", 404);
+    }
+    if (!r2Res.ok) {
+      await logDownloadAttempt({
+        status: "failed", resourceType: "thesis", resourceId: report.id as string, userId: user.id,
+        reason: "STORAGE_ERROR", permissionSource: decision.policySource, rankAtEvent: decision.rank,
+        idempotencyKey: denyIdem("STORAGE_ERROR"),
+      });
+      return deny("FILE_UNAVAILABLE", 404);
+    }
+    body = r2Res.body;
+    contentLength = r2Res.headers.get("content-length");
+  }
+
+  // 10. Record the authorized download exactly once. Idempotency window: skip
+  //     the counter + event if the same reader downloaded this thesis in the
+  //     last 30s (double-click, retry, StrictMode remount, reconnect). The file
+  //     is still served — only the analytics write is de-duplicated.
   let alreadyCounted = false;
   {
     const since = new Date(Date.now() - 30_000).toISOString();
@@ -126,41 +202,13 @@ export async function GET(
     ]);
   }
 
-  // 10–12. Stream the file (never expose the storage URL); private no-store.
+  // 11–12. Stream the file (never expose the storage URL); private no-store.
   const safeTitle = encodeURIComponent(`${report.title}.pdf`);
   const disposition = `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
-
-  if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {
-    const upstream = await zimaFetch(fileUrl, null);
-    if (!upstream.ok && upstream.status !== 206) {
-      return deny("FILE_UNAVAILABLE", 404);
-    }
-    const headers = new Headers();
-    headers.set("Content-Type", "application/pdf");
-    headers.set("Content-Disposition", disposition);
-    headers.set("Cache-Control", NO_STORE);
-    const contentLength = upstream.headers.get("content-length");
-    if (contentLength) headers.set("Content-Length", contentLength);
-    return new NextResponse(upstream.body, { headers, status: 200 });
-  }
-
-  // Legacy bare R2 key — short-lived (60s) presigned GET, streamed server-side.
-  const key = fileUrl.startsWith("https://")
-    ? new URL(fileUrl).pathname.replace(/^\//, "")
-    : fileUrl;
-  const presignedUrl = await getSignedUrl(
-    s3,
-    new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }),
-    { expiresIn: 60 },
-  );
-  const r2Res = await fetch(presignedUrl);
-  if (!r2Res.ok) return deny("FILE_UNAVAILABLE", 404);
-
   const headers = new Headers();
   headers.set("Content-Type", "application/pdf");
   headers.set("Content-Disposition", disposition);
   headers.set("Cache-Control", NO_STORE);
-  const contentLength = r2Res.headers.get("content-length");
   if (contentLength) headers.set("Content-Length", contentLength);
-  return new NextResponse(r2Res.body, { headers, status: 200 });
+  return new NextResponse(body, { headers, status: 200 });
 }

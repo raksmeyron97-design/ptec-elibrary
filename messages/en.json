@@ -1722,5 +1722,158 @@
       "THESIS_UNPUBLISHED": "This thesis is not available for download.",
       "generic": "Something went wrong. Please try again."
     }
+  },
+  "adminLogs": {
+    "title": "Activity & Security Logs",
+    "subtitle": "Monitor downloads, page views, account activity and security events across the platform.",
+    "refresh": "Refresh",
+    "exportCsv": "Export CSV",
+    "exporting": "Exporting…",
+    "exportDone": "CSV downloaded",
+    "exportEmpty": "No rows match the current filters",
+    "exportError": "Export failed — please retry",
+    "autoRefresh": "Auto-refresh on",
+    "updated": "Updated {time}",
+    "showingRange": "Showing activity from {range}",
+    "range": {
+      "label": "Date range",
+      "last24h": "Last 24 hours",
+      "last7d": "Last 7 days",
+      "last30d": "Last 30 days",
+      "last90d": "Last 90 days",
+      "custom": "Custom range"
+    },
+    "filters": {
+      "resourceType": "Resource",
+      "status": "Status",
+      "allResources": "All resources",
+      "allStatuses": "All statuses",
+      "search": "Search",
+      "searchPlaceholder": "Search user, resource, email or institution…",
+      "clear": "Clear filters",
+      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+    },
+    "tabs": {
+      "all": "All activity",
+      "downloads": "Downloads",
+      "views": "Views",
+      "security": "Security",
+      "account": "Account",
+      "admin": "Admin"
+    },
+    "cards": {
+      "authorizedDownloads": "Authorized downloads",
+      "pageViews": "Page views",
+      "activeReaders": "Active readers",
+      "securityAlerts": "Security alerts",
+      "totalEvents": "Total events",
+      "deniedAttempts": "Denied attempts",
+      "srAuthorizedDownloads": "{count} authorized downloads in the selected range",
+      "srPageViews": "{count} page views in the selected range",
+      "srActiveReaders": "{count} active readers in the selected range",
+      "srSecurityAlerts": "{count} security alerts in the selected range"
+    },
+    "table": {
+      "event": "Event",
+      "reader": "Reader",
+      "resource": "Resource",
+      "institution": "Institution",
+      "status": "Status",
+      "time": "Time",
+      "actions": "Actions",
+      "viewDetails": "View details",
+      "caption": "Platform activity events, newest first"
+    },
+    "resource": {
+      "book": "Book",
+      "thesis": "Thesis",
+      "publication": "Publication",
+      "post": "Post",
+      "account": "Account",
+      "system": "System",
+      "unknown": "Unavailable resource"
+    },
+    "event": {
+      "view": "View",
+      "download": "Download",
+      "account": "Account",
+      "admin": "Admin",
+      "security": "Security"
+    },
+    "status": {
+      "authorized": "Authorized",
+      "denied": "Denied",
+      "failed": "Failed",
+      "success": "Viewed"
+    },
+    "reason": {
+      "AUTHENTICATION_REQUIRED": "Sign-in required",
+      "PROFILE_INCOMPLETE": "Download profile incomplete",
+      "TOP_TEN_RESTRICTED": "Top-10 protected",
+      "ADMIN_BLOCKED": "Blocked by admin",
+      "THESIS_UNPUBLISHED": "Resource unpublished",
+      "FILE_UNAVAILABLE": "File unavailable",
+      "RATE_LIMITED": "Rate limited",
+      "STORAGE_ERROR": "Storage error"
+    },
+    "anon": "Anonymous reader",
+    "notProvided": "Not provided",
+    "drawer": {
+      "title": "Event details",
+      "close": "Close",
+      "copyEventId": "Copy event ID",
+      "copied": "Copied",
+      "eventSummary": "Event summary",
+      "readerInfo": "Reader information",
+      "institutionInfo": "Institution",
+      "resourceInfo": "Resource",
+      "downloadDecision": "Download access decision",
+      "intendedUse": "Intended use",
+      "technical": "Technical & security context",
+      "eventType": "Event type",
+      "eventAction": "Action",
+      "statusLabel": "Status",
+      "dateTime": "Date & time",
+      "eventId": "Event ID",
+      "requestId": "Request ID",
+      "permissionSource": "Permission source",
+      "permissionReason": "Reason",
+      "fullName": "Full name",
+      "verifiedEmail": "Verified email",
+      "phone": "Phone",
+      "gender": "Gender",
+      "role": "Role",
+      "country": "Country",
+      "institutionName": "Institution name",
+      "institutionType": "Institution type",
+      "faculty": "Faculty / department",
+      "provinceCity": "Province / city",
+      "resourceTitle": "Title",
+      "resourceType": "Type",
+      "rank": "Current rank",
+      "rankAtEvent": "Rank at download time",
+      "purpose": "Download purpose",
+      "deviceType": "Device",
+      "browser": "Browser",
+      "os": "Operating system",
+      "locale": "Locale",
+      "reveal": "Reveal",
+      "hide": "Hide",
+      "masked": "Masked for your role",
+      "openAdmin": "Open in admin",
+      "openPublic": "Open public page",
+      "notAvailable": "—",
+      "revealHint": "Personal data is masked. Reveal requires elevated permission."
+    },
+    "empty": {
+      "title": "No activity in this range",
+      "body": "No events match the selected filters. Try widening the date range or clearing filters.",
+      "clear": "Clear filters"
+    },
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next",
+      "summary": "Page {page} of {pages} · {total} events"
+    }
   }
 }
