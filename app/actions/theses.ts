@@ -1222,3 +1222,106 @@ export async function deleteThesisFaculty(id: string): Promise<{ success: boolea
 
   return { success: true };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thesis Download Access — admin override (tri-state: inherit | allow | block).
+// The effective download policy is resolved by the centralized permission
+// engine (lib/theses/download-permission.ts); this only persists the admin's
+// intent + an audit trail. `inherit` = follow the automatic Top-10 ranking.
+// ─────────────────────────────────────────────────────────────────────────────
+type DownloadOverride = "inherit" | "allow" | "block";
+
+function isDownloadOverride(v: unknown): v is DownloadOverride {
+  return v === "inherit" || v === "allow" || v === "block";
+}
+
+export async function setThesisDownloadOverride(
+  id: string,
+  override: DownloadOverride,
+  reason?: string,
+) {
+  if (!isDownloadOverride(override)) {
+    return { success: false, error: "Invalid download policy." };
+  }
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+
+  const { data: prev } = await supabase
+    .from("research_reports")
+    .select("download_override, title")
+    .eq("id", id)
+    .maybeSingle();
+  if (!prev) return { success: false, error: "Thesis not found" };
+
+  const { error } = await supabase
+    .from("research_reports")
+    .update({
+      download_override: override,
+      download_override_reason: reason?.trim().slice(0, 500) || null,
+      download_override_updated_by: admin.user.id,
+      download_override_updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.download_override", "research_reports", id, {
+    title: prev.title,
+    previous_override: prev.download_override ?? "inherit",
+    new_override: override,
+    reason: reason ?? null,
+    ...meta,
+  });
+
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidatePath("/theses");
+  return { success: true };
+}
+
+export async function bulkSetThesisDownloadOverride(
+  ids: string[],
+  override: DownloadOverride,
+) {
+  if (!isDownloadOverride(override)) {
+    return { success: false, error: "Invalid download policy." };
+  }
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase } = admin;
+  const cleanIds = [...new Set(ids)].filter(Boolean).slice(0, 200);
+  if (cleanIds.length === 0) return { success: false, error: "No theses selected." };
+
+  const { data, error } = await supabase
+    .from("research_reports")
+    .update({
+      download_override: override,
+      download_override_updated_by: admin.user.id,
+      download_override_updated_at: new Date().toISOString(),
+    })
+    .in("id", cleanIds)
+    .select("id");
+
+  if (error) return { success: false, error: error.message };
+
+  const affected = data?.length ?? 0;
+  const meta = await requestMeta();
+  await logAdminAction(admin.user.id, "thesis.download_override_bulk", "research_reports", undefined, {
+    new_override: override,
+    count: affected,
+    ...meta,
+  });
+
+  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidatePath("/theses");
+  return { success: true, count: affected, failed: cleanIds.length - affected };
+}

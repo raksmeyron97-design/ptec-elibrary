@@ -4,6 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { updateProfile, updatePassword, deleteAccount } from "@/app/actions/profile";
 import Icon from "@/components/ui/core/Icon";
+import DownloadProfileForm from "@/components/ui/settings/DownloadProfileForm";
+import type { DownloadProfileRow } from "@/lib/profile/download-profile-shared";
 
 type SettingsClientProps = {
   user: {
@@ -13,9 +15,20 @@ type SettingsClientProps = {
     avatar_url: string | null;
   };
   t: Record<string, string>;
+  downloadProfile?: Partial<DownloadProfileRow>;
+  initialSection?: "download-profile";
+  returnTo?: string | null;
 };
 
-type Tab = "profile" | "security";
+type Tab = "profile" | "download-profile" | "security";
+
+const DownloadIcon = (p: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...p}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
 
 /* ---------- tiny inline icons (no dependency on your icon set) ---------- */
 type IconProps = React.SVGProps<SVGSVGElement>;
@@ -92,9 +105,15 @@ const scorePassword = (pw: string) => {
   return score; // 0..4
 };
 
-export default function SettingsClient({ user, t }: SettingsClientProps) {
+export default function SettingsClient({
+  user,
+  t,
+  downloadProfile,
+  initialSection,
+  returnTo,
+}: SettingsClientProps) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("profile");
+  const [tab, setTab] = useState<Tab>(initialSection === "download-profile" ? "download-profile" : "profile");
 
   const [profilePending, startProfileTransition] = useTransition();
   const [passwordPending, startPasswordTransition] = useTransition();
@@ -209,6 +228,7 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
 
   const navItems: { id: Tab; label: string; sub: string; icon: (p: IconProps) => React.ReactElement }[] = [
     { id: "profile", label: t.profileTab || "Profile", sub: t.profileTabSub || "Name & avatar", icon: UserIcon },
+    { id: "download-profile", label: t.downloadTab || "Download Access", sub: t.downloadTabSub || "Thesis download profile", icon: DownloadIcon },
     { id: "security", label: t.securityTab || "Security", sub: t.securityTabSub || "Password", icon: ShieldIcon },
   ];
 
@@ -389,6 +409,15 @@ export default function SettingsClient({ user, t }: SettingsClientProps) {
               </button>
             </div>
           </div>
+        </section>
+
+        {/* ---------------- Download Access Profile ---------------- */}
+        <section className={active(tab, "download-profile")}>
+          <DownloadProfileForm
+            email={user.email}
+            initial={{ full_name: user.full_name, ...(downloadProfile ?? {}) }}
+            returnTo={returnTo}
+          />
         </section>
 
         {/* ---------------- Security ---------------- */}

@@ -4,7 +4,7 @@ import { Eye, Download } from "lucide-react";
 import ThesisActionsMenu from "@/components/admin/theses/ThesisActionsMenu";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
-import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
+import { STATUS_BADGE_STYLES, STATUS_LABELS, effectiveThesisDownloadPolicy, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
 
 function programLabel(programs: ThesisProgramOption[], code: string | null): string {
   if (!code) return "No program";
@@ -71,6 +71,19 @@ export default function ThesisMobileCard({
                     {STATUS_LABELS[thesis.status]}
                   </span>
                   <ThesisMetadataBadge thesis={thesis} />
+                  {(() => {
+                    const eff = effectiveThesisDownloadPolicy(thesis);
+                    return (
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          eff.policy === "allowed" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {eff.policy === "allowed" ? "DL allowed" : "DL blocked"}
+                        {eff.isTopTen && thesis.rank != null ? ` · #${thesis.rank}` : ""}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="mt-2">
                   <ThesisFileStatusBadge hasPdf={Boolean(thesis.fileUrl)} hasCover={Boolean(thesis.coverUrl)} />

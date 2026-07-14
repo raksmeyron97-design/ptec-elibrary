@@ -6,12 +6,40 @@ import { ChevronDown, ChevronRight, Eye, Download, ExternalLink } from "lucide-r
 import ThesisActionsMenu from "@/components/admin/theses/ThesisActionsMenu";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
-import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
+import { STATUS_BADGE_STYLES, STATUS_LABELS, effectiveThesisDownloadPolicy, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
 import { thesisHref } from "@/lib/theses";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+/** At-a-glance effective download policy + Top-10 rank (server enforces). */
+function DownloadPolicyBadge({ thesis }: { thesis: ThesisListRow }) {
+  const eff = effectiveThesisDownloadPolicy(thesis);
+  const allowed = eff.policy === "allowed";
+  const sourceLabel =
+    eff.source === "allow" ? "Admin allow" : eff.source === "block" ? "Admin block" : "Automatic";
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span
+        title={`${allowed ? "Allowed" : "Blocked"} · ${sourceLabel}`}
+        className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+          allowed
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-red-100 text-red-700"
+        }`}
+      >
+        {allowed ? "Allowed" : "Blocked"}
+      </span>
+      {eff.isTopTen && thesis.rank != null && (
+        <span className="text-[10px] font-semibold text-amber-700">Top 10 · #{thesis.rank}</span>
+      )}
+      {eff.source !== "automatic" && (
+        <span className="text-[9px] uppercase tracking-wide text-text-muted">{sourceLabel}</span>
+      )}
+    </div>
+  );
 }
 
 function programLabel(programs: ThesisProgramOption[], code: string | null): string {
@@ -75,6 +103,7 @@ export default function ThesesTable({
               <th scope="col" className="hidden px-4 py-3 xl:table-cell">Files</th>
               <th scope="col" className="hidden px-4 py-3 text-right lg:table-cell">Stats</th>
               <th scope="col" className="px-4 py-3 text-center">Status</th>
+              <th scope="col" className="hidden px-4 py-3 text-center md:table-cell">Download</th>
               <th scope="col" className="hidden px-4 py-3 xl:table-cell">Updated</th>
               <th scope="col" className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -163,6 +192,9 @@ export default function ThesesTable({
                         {STATUS_LABELS[thesis.status]}
                       </span>
                     </td>
+                    <td className="hidden px-4 py-3 text-center md:table-cell">
+                      <DownloadPolicyBadge thesis={thesis} />
+                    </td>
                     <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted xl:table-cell">{formatDate(thesis.updatedAt)}</td>
                     <td className="px-4 py-3 text-right">
                       <ThesisActionsMenu
@@ -179,7 +211,7 @@ export default function ThesesTable({
                   </tr>
                   {isExpanded && (
                     <tr className="bg-paper/60">
-                      <td colSpan={11} className="px-6 py-4">
+                      <td colSpan={12} className="px-6 py-4">
                         <ThesisRowDetails thesis={thesis} />
                       </td>
                     </tr>

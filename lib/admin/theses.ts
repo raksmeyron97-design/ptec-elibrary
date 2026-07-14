@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
+import { getTopThesisRanks, TOP_N_PROTECTED } from "@/lib/theses/download-permission";
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
 import {
   normalizeStatus,
@@ -49,6 +50,11 @@ function toRow(r: Record<string, unknown>): ThesisListRow {
     doi: (r.doi as string) ?? null,
     viewCount: (r.view_count as number) ?? 0,
     downloadCount: (r.download_count as number) ?? 0,
+    downloadOverride:
+      r.download_override === "allow" || r.download_override === "block"
+        ? (r.download_override as "allow" | "block")
+        : "inherit",
+    rank: null, // filled in by getTheses from the ranking view
     createdAt: r.created_at as string,
     updatedAt: (r.updated_at as string) ?? null,
     publishedAt: (r.published_at as string) ?? null,
@@ -208,7 +214,9 @@ export async function getTheses(
       console.error("[getTheses] query failed:", error.message);
       return { rows: [], total: 0, error: true };
     }
-    return { rows: (data ?? []).map(toRow), total: count ?? 0, error: false };
+    const rows = (data ?? []).map(toRow);
+    await attachRanks(supabase, rows);
+    return { rows, total: count ?? 0, error: false };
   }
 
   // Metadata-quality path: filter/sort in JS, then paginate.
@@ -228,7 +236,40 @@ export async function getTheses(
 
   const total = rows.length;
   const from = (params.page - 1) * params.pageSize;
-  return { rows: rows.slice(from, from + params.pageSize), total, error: false };
+  const paged = rows.slice(from, from + params.pageSize);
+  await attachRanks(supabase, paged);
+  return { rows: paged, total, error: false };
+}
+
+/** Merge the global Top-N ranking + admin download override into the given page
+ *  of rows. Fetched separately (not in LIST_COLUMNS) so the main list query
+ *  stays working on a pre-0093 database — on error, rank stays null and the
+ *  override defaults to 'inherit'. */
+async function attachRanks(supabase: ServiceClient, rows: ThesisListRow[]): Promise<void> {
+  if (rows.length === 0) return;
+  try {
+    const ranks = await getTopThesisRanks(supabase, TOP_N_PROTECTED);
+    for (const row of rows) row.rank = ranks.get(row.id) ?? null;
+  } catch {
+    // Pre-0093 database (no ranking view) — leave rank null.
+  }
+  try {
+    const { data } = await supabase
+      .from("research_reports")
+      .select("id, download_override")
+      .in("id", rows.map((r) => r.id));
+    if (data) {
+      const map = new Map(
+        (data as { id: string; download_override: string | null }[]).map((r) => [r.id, r.download_override]),
+      );
+      for (const row of rows) {
+        const ov = map.get(row.id);
+        row.downloadOverride = ov === "allow" || ov === "block" ? ov : "inherit";
+      }
+    }
+  } catch {
+    // Pre-0093 database (no download_override column) — leave 'inherit'.
+  }
 }
 
 export async function getThesesSummary(): Promise<ThesesSummary> {

@@ -7,6 +7,14 @@ import { optimizeImage, AVATAR_OPTS } from "@/lib/image-optimize";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { AppRole } from "@/lib/types/roles";
 import { logSecurityEvent } from "@/lib/security-log";
+import {
+  GENDER_OPTIONS,
+  INSTITUTION_TYPE_OPTIONS,
+  PROFESSIONAL_ROLE_OPTIONS,
+  DOWNLOAD_PURPOSE_OPTIONS,
+  coerceEnum,
+  computeDownloadProfileStatus,
+} from "@/lib/profile/download-profile-shared";
 
 export async function updateProfile(formData: FormData) {
   try {
@@ -64,6 +72,99 @@ export async function updateProfile(formData: FormData) {
     return { success: true };
   } catch (err) {
     console.error("Error updating profile:", err);
+    return { error: "An unexpected error occurred" };
+  }
+}
+
+/** Trim + length-cap a free-text field; empty → null. */
+function cleanText(value: FormDataEntryValue | null, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, max);
+}
+
+/**
+ * Update the reader's Download Access Profile (the reusable information that
+ * gates thesis downloads). Server-side validated; enum fields are coerced
+ * against the canonical option lists so a tampered form can't inject values.
+ * Consent timestamps are stamped server-side the first time each box is ticked
+ * and cleared if it is unticked. Returns the recomputed completeness status so
+ * the client can update its indicator + optionally follow `returnTo`.
+ */
+export async function updateDownloadProfile(formData: FormData) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) return { error: "Not authenticated" };
+
+    // Load current row to preserve consent timestamps (only re-stamp on change).
+    const service = createServiceClient();
+    const { data: current } = await service
+      .from("profiles")
+      .select("responsible_use_accepted_at, download_privacy_consent_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const gender = coerceEnum(GENDER_OPTIONS, formData.get("gender"));
+    const institutionType = coerceEnum(INSTITUTION_TYPE_OPTIONS, formData.get("institution_type"));
+    const professionalRole = coerceEnum(PROFESSIONAL_ROLE_OPTIONS, formData.get("professional_role"));
+    const downloadPurpose = coerceEnum(DOWNLOAD_PURPOSE_OPTIONS, formData.get("download_purpose"));
+
+    const fullName = cleanText(formData.get("full_name"), 100);
+    if (formData.has("full_name") && !fullName) {
+      return { error: "Full name is required." };
+    }
+
+    const responsibleAccepted = formData.get("responsible_use") === "on";
+    const privacyAccepted = formData.get("download_privacy") === "on";
+    const nowIso = new Date().toISOString();
+
+    const updates: Record<string, unknown> = {
+      full_name: fullName,
+      gender,
+      phone: cleanText(formData.get("phone"), 40),
+      institution_name: cleanText(formData.get("institution_name"), 160),
+      institution_type: institutionType,
+      faculty_department: cleanText(formData.get("faculty_department"), 160),
+      professional_role: professionalRole,
+      country: cleanText(formData.get("country"), 80),
+      province_city: cleanText(formData.get("province_city"), 120),
+      student_staff_id: cleanText(formData.get("student_staff_id"), 60),
+      download_purpose: downloadPurpose,
+      download_purpose_other:
+        downloadPurpose === "other" ? cleanText(formData.get("download_purpose_other"), 200) : null,
+      // Consent: stamp on first acceptance, keep the original timestamp on
+      // re-save, clear if the reader unticks the box.
+      responsible_use_accepted_at: responsibleAccepted
+        ? current?.responsible_use_accepted_at ?? nowIso
+        : null,
+      download_privacy_consent_at: privacyAccepted
+        ? current?.download_privacy_consent_at ?? nowIso
+        : null,
+      download_profile_updated_at: nowIso,
+    };
+
+    const { error: updateError } = await service
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error("Download profile update error:", updateError);
+      return { error: "Failed to save your download profile." };
+    }
+
+    revalidatePath("/dashboard", "layout");
+    const status = computeDownloadProfileStatus({
+      ...updates,
+      responsible_use_accepted_at: updates.responsible_use_accepted_at as string | null,
+      download_privacy_consent_at: updates.download_privacy_consent_at as string | null,
+    } as never);
+
+    return { success: true, complete: status.complete, missingFields: status.missingFields };
+  } catch (err) {
+    console.error("Error updating download profile:", err);
     return { error: "An unexpected error occurred" };
   }
 }

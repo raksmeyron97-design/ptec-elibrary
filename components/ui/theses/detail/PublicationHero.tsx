@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Image from "next/image";
-import { GraduationCap, Layers } from "lucide-react";
+import { GraduationCap, Layers, Trophy } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
+import ThesisDownloadButton from "@/components/ui/theses/ThesisDownloadButton";
 import { getDoi, getThesisTypeLabel, getCoAdvisor } from "@/lib/theses/report-fields";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 
@@ -19,11 +20,16 @@ export default function PublicationHero({
   reportId,
   fileHref,
   shareUrl,
+  thesisPath,
+  rank = null,
 }: {
   report: any;
   reportId: string;
   fileHref: string;
   shareUrl: string;
+  thesisPath: string;
+  /** Global Top-N rank when this thesis is protected; null otherwise. */
+  rank?: number | null;
 }) {
   const doi = getDoi(report);
   const coAdvisor = getCoAdvisor(report);
@@ -57,9 +63,21 @@ export default function PublicationHero({
         {/* Content — right side */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
-              {getThesisTypeLabel(report)}
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
+                {getThesisTypeLabel(report)}
+              </span>
+              {rank != null && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
+                  title={`Ranked #${rank} by downloads — protected Top 10 thesis`}
+                >
+                  <Trophy className="h-3 w-3" aria-hidden="true" />
+                  <span className="sr-only">Ranked number {rank} most downloaded. </span>
+                  Top 10 · #{rank}
+                </span>
+              )}
             </span>
             {doi && (
               <a
@@ -115,6 +133,14 @@ export default function PublicationHero({
               hasFile={!!report.file_url}
               shareUrl={shareUrl}
               variant="full"
+              downloadSlot={
+                <ThesisDownloadButton
+                  reportId={reportId}
+                  hasFile={!!report.file_url}
+                  variant="full"
+                  thesisPath={thesisPath}
+                />
+              }
             />
           </div>
         </div>

@@ -1614,5 +1614,113 @@
     "typePhysical": "Physical Copy",
     "typeEbook": "E-Book",
     "minutes": "{count} min"
+  },
+  "downloadProfile": {
+    "title": "Download Access Profile",
+    "intro": "Complete this once to download theses. PTEC Library uses this information to manage access to academic resources and understand institutional usage. It is never shown publicly.",
+    "statusComplete": "Profile complete",
+    "statusIncomplete": "Profile incomplete",
+    "missingPrefix": "Missing:",
+    "lastUpdated": "Last updated {date}",
+    "select": "Select…",
+    "optional": "optional",
+    "saved": "Download profile saved.",
+    "saving": "Saving…",
+    "save": "Save download profile",
+    "sections": {
+      "personal": "Personal information",
+      "institution": "Institution information",
+      "usage": "Usage & consent"
+    },
+    "fields": {
+      "full_name": "Full name",
+      "email": "Verified email address",
+      "emailVerifiedHelp": "Verified through your sign-in and cannot be changed here.",
+      "gender": "Gender",
+      "phone": "Phone number",
+      "institution_name": "School / institute / university / organization",
+      "institution_type": "Institution type",
+      "faculty_department": "Faculty or department",
+      "professional_role": "Academic or professional role",
+      "country": "Country",
+      "province_city": "Province or city",
+      "student_staff_id": "Student or staff ID",
+      "download_purpose": "Primary purpose for accessing theses",
+      "download_purpose_other": "Please describe your purpose"
+    },
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "other": "Other",
+      "prefer_not_to_say": "Prefer not to say"
+    },
+    "institutionType": {
+      "ptec": "PTEC",
+      "university": "University",
+      "institute": "Institute",
+      "school": "School",
+      "government": "Government institution",
+      "ngo": "Non-governmental organization",
+      "private": "Private organization",
+      "independent": "Independent researcher",
+      "other": "Other"
+    },
+    "role": {
+      "student": "Student",
+      "teacher": "Teacher",
+      "lecturer": "Lecturer",
+      "researcher": "Researcher",
+      "librarian": "Librarian",
+      "education_admin": "Education administrator",
+      "government_official": "Government official",
+      "general_public": "General public",
+      "other": "Other"
+    },
+    "purpose": {
+      "personal_study": "Personal study",
+      "teaching_prep": "Teaching preparation",
+      "academic_research": "Academic research",
+      "literature_review": "Literature review",
+      "citation_reference": "Citation or reference",
+      "institutional_research": "Institutional research",
+      "policy_research": "Policy research",
+      "other": "Other"
+    },
+    "consent": {
+      "responsible": "I agree to use downloaded theses responsibly and for legitimate academic purposes.",
+      "privacy": "I have read and accept the privacy notice for how my information is used.",
+      "responsibleShort": "Responsible-use agreement",
+      "privacyShort": "Privacy consent"
+    },
+    "privacyNote": "Your information is used only to manage access and prevent misuse. It is never displayed publicly or shared."
+  },
+  "thesisDownload": {
+    "state": {
+      "download": "Download PDF",
+      "preparing": "Preparing…",
+      "checking": "Checking…",
+      "signIn": "Sign in to download",
+      "completeProfile": "Complete profile to download",
+      "protected": "Download protected",
+      "disabled": "Download disabled by the library",
+      "unavailable": "PDF unavailable"
+    },
+    "note": {
+      "signIn": "Sign in with your account to download this thesis.",
+      "completeProfile": "Complete your Download Access Profile in Settings to download.",
+      "protected": "This thesis is currently protected as a Top 10 downloaded thesis.",
+      "protectedRank": "This thesis is protected as the #{rank} most downloaded thesis.",
+      "disabled": "Downloading has been turned off for this thesis.",
+      "contact": "Contact the library"
+    },
+    "error": {
+      "AUTHENTICATION_REQUIRED": "Please sign in to download this thesis.",
+      "PROFILE_INCOMPLETE": "Complete your Download Access Profile to download.",
+      "TOP_TEN_RESTRICTED": "This thesis is protected as a Top 10 downloaded thesis.",
+      "ADMIN_BLOCKED": "Downloading has been turned off for this thesis.",
+      "FILE_UNAVAILABLE": "The file is currently unavailable. Please try again later.",
+      "THESIS_UNPUBLISHED": "This thesis is not available for download.",
+      "generic": "Something went wrong. Please try again."
+    }
   }
 }

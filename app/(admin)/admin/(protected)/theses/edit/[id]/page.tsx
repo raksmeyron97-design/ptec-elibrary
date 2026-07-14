@@ -1,7 +1,10 @@
 import { getThesisById } from "@/app/actions/theses";
 import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
+import DownloadAccessCard from "@/components/admin/theses/DownloadAccessCard";
 import { normalizeStatus } from "@/lib/admin/theses-shared";
 import type { SupplementaryFile } from "@/lib/admin/thesis-file-validation";
+import { createServiceClient } from "@/lib/supabase/server";
+import { getThesisRank } from "@/lib/theses/download-permission";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -13,6 +16,26 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
   if (error || !report) {
     notFound();
   }
+
+  // Download Access — current global rank + who last set the override.
+  const service = createServiceClient();
+  let rank: number | null = null;
+  try {
+    rank = await getThesisRank(service, report.id);
+  } catch { /* non-fatal */ }
+  let updatedByName: string | null = null;
+  if (report.download_override_updated_by) {
+    const { data: editor } = await service
+      .from("profiles")
+      .select("full_name")
+      .eq("id", report.download_override_updated_by)
+      .maybeSingle();
+    updatedByName = editor?.full_name ?? null;
+  }
+  const currentOverride =
+    report.download_override === "allow" || report.download_override === "block"
+      ? report.download_override
+      : "inherit";
 
   const initial: ThesisInitial = {
     id: report.id,
@@ -59,6 +82,17 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         </Link>
         <p className="text-text-muted text-sm">Update details for this thesis</p>
       </div>
+
+      <DownloadAccessCard
+        thesisId={report.id}
+        isPublished={report.is_published === true && (report.status == null || report.status === "published")}
+        downloadCount={report.download_count ?? 0}
+        rank={rank}
+        currentOverride={currentOverride}
+        reason={report.download_override_reason ?? null}
+        updatedAt={report.download_override_updated_at ?? null}
+        updatedByName={updatedByName}
+      />
 
       <ThesisForm initial={initial} />
     </div>

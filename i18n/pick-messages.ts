@@ -41,6 +41,7 @@ export const PUBLIC_NAMESPACES = [
   "catalogs",
   "cite",
   "dashboard",
+  "downloadProfile",
   "footer",
   "home",
   "nav",
@@ -52,6 +53,7 @@ export const PUBLIC_NAMESPACES = [
   "reader",
   "search",
   "share",
+  "thesisDownload",
   "thesisSummary",
 ] as const;
 

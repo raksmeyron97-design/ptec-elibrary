@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
 import PushSubscribeButton from "@/components/ui/notifications/PushSubscribeButton";
+import { getDownloadProfileRow } from "@/lib/profile/download-profile";
+import type { DownloadProfileRow } from "@/lib/profile/download-profile-shared";
+import { safeReturnTo } from "@/lib/security/return-to";
 
 // This route is served the nonce CSP (lib/csp.ts) because it renders a user's
 // own settings, so it must never be prerendered — a prerendered page has no
@@ -16,17 +19,23 @@ export const metadata = {
 
 export default async function SettingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ section?: string; returnTo?: string }>;
 }) {
   const { locale } = await params;
+  const { section, returnTo: rawReturnTo } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}/dashboard/settings`);
+    const back = section
+      ? `/dashboard/settings?section=${encodeURIComponent(section)}${rawReturnTo ? `&returnTo=${encodeURIComponent(rawReturnTo)}` : ""}`
+      : "/dashboard/settings";
+    redirect(`/auth/login?callbackUrl=${locale === "km" ? "/km" : ""}${back}`);
   }
 
   const { data: profile } = await supabase
@@ -34,6 +43,11 @@ export default async function SettingsPage({
     .select("full_name, avatar_url")
     .eq("id", user.id)
     .single();
+
+  // Download Access Profile prefill (server-fetched; never trusted from client).
+  const downloadProfile = (await getDownloadProfileRow(user.id, supabase)) ?? {};
+  const initialSection = section === "download-profile" ? "download-profile" : undefined;
+  const returnTo = rawReturnTo ? safeReturnTo(rawReturnTo, "") || null : null;
 
   const userInfo = {
     id: user.id,
@@ -52,6 +66,8 @@ export default async function SettingsPage({
     // Side navigation
     profileTab: "Profile",
     profileTabSub: "Name & avatar",
+    downloadTab: "Download Access",
+    downloadTabSub: "Thesis download profile",
     securityTab: "Security",
     securityTabSub: "Password",
 
@@ -127,7 +143,13 @@ export default async function SettingsPage({
         </div>
       </header>
 
-      <SettingsClient user={userInfo} t={translations} />
+      <SettingsClient
+        user={userInfo}
+        t={translations}
+        downloadProfile={downloadProfile as Partial<DownloadProfileRow>}
+        initialSection={initialSection}
+        returnTo={returnTo}
+      />
 
       <div className="mt-8">
         <PushSubscribeButton />

@@ -59,6 +59,7 @@ export default function ActionButtons({
   shareUrl,
   variant = "full",
   labels,
+  downloadSlot,
 }: {
   id: string;
   contentType: "thesis" | "publication";
@@ -68,6 +69,9 @@ export default function ActionButtons({
   shareUrl: string;
   variant?: "full" | "compact";
   labels?: Labels;
+  /** Replaces the built-in download button (e.g. the gated thesis download).
+   *  When provided, permission/state handling lives entirely in the slot. */
+  downloadSlot?: React.ReactNode;
 }) {
   const compact = variant === "compact";
   const t = { ...DEFAULT_LABELS, ...labels };
@@ -75,7 +79,7 @@ export default function ActionButtons({
     ? () => activateThesisTab("fulltext")
     : () => activatePublicationPreview();
 
-  const downloadBtn = hasFile ? (
+  const downloadBtn = downloadSlot !== undefined ? downloadSlot : hasFile ? (
     <a
       href={`${fileHref}?download=1`}
       className={`btn-brand-gradient inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] font-bold text-white transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 ${

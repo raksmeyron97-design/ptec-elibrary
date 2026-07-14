@@ -97,6 +97,10 @@ export type ThesisListRow = {
   doi: string | null;
   viewCount: number;
   downloadCount: number;
+  /** Admin download override (tri-state); 'inherit' follows the Top-10 policy. */
+  downloadOverride: "inherit" | "allow" | "block";
+  /** Global Top-N rank among published theses (null when unranked). */
+  rank: number | null;
   createdAt: string;
   updatedAt: string | null;
   publishedAt: string | null;
@@ -107,6 +111,26 @@ export type ThesisListRow = {
   references: string | null;
   license: string | null;
 };
+
+/** Client-safe mirror of the server permission engine's policy resolution —
+ *  used only for at-a-glance admin badges (authoritative gate is server-side). */
+export type EffectiveDownloadPolicy = {
+  policy: "allowed" | "blocked";
+  source: "automatic" | "allow" | "block";
+  isTopTen: boolean;
+};
+
+export function effectiveThesisDownloadPolicy(row: {
+  status: ThesisStatus;
+  downloadOverride: "inherit" | "allow" | "block";
+  rank: number | null;
+}): EffectiveDownloadPolicy {
+  const isTopTen = row.rank != null && row.rank >= 1 && row.rank <= 10;
+  if (row.downloadOverride === "allow") return { policy: "allowed", source: "allow", isTopTen };
+  if (row.downloadOverride === "block") return { policy: "blocked", source: "block", isTopTen };
+  const published = row.status === "published";
+  return { policy: published && !isTopTen ? "allowed" : "blocked", source: "automatic", isTopTen };
+}
 
 export type ThesesSummary = {
   total: number;

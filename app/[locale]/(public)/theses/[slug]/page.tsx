@@ -5,6 +5,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import type { Metadata } from "next";
 import { getThesisById, getThesisBySlug } from "@/app/actions/theses";
+import { getThesisRank, TOP_N_PROTECTED } from "@/lib/theses/download-permission";
 import ThesisViewPing from "@/components/ui/theses/ThesisViewPing";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
 import Icon from "@/components/ui/core/Icon";
@@ -19,7 +20,7 @@ import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import {
   getKeywords,
   getReferences,
@@ -160,6 +161,18 @@ export default async function ThesisDetailPage({ params }: PageProps) {
   const department = getDepartment(report);
   const fileHref = `/api/theses/${id}/file`;
   const shareUrl = `${SITE_URL}/theses/${canonicalSlug}`;
+  // Localized internal path — carried as returnTo / login callback by the
+  // gated download flow (validated by safeReturnTo before use).
+  const thesisPath = locale === "km" ? `/km/theses/${canonicalSlug}` : `/theses/${canonicalSlug}`;
+
+  // Global Top-N rank (service-role read of the ranking view). Drives the
+  // subtle "Top 10 · Most Downloaded" badge; the actual download gate is
+  // enforced server-side by the permission engine, never by this badge.
+  let thesisRank: number | null = null;
+  try {
+    thesisRank = await getThesisRank(createServiceClient(), id);
+  } catch { /* non-fatal — badge simply hidden */ }
+  const isTopTen = thesisRank != null && thesisRank <= TOP_N_PROTECTED;
 
   // ── Tab content ───────────────────────────────────────────────────────────
   const tabs: ThesisTab[] = [
@@ -191,7 +204,10 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           totalPages={100}
           initialProgressPct={0}
           initialMaxProgressPct={0}
-          allowDownload={true}
+          // In-reader "download" would fetch the public preview route and bypass
+          // the download-permission gate. Reading/preview stays available; the
+          // gated Download button (ThesisDownloadButton) is the only save path.
+          allowDownload={false}
         />
       </div>
     ) : (
@@ -274,7 +290,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
         </div>
 
         {/* ── Hero ── */}
-        <PublicationHero report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} />
+        <PublicationHero report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} thesisPath={thesisPath} rank={isTopTen ? thesisRank : null} />
 
         {/* ── Body: tabs + sidebar ── */}
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -282,7 +298,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             <PublicationMetadata report={report} />
             <ThesisTabs tabs={tabs} defaultTab="abstract" />
           </div>
-          <StickySidebar report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} />
+          <StickySidebar report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} thesisPath={thesisPath} />
         </div>
 
         {/* ── Related ── */}

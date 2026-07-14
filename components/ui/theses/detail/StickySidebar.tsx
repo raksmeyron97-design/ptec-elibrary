@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { GraduationCap } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
+import ThesisDownloadButton from "@/components/ui/theses/ThesisDownloadButton";
 import MetricsPanel from "@/components/ui/detail/MetricsPanel";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import CiteThis from "@/components/ui/theses/CiteThis";
@@ -11,11 +12,13 @@ export default function StickySidebar({
   reportId,
   fileHref,
   shareUrl,
+  thesisPath,
 }: {
   report: any;
   reportId: string;
   fileHref: string;
   shareUrl: string;
+  thesisPath: string;
 }) {
   return (
     <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
@@ -50,6 +53,14 @@ export default function StickySidebar({
           hasFile={!!report.file_url}
           shareUrl={shareUrl}
           variant="compact"
+          downloadSlot={
+            <ThesisDownloadButton
+              reportId={reportId}
+              hasFile={!!report.file_url}
+              variant="compact"
+              thesisPath={thesisPath}
+            />
+          }
         />
       </div>
 
