@@ -75,7 +75,7 @@ function hasKhmer(text: string): boolean {
 }
 
 function keyOf(row: { term: string; normalized_term?: string | null }) {
-  return row.normalized_term || row.term.trim().toLowerCase();
+  return row.normalized_term || normalizeSearchTerm(row.term);
 }
 
 function topTerms(rows: SearchRow[], limit = 10, predicate: (row: SearchRow) => boolean = () => true): SearchAnalyticsTerm[] {
@@ -100,21 +100,22 @@ function startOfDay(date: Date): string {
 
 function bucketTrend(rows: SearchRow[], daysBack: number, stepDays: number): SearchTrendPoint[] {
   const now = new Date();
-  const buckets: SearchTrendPoint[] = [];
-  for (let i = daysBack - stepDays; i >= 0; i -= stepDays) {
+  const bucketCount = Math.ceil(daysBack / stepDays);
+  const buckets: SearchTrendPoint[] = Array.from({ length: bucketCount }, (_, index) => {
+    const daysAgo = (bucketCount - 1 - index) * stepDays;
     const start = new Date(now);
-    start.setDate(now.getDate() - i);
+    start.setUTCDate(now.getUTCDate() - daysAgo);
     const label = stepDays === 1
       ? startOfDay(start)
       : `${startOfDay(start)}-${stepDays}d`;
-    buckets.push({ label, count: 0, noResults: 0 });
-  }
+    return { label, count: 0, noResults: 0 };
+  });
 
   for (const row of rows) {
     const date = new Date(row.searched_at);
     const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
     if (diffDays < 0 || diffDays >= daysBack) continue;
-    const idx = Math.min(buckets.length - 1, Math.floor((daysBack - 1 - diffDays) / stepDays));
+    const idx = bucketCount - 1 - Math.floor(diffDays / stepDays);
     const bucket = buckets[idx];
     if (!bucket) continue;
     bucket.count += 1;
@@ -185,7 +186,8 @@ export async function getZeroResultSearches(days = 30, limit = 50): Promise<Zero
 
   const byTerm = new Map<string, { term: string; count: number; lastSearchedAt: string }>();
   for (const row of data ?? []) {
-    const key = row.normalized_term;
+    const key = row.normalized_term || normalizeSearchTerm(row.term);
+    if (!key) continue;
     const existing = byTerm.get(key);
     if (existing) {
       existing.count += 1;
@@ -201,9 +203,11 @@ export async function getZeroResultSearches(days = 30, limit = 50): Promise<Zero
 export async function getSearchAnalytics(days = 30): Promise<SearchAnalytics> {
   const { supabase } = await requireLibrarian();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const trendSince = new Date(Date.now() - Math.max(days, 180) * 24 * 60 * 60 * 1000).toISOString();
 
-  const [rows, clicks] = await Promise.all([
+  const [rows, trendRows, clicks] = await Promise.all([
     fetchSearchRows(supabase, since),
+    fetchSearchRows(supabase, trendSince),
     fetchClickRows(supabase, since),
   ]);
 
@@ -253,8 +257,8 @@ export async function getSearchAnalytics(days = 30): Promise<SearchAnalytics> {
     languageUsage,
     trends: {
       daily: bucketTrend(rows, Math.min(days, 14), 1),
-      weekly: bucketTrend(rows, Math.min(days, 56), 7),
-      monthly: bucketTrend(rows, Math.min(days, 180), 30),
+      weekly: bucketTrend(rows, Math.min(days, 35), 7),
+      monthly: bucketTrend(trendRows, 180, 30),
     },
   };
 }
@@ -320,15 +324,21 @@ export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroRe
   }
 
   // Collapse raw rows per normalized term first, then fold typo-variants.
-  const byNorm = new Map<string, { term: string; count: number; last: string }>();
+  const byNorm = new Map<string, { term: string; count: number; last: string; filtered: number }>();
   for (const row of data ?? []) {
     const key = row.normalized_term || normalizeSearchTerm(row.term);
+    if (!key) continue;
+    const hasFilters = Boolean(
+      (row.resource_type && row.resource_type !== "all") ||
+      (row.sort && row.sort !== "relevance"),
+    );
     const cur = byNorm.get(key);
     if (cur) {
       cur.count += 1;
+      if (hasFilters) cur.filtered += 1;
       if (row.searched_at > cur.last) cur.last = row.searched_at;
     } else {
-      byNorm.set(key, { term: row.term, count: 1, last: row.searched_at });
+      byNorm.set(key, { term: row.term, count: 1, last: row.searched_at, filtered: hasFilters ? 1 : 0 });
     }
   }
   const groups = groupEquivalentTerms(
@@ -354,6 +364,10 @@ export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroRe
   const entries: ZeroResultEntry[] = [];
   for (const [normKey, group] of groups) {
     const meta = byNorm.get(normKey) ?? byNorm.get(normalizeSearchTerm(group.terms[0]));
+    const filtered = group.terms.reduce(
+      (sum, term) => sum + (byNorm.get(normalizeSearchTerm(term))?.filtered ?? 0),
+      0,
+    );
     const last = group.terms
       .map((t) => byNorm.get(normalizeSearchTerm(t))?.last ?? "")
       .sort()
@@ -365,7 +379,7 @@ export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroRe
       count: group.count,
       lastSearchedAt: last,
       language: /[ក-៿]/.test(normKey) ? "km" : "en",
-      withFilters: false,
+      withFilters: filtered > 0,
       action: actions.get(normKey) ?? null,
       suggestions: suggestCorrections(normKey, vocabulary).map((s) => s.suggestion),
       synonyms: synonyms.get(normKey) ?? [],
@@ -381,6 +395,16 @@ function migrationHint(error: { code?: string; message: string }): string {
   return error.code === "42P01"
     ? "Search-governance tables missing — apply migration 0087 first"
     : error.message;
+}
+
+function isSafeInternalUrl(value: string): boolean {
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return false;
+  try {
+    const parsed = new URL(value, "https://library.invalid");
+    return parsed.origin === "https://library.invalid";
+  } catch {
+    return false;
+  }
 }
 
 /** Mark a zero-result term as handled (reviewed / spam-ignored / etc.). */
@@ -422,7 +446,12 @@ export async function addSearchSynonym(
   try {
     const { supabase, user } = await requireLibrarian();
     const normalized = normalizeSearchTerm(term);
-    const cleaned = [...new Set(synonymList.map((s) => s.trim()).filter(Boolean))].slice(0, 5);
+    const cleaned = [
+      ...new Set(synonymList.flatMap((synonym) => {
+        const value = synonym.trim();
+        return value ? [value] : [];
+      })),
+    ].slice(0, 5);
     if (!normalized || cleaned.length === 0) return { error: "Provide the term and at least one synonym" };
 
     const { error } = await supabase.from("search_synonyms").upsert(
@@ -462,7 +491,7 @@ export async function addCuratedSearchResult(
     const { supabase, user } = await requireLibrarian();
     const normalized = normalizeSearchTerm(term);
     const url = result.url.trim();
-    if (!normalized || !url.startsWith("/") || !result.title.trim()) {
+    if (!normalized || !isSafeInternalUrl(url) || !result.title.trim()) {
       return { error: "Provide the term, an internal URL (starting with /), and a title" };
     }
     const { error } = await supabase.from("search_curated_results").upsert(
@@ -494,10 +523,10 @@ export async function addCuratedSearchResult(
 }
 
 /** Raise a zero-result term into the existing book-requests workflow. */
-export async function createAcquisitionRequest(term: string): Promise<ActionResult> {
+export async function createAcquisitionRequest(term: string, actionTerm = term): Promise<ActionResult> {
   try {
     const { supabase, user } = await requireLibrarian();
-    const normalized = normalizeSearchTerm(term);
+    const normalized = normalizeSearchTerm(actionTerm);
     if (!normalized) return { error: "Empty term" };
 
     const { error } = await supabase.from("book_requests").insert({

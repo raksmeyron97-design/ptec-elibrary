@@ -19,7 +19,7 @@ function timeAgo(iso?: string): string {
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC" });
 }
 
 function MetricCard({
@@ -85,17 +85,23 @@ function TrendBars({ title, points }: { title: string; points: { label: string; 
   return (
     <section className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
       <h2 className="text-[15px] font-bold text-text-heading">{title}</h2>
-      <div className="mt-4 flex h-32 items-end gap-2">
+      <div className="mt-4 flex h-40 items-end gap-2" role="img" aria-label={`${title} search volume`}>
         {points.map((point) => {
-          const height = Math.max(6, Math.round((point.count / max) * 100));
+          const height = point.count === 0 ? 3 : Math.max(8, Math.round((point.count / max) * 100));
           return (
-            <div key={point.label} className="flex flex-1 flex-col items-center gap-1">
-              <div
-                className="w-full rounded-t-md bg-brand"
-                style={{ height: `${height}%`, opacity: point.count ? 0.95 : 0.18 }}
-                title={`${point.label}: ${point.count} searches, ${point.noResults} no-result`}
-              />
-              <span className="max-w-full truncate text-[10px] text-text-muted">{point.count}</span>
+            <div key={point.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+              <div className="flex min-h-0 w-full flex-1 items-end justify-center">
+                <div
+                  className="w-full max-w-12 rounded-t-md bg-brand"
+                  style={{ height: `${height}%`, opacity: point.count ? 0.95 : 0.18 }}
+                  title={`${point.label}: ${point.count} searches, ${point.noResults} no-result`}
+                  aria-hidden="true"
+                />
+              </div>
+              <span className="max-w-full truncate text-[10px] font-medium text-text-muted" title={point.label}>
+                {point.count}
+              </span>
+              <span className="sr-only">{point.label}: {point.count} searches, {point.noResults} with no results.</span>
             </div>
           );
         })}
@@ -140,9 +146,9 @@ export default async function SearchInsightsPage() {
           icon={<SearchX className="h-5 w-5" />}
         />
         <MetricCard
-          label="Conversion"
+          label="Click rate"
           value={`${analytics.conversionRate}%`}
-          hint="Result clicks per search"
+          hint="Recorded result clicks per search"
           icon={<MousePointerClick className="h-5 w-5" />}
         />
         <MetricCard
@@ -219,16 +225,16 @@ export default async function SearchInsightsPage() {
         </section>
 
         <TermList
-          title="Popular subjects"
+          title="Successful search terms"
           items={analytics.popularSubjects}
-          empty="No subject-like searches recorded yet."
+          empty="No successful searches recorded yet."
         />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <TrendBars title="Daily trend" points={analytics.trends.daily} />
-        <TrendBars title="Weekly trend" points={analytics.trends.weekly} />
-        <TrendBars title="Monthly trend" points={analytics.trends.monthly} />
+        <TrendBars title="Daily trend · 14 days" points={analytics.trends.daily} />
+        <TrendBars title="Weekly trend · 30 days" points={analytics.trends.weekly} />
+        <TrendBars title="Monthly trend · 6 months" points={analytics.trends.monthly} />
       </div>
 
       <div className="mt-6 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">

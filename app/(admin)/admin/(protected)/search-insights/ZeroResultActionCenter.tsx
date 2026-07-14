@@ -32,7 +32,7 @@ function timeAgo(iso: string): string {
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
   if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC" });
 }
 
 type PanelKind = "synonym" | "curated" | null;
@@ -48,14 +48,19 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
   async function runAction(fn: () => Promise<{ success: true } | { error: string }>, kind: TermActionKind, note?: string) {
     setBusy(true);
     setError(null);
-    const res = await fn();
-    setBusy(false);
-    if ("error" in res) {
-      setError(res.error);
-      return;
+    try {
+      const res = await fn();
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setPanel(null);
+      onUpdated({ ...entry, action: { kind, note: note ?? null, actedAt: new Date().toISOString() } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed. Please try again.");
+    } finally {
+      setBusy(false);
     }
-    setPanel(null);
-    onUpdated({ ...entry, action: { kind, note: note ?? null, actedAt: new Date().toISOString() } });
   }
 
   const chip = "inline-flex items-center gap-1 rounded-lg border border-divider px-2 py-1 text-[11.5px] font-semibold text-text-muted transition hover:border-brand/40 hover:text-brand disabled:opacity-50";
@@ -68,6 +73,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
           <p className="text-[11.5px] text-text-muted">
             {entry.count}× · last {timeAgo(entry.lastSearchedAt)} · {entry.language === "km" ? "Khmer" : "English"}
             {entry.variants.length > 1 && ` · ${entry.variants.length} spellings`}
+            {entry.withFilters && " · filters used"}
           </p>
           {entry.suggestions.length > 0 && !entry.action && (
             <p className="mt-0.5 inline-flex items-center gap-1 text-[11.5px] text-amber-700">
@@ -93,7 +99,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
               type="button"
               disabled={busy}
               className={chip}
-              onClick={() => runAction(() => createAcquisitionRequest(entry.term), "acquisition", "Book request created")}
+              onClick={() => runAction(() => createAcquisitionRequest(entry.term, entry.normalizedTerm), "acquisition", "Book request created")}
             >
               <BookPlus className="h-3 w-3" /> Acquire
             </button>
@@ -101,7 +107,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
               type="button"
               disabled={busy}
               className={chip}
-              onClick={() => runAction(() => actOnSearchTerm(entry.term, "reviewed"), "reviewed")}
+              onClick={() => runAction(() => actOnSearchTerm(entry.normalizedTerm, "reviewed"), "reviewed")}
             >
               <Check className="h-3 w-3" /> Reviewed
             </button>
@@ -109,7 +115,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
               type="button"
               disabled={busy}
               className={chip}
-              onClick={() => runAction(() => actOnSearchTerm(entry.term, "ignored", "spam/bot"), "ignored", "spam/bot")}
+              onClick={() => runAction(() => actOnSearchTerm(entry.normalizedTerm, "ignored", "spam/bot"), "ignored", "spam/bot")}
             >
               <EyeOff className="h-3 w-3" /> Spam
             </button>
@@ -122,6 +128,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
       {panel === "synonym" && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-divider bg-bg-surface p-2.5">
           <input
+            aria-label={`Synonyms for ${entry.term}`}
             value={synonymInput}
             onChange={(e) => setSynonymInput(e.target.value)}
             placeholder="Search this instead (comma-separate alternatives)"
@@ -133,7 +140,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
             className="rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
             onClick={() =>
               runAction(
-                () => addSearchSynonym(entry.term, synonymInput.split(",")),
+                () => addSearchSynonym(entry.normalizedTerm, synonymInput.split(",")),
                 "synonym",
                 `→ ${synonymInput}`,
               )
@@ -150,12 +157,14 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
       {panel === "curated" && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-divider bg-bg-surface p-2.5">
           <input
+            aria-label={`Curated result title for ${entry.term}`}
             value={curatedTitle}
             onChange={(e) => setCuratedTitle(e.target.value)}
             placeholder="Result title"
             className="min-w-0 flex-1 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[13px]"
           />
           <input
+            aria-label={`Curated result URL for ${entry.term}`}
             value={curatedUrl}
             onChange={(e) => setCuratedUrl(e.target.value)}
             placeholder="/books/slug or /theses/slug"
@@ -168,7 +177,7 @@ function EntryRow({ entry, onUpdated }: { entry: ZeroResultEntry; onUpdated: (e:
             onClick={() =>
               runAction(
                 () =>
-                  addCuratedSearchResult(entry.term, {
+                  addCuratedSearchResult(entry.normalizedTerm, {
                     type: curatedUrl.startsWith("/books/") ? "book" : curatedUrl.startsWith("/theses/") ? "thesis" : curatedUrl.startsWith("/publications/") ? "publication" : "page",
                     url: curatedUrl,
                     title: curatedTitle,

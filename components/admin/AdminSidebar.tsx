@@ -675,7 +675,7 @@ export default function AdminSidebar({
   const sidebarWidth = mounted && collapsed ? "72px" : "256px";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg-app text-text-heading font-body">
+    <div className="fixed inset-0 flex overflow-hidden bg-bg-app text-text-heading font-body">
 
       {/* ── Command palette (⌘K) — permission-scoped actions + navigation ── */}
       <AdminCommandPalette ref={paletteRef} commands={commands} />
@@ -724,7 +724,7 @@ export default function AdminSidebar({
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col admin-sidebar
           transform transition-all duration-300 ease-in-out
-          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shrink-0
+          lg:relative lg:h-full lg:translate-x-0 lg:shrink-0
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
         style={{ width: sidebarWidth }}
