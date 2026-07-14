@@ -5,6 +5,8 @@
 // librarians: incomplete metadata, and files that no longer resolve.
 
 import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
+import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
 
 export type ContentType = "book" | "research";
 
@@ -17,37 +19,59 @@ export interface MetadataGap {
   editUrl: string;
 }
 
-const BOOK_CHECKS: { field: string; label: string; weight: number; check: (r: Record<string, unknown>) => boolean }[] = [
-  { field: "author", label: "Author", weight: 20, check: (r) => !!r.author_id },
-  { field: "category", label: "Category", weight: 15, check: (r) => !!r.category_id },
-  { field: "cover", label: "Cover image", weight: 20, check: (r) => !!r.cover_url },
-  { field: "description", label: "Description", weight: 20, check: (r) => !!(r.description as string)?.trim() },
-  { field: "isbn", label: "ISBN", weight: 10, check: (r) => !!(r.isbn as string)?.trim() },
-  { field: "publisher", label: "Publisher", weight: 10, check: (r) => !!(r.publisher as string)?.trim() },
-  { field: "license", label: "License", weight: 5, check: (r) => r.license !== "unknown" && !!r.license },
-];
+const BOOK_QUALITY_COLUMNS = `
+  id, title, slug, department, published_at, language, description, tags,
+  cover_url, license, publisher, authors(name), categories(name),
+  departments(name), book_files(file_url)
+`;
 
-const THESIS_CHECKS: { field: string; label: string; weight: number; check: (r: Record<string, unknown>) => boolean }[] = [
-  { field: "advisor", label: "Advisor", weight: 15, check: (r) => !!(r.advisor_name as string)?.trim() },
-  { field: "cover", label: "Cover image", weight: 20, check: (r) => !!r.cover_url },
-  { field: "program", label: "Program", weight: 15, check: (r) => !!r.program },
-  { field: "keywords", label: "Keywords", weight: 15, check: (r) => Array.isArray(r.keywords) && (r.keywords as unknown[]).length > 0 },
-  { field: "doi", label: "DOI", weight: 10, check: (r) => !!(r.doi as string)?.trim() },
-  { field: "license", label: "License", weight: 25, check: (r) => r.license !== "unknown" && !!r.license },
-];
+const THESIS_QUALITY_COLUMNS = `
+  id, title, slug, author_names, advisor_name, program, cohort, academic_year,
+  published_at, abstract, keywords, references, cover_url, file_url, license
+`;
 
-function scoreRow(
-  row: Record<string, unknown>,
-  checks: typeof BOOK_CHECKS,
-): { completeness: number; missingFields: string[] } {
-  let earned = 0;
-  const missingFields: string[] = [];
-  for (const c of checks) {
-    if (c.check(row)) earned += c.weight;
-    else missingFields.push(c.label);
-  }
-  const total = checks.reduce((sum, c) => sum + c.weight, 0);
-  return { completeness: Math.round((earned / total) * 100), missingFields };
+function relatedName(value: unknown): string | null {
+  if (Array.isArray(value)) return (value[0] as { name?: string } | undefined)?.name ?? null;
+  return (value as { name?: string } | null)?.name ?? null;
+}
+
+function scoreBook(row: Record<string, unknown>) {
+  const files = (row.book_files as { file_url?: string | null }[] | null) ?? [];
+  const result = scoreEbookQuality({
+    title: (row.title as string) ?? null,
+    author: relatedName(row.authors),
+    department: relatedName(row.departments) ?? ((row.department as string) || null),
+    category: relatedName(row.categories),
+    year: row.published_at ? new Date(row.published_at as string).getFullYear() : null,
+    language: (row.language as string) ?? null,
+    description: (row.description as string) ?? null,
+    tags: Array.isArray(row.tags) ? row.tags as string[] : [],
+    coverUrl: (row.cover_url as string) ?? null,
+    fileUrl: files.find((file) => file.file_url)?.file_url ?? null,
+    license: (row.license as string) ?? null,
+    publisher: (row.publisher as string) ?? null,
+  });
+  return { completeness: result.score, missingFields: result.missing.map((field) => field.label) };
+}
+
+function scoreThesis(row: Record<string, unknown>) {
+  const result = scoreMetadataQuality({
+    title: (row.title as string) ?? null,
+    slug: (row.slug as string) ?? null,
+    authorNames: (row.author_names as string) ?? null,
+    advisorName: (row.advisor_name as string) ?? null,
+    program: (row.program as string) ?? null,
+    cohort: row.cohort == null ? null : String(row.cohort),
+    academicYear: (row.academic_year as string) ?? null,
+    publishedAt: (row.published_at as string) ?? null,
+    abstract: (row.abstract as string) ?? null,
+    keywords: Array.isArray(row.keywords) ? row.keywords as string[] : [],
+    references: (row.references as string) ?? null,
+    coverUrl: (row.cover_url as string) ?? null,
+    fileUrl: (row.file_url as string) ?? null,
+    license: (row.license as string) ?? null,
+  });
+  return { completeness: result.score, missingFields: result.missing.map((field) => field.label) };
 }
 
 /** Worst-first metadata completeness across books + theses. */
@@ -57,24 +81,26 @@ export async function getMetadataGaps(limit = 30): Promise<MetadataGap[]> {
   const [{ data: books }, { data: theses }] = await Promise.all([
     supabase
       .from("books")
-      .select("id, title, author_id, category_id, cover_url, description, isbn, publisher, license")
-      .eq("is_published", true),
+      .select(BOOK_QUALITY_COLUMNS)
+      .eq("is_published", true)
+      .limit(10_000),
     supabase
       .from("research_reports")
-      .select("id, title, advisor_name, cover_url, program, keywords, doi, license")
-      .eq("is_published", true),
+      .select(THESIS_QUALITY_COLUMNS)
+      .eq("is_published", true)
+      .limit(10_000),
   ]);
 
   const gaps: MetadataGap[] = [];
 
   for (const b of books ?? []) {
-    const { completeness, missingFields } = scoreRow(b, BOOK_CHECKS);
+    const { completeness, missingFields } = scoreBook(b);
     if (missingFields.length > 0) {
       gaps.push({ id: b.id, type: "book", title: b.title, completeness, missingFields, editUrl: `/admin/edit/${b.id}` });
     }
   }
   for (const r of theses ?? []) {
-    const { completeness, missingFields } = scoreRow(r, THESIS_CHECKS);
+    const { completeness, missingFields } = scoreThesis(r);
     if (missingFields.length > 0) {
       gaps.push({ id: r.id, type: "research", title: r.title, completeness, missingFields, editUrl: `/admin/theses/edit/${r.id}` });
     }
@@ -89,33 +115,50 @@ export interface DataQualitySummary {
   avgBookCompleteness: number;
   avgThesisCompleteness: number;
   brokenFileCount: number;
+  unknownFileCount: number;
+  checkedFileCount: number;
+  metadataIssueCount: number;
   fileHealthCheckedAt: string | null;
+  fileHealthAvailable: boolean;
+  metadataAvailable: boolean;
 }
 
 export async function getDataQualitySummary(): Promise<DataQualitySummary> {
   const { supabase } = await requireLibrarian();
 
-  const [{ data: books }, { data: theses }, fileHealthResult] = await Promise.all([
-    supabase.from("books").select("author_id, category_id, cover_url, description, isbn, publisher, license").eq("is_published", true),
-    supabase.from("research_reports").select("advisor_name, cover_url, program, keywords, doi, license").eq("is_published", true),
-    supabase.from("file_health").select("status, checked_at", { count: "exact" }).eq("status", "broken").order("checked_at", { ascending: false }).limit(1),
+  const [booksResult, thesesResult, brokenResult, unknownResult, checkedResult, latestCheckResult] = await Promise.all([
+    supabase.from("books").select(BOOK_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
+    supabase.from("research_reports").select(THESIS_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
+    supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "broken"),
+    supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "unknown"),
+    supabase.from("file_health").select("id", { count: "exact", head: true }),
+    supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const books = booksResult.data;
+  const theses = thesesResult.data;
 
-  const bookScores = (books ?? []).map((b) => scoreRow(b, BOOK_CHECKS).completeness);
-  const thesisScores = (theses ?? []).map((r) => scoreRow(r, THESIS_CHECKS).completeness);
+  const bookScores = (books ?? []).map((book) => scoreBook(book).completeness);
+  const thesisScores = (theses ?? []).map((thesis) => scoreThesis(thesis).completeness);
   const avg = (arr: number[]) => (arr.length ? Math.round(arr.reduce((s, n) => s + n, 0) / arr.length) : 100);
 
-  // 42P01 = file_health table doesn't exist yet (migration 0065 not applied)
-  const brokenFileCount = fileHealthResult.error ? 0 : (fileHealthResult.count ?? 0);
-  const fileHealthCheckedAt = fileHealthResult.error ? null : (fileHealthResult.data?.[0]?.checked_at ?? null);
+  // A clean sweep has no broken rows, so recency must come from the latest
+  // check across every status rather than from the broken subset.
+  const fileHealthAvailable = !checkedResult.error && !latestCheckResult.error;
+  const metadataIssueCount = bookScores.filter((score) => score < 100).length
+    + thesisScores.filter((score) => score < 100).length;
 
   return {
     totalBooks: books?.length ?? 0,
     totalTheses: theses?.length ?? 0,
     avgBookCompleteness: avg(bookScores),
     avgThesisCompleteness: avg(thesisScores),
-    brokenFileCount,
-    fileHealthCheckedAt,
+    brokenFileCount: brokenResult.error ? 0 : (brokenResult.count ?? 0),
+    unknownFileCount: unknownResult.error ? 0 : (unknownResult.count ?? 0),
+    checkedFileCount: checkedResult.error ? 0 : (checkedResult.count ?? 0),
+    metadataIssueCount,
+    fileHealthCheckedAt: fileHealthAvailable ? (latestCheckResult.data?.checked_at ?? null) : null,
+    fileHealthAvailable,
+    metadataAvailable: !booksResult.error && !thesesResult.error,
   };
 }
 
@@ -127,6 +170,7 @@ export interface BrokenFile {
   httpStatus: number | null;
   title: string | null;
   editUrl: string;
+  checkedAt: string;
 }
 
 /** Broken files from the last check run, joined back to their record's title. */
@@ -135,14 +179,18 @@ export async function getBrokenFiles(): Promise<BrokenFile[]> {
 
   const { data, error } = await supabase
     .from("file_health")
-    .select("record_type, record_id, field, url, http_status")
+    .select("record_type, record_id, field, url, http_status, checked_at")
     .eq("status", "broken")
     .order("checked_at", { ascending: false });
 
   if (error) return []; // table not migrated yet, or genuinely empty
 
-  const bookIds = data.filter((r) => r.record_type === "book").map((r) => r.record_id);
-  const researchIds = data.filter((r) => r.record_type === "research").map((r) => r.record_id);
+  const bookIds: string[] = [];
+  const researchIds: string[] = [];
+  for (const row of data) {
+    if (row.record_type === "book") bookIds.push(row.record_id);
+    if (row.record_type === "research") researchIds.push(row.record_id);
+  }
 
   const [{ data: books }, { data: theses }] = await Promise.all([
     bookIds.length ? supabase.from("books").select("id, title").in("id", bookIds) : Promise.resolve({ data: [] }),
@@ -158,5 +206,6 @@ export async function getBrokenFiles(): Promise<BrokenFile[]> {
     httpStatus: r.http_status,
     title: titleMap.get(r.record_id) ?? null,
     editUrl: r.record_type === "book" ? `/admin/edit/${r.record_id}` : `/admin/theses/edit/${r.record_id}`,
+    checkedAt: r.checked_at,
   }));
 }

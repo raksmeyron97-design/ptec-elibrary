@@ -30,6 +30,24 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const download = searchParams.get("download") === "1";
+
+  // SECURITY: this route serves the PUBLIC inline reader preview ONLY. It is not
+  // an authorization boundary — reading a thesis is allowed, but *downloading*
+  // one is gated (auth + complete Download Profile + Top-10/admin policy). Any
+  // `?download=1` request is therefore funnelled to the single authoritative
+  // gated route, which re-evaluates the permission engine server-side and
+  // streams with `private, no-store`. This closes the bypass where a listing
+  // card / search result linked straight at `/file?download=1` and handed out a
+  // "protected" thesis with no checks. Redirect happens before any DB/storage/
+  // rate-limit work so an unauthorized request never touches the file (the gated
+  // route enforces its own per-user rate limit).
+  if (download) {
+    return NextResponse.redirect(new URL(`/api/theses/${id}/download`, request.url), 307);
+  }
+
   const ip =
     request.headers.get("x-real-ip")?.trim() ??
     request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
@@ -43,10 +61,6 @@ export async function GET(
       { status: 429 },
     );
   }
-
-  const { id } = await params;
-  const { searchParams } = new URL(request.url);
-  const download = searchParams.get("download") === "1";
 
   const supabase = createServiceClient();
   const { data: report, error } = await supabase
@@ -62,9 +76,7 @@ export async function GET(
 
   const fileUrl = report.file_url as string;
   const safeTitle = encodeURIComponent(`${report.title}.pdf`);
-  const disposition = download
-    ? `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`
-    : `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
+  const disposition = `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
   const rangeHeader = request.headers.get("range");
 
   // ── Zima CDN or any full HTTP(S) URL — fetch & proxy server-side ─
@@ -76,7 +88,7 @@ export async function GET(
     const headers = new Headers();
     headers.set("Content-Type", "application/pdf");
     headers.set("Content-Disposition", disposition);
-    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
     headers.set("Accept-Ranges", "bytes");
     const contentLength = upstream.headers.get("content-length");
     if (contentLength) headers.set("Content-Length", contentLength);
