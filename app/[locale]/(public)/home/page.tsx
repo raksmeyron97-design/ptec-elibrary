@@ -19,6 +19,8 @@ import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
+import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
+import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
@@ -45,9 +47,11 @@ export async function generateMetadata({
 
 // ── Data fetchers ────────────────────────────────────────────────────────────
 // Public list data comes from lib/home-data.ts (unstable_cache, 5-min TTL).
-// Nothing on the page's critical path touches cookies — the auth check lives
-// inside <SignupCta> behind Suspense, so the hero/search HTML flushes in the
-// first streamed chunk instead of waiting on the Supabase auth round-trip.
+// NOTHING in this route may read cookies() or headers(). Suspense does not
+// buy an exemption: without PPR, one cookie read anywhere in the tree makes the
+// whole route render per request — which is exactly what the old
+// <SignupCta>/<ForYouShelf> auth checks did. Both are now client islands fed by
+// <SessionProvider>, and this page prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
@@ -236,12 +240,14 @@ export default async function HomePage() {
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near. */}
 
-      {/* ════════ FOR YOU — continue reading (auth) or popular shelf (anon) ════════
-          Owns a per-request auth read; behind Suspense so the hero HTML still
-          flushes in the first streamed chunk. */}
-      <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+      {/* ════════ FOR YOU ════════
+          The public "popular" shelf is server-rendered into the prerendered
+          HTML; ContinueReadingSwap replaces it after hydration for the signed-in
+          users who have reading in progress. Deciding this server-side is what
+          used to make the whole homepage dynamic. */}
+      <ContinueReadingSwap>
         <ForYouShelf popularBooks={trendingBooks} />
-      </Suspense>
+      </ContinueReadingSwap>
 
       {/* ════════ THIS WEEK AT PTEC — one editorial band ════════
           Editor's pick + publication + learning path + news, replacing the two
@@ -287,11 +293,11 @@ export default async function HomePage() {
       </div>
 
       {/* ════════ CTA BANNER — logged-out visitors only ════════
-          Owns a cookie/auth read; keeping it behind Suspense keeps the hero out
-          of the auth round-trip's shadow. */}
-      <Suspense fallback={null}>
+          Public content; hidden client-side for signed-in users rather than
+          gated on a server auth read (which would make this page dynamic). */}
+      <SignedOutOnly>
         <SignupCta />
-      </Suspense>
+      </SignedOutOnly>
     </div>
   );
 }

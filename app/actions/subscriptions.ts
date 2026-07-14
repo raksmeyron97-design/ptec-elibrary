@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 // 'department'/'category' filter books; 'publications' is a content-type-level

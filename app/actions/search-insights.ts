@@ -15,7 +15,7 @@ import {
   normalizeSearchTerm,
   suggestCorrections,
 } from "@/lib/search/analytics";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 export interface ZeroResultQuery {
   term: string;

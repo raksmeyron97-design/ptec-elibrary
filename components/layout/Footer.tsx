@@ -2,7 +2,6 @@ import { Link } from "@/i18n/navigation";
 import Icon from "@/components/ui/core/Icon";
 import MobileBottomNav from "./MobileBottomNav";
 import FooterEffects from "./FooterEffects";
-import { createClient } from "@/lib/supabase/server";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -158,28 +157,10 @@ export default async function Footer() {
   const t = await getTranslations("footer");
   const navT = await getTranslations("nav");
   const locale = (await getLocale()) as "en" | "km";
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  const user = authUser
-    ? await supabase
-        .from("profiles")
-        .select("full_name, avatar_url, role")
-        .eq("id", authUser.id)
-        .single()
-        .then(({ data }) => {
-          const googleAvatar = authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture;
-          const googleName = authUser.user_metadata?.full_name || authUser.user_metadata?.name;
-          return {
-            email: authUser.email ?? "",
-            full_name: data?.full_name ?? googleName ?? null,
-            avatar_url: data?.avatar_url ?? googleAvatar ?? null,
-            role: (data?.role ?? "reader") as "reader" | "admin",
-          };
-        })
-    : null;
+  // No auth lookup here, deliberately. This used to run a second Supabase Auth
+  // round-trip plus a profiles query — on top of the navbar's — on every public
+  // page render, and the cookies() read made the whole public tree uncacheable.
+  // MobileBottomNav takes the viewer from <SessionProvider> instead.
 
   const exploreLinks: FooterLink[] = [
     ...DIGITAL_LIBRARY_ITEMS.filter((item) => !item.external).map((item) => ({
@@ -361,7 +342,7 @@ export default async function Footer() {
         </div>
       </div>
 
-      <MobileBottomNav user={user} />
+      <MobileBottomNav />
     </footer>
   );
 }

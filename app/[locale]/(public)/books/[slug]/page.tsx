@@ -50,6 +50,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { bookScholarMeta } from "@/lib/seo/citation";
 
+
 type BookDetailPageProps = {
   params: Promise<{ slug: string; locale: string }>;
 };

@@ -15,20 +15,13 @@ import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import { Seal } from "@/components/ui/core/Seal";
 import { PTEC } from "@/lib/ptec";
+import { useSession } from "@/components/providers/SessionProvider";
+import { clearPrivateBrowserState } from "@/lib/sw-client";
 
 type NavItem = { label: string; href: string };
 
-type UserInfo = {
-  id: string;
-  email: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  role: "reader" | "admin";
-};
-
 type MobileMenuProps = {
   navLinks: NavItem[];
-  user: UserInfo | null;
   locale: "en" | "km";
 };
 
@@ -48,7 +41,11 @@ function sectionLabelClass() {
   return "px-4 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted";
 }
 
-export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) {
+export default function MobileMenu({ navLinks, locale }: MobileMenuProps) {
+  // The drawer is only ever opened by hand, long after /api/me has answered, so
+  // it can read the viewer straight from context — no server round-trip and no
+  // session data baked into the cached page HTML.
+  const { user } = useSession();
   const t = useTranslations("nav");
   const footerT = useTranslations("footer");
   const notificationsT = useTranslations("notifications");
@@ -304,7 +301,7 @@ export default function MobileMenu({ navLinks, user, locale }: MobileMenuProps) 
 
           {user && (
             <div className="shrink-0 border-t border-divider px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-              <form action="/auth/signout" method="POST">
+              <form action="/auth/signout" method="POST" onSubmit={() => { void clearPrivateBrowserState(); }}>
                 <button
                   type="submit"
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-divider px-4 text-sm font-semibold text-text-body transition-colors hover:bg-red-50 hover:text-red-600"

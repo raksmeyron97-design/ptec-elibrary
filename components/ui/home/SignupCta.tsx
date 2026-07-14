@@ -1,25 +1,23 @@
 // components/ui/home/SignupCta.tsx
-// Bottom-of-homepage signup banner, shown to logged-out visitors only.
+// Bottom-of-homepage signup banner.
 //
-// This is the ONLY part of the homepage that needs the per-request auth
-// cookie. Isolating the auth check (and the stats it displays) here — behind
-// its own Suspense boundary — lets the hero/search markup flush in the first
-// streamed chunk instead of waiting on the Supabase auth round-trip.
+// It is shown to logged-out visitors only, but that is a *presentation* rule,
+// not a data-access one: everything in it is public marketing copy plus public
+// stats. It used to enforce the rule with a server-side supabase.auth.getUser()
+// — a cookie read that, even behind Suspense, made the whole homepage dynamic.
+// The banner is now always rendered (so it is in the prerendered HTML and
+// visible to crawlers) and hidden after hydration for signed-in users by
+// <SignedOutOnly>.
 import { Link } from "@/i18n/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getHomeStats } from "@/lib/home-stats";
 import { getTranslations, getLocale } from "next-intl/server";
 
 export default async function SignupCta() {
-  const supabase = await createClient();
-  const [t, locale, stats, { data: { user } }] = await Promise.all([
+  const [t, locale, stats] = await Promise.all([
     getTranslations("home"),
     getLocale(),
     getHomeStats(),
-    supabase.auth.getUser(),
   ]);
-
-  if (user) return null;
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
   const resourceCount = stats.resources ?? 0;

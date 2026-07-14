@@ -6,7 +6,7 @@
 // app/actions/publications.ts and degrades gracefully until migration
 // 0085_publication_authoring_workspace.sql is applied.
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";

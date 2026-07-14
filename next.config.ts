@@ -38,6 +38,18 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "5mb",
     },
+    // There is no single app/layout.tsx any more (the public tree owns its own
+    // <html> so it can read the locale from params instead of headers()), so
+    // unmatched routes need a root-layout-free 404 page: app/global-not-found.tsx.
+    globalNotFound: true,
+    // Lets i18n/request.ts read the [locale] segment of app/[locale]/layout.tsx
+    // (a ROOT layout since the split) without touching headers(). next-intl's
+    // setRequestLocale() does not survive across route segments here — verified:
+    // getLocale() returned "en" on /km/home even immediately after
+    // setRequestLocale("km") in the same layout — and every other way of
+    // resolving the locale server-side is a dynamic API that would un-cache the
+    // whole public tree. Root params are params, so they are prerender-safe.
+    rootParams: true,
   },
   // pdfjs is loaded lazily by lib/pdf-page-index.ts for server-side text
   // extraction; keep it out of the server bundle (worker/canvas quirks).

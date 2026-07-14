@@ -15,7 +15,8 @@
 // librarians cannot verify their own records; admins can, but the action is
 // audit-logged as a self-approval override.
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireLibrarian, requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import {

@@ -3,12 +3,21 @@ import { Seal } from "@/components/ui/core/Seal";
 import Icon from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
 
-// Plain <a> instead of next/link on purpose: this global boundary is
-// serialized into every page's flight payload, and importing Link here made
-// webpack attach the (protected) admin dashboard chunk to /admin/login just
-// to resolve the Link module. A full navigation off a 404 is fine.
-export default async function NotFound() {
-  const t = await getTranslations("notFound");
+// The 404 body, shared by the two not-found boundaries:
+//   app/[locale]/not-found.tsx  — notFound() from inside the public tree
+//   app/global-not-found.tsx    — requests matching no route at all
+//
+// Plain <a> instead of next/link on purpose: this boundary is serialized into
+// every page's flight payload, and importing Link here made webpack attach the
+// (protected) admin dashboard chunk to /admin/login just to resolve the Link
+// module. A full navigation off a 404 is fine.
+export default async function NotFoundContent({ locale }: { locale?: string }) {
+  // global-not-found renders outside the [locale] tree and must pass the locale
+  // explicitly; inside the tree setRequestLocale() has already supplied it.
+  const t = locale
+    ? await getTranslations({ locale, namespace: "notFound" })
+    : await getTranslations("notFound");
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-bg-body px-6 py-16 font-sans">

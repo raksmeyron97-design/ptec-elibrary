@@ -4,7 +4,7 @@
 // add-copies step so the admin can add physical copies immediately.
 // All other actions (updateCatalogBook, deleteCatalogBook, etc.) remain unchanged.
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { catalogSlugify, pickCatalogColor, parseCatalogCsv } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";

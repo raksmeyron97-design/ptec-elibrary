@@ -7,6 +7,8 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES, ROLE_META } from "@/lib/types/roles";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
 import { useMountTransition } from "@/lib/hooks/useMountTransition";
+import { useSession } from "@/components/providers/SessionProvider";
+import { clearPrivateBrowserState } from "@/lib/sw-client";
 
 // ── Icons ──────────────────────────────────────────────────────
 const HomeIcon = () => (
@@ -84,16 +86,6 @@ function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC
 }
 
 // ── Types ──────────────────────────────────────────────────────
-type UserInfo = {
-  email: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  role: AppRole;
-};
-
-type MobileBottomNavProps = {
-  user: UserInfo | null;
-};
 
 // ── Helpers ────────────────────────────────────────────────────
 function getInitials(name: string | null, email: string) {
@@ -103,7 +95,8 @@ function getInitials(name: string | null, email: string) {
 
 
 // ── Component ──────────────────────────────────────────────────
-export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+export default function MobileBottomNav() {
+  const { user } = useSession();
   const t = useTranslations("nav");
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -316,7 +309,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             {/* Footer */}
             <div className="px-5 pb-4 pt-2 border-t border-divider">
               {user ? (
-                <form action="/auth/signout" method="POST">
+                <form action="/auth/signout" method="POST" onSubmit={() => { void clearPrivateBrowserState(); }}>
                   <button
                     type="submit"
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-100 active:scale-[0.98] transition-all"

@@ -18,7 +18,8 @@
 //   * a redirect whose old_slug equals the canonical slug is never created
 //     (no self-loop).
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { headers } from "next/headers";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";

@@ -3,6 +3,13 @@ import { redirect } from "next/navigation";
 import SettingsClient from "./SettingsClient";
 import PushSubscribeButton from "@/components/ui/notifications/PushSubscribeButton";
 
+// This route is served the nonce CSP (lib/csp.ts) because it renders a user's
+// own settings, so it must never be prerendered — a prerendered page has no
+// nonce on its scripts and would be blocked outright. It reads cookies and is
+// dynamic in practice; this makes that load-bearing rather than incidental.
+// Pinned by lib/csp.test.ts.
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Settings",
 };

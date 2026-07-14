@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, AVATAR_OPTS } from "@/lib/image-optimize";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";

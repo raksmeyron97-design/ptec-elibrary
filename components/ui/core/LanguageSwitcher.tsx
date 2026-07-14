@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, useTransition } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { Check, ChevronDown, Globe } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -16,7 +15,6 @@ export default function LanguageSwitcher({ locale, className }: Props) {
   const t = useTranslations('nav');
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -28,7 +26,12 @@ export default function LanguageSwitcher({ locale, className }: Props) {
       setOpen(false);
       return;
     }
-    const qs = searchParams.toString();
+    // Read the query string here rather than with useSearchParams(): that hook
+    // forces a client-side bailout, which would keep the navbar — and therefore
+    // every public page — out of the prerender. By click time we are
+    // unambiguously in the browser, so window.location is the same information
+    // for free.
+    const qs = window.location.search.replace(/^\?/, '');
     startTransition(async () => {
       await setLocaleCookie(next);
       router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { locale: next, scroll: false });

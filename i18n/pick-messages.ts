@@ -20,10 +20,15 @@ import type { AbstractIntlMessages } from "next-intl";
 // components each tree imports.
 // ──────────────────────────────────────────────────────────────────
 
-/** Root layout: only components mounted outside the route groups
- *  (PushNotificationOnboarding). SearchModal/NavigationProgress use no
- *  messages. */
-export const ROOT_NAMESPACES = ["pushNotifications"] as const;
+/** components/layout/RootShell.tsx — the client components every root layout
+ *  mounts OUTSIDE its group's own provider: PushNotificationOnboarding
+ *  ("pushNotifications") and SearchModal, whose SearchSuggestions reads
+ *  ("home"). NavigationProgress uses no messages.
+ *
+ *  These are the only namespaces guaranteed present on /admin and /auth, so
+ *  anything RootShell renders must be listed here — lib/i18n-namespaces.test.ts
+ *  pins that. */
+export const ROOT_NAMESPACES = ["pushNotifications", "home"] as const;
 
 /** app/[locale]/(public): every namespace used by a client component
  *  reachable from public pages (incl. shared components/ui/*). */

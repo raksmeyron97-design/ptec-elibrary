@@ -3,39 +3,34 @@ import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { gateBookSlug } from "@/lib/book-slug-gate";
+import {
+  buildNonceCsp,
+  buildPublicCsp,
+  getThemeScriptHash,
+  needsEval,
+  usesNonceCsp,
+} from "@/lib/csp";
 
 // Paths that require an active session on the main domain
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
+
+// Rewrite target for "this definitely does not exist, return a real 404".
+//
+// It MUST have two or more segments. A single segment (the old '/__not-found__')
+// matches the top-level [locale] route — Next then renders the public tree with
+// locale="__not-found__", which bails to app/[locale]/not-found.tsx, reads the
+// locale cookie to translate it, and blows up with "Page changed from static to
+// dynamic at runtime" — a 500 where a 404 was intended. Two segments match no
+// route at all, so this lands on app/global-not-found.tsx, which is static and
+// reads nothing.
+const NOT_FOUND_PATH = "/_ptec/not-found";
 
 // Legacy thesis detail URLs were /theses/<uuid>; they 301 to /theses/<slug>.
 // (research_reports ids are uuids — there were never numeric thesis ids.)
 const LEGACY_THESIS_RE =
   /^\/theses\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
-// Builds the CSP. `withEval` keeps 'unsafe-eval' in script-src: the enforced
-// policy still carries it (dev tooling + historical pdf.js need), while the
-// report-only policy drops it to prove nothing depends on eval in production
-// before we remove it for real — staged plan in docs/SECURITY-HEADERS.md.
-function buildCsp(nonceB64: string, { withEval }: { withEval: boolean }) {
-  return `
-      default-src 'self';
-      script-src 'self' 'nonce-${nonceB64}'${withEval ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com https://va.vercel-scripts.com;
-      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-      img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online;
-      font-src 'self' data: https://fonts.gstatic.com;
-      connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online;
-      frame-src https://challenges.cloudflare.com https://www.google.com;
-      frame-ancestors 'none';
-      object-src 'none';
-      base-uri 'self';
-      form-action 'self';
-    `.replace(/\s{2,}/g, ' ').trim();
-}
-
 export async function middleware(request: NextRequest) {
-  const nonce = crypto.randomUUID();
-  const nonceB64 = Buffer.from(nonce).toString('base64');
-
   // Correlation id for log lines: reuse the edge/CDN id when present
   // (Cloudflare cf-ray) so app logs join up with WAF logs, else mint one.
   // Propagated to route handlers via the request header and echoed on the
@@ -43,17 +38,51 @@ export async function middleware(request: NextRequest) {
   const requestId =
     request.headers.get('cf-ray') ?? request.headers.get('x-request-id') ?? crypto.randomUUID();
 
-  const cspHeader = buildCsp(nonceB64, { withEval: true });
-  // Production only: dev servers legitimately eval (react-refresh, source
-  // maps) and would flood the report endpoint with noise.
-  const cspReportOnly =
-    process.env.NODE_ENV === 'production'
-      ? `${buildCsp(nonceB64, { withEval: false })}; report-uri /api/csp-report; report-to csp-endpoint`
-      : null;
+  // ── Pick the CSP for this path ─────────────────────────────────────────
+  // The nonce policy forces dynamic rendering (Next injects the nonce into its
+  // inline RSC scripts at render time), so it is reserved for surfaces that are
+  // dynamic anyway: /admin, /auth, /api, /dashboard, /profile, /lists. Public
+  // catalogue pages get a nonce-free policy so they can be prerendered and
+  // served from the CDN. See lib/csp.ts for the full rationale and the
+  // "'unsafe-inline' is voided by any nonce/hash" trap.
+  //
+  // Locale prefix is stripped first so /km/books classifies the same as /books.
+  const rawPath = request.nextUrl.pathname;
+  const cspPath =
+    rawPath === '/km' ? '/' : rawPath.startsWith('/km/') ? rawPath.slice(3) : rawPath;
+  const wantsNonce = usesNonceCsp(cspPath);
+  // React's development build uses eval() for debugging features (reconstructing
+  // call stacks across environments) and logs "eval() is not supported in this
+  // environment" without it. It never uses eval in production, so the public
+  // policy still ships without 'unsafe-eval' where it counts — only the pdf.js
+  // reader routes keep it (lib/csp.ts).
+  const withEval = needsEval(cspPath) || process.env.NODE_ENV !== "production";
 
-  request.headers.set('x-nonce', nonceB64);
+  let cspHeader: string;
+  let cspReportOnly: string | null = null;
+  let nonceB64: string | null = null;
+
+  if (wantsNonce) {
+    nonceB64 = Buffer.from(crypto.randomUUID()).toString('base64');
+    const themeHash = await getThemeScriptHash();
+    // 'unsafe-eval' is retained here only because dev tooling and the admin
+    // panel's legacy bundles have historically needed it; the report-only twin
+    // drops it to prove nothing depends on eval before we remove it for real —
+    // staged plan in docs/SECURITY-HEADERS.md.
+    cspHeader = buildNonceCsp(nonceB64, themeHash, { withEval: true });
+    if (process.env.NODE_ENV === 'production') {
+      cspReportOnly = `${buildNonceCsp(nonceB64, themeHash, { withEval: false })}; report-uri /api/csp-report; report-to csp-endpoint`;
+    }
+    request.headers.set('x-nonce', nonceB64);
+    // Next reads this request header to nonce its own inline scripts. It must
+    // NOT be set for public paths, or Next would nonce a response we intend to
+    // prerender and cache.
+    request.headers.set('Content-Security-Policy', cspHeader);
+  } else {
+    cspHeader = buildPublicCsp({ withEval });
+  }
+
   request.headers.set('x-request-id', requestId);
-  request.headers.set('Content-Security-Policy', cspHeader);
 
   // Attach the standard security headers to any response this middleware returns.
   const applySecurity = (res: NextResponse) => {
@@ -62,7 +91,7 @@ export async function middleware(request: NextRequest) {
       res.headers.set('Content-Security-Policy-Report-Only', cspReportOnly);
       res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
     }
-    res.headers.set('x-nonce', nonceB64);
+    if (nonceB64) res.headers.set('x-nonce', nonceB64);
     res.headers.set('x-request-id', requestId);
     return res;
   };
@@ -237,7 +266,7 @@ export async function middleware(request: NextRequest) {
         // unrouted path renders the global not-found page with a real HTTP
         // 404 status — inside the route tree the (public) loading boundary
         // would stream a 200 shell before notFound() could set the status.
-        const res = NextResponse.rewrite(new URL('/__not-found__', request.url));
+        const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
         return applySecurity(res);
       }
     } catch {
@@ -272,7 +301,7 @@ export async function middleware(request: NextRequest) {
         return applySecurity(res);
       }
       if (verdict?.kind === "not-found") {
-        const res = NextResponse.rewrite(new URL('/__not-found__', request.url));
+        const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
         return applySecurity(res);
       }
       // ok / null → fall through to the page unchanged.

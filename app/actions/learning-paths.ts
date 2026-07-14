@@ -2,7 +2,7 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { requireLibrarian } from "@/lib/auth/requireAdmin";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { slugify } from "@/lib/books";
 
 // ── Types ─────────────────────────────────────────────────────────────────────

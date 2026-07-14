@@ -3,7 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/auth/requireAdmin";
 import { isAllowedTeamPhotoUrl } from "@/lib/team/photo";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 export async function updateOwnTeamMember(formData: FormData) {
   try {

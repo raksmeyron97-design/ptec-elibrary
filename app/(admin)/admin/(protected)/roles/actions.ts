@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireSuperAdmin } from "@/lib/auth/requireAdmin";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ALL_RESOURCE_KEYS, type PermChange } from "@/lib/admin/roles-shared";

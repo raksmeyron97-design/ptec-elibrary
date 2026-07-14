@@ -1,7 +1,5 @@
 import { Link } from "@/i18n/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { getSessionUser } from "@/lib/auth/session";
-import NavbarClient from "./NavbarClient";
+import NavbarSession from "./NavbarSession";
 import MobileMenu from "./MobileMenu";
 import NavSearch from "@/components/layout/NavSearch";
 import ThemeToggle from "@/components/ui/core/ThemeToggle";
@@ -72,32 +70,11 @@ export default async function Navbar() {
     { label: t("posts"), href: "/posts" },
   ];
 
-  // ── Fetch user + profile server-side ─────────────────────────
-  // getSessionUser is React-cached: pages/sections that also need the user
-  // in the same request share this one auth round-trip.
-  const user = await getSessionUser();
-
-  let userInfo = null;
-
-  if (user) {
-    const supabase = await createClient();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url, role")
-      .eq("id", user.id)
-      .single();
-
-    const googleAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-    const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
-
-    userInfo = {
-      id:         user.id,
-      email:      user.email ?? "",
-      full_name:  profile?.full_name  ?? googleName ?? null,
-      avatar_url: profile?.avatar_url ?? googleAvatar ?? null,
-      role:       (profile?.role ?? "reader") as "reader" | "admin",
-    };
-  }
+  // No session lookup here, deliberately. Resolving the user server-side meant
+  // a cookies() read plus a Supabase Auth round-trip plus a profiles query on
+  // every public page render — it blocked first byte and made the whole public
+  // tree uncacheable. The viewer's identity now arrives client-side via
+  // <SessionProvider>; <NavbarSession> and <MobileMenu> read it from there.
 
   return (
     <header className="relative z-[100] w-full border-t-[3px] border-accent font-sans pt-[env(safe-area-inset-top)]">
@@ -170,20 +147,13 @@ export default async function Navbar() {
             {/* Search */}
             <NavSearch />
 
-            {/* Bell (show only when logged in) — sm+ only; on phones the
-                header stays minimal (logo/search/menu, like the bottom nav) */}
-            {user && userInfo && (
-              <div className="hidden lg:block">
-                <NotificationBell userId={user.id} userRole={userInfo.role} />
-              </div>
-            )}
-
-            {/* Login button OR avatar dropdown — lg+ only; below lg the
-                bottom nav's Profile tab and the drawer own these actions */}
-            <NavbarClient user={userInfo} />
+            {/* Bell (logged in only) + login button OR avatar dropdown.
+                Both depend on the viewer, so they hydrate from
+                <SessionProvider> instead of being rendered server-side. */}
+            <NavbarSession />
 
             {/* Hamburger + drawer — mobile/tablet only (below lg) */}
-            <MobileMenu navLinks={mobileNavLinks} user={userInfo} locale={locale} />
+            <MobileMenu navLinks={mobileNavLinks} locale={locale} />
           </div>
         </div>
       </NavbarStickyWrapper>

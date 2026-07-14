@@ -6,7 +6,8 @@
 // page needs, following app/actions/theses.ts conventions (books:write
 // permission, DB-backed rate limit, audit log with request metadata).
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";

@@ -8,7 +8,7 @@
 // Restoring is itself an UPDATE, so the trigger snapshots the pre-restore
 // state too: a bad rollback can always be rolled forward again.
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireAdmin, requireLibrarian } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 

@@ -12,7 +12,12 @@ import {
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
 
-export const dynamic = "force-dynamic";
+// This page takes no searchParams and reads no cookies — it was force-dynamic
+// for no reason, paying a function invocation per visit to render identical
+// markup. Learning paths change rarely; getPublishedPaths() is tagged "paths"
+// and invalidated by the admin mutations, so an hour of staleness is a ceiling,
+// not a delay.
+export const revalidate = 3600;
 
 export async function generateMetadata({
   params,

@@ -2,7 +2,7 @@
 // app/admin/catalogs/copy-actions.ts
 // Server actions for managing individual physical copy records.
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 

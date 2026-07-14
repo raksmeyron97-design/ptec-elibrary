@@ -6,6 +6,7 @@ import NextLink from "next/link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
+import { useSession } from "@/components/providers/SessionProvider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Book {
@@ -170,7 +171,12 @@ function parseMarkdown(text: string) {
 }
 
 // ── Main widget ──────────────────────────────────────────────────────────────
-export default function AskWidget({ isLoggedIn }: { isLoggedIn: boolean }) {
+export default function AskWidget() {
+  // Was a server-resolved prop, which meant the public layout had to read
+  // cookies() — and that alone made every public page uncacheable. The hint is
+  // UI-only; /api/ask still verifies the user for real.
+  const { user } = useSession();
+  const isLoggedIn = !!user;
   const t = useTranslations("ask");
   const headingId = useId();
 

@@ -2,7 +2,7 @@
 "use server";
 
 // app/actions/saved-books.ts
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 // ── Toggle save/unsave ────────────────────────────────────────

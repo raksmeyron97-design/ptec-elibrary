@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { isAllowedTeamPhotoUrl } from "@/lib/team/photo";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 // ── Types ──────────────────────────────────────────────────────────────
 

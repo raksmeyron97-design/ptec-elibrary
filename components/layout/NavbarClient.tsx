@@ -7,6 +7,7 @@ import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from 'next-intl';
 import type { AppRole } from "@/lib/types/roles";
 import { ROLE_META } from "@/lib/types/roles";
+import { clearPrivateBrowserState } from "@/lib/sw-client";
 
 type UserInfo = {
   id?: string;
@@ -188,7 +189,7 @@ export default function NavbarClient({ user }: NavbarClientProps) {
 
         {/* Sign out */}
         <div className="border-t border-divider px-3 py-3">
-          <form action="/auth/signout" method="POST">
+          <form action="/auth/signout" method="POST" onSubmit={() => { void clearPrivateBrowserState(); }}>
             <button
               type="submit"
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-text-body transition-colors hover:bg-red-50 hover:text-danger"

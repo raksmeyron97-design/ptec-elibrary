@@ -4,7 +4,7 @@
 // One review (rating 1–5 + optional comment) per user per publication, stored
 // in publication_reviews (migration 0056).
 
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import type { Review } from "@/app/actions/reviews";
 

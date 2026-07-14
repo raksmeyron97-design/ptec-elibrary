@@ -145,22 +145,28 @@ describe("i18n namespace split coverage", () => {
     }
   });
 
-  it("root layout tree is covered by ROOT ∪ PUBLIC (public provider nests inside root)", () => {
-    // Root-level client components sit outside every group provider, so they
-    // may only use ROOT_NAMESPACES. (PUBLIC included here because the root
-    // layout renders group children whose own providers take over.)
-    assertCovered([path.join(ROOT, "app/layout.tsx")], [
-      ...ROOT_NAMESPACES,
-      ...PUBLIC_NAMESPACES,
-    ]);
+  // There is no single app/layout.tsx: each top-level tree owns its own <html>
+  // via components/layout/RootShell.tsx, so that the public tree can read the
+  // locale from params instead of headers() (see RootShell for why). RootShell
+  // is therefore the shared root for all three trees, and the client components
+  // it mounts sit outside every group provider — they may only use
+  // ROOT_NAMESPACES, on /admin and /auth just as much as on public pages.
+  it("RootShell's own client components are covered by ROOT_NAMESPACES", () => {
+    assertCovered(
+      [path.join(ROOT, "components/layout/RootShell.tsx")],
+      ROOT_NAMESPACES,
+    );
   });
 
   it("public tree is covered by PUBLIC_NAMESPACES", () => {
     assertCovered([path.join(ROOT, "app/[locale]/(public)")], PUBLIC_NAMESPACES);
   });
 
-  it("auth tree is covered by AUTH_NAMESPACES", () => {
-    assertCovered([path.join(ROOT, "app/(auth)")], AUTH_NAMESPACES);
+  it("auth tree is covered by AUTH ∪ ROOT (auth provider nests inside RootShell)", () => {
+    assertCovered([path.join(ROOT, "app/(auth)")], [
+      ...AUTH_NAMESPACES,
+      ...ROOT_NAMESPACES,
+    ]);
   });
 
   it("protected admin tree is covered by ADMIN_NAMESPACES", () => {
@@ -170,14 +176,14 @@ describe("i18n namespace split coverage", () => {
     );
   });
 
-  it("admin login/mfa pages use no client translations at all", () => {
+  it("admin login/mfa pages add no client translations beyond RootShell's", () => {
     assertCovered(
       [
         path.join(ROOT, "app/(admin)/admin/login"),
         path.join(ROOT, "app/(admin)/admin/mfa"),
         path.join(ROOT, "app/(admin)/layout.tsx"),
       ],
-      [],
+      ROOT_NAMESPACES,
     );
   });
 });

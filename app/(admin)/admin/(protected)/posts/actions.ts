@@ -1,7 +1,7 @@
 "use server";
 
 // app/admin/posts/actions.ts
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { requirePermission } from "@/lib/auth/requireAdmin";

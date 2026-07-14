@@ -1,6 +1,21 @@
-import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig, RuntimeCaching } from "serwist";
-import { Serwist, NetworkFirst, CacheFirst, StaleWhileRevalidate, ExpirationPlugin } from "serwist";
+import {
+  Serwist,
+  NetworkFirst,
+  NetworkOnly,
+  CacheFirst,
+  StaleWhileRevalidate,
+  ExpirationPlugin,
+  RangeRequestsPlugin,
+} from "serwist";
+import {
+  CACHES,
+  PUBLIC_REST_RE,
+  isBookFileRequest,
+  isCacheableResponse,
+  isObsoleteCache,
+  isPrivateRequest,
+} from "@/lib/sw-policy";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -10,141 +25,159 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
-// Tables whose GET responses are safe to cache — they are public, non-personalized data.
-// RLS-filtered tables (saved_books, reading_progress, profiles, etc.) must NOT be listed
-// here, as serving cached rows to a different logged-in user would be a privacy violation.
-const PUBLIC_REST_RE = /\/rest\/v1\/(books|catalog_books|posts|authors|categories|departments)(\?|$)/;
+// ─────────────────────────────────────────────────────────────────────────────
+// CACHING POLICY — read lib/sw-policy.ts first. It explains why `defaultCache`
+// from @serwist/next is NOT spread in here any more: its trailing catch-alls
+// ("apis", "others", "cross-origin") cached every same-origin /api GET, which
+// meant reading a book online stored the whole PDF. That was the ~240 MB of
+// Cache Storage measured in the field.
+//
+// The rules below are an ALLOWLIST and the last one is NetworkOnly. Anything not
+// explicitly listed goes to the network and is never stored. Do not add a
+// catch-all.
+// ─────────────────────────────────────────────────────────────────────────────
 
-const customCaching: RuntimeCaching[] = [
-  // Fallback for navigations to /~offline
+/** Refuse to store anything private, oversized, or not a clean 200 — even if a
+ *  rule above matched it by mistake. The SW ignores Cache-Control by default;
+ *  this is what makes `private, no-store` mean something down here. */
+const guard = {
+  cacheWillUpdate: async ({ response }: { response: Response }) =>
+    isCacheableResponse(response) ? response : null,
+};
+
+/** Storage can be full, disabled, or evicted at any moment. A failed cache write
+ *  must never turn into a failed page — swallow it and let the network answer. */
+const tolerateStorageFailure = {
+  handlerDidError: async () => undefined,
+};
+
+const runtimeCaching: RuntimeCaching[] = [
+  // ── 1. Book files (PDF/EPUB/…): READ from cache, NEVER write. ─────────────
+  // FIRST on purpose. These live under /api, so the private NetworkOnly rule
+  // below would otherwise claim them — and then a book the user downloaded
+  // could never be read back offline (verified: it silently broke offline
+  // reading). Putting it first is safe precisely BECAUSE it cannot write:
+  // `cacheWillUpdate: () => null` is the hard switch. It can only ever hand
+  // back a file this same user explicitly downloaded.
+  //
+  // This is the rule that used to leak. Merely *reading* a book online now
+  // stores nothing; a book enters Cache Storage only when the user presses
+  // "Save offline", which calls cache.add() from the page (lib/offline.ts).
+  //
+  // - ignoreSearch: the download is stored as `…/file?offline=1`, but the reader
+  //   requests the bare `…/file`. Without this the saved copy is never found.
+  // - RangeRequestsPlugin: pdf.js fetches byte ranges; this serves 206s out of
+  //   the stored full response instead of failing or refetching the whole book.
   {
-    matcher: ({ request, url }) => {
-      if (url.pathname.startsWith('/api/auth') || url.pathname.startsWith('/auth')) return false;
-      return request.mode === 'navigate';
-    },
+    matcher: ({ url, sameOrigin }) =>
+      isBookFileRequest({ pathname: url.pathname, sameOrigin }),
+    handler: new CacheFirst({
+      cacheName: CACHES.offlineBooks,
+      matchOptions: { ignoreSearch: true },
+      plugins: [
+        new RangeRequestsPlugin(),
+        { cacheWillUpdate: async () => null },
+        tolerateStorageFailure,
+      ],
+    }),
+  },
+
+  // ── 2. Private: session-scoped, per-user, or Set-Cookie-bearing. ──────────
+  // Everything under /api (including /api/me, /api/push/*, /api/notifications),
+  // plus /admin, /auth, /dashboard, /profile, /lists. `/admin/login` really was
+  // landing in Cache Storage before this rule existed.
+  {
+    matcher: ({ request, url, sameOrigin }) =>
+      isPrivateRequest({
+        pathname: url.pathname,
+        sameOrigin,
+        hasAuthorizationHeader: !!request.headers.get("authorization"),
+      }),
+    handler: new NetworkOnly(),
+  },
+
+  // ── 3. Public page navigations. ──────────────────────────────────────────
+  // Private paths were already taken by rule 1, so this only ever sees public
+  // pages. NetworkFirst keeps content fresh and gives the offline shell a
+  // fallback.
+  {
+    matcher: ({ request }) => request.mode === "navigate",
     handler: new NetworkFirst({
-      cacheName: 'pages-cache',
+      cacheName: CACHES.pages,
       networkTimeoutSeconds: 5,
-    }),
-  },
-
-  // Cache book cover images (Google Drive, OpenLibrary, Supabase, Amazon)
-  {
-    matcher: ({ request, url }) => {
-      const isImage = request.destination === 'image';
-      const isCoverDomain = [
-        'lh3.googleusercontent.com',
-        'covers.openlibrary.org',
-        'images-na.ssl-images-amazon.com',
-      ].includes(url.hostname) || url.hostname.endsWith('supabase.co');
-      return isImage && isCoverDomain;
-    },
-    handler: new CacheFirst({
-      cacheName: 'book-covers',
       plugins: [
-        new ExpirationPlugin({
-          maxEntries: 60,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-          purgeOnQuotaError: true,
-        }),
+        guard,
+        new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true }),
+        tolerateStorageFailure,
       ],
     }),
   },
 
-  // Cache Next.js-optimized images (/_next/image?url=...). With the image
-  // optimizer enabled, covers are fetched through this endpoint rather than
-  // directly from the R2/CDN hosts matched above.
+  // ── 4. Hashed build output. Content-addressed, so CacheFirst is safe. ─────
   {
-    matcher: ({ url }) =>
-      url.origin === self.location.origin && url.pathname === '/_next/image',
+    matcher: ({ url, sameOrigin }) =>
+      sameOrigin && url.pathname.startsWith("/_next/static/"),
     handler: new CacheFirst({
-      cacheName: 'next-image',
+      cacheName: CACHES.static,
       plugins: [
-        new ExpirationPlugin({
-          maxEntries: 120,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-          purgeOnQuotaError: true,
-        }),
+        guard,
+        new ExpirationPlugin({ maxEntries: 96, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
+        tolerateStorageFailure,
       ],
     }),
   },
 
-  // Cache public Supabase REST GET responses for non-personalized tables only.
-  // SKIP any request that carries an Authorization header — those are RLS-filtered
-  // and serving one user's data to another on a shared device is a privacy violation.
+  // ── 5. pdf.js worker, cmaps, standard fonts. ─────────────────────────────
   {
-    matcher: ({ request, url }) => {
-      if (request.headers.get('authorization')) return false;
-      return (
-        url.hostname.endsWith('supabase.co') &&
-        request.method === 'GET' &&
-        PUBLIC_REST_RE.test(url.pathname)
-      );
-    },
+    matcher: ({ url, sameOrigin }) =>
+      sameOrigin && /^\/pdf\/.*\.(mjs|js|bcmap|pfb|ttf|otf)$/.test(url.pathname),
+    handler: new CacheFirst({
+      cacheName: CACHES.pdfjs,
+      plugins: [
+        guard,
+        new ExpirationPlugin({ maxEntries: 400, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
+        tolerateStorageFailure,
+      ],
+    }),
+  },
+
+  // ── 6. Images (book covers, logos). Size-capped by `guard`. ──────────────
+  // Opaque cross-origin responses are rejected by the guard (status 0): their
+  // size is unknowable and Chrome pads them to megabytes each in quota
+  // accounting, so maxEntries alone would not bound storage.
+  {
+    matcher: ({ request }) => request.destination === "image",
+    handler: new CacheFirst({
+      cacheName: CACHES.images,
+      plugins: [
+        guard,
+        new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true }),
+        tolerateStorageFailure,
+      ],
+    }),
+  },
+
+  // ── 7. Anonymous Supabase reads of public tables only. ───────────────────
+  // Requests carrying an Authorization header were already claimed by rule 1,
+  // so an RLS-filtered row cannot reach this cache and be replayed to the next
+  // user on a shared device.
+  {
+    matcher: ({ request, url }) =>
+      url.hostname.endsWith("supabase.co") &&
+      request.method === "GET" &&
+      PUBLIC_REST_RE.test(url.pathname),
     handler: new StaleWhileRevalidate({
-      cacheName: 'supabase-public-cache',
+      cacheName: CACHES.supabase,
       plugins: [
-        new ExpirationPlugin({
-          maxEntries: 50,
-          maxAgeSeconds: 6 * 60 * 60, // 6 hours
-          purgeOnQuotaError: true,
-        }),
+        guard,
+        new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 6 * 60 * 60, purgeOnQuotaError: true }),
+        tolerateStorageFailure,
       ],
     }),
   },
 
-  // Cache PDF.js assets (worker, cmaps, standard fonts)
-  {
-    matcher: ({ url }) => /^\/pdf\/.*\.(mjs|js|bcmap|pfb|ttf|otf)$/.test(url.pathname),
-    handler: new CacheFirst({
-      cacheName: 'pdfjs-assets',
-      plugins: [
-        new ExpirationPlugin({
-          maxEntries: 400,
-          purgeOnQuotaError: true,
-        }),
-      ],
-    }),
-  },
-
-  // Cache book PDFs for offline reading — limited to 12 entries / 30 days to avoid
-  // exhausting device quota on low-end phones (PDFs can be 5-20 MB each).
-  //
-  // The /api/books/[slug]/file proxy returns Cache-Control: private, no-store; the SW
-  // ignores that header and would silently cache private PDFs. To prevent serving one
-  // user's private PDF to another on a shared device, we ONLY cache that proxy route when
-  // the "Save offline" button explicitly appends ?offline=1.  Plain inline viewers
-  // (which load /api/books/[slug]/file without the flag) are never cached.
-  //
-  // Public-storage .pdf URLs and /storage/v1/object/public/ paths are open data and are
-  // safe to cache unconditionally.
-  //
-  // IMPORTANT: The "Save offline" UI (OfflineSaveButton) must request the URL with
-  // ?offline=1 for this gate to work. See components/ui/pwa/OfflineSaveButton.tsx.
-  {
-    matcher: ({ url }) => {
-      if (url.pathname.endsWith('.pdf')) return true;
-      if (url.pathname.includes('/storage/v1/object/public/')) return true;
-      // Proxy routes: only when the offline-save flag is present
-      if (
-        /^\/api\/(books|publications)\/[^/]+\/file$/.test(url.pathname) &&
-        url.searchParams.get('offline') === '1'
-      ) return true;
-      return false;
-    },
-    handler: new CacheFirst({
-      cacheName: 'offline-books',
-      plugins: [
-        new ExpirationPlugin({
-          maxEntries: 12,
-          maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
-          purgeOnQuotaError: true,
-        }),
-      ],
-    }),
-  },
-
-  ...defaultCache,
+  // ── 8. Everything else: network, never stored. ───────────────────────────
+  { matcher: () => true, handler: new NetworkOnly() },
 ];
 
 const serwist = new Serwist({
@@ -152,17 +185,60 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: customCaching,
+  runtimeCaching,
   fallbacks: {
     entries: [
       {
-        url: '/~offline',
+        url: "/~offline",
         matcher({ request }) {
-          return request.destination === 'document';
+          return request.destination === "document";
         },
       },
     ],
   },
+});
+
+// ── Reclaim the leaked storage from existing users. ─────────────────────────
+// Every cache this worker does not own is deleted on activate — which is what
+// removes the old "apis" cache (the one holding hundreds of MB of PDFs) plus
+// "others", "cross-origin", "pages-cache", "pages-rsc*" and the rest of the
+// abandoned defaultCache names. Books the user actually chose to download live
+// in "offline-books"/"book-covers" and are explicitly preserved
+// (USER_OWNED_CACHES in lib/sw-policy.ts) — an upgrade must not destroy content
+// someone saved.
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const names = await caches.keys();
+        await Promise.all(
+          names.filter(isObsoleteCache).map((name) => caches.delete(name)),
+        );
+      } catch {
+        // Storage unavailable — nothing to reclaim, and the app works regardless.
+      }
+    })(),
+  );
+});
+
+// ── Sign-out / account switch. ──────────────────────────────────────────────
+// The page posts this after the session is torn down. Derived caches can hold a
+// page rendered for the previous account, so they go. Downloaded books are left
+// alone: they are user-chosen content, and lib/offline.ts owns their lifecycle.
+self.addEventListener("message", (event) => {
+  if ((event.data as { type?: string } | null)?.type !== "CLEAR_PRIVATE_CACHES") return;
+  event.waitUntil(
+    (async () => {
+      try {
+        await Promise.all([
+          caches.delete(CACHES.pages),
+          caches.delete(CACHES.supabase),
+        ]);
+      } catch {
+        // Nothing to do — worst case the next navigation refetches from network.
+      }
+    })(),
+  );
 });
 
 type PushNotificationPayload = {

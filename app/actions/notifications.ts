@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin, requirePermission, requireUser } from "@/lib/auth-guards";
-import { revalidatePath } from "next/cache";
+import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { notifyAnnouncementPublished } from "@/lib/push-events";
 
