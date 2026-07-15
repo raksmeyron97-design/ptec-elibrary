@@ -1233,7 +1233,15 @@
       "summary": "Total {total} · avg {avg}/day · peak {peak} on {peakDay}",
       "summaryPrev": "· previous period {value}",
       "srSingleSummary": "{series}: {total} in total, average {avg} per day, peak {peak}.",
-      "publishLegend": "Publish event"
+      "publishLegend": "Publish event",
+      "drillTitle": "Viewed on {date}",
+      "drillTotal": "{count, plural, =1 {1 detail view} other {# detail views}} recorded (staff excluded)",
+      "drillEmpty": "No detail views were recorded in this period.",
+      "drillError": "Could not load the breakdown — please try again.",
+      "drillLoading": "Loading breakdown…",
+      "drillClose": "Close breakdown",
+      "drillViews": "{count, plural, =1 {1 view} other {# views}}",
+      "drillPointLabel": "{date} · {series}: {value}. Opens that day's breakdown."
     },
     "actionCenter": {
       "title": "Action center",

@@ -1875,3 +1875,93 @@ export async function getDepartmentOptions(): Promise<string[]> {
   }
   return [...names].sort((a, b) => a.localeCompare(b));
 }
+
+// ── Day drill-down (engagement-chart point click) ───────────────────────────
+
+const BUCKET_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:00)?$/;
+const MAX_BUCKET_AGE_MS = 400 * 86_400_000;
+
+const CONTENT_TABLE: Record<ContentType, string> = {
+  book: "books",
+  research_report: "research_reports",
+  publication: "publications",
+  post: "posts",
+};
+
+export type DayBreakdown = {
+  bucket: string;
+  granularity: "hour" | "day";
+  /** Detail views recorded in this bucket (internal staff excluded). */
+  total: number;
+  items: { type: ContentType; id: string; title: string; views: number; editHref: string }[];
+};
+
+/**
+ * What was viewed inside one chart bucket ("YYYY-MM-DD" day or
+ * "YYYY-MM-DDTHH:00" hour, Asia/Phnom_Penh — the same keys buildWindow
+ * emits). Same read-time rules as the dashboard: staff/admin events are
+ * excluded. Returns null for a malformed, future or ancient bucket.
+ */
+export async function getDayBreakdown(bucket: string): Promise<DayBreakdown | null> {
+  if (!BUCKET_RE.test(bucket)) return null;
+  const isHour = bucket.includes("T");
+  const start = new Date(isHour ? `${bucket}:00+07:00` : `${bucket}T00:00:00+07:00`);
+  if (Number.isNaN(start.getTime())) return null;
+  const nowMs = Date.now();
+  if (start.getTime() > nowMs || nowMs - start.getTime() > MAX_BUCKET_AGE_MS) return null;
+  const end = new Date(start.getTime() + (isHour ? 3_600_000 : 86_400_000) - 1);
+
+  const supabase = createServiceClient();
+  const [internalIds, viewsRes] = await Promise.all([
+    getInternalUserIds(supabase),
+    supabase
+      .from("view_logs")
+      .select("content_type, content_id, user_id")
+      .gte("viewed_at", start.toISOString())
+      .lte("viewed_at", end.toISOString())
+      .limit(5000),
+  ]);
+
+  type Row = { content_type: string; content_id: string | null; user_id: string | null };
+  const rows = excludeInternal(
+    ((viewsRes.data ?? []) as Row[]).map((r) => ({ ...r, userId: r.user_id })),
+    internalIds,
+  );
+
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.content_id) continue;
+    const key = `${r.content_type}:${r.content_id}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const top = [...counts.entries()]
+    .filter(([key]) => (key.split(":")[0] as ContentType) in CONTENT_TABLE)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  // One .in() title lookup per content table actually involved.
+  const idsByType = new Map<ContentType, string[]>();
+  for (const [key] of top) {
+    const [type, id] = key.split(":") as [ContentType, string];
+    idsByType.set(type, [...(idsByType.get(type) ?? []), id]);
+  }
+  const titleByKey = new Map<string, string>();
+  await Promise.all(
+    [...idsByType.entries()].map(async ([type, ids]) => {
+      const { data } = await supabase.from(CONTENT_TABLE[type]).select("id, title").in("id", ids);
+      for (const r of (data ?? []) as { id: string; title: string | null }[]) {
+        titleByKey.set(`${type}:${r.id}`, r.title ?? "");
+      }
+    }),
+  );
+
+  return {
+    bucket,
+    granularity: isHour ? "hour" : "day",
+    total: rows.length,
+    items: top.map(([key, views]) => {
+      const [type, id] = key.split(":") as [ContentType, string];
+      return { type, id, title: titleByKey.get(key) || "—", views, editHref: EDIT_HREF[type](id) };
+    }),
+  };
+}

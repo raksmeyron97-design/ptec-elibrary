@@ -1,9 +1,18 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Loader2, X } from "lucide-react";
 import type { TrendPoint } from "@/lib/admin/dashboard";
 import { useContainerWidth, formatBucket, niceMax4, AXIS_TEXT, ChartGrid } from "./chart-utils";
+
+/** Shape returned by /api/admin/dashboard/day-breakdown. */
+type DrillData = {
+  bucket: string;
+  total: number;
+  items: { type: string; id: string; title: string; views: number; editHref: string }[];
+};
 
 type SeriesKey = "views" | "visitors" | "readerOpens" | "downloads";
 
@@ -54,6 +63,33 @@ export default function EngagementChart({
   const [metric, setMetric] = useState<SeriesKey>("views");
   const [compareAll, setCompareAll] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
+
+  // ── Point drill-down (that bucket's top viewed titles) ──
+  const [drillBucket, setDrillBucket] = useState<string | null>(null);
+  const [drillCache, setDrillCache] = useState<Map<string, DrillData>>(new Map());
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drillError, setDrillError] = useState<string | null>(null);
+  const drillCloseRef = useRef<HTMLButtonElement>(null);
+
+  const openDrill = (bucket: string) => {
+    setDrillBucket(bucket);
+    setDrillError(null);
+    if (drillCache.has(bucket)) return;
+    setDrillLoading(true);
+    fetch(`/api/admin/dashboard/day-breakdown?bucket=${encodeURIComponent(bucket)}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<DrillData>;
+      })
+      .then((d) => setDrillCache((prev) => new Map(prev).set(bucket, d)))
+      .catch(() => setDrillError(t("drillError")))
+      .finally(() => setDrillLoading(false));
+  };
+
+  // Move focus into the panel when it opens so keyboard users land on Close.
+  useEffect(() => {
+    if (drillBucket) drillCloseRef.current?.focus();
+  }, [drillBucket]);
 
   const keys: SeriesKey[] = ["views", "visitors", "readerOpens", "downloads"];
   const available = keys.filter((k) => (k === "readerOpens" ? series.readerOpens !== null : true));
@@ -263,9 +299,39 @@ export default function EngagementChart({
           {drawn.map((s) =>
             s.points.map((p, i) =>
               p.value > 0 ? (
-                <circle key={`${s.key}-${p.date}`} cx={x(i)} cy={y(p.value)} r="2.5" fill={SERIES_COLOR[s.key]}>
-                  <title>{`${formatBucket(p.date, granularity)} · ${t(`series.${s.key}`)}: ${p.value}`}</title>
-                </circle>
+                <g
+                  key={`${s.key}-${p.date}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t("drillPointLabel", {
+                    date: formatBucket(p.date, granularity),
+                    series: t(`series.${s.key}`),
+                    value: p.value,
+                  })}
+                  className="cursor-pointer focus:outline-none [&:focus-visible>.pt-focus]:opacity-100"
+                  onClick={() => openDrill(p.date)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openDrill(p.date);
+                    }
+                  }}
+                >
+                  {/* Oversized transparent hit-area; the ring doubles as the focus indicator. */}
+                  <circle cx={x(i)} cy={y(p.value)} r="9" fill="transparent" />
+                  <circle
+                    className="pt-focus opacity-0 transition-opacity"
+                    cx={x(i)}
+                    cy={y(p.value)}
+                    r="6"
+                    fill="none"
+                    stroke={SERIES_COLOR[s.key]}
+                    strokeWidth="1.5"
+                  />
+                  <circle cx={x(i)} cy={y(p.value)} r="2.5" fill={SERIES_COLOR[s.key]}>
+                    <title>{`${formatBucket(p.date, granularity)} · ${t(`series.${s.key}`)}: ${p.value}`}</title>
+                  </circle>
+                </g>
               ) : null,
             ),
           )}
@@ -279,6 +345,72 @@ export default function EngagementChart({
           )}
         </svg>
       </div>
+
+      {/* ── Point drill-down panel ── */}
+      {drillBucket && (
+        <div
+          role="region"
+          aria-label={t("drillTitle", { date: formatBucket(drillBucket, granularity) })}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setDrillBucket(null);
+          }}
+          className="mt-2.5 rounded-xl border border-divider bg-paper/70 p-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-[12.5px] font-bold text-text-heading">
+              {t("drillTitle", { date: formatBucket(drillBucket, granularity) })}
+            </h4>
+            <button
+              ref={drillCloseRef}
+              type="button"
+              onClick={() => setDrillBucket(null)}
+              aria-label={t("drillClose")}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-surface hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+          {drillLoading && !drillCache.has(drillBucket) ? (
+            <p className="mt-2 flex items-center gap-1.5 text-[12px] text-text-muted" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              {t("drillLoading")}
+            </p>
+          ) : drillError && !drillCache.has(drillBucket) ? (
+            <p className="mt-2 text-[12px] font-medium text-rose-700" role="alert">
+              {drillError}
+            </p>
+          ) : (
+            (() => {
+              const d = drillCache.get(drillBucket);
+              if (!d) return null;
+              if (d.items.length === 0) {
+                return <p className="mt-2 text-[12px] text-text-muted">{t("drillEmpty")}</p>;
+              }
+              return (
+                <>
+                  <p className="mt-0.5 text-[11px] text-text-muted">{t("drillTotal", { count: d.total })}</p>
+                  <ol className="mt-1.5 space-y-0.5">
+                    {d.items.map((item) => (
+                      <li key={`${item.type}-${item.id}`} className="flex items-center gap-2 text-[12px]">
+                        <Link
+                          href={item.editHref}
+                          className="min-w-0 flex-1 truncate font-medium text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </Link>
+                        <span className="shrink-0 tabular-nums text-text-muted">
+                          {t("drillViews", { count: item.views })}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              );
+            })()
+          )}
+        </div>
+      )}
 
       {/* Accessible data table alternative */}
       <details className="mt-1">

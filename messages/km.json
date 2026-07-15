@@ -1239,7 +1239,15 @@
       "summary": "សរុប {total} · មធ្យម {avg}/ថ្ងៃ · ខ្ពស់បំផុត {peak} នៅ {peakDay}",
       "summaryPrev": "· រយៈពេលមុន {value}",
       "srSingleSummary": "{series}៖ សរុប {total} មធ្យម {avg} ក្នុងមួយថ្ងៃ ខ្ពស់បំផុត {peak}។",
-      "publishLegend": "ព្រឹត្តិការណ៍បោះពុម្ពផ្សាយ"
+      "publishLegend": "ព្រឹត្តិការណ៍បោះពុម្ពផ្សាយ",
+      "drillTitle": "បានមើលនៅ {date}",
+      "drillTotal": "បានកត់ត្រា {count} ការមើលលម្អិត (មិនរាប់បុគ្គលិក)",
+      "drillEmpty": "គ្មានការមើលលម្អិតត្រូវបានកត់ត្រាក្នុងរយៈពេលនេះទេ។",
+      "drillError": "មិនអាចផ្ទុកទិន្នន័យលម្អិតបានទេ — សូមព្យាយាមម្តងទៀត។",
+      "drillLoading": "កំពុងផ្ទុក…",
+      "drillClose": "បិទ",
+      "drillViews": "{count} ការមើល",
+      "drillPointLabel": "{date} · {series}: {value}។ បើកទិន្នន័យលម្អិតនៃថ្ងៃនោះ។"
     },
     "actionCenter": {
       "title": "មជ្ឈមណ្ឌលការងារ",
