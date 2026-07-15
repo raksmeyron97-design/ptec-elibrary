@@ -70,10 +70,10 @@ export async function zimaUpload(
 }
 
 /**
- * Extract the relative path from a Zima file URL.
+ * Extract the relative path (object key) from a Zima file URL.
  * e.g. "https://api.storage-ptec.online/files/books/foo.pdf" → "books/foo.pdf"
  */
-function zimaRelativePath(fileUrl: string): string | null {
+export function zimaRelativePath(fileUrl: string): string | null {
   try {
     const pathname = new URL(fileUrl).pathname; // "/files/books/foo.pdf"
     const match = pathname.match(/^\/files\/(.+)$/);
@@ -101,18 +101,19 @@ export async function zimaDelete(fileUrl: string): Promise<void> {
   }
 
   try {
-    // Zima Storage delete: DELETE /api/files/{folder/filename}
-    const res = await fetch(`${apiUrl}/api/files/${relativePath}`, {
-      method: "DELETE",
-      headers: { "x-api-key": apiKey },
+    // Verified live contract (2026-07-15): POST /api/delete { path } is the
+    // endpoint the deployed Zima server actually implements; DELETE
+    // /api/files/{path} returns 404 there, so it is only kept as a fallback.
+    const res = await fetch(`${apiUrl}/api/delete`, {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ path: relativePath, url: fileUrl }),
     });
 
     if (!res.ok) {
-      // Fallback: some servers use POST /api/delete with a path body
-      const fallback = await fetch(`${apiUrl}/api/delete`, {
-        method: "POST",
-        headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ path: relativePath, url: fileUrl }),
+      const fallback = await fetch(`${apiUrl}/api/files/${relativePath}`, {
+        method: "DELETE",
+        headers: { "x-api-key": apiKey },
       });
       if (!fallback.ok) {
         console.warn(`[zima] delete failed for ${relativePath}: primary=${res.status}, fallback=${fallback.status}`);

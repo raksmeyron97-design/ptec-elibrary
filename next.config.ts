@@ -36,7 +36,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   experimental: {
     serverActions: {
-      bodySizeLimit: "5mb",
+      // Catalog cover uploads allow a 5 MB image; the rest of the multipart
+      // body (bibliographic fields + boundaries) needs headroom beyond that.
+      bodySizeLimit: "6mb",
     },
     // There is no single app/layout.tsx any more (the public tree owns its own
     // <html> so it can read the locale from params instead of headers()), so

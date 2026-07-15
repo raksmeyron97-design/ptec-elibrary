@@ -4,6 +4,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { LIBRARIAN_ROLES } from "@/lib/types/roles";
 import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../copy-actions";
+import { coverSourceFromUrl } from "@/lib/catalog-cover";
 import EditBookWizard from "./EditBookWizard";
 
 export default async function EditCatalogBookPage({
@@ -57,6 +58,7 @@ export default async function EditCatalogBookPage({
       <div className="mx-auto max-w-[900px]">
         <EditBookWizard
           book={b}
+          coverSource={coverSourceFromUrl(b.cover_url)}
           categories={categories}
           initialCopies={initialCopies}
           initialTab={sp.tab === "copies" ? "copies" : "info"}

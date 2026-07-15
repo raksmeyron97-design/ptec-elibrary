@@ -18,6 +18,16 @@ import {
   cleanLongText,
 } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";
+import { rateLimit } from "@/lib/rate-limit";
+import {
+  parseCoverInput,
+  processCatalogCover,
+  uploadCatalogCover,
+  deleteCatalogCoverIfOwned,
+  coverSourceFromUrl,
+  type CoverInput,
+} from "@/lib/catalog-cover";
+import { zimaRelativePath } from "@/lib/zima";
 
 export type BookActionResult =
   | { success: true; book: { id: string; slug: string; shelf_location: string | null; accession_number: string | null } }
@@ -96,17 +106,63 @@ function parseBookForm(formData: FormData): ParsedBook {
   };
 }
 
-function parseCoverUrl(formData: FormData): { set: boolean; value: string | null } {
-  const raw = formData.get("cover_url")?.toString().trim();
-  if (!raw) return { set: false, value: null };
-  if (raw === "__remove__") return { set: true, value: null };
-  try {
-    const u = new URL(raw);
-    if (u.protocol !== "https:") return { set: false, value: null };
-    return { set: true, value: u.toString() };
-  } catch {
-    return { set: false, value: null };
+// ── Cover resolution ───────────────────────────────────────────────────────────
+// Turns the form's cover intent (keep / upload / external / generated) into the
+// concrete cover_url update. Uploads happen HERE, before the DB write, so a
+// failed upload never leaves a half-saved record — the admin's form values stay
+// on screen and they can retry or fall back to the generated cover.
+
+type ResolvedCover =
+  | { ok: true; input: CoverInput; update: { cover_url: string | null } | null; uploadedUrl: string | null }
+  | { ok: false; error: string; fieldErrors: Record<string, string> };
+
+const COVER_UPLOAD_LIMIT = 20;              // uploads…
+const COVER_UPLOAD_WINDOW_MS = 10 * 60_000; // …per admin per 10 minutes
+
+async function resolveCover(formData: FormData, userId: string): Promise<ResolvedCover> {
+  const input = parseCoverInput(formData);
+
+  if (input.mode === "invalid") {
+    return { ok: false, error: input.error, fieldErrors: { cover: input.error } };
   }
+  if (input.mode === "keep") return { ok: true, input, update: null, uploadedUrl: null };
+  if (input.mode === "generated") return { ok: true, input, update: { cover_url: null }, uploadedUrl: null };
+  if (input.mode === "external") return { ok: true, input, update: { cover_url: input.url }, uploadedUrl: null };
+
+  // upload — validate, re-encode, push to Zima Storage.
+  const limit = await rateLimit(`catalog-cover:${userId}`, COVER_UPLOAD_LIMIT, COVER_UPLOAD_WINDOW_MS);
+  if (!limit.success) {
+    const msg = "Too many cover uploads in a short time. Wait a few minutes and try again.";
+    return { ok: false, error: msg, fieldErrors: { cover: msg } };
+  }
+
+  const processed = await processCatalogCover(await input.file.arrayBuffer(), input.file.name);
+  if (!processed.ok) {
+    return { ok: false, error: processed.error.message, fieldErrors: { cover: processed.error.message } };
+  }
+
+  try {
+    const title = formData.get("title")?.toString() ?? "";
+    const url = await uploadCatalogCover(processed.cover, title);
+    return { ok: true, input, update: { cover_url: url }, uploadedUrl: url };
+  } catch (err) {
+    console.error("[catalog] cover upload failed:", err);
+    const msg =
+      "Your book information is still on this form, but the cover could not be uploaded to PTEC Storage. Retry the upload or save with an auto-generated cover.";
+    return { ok: false, error: msg, fieldErrors: { cover: msg } };
+  }
+}
+
+/** Audit payload for a cover change — sources + storage keys only, never credentials. */
+function coverAudit(previousUrl: string | null, nextUrl: string | null) {
+  const from = coverSourceFromUrl(previousUrl);
+  const to = coverSourceFromUrl(nextUrl);
+  return {
+    from,
+    to,
+    previousKey: previousUrl ? zimaRelativePath(previousUrl) : null,
+    newKey: nextUrl ? zimaRelativePath(nextUrl) : null,
+  };
 }
 
 // ── addCatalogBook ─────────────────────────────────────────────────────────────
@@ -116,13 +172,17 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
   const parsed = parseBookForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error, fieldErrors: parsed.fieldErrors };
 
-  const cover = parseCoverUrl(formData);
+  // Cover is resolved (and, for uploads, pushed to Zima Storage) only after the
+  // bibliographic fields validate — an invalid form never uploads anything.
+  const cover = await resolveCover(formData, userId);
+  if (!cover.ok) return { success: false, error: cover.error, fieldErrors: cover.fieldErrors };
+
   const baseSlug = catalogSlugify(parsed.fields.title as string) || `book-${Date.now().toString(36)}`;
 
   // Copies start at 0 — counters are derived from catalog_copies rows.
   const record = {
     ...parsed.fields,
-    cover_url: cover.set ? cover.value : null,
+    cover_url: cover.update?.cover_url ?? null,
     cover_color: pickCatalogColor(parsed.fields.title as string),
     copies_total: 0,
     copies_available: 0,
@@ -142,7 +202,10 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
       .single();
 
     if (!error && book) {
-      await logAdminAction(userId, "addCatalogBook", "catalog_books", book.id, { title: parsed.fields.title });
+      await logAdminAction(userId, "addCatalogBook", "catalog_books", book.id, {
+        title: parsed.fields.title,
+        cover: coverAudit(null, record.cover_url),
+      });
       revalidateCatalogBook(book.slug);
       revalidatePath("/admin/catalogs");
       return { success: true, book };
@@ -150,6 +213,9 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
     lastError = error;
     if (error?.code !== "23505") break;
   }
+
+  // The insert failed after a successful upload — remove the orphan.
+  if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
   return { success: false, error: `Failed to add book: ${lastError?.message ?? "unknown error"}` };
 }
 
@@ -160,8 +226,25 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
   const parsed = parseBookForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error, fieldErrors: parsed.fieldErrors };
 
-  const cover = parseCoverUrl(formData);
-  const coverUpdate: Record<string, string | null> = cover.set ? { cover_url: cover.value } : {};
+  const cover = await resolveCover(formData, userId);
+  if (!cover.ok) return { success: false, error: cover.error, fieldErrors: cover.fieldErrors };
+
+  // Current cover, read BEFORE the update: the replaced storage object is
+  // deleted only after the DB write succeeds, and only if it belonged to this
+  // record (it came from this row) and lives under catalog-covers/.
+  let previousCoverUrl: string | null = null;
+  if (cover.update) {
+    const { data: current, error: readError } = await supabase
+      .from("catalog_books")
+      .select("cover_url")
+      .eq("id", bookId)
+      .single();
+    if (readError) {
+      if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
+      return { success: false, error: `Update failed: ${readError.message}` };
+    }
+    previousCoverUrl = current?.cover_url ?? null;
+  }
 
   // NOTE: copies_total / copies_available deliberately absent — derived data.
   const { data: book, error } = await supabase
@@ -169,20 +252,31 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
     .update({
       ...parsed.fields,
       keywords: parseTags(formData, "keywords"),
-      ...coverUpdate,
+      ...(cover.update ?? {}),
     })
     .eq("id", bookId)
     .select("id, slug, shelf_location, accession_number")
     .single();
 
   if (error) {
+    // Never orphan a fresh upload when the save it belonged to failed.
+    if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
     if (error.code === "23505") return { success: false, error: "Another book already uses this slug." };
     return { success: false, error: `Update failed: ${error.message}` };
   }
 
-  await logAdminAction(userId, "updateCatalogBook", "catalog_books", book.id, { title: parsed.fields.title });
+  await logAdminAction(userId, "updateCatalogBook", "catalog_books", book.id, {
+    title: parsed.fields.title,
+    ...(cover.update ? { cover: coverAudit(previousCoverUrl, cover.update.cover_url) } : {}),
+  });
   revalidateCatalogBook(book.slug);
   revalidatePath("/admin/catalogs");
+
+  // DB now points at the new cover — the old storage object (if ours) can go.
+  // Failure here is logged and swallowed: the save itself already succeeded.
+  if (cover.update && previousCoverUrl && previousCoverUrl !== cover.update.cover_url) {
+    await deleteCatalogCoverIfOwned(previousCoverUrl);
+  }
 
   return { success: true, book };
 }
@@ -220,9 +314,11 @@ export async function restoreCatalogBook(bookId: string) {
 export async function hardDeleteCatalogBook(bookId: string) {
   const { supabase, userId } = await requirePermission("books", "write");
   const { data: book } = await supabase
-    .from("catalog_books").select("slug, title").eq("id", bookId).single();
+    .from("catalog_books").select("slug, title, cover_url").eq("id", bookId).single();
   const { error } = await supabase.from("catalog_books").delete().eq("id", bookId);
   if (error) throw new Error(`Hard delete failed: ${error.message}`);
+  // The record is gone — its uploaded cover (if ours) must not orphan in storage.
+  await deleteCatalogCoverIfOwned(book?.cover_url);
   await logAdminAction(userId, "hardDeleteCatalogBook", "catalog_books", bookId, { title: book?.title });
   revalidateCatalogBook(book?.slug);
   revalidatePath("/admin/catalogs");

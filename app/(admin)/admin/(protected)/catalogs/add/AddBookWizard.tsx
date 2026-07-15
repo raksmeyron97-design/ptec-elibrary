@@ -7,7 +7,7 @@ import Link from "next/link";
 import { addCatalogBook } from "../actions";
 import CopiesPanel from "../CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
-import AdminCoverPreview from "@/components/admin/catalogs/AdminCoverPreview";
+import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
 
 interface BookData {
   id: string;
@@ -25,7 +25,7 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   // Mirrors of the (uncontrolled) form fields that drive the cover preview.
-  const [preview, setPreview] = useState({ title: "", author: "", category: "", coverUrl: "" });
+  const [preview, setPreview] = useState({ title: "", author: "", category: "" });
 
   async function handleAddBook(formData: FormData) {
     if (loading) return;
@@ -218,35 +218,18 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
             {fieldError("shelf_location")}
           </div>
 
-          <div className="sm:col-span-1">
-            <label htmlFor="f-cover" className={labelCls}>Cover Image URL</label>
-            <input
-              id="f-cover"
-              name="cover_url"
-              type="url"
-              className={inputCls}
-              placeholder="https://…"
-              onChange={(e) => {
-                const val = e.target.value;
-                const match = val.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-                if (match) {
-                  e.target.value = `https://lh3.googleusercontent.com/d/${match[1]}`;
-                }
-                const next = e.target.value;
-                setPreview((p) => ({ ...p, coverUrl: next }));
-              }}
-            />
-            <p className="mt-1 text-[10px] text-text-muted">Leave blank for auto-generated cover</p>
-          </div>
         </div>
 
-        {/* Live cover preview — external URL (if any) next to the generated fallback */}
-        <AdminCoverPreview
-          coverUrl={preview.coverUrl || null}
+        {/* Book cover — upload to PTEC Storage / external URL / auto-generated */}
+        <CatalogCoverField
+          initialCoverUrl={null}
+          initialSource="generated"
           title={preview.title}
           author={preview.author}
           category={preview.category}
+          disabled={loading}
         />
+        {fieldError("cover")}
 
         <div>
           <label htmlFor="f-description" className={labelCls}>Description</label>

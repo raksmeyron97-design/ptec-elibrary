@@ -16,17 +16,20 @@ import type { CatalogCopy } from "../../copy-actions";
 import { computeCopyStats } from "@/lib/catalog";
 import CopiesPanel from "../../CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
-import AdminCoverPreview from "@/components/admin/catalogs/AdminCoverPreview";
+import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import type { CoverSource } from "@/lib/catalog-cover-shared";
 
 type Tab = "info" | "copies";
 
 export default function EditBookWizard({
   book,
+  coverSource,
   categories,
   initialCopies,
   initialTab = "info",
 }: {
   book: CatalogBook;
+  coverSource: CoverSource;
   categories: string[];
   initialCopies: CatalogCopy[];
   initialTab?: Tab;
@@ -39,9 +42,6 @@ export default function EditBookWizard({
   const [saved, setSaved] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
-  // Live cover preview: starts from the saved URL; typing a new URL (or
-  // "__remove__") updates the preview before saving.
-  const [previewCoverUrl, setPreviewCoverUrl] = useState<string | null>(book.cover_url);
   const formRef = useRef<HTMLFormElement>(null);
 
   const stats = useMemo(() => computeCopyStats(initialCopies), [initialCopies]);
@@ -276,39 +276,18 @@ export default function EditBookWizard({
             {fieldError("shelf_location")}
           </div>
 
-          {/* Cover URL */}
+          {/* Book cover — upload to PTEC Storage / external URL / auto-generated */}
           <div>
-            <label htmlFor="f-cover" className={labelCls}>Cover Image URL</label>
-            {book.cover_url && (
-              <p className="mb-1.5 max-w-full truncate text-xs text-text-muted">
-                Current: <span className="font-mono">{book.cover_url}</span>
-              </p>
-            )}
-            <input
-              id="f-cover"
-              name="cover_url"
-              type="text"
-              defaultValue=""
-              className={inputCls}
-              placeholder="New URL (leave blank to keep existing) or type __remove__ to clear"
-              onChange={(e) => {
-                const val = e.target.value;
-                const match = val.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-                if (match) {
-                  e.target.value = `https://lh3.googleusercontent.com/d/${match[1]}`;
-                }
-                const next = e.target.value.trim();
-                setPreviewCoverUrl(
-                  next === "" ? book.cover_url : next === "__remove__" ? null : next,
-                );
-              }}
-            />
-            <AdminCoverPreview
-              coverUrl={previewCoverUrl}
+            <CatalogCoverField
+              initialCoverUrl={book.cover_url}
+              initialSource={coverSource}
               title={book.title}
               author={book.author}
               category={book.category}
+              disabled={loading}
+              onChanged={() => { setDirty(true); setSaved(null); }}
             />
+            {fieldError("cover")}
           </div>
 
           <div>
