@@ -103,6 +103,8 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
     },
     { key: "analytics", status: analyticsStatus, icon: Activity },
   ];
+  const fixLink =
+    filesStatus === "critical" ? { href: data.brokenFilesHref, label: t("fixBrokenFiles") } : undefined;
 
   const card = "dash-card p-4";
 
@@ -126,6 +128,14 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                     {t(`status.${status}`)}
                   </span>
                   {hint && <p className="mt-1 text-[10px] leading-[14px] text-text-muted">{hint}</p>}
+                  {key === "files" && fixLink && (
+                    <Link
+                      href={fixLink.href}
+                      className="mt-1 block w-fit text-[10.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                      {fixLink.label} →
+                    </Link>
+                  )}
                 </div>
               </div>
             );
@@ -148,7 +158,7 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
             <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
               <dt className="text-[12px] text-text-body">{t("brokenFiles")}</dt>
               <dd className={`text-[12.5px] font-bold tabular-nums ${data.brokenFiles > 0 ? "text-rose-700" : "text-text-heading"}`}>
-                <Link href="/admin/data-quality" className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+                <Link href={data.brokenFilesHref} className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
                   {nf.format(data.brokenFiles)}
                 </Link>
               </dd>

@@ -1565,7 +1565,8 @@
         "post_update": "Updated a post",
         "content_approve": "Approved content"
       },
-      "backupSetupHint": "Backup logging is not set up — see docs/BACKUP-DR.md"
+      "backupSetupHint": "Backup logging is not set up — see docs/BACKUP-DR.md",
+      "fixBrokenFiles": "Review & fix"
     },
     "states": {
       "sectionError": "This section failed to load",

@@ -830,6 +830,23 @@ export type ActionCenterData = {
   generatedAt: string;
 };
 
+/**
+ * Where a "broken file" alert should send the admin: straight to the affected
+ * record's edit page when exactly one file is broken, otherwise the
+ * data-quality dashboard for bulk triage. file_health.record_type is
+ * 'book' | 'research' (0065).
+ */
+function brokenFileFixHref(
+  count: number,
+  rows: { record_type: string; record_id: string }[],
+): string {
+  if (count === 1 && rows[0]) {
+    if (rows[0].record_type === "book") return `/admin/edit/${rows[0].record_id}`;
+    if (rows[0].record_type === "research") return `/admin/theses/edit/${rows[0].record_id}`;
+  }
+  return "/admin/data-quality";
+}
+
 export async function getActionCenter(filters: DashboardFilters): Promise<ActionCenterData> {
   const supabase = createServiceClient();
   const now = new Date();
@@ -849,7 +866,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     zeroRes,
     catalogRes,
   ] = await Promise.all([
-    supabase.from("file_health").select("checked_at", { count: "exact" }).eq("status", "broken"),
+    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
     supabase
       .from("app_events")
       .select("created_at, status")
@@ -892,7 +909,10 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     severity: "critical",
     count: brokenRes.count ?? 0,
     oldestAt: null,
-    href: "/admin/data-quality",
+    href: brokenFileFixHref(
+      brokenRes.count ?? 0,
+      (brokenRes.data ?? []) as { record_type: string; record_id: string }[],
+    ),
   });
 
   type StorageRow = { created_at: string; status: string };
@@ -1717,6 +1737,8 @@ export type SystemData = {
   opsEvents: { kind: string; status: string; createdAt: string; detail: Record<string, unknown> }[];
   backupAgeHours: number | null;
   brokenFiles: number;
+  /** Edit page of the single broken record, or the data-quality dashboard. */
+  brokenFilesHref: string;
   lastFileHealthCheckAt: string | null;
   recentAdminActions: { action: string; table: string; actor: string; createdAt: string }[];
   generatedAt: string;
@@ -1735,7 +1757,7 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
       .lte("created_at", win.end.toISOString())
       .limit(10000),
     supabase.from("ops_events").select("kind, status, detail, created_at").order("created_at", { ascending: false }).limit(10),
-    supabase.from("file_health").select("*", { count: "exact", head: true }).eq("status", "broken"),
+    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
     supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1),
     supabase
       .from("admin_audit_log")
@@ -1802,6 +1824,10 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
     opsEvents: ops.map((o) => ({ kind: o.kind, status: o.status, createdAt: o.created_at, detail: o.detail ?? {} })),
     backupAgeHours,
     brokenFiles: brokenRes.count ?? 0,
+    brokenFilesHref: brokenFileFixHref(
+      brokenRes.count ?? 0,
+      (brokenRes.data ?? []) as { record_type: string; record_id: string }[],
+    ),
     lastFileHealthCheckAt:
       ((healthLatestRes.data ?? []) as { checked_at: string }[])[0]?.checked_at ?? null,
     recentAdminActions: ((auditRes.data ?? []) as AuditRow[]).map((r) => {
