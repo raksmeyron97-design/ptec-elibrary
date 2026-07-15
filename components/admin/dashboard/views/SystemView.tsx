@@ -2,13 +2,13 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
   HardDrive, Cpu, DatabaseBackup, FileCheck2, Activity, ShieldCheck, Wrench,
-  CheckCircle2, AlertTriangle, AlertOctagon, CircleDashed, HelpCircle, type LucideIcon,
+  CheckCircle2, AlertTriangle, AlertOctagon, CircleDashed, HelpCircle, Settings2, type LucideIcon,
 } from "lucide-react";
 import { getSystemData } from "@/lib/admin/intelligence";
 import { adminActionLabelKey, type DashboardFilters } from "@/lib/admin/dashboard-shared";
 import FreshnessLine from "../FreshnessLine";
 
-type HealthStatus = "healthy" | "warning" | "critical" | "collecting" | "unknown";
+type HealthStatus = "healthy" | "warning" | "critical" | "collecting" | "unknown" | "notConfigured";
 
 const STATUS_STYLE: Record<HealthStatus, string> = {
   healthy: "bg-emerald-100 text-emerald-800",
@@ -16,6 +16,7 @@ const STATUS_STYLE: Record<HealthStatus, string> = {
   critical: "bg-rose-100 text-rose-700",
   collecting: "bg-sky-100 text-sky-800",
   unknown: "bg-slate-100 text-slate-600",
+  notConfigured: "bg-slate-100 text-slate-600",
 };
 
 /** Card-level tonal surface + status glyph per health state (colour is never
@@ -26,6 +27,9 @@ const STATUS_CARD: Record<HealthStatus, { surface: string; icon: LucideIcon; ico
   critical: { surface: "border-rose-100 bg-rose-50/60", icon: AlertOctagon, iconColor: "text-rose-600" },
   collecting: { surface: "border-sky-100 bg-sky-50/60", icon: CircleDashed, iconColor: "text-sky-600" },
   unknown: { surface: "border-slate-200 bg-slate-50/70", icon: HelpCircle, iconColor: "text-slate-400" },
+  // Deliberately neutral: "nobody wired this up yet" is a setup task, not a
+  // detected failure — red/amber stays reserved for real staleness/errors.
+  notConfigured: { surface: "border-slate-200 bg-slate-50/70", icon: Settings2, iconColor: "text-slate-400" },
 };
 
 /** Actor initials for the activity timeline avatar. */
@@ -81,16 +85,22 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
         : "healthy";
   const filesStatus: HealthStatus =
     data.lastFileHealthCheckAt === null ? "unknown" : data.brokenFiles > 0 ? "critical" : "healthy";
-  // ops_events empty ≠ backups failing — this app may simply not track them yet.
+  // ops_events empty ≠ backups failing — this app may simply not track them
+  // yet, so that reads as a neutral setup task, never a red/amber alarm.
   const backupStatus: HealthStatus =
-    data.backupAgeHours === null ? "unknown" : data.backupAgeHours > 30 ? "warning" : "healthy";
+    data.backupAgeHours === null ? "notConfigured" : data.backupAgeHours > 30 ? "warning" : "healthy";
   const analyticsStatus: HealthStatus = "healthy"; // queried live per request
 
-  const chips: { key: string; status: HealthStatus; icon: typeof Cpu }[] = [
+  const chips: { key: string; status: HealthStatus; icon: typeof Cpu; hint?: string }[] = [
     { key: "storage", status: storageStatus, icon: HardDrive },
     { key: "ai", status: aiStatus, icon: Cpu },
     { key: "files", status: filesStatus, icon: FileCheck2 },
-    { key: "backup", status: backupStatus, icon: DatabaseBackup },
+    {
+      key: "backup",
+      status: backupStatus,
+      icon: DatabaseBackup,
+      hint: backupStatus === "notConfigured" ? t("backupSetupHint") : undefined,
+    },
     { key: "analytics", status: analyticsStatus, icon: Activity },
   ];
 
@@ -101,7 +111,7 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
       {/* ── Health summary ── */}
       <section aria-label={t("healthTitle")}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {chips.map(({ key, status, icon: IconCmp }) => {
+          {chips.map(({ key, status, icon: IconCmp, hint }) => {
             const card = STATUS_CARD[status];
             const StatusIcon = card.icon;
             return (
@@ -115,6 +125,7 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                     <StatusIcon className={`h-3 w-3 ${card.iconColor}`} aria-hidden="true" />
                     {t(`status.${status}`)}
                   </span>
+                  {hint && <p className="mt-1 text-[10px] leading-[14px] text-text-muted">{hint}</p>}
                 </div>
               </div>
             );

@@ -1541,7 +1541,8 @@
         "warning": "Warning",
         "critical": "Critical",
         "collecting": "Collecting",
-        "unknown": "Unknown"
+        "unknown": "Unknown",
+        "notConfigured": "Not configured"
       },
       "backupNotTracked": "Not tracked by this application yet",
       "telemetryCollectingNote": "Storage and AI telemetry begin collecting after the next deployment — statuses show “Collecting” until then.",
@@ -1561,7 +1562,8 @@
         "post_create": "Created a post",
         "post_update": "Updated a post",
         "content_approve": "Approved content"
-      }
+      },
+      "backupSetupHint": "Backup logging is not set up — see docs/BACKUP-DR.md"
     },
     "states": {
       "sectionError": "This section failed to load",
