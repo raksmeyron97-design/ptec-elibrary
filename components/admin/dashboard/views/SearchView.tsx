@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
-import { Search, MousePointerClick, SearchX, Languages, Sparkles, Clock, Cpu } from "lucide-react";
+import { Search, MousePointerClick, SearchX, Languages, Sparkles, Clock, Cpu, AlertTriangle, AlertOctagon } from "lucide-react";
 import { getSearchAiData, type QueryTableRow } from "@/lib/admin/intelligence";
 import { serializeDashboardFilters, type DashboardFilters } from "@/lib/admin/dashboard-shared";
 import FreshnessLine from "../FreshnessLine";
@@ -10,19 +10,33 @@ import OpportunityList from "../OpportunityList";
 const QUERY_VIEWS = ["all", "zero", "noClick", "trending"] as const;
 type QueryView = (typeof QUERY_VIEWS)[number];
 
+/** Health-threshold tone: never colour alone — each tone pairs a distinct
+ *  icon shape and sr-only text with the tinted value. */
+type MetricTone = "warn" | "critical";
+const TONE_STYLE: Record<MetricTone, { value: string; icon: typeof AlertTriangle; iconColor: string }> = {
+  warn: { value: "text-amber-700", icon: AlertTriangle, iconColor: "text-amber-600" },
+  critical: { value: "text-rose-700", icon: AlertOctagon, iconColor: "text-rose-600" },
+};
+
 function MetricCard({
   label,
   value,
   hint,
   icon,
   accent = "brand",
+  tone,
+  toneLabel,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: React.ReactNode;
   accent?: "views" | "visitors" | "reader" | "downloads" | "gold" | "brand";
+  tone?: MetricTone;
+  toneLabel?: string;
 }) {
+  const toneStyle = tone ? TONE_STYLE[tone] : null;
+  const ToneIcon = toneStyle?.icon;
   return (
     <div className={`dash-card dash-kpi dash-kpi--${accent === "gold" ? "downloads" : accent} p-3.5`}>
       <div className="flex items-center gap-2">
@@ -31,7 +45,19 @@ function MetricCard({
         </span>
         <span className="text-[11.5px] font-semibold text-text-muted">{label}</span>
       </div>
-      <p className="mt-2 text-[24px] font-bold leading-none tabular-nums text-text-heading">{value}</p>
+      <p
+        className={`mt-2 flex items-center gap-1.5 text-[24px] font-bold leading-none tabular-nums ${
+          toneStyle ? toneStyle.value : "text-text-heading"
+        }`}
+      >
+        {value}
+        {ToneIcon && toneStyle && (
+          <span title={toneLabel}>
+            <ToneIcon className={`h-4 w-4 ${toneStyle.iconColor}`} aria-hidden="true" />
+            {toneLabel && <span className="sr-only">{toneLabel}</span>}
+          </span>
+        )}
+      </p>
       {hint && <p className="mt-1.5 text-[11px] text-text-muted">{hint}</p>}
     </div>
   );
@@ -67,6 +93,13 @@ export default async function SearchView({
       queryView === "zero" ? r.zero : queryView === "noClick" ? r.noClick : queryView === "trending" ? r.trending : true,
     )
     .slice(0, 15);
+
+  // Search-health thresholds: CTR under 10% and zero-result rate over 15%
+  // are amber; zero-result over 25% is red. Icons + sr text always accompany
+  // the colour.
+  const ctrTone = s.ctr !== null && s.ctr < 10 ? ("warn" as const) : undefined;
+  const zeroTone =
+    s.zeroRate === null ? undefined : s.zeroRate > 25 ? ("critical" as const) : s.zeroRate > 15 ? ("warn" as const) : undefined;
 
   const statusChip = (r: QueryTableRow) => {
     if (r.suspectedTest)
@@ -109,6 +142,8 @@ export default async function SearchView({
             value={s.ctr === null ? "—" : `${s.ctr}%`}
             hint={t("ctrHint")}
             icon={<MousePointerClick className="h-4 w-4" />}
+            tone={ctrTone}
+            toneLabel={ctrTone ? t("thresholdWarn") : undefined}
           />
           <MetricCard
             accent="downloads"
@@ -116,6 +151,8 @@ export default async function SearchView({
             value={s.zeroRate === null ? "—" : `${s.zeroRate}%`}
             hint={s.avgResults !== null ? t("avgResults", { value: s.avgResults }) : undefined}
             icon={<SearchX className="h-4 w-4" />}
+            tone={zeroTone}
+            toneLabel={zeroTone === "critical" ? t("thresholdCritical") : zeroTone === "warn" ? t("thresholdWarn") : undefined}
           />
           <MetricCard
             accent="gold"

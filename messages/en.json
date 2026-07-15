@@ -1490,7 +1490,9 @@
       "aiCollectingShort": "Collecting telemetry — success rate and latency appear after the next deployment.",
       "addBookFor": "Add a book for “{term}”",
       "dismissTerm": "Dismiss “{term}”",
-      "dismissFailed": "Could not dismiss the term. Please try again."
+      "dismissFailed": "Could not dismiss the term. Please try again.",
+      "thresholdWarn": "Below healthy threshold",
+      "thresholdCritical": "Critical threshold exceeded"
     },
     "audience": {
       "newRegistrations": "New registrations",
