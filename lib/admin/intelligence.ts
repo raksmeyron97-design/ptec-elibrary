@@ -1410,7 +1410,7 @@ export async function getSearchAiData(filters: DashboardFilters): Promise<Search
   const now = new Date();
   const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
 
-  const [searchesRes, clicksRes, aiEventsRes, aiUsageRes] = await Promise.all([
+  const [searchesRes, clicksRes, aiEventsRes, aiUsageRes, termActionsRes] = await Promise.all([
     supabase
       .from("search_queries")
       .select("normalized_term, searched_at, result_count, query_language, session_hash")
@@ -1435,7 +1435,13 @@ export async function getSearchAiData(filters: DashboardFilters): Promise<Search
       .gte("used_on", dayKey(win.start))
       .lte("used_on", dayKey(win.end))
       .limit(2000),
+    // Terms a librarian already handled (dismissed/curated/…, migration
+    // 0087). Errors (e.g. table not migrated yet) degrade to "none handled".
+    supabase.from("search_term_actions").select("normalized_term").limit(2000),
   ]);
+  const handledTerms = new Set(
+    ((termActionsRes.data ?? []) as { normalized_term: string }[]).map((r) => r.normalized_term),
+  );
 
   type SearchRow = {
     normalized_term: string;
@@ -1549,15 +1555,16 @@ export async function getSearchAiData(filters: DashboardFilters): Promise<Search
   }
 
   // Opportunities exclude suspected test/automation queries — those are
-  // labelled in the query table but are not real collection demand.
+  // labelled in the query table but are not real collection demand — and
+  // terms a librarian already handled (dismissed, acquired, curated, …).
   const opportunities: SearchAiData["opportunities"] = [];
   for (const row of zeroQueries) {
-    if (row.searches >= 3) {
+    if (row.searches >= 3 && !handledTerms.has(row.term)) {
       opportunities.push({ kind: "zeroResult", term: row.term, count: row.searches, results: 0 });
     }
   }
   for (const row of queryTable) {
-    if (row.zero || row.suspectedTest || row.searches < 3) continue;
+    if (row.zero || row.suspectedTest || row.searches < 3 || handledTerms.has(row.term)) continue;
     if (row.avgResults !== null && row.avgResults <= 2) {
       opportunities.push({
         kind: "lowCoverage",

@@ -5,6 +5,7 @@ import { getSearchAiData, type QueryTableRow } from "@/lib/admin/intelligence";
 import { serializeDashboardFilters, type DashboardFilters } from "@/lib/admin/dashboard-shared";
 import FreshnessLine from "../FreshnessLine";
 import SearchTrendChart from "../SearchTrendChart";
+import OpportunityList from "../OpportunityList";
 
 const QUERY_VIEWS = ["all", "zero", "noClick", "trending"] as const;
 type QueryView = (typeof QUERY_VIEWS)[number];
@@ -157,27 +158,9 @@ export default async function SearchView({
               <p className="text-[11px] text-text-muted">{t("opportunitiesHint")}</p>
             </div>
           </div>
-          {data.opportunities.length === 0 ? (
-            <p className="mt-3 rounded-xl bg-white/60 px-3 py-5 text-center text-[12px] text-text-muted">
-              {t("noOpportunities")}
-            </p>
-          ) : (
-            <ul className="mt-2.5 space-y-1.5">
-              {data.opportunities.slice(0, 6).map((o) => (
-                <li key={`${o.kind}-${o.term}`} className="dash-insight flex flex-wrap items-center gap-2 px-3 py-2">
-                  <span className="inline-flex shrink-0 items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
-                    {t(`opportunityKind.${o.kind}`)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-text-body" title={o.term}>
-                    {o.term}
-                  </span>
-                  <span className="shrink-0 text-[11px] tabular-nums text-text-muted">
-                    {t("searchedTimes", { count: o.count })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <OpportunityList
+            items={data.opportunities.slice(0, 6).map(({ kind, term, count }) => ({ kind, term, count }))}
+          />
           <Link
             href="/admin/search-insights"
             className="mt-2.5 inline-block text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"

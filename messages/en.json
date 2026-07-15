@@ -1479,7 +1479,10 @@
         "km": "Khmer"
       },
       "testQueryNote": "Rows marked “suspected test” match a deterministic automation heuristic and are excluded from collection opportunities — they remain in raw analytics.",
-      "aiCollectingShort": "Collecting telemetry — success rate and latency appear after the next deployment."
+      "aiCollectingShort": "Collecting telemetry — success rate and latency appear after the next deployment.",
+      "addBookFor": "Add a book for “{term}”",
+      "dismissTerm": "Dismiss “{term}”",
+      "dismissFailed": "Could not dismiss the term. Please try again."
     },
     "audience": {
       "newRegistrations": "New registrations",

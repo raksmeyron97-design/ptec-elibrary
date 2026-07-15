@@ -6,7 +6,13 @@ import BulkUploadForm from "../books/BulkUploadForm";
 import ManageCategoriesModal from "@/components/admin/ManageCategoriesModal";
 import ManageDepartmentsModal from "@/components/admin/ManageDepartmentsModal";
 
-export default function UploadPageClient({ recentBooks = [] }: { recentBooks?: any[] }) {
+export default function UploadPageClient({
+  recentBooks = [],
+  initialTitle = "",
+}: {
+  recentBooks?: any[];
+  initialTitle?: string;
+}) {
   const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
 
   return (
@@ -45,7 +51,7 @@ export default function UploadPageClient({ recentBooks = [] }: { recentBooks?: a
       </div>
 
       <div className="min-h-[500px]">
-        {activeTab === "single" ? <UploadForm recentBooks={recentBooks} /> : <BulkUploadForm />}
+        {activeTab === "single" ? <UploadForm recentBooks={recentBooks} initialTitle={initialTitle} /> : <BulkUploadForm />}
       </div>
     </div>
   );

@@ -1,11 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import Link from "next/link";
-import Icon from "@/components/ui/core/Icon";
 import { createServiceClient } from "@/lib/supabase/server";
 import UploadPageClient from "./UploadPageClient";
 
-export default async function AdminUploadPage() {
+export default async function AdminUploadPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ title?: string }>;
+}) {
   const supabase = createServiceClient();
+  // "Add book from search gap" prefill (dashboard collection opportunities).
+  const rawTitle = (await searchParams).title;
+  const initialTitle = typeof rawTitle === "string" ? rawTitle.trim().slice(0, 200) : "";
 
   const { data: recentBooks } = await supabase
     .from("books")
@@ -18,7 +22,7 @@ export default async function AdminUploadPage() {
     <div className="mx-auto max-w-[1100px] space-y-8">
       <div className="flex flex-col gap-8">
         {/* ── Client Component with Tab Switcher ── */}
-        <UploadPageClient recentBooks={recentBooks || []} />
+        <UploadPageClient recentBooks={recentBooks || []} initialTitle={initialTitle} />
       </div>
     </div>
   );

@@ -130,7 +130,10 @@ function PhaseStepper({ phase }: { phase: Phase }) {
   );
 }
 
-export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] } = {}) {
+export default function UploadForm({
+  recentBooks = [],
+  initialTitle = "",
+}: { recentBooks?: any[]; initialTitle?: string } = {}) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -568,6 +571,7 @@ export default function UploadForm({ recentBooks = [] }: { recentBooks?: any[] }
               ref={titleInputRef}
               name="title"
               required
+              defaultValue={initialTitle}
               placeholder="Book title"
               disabled={busy}
               className={INPUT_CLASS}
