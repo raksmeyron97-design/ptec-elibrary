@@ -12,6 +12,16 @@ export const rootMetadata: Metadata = {
   description:
     "Access free teaching resources, books, and educational materials from the Phnom Penh Teacher Education College (PTEC).",
   applicationName: "PTEC Library",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [
+      { url: "/favicon/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   openGraph: {
     type: "website",
     siteName: "PTEC Library",

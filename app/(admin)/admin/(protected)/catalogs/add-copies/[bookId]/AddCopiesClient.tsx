@@ -362,7 +362,11 @@ export default function AddCopiesClient({
       </div>
 
       {/* Add another row button */}
-      <button type="button">
+      <button 
+        type="button"
+        onClick={addRow}
+        className="inline-flex items-center gap-2 py-2 px-1 text-sm font-bold text-text-heading transition hover:text-brand"
+      >
         <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path d="M12 5v14M5 12h14" strokeLinecap="round" />
         </svg>
@@ -378,11 +382,19 @@ export default function AddCopiesClient({
 
       {/* Footer actions */}
       <div className="flex items-center justify-between rounded-2xl border border-divider bg-bg-surface px-6 py-4 shadow-sm">
-        <button type="button">
+        <button 
+          type="button"
+          onClick={handleGoToAdmin}
+          className="text-sm font-semibold text-text-muted hover:text-brand transition"
+        >
           Save &amp; go to admin
         </button>
 
-        <button type="button">
+        <button 
+          type="button"
+          onClick={handleFinish}
+          className="text-sm font-bold text-text-heading hover:text-brand transition"
+        >
           Save &amp; Finish →
         </button>
       </div>
