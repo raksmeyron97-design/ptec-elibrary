@@ -1,31 +1,18 @@
 import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
-import { Upload, ExternalLink, Library } from "lucide-react";
+import { Upload, ExternalLink } from "lucide-react";
 import HeaderMenu, { type HeaderMenuItem } from "./HeaderMenu";
-
-/** Restrained institutional seal — open book within a ring, tinted brand-blue
- *  and rendered at ~4.5% opacity behind the header text (see .dash-seal). */
-function SealWatermark() {
-  return (
-    <svg className="dash-seal" viewBox="0 0 100 100" fill="none" stroke="currentColor" aria-hidden="true">
-      <circle cx="50" cy="50" r="47" strokeWidth="1.5" />
-      <circle cx="50" cy="50" r="40.5" strokeWidth="1" strokeDasharray="1.5 3" />
-      <path d="M50 33c-6.5-4-15-5-22-3.6v33c7-1.4 15.5-.4 22 3.6 6.5-4 15-5 22-3.6v-33C65 28 56.5 29 50 33z" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M50 33v32" strokeWidth="2" />
-      <path d="M31 20l4 7M69 20l-4 7M50 15v6" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 const APP_TZ = "Asia/Phnom_Penh";
 
 export type QuickActionKey = "addBook" | "addThesis" | "addPublication" | "createPost" | "manageUsers" | "reviewRequests";
 
 /**
- * One calm header line: greeting + role/date on the left; on the right a
- * single primary action (Add book), a Create menu, a quiet utility menu and
- * a quiet external site link. Everything is permission-aware — actions the
- * admin cannot perform are not rendered at all.
+ * One slim header row (~72px): greeting + date/role on the left; on the right
+ * a single primary action (Add book), a Create menu, a quiet utility menu and
+ * a quiet external site link. No decorative illustration — the Action Center
+ * must stay above the fold on a 1366×768 screen. Everything is
+ * permission-aware — actions the admin cannot perform are not rendered at all.
  */
 export default async function DashboardHeaderCompact({
   name,
@@ -68,28 +55,16 @@ export default async function DashboardHeaderCompact({
   ].filter(Boolean) as HeaderMenuItem[];
 
   return (
-    <header className="dash-header relative z-30 flex flex-wrap items-center justify-between gap-x-5 gap-y-3.5 px-5 py-4 sm:px-6 sm:py-[18px]">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[18px]">
-        <SealWatermark />
-      </div>
-
-      <div className="flex min-w-0 items-center gap-3.5">
-        <span className="dash-medallion relative" aria-hidden="true">
-          <Library className="h-[22px] w-[22px]" />
-        </span>
-        <div className="min-w-0">
-          <p className="dash-eyebrow">{t("eyebrow")}</p>
-          <h1 className="mt-0.5 text-[22px] font-bold leading-tight text-[var(--dash-ink)] sm:text-[26px]">
-            {t(greetingKey, { name: firstName })}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[12.5px] text-text-muted">
-            <span>{t("subtitle")}</span>
-            <span className="inline-flex items-center gap-1.5">
-              <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[var(--dash-gold)]" />
-              {todayLabel} · {t(`role.${role}`)}
-            </span>
-          </p>
-        </div>
+    <header className="dash-header relative z-30 flex min-h-[72px] flex-wrap items-center justify-between gap-x-5 gap-y-2 px-5 py-3 sm:px-6">
+      <div className="min-w-0">
+        <h1 className="truncate text-[17px] font-bold leading-tight text-[var(--dash-ink)] sm:text-[19px]">
+          {t(greetingKey, { name: firstName })}
+        </h1>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12px] text-text-muted">
+          {todayLabel}
+          <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[var(--dash-gold)]" />
+          {t(`role.${role}`)}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">

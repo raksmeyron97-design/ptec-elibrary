@@ -182,38 +182,6 @@
   border-radius: 17px 17px 0 0;
   background: linear-gradient(90deg, var(--dash-blue) 0%, var(--dash-gold) 42%, color-mix(in srgb, var(--dash-gold) 30%, transparent) 70%, transparent 100%);
 }
-.dash-seal {   /* seal watermark — sits behind the header text */
-  position: absolute;
-  inset-inline-end: -34px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 210px;
-  height: 210px;
-  opacity: .045;
-  pointer-events: none;
-  color: var(--dash-blue);
-}
-
-/* Header brand medallion (royal-blue icon container). */
-.dash-medallion {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  color: #fff;
-  background: linear-gradient(150deg, var(--ptec-navy-700) 0%, var(--dash-blue) 55%, var(--ptec-navy-950) 100%);
-  box-shadow: 0 6px 16px -8px rgba(30, 58, 138, .7), inset 0 1px 0 rgba(255, 255, 255, .18);
-}
-.dash-medallion::after {   /* gold ring accent */
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: 16px;
-  border: 1.5px solid color-mix(in srgb, var(--dash-gold) 55%, transparent);
-  opacity: .5;
-}
-
 /* Small caps eyebrow used across the dashboard. */
 .dash-eyebrow {
   font-size: 10.5px;
