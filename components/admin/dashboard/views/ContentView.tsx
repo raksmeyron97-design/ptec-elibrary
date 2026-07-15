@@ -66,6 +66,10 @@ export default async function ContentView({
   };
 
   const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+  // A per-row "+N" trend is redundant noise until the previous period holds
+  // real data (same base-20 floor as the KPI percentage rule) — hide the
+  // whole column until two comparable periods exist.
+  const showTrend = filters.compare && data.prevPeriodViews >= 20;
   const overflowPresets = CONTENT_PRESETS.filter((p) => !PRIMARY_CONTENT_PRESETS.includes(p));
   const maxViewsPer = Math.max(1, ...data.departments.map((x) => x.viewsPerResource ?? 0));
 
@@ -207,7 +211,9 @@ export default async function ContentView({
                       <InfoTip label={t("cols.conversion")} text={t("conversionFormula")} />
                     </span>
                   </th>
-                  <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.trend")}</th>
+                  {showTrend && (
+                    <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.trend")}</th>
+                  )}
                   <th scope="col" className="px-2 py-2 text-end font-bold">
                     <span className="inline-flex items-center gap-0.5">
                       {t("cols.metadata")}
@@ -281,7 +287,7 @@ export default async function ContentView({
                         `${row.conversionPct}%`
                       )}
                     </td>
-                    <td className="px-2 py-2 text-end">{trendIcon(row.delta)}</td>
+                    {showTrend && <td className="px-2 py-2 text-end">{trendIcon(row.delta)}</td>}
                     <td className="px-2 py-2 text-end">{pctChip(row.completeness, row.missing)}</td>
                     <td className="px-2 py-2 pe-4">
                       <div className="flex items-center justify-end gap-1">

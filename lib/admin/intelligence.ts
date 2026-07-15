@@ -1131,6 +1131,9 @@ export type ContentIntelligenceData = {
   preset: ContentPreset;
   departments: DepartmentRow[];
   health: CollectionHealthData;
+  /** Total previous-period detail views (post-filter) — the table hides its
+   *  per-row trend column until this baseline is meaningful. */
+  prevPeriodViews: number;
   generatedAt: string;
 };
 
@@ -1179,6 +1182,7 @@ export async function getContentIntelligence(
     }
     return a;
   };
+  let prevPeriodViews = 0;
   for (const r of excludeInternal(viewRowsAll.filter(passes), internalIds)) {
     if (!r.contentId) continue;
     const a = aggOf(`${r.contentType}:${r.contentId}`);
@@ -1188,6 +1192,7 @@ export async function getContentIntelligence(
       if (id) a.viewers.add(id);
     } else {
       a.prevViews++;
+      prevPeriodViews++;
     }
   }
   for (const r of excludeInternal((readerRowsAll ?? []).filter(passes), internalIds)) {
@@ -1360,6 +1365,7 @@ export async function getContentIntelligence(
     preset,
     departments,
     health,
+    prevPeriodViews,
     generatedAt: now.toISOString(),
   };
 }
