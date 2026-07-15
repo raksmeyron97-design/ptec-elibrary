@@ -11,7 +11,7 @@ import {
   TONE_DOT,
 } from "@/lib/catalog";
 import CatalogAdminActions from "./CatalogAdminActions";
-import CsvImportModal from "./CsvImportModal";
+import CsvImportWizard from "./import/CsvImportWizard";
 import AdminCatalogToolbar from "./AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
 import Icon from "@/components/ui/core/Icon";
@@ -160,7 +160,7 @@ export default async function AdminCatalogsPage({
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="mb-6 flex flex-wrap justify-end gap-3">
-        <CsvImportModal />
+        <CsvImportWizard />
         <Link
           href="/admin/catalogs/add"
           className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"

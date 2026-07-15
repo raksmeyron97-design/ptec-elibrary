@@ -12,12 +12,10 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import {
   catalogSlugify,
   pickCatalogColor,
-  parseCatalogCsv,
   validateIsbn,
   validatePublicationYear,
   cleanText,
   cleanLongText,
-  computeCopyStats,
 } from "@/lib/catalog";
 import { logAdminAction } from "@/app/actions/audit";
 
@@ -231,116 +229,6 @@ export async function hardDeleteCatalogBook(bookId: string) {
 }
 
 // ── importCatalogCsv ───────────────────────────────────────────────────────────
-export async function importCatalogCsv(formData: FormData) {
-  const { supabase, userId } = await requirePermission("books", "write");
-  const csvText = formData.get("csv_text")?.toString();
-  if (!csvText) throw new Error("No CSV data provided");
-  const rows = parseCatalogCsv(csvText);
-  if (rows.length === 0) throw new Error("No valid rows found in CSV");
-
-  // Group rows by book (title + author)
-  const bookGroups = new Map<string, typeof rows>();
-  for (const r of rows) {
-    const groupKey = `${r.title.toLowerCase().trim()}|${r.author.toLowerCase().trim()}`;
-    if (!bookGroups.has(groupKey)) {
-      bookGroups.set(groupKey, []);
-    }
-    bookGroups.get(groupKey)!.push(r);
-  }
-
-  let importedBooksCount = 0;
-  const problems: string[] = [];
-
-  for (const groupRows of bookGroups.values()) {
-    const mainRow = groupRows[0];
-
-    // Validate the fields that have hard rules; skip bad rows with a report
-    // instead of silently importing garbage.
-    const isbn = validateIsbn(mainRow.isbn);
-    if (!isbn.ok) { problems.push(`"${mainRow.title}": ${isbn.error}`); continue; }
-    const year = validatePublicationYear(mainRow.year || null);
-    if (!year.ok) { problems.push(`"${mainRow.title}": ${year.error}`); continue; }
-
-    const baseSlug = catalogSlugify(mainRow.title);
-    const suffix = isbn.normalized || catalogSlugify(mainRow.author);
-    const slug = baseSlug
-      ? (suffix ? `${baseSlug}-${catalogSlugify(suffix)}` : baseSlug)
-      : `book-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-
-    // Every unique barcode in the group becomes one physical copy.
-    const barcodes = new Set<string>();
-    for (const r of groupRows) {
-      const bcode = r.barcode?.trim() || r.accession_number?.trim();
-      if (bcode) barcodes.add(bcode);
-    }
-
-    const bookRecord = {
-      title: mainRow.title,
-      author: mainRow.author,
-      slug,
-      isbn: isbn.normalized,
-      publisher: mainRow.publisher || null,
-      year: year.year,
-      language: mainRow.language || "km",
-      category: mainRow.category || null,
-      department: mainRow.department || null,
-      shelf_location: mainRow.shelf_location || null,
-      // Derived — recounted from copies after the copy insert below.
-      copies_total: 0,
-      copies_available: 0,
-      description: mainRow.description || null,
-      accession_number: mainRow.accession_number || null,
-      cover_url: mainRow.cover_url || null,
-      cover_color: pickCatalogColor(mainRow.title),
-      keywords: mainRow.keywords ? mainRow.keywords.split(",").map(k => k.trim()).filter(Boolean) : [],
-      created_by: userId,
-    };
-
-    const { data: bookData, error: bookError } = await supabase
-      .from("catalog_books")
-      .upsert(bookRecord, { onConflict: "slug", ignoreDuplicates: false })
-      .select("id")
-      .single();
-
-    if (bookError || !bookData) {
-      problems.push(`"${mainRow.title}": ${bookError?.message ?? "insert failed"}`);
-      continue;
-    }
-
-    importedBooksCount++;
-
-    const copyRecords = Array.from(barcodes).map((bcode) => ({
-      catalog_book_id: bookData.id,
-      barcode: bcode,
-      call_number: null,
-      shelf_location: mainRow.shelf_location || null,
-      holding_library: "PTEC Library",
-      status: "available",
-    }));
-
-    if (copyRecords.length > 0) {
-      const { error: copyError } = await supabase
-        .from("catalog_copies")
-        .upsert(copyRecords, { onConflict: "barcode", ignoreDuplicates: true });
-      if (copyError) {
-        problems.push(`"${mainRow.title}" copies: ${copyError.message}`);
-      }
-    }
-
-    // Recount the derived counters from the actual copy rows.
-    const { data: liveCopies } = await supabase
-      .from("catalog_copies").select("status").eq("catalog_book_id", bookData.id);
-    const stats = computeCopyStats(liveCopies ?? []);
-    await supabase
-      .from("catalog_books")
-      .update({ copies_total: stats.total, copies_available: stats.available })
-      .eq("id", bookData.id);
-  }
-
-  await logAdminAction(userId, "importCatalogCsv", "catalog_books", undefined, {
-    count: importedBooksCount, problems: problems.slice(0, 10),
-  });
-  revalidateCatalogBook();
-  revalidatePath("/admin/catalogs");
-  return { imported: importedBooksCount, problems };
-}
+// Removed: superseded by the CSV import wizard (import-actions.ts), which
+// re-validates every row server-side, supports duplicate strategies, batching,
+// per-row results and import jobs. See app/(admin)/admin/(protected)/catalogs/import/.

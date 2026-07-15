@@ -1,5 +1,4 @@
 // lib/catalog.ts
-import Papa from "papaparse";
 // ── Types & helpers for the physical-book catalogue ──────────────────────────
 //
 // This file is the single source of truth for the catalog domain:
@@ -441,32 +440,6 @@ export function pickCatalogColor(title: string): string {
   return COVER_COLORS[Math.abs(hash) % COVER_COLORS.length];
 }
 
-// ── CSV parse helper (client-side) ───────────────────────────────────────────
-
-export type CsvCatalogRow = {
-  title:             string;
-  author:            string;
-  isbn?:             string;
-  publisher?:        string;
-  year?:             string;
-  language?:         string;
-  category?:         string;
-  department?:       string;
-  shelf_location?:   string;
-  copies_total?:     string;
-  description?:      string;
-  accession_number?: string;
-  barcode?:          string;
-  cover_url?:        string;
-  keywords?:         string;
-};
-
-export function parseCatalogCsv(text: string): CsvCatalogRow[] {
-  const parsed = Papa.parse<Record<string, string>>(text.trim(), {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
-    transform: (v) => v.trim()
-  });
-  return parsed.data.filter((r) => r.title && r.author) as CsvCatalogRow[];
-}
+// ── CSV parse helper ─────────────────────────────────────────────────────────
+// parseCatalogCsv was removed: CSV parsing for imports now lives in
+// lib/catalog-import.ts (shared client/server validation for the wizard).
