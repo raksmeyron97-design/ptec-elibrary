@@ -60,6 +60,7 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               definition={t("kpi.detailViewsDef")}
               trend={kpis.detailViews.trend}
               compareLabel={prevOf(kpis.detailViews.trend?.previous)}
+              spark={kpis.detailViews.spark}
               href={link("content")}
               drillLabel={t("kpi.drill")}
               icon={Eye}
@@ -74,6 +75,9 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               trend={kpis.readerOpens.collecting ? null : kpis.readerOpens.trend}
               compareLabel={prevOf(kpis.readerOpens.trend?.previous)}
               badge={kpis.readerOpens.collecting ? t("kpi.collecting") : null}
+              spark={kpis.readerOpens.collecting ? null : kpis.readerOpens.spark}
+              href={link("content")}
+              drillLabel={t("kpi.drill")}
               icon={BookOpenCheck}
             />
           </div>
@@ -85,6 +89,9 @@ export default async function OverviewView({ filters }: { filters: DashboardFilt
               definition={t("kpi.downloadsDef")}
               trend={kpis.downloads.trend}
               compareLabel={prevOf(kpis.downloads.trend?.previous)}
+              spark={kpis.downloads.spark}
+              href={link("content")}
+              drillLabel={t("kpi.drill")}
               icon={Download}
             />
           </div>
