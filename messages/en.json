@@ -1577,7 +1577,9 @@
         "content_approve": "Approved content"
       },
       "backupSetupHint": "Backup logging is not set up — see docs/BACKUP-DR.md",
-      "fixBrokenFiles": "Review & fix"
+      "fixBrokenFiles": "Review & fix",
+      "groupTimes": "{count}×",
+      "sensitiveAction": "Handles personal data"
     },
     "states": {
       "sectionError": "This section failed to load",

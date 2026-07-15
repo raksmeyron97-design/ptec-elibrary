@@ -2,10 +2,15 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
   HardDrive, Cpu, DatabaseBackup, FileCheck2, Activity, ShieldCheck, Wrench,
-  CheckCircle2, AlertTriangle, AlertOctagon, CircleDashed, HelpCircle, Settings2, type LucideIcon,
+  CheckCircle2, AlertTriangle, AlertOctagon, CircleDashed, HelpCircle, Settings2, ShieldAlert, type LucideIcon,
 } from "lucide-react";
 import { getSystemData } from "@/lib/admin/intelligence";
-import { adminActionLabelKey, type DashboardFilters } from "@/lib/admin/dashboard-shared";
+import {
+  adminActionLabelKey,
+  groupConsecutiveActivity,
+  isSensitiveAdminAction,
+  type DashboardFilters,
+} from "@/lib/admin/dashboard-shared";
 import FreshnessLine from "../FreshnessLine";
 
 type HealthStatus = "healthy" | "warning" | "critical" | "collecting" | "unknown" | "notConfigured";
@@ -229,15 +234,13 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
             <p className="mt-3 rounded-xl bg-paper px-3 py-5 text-center text-[12px] text-text-muted">{t("noAudit")}</p>
           ) : (
             <ol className="mt-3 space-y-0.5">
-              {data.recentAdminActions.map((a, i) => {
+              {groupConsecutiveActivity(data.recentAdminActions).map((group, i) => {
+                const a = group.head;
                 const key = adminActionLabelKey(a.action);
                 const label = key ? t(`activity.${key}`) : fallbackActionLabel(a.action);
-                return (
-                  <li
-                    key={i}
-                    className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors hover:bg-paper"
-                    title={a.action}
-                  >
+                const sensitive = isSensitiveAdminAction(a.action);
+                const rowBody = (
+                  <>
                     <span
                       className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand ring-1 ring-inset ring-brand/10"
                       aria-hidden="true"
@@ -246,10 +249,50 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                     </span>
                     <span className="min-w-0 flex-1 truncate text-text-body">
                       <span className="font-semibold text-text-heading">{a.actor}</span> · {label}
+                      {group.entries.length > 1 && (
+                        <span className="ms-1 rounded-md bg-brand/10 px-1 py-px text-[10px] font-bold tabular-nums text-brand">
+                          {t("groupTimes", { count: nf.format(group.entries.length) })}
+                        </span>
+                      )}
+                      {sensitive && (
+                        <span className="ms-1 inline-flex align-text-bottom" title={t("sensitiveAction")}>
+                          <ShieldAlert className="h-3 w-3 text-amber-600" aria-hidden="true" />
+                          <span className="sr-only">{t("sensitiveAction")}</span>
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 tabular-nums text-[10.5px] text-text-muted">
                       {df.format(new Date(a.createdAt))}
                     </span>
+                  </>
+                );
+                if (group.entries.length === 1) {
+                  return (
+                    <li
+                      key={i}
+                      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors hover:bg-paper"
+                      title={a.action}
+                    >
+                      {rowBody}
+                    </li>
+                  );
+                }
+                // Bulk run — one summary row, individual entries behind a toggle.
+                return (
+                  <li key={i} className="text-[12px]" title={a.action}>
+                    <details>
+                      <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
+                        {rowBody}
+                      </summary>
+                      <ol className="ms-[38px] space-y-0.5 border-s border-divider/70 ps-3">
+                        {group.entries.map((entry, j) => (
+                          <li key={j} className="flex items-center gap-2 py-0.5 text-[11px] text-text-muted">
+                            <span className="min-w-0 flex-1 truncate">{label}</span>
+                            <span className="shrink-0 tabular-nums">{df.format(new Date(entry.createdAt))}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
                   </li>
                 );
               })}

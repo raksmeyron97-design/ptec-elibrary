@@ -346,6 +346,58 @@ export function adminActionLabelKey(action: string): string | null {
   return KNOWN_ADMIN_ACTIONS.has(a) ? a.replace(/\./g, "_") : null;
 }
 
+// ── Admin-activity grouping ──────────────────────────────────────────────────
+
+const ACTIVITY_GROUP_WINDOW_MS = 15 * 60_000;
+
+export type ActivityGroup<T> = {
+  /** Representative (most recent) entry of the run. */
+  head: T;
+  /** All entries in the run, newest first (length 1 = not grouped). */
+  entries: T[];
+};
+
+/**
+ * Collapses consecutive identical actions by the same actor into one group
+ * when each entry follows the previous within `windowMs` (bulk operations
+ * like "retired 3 duplicate books" otherwise flood the timeline). Input must
+ * be sorted newest-first — the order the audit query returns.
+ */
+export function groupConsecutiveActivity<T extends { action: string; actor: string; createdAt: string }>(
+  rows: T[],
+  windowMs = ACTIVITY_GROUP_WINDOW_MS,
+): ActivityGroup<T>[] {
+  const groups: ActivityGroup<T>[] = [];
+  for (const row of rows) {
+    const last = groups[groups.length - 1];
+    const prevEntry = last?.entries[last.entries.length - 1];
+    if (
+      prevEntry &&
+      prevEntry.action === row.action &&
+      prevEntry.actor === row.actor &&
+      new Date(prevEntry.createdAt).getTime() - new Date(row.createdAt).getTime() <= windowMs
+    ) {
+      last.entries.push(row);
+    } else {
+      groups.push({ head: row, entries: [row] });
+    }
+  }
+  return groups;
+}
+
+const SENSITIVE_ACTION_RE = /reveal|password|contact/;
+const SENSITIVE_ACTIONS = new Set(["user.delete", "user.suspend", "user.invite"]);
+
+/**
+ * Actions that touch personal data (revealing reader contacts, password
+ * resets, account suspension/deletion) get a shield marker in activity
+ * timelines so privacy-relevant operations stay visible at a glance.
+ */
+export function isSensitiveAdminAction(action: string): boolean {
+  const a = action.toLowerCase().trim();
+  return SENSITIVE_ACTION_RE.test(a) || SENSITIVE_ACTIONS.has(a);
+}
+
 // ── Ratio helpers ────────────────────────────────────────────────────────────
 
 /** Safe percentage (0–100, one decimal) — null when the denominator is 0. */
