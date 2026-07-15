@@ -44,7 +44,7 @@ export default function EngagementChart({
 }: {
   series: EngagementSeries;
   prevSeries: EngagementSeries;
-  annotations: { date: string; count: number }[];
+  annotations: { date: string; count: number; titles?: string[] }[];
   granularity: "hour" | "day";
   compare: boolean;
 }) {
@@ -95,7 +95,16 @@ export default function EngagementChart({
   }));
 
   const labelEvery = Math.max(1, Math.ceil(buckets.length / Math.max(3, Math.floor(innerW / 70))));
-  const annotationByDate = new Map(annotations.map((a) => [a.date, a.count]));
+  const annotationByDate = new Map(annotations.map((a) => [a.date, a]));
+
+  /** "2 resources published: Title A, Title B" (titles are capped upstream). */
+  const annotationLabel = (a: { count: number; titles?: string[] }) => {
+    const base = t("publishedAnnotation", { count: a.count });
+    const titles = a.titles ?? [];
+    if (titles.length === 0) return base;
+    const suffix = a.count > titles.length ? ", …" : "";
+    return `${base}: ${titles.join(", ")}${suffix}`;
+  };
 
   // Summary for the selected metric (single-metric mode).
   const activePoints = seriesOf(activeMetric, series);
@@ -210,16 +219,21 @@ export default function EngagementChart({
           )}
 
           {showAnnotations &&
-            buckets.map((b, i) =>
-              annotationByDate.has(b) ? (
+            buckets.map((b, i) => {
+              const ann = annotationByDate.get(b);
+              return ann ? (
                 <g key={`ann-${b}`}>
                   <line x1={x(i)} y1={padTop} x2={x(i)} y2={padTop + innerH} stroke="#DDB022" strokeWidth="1" strokeDasharray="3 3" />
-                  <circle cx={x(i)} cy={padTop} r="3.5" fill="#DDB022">
-                    <title>{t("publishedAnnotation", { count: annotationByDate.get(b) ?? 0 })}</title>
+                  {/* Oversized transparent hit-area so the hover target isn't a 3.5px dot. */}
+                  <circle cx={x(i)} cy={padTop} r="9" fill="transparent">
+                    <title>{annotationLabel(ann)}</title>
+                  </circle>
+                  <circle cx={x(i)} cy={padTop} r="3.5" fill="#DDB022" pointerEvents="none">
+                    <title>{annotationLabel(ann)}</title>
                   </circle>
                 </g>
-              ) : null,
-            )}
+              ) : null;
+            })}
 
           {/* Previous period — subtle dashed overlay (single-metric mode) */}
           {!compareAll && drawn[0].prev && (

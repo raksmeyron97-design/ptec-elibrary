@@ -655,14 +655,20 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
   };
 
   // ── Publish annotations (content published inside the window) ──
-  const annotations = new Map<string, number>();
+  // Titles are carried (capped) so the chart marker can say *what* was
+  // published, not just how many.
+  const ANNOTATION_TITLES_MAX = 3;
+  const annotations = new Map<string, { count: number; titles: string[] }>();
   for (const c of catalog) {
     const publishedTs = c.publishedAt ?? (c.published ? c.createdAt : null);
     if (!publishedTs || !metaMatchesFilters(c, filters)) continue;
     const ms = new Date(publishedTs).getTime();
     if (ms >= win.start.getTime() && ms <= win.end.getTime()) {
       const key = win.keyOf(new Date(publishedTs));
-      annotations.set(key, (annotations.get(key) ?? 0) + 1);
+      const entry = annotations.get(key) ?? { count: 0, titles: [] };
+      entry.count++;
+      if (entry.titles.length < ANNOTATION_TITLES_MAX) entry.titles.push(c.title);
+      annotations.set(key, entry);
     }
   }
 
@@ -791,7 +797,7 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
         downloads: dlPrev,
       },
       annotations: [...annotations.entries()]
-        .map(([date, count]) => ({ date, count }))
+        .map(([date, v]) => ({ date, count: v.count, titles: v.titles }))
         .sort((a, b) => (a.date < b.date ? -1 : 1)),
     },
     discovery,
