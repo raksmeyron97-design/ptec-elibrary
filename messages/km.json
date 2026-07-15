@@ -82,7 +82,22 @@
     "colorPink": "បន្លិចពណ៌ផ្កាឈូក",
     "readingProgress": "វឌ្ឍនភាពនៃការអាន",
     "documentArea": "ទំព័រឯកសារ",
-    "moreOptions": "ជម្រើសផ្សេងទៀត"
+    "moreOptions": "ជម្រើសផ្សេងទៀត",
+    "appearance": "រូបរាង",
+    "themeLight": "ភ្លឺ",
+    "themeDark": "ងងឹត",
+    "themeLightEnabled": "បានបើកមុខងារអានផ្ទៃភ្លឺ",
+    "themeDarkEnabled": "បានបើកមុខងារអានផ្ទៃងងឹត",
+    "zoom": "ការពង្រីក",
+    "resetZoom": "កំណត់ការពង្រីកឡើងវិញ",
+    "actualSize": "ទំហំពិត",
+    "customZoom": "ភាគរយពង្រីក",
+    "zoomAnnounce": "ពង្រីក {percent} ភាគរយ",
+    "rotateCw": "បង្វិលទំព័រ",
+    "rotationAnnounce": "ទំព័របានបង្វិល {degrees} ដឺក្រេ",
+    "pagesTab": "ទំព័រ",
+    "sidebar": "របារចំហៀង",
+    "notesTab": "ចំណារ"
   },
   "nav": {
     "home": "ទំព័រដើម",

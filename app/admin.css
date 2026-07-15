@@ -97,11 +97,6 @@
 /* ── Intelligence dashboard (second pass, 2026-07-12) ─────────────────
    Data-friendly sans stack for both locales (Khmer prefers a sans face
    over Hanuman's serif flavour in dense tables). */
-.dash-sans {
-  font-family: var(--font-var-sans), "Noto Sans Khmer", "Kantumruy Pro",
-    "Hanuman", var(--font-var-hanuman), system-ui, sans-serif;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════
    PTEC LIBRARY COMMAND CENTER — third pass, 2026-07-13
    "Institutional Modernism": royal-blue + restrained gold on warm ivory,
@@ -172,7 +167,6 @@
    Warm-white panel, thin gold brand line, restrained seal watermark. */
 .dash-header {
   position: relative;
-  overflow: hidden;
   border-radius: 18px;
   background:
     radial-gradient(130% 150% at 100% -20%, color-mix(in srgb, var(--dash-blue) 8%, #fff) 0%, #fff 52%),
@@ -185,6 +179,7 @@
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
+  border-radius: 17px 17px 0 0;
   background: linear-gradient(90deg, var(--dash-blue) 0%, var(--dash-gold) 42%, color-mix(in srgb, var(--dash-gold) 30%, transparent) 70%, transparent 100%);
 }
 .dash-seal {   /* seal watermark — sits behind the header text */

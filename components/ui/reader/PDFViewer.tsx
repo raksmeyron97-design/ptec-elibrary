@@ -13,6 +13,19 @@ import type { ComponentProps } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import {
+  Bookmark,
+  Check,
+  LayoutGrid,
+  List,
+  MoreHorizontal,
+  Moon,
+  PanelLeft,
+  PenLine,
+  RotateCw,
+  Search as SearchIcon,
+  Sun,
+} from "lucide-react";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations, useLocale } from "next-intl";
 import { saveReadingProgress } from "@/app/actions/reading-progress";
@@ -32,6 +45,26 @@ import {
   type ItemDecoration,
   type MatchSpan,
 } from "@/lib/reader/search-matches";
+import { clampScale, stepZoom } from "@/lib/reader/zoom";
+import {
+  READER_KEYS,
+  READER_THEMES,
+  loadNativePageWidth,
+  loadReaderFitMode,
+  loadReaderRotation,
+  loadReaderTheme,
+  loadReaderViewMode,
+  loadReaderZoom,
+  lsGet,
+  lsSet,
+  type ReaderFitMode,
+  type ReaderTheme,
+  type ReaderViewMode,
+} from "./reader-config";
+import ThemeControl from "./ThemeControl";
+import ZoomControl from "./ZoomControl";
+import ThumbnailsPanel from "./ThumbnailsPanel";
+import { useAutoHideControls } from "./useAutoHideControls";
 
 /* ──────────────────────────────────────────────────────────────────
    Worker — SELF-HOSTED for true offline support.
@@ -67,10 +100,7 @@ type PDFViewerProps = {
   isLoggedIn?: boolean;
 };
 
-type FitMode = "width" | "page";
-type ViewMode = "single" | "scroll";
-type Theme = "light" | "sepia" | "dark";
-type PanelTab = "outline" | "bookmarks" | "search" | "annotations" | null;
+type PanelTab = "pages" | "outline" | "bookmarks" | "search" | "annotations" | null;
 type PdfErrorKind = "missing" | "permission" | "invalid" | "network" | "unknown";
 type ReaderEventType =
   | "pdf_load_error"
@@ -94,6 +124,8 @@ type PageHit = { page: number; count: number; snippet: string; firstMatch: numbe
 /** A page's matches, each tagged with its global (document-wide) index. */
 type IndexedPageMatch = { spans: MatchSpan[]; idx: number };
 
+type PageColors = { background: string; foreground: string };
+
 /* ──────────────────────────────────────────────────────────────────
    Constants
 ─────────────────────────────────────────────────────────────────── */
@@ -102,7 +134,6 @@ const MAX_SCROLL_W = 1000; // cap page width on very wide screens for readabilit
 const SCROLL_PAGE_Y = 24; // vertical padding around each virtualized scroll page
 const VIRTUAL_OVERSCAN = 2; // pages kept before/after the visible viewport
 const MAX_RENDER_DPR = 2; // cap canvas density to avoid huge mobile/retina canvases
-const TOOLBAR_H = 56;
 const AUTOSAVE_MS = 1500;
 const MAX_MATCHES = 500; // stop in-doc search here to keep low-end phones responsive
 const DEFAULT_ASPECT = Math.SQRT2; // A4 height/width — placeholder until page 1 is measured
@@ -117,7 +148,7 @@ function localizeDigits(value: number | string, locale: string): string {
 const cx = (...c: (string | false | null | undefined)[]) =>
   c.filter(Boolean).join(" ");
 
-/** Row style for the mobile overflow (⋯) menu. */
+/** Row style for overflow (⋯) menus. */
 const MENU_ROW =
   "flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-default disabled:opacity-50";
 
@@ -126,12 +157,6 @@ const clamp = (min: number, max: number, v: number) =>
 
 const dist = (a: Touch, b: Touch) =>
   Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-
-function themeFilter(theme: Theme): string | undefined {
-  if (theme === "dark") return "invert(1) hue-rotate(180deg)";
-  if (theme === "sepia") return "sepia(0.5) saturate(1.1) brightness(0.98)";
-  return undefined;
-}
 
 function classifyPdfError(error: Error): PdfErrorKind {
   const message = error.message.toLowerCase();
@@ -180,23 +205,6 @@ function sendReaderEvent(payload: {
   }
 }
 
-
-/* localStorage helpers (this runs in the user's app, not a sandbox) */
-const lsGet = (k: string): string | null => {
-  try {
-    return typeof window !== "undefined" ? window.localStorage.getItem(k) : null;
-  } catch {
-    return null;
-  }
-};
-const lsSet = (k: string, v: string) => {
-  try {
-    window.localStorage.setItem(k, v);
-  } catch {
-    /* ignore quota / privacy-mode errors */
-  }
-};
-
 /* ──────────────────────────────────────────────────────────────────
    Module-scope sub-components (stable identity → no remount on re-render)
 ─────────────────────────────────────────────────────────────────── */
@@ -224,7 +232,7 @@ const ToolButton = memo(function ToolButton({
       aria-pressed={active}
       title={label}
       className={cx(
-        "inline-flex items-center justify-center rounded-md transition disabled:opacity-30",
+        "inline-flex items-center justify-center rounded-md transition disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
         active
           ? "bg-cyan-500/20 text-cyan-300"
           : "text-slate-400 hover:bg-bg-surface/10 hover:text-white",
@@ -273,12 +281,18 @@ const OutlineTree = memo(function OutlineTree({
 });
 
 /* One page inside continuous-scroll mode. The parent virtualizer only mounts a
-   small moving window, so every mounted page is intentionally rendered. */
+   small moving window, so every mounted page is intentionally rendered.
+   Dark mode arrives via pdf.js's own pageColors recolor API (passed through
+   react-pdf), NOT a CSS invert filter — images keep usable appearance and
+   highlights/links/text selection are untouched. */
 const ScrollPage = memo(function ScrollPage({
   pageNumber,
   width,
   estHeight,
-  filter,
+  rotate,
+  pageColors,
+  pageFrameClass,
+  placeholderClass,
   devicePixelRatio,
   customTextRenderer,
   onRenderError,
@@ -286,7 +300,10 @@ const ScrollPage = memo(function ScrollPage({
   pageNumber: number;
   width?: number;
   estHeight: number;
-  filter?: string;
+  rotate?: number;
+  pageColors?: PageColors;
+  pageFrameClass: string;
+  placeholderClass: string;
   devicePixelRatio: number;
   customTextRenderer?: (item: { str: string; itemIndex: number }) => string;
   onRenderError?: (error: Error) => void;
@@ -302,24 +319,24 @@ const ScrollPage = memo(function ScrollPage({
         paddingTop: SCROLL_PAGE_Y / 2,
       }}
     >
-      <div className="relative mx-auto w-max shadow-lg">
-        <div style={{ filter }}>
-          <Page
-            pageNumber={pageNumber}
-            width={width}
-            devicePixelRatio={devicePixelRatio}
-            renderTextLayer
-            renderAnnotationLayer
-            customTextRenderer={customTextRenderer}
-            onRenderError={onRenderError}
-            loading={
-              <div
-                style={{ height: estHeight, width: width ?? "min(100%, 720px)" }}
-                className="animate-pulse rounded bg-paper/60"
-              />
-            }
-          />
-        </div>
+      <div className={pageFrameClass}>
+        <Page
+          pageNumber={pageNumber}
+          width={width}
+          rotate={rotate}
+          pageColors={pageColors}
+          devicePixelRatio={devicePixelRatio}
+          renderTextLayer
+          renderAnnotationLayer
+          customTextRenderer={customTextRenderer}
+          onRenderError={onRenderError}
+          loading={
+            <div
+              style={{ height: estHeight, width: width ?? "min(100%, 720px)" }}
+              className={cx("animate-pulse rounded", placeholderClass)}
+            />
+          }
+        />
       </div>
     </div>
   );
@@ -417,13 +434,12 @@ export default function PDFViewer({
       ? clamp(1, totalPages, Math.round((initialProgressPct / 100) * totalPages))
       : 1,
   );
-  const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [, startTransition] = useTransition();
   const [docKey, setDocKey] = useState(0); // bump to force a reload on retry
   const [loadErrorKind, setLoadErrorKind] = useState<PdfErrorKind | null>(null);
-  
+
   const [maxProgressPct, setMaxProgressPct] = useState(initialMaxProgressPct || initialProgressPct || 0);
 
   /* ── Layout measurement ─────────────────────────────────────── */
@@ -435,36 +451,39 @@ export default function PDFViewer({
     const ar = parseFloat(lsGet(`ebook:ar:${bookId}`) ?? "");
     return Number.isFinite(ar) && ar > 0.2 && ar < 5 ? ar : undefined;
   });
+  // page 1 width at scale 1 (CSS px) — makes "100%" mean actual size
+  const [nativeWidth, setNativeWidth] = useState<number | undefined>(() =>
+    loadNativePageWidth(bookId),
+  );
+  const [inherentRotate, setInherentRotate] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [renderPixelRatio, setRenderPixelRatio] = useState(1);
 
-  /* ── Reading preferences (persisted) ──────────────────────────
+  /* ── Reading preferences (persisted, v2 keys w/ legacy fallback) ──
      Lazy-initialized straight from localStorage: this component only ever
      mounts client-side (ssr:false wrapper), so there is no hydration pass,
      and reading in an effect instead lets the persist-effects clobber the
-     stored value under StrictMode's double-run. */
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const v = lsGet("ebook:viewMode");
-    return v === "single" || v === "scroll" ? v : "scroll";
-  });
-  const [fitMode, setFitMode] = useState<FitMode>(() => {
-    const f = lsGet("ebook:fitMode");
-    return f === "width" || f === "page" ? f : "width";
-  });
-  const [theme, setTheme] = useState<Theme>(() => {
-    const th = lsGet("ebook:theme");
-    return th === "light" || th === "sepia" || th === "dark" ? th : "light";
-  });
+     stored value under StrictMode's double-run.
+     Theme / view / fit / zoom are global reader preferences; rotation and
+     reading position are per book. */
+  const [viewMode, setViewMode] = useState<ReaderViewMode>(loadReaderViewMode);
+  const [fitMode, setFitMode] = useState<ReaderFitMode>(loadReaderFitMode);
+  const [zoomScale, setZoomScale] = useState<number>(loadReaderZoom);
+  const [theme, setTheme] = useState<ReaderTheme>(loadReaderTheme);
+  const [rotation, setRotation] = useState<number>(() => loadReaderRotation(bookId));
 
   /* ── Navigation / save status ───────────────────────────────── */
   const [pageInputValue, setPageInputValue] = useState(String(currentPage));
   const [isPageInputFocused, setIsPageInputFocused] = useState(false);
 
-  /* ── Mobile overflow menu (⋯) — holds the secondary controls ─── */
+  /* ── Overflow menus ─────────────────────────────────────────── */
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  /* ── Panel (outline / bookmarks / search) ───────────────────── */
+  /* ── Panel (pages / outline / bookmarks / search / annotations) ── */
   const [panelTab, setPanelTab] = useState<PanelTab>(null);
+  const lastPanelTabRef = useRef<Exclude<PanelTab, null>>("outline");
+  const [pdfDoc, setPdfDoc] = useState<PdfDocumentProxy | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
   const [bookmarks, setBookmarks] = useState<number[]>(() => {
     try {
@@ -495,8 +514,10 @@ export default function PDFViewer({
   const [savingAnnotation, setSavingAnnotation] = useState(false);
 
   /* ── Refs ───────────────────────────────────────────────────── */
+  const rootRef = useRef<HTMLDivElement>(null); // whole reader (toolbar + doc)
   const docAreaRef = useRef<HTMLDivElement>(null); // touch target + fullscreen box
   const containerRef = useRef<HTMLDivElement>(null); // scroll viewport (measured)
+  const gestureLayerRef = useRef<HTMLDivElement>(null); // pinch preview transform target
   const pdfRef = useRef<PdfDocumentProxy | null>(null);
   const programmaticScroll = useRef(false);
   const progScrollTimer = useRef<number | undefined>(undefined);
@@ -509,8 +530,8 @@ export default function PDFViewer({
   const pendingRestoreRef = useRef<number | null>(null);
 
   // refs mirroring state for stable native touch handlers
-  const scaleRef = useRef(scale);
   const viewModeRef = useRef(viewMode);
+  const fitModeRef = useRef(fitMode);
   const currentPageRef = useRef(currentPage);
   const numPagesRef = useRef(numPages);
   const navigateRef = useRef<(p: number) => void>(() => {});
@@ -542,8 +563,8 @@ export default function PDFViewer({
   const isSaved = progressPct === lastSaved;
   const isBookmarked = bookmarks.includes(currentPage);
 
-  useEffect(() => void (scaleRef.current = scale), [scale]);
   useEffect(() => void (viewModeRef.current = viewMode), [viewMode]);
+  useEffect(() => void (fitModeRef.current = fitMode), [fitMode]);
   useEffect(() => void (currentPageRef.current = currentPage), [currentPage]);
   useEffect(() => void (numPagesRef.current = numPages), [numPages]);
   useEffect(() => void (progressRef.current = progressPct), [progressPct]);
@@ -554,22 +575,75 @@ export default function PDFViewer({
     setMaxProgressPct((prev) => Math.max(prev, pct));
   }, []);
 
-  /* ── Page width (folds zoom in; implements REAL fit-to-page) ──── */
-  const baseWidth = useMemo(() => {
+  /* ── Theme (pdf.js pageColors — no CSS invert filter) ─────────── */
+  const themeColors = READER_THEMES[theme];
+  const pageColors = useMemo<PageColors | undefined>(
+    () =>
+      theme === "dark"
+        ? {
+            background: READER_THEMES.dark.pageBackground,
+            foreground: READER_THEMES.dark.pageForeground,
+          }
+        : undefined,
+    [theme],
+  );
+  const pageFrameClass = cx(
+    "relative mx-auto w-max",
+    theme === "dark" ? "shadow-xl shadow-black/60 ring-1 ring-white/10" : "shadow-lg",
+  );
+  const placeholderClass = theme === "dark" ? "bg-white/10" : "bg-black/10";
+
+  /* ── Page geometry (rotation-aware) ─────────────────────────────
+     `width` on react-pdf's <Page> is the post-rotation rendered width, so
+     all layout math uses the rotation-adjusted aspect ratio. The intrinsic
+     aspect (h/w at the page's inherent rotation) is measured from page 1. */
+  const rotatedQuarter = rotation % 180 !== 0;
+  const intrinsicAspect = aspectRatio ?? DEFAULT_ASPECT;
+  const effAspect = rotatedQuarter ? 1 / intrinsicAspect : intrinsicAspect;
+  const nativeWRot = nativeWidth
+    ? rotatedQuarter
+      ? nativeWidth * intrinsicAspect
+      : nativeWidth
+    : undefined;
+  // Extra user rotation is applied on top of the page's inherent /Rotate.
+  const pageRotate = rotation === 0 ? undefined : (inherentRotate + rotation) % 360;
+
+  /* ── Page width (fit modes + true actual-size zoom) ───────────── */
+  const pageWidth = useMemo(() => {
     if (!containerWidth) return undefined;
     const availW = containerWidth - PAD;
-    if (viewMode === "scroll") return Math.min(availW, MAX_SCROLL_W);
-    if (fitMode === "width" || !aspectRatio || !containerHeight)
-      return availW;
-    // fit-to-page: pick the width so the *whole* page fits the viewport height
-    const widthByHeight = (containerHeight - PAD) / aspectRatio;
-    return Math.floor(Math.min(availW, widthByHeight));
-  }, [containerWidth, containerHeight, viewMode, fitMode, aspectRatio]);
+    if (fitMode === "custom") {
+      // 100% = the page's actual size; fall back to fit-width until page 1
+      // has been measured (first ever open of a book).
+      const base = nativeWRot ?? Math.min(availW, MAX_SCROLL_W);
+      return Math.max(64, Math.round(base * zoomScale));
+    }
+    if (fitMode === "page" && containerHeight) {
+      // fit-to-page: pick the width so the *whole* page fits the viewport
+      return Math.max(
+        64,
+        Math.floor(Math.min(availW, (containerHeight - PAD) / effAspect)),
+      );
+    }
+    const capped = viewMode === "scroll" ? Math.min(availW, MAX_SCROLL_W) : availW;
+    return Math.max(64, Math.round(capped));
+  }, [containerWidth, containerHeight, effAspect, fitMode, nativeWRot, viewMode, zoomScale]);
 
-  const pageWidth = baseWidth ? Math.round(baseWidth * scale) : undefined;
-  const estHeight = pageWidth
-    ? Math.round(pageWidth * (aspectRatio ?? DEFAULT_ASPECT))
-    : 600;
+  const effectiveScale = pageWidth && nativeWRot ? pageWidth / nativeWRot : zoomScale;
+  const zoomPercent = Math.round(effectiveScale * 100);
+  const effScaleRef = useRef(effectiveScale);
+  useEffect(() => void (effScaleRef.current = effectiveScale), [effectiveScale]);
+  // Effective scale of fit-width — the gesture handlers treat anything near
+  // this as "not zoomed in" (swipe allowed, double-tap zooms in).
+  const fitWidthScaleRef = useRef(1);
+  useEffect(() => {
+    if (!containerWidth || !nativeWRot) return;
+    const availW = containerWidth - PAD;
+    fitWidthScaleRef.current =
+      (viewMode === "scroll" ? Math.min(availW, MAX_SCROLL_W) : availW) / nativeWRot;
+  }, [containerWidth, nativeWRot, viewMode]);
+
+  const estHeight = pageWidth ? Math.round(pageWidth * effAspect) : 600;
   const scrollRowHeight = estHeight + SCROLL_PAGE_Y;
   const virtualRange = useMemo(() => {
     if (viewMode !== "scroll" || !numPages || !containerHeight || !scrollRowHeight) {
@@ -593,6 +667,75 @@ export default function PDFViewer({
       (_, i) => virtualRange.start + i,
     );
   }, [numPages, virtualRange.end, virtualRange.start, viewMode]);
+
+  /* ── Polite status announcements (zoom / theme / rotation) ────── */
+  const [statusMessage, setStatusMessage] = useState("");
+  const statusTimerRef = useRef<number | undefined>(undefined);
+  const announceStatus = useCallback((msg: string) => {
+    window.clearTimeout(statusTimerRef.current);
+    // small debounce so rapid wheel/pinch steps announce once, not per step
+    statusTimerRef.current = window.setTimeout(() => setStatusMessage(msg), 250);
+  }, []);
+  useEffect(() => () => window.clearTimeout(statusTimerRef.current), []);
+
+  /* ── Zoom actions ───────────────────────────────────────────────
+     Buttons/wheel step through ZOOM_LEVELS presets; the focal point (the
+     content point that must stay put) is recorded here and consumed by the
+     scroll-adjustment effect below once the new width has committed. */
+  const zoomFocalRef = useRef<{ x: number; y: number } | null>(null);
+  const applyCustomZoom = useCallback(
+    (scale: number, focal?: { x: number; y: number }) => {
+      const clamped = clampScale(scale);
+      zoomFocalRef.current = focal ?? null;
+      setFitMode("custom");
+      setZoomScale(clamped);
+      announceStatus(t("zoomAnnounce", { percent: fmtNum(Math.round(clamped * 100)) }));
+    },
+    [announceStatus, fmtNum, t],
+  );
+  const applyFitMode = useCallback(
+    (mode: "width" | "page") => {
+      zoomFocalRef.current = null;
+      setFitMode(mode);
+      announceStatus(mode === "width" ? t("fitWidth") : t("fitPage"));
+    },
+    [announceStatus, t],
+  );
+  const zoomIn = useCallback(
+    () => applyCustomZoom(stepZoom(effScaleRef.current, 1)),
+    [applyCustomZoom],
+  );
+  const zoomOut = useCallback(
+    () => applyCustomZoom(stepZoom(effScaleRef.current, -1)),
+    [applyCustomZoom],
+  );
+  const resetZoom = useCallback(() => applyCustomZoom(1), [applyCustomZoom]);
+  // stable refs for the native touch/wheel handlers
+  const commitZoomRef = useRef(applyCustomZoom);
+  useEffect(() => void (commitZoomRef.current = applyCustomZoom), [applyCustomZoom]);
+  const applyFitRef = useRef(applyFitMode);
+  useEffect(() => void (applyFitRef.current = applyFitMode), [applyFitMode]);
+
+  const changeTheme = useCallback(
+    (next: ReaderTheme) => {
+      setTheme(next);
+      announceStatus(t(next === "dark" ? "themeDarkEnabled" : "themeLightEnabled"));
+    },
+    [announceStatus, t],
+  );
+
+  const rotateClockwise = useCallback(() => {
+    setRotation((r) => (r + 90) % 360);
+  }, []);
+  const rotationAnnouncedRef = useRef(rotation);
+  useEffect(() => {
+    if (rotationAnnouncedRef.current === rotation) return;
+    rotationAnnouncedRef.current = rotation;
+    announceStatus(t("rotationAnnounce", { degrees: fmtNum(rotation) }));
+    // The aspect swap changes every virtual row height, so re-anchor the
+    // viewport on the page being read (next frame, after heights commit).
+    requestAnimationFrame(() => navigateRef.current(currentPageRef.current));
+  }, [rotation, announceStatus, fmtNum, t]);
 
   /* ── Exact-page resume (applied on document load) ──────────────
      The server stores a rounded percentage (≈5-page error on a 500-page
@@ -635,9 +778,11 @@ export default function PDFViewer({
     return () => window.clearTimeout(id);
   }, [currentPage, numPages, bookId]);
 
-  useEffect(() => lsSet("ebook:viewMode", viewMode), [viewMode]);
-  useEffect(() => lsSet("ebook:fitMode", fitMode), [fitMode]);
-  useEffect(() => lsSet("ebook:theme", theme), [theme]);
+  useEffect(() => lsSet(READER_KEYS.viewMode, viewMode), [viewMode]);
+  useEffect(() => lsSet(READER_KEYS.fitMode, fitMode), [fitMode]);
+  useEffect(() => lsSet(READER_KEYS.theme, theme), [theme]);
+  useEffect(() => lsSet(READER_KEYS.zoom, String(zoomScale)), [zoomScale]);
+  useEffect(() => lsSet(READER_KEYS.rotation(bookId), String(rotation)), [rotation, bookId]);
   useEffect(
     () => lsSet(`ebook:bm:${bookId}`, JSON.stringify(bookmarks)),
     [bookmarks, bookId],
@@ -721,19 +866,34 @@ export default function PDFViewer({
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  /* ── Zoom Focal Point (preserve scroll center) ────────────────── */
-  const prevScaleRef = useRef(scale);
+  /* ── Zoom focal point (keep the interaction point stationary) ───
+     When the committed page width changes, adjust the scroll offsets so the
+     recorded focal point (button = viewport centre, wheel = pointer, pinch =
+     finger midpoint, double-tap = tap position) stays put. Also clears any
+     live pinch-preview CSS transform now that the real size has landed. */
+  const prevPageWidthRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || prevScaleRef.current === scale) return;
-    const ratio = scale / prevScaleRef.current;
-    el.scrollLeft = (el.scrollLeft + el.clientWidth / 2) * ratio - el.clientWidth / 2;
-    el.scrollTop = (el.scrollTop + el.clientHeight / 2) * ratio - el.clientHeight / 2;
+    const prev = prevPageWidthRef.current;
+    prevPageWidthRef.current = pageWidth;
+    const layer = gestureLayerRef.current;
+    if (layer) {
+      layer.style.transform = "";
+      layer.style.transformOrigin = "";
+    }
+    if (!el || !prev || !pageWidth || prev === pageWidth) return;
+    const ratio = pageWidth / prev;
+    const focal = zoomFocalRef.current ?? {
+      x: el.clientWidth / 2,
+      y: el.clientHeight / 2,
+    };
+    zoomFocalRef.current = null;
+    el.scrollLeft = (el.scrollLeft + focal.x) * ratio - focal.x;
+    el.scrollTop = (el.scrollTop + focal.y) * ratio - focal.y;
     setScrollTop(el.scrollTop);
-    prevScaleRef.current = scale;
-  }, [scale]);
+  }, [pageWidth]);
 
-  /* ── Aria-Live Announcer ──────────────────────────────────────── */
+  /* ── Aria-Live announcer (page position) ──────────────────────── */
   const [ariaPageAnnouncement, setAriaPageAnnouncement] = useState("");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -847,6 +1007,14 @@ export default function PDFViewer({
   );
   useEffect(() => void (navigateRef.current = navigateToPage), [navigateToPage]);
 
+  const openPanel = useCallback((tab: Exclude<PanelTab, null>) => {
+    lastPanelTabRef.current = tab;
+    setPanelTab(tab);
+  }, []);
+  const toggleSidebar = useCallback(() => {
+    setPanelTab((p) => (p ? null : lastPanelTabRef.current));
+  }, []);
+
   useEffect(() => {
     initialScrollDoneRef.current = false;
   }, [docKey, pdfUrl]);
@@ -910,6 +1078,7 @@ export default function PDFViewer({
   /* ── Document / page load callbacks ─────────────────────────── */
   function onDocumentLoadSuccess(pdf: PdfDocumentProxy) {
     pdfRef.current = pdf;
+    setPdfDoc(pdf);
     setLoadErrorKind(null);
     setNumPages(pdf.numPages);
     numPagesRef.current = pdf.numPages; // fresh for navigateToPage below
@@ -953,13 +1122,19 @@ export default function PDFViewer({
     originalHeight?: number;
     width: number;
     height: number;
+    rotate?: number;
   }) {
     const w = page.originalWidth ?? page.width;
     const h = page.originalHeight ?? page.height;
     if (w && h) {
       arMeasuredRef.current = true;
       setAspectRatio(h / w);
+      setNativeWidth(w);
+      if (typeof page.rotate === "number") {
+        setInherentRotate(((page.rotate % 360) + 360) % 360);
+      }
       lsSet(`ebook:ar:${bookId}`, (h / w).toFixed(4));
+      lsSet(READER_KEYS.nativeWidth(bookId), String(Math.round(w)));
     }
   }
 
@@ -971,13 +1146,7 @@ export default function PDFViewer({
     };
   }, []);
 
-  /* ── Zoom / fit / theme ─────────────────────────────────────── */
-  const zoomIn = useCallback(() => setScale((s) => clamp(0.5, 3, s + 0.25)), []);
-  const zoomOut = useCallback(() => setScale((s) => clamp(0.5, 3, s - 0.25)), []);
-  const toggleFit = useCallback(() => {
-    setFitMode((m) => (m === "width" ? "page" : "width"));
-    setScale(1);
-  }, []);
+  /* ── View mode / bookmarks ──────────────────────────────────── */
   const toggleView = useCallback(
     () => {
       setViewMode((m) => {
@@ -995,13 +1164,6 @@ export default function PDFViewer({
       });
     },
     [scrollRowHeight],
-  );
-  const cycleTheme = useCallback(
-    () =>
-      setTheme((th) =>
-        th === "light" ? "sepia" : th === "sepia" ? "dark" : "light",
-      ),
-    [],
   );
   const toggleBookmark = useCallback(() => {
     setBookmarks((bm) =>
@@ -1232,6 +1394,19 @@ export default function PDFViewer({
       const tag = (e.target as HTMLElement)?.tagName;
       const inField = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
       if (inField && e.key !== "Escape") return; // Esc must close panes from the search box too
+      // Modified shortcuts: only Ctrl/Cmd+0 (reset zoom) is claimed, and only
+      // while the reader owns focus — browser zoom shortcuts stay untouched.
+      if (e.ctrlKey || e.metaKey) {
+        if (
+          e.key === "0" &&
+          (isFullscreen || rootRef.current?.contains(document.activeElement))
+        ) {
+          e.preventDefault();
+          resetZoom();
+        }
+        return;
+      }
+      if (e.altKey) return;
       const p = currentPageRef.current;
       const n = numPagesRef.current;
       switch (e.key) {
@@ -1269,6 +1444,11 @@ export default function PDFViewer({
           e.preventDefault();
           setIsFullscreen((v) => !v);
           break;
+        case "r":
+        case "R":
+          e.preventDefault();
+          rotateClockwise();
+          break;
         case "/":
           // The navbar (NavSearch) binds "/" site-wide to router.push("/search").
           // While a document is open, in-document search owns the key — this
@@ -1276,13 +1456,14 @@ export default function PDFViewer({
           // first, and stopPropagation keeps the navbar from navigating away.
           e.preventDefault();
           e.stopPropagation();
-          setPanelTab("search");
+          openPanel("search");
           // covers the panel-already-open case; the panel-open effect covers the rest
           requestAnimationFrame(() => searchInputRef.current?.focus());
           break;
         case "Escape":
           if (inField) (e.target as HTMLElement).blur();
           if (mobileMenuOpen) setMobileMenuOpen(false);
+          else if (moreMenuOpen) setMoreMenuOpen(false);
           else if (panelTab) setPanelTab(null);
           else if (isFullscreen) setIsFullscreen(false);
           else break;
@@ -1292,7 +1473,7 @@ export default function PDFViewer({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [zoomIn, zoomOut, panelTab, isFullscreen, mobileMenuOpen]);
+  }, [zoomIn, zoomOut, resetZoom, rotateClockwise, openPanel, panelTab, isFullscreen, mobileMenuOpen, moreMenuOpen]);
 
   /* ── "/" or the toolbar button opened the search panel → focus it ── */
   useEffect(() => {
@@ -1304,17 +1485,47 @@ export default function PDFViewer({
     return () => cancelAnimationFrame(id);
   }, [panelTab]);
 
-  /* ── Touch: swipe (single mode), pinch-zoom, double-tap-zoom ── */
+  /* ── Touch: swipe (single mode), pinch-zoom, double-tap-zoom ────
+     Pinch uses a two-stage strategy: while fingers move, a cheap CSS
+     transform on the gesture layer previews the zoom (rAF-throttled, no
+     React re-render, no canvas re-raster); on release the final scale is
+     committed to React state around the pinch midpoint, and the preview
+     transform is dropped once the re-rendered width lands (see the focal
+     point effect), so the final output is sharp. */
   useEffect(() => {
     const el = docAreaRef.current;
     if (!el) return;
     let touchStart: { x: number; y: number; time: number } | null = null;
-    let pinch: { dist: number; base: number } | null = null;
+    let pinch: {
+      startDist: number;
+      baseScale: number;
+      midX: number;
+      midY: number;
+      gesture: number;
+      raf: number | null;
+    } | null = null;
     let lastTap = { time: 0, x: 0, y: 0 };
+
+    const containerPoint = (clientX: number, clientY: number) => {
+      const c = containerRef.current;
+      const rect = c?.getBoundingClientRect();
+      return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+    };
 
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        pinch = { dist: dist(e.touches[0], e.touches[1]), base: scaleRef.current };
+        const mid = containerPoint(
+          (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        );
+        pinch = {
+          startDist: dist(e.touches[0], e.touches[1]),
+          baseScale: effScaleRef.current,
+          midX: mid.x,
+          midY: mid.y,
+          gesture: 1,
+          raf: null,
+        };
         touchStart = null;
       } else if (e.touches.length === 1) {
         const tch = e.touches[0];
@@ -1325,13 +1536,39 @@ export default function PDFViewer({
       if (pinch && e.touches.length === 2) {
         e.preventDefault();
         const d = dist(e.touches[0], e.touches[1]);
-        setScale(clamp(0.5, 3, pinch.base * (d / pinch.dist)));
+        // clamp the preview so it can never exceed what the commit allows
+        const raw = pinch.baseScale * (d / pinch.startDist);
+        pinch.gesture = clampScale(raw) / pinch.baseScale;
+        if (pinch.raf === null) {
+          pinch.raf = requestAnimationFrame(() => {
+            if (!pinch) return;
+            pinch.raf = null;
+            const layer = gestureLayerRef.current;
+            const c = containerRef.current;
+            if (!layer || !c) return;
+            layer.style.transformOrigin = `${c.scrollLeft + pinch.midX}px ${c.scrollTop + pinch.midY}px`;
+            layer.style.transform = `scale(${pinch.gesture})`;
+          });
+        }
       }
     };
     const onEnd = (e: TouchEvent) => {
       if (pinch && e.touches.length < 2) {
+        const { baseScale, gesture, midX, midY, raf } = pinch;
+        if (raf !== null) cancelAnimationFrame(raf);
         pinch = null;
         touchStart = null;
+        const next = clampScale(baseScale * gesture);
+        if (Math.abs(next - baseScale) > 0.01) {
+          commitZoomRef.current(next, { x: midX, y: midY });
+        } else {
+          // no-op pinch (or clamped at the limit): drop the preview now
+          const layer = gestureLayerRef.current;
+          if (layer) {
+            layer.style.transform = "";
+            layer.style.transformOrigin = "";
+          }
+        }
         return;
       }
       const start = touchStart;
@@ -1342,7 +1579,7 @@ export default function PDFViewer({
       const dy = tch.clientY - start.y;
       const dt = Date.now() - start.time;
 
-      // double-tap → toggle zoom
+      // double-tap → toggle zoom around the tapped point
       if (Math.abs(dx) < 10 && Math.abs(dy) < 10 && dt < 250) {
         const now = Date.now();
         if (
@@ -1350,17 +1587,35 @@ export default function PDFViewer({
           Math.abs(tch.clientX - lastTap.x) < 30 &&
           Math.abs(tch.clientY - lastTap.y) < 30
         ) {
-          setScale((s) => (s > 1.2 ? 1 : 2));
           lastTap = { time: 0, x: 0, y: 0 };
+          // never hijack link taps, annotation taps or active text selections
+          const target = e.target as HTMLElement | null;
+          const sel = window.getSelection();
+          if (target?.closest("a, .annotationLayer") || (sel && !sel.isCollapsed)) {
+            return;
+          }
+          const fitScale = fitWidthScaleRef.current;
+          if (effScaleRef.current > fitScale * 1.15) {
+            applyFitRef.current("width"); // zoomed in → back to fitted
+          } else {
+            const focal = containerPoint(tch.clientX, tch.clientY);
+            commitZoomRef.current(
+              clampScale(Math.max(effScaleRef.current, fitScale) * 1.9),
+              focal,
+            );
+          }
           return;
         }
         lastTap = { time: now, x: tch.clientX, y: tch.clientY };
       }
 
       // horizontal swipe → page turn (single mode, not zoomed in)
+      const notZoomedIn =
+        fitModeRef.current !== "custom" ||
+        effScaleRef.current <= fitWidthScaleRef.current * 1.05;
       if (
         viewModeRef.current === "single" &&
-        scaleRef.current <= 1.05 &&
+        notZoomedIn &&
         dt < 500 &&
         Math.abs(dx) > 50 &&
         Math.abs(dy) < Math.abs(dx) * 0.7
@@ -1376,6 +1631,43 @@ export default function PDFViewer({
       el.removeEventListener("touchstart", onStart);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("touchend", onEnd);
+    };
+  }, []);
+
+  /* ── Ctrl/Cmd + mousewheel zoom (and trackpad pinch, which browsers
+        report as ctrl+wheel) — steps presets around the pointer.
+        Unmodified wheel events pass through untouched. ─────────── */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let raf: number | null = null;
+    let pendingDelta = 0;
+    let focal = { x: 0, y: 0 };
+    let lastStep = 0;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      pendingDelta += e.deltaY;
+      const rect = el.getBoundingClientRect();
+      focal = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (raf !== null) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        const now = performance.now();
+        if (Math.abs(pendingDelta) < 4 || now - lastStep < 80) {
+          pendingDelta = 0;
+          return;
+        }
+        const dir: 1 | -1 = pendingDelta < 0 ? 1 : -1;
+        pendingDelta = 0;
+        lastStep = now;
+        commitZoomRef.current(stepZoom(effScaleRef.current, dir), focal);
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (raf !== null) cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -1405,10 +1697,22 @@ export default function PDFViewer({
       }
     };
     el.addEventListener("keydown", onKey);
-    // Focus first element on open
-    first.focus();
+    // Focus the document viewport on open (not a toolbar button): arrow keys
+    // work immediately and the auto-hide timer isn't pinned open by a
+    // toolbar control holding focus.
+    (containerRef.current ?? first).focus();
     return () => el.removeEventListener("keydown", onKey);
   }, [isFullscreen]);
+
+  /* ── Fullscreen auto-hide controls ──────────────────────────── */
+  const controlsPaused = Boolean(
+    panelTab || mobileMenuOpen || moreMenuOpen || selectionPopup,
+  );
+  const controlsVisible = useAutoHideControls({
+    enabled: isFullscreen,
+    paused: controlsPaused,
+    rootRef,
+  });
 
   /* ── Page input submit ──────────────────────────────────────── */
   function submitPageInput() {
@@ -1483,9 +1787,6 @@ export default function PDFViewer({
     );
   }
 
-  const docAreaBg =
-    theme === "dark" ? "bg-neutral-900" : theme === "sepia" ? "bg-[#f3e9d6]" : "bg-paper";
-  const filter = themeFilter(theme);
   const loadErrorMessage = isOffline
     ? t("offlineError")
     : loadErrorKind === "missing"
@@ -1503,9 +1804,23 @@ export default function PDFViewer({
     `Please check this PDF file.\n\nTitle: ${title}\nResource ID: ${bookId}\nFile: ${safePdfPath(pdfUrl) ?? "unknown"}\nPage: ${currentPage}`,
   )}`;
 
+  const panelTabs: { id: Exclude<PanelTab, null>; label: string; icon: React.ReactNode }[] = [
+    { id: "pages", label: t("pagesTab"), icon: <LayoutGrid className="h-4 w-4" aria-hidden /> },
+    { id: "outline", label: t("outline"), icon: <List className="h-4 w-4" aria-hidden /> },
+    { id: "bookmarks", label: t("bookmarks"), icon: <Bookmark className="h-4 w-4" aria-hidden /> },
+    { id: "search", label: t("search"), icon: <SearchIcon className="h-4 w-4" aria-hidden /> },
+    ...(isLoggedIn
+      ? [{ id: "annotations" as const, label: t("notesTab"), icon: <PenLine className="h-4 w-4" aria-hidden /> }]
+      : []),
+  ];
+
+  const fitCheck = (active: boolean) =>
+    active ? <Check className="ml-auto h-4 w-4 text-cyan-300" aria-hidden /> : null;
+
   return (
     <>
-      {/* search + annotation highlight colors (scoped) */}
+      {/* search + annotation highlight colors (scoped), with dedicated
+          dark-theme values so highlights stay readable on recolored pages */}
       <style>{`
         .ebook-mark{background:#fde047;color:#000;border-radius:2px;}
         .ebook-mark-current{background:#fb923c;box-shadow:0 0 0 2px #ea580c;}
@@ -1513,16 +1828,27 @@ export default function PDFViewer({
         .ann-green{background:#bbf7d080;border-radius:2px;}
         .ann-blue{background:#bfdbfe80;border-radius:2px;}
         .ann-pink{background:#fbcfe880;border-radius:2px;}
+        .reader-dark .ebook-mark{background:#FACC15;color:#111827;}
+        .reader-dark .ebook-mark-current{background:#FB923C;color:#111827;box-shadow:0 0 0 2px #FDBA74;}
+        .reader-dark .ann-yellow{background:rgba(250,204,21,.38);}
+        .reader-dark .ann-green{background:rgba(74,222,128,.35);}
+        .reader-dark .ann-blue{background:rgba(96,165,250,.35);}
+        .reader-dark .ann-pink{background:rgba(244,114,182,.35);}
       `}</style>
-      
-      {/* Aria-live region for screen readers */}
+
+      {/* Aria-live regions for screen readers */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {ariaPageAnnouncement}
       </div>
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {statusMessage}
+      </div>
 
       <div
+        ref={rootRef}
         className={cx(
           "flex flex-col overflow-hidden",
+          theme === "dark" && "reader-dark",
           isFullscreen
             ? "fixed inset-0 z-[9999] bg-slate-950"
             : "rounded-lg border border-divider bg-bg-surface shadow-sm",
@@ -1532,62 +1858,55 @@ export default function PDFViewer({
         aria-label={isFullscreen ? title : undefined}
       >
         {/* ── TOOLBAR ─────────────────────────────────────────── */}
-        <div className="order-2 shrink-0 border-white/10 bg-slate-950 px-3 py-2.5 text-white sm:order-1 sm:border-b sm:px-4">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
-            {/* Title + panel toggles */}
-            <div className="flex min-w-0 items-center gap-2.5 sm:flex-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-surface/10">
+        <div
+          data-reader-toolbar
+          className={cx(
+            "order-2 shrink-0 border-white/10 bg-slate-950 px-2 py-1.5 text-white sm:order-1 sm:border-b sm:px-4 sm:py-2.5",
+            isFullscreen && "transition-opacity duration-300 motion-reduce:transition-none",
+            isFullscreen && !controlsVisible && "pointer-events-none opacity-0",
+          )}
+          aria-hidden={isFullscreen && !controlsVisible ? true : undefined}
+        >
+          {/* ══ Desktop toolbar (sm+): title · sidebar/search · nav · zoom ·
+                theme · fullscreen · ⋯ ══ */}
+          <div className="hidden items-center gap-3 sm:flex">
+            {/* Title + panel/search toggles */}
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md bg-bg-surface/10 md:flex">
                 <Icon name="pdf" className="text-xl text-cyan-100" />
               </span>
               <div className="min-w-0 flex-1">
                 <h2 title={title} className="truncate text-[15px] font-bold sm:text-base">{title}</h2>
-                <p className="text-[11px] text-slate-400">{t("readOnline")}</p>
+                <p className="hidden text-[11px] text-slate-400 md:block">{t("readOnline")}</p>
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <ToolButton
-                  onClick={() => setPanelTab((p) => (p === "outline" ? null : "outline"))}
-                  active={panelTab === "outline"}
-                  label={t("outline")}
-                  className="hidden h-8 w-8 sm:inline-flex"
+                  onClick={toggleSidebar}
+                  active={!!panelTab}
+                  label={t("sidebar")}
+                  className="h-9 w-9"
                 >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                  </svg>
+                  <PanelLeft className="h-4 w-4" aria-hidden />
                 </ToolButton>
                 <ToolButton
-                  onClick={() => setPanelTab((p) => (p === "bookmarks" ? null : "bookmarks"))}
-                  active={panelTab === "bookmarks"}
-                  label={t("bookmarks")}
-                  className="hidden h-8 w-8 sm:inline-flex"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                </ToolButton>
-                <ToolButton
-                  onClick={() => setPanelTab((p) => (p === "search" ? null : "search"))}
+                  onClick={() => (panelTab === "search" ? setPanelTab(null) : openPanel("search"))}
                   active={panelTab === "search"}
                   label={t("search")}
-                  className="h-8 w-8"
+                  className="h-9 w-9"
                 >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
+                  <SearchIcon className="h-4 w-4" aria-hidden />
                 </ToolButton>
-
                 {isLoggedIn && (
                   <ToolButton
-                    onClick={() => setPanelTab((p) => (p === "annotations" ? null : "annotations"))}
+                    onClick={() =>
+                      panelTab === "annotations" ? setPanelTab(null) : openPanel("annotations")
+                    }
                     active={panelTab === "annotations"}
                     label={t("annotations")}
-                    className="relative hidden h-8 w-8 sm:inline-flex"
+                    className="relative h-9 w-9"
                   >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
+                    <PenLine className="h-4 w-4" aria-hidden />
                     {annotations.length > 0 && (
                       <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-700 text-[9px] font-bold text-white">
                         {annotations.length > 9 ? "9+" : annotations.length}
@@ -1595,318 +1914,11 @@ export default function PDFViewer({
                     )}
                   </ToolButton>
                 )}
-
-                {/* ── Mobile overflow (⋯) — secondary controls live here ── */}
-                <div className="relative sm:hidden">
-                  <ToolButton
-                    onClick={() => setMobileMenuOpen((v) => !v)}
-                    active={mobileMenuOpen}
-                    label={t("moreOptions")}
-                    className="h-8 w-8"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <circle cx="5" cy="12" r="2" />
-                      <circle cx="12" cy="12" r="2" />
-                      <circle cx="19" cy="12" r="2" />
-                    </svg>
-                  </ToolButton>
-
-                  {mobileMenuOpen && (
-                    <>
-                      {/* tap-outside backdrop */}
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setMobileMenuOpen(false)}
-                        aria-hidden
-                      />
-                      {/* opens upward: on mobile the toolbar sits at the bottom */}
-                      <div
-                        className="absolute bottom-full right-0 z-50 mb-1.5 w-60 rounded-lg border border-white/10 bg-slate-900 p-1.5 shadow-2xl"
-                      >
-                        {/* Zoom */}
-                        <div className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm text-slate-200">
-                          <span className="flex items-center gap-3">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                                <circle cx="11" cy="11" r="7" />
-                                <path d="m21 21-4.3-4.3M8 11h6" />
-                              </svg>
-                            </span>
-                            {locale === "km" ? "ការពង្រីក" : "Zoom"}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={zoomOut}
-                              disabled={scale <= 0.5}
-                              aria-label={t("zoomOut")}
-                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-white transition hover:bg-white/15 disabled:opacity-30"
-                            >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
-                                <path d="M20 12H4" />
-                              </svg>
-                            </button>
-                            <span className="w-9 text-center text-[11px] font-semibold text-slate-400">
-                              {fmtNum(Math.round(scale * 100))}%
-                            </span>
-                            <button
-                              type="button"
-                              onClick={zoomIn}
-                              disabled={scale >= 3}
-                              aria-label={t("zoomIn")}
-                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-white transition hover:bg-white/15 disabled:opacity-30"
-                            >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
-                                <path d="M12 4v16m8-8H4" />
-                              </svg>
-                            </button>
-                          </span>
-                        </div>
-
-                        <div className="my-1 h-px bg-white/10" />
-
-                        {/* View mode */}
-                        <button type="button" onClick={toggleView} className={MENU_ROW}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                            {viewMode === "scroll" ? (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <rect x="5" y="3" width="14" height="7" rx="1" />
-                                <rect x="5" y="14" width="14" height="7" rx="1" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <rect x="6" y="3" width="12" height="18" rx="1" />
-                              </svg>
-                            )}
-                          </span>
-                          {viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
-                        </button>
-
-                        {/* Fit (single mode only) */}
-                        {viewMode === "single" && (
-                          <button type="button" onClick={toggleFit} className={MENU_ROW}>
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                              {fitMode === "width" ? (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                                  <path d="M21 12H3m6-4-6 4 6 4m6-8 6 4-6 4" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                  <rect x="6" y="3" width="12" height="18" rx="1" />
-                                  <path d="M9 12h6" />
-                                </svg>
-                              )}
-                            </span>
-                            {fitMode === "width" ? t("fitWidth") : t("fitPage")}
-                          </button>
-                        )}
-
-                        {/* Theme */}
-                        <button type="button" onClick={cycleTheme} className={MENU_ROW}>
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                            {theme === "dark" ? (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-                              </svg>
-                            ) : theme === "sepia" ? (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <circle cx="12" cy="12" r="4" />
-                                <path d="M12 2v2m0 16v2M4 12H2m20 0h-2m-2.5-7.5-1.4 1.4M6.9 17.1l-1.4 1.4m0-13.4 1.4 1.4m10.2 10.2 1.4 1.4" strokeLinecap="round" />
-                              </svg>
-                            )}
-                          </span>
-                          {t("theme")}: {theme}
-                        </button>
-
-                        {/* Bookmark current page */}
-                        {numPages > 0 && (
-                          <button type="button" onClick={toggleBookmark} className={MENU_ROW}>
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                              </svg>
-                            </span>
-                            {isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
-                          </button>
-                        )}
-
-                        <div className="my-1 h-px bg-white/10" />
-
-                        {/* Outline */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPanelTab("outline");
-                            setMobileMenuOpen(false);
-                          }}
-                          className={MENU_ROW}
-                        >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                            </svg>
-                          </span>
-                          {t("outline")}
-                        </button>
-
-                        {/* Bookmarks panel */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPanelTab("bookmarks");
-                            setMobileMenuOpen(false);
-                          }}
-                          className={MENU_ROW}
-                        >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                            </svg>
-                          </span>
-                          {t("bookmarks")}
-                        </button>
-
-                        <div className="my-1 h-px bg-white/10" />
-
-                        {/* Save */}
-                        {numPages > 0 && (
-                          <button
-                            type="button"
-                              onClick={() => {
-                              saveNow();
-                              setMobileMenuOpen(false);
-                            }}
-                            disabled={isSaved}
-                            className={cx(MENU_ROW, isSaved && "text-emerald-400")}
-                          >
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-                              {isSaved ? (
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                                  <path d="M20 6 9 17l-5-5" />
-                                </svg>
-                              ) : (
-                                <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                                  <path d="M17 21v-8H7v8M7 3v5h8" />
-                                </svg>
-                              )}
-                            </span>
-                            {isSaved ? t("saved") : t("save")}
-                          </button>
-                        )}
-
-                        {/* Fullscreen */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsFullscreen((v) => !v);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={MENU_ROW}
-                        >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                            {isFullscreen ? (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-                              </svg>
-                            ) : (
-                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                              </svg>
-                            )}
-                          </span>
-                          {isFullscreen ? t("exit") : t("fullscreen")}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-2 sm:shrink-0 sm:justify-end">
-              {/* Zoom */}
-              <div className="hidden items-center gap-1 rounded-md bg-bg-surface/10 px-1 py-1 sm:flex">
-                <ToolButton onClick={zoomOut} disabled={scale <= 0.5} label={t("zoomOut")} className="h-7 w-7">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
-                    <path d="M20 12H4" />
-                  </svg>
-                </ToolButton>
-                <span className="w-9 text-center text-[11px] font-semibold text-slate-400">
-                  {fmtNum(Math.round(scale * 100))}%
-                </span>
-                <ToolButton onClick={zoomIn} disabled={scale >= 3} label={t("zoomIn")} className="h-7 w-7">
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
-                    <path d="M12 4v16m8-8H4" />
-                  </svg>
-                </ToolButton>
-              </div>
-
-              {/* View mode */}
-              <ToolButton
-                onClick={toggleView}
-                active={viewMode === "scroll"}
-                label={viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
-                className="hidden h-8 w-8 sm:inline-flex"
-              >
-                {viewMode === "scroll" ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <rect x="5" y="3" width="14" height="7" rx="1" />
-                    <rect x="5" y="14" width="14" height="7" rx="1" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <rect x="6" y="3" width="12" height="18" rx="1" />
-                  </svg>
-                )}
-              </ToolButton>
-
-              {/* Fit (single mode only) */}
-              {viewMode === "single" && (
-                <ToolButton
-                  onClick={toggleFit}
-                  active={fitMode === "page"}
-                  label={fitMode === "width" ? t("fitWidth") : t("fitPage")}
-                  className="hidden h-8 w-8 sm:inline-flex"
-                >
-                  {fitMode === "width" ? (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
-                      <path d="M21 12H3m6-4-6 4 6 4m6-8 6 4-6 4" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <rect x="6" y="3" width="12" height="18" rx="1" />
-                      <path d="M9 12h6" />
-                    </svg>
-                  )}
-                </ToolButton>
-              )}
-
-              {/* Theme */}
-              <ToolButton onClick={cycleTheme} label={`${t("theme")}: ${theme}`} className="hidden h-8 w-8 sm:inline-flex">
-                {theme === "dark" ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
-                  </svg>
-                ) : theme === "sepia" ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <circle cx="12" cy="12" r="4" />
-                    <path d="M12 2v2m0 16v2M4 12H2m20 0h-2m-2.5-7.5-1.4 1.4M6.9 17.1l-1.4 1.4m0-13.4 1.4 1.4m10.2 10.2 1.4 1.4" strokeLinecap="round" />
-                  </svg>
-                )}
-              </ToolButton>
-
+            {/* Grouped controls */}
+            <div className="flex shrink-0 items-center gap-2">
               {/* Pagination */}
               {numPages > 0 && (
                 <div className="flex items-center gap-1 rounded-md bg-bg-surface/10 px-1.5 py-1">
@@ -1945,23 +1957,23 @@ export default function PDFViewer({
                 </div>
               )}
 
-              {/* Bookmark current page */}
-              {numPages > 0 && (
-                <ToolButton
-                  onClick={toggleBookmark}
-                  active={isBookmarked}
-                  label={isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
-                  className="hidden h-8 w-8 sm:inline-flex"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill={isBookmarked ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2}>
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                </ToolButton>
-              )}
+              {/* Zoom cluster: presets, editable %, fit menu, reset */}
+              <ZoomControl
+                percent={zoomPercent}
+                fitMode={fitMode}
+                onZoomIn={zoomIn}
+                onZoomOut={zoomOut}
+                onFit={applyFitMode}
+                onScale={applyCustomZoom}
+                fmtNum={fmtNum}
+              />
 
-              {/* Progress */}
+              {/* Appearance: explicit Light | Dark */}
+              <ThemeControl theme={theme} onChange={changeTheme} />
+
+              {/* Progress (large screens) */}
               {numPages > 0 && (
-                <div className="hidden flex-col gap-0.5 lg:flex">
+                <div className="hidden flex-col gap-0.5 xl:flex">
                   <div className="flex items-center gap-2">
                     <div
                       role="progressbar"
@@ -1976,9 +1988,6 @@ export default function PDFViewer({
                     </div>
                     <span className="text-xs font-semibold text-cyan-300">{fmtNum(progressPct)}%</span>
                   </div>
-                  {/* The value is pages remaining, so label it as pages — it
-                      was previously mislabeled "min left". Hidden until the
-                      reader has actually started ("≈ N left" at 0% is noise). */}
                   {maxProgressPct > 0 && (
                     <span className="text-[10px] text-slate-400">
                       {fmtNum(Math.max(0, numPages - Math.round((maxProgressPct / 100) * numPages)))} {locale === "km" ? "ទំព័រនៅសល់" : "pages left"}
@@ -1987,66 +1996,11 @@ export default function PDFViewer({
                 </div>
               )}
 
-              {/* Download */}
-              {allowDownload && (
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  disabled={downloading}
-                  aria-label={t("download")}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-slate-800 px-2.5 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60 sm:px-3"
-                >
-                  {downloading ? (
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  ) : (
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                  )}
-                  <span className="hidden md:inline">{downloading ? t("opening") : t("download")}</span>
-                </button>
-              )}
-
-              {/* Save status / force-save */}
-              {numPages > 0 && (
-                <button
-                  type="button"
-                  onClick={saveNow}
-                  disabled={isSaved}
-                  aria-label={isSaved ? t("saved") : t("save")}
-                  className={cx(
-                    "hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition sm:inline-flex sm:px-3",
-                    isSaved
-                      ? "cursor-default bg-emerald-500/20 text-emerald-400"
-                      : "bg-cyan-700 text-white hover:bg-cyan-600",
-                  )}
-                >
-                  {isSaved ? (
-                    <>
-                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                      {t("saved")}
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <path d="M17 21v-8H7v8M7 3v5h8" />
-                      </svg>
-                      {t("save")}
-                    </>
-                  )}
-                </button>
-              )}
-
               {/* Fullscreen */}
               <ToolButton
                 onClick={() => setIsFullscreen((v) => !v)}
                 label={isFullscreen ? t("exit") : t("fullscreen")}
-                className="hidden h-8 w-8 border border-white/20 sm:inline-flex"
+                className="h-9 w-9 border border-white/20"
               >
                 {isFullscreen ? (
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -2058,12 +2012,149 @@ export default function PDFViewer({
                   </svg>
                 )}
               </ToolButton>
+
+              {/* Secondary actions live in the More (⋯) menu */}
+              <div className="relative">
+                <ToolButton
+                  onClick={() => setMoreMenuOpen((v) => !v)}
+                  active={moreMenuOpen}
+                  label={t("moreOptions")}
+                  className="h-9 w-9"
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden />
+                </ToolButton>
+
+                {moreMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setMoreMenuOpen(false)}
+                      aria-hidden
+                    />
+                    <div className="absolute right-0 top-full z-50 mt-1.5 w-60 rounded-lg border border-white/10 bg-slate-900 p-1.5 shadow-2xl">
+                      {/* View mode */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toggleView();
+                          setMoreMenuOpen(false);
+                        }}
+                        className={MENU_ROW}
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                          {viewMode === "scroll" ? (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <rect x="5" y="3" width="14" height="7" rx="1" />
+                              <rect x="5" y="14" width="14" height="7" rx="1" />
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <rect x="6" y="3" width="12" height="18" rx="1" />
+                            </svg>
+                          )}
+                        </span>
+                        {viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
+                      </button>
+
+                      {/* Rotate */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          rotateClockwise();
+                          setMoreMenuOpen(false);
+                        }}
+                        className={MENU_ROW}
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                          <RotateCw className="h-4 w-4" aria-hidden />
+                        </span>
+                        {t("rotateCw")}
+                        {rotation !== 0 && (
+                          <span className="ml-auto text-[10px] text-slate-400">{fmtNum(rotation)}°</span>
+                        )}
+                      </button>
+
+                      <div className="my-1 h-px bg-white/10" />
+
+                      {/* Bookmark current page */}
+                      {numPages > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            toggleBookmark();
+                            setMoreMenuOpen(false);
+                          }}
+                          className={MENU_ROW}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                            <Bookmark className="h-4 w-4" fill={isBookmarked ? "currentColor" : "none"} aria-hidden />
+                          </span>
+                          {isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
+                        </button>
+                      )}
+
+                      {/* Save progress */}
+                      {numPages > 0 && isLoggedIn && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            saveNow();
+                            setMoreMenuOpen(false);
+                          }}
+                          disabled={isSaved}
+                          className={cx(MENU_ROW, isSaved && "text-emerald-400")}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                            {isSaved ? (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                            ) : (
+                              <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                                <path d="M17 21v-8H7v8M7 3v5h8" />
+                              </svg>
+                            )}
+                          </span>
+                          {isSaved ? t("saved") : t("save")}
+                        </button>
+                      )}
+
+                      {/* Download */}
+                      {allowDownload && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDownload();
+                            setMoreMenuOpen(false);
+                          }}
+                          disabled={downloading}
+                          className={MENU_ROW}
+                        >
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                            {downloading ? (
+                              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                            ) : (
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                              </svg>
+                            )}
+                          </span>
+                          {downloading ? t("opening") : t("download")}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Mobile progress — hidden on phones, shown on tablet only */}
+          {/* Tablet progress (sm..xl) */}
           {numPages > 0 && (
-            <div className="mt-2 hidden items-center gap-2 sm:flex lg:hidden">
+            <div className="mt-2 hidden items-center gap-2 sm:flex xl:hidden">
               <div
                 role="progressbar"
                 aria-label={t("readingProgress")}
@@ -2077,17 +2168,373 @@ export default function PDFViewer({
               <span className="text-[11px] font-semibold text-cyan-300">{fmtNum(progressPct)}%</span>
             </div>
           )}
+
+          {/* ══ Mobile bottom toolbar (< sm): page nav, zoom and theme stay
+                one tap away; everything else lives in the ⋯ sheet ══ */}
+          <div
+            className="flex items-center justify-between gap-0.5 sm:hidden"
+            style={isFullscreen ? { paddingBottom: "env(safe-area-inset-bottom)" } : undefined}
+          >
+            <ToolButton
+              onClick={() => navigateToPage(currentPage - 1)}
+              disabled={numPages === 0 || currentPage <= 1}
+              label={t("prev")}
+              className="h-11 w-10"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                <path d="M15 19l-7-7 7-7" />
+              </svg>
+            </ToolButton>
+
+            <div className="flex items-center gap-0.5">
+              <input
+                type="number"
+                min={1}
+                max={numPages || 1}
+                aria-label={t("goToPage")}
+                value={isPageInputFocused ? pageInputValue : currentPage}
+                onFocus={() => {
+                  setIsPageInputFocused(true);
+                  setPageInputValue(String(currentPage));
+                }}
+                onBlur={submitPageInput}
+                onChange={(e) => setPageInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    submitPageInput();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="h-9 w-10 rounded bg-bg-surface/10 text-center text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="text-[11px] text-slate-400">/{fmtNum(numPages || 0)}</span>
+            </div>
+
+            <ToolButton
+              onClick={() => navigateToPage(currentPage + 1)}
+              disabled={numPages === 0 || currentPage >= numPages}
+              label={t("next")}
+              className="h-11 w-10"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                <path d="M9 5l7 7-7 7" />
+              </svg>
+            </ToolButton>
+
+            <span className="h-6 w-px shrink-0 bg-white/10" aria-hidden />
+
+            <ToolButton
+              onClick={zoomOut}
+              disabled={zoomPercent <= 50}
+              label={t("zoomOut")}
+              className="h-11 w-10"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                <path d="M20 12H4" />
+              </svg>
+            </ToolButton>
+            <ToolButton
+              onClick={zoomIn}
+              disabled={zoomPercent >= 300}
+              label={t("zoomIn")}
+              className="h-11 w-10"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round">
+                <path d="M12 4v16m8-8H4" />
+              </svg>
+            </ToolButton>
+
+            <ToolButton
+              onClick={() => changeTheme(theme === "dark" ? "light" : "dark")}
+              active={theme === "dark"}
+              label={theme === "dark" ? t("themeLight") : t("themeDark")}
+              className="h-11 w-10"
+            >
+              {theme === "dark" ? (
+                <Sun className="h-5 w-5" aria-hidden />
+              ) : (
+                <Moon className="h-5 w-5" aria-hidden />
+              )}
+            </ToolButton>
+
+            {/* Mobile overflow (⋯) — secondary controls live here */}
+            <div className="relative">
+              <ToolButton
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                active={mobileMenuOpen}
+                label={t("moreOptions")}
+                className="h-11 w-10"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="5" cy="12" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="19" cy="12" r="2" />
+                </svg>
+              </ToolButton>
+
+              {mobileMenuOpen && (
+                <>
+                  {/* tap-outside backdrop */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-hidden
+                  />
+                  {/* opens upward: on mobile the toolbar sits at the bottom */}
+                  <div className="absolute bottom-full right-0 z-50 mb-1.5 max-h-[70vh] w-60 overflow-y-auto rounded-lg border border-white/10 bg-slate-900 p-1.5 shadow-2xl">
+                    {/* Fit / zoom modes */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        applyFitMode("width");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <path d="M21 12H3m6-4-6 4 6 4m6-8 6 4-6 4" />
+                        </svg>
+                      </span>
+                      {t("fitWidth")}
+                      {fitCheck(fitMode === "width")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        applyFitMode("page");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <rect x="6" y="3" width="12" height="18" rx="1" />
+                          <path d="M9 12h6" />
+                        </svg>
+                      </span>
+                      {t("fitPage")}
+                      {fitCheck(fitMode === "page")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        applyCustomZoom(1);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="m21 21-4.3-4.3M11 8v6M8 11h6" />
+                        </svg>
+                      </span>
+                      {t("actualSize")}
+                      {fitCheck(fitMode === "custom" && zoomPercent === 100)}
+                    </button>
+
+                    <div className="my-1 h-px bg-white/10" />
+
+                    {/* View mode + rotate */}
+                    <button type="button" onClick={() => { toggleView(); setMobileMenuOpen(false); }} className={MENU_ROW}>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        {viewMode === "scroll" ? (
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <rect x="5" y="3" width="14" height="7" rx="1" />
+                            <rect x="5" y="14" width="14" height="7" rx="1" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <rect x="6" y="3" width="12" height="18" rx="1" />
+                          </svg>
+                        )}
+                      </span>
+                      {viewMode === "scroll" ? t("scrollMode") : t("singleMode")}
+                    </button>
+                    <button type="button" onClick={() => { rotateClockwise(); setMobileMenuOpen(false); }} className={MENU_ROW}>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <RotateCw className="h-4 w-4" aria-hidden />
+                      </span>
+                      {t("rotateCw")}
+                      {rotation !== 0 && (
+                        <span className="ml-auto text-[10px] text-slate-400">{fmtNum(rotation)}°</span>
+                      )}
+                    </button>
+
+                    <div className="my-1 h-px bg-white/10" />
+
+                    {/* Panels */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openPanel("search");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <SearchIcon className="h-4 w-4" aria-hidden />
+                      </span>
+                      {t("search")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openPanel("pages");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <LayoutGrid className="h-4 w-4" aria-hidden />
+                      </span>
+                      {t("pagesTab")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openPanel("outline");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <List className="h-4 w-4" aria-hidden />
+                      </span>
+                      {t("outline")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openPanel("bookmarks");
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        <Bookmark className="h-4 w-4" aria-hidden />
+                      </span>
+                      {t("bookmarks")}
+                    </button>
+                    {isLoggedIn && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openPanel("annotations");
+                          setMobileMenuOpen(false);
+                        }}
+                        className={MENU_ROW}
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                          <PenLine className="h-4 w-4" aria-hidden />
+                        </span>
+                        {t("annotations")}
+                      </button>
+                    )}
+
+                    <div className="my-1 h-px bg-white/10" />
+
+                    {/* Bookmark current page */}
+                    {numPages > 0 && (
+                      <button type="button" onClick={() => { toggleBookmark(); setMobileMenuOpen(false); }} className={MENU_ROW}>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                          <Bookmark className="h-4 w-4" fill={isBookmarked ? "currentColor" : "none"} aria-hidden />
+                        </span>
+                        {isBookmarked ? t("bookmarkRemove") : t("bookmarkAdd")}
+                      </button>
+                    )}
+
+                    {/* Save */}
+                    {numPages > 0 && isLoggedIn && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveNow();
+                          setMobileMenuOpen(false);
+                        }}
+                        disabled={isSaved}
+                        className={cx(MENU_ROW, isSaved && "text-emerald-400")}
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+                          {isSaved ? (
+                            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                              <path d="M17 21v-8H7v8M7 3v5h8" />
+                            </svg>
+                          )}
+                        </span>
+                        {isSaved ? t("saved") : t("save")}
+                      </button>
+                    )}
+
+                    {/* Download */}
+                    {allowDownload && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleDownload();
+                          setMobileMenuOpen(false);
+                        }}
+                        disabled={downloading}
+                        className={MENU_ROW}
+                      >
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                        </span>
+                        {downloading ? t("opening") : t("download")}
+                      </button>
+                    )}
+
+                    {/* Fullscreen */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFullscreen((v) => !v);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={MENU_ROW}
+                    >
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
+                        {isFullscreen ? (
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                          </svg>
+                        )}
+                      </span>
+                      {isFullscreen ? t("exit") : t("fullscreen")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* ── DOCUMENT AREA ───────────────────────────────────── */}
         <div
           ref={docAreaRef}
-          className={cx("group relative order-1 w-full overflow-hidden sm:order-2", docAreaBg)}
-          style={
-            isFullscreen
-              ? { height: `calc(100vh - ${TOOLBAR_H}px)` }
-              : { height: "76vh", minHeight: 560 }
-          }
+          className={cx(
+            "group relative order-1 w-full overflow-hidden sm:order-2",
+            isFullscreen && "min-h-0 flex-1",
+          )}
+          style={{
+            backgroundColor: themeColors.viewerBackground,
+            ...(isFullscreen ? {} : { height: "76vh", minHeight: 560 }),
+          }}
         >
           {/* ── Annotation selection popup ─────────────────────── */}
           {selectionPopup && isLoggedIn && (
@@ -2187,7 +2634,7 @@ export default function PDFViewer({
             </button>
           )}
 
-          {/* Side panel: outline / bookmarks / search */}
+          {/* Side panel: pages / outline / bookmarks / search / notes */}
           {panelTab && (
             <>
               <div
@@ -2196,11 +2643,29 @@ export default function PDFViewer({
                 aria-hidden
               />
               <aside className="absolute left-0 top-0 z-30 flex h-full w-[85%] max-w-[300px] flex-col border-r border-white/10 bg-slate-900 text-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-white/10 px-3 py-2.5">
-                  <span className="text-sm font-semibold">
-                    {panelTab === "outline" ? t("outline") : panelTab === "bookmarks" ? t("bookmarks") : panelTab === "annotations" ? t("annotations") : t("search")}
-                  </span>
-                  <button type="button" onClick={() => setPanelTab(null)} aria-label={t("close")} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white">
+                <div className="flex items-center justify-between border-b border-white/10 px-2 py-1.5">
+                  <div role="tablist" aria-label={t("sidebar")} className="flex items-center gap-0.5">
+                    {panelTabs.map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={panelTab === tab.id}
+                        aria-label={tab.label}
+                        title={tab.label}
+                        onClick={() => openPanel(tab.id)}
+                        className={cx(
+                          "inline-flex h-9 w-9 items-center justify-center rounded-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
+                          panelTab === tab.id
+                            ? "bg-cyan-500/20 text-cyan-300"
+                            : "text-slate-400 hover:bg-white/10 hover:text-white",
+                        )}
+                      >
+                        {tab.icon}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setPanelTab(null)} aria-label={t("close")} className="rounded p-1.5 text-slate-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
                       <path d="M18 6 6 18M6 6l12 12" />
                     </svg>
@@ -2208,6 +2673,24 @@ export default function PDFViewer({
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2">
+                  {panelTab === "pages" && (
+                    <ThumbnailsPanel
+                      pdf={pdfDoc}
+                      numPages={numPages}
+                      currentPage={currentPage}
+                      pageAspect={effAspect}
+                      rotate={pageRotate}
+                      pageColors={pageColors}
+                      onSelect={(p) => {
+                        navigateToPage(p);
+                        if (window.innerWidth < 768) setPanelTab(null);
+                      }}
+                      fmtNum={fmtNum}
+                      pageLabel={t("page")}
+                      loadingLabel={t("loading")}
+                    />
+                  )}
+
                   {panelTab === "outline" &&
                     (outline.length ? (
                       <OutlineTree items={outline} onSelect={goToDest} />
@@ -2434,6 +2917,8 @@ export default function PDFViewer({
             role="region"
             aria-label={`${title} — ${t("documentArea")}`}
           >
+            {/* gesture layer: pinch previews scale this via CSS transform */}
+            <div ref={gestureLayerRef}>
             <Document
               key={docKey}
               file={resolvedFile ?? undefined}
@@ -2443,8 +2928,8 @@ export default function PDFViewer({
               onSourceError={onDocumentLoadError}
               loading={
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-10" aria-live="polite">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-divider border-t-brand" />
-                  <p className="text-sm text-text-muted">{t("loading")}</p>
+                  <div className={cx("h-8 w-8 animate-spin rounded-full border-4", theme === "dark" ? "border-white/20 border-t-cyan-400" : "border-divider border-t-brand")} />
+                  <p className={cx("text-sm", theme === "dark" ? "text-slate-300" : "text-text-muted")}>{t("loading")}</p>
                 </div>
               }
               error={
@@ -2486,7 +2971,10 @@ export default function PDFViewer({
                       pageNumber={p}
                       width={pageWidth}
                       estHeight={estHeight}
-                      filter={filter}
+                      rotate={pageRotate}
+                      pageColors={pageColors}
+                      pageFrameClass={pageFrameClass}
+                      placeholderClass={placeholderClass}
                       devicePixelRatio={renderPixelRatio}
                       onRenderError={(error) => onPageRenderError(p, error)}
                       customTextRenderer={
@@ -2515,26 +3003,26 @@ export default function PDFViewer({
                 </div>
               ) : (
                 <div className="py-4 w-full">
-                  <div className="relative mx-auto w-max shadow-lg">
-                    <div style={{ filter }}>
-                      <Page
-                        pageNumber={currentPage}
-                        width={pageWidth}
-                        devicePixelRatio={renderPixelRatio}
-                        onLoadSuccess={arMeasuredRef.current ? undefined : onFirstPageLoad}
-                        onRenderError={(error) => onPageRenderError(currentPage, error)}
-                        renderTextLayer
-                        renderAnnotationLayer
-                        customTextRenderer={
-                          matchesByPage.has(currentPage) || annotations.some((a) => a.page_number === currentPage)
-                            ? (item) => highlight(item, currentPage)
-                            : undefined
-                        }
-                        loading={
-                          <div style={{ height: estHeight, width: pageWidth }} className="animate-pulse rounded bg-paper/60" />
-                        }
-                      />
-                    </div>
+                  <div className={pageFrameClass}>
+                    <Page
+                      pageNumber={currentPage}
+                      width={pageWidth}
+                      rotate={pageRotate}
+                      pageColors={pageColors}
+                      devicePixelRatio={renderPixelRatio}
+                      onLoadSuccess={arMeasuredRef.current ? undefined : onFirstPageLoad}
+                      onRenderError={(error) => onPageRenderError(currentPage, error)}
+                      renderTextLayer
+                      renderAnnotationLayer
+                      customTextRenderer={
+                        matchesByPage.has(currentPage) || annotations.some((a) => a.page_number === currentPage)
+                          ? (item) => highlight(item, currentPage)
+                          : undefined
+                      }
+                      loading={
+                        <div style={{ height: estHeight, width: pageWidth }} className={cx("animate-pulse rounded", placeholderClass)} />
+                      }
+                    />
                   </div>
                   {/* preload neighbours off-screen for instant page turns */}
                   <div aria-hidden className="pointer-events-none absolute opacity-0" style={{ left: -99999, top: 0 }}>
@@ -2542,6 +3030,8 @@ export default function PDFViewer({
                       <Page
                         pageNumber={currentPage - 1}
                         width={pageWidth}
+                        rotate={pageRotate}
+                        pageColors={pageColors}
                         devicePixelRatio={renderPixelRatio}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
@@ -2551,6 +3041,8 @@ export default function PDFViewer({
                       <Page
                         pageNumber={currentPage + 1}
                         width={pageWidth}
+                        rotate={pageRotate}
+                        pageColors={pageColors}
                         devicePixelRatio={renderPixelRatio}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
@@ -2560,6 +3052,7 @@ export default function PDFViewer({
                 </div>
               )}
             </Document>
+            </div>
           </div>
 
           {/* Keyboard hint */}

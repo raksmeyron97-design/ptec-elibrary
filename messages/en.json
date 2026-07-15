@@ -77,7 +77,22 @@
     "colorPink": "Pink highlight",
     "readingProgress": "Reading progress",
     "documentArea": "Document pages",
-    "moreOptions": "More options"
+    "moreOptions": "More options",
+    "appearance": "Appearance",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeLightEnabled": "Light reading mode enabled",
+    "themeDarkEnabled": "Dark reading mode enabled",
+    "zoom": "Zoom",
+    "resetZoom": "Reset zoom",
+    "actualSize": "Actual size",
+    "customZoom": "Zoom percentage",
+    "zoomAnnounce": "Zoom {percent} percent",
+    "rotateCw": "Rotate clockwise",
+    "rotationAnnounce": "Page rotated {degrees} degrees",
+    "pagesTab": "Pages",
+    "sidebar": "Sidebar",
+    "notesTab": "Notes"
   },
   "nav": {
     "home": "Home",

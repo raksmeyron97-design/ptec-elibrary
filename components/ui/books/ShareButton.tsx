@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from 'next-intl';
 
@@ -60,6 +61,9 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
   const t = useTranslations('share');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -109,7 +113,7 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
       </button>
 
       {/* Modal */}
-      {open && (
+      {open && mounted && createPortal(
         <div
           className="modal-backdrop-in fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={close}
@@ -172,7 +176,8 @@ export default function ShareButton({ url, title = "PTEC Library", className, la
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

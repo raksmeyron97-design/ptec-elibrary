@@ -37,16 +37,18 @@ export default function HeroSearch({
   keywords: FacetOption[];
 }) {
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-divider bg-gradient-to-br from-brand/[0.06] via-bg-surface to-accent/[0.05] px-5 py-9 sm:px-10 sm:py-12">
-      {/* Soft decorative orbs — purely ambient, matches the site's existing hero treatment */}
-      <div
-        aria-hidden
-        className="animate-float-orb pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full bg-brand/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="animate-float-orb-slow pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-accent/10 blur-3xl"
-      />
+    <section className="relative rounded-3xl border border-divider bg-gradient-to-br from-brand/[0.06] via-bg-surface to-accent/[0.05] px-5 py-9 sm:px-10 sm:py-12">
+      {/* Container for clipping decorative orbs so they don't bleed out of the rounded corners */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+        <div
+          aria-hidden
+          className="animate-float-orb absolute -top-16 -right-16 h-64 w-64 rounded-full bg-brand/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="animate-float-orb-slow absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-accent/10 blur-3xl"
+        />
+      </div>
 
       <div className="fade-rise-in relative mx-auto max-w-2xl text-center">
         <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.2em] text-brand">

@@ -45,7 +45,7 @@ export default async function PublicationHero({
 }) {
   const t = await getTranslations("publicationDetail");
   return (
-    <header className="gradient-top-border fade-rise-in mb-7 overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
+    <header className="gradient-top-border fade-rise-in mb-7 rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
       <div className="flex flex-col gap-6">
         {/* Content */}
         <div className="min-w-0 flex-1">

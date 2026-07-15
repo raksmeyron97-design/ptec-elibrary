@@ -2,6 +2,7 @@
 
 import { useRouter } from "@/i18n/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
+import SearchableSelect from "@/components/ui/search/SearchableSelect";
 
 export type PublicationFilterValues = {
   q: string;
@@ -50,69 +51,68 @@ export default function PublicationFilters({
 
   const hasFilters = !!(filters.q || filters.type || filters.journal || filters.year || filters.language || filters.keyword);
 
-  const selectClass = (active: boolean) =>
-    `h-9 max-w-[180px] cursor-pointer rounded-full border px-3 text-[13px] outline-none transition focus:border-brand ${
-      active
-        ? "border-brand/40 bg-brand/5 font-medium text-brand"
-        : "border-divider bg-bg-surface text-text-body"
-    }`;
-
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-text-muted">
         <SlidersHorizontal className="h-3.5 w-3.5" />
       </span>
 
-      <select
-        value={filters.type}
-        onChange={(e) => update("type", e.target.value)}
-        className={selectClass(!!filters.type)}
-        aria-label={labels.allTypes}
-      >
-        <option value="">{labels.allTypes}</option>
-        {Object.entries(labels.types).map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
+      <div className="w-[180px]">
+        <SearchableSelect
+          name="type"
+          value={filters.type}
+          onChange={(v) => update("type", v)}
+          options={[
+            { value: "", label: labels.allTypes },
+            ...Object.entries(labels.types).map(([value, label]) => ({ value, label }))
+          ]}
+          ariaLabel={labels.allTypes}
+        />
+      </div>
 
       {journals.length > 0 && (
-        <select
-          value={filters.journal}
-          onChange={(e) => update("journal", e.target.value)}
-          className={selectClass(!!filters.journal)}
-          aria-label={labels.allJournals}
-        >
-          <option value="">{labels.allJournals}</option>
-          {journals.map((j) => (
-            <option key={j} value={j}>{j}</option>
-          ))}
-        </select>
+        <div className="w-[180px]">
+          <SearchableSelect
+            name="journal"
+            value={filters.journal}
+            onChange={(v) => update("journal", v)}
+            options={[
+              { value: "", label: labels.allJournals },
+              ...journals.map((j) => ({ value: j, label: j }))
+            ]}
+            ariaLabel={labels.allJournals}
+          />
+        </div>
       )}
 
       {years.length > 0 && (
-        <select
-          value={filters.year}
-          onChange={(e) => update("year", e.target.value)}
-          className={selectClass(!!filters.year)}
-          aria-label={labels.allYears}
-        >
-          <option value="">{labels.allYears}</option>
-          {years.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
-        </select>
+        <div className="w-[150px]">
+          <SearchableSelect
+            name="year"
+            value={filters.year}
+            onChange={(v) => update("year", v)}
+            options={[
+              { value: "", label: labels.allYears },
+              ...years.map((y) => ({ value: y, label: y }))
+            ]}
+            ariaLabel={labels.allYears}
+          />
+        </div>
       )}
 
-      <select
-        value={filters.language}
-        onChange={(e) => update("language", e.target.value)}
-        className={selectClass(!!filters.language)}
-        aria-label={labels.allLanguages}
-      >
-        <option value="">{labels.allLanguages}</option>
-        <option value="en">English</option>
-        <option value="km">ខ្មែរ</option>
-      </select>
+      <div className="w-[150px]">
+        <SearchableSelect
+          name="language"
+          value={filters.language}
+          onChange={(v) => update("language", v)}
+          options={[
+            { value: "", label: labels.allLanguages },
+            { value: "en", label: "English" },
+            { value: "km", label: "ខ្មែរ" }
+          ]}
+          ariaLabel={labels.allLanguages}
+        />
+      </div>
 
       {hasFilters && (
         <button

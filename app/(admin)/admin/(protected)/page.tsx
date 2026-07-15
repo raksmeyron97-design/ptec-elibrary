@@ -93,7 +93,7 @@ export default async function AdminDashboardPage({
   const suspenseKey = `${filterQs}|${presetParam ?? ""}|${pageParam ?? ""}|${qParam ?? ""}|${queryViewParam ?? ""}`;
 
   return (
-    <div className="dash-shell dash-sans -mx-7 -my-6 min-h-full px-7 py-6">
+    <div className="dash-shell -mx-7 -my-6 min-h-full px-7 py-6">
       <div className="mx-auto max-w-[1200px] space-y-4 overflow-x-clip">
       <DashboardHeaderCompact
         name={name}

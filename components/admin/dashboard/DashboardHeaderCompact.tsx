@@ -68,8 +68,10 @@ export default async function DashboardHeaderCompact({
   ].filter(Boolean) as HeaderMenuItem[];
 
   return (
-    <header className="dash-header flex flex-wrap items-center justify-between gap-x-5 gap-y-3.5 px-5 py-4 sm:px-6 sm:py-[18px]">
-      <SealWatermark />
+    <header className="dash-header relative z-30 flex flex-wrap items-center justify-between gap-x-5 gap-y-3.5 px-5 py-4 sm:px-6 sm:py-[18px]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[18px]">
+        <SealWatermark />
+      </div>
 
       <div className="flex min-w-0 items-center gap-3.5">
         <span className="dash-medallion relative" aria-hidden="true">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "@/i18n/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
@@ -71,8 +72,10 @@ export default function AdvancedSearchModal({
 
   const [programs, setPrograms] = useState<ThesisProgram[]>([]);
   const [faculties, setFaculties] = useState<ThesisFaculty[]>([]);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     getThesisPrograms().then(({ data }) => setPrograms(data ?? []));
     getThesisFaculties().then(({ data }) => setFaculties(data ?? []));
   }, []);
@@ -140,7 +143,7 @@ export default function AdvancedSearchModal({
         Advanced Search
       </button>
 
-      {open && (
+      {open && mounted && createPortal(
         <div
           className="modal-backdrop-in fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setOpen(false)}
@@ -295,7 +298,8 @@ export default function AdvancedSearchModal({
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

@@ -35,7 +35,7 @@ export default function PublicationHero({
   const coAdvisor = getCoAdvisor(report);
 
   return (
-    <header className="gradient-top-border fade-rise-in mb-7 overflow-hidden rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
+    <header className="gradient-top-border fade-rise-in mb-7 rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
       <div className="flex flex-col gap-6 sm:flex-row sm:gap-8">
         {/* Cover — large, left side */}
         <div className="mx-auto w-[160px] shrink-0 sm:mx-0 sm:w-[200px] md:w-[220px]">

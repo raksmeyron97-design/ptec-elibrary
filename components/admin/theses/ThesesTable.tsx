@@ -79,12 +79,12 @@ export default function ThesesTable({
   onToggleExpand: (id: string) => void;
 }) {
   return (
-    <div className="hidden overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm md:block">
-      <div className="overflow-x-auto">
+    <div className="hidden rounded-xl border border-divider bg-bg-surface shadow-sm md:block">
+      <div className="">
         <table className="w-full text-sm">
           <caption className="sr-only">Theses list</caption>
           <thead>
-            <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted">
+            <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
               <th scope="col" className="w-10 px-4 py-3">
                 <label className="sr-only" htmlFor="select-all-theses">Select all theses</label>
                 <input

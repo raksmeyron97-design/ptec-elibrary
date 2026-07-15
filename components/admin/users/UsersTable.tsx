@@ -31,12 +31,12 @@ export default function UsersTable({
   const th = "px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted";
 
   return (
-    <div className="hidden overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm md:block">
-      <div className="overflow-x-auto">
+    <div className="hidden rounded-2xl border border-divider bg-bg-surface shadow-sm md:block">
+      <div className="">
         <table className="w-full text-sm">
           <caption className="sr-only">Users — click a row to open details</caption>
           <thead>
-            <tr className="border-b border-divider bg-paper">
+            <tr className="border-b border-divider bg-paper [&>th:first-child]:rounded-tl-2xl [&>th:last-child]:rounded-tr-2xl">
               <th scope="col" className="w-10 px-4 py-3">
                 <input
                   type="checkbox"
