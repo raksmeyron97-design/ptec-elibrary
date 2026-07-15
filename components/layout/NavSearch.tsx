@@ -42,10 +42,10 @@ export default function NavSearch() {
       <Link
         href="/search"
         aria-label={t("searchLibrary")}
-        className="group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted shadow-sm transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none sm:h-10 sm:w-10 min-[1280px]:w-auto min-[1280px]:gap-2 min-[1280px]:px-3.5 min-[1440px]:hidden"
+        className="group relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-divider bg-bg-surface text-text-muted shadow-sm transition-colors duration-200 hover:border-brand/30 hover:text-brand active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none sm:h-10 sm:w-10 xl:w-auto xl:gap-2 xl:px-3.5 min-[1440px]:hidden"
       >
         <SearchIcon />
-        <span className="hidden whitespace-nowrap text-sm min-[1280px]:inline">
+        <span className="hidden whitespace-nowrap text-sm xl:inline">
           {t("searchShort")}
         </span>
       </Link>
