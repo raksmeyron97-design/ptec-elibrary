@@ -14,7 +14,7 @@ import CatalogAdminActions from "./CatalogAdminActions";
 import CsvImportWizard from "./import/CsvImportWizard";
 import AdminCatalogToolbar from "./AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
-import Icon from "@/components/ui/core/Icon";
+import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +27,7 @@ type SP = {
   cat?: string;
   dept?: string;
   status?: string; // active | deleted | ""
+  cover?: string;  // has | missing | ""
 };
 
 type BookWithCopies = CatalogBook & { catalog_copies: { status: string | null }[] };
@@ -52,6 +53,7 @@ export default async function AdminCatalogsPage({
   const cat    = sp.cat ?? "";
   const dept   = sp.dept ?? "";
   const status = sp.status ?? "";
+  const cover  = sp.cover ?? "";
   const sort   = sp.sort ?? "newest";
 
   const from = (page - 1) * PAGE_SIZE;
@@ -81,6 +83,8 @@ export default async function AdminCatalogsPage({
   if (dept) query = query.eq("department", dept);
   if (status === "active")  query = query.eq("is_active", true);
   if (status === "deleted") query = query.eq("is_active", false);
+  if (cover === "has")     query = query.not("cover_url", "is", null);
+  if (cover === "missing") query = query.is("cover_url", null);
 
   switch (sort) {
     case "oldest":
@@ -152,7 +156,7 @@ export default async function AdminCatalogsPage({
   const attention: { label: string; value: number; href?: string }[] = [
     { label: "records without copies", value: noCopyBooks },
     { label: "missing ISBN / year / category", value: missingMeta },
-    { label: "without a cover", value: missingCovers },
+    { label: "using a generated cover", value: missingCovers, href: "/admin/catalogs?cover=missing" },
     { label: "unlisted", value: unlistedBooks, href: "/admin/catalogs?status=deleted" },
     { label: "copies damaged / lost / missing", value: problemCopies },
   ].filter((a) => a.value > 0);
@@ -209,7 +213,7 @@ export default async function AdminCatalogsPage({
       <AdminCatalogToolbar
         categories={categories}
         departments={departments}
-        filters={{ q, cat, dept, status, sort }}
+        filters={{ q, cat, dept, status, cover, sort }}
         totalItems={totalItems}
       />
 
@@ -243,22 +247,15 @@ export default async function AdminCatalogsPage({
                 const tone = AVAILABILITY_TONE[availability];
                 return (
                   <tr key={book.id} className={`transition hover:bg-paper/50 ${!book.is_active ? "opacity-40" : ""}`}>
-                    {/* Cover */}
+                    {/* Cover — generated fallback shown as readers see it,
+                        with admin-only Generated / Broken URL tags */}
                     <td className="px-4 py-3 text-center">
-                      {book.cover_url ? (
-                        <img
-                          src={book.cover_url}
-                          alt=""
-                          width={40}
-                          height={56}
-                          loading="lazy"
-                          className="mx-auto h-14 w-10 rounded object-cover shadow-sm"
-                        />
-                      ) : (
-                        <div className="mx-auto flex h-14 w-10 items-center justify-center rounded border border-divider bg-paper text-text-muted">
-                          <Icon name="library" className="h-5 w-5 opacity-50" />
-                        </div>
-                      )}
+                      <AdminCoverThumb
+                        coverUrl={book.cover_url}
+                        title={book.title}
+                        category={book.category}
+                        seed={book.slug}
+                      />
                     </td>
                     {/* Title */}
                     <td className="max-w-[240px] px-4 py-3">

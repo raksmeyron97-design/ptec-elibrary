@@ -1,7 +1,6 @@
 "use client";
 // components/ui/books/CatalogCard.tsx
 
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import type { CatalogBook, CopyStatusRow } from "@/lib/catalog";
@@ -13,12 +12,14 @@ import {
   AVAILABILITY_TONE,
   TONE_DOT,
 } from "@/lib/catalog";
+import SmartBookCover from "@/components/ui/books/SmartBookCover";
 
+// 700-scale in light mode: the 600s fail WCAG AA (4.5:1) at this text size.
 const TONE_TEXT: Record<string, string> = {
-  positive: "text-emerald-600 dark:text-emerald-400",
-  warning:  "text-amber-600 dark:text-amber-400",
-  danger:   "text-red-500 dark:text-red-400",
-  info:     "text-sky-600 dark:text-sky-400",
+  positive: "text-emerald-700 dark:text-emerald-400",
+  warning:  "text-amber-700 dark:text-amber-400",
+  danger:   "text-red-600 dark:text-red-400",
+  info:     "text-sky-700 dark:text-sky-400",
   neutral:  "text-text-muted",
 };
 
@@ -50,46 +51,34 @@ export default function CatalogCard({ book }: Props) {
         className="absolute inset-x-0 top-0 z-20 h-[3px] origin-left scale-x-0 bg-accent transition-transform duration-300 group-hover:scale-x-100"
       />
 
-      {/* Cover */}
+      {/* Cover — real image or the generated PTEC cover, resolved centrally */}
       <div className="relative aspect-[3/4] w-full overflow-hidden">
-        {book.cover_url ? (
-          <Image
-            src={book.cover_url}
-            alt={book.title}
-            fill
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            unoptimized={true}
-          />
-        ) : (
-          /* Fallback gradient cover */
-          <div className={`absolute inset-0 ${book.cover_color} flex items-end p-3`}>
-            <div className="space-y-1">
-              <p className="text-[11px] font-bold uppercase tracking-widest leading-none text-white/60">
-                {book.category ?? "Book"}
-              </p>
-              <p className="font-khmer-serif line-clamp-3 text-sm font-bold leading-snug text-white">
-                {book.title}
-              </p>
-              <p className="text-[11px] leading-none text-white/70">{book.author}</p>
-            </div>
-          </div>
-        )}
+        <SmartBookCover
+          coverUrl={book.cover_url}
+          title={book.title}
+          author={book.author}
+          category={book.category}
+          seed={book.slug}
+          variant="card"
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+          unoptimized
+          imgClassName="transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+        />
 
-        {/* Availability badge — top-left */}
+        {/* Availability badge — compact: dot + short status */}
         <span
           className={`
-            absolute left-2 top-2
-            inline-flex items-center gap-1.5
-            rounded-full border px-2 py-0.5
-            text-[10px] font-bold backdrop-blur-sm
+            absolute right-2 top-2
+            inline-flex max-w-[80%] items-center gap-1.5
+            rounded-full border px-2 py-1
+            text-[10px] font-bold leading-none backdrop-blur-sm
             bg-bg-surface/90
             ${textColor}
             border-current/20
           `}
         >
-          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-          {t(`avail.${AVAILABILITY_KEY[availability]}`)}
+          <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotColor}`} />
+          <span className="truncate">{t(`availShort.${AVAILABILITY_KEY[availability]}`)}</span>
         </span>
       </div>
 

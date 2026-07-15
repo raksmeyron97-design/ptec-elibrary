@@ -1,5 +1,4 @@
 // app/catalogs/[slug]/page.tsx
-import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -24,6 +23,8 @@ import {
   TONE_DOT,
   type CopyStatus,
 } from "@/lib/catalog";
+import { getCategoryCoverTheme } from "@/lib/cover-theme";
+import SmartBookCover from "@/components/ui/books/SmartBookCover";
 
 export const revalidate = 300;
 
@@ -133,14 +134,11 @@ export async function generateMetadata({
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function hexOf(cover?: string | null) {
-  return cover?.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#1E3A8A";
-}
-
+// 700-scale in light mode: the 600s fail WCAG AA (4.5:1) at small text sizes.
 const TONE_TEXT: Record<string, string> = {
   positive: "text-emerald-700 dark:text-emerald-400",
-  warning:  "text-amber-600 dark:text-amber-400",
-  danger:   "text-red-500 dark:text-red-400",
+  warning:  "text-amber-700 dark:text-amber-400",
+  danger:   "text-red-600 dark:text-red-400",
   info:     "text-sky-700 dark:text-sky-400",
   neutral:  "text-text-muted",
 };
@@ -185,7 +183,10 @@ export default async function CatalogBookPage({
 
   const related = await fetchRelated(b.id, b.category, b.author);
 
-  const coverHex = hexOf(b.cover_color ?? b.cover_url);
+  // Hero/accent tint comes from the deterministic category theme, so records
+  // with and without real covers share the same visual identity.
+  const coverTheme = getCategoryCoverTheme(b.category);
+  const coverHex = coverTheme.background;
 
   const langLabel = (lang?: string | null) => {
     if (!lang) return null;
@@ -278,33 +279,18 @@ export default async function CatalogBookPage({
                 style={{ background: `${coverHex}55` }}
               />
               <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-black/10 shadow-[0_16px_48px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.1)] dark:border-white/10">
-                {b.cover_url ? (
-                  <Image
-                    src={b.cover_url}
-                    alt={b.title}
-                    fill
-                    sizes="(max-width: 768px) 200px, 260px"
-                    className="object-cover"
-                    priority
-                    unoptimized={true}
-                  />
-                ) : (
-                  <div
-                    className="flex h-full w-full flex-col justify-end p-5"
-                    style={{ background: `linear-gradient(150deg, ${coverHex} 0%, ${coverHex}cc 100%)` }}
-                  >
-                    <div aria-hidden className="absolute bottom-0 left-0 top-0 w-[7px] rounded-l-2xl" style={{ background: "rgba(0,0,0,0.20)" }} />
-                    <div aria-hidden className="absolute inset-y-0 right-0 w-[5px] rounded-r-2xl" style={{ background: "rgba(255,255,255,0.12)" }} />
-                    <div>
-                      {b.category && (
-                        <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-white/55">{b.category}</p>
-                      )}
-                      <p className="font-khmer-serif line-clamp-4 text-[15px] font-bold leading-snug text-white">{b.title}</p>
-                      {b.author && <p className="mt-1.5 text-xs text-white/70">{b.author}</p>}
-                    </div>
-                    <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-1/3 rounded-r-2xl" style={{ background: "linear-gradient(to left, rgba(255,255,255,0.08), transparent)" }} />
-                  </div>
-                )}
+                <SmartBookCover
+                  coverUrl={b.cover_url}
+                  title={b.title}
+                  author={b.author}
+                  category={b.category}
+                  callNumber={b.shelf_location}
+                  seed={b.slug}
+                  variant="detail"
+                  sizes="(max-width: 768px) 200px, 260px"
+                  priority
+                  unoptimized
+                />
               </div>
             </div>
 
@@ -372,9 +358,11 @@ export default async function CatalogBookPage({
             {/* Title / Category / Author */}
             <div className="border-b border-divider/60 pb-5">
               {b.category && (
+                /* Theme background as text works on light surfaces only — dark
+                   mode flips to the theme's light accent tint (AA-checked). */
                 <span
-                  className="mb-3 inline-block rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
-                  style={{ background: `${coverHex}15`, color: coverHex }}
+                  className="mb-3 inline-block rounded-full bg-[var(--pill)]/10 text-[var(--pill)] dark:bg-[var(--pill-dark)]/15 dark:text-[var(--pill-dark)] px-3 py-1 text-[11px] font-bold uppercase tracking-wider"
+                  style={{ "--pill": coverHex, "--pill-dark": coverTheme.accent } as React.CSSProperties}
                 >
                   {b.category}
                 </span>
@@ -396,7 +384,7 @@ export default async function CatalogBookPage({
             {/* Description */}
             {b.description && (
               <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-                <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700">
+                <h2 className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                   </svg>
@@ -409,7 +397,7 @@ export default async function CatalogBookPage({
             {/* Book Details */}
             {metaFields.length > 0 && (
               <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700">
+                <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
                   </svg>
@@ -429,7 +417,7 @@ export default async function CatalogBookPage({
             {/* Physical Copies */}
             <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700">
+                <h2 className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                   </svg>
@@ -557,7 +545,7 @@ export default async function CatalogBookPage({
             {/* Related records */}
             {related.length > 0 && (
               <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-                <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700">
+                <h2 className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gold-700 dark:text-gold-400">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
                   </svg>
@@ -571,11 +559,15 @@ export default async function CatalogBookPage({
                         className="group flex gap-3 rounded-xl border border-divider bg-paper/40 p-3 transition hover:border-brand/40 hover:shadow-sm"
                       >
                         <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md border border-black/5">
-                          {r.cover_url ? (
-                            <Image src={r.cover_url} alt="" fill sizes="44px" className="object-cover" unoptimized />
-                          ) : (
-                            <div className={`h-full w-full ${r.cover_color ?? "bg-brand"}`} />
-                          )}
+                          <SmartBookCover
+                            coverUrl={r.cover_url}
+                            title={r.title}
+                            category={r.category}
+                            seed={r.slug}
+                            variant="thumbnail"
+                            sizes="44px"
+                            unoptimized
+                          />
                         </div>
                         <div className="min-w-0">
                           <p className="font-khmer-serif line-clamp-2 text-xs font-bold leading-snug text-text-heading group-hover:text-brand">

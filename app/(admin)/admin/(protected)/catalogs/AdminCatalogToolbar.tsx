@@ -4,7 +4,7 @@
 import { useState, useRef, useCallback, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-type Filters = { q: string; cat: string; dept: string; status: string; sort: string };
+type Filters = { q: string; cat: string; dept: string; status: string; cover: string; sort: string };
 
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: "newest",    label: "Just added" },
@@ -60,7 +60,7 @@ export default function AdminCatalogToolbar({
   }
 
   const anyFilterActive =
-    !!filters.q || !!filters.cat || !!filters.dept || !!filters.status || filters.sort !== "newest";
+    !!filters.q || !!filters.cat || !!filters.dept || !!filters.status || !!filters.cover || filters.sort !== "newest";
 
   function resetAll() {
     setQueryText("");
@@ -152,8 +152,23 @@ export default function AdminCatalogToolbar({
             <option value="deleted">Deleted</option>
           </select>
 
+          <select
+            value={filters.cover}
+            onChange={(e) => setParams({ cover: e.target.value || null })}
+            className={selectCls}
+            aria-label="Cover status"
+          >
+            <option value="">Any cover</option>
+            <option value="has">Has cover</option>
+            <option value="missing">Missing cover</option>
+          </select>
+
           {anyFilterActive && (
-            <button type="button">
+            <button
+              type="button"
+              onClick={resetAll}
+              className="h-10 rounded-xl border border-divider px-3 text-sm font-semibold text-text-muted transition hover:border-brand/50 hover:text-brand"
+            >
               Reset
             </button>
           )}

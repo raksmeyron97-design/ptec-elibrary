@@ -403,24 +403,27 @@ export default function SearchBar({
                           }
                         `}
                       >
-                        {/* Icon / cover thumbnail */}
+                        {/* Icon / cover thumbnail — the icon sits underneath,
+                            so a broken cover URL degrades to the icon tile
+                            instead of a browser broken-image glyph. */}
                         <span
                           className={`
-                            flex h-9 w-9 shrink-0 items-center justify-center
+                            relative flex h-9 w-9 shrink-0 items-center justify-center
                             overflow-hidden rounded-lg ${TYPE_BG[type]}
                             ring-1 ring-black/5
                           `}
                         >
-                          {("coverUrl" in s && s.coverUrl) ? (
+                          <Icon
+                            name={TYPE_ICON[type]}
+                            className={`text-base ${TYPE_COLOR[type]}`}
+                          />
+                          {("coverUrl" in s && s.coverUrl) && (
                             <img
                               src={s.coverUrl}
-                              alt={s.label}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <Icon
-                              name={TYPE_ICON[type]}
-                              className={`text-base ${TYPE_COLOR[type]}`}
+                              alt=""
+                              loading="lazy"
+                              className="absolute inset-0 h-full w-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
                             />
                           )}
                         </span>

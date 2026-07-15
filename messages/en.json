@@ -531,6 +531,14 @@
       "unavailable": "Currently unavailable",
       "noCopies": "Ask at the library desk"
     },
+    "availShort": {
+      "available": "Available",
+      "referenceOnly": "Reference only",
+      "onLoan": "On loan",
+      "processing": "Processing",
+      "unavailable": "Unavailable",
+      "noCopies": "Ask at desk"
+    },
     "copyStatus": {
       "available": "Available",
       "onLoan": "On loan",

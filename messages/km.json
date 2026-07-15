@@ -537,6 +537,14 @@
       "unavailable": "មិនទំនេរ",
       "noCopies": "សូមសាកសួរនៅតុបណ្ណាល័យ"
     },
+    "availShort": {
+      "available": "អាចខ្ចីបាន",
+      "referenceOnly": "អានក្នុងបណ្ណាល័យ",
+      "onLoan": "កំពុងខ្ចី",
+      "processing": "កំពុងរៀបចំ",
+      "unavailable": "មិនទំនេរ",
+      "noCopies": "សួរនៅតុបណ្ណាល័យ"
+    },
     "copyStatus": {
       "available": "ទំនេរ",
       "onLoan": "កំពុងខ្ចី",

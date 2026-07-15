@@ -2,10 +2,9 @@
 "use client";
 
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Book } from "@/lib/books";
-import BookCover from "@/components/ui/books/BookCover";
+import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
 import Icon from "@/components/ui/core/Icon";
 import { useTranslations } from "next-intl";
@@ -85,25 +84,17 @@ export default function BookCard({ book, variant = "browse", priority = false }:
       >
         {/* ── Cover ── */}
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-paper">
-          {book.coverUrl ? (
-            <Image
-              src={book.coverUrl}
-              alt={`Cover of ${book.title}`}
-              fill
-              sizes="(max-width:640px) 50vw, (max-width:768px) 33vw, (max-width:1024px) 25vw, (max-width:1280px) 20vw, 220px"
-              priority={priority}
-              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.03]">
-              <BookCover
-                title={book.title}
-                label={book.category || book.department}
-                author={book.author}
-                variant="card"
-              />
-            </div>
-          )}
+          <SmartBookCover
+            coverUrl={book.coverUrl}
+            title={book.title}
+            author={book.author}
+            category={book.category || book.department}
+            seed={book.slug}
+            variant="card"
+            sizes="(max-width:640px) 50vw, (max-width:768px) 33vw, (max-width:1024px) 25vw, (max-width:1280px) 20vw, 220px"
+            priority={priority}
+            imgClassName="transition-transform duration-500 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+          />
 
           {/* NEW badge — solid pill, top-left, only on browse + new books */}
           {isNew && (
@@ -112,8 +103,9 @@ export default function BookCard({ book, variant = "browse", priority = false }:
             </span>
           )}
 
-          {/* Category pill — bottom-left, frosted white */}
-          {(book.category || book.department) && (
+          {/* Category pill — bottom-left, frosted white. Only over real cover
+              images: the generated cover already carries its category label. */}
+          {book.coverUrl && (book.category || book.department) && (
             <span className="absolute bottom-2 left-2 z-[4] rounded-[4px] bg-white/90 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-blue-700 shadow-sm backdrop-blur-sm">
               {book.category || book.department}
             </span>

@@ -313,12 +313,18 @@ export default function CommandPalette() {
                           `}
                         >
                           <span
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[type]} ring-1 ring-divider overflow-hidden`}
+                            className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TYPE_BG[type]} ring-1 ring-divider overflow-hidden`}
                           >
-                            {("coverUrl" in s && s.coverUrl) ? (
-                              <img src={s.coverUrl} alt={s.label} className="h-full w-full object-cover" />
-                            ) : (
-                              <Icon name={TYPE_ICON[type]} className={`text-lg ${TYPE_COLOR[type]}`} />
+                            {/* Icon underneath: broken cover URLs degrade to the icon tile */}
+                            <Icon name={TYPE_ICON[type]} className={`text-lg ${TYPE_COLOR[type]}`} />
+                            {("coverUrl" in s && s.coverUrl) && (
+                              <img
+                                src={s.coverUrl}
+                                alt=""
+                                loading="lazy"
+                                className="absolute inset-0 h-full w-full object-cover"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              />
                             )}
                           </span>
                           <span className="min-w-0 flex-1">
