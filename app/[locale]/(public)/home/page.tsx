@@ -41,6 +41,7 @@ export async function generateMetadata({
       title: "PTEC Digital Library — Free Teaching Resources",
       description: "Browse free textbooks, teaching materials, and research reports from Phnom Penh Teacher Education College. Available online in Khmer and English.",
       type: "website",
+      images: ["/og-default.png"],
     },
   };
 }

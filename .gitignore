@@ -58,3 +58,6 @@ next-env.d.ts
 # (7 of these were committed by accident; they are artifacts, not source.)
 playwright-report/
 test-results/
+# .gitignore
+public/sw.js
+public/sw.js.map
