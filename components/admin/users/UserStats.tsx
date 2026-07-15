@@ -16,6 +16,7 @@ export default function UserStats({ summary }: { summary: UsersSummary }) {
           direction: summary.newThisMonth >= summary.newLastMonth ? "up" : "down",
           value: `${summary.newThisMonth >= summary.newLastMonth ? "+" : ""}${summary.newThisMonth - summary.newLastMonth}`,
           label: "vs last month",
+          mode: "absolute",
         }
       : undefined;
 

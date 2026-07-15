@@ -87,7 +87,12 @@ export default function KpiCard({
             <span className="inline-flex items-center rounded-md bg-white/12 px-2 py-0.5 text-[11px] font-semibold text-white/90 ring-1 ring-inset ring-white/15">
               {badge}
             </span>
-          ) : trend && TrendIcon ? (
+          ) : trend && trend.mode === "absolute" ? (
+            <span className="flex flex-wrap items-center gap-x-1.5 text-white/70">
+              <span className="font-semibold tabular-nums">{trend.value}</span>
+              {compareLabel ?? trend.label}
+            </span>
+          ) : trend && trend.mode === "percent" && TrendIcon ? (
             <span className="flex flex-wrap items-center gap-x-1.5">
               <span className="inline-flex items-center gap-0.5 font-bold tabular-nums text-white">
                 <TrendIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -138,7 +143,12 @@ export default function KpiCard({
           <span className="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-semibold text-sky-800">
             {badge}
           </span>
-        ) : trend && TrendIcon && trendStyle ? (
+        ) : trend && trend.mode === "absolute" ? (
+          <span className="flex flex-wrap items-center gap-x-1.5 text-text-muted">
+            <span className="font-semibold tabular-nums">{trend.value}</span>
+            {compareLabel ?? trend.label}
+          </span>
+        ) : trend && trend.mode === "percent" && TrendIcon && trendStyle ? (
           <span className="flex flex-wrap items-center gap-x-1.5 text-text-muted">
             <span className={`inline-flex items-center gap-0.5 font-bold tabular-nums ${trendStyle.className}`}>
               <TrendIcon className="h-3.5 w-3.5" aria-hidden="true" />

@@ -182,7 +182,7 @@ export default function EngagementChart({
       ) : (
         <p className="mt-2 text-[12px] text-text-muted">
           {t("summary", { total, avg, peak: peak ? peak.value : 0, peakDay: peak ? formatBucket(peak.date, granularity) : "—" })}
-          {prevTotal !== null && <span className="ms-1.5">{t("summaryPrev", { value: prevTotal })}</span>}
+          {prevTotal !== null && prevTotal > 0 && <span className="ms-1.5">{t("summaryPrev", { value: prevTotal })}</span>}
         </p>
       )}
 

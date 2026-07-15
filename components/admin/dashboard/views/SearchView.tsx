@@ -88,7 +88,11 @@ export default async function SearchView({
             accent="views"
             label={t("totalSearches")}
             value={nf.format(s.total)}
-            hint={filters.compare ? t("prevValue", { value: nf.format(s.previousTotal) }) : undefined}
+            hint={
+              filters.compare && s.previousTotal > 0
+                ? t("prevValue", { value: nf.format(s.previousTotal) })
+                : undefined
+            }
             icon={<Search className="h-4 w-4" />}
           />
           <MetricCard

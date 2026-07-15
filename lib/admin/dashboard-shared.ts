@@ -161,6 +161,16 @@ export type TrendInfo = {
   label: string;
   /** Absolute previous-period value, so small baselines are never hidden. */
   previous?: number;
+  /**
+   * How the UI should present the comparison:
+   *  - "hidden"   — previous period is 0, so any delta is meaningless; render
+   *                 no comparison chip at all.
+   *  - "absolute" — previous base is too small for an honest percentage;
+   *                 render the absolute delta in muted text ("+143 · 53
+   *                 previously"), never coloured up/down drama.
+   *  - "percent"  — normal coloured percentage chip.
+   */
+  mode: "hidden" | "absolute" | "percent";
 };
 
 /**
@@ -168,28 +178,31 @@ export type TrendInfo = {
  * Percentages mislead on small bases (1 → 3 is "+200%"), so below
  * `minPercentBase` the badge shows the absolute difference instead, and the
  * previous value is always carried so the UI can say "335 vs 12 previously".
+ * When the previous period is 0 there is nothing to compare against, so the
+ * result is marked `mode: "hidden"` and the UI suppresses the chip entirely.
  */
 export function compareTrend(
   current: number,
   previous: number,
   vsLabel: string,
-  minPercentBase = 10,
+  minPercentBase = 20,
 ): TrendInfo {
   if (previous === 0 && current === 0) {
-    return { direction: "neutral", value: "—", label: "no previous data", previous };
+    return { direction: "neutral", value: "—", label: "no previous data", previous, mode: "hidden" };
   }
   if (previous === 0) {
-    return { direction: "up", value: "New", label: `new activity ${vsLabel}`, previous };
+    return { direction: "up", value: "New", label: `new activity ${vsLabel}`, previous, mode: "hidden" };
   }
+  const mode = previous < minPercentBase ? "absolute" : "percent";
   const diff = current - previous;
   if (diff === 0) {
-    return { direction: "neutral", value: "±0", label: vsLabel, previous };
+    return { direction: "neutral", value: "±0", label: vsLabel, previous, mode };
   }
   const value =
-    previous < minPercentBase
+    mode === "absolute"
       ? `${diff > 0 ? "+" : ""}${diff}`
       : `${diff > 0 ? "+" : ""}${Math.round((diff / previous) * 100)}%`;
-  return { direction: diff > 0 ? "up" : "down", value, label: vsLabel, previous };
+  return { direction: diff > 0 ? "up" : "down", value, label: vsLabel, previous, mode };
 }
 
 // ── Unique-visitor deduplication ─────────────────────────────────────────────

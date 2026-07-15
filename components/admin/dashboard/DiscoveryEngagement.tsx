@@ -38,6 +38,16 @@ export default async function DiscoveryEngagement({
   const locale = await getLocale();
   const nf = new Intl.NumberFormat(locale === "km" ? "km-KH" : "en-US");
 
+  // A previous-period percentage computed off a tiny base ("100% previously"
+  // from 1 search) misleads more than it informs — only show it once the
+  // previous denominator is meaningful.
+  const MIN_PREV_BASE = 20;
+  const prevDenominator: Record<"searchCtr" | "readRate" | "downloadRate", number> = {
+    searchCtr: prevVolumes.searches,
+    readRate: prevVolumes.detailViews,
+    downloadRate: prevVolumes.detailViews,
+  };
+
   const rateRow = (
     key: "searchCtr" | "readRate" | "downloadRate",
     icon: React.ReactNode,
@@ -46,6 +56,7 @@ export default async function DiscoveryEngagement({
   ) => {
     const rate: DiscoveryRate = rates[key];
     const prev: DiscoveryRate = prevRates[key];
+    const prevMeaningful = prevDenominator[key] >= MIN_PREV_BASE;
     return (
       <div key={key} className="flex items-center gap-3 rounded-xl border border-divider/60 bg-paper/70 px-3 py-2.5">
         <span className={`dash-ico dash-ico--${tint} dash-ico--md`} aria-hidden="true">
@@ -65,7 +76,7 @@ export default async function DiscoveryEngagement({
               "—"
             )}
           </p>
-          {compare && !collecting && prev.pct !== null && prev.comparable && (
+          {compare && !collecting && prevMeaningful && prev.pct !== null && prev.comparable && (
             <p className="text-[10.5px] tabular-nums text-text-muted">{t("prevPct", { pct: prev.pct })}</p>
           )}
           {!collecting && rate.pct !== null && !rate.comparable && (
@@ -128,7 +139,7 @@ export default async function DiscoveryEngagement({
             <dt className="truncate text-[10.5px] font-medium text-text-muted">{t(`volumes.${key}`)}</dt>
             <dd className="text-[13px] font-bold tabular-nums text-text-heading">
               {value === null ? t("collectingShort") : nf.format(value)}
-              {compare && prev !== null && value !== null && (
+              {compare && prev !== null && prev > 0 && value !== null && (
                 <span className="ms-1 text-[10px] font-normal text-text-muted">{t("prev", { value: nf.format(prev) })}</span>
               )}
             </dd>

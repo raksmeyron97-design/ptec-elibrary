@@ -763,7 +763,9 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
       downloads: kpi(downloadRows, dlNow, dlPrev),
       conversion: {
         valuePct: pct(engagedIds.size, viewerIds.size),
-        prevPct: pct(prevEngagedIds.size, prevViewerIds.size),
+        // A previous-period rate off fewer than 5 viewers ("100% previously")
+        // is noise, not a comparison — same floor as `insufficient` below.
+        prevPct: prevViewerIds.size < 5 ? null : pct(prevEngagedIds.size, prevViewerIds.size),
         engaged: engagedIds.size,
         viewers: viewerIds.size,
         insufficient: viewerIds.size < 5,
