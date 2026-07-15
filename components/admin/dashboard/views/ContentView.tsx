@@ -12,6 +12,7 @@ import { serializeDashboardFilters, type DashboardFilters } from "@/lib/admin/da
 import FreshnessLine from "../FreshnessLine";
 import CollectionHealthCards from "../CollectionHealthCards";
 import ContentPresetMenu from "../ContentPresetMenu";
+import InfoTip from "../InfoTip";
 
 function parsePreset(raw: string | undefined): ContentPreset {
   return (CONTENT_PRESETS as readonly string[]).includes(raw ?? "") ? (raw as ContentPreset) : "top";
@@ -189,10 +190,18 @@ export default async function ContentView({
                   <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.engagement")}</th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.downloads")}</th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">
-                    <abbr title={t("conversionFormula")} className="no-underline">{t("cols.conversion")}</abbr>
+                    <span className="inline-flex items-center gap-0.5">
+                      {t("cols.conversion")}
+                      <InfoTip label={t("cols.conversion")} text={t("conversionFormula")} />
+                    </span>
                   </th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.trend")}</th>
-                  <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.metadata")}</th>
+                  <th scope="col" className="px-2 py-2 text-end font-bold">
+                    <span className="inline-flex items-center gap-0.5">
+                      {t("cols.metadata")}
+                      <InfoTip label={t("cols.metadata")} text={t("metaFormula")} />
+                    </span>
+                  </th>
                   <th scope="col" className="px-2 py-2 pe-4 text-end font-bold">{t("cols.actions")}</th>
                 </tr>
               </thead>

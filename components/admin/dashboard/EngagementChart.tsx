@@ -145,6 +145,14 @@ export default function EngagementChart({
           <span className="text-[11px] font-medium text-sky-800">{t("readerOpensCollecting")}</span>
         )}
         <div className="ms-auto flex items-center gap-3">
+          {showAnnotations && annotations.length > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-text-muted">
+              <svg width="10" height="10" aria-hidden="true">
+                <circle cx="5" cy="5" r="3.5" fill="#DDB022" />
+              </svg>
+              {t("publishLegend")}
+            </span>
+          )}
           <label className="flex cursor-pointer select-none items-center gap-1 text-[11.5px] font-medium text-text-muted">
             <input
               type="checkbox"

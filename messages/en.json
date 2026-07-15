@@ -1232,7 +1232,8 @@
       "compareMetrics": "Compare metrics",
       "summary": "Total {total} · avg {avg}/day · peak {peak} on {peakDay}",
       "summaryPrev": "· previous period {value}",
-      "srSingleSummary": "{series}: {total} in total, average {avg} per day, peak {peak}."
+      "srSingleSummary": "{series}: {total} in total, average {avg} per day, peak {peak}.",
+      "publishLegend": "Publish event"
     },
     "actionCenter": {
       "title": "Action center",
@@ -1372,7 +1373,8 @@
         "year": "year",
         "category": "category"
       },
-      "noChange": "no change"
+      "noChange": "no change",
+      "metaFormula": "Metadata completeness — the share of key catalogue fields filled in (cover, description, author, language, department, year, …)"
     },
     "health": {
       "title": "Collection health",
