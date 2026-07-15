@@ -1,39 +1,48 @@
-"use client"
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
- 
-;
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-// components/ui/CatalogCard.tsx
+"use client";
+// components/ui/books/CatalogCard.tsx
 
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from 'next-intl';
-import type { CatalogBook } from "@/lib/catalog";
+import { useTranslations } from "next-intl";
+import type { CatalogBook, CopyStatusRow } from "@/lib/catalog";
 import {
-  getAvailability,
-  AVAILABILITY_LABEL,
-  AVAILABILITY_COLOR,
-  AVAILABILITY_DOT,
+  computeCopyStats,
+  statsFromCounters,
+  getCatalogAvailability,
+  AVAILABILITY_KEY,
+  AVAILABILITY_TONE,
+  TONE_DOT,
 } from "@/lib/catalog";
 
+const TONE_TEXT: Record<string, string> = {
+  positive: "text-emerald-600 dark:text-emerald-400",
+  warning:  "text-amber-600 dark:text-amber-400",
+  danger:   "text-red-500 dark:text-red-400",
+  info:     "text-sky-600 dark:text-sky-400",
+  neutral:  "text-text-muted",
+};
+
 type Props = {
-  book: CatalogBook;
+  book: CatalogBook & { catalog_copies?: CopyStatusRow[] };
 };
 
 export default function CatalogCard({ book }: Props) {
-  const t = useTranslations('catalogs');
-  const status = getAvailability(book);
-  const dotColor  = AVAILABILITY_DOT[status];
-  const textColor = AVAILABILITY_COLOR[status];
-  const statusKey = status === 'available' ? 'availAvailable' : status === 'limited' ? 'availLimited' : 'availUnavailable';
+  const t = useTranslations("catalogs");
+  // Availability is derived from copy rows when the query embedded them;
+  // otherwise fall back to the derived counters on the book row.
+  const stats = book.catalog_copies
+    ? computeCopyStats(book.catalog_copies)
+    : statsFromCounters(book);
+  const availability = getCatalogAvailability(stats);
+  const tone = AVAILABILITY_TONE[availability];
+  const dotColor = TONE_DOT[tone];
+  const textColor = TONE_TEXT[tone];
 
   return (
     <Link
       href={`/catalogs/${book.slug}`}
       prefetch={false}
-      className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-divider shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
     >
       {/* Gold top-rule on hover (brand signature) */}
       <span
@@ -56,13 +65,13 @@ export default function CatalogCard({ book }: Props) {
           /* Fallback gradient cover */
           <div className={`absolute inset-0 ${book.cover_color} flex items-end p-3`}>
             <div className="space-y-1">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-white/60 leading-none">
+              <p className="text-[11px] font-bold uppercase tracking-widest leading-none text-white/60">
                 {book.category ?? "Book"}
               </p>
-              <p className="font-khmer-serif text-sm font-bold text-white leading-snug line-clamp-3">
+              <p className="font-khmer-serif line-clamp-3 text-sm font-bold leading-snug text-white">
                 {book.title}
               </p>
-              <p className="text-[11px] text-white/70 leading-none">{book.author}</p>
+              <p className="text-[11px] leading-none text-white/70">{book.author}</p>
             </div>
           </div>
         )}
@@ -79,25 +88,28 @@ export default function CatalogCard({ book }: Props) {
             border-current/20
           `}
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
-          {t(statusKey as any)}
+          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dotColor}`} />
+          {t(`avail.${AVAILABILITY_KEY[availability]}`)}
         </span>
       </div>
 
       {/* Info */}
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <p className="font-khmer-serif line-clamp-2 text-sm font-bold text-text-heading leading-snug">
+        <p className="font-khmer-serif line-clamp-2 text-sm font-bold leading-snug text-text-heading">
           {book.title}
         </p>
-        <p className="text-xs text-text-muted truncate">{book.author}</p>
+        <p className="truncate text-xs text-text-muted">
+          {book.author}
+          {book.year ? ` · ${book.year}` : ""}
+        </p>
 
         {/* Copies + shelf */}
-        <div className="mt-auto pt-2 flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between pt-2">
           <span className={`text-[11px] font-semibold ${textColor}`}>
-            {t('copiesCount', { available: book.copies_available, total: book.copies_total })}
+            {t("copiesCount", { available: stats.available, total: stats.total })}
           </span>
           {book.shelf_location && (
-            <span className="text-[10px] font-mono text-text-muted bg-paper px-1.5 py-0.5 rounded-md">
+            <span className="rounded-md bg-paper px-1.5 py-0.5 font-mono text-[10px] text-text-muted">
               {book.shelf_location}
             </span>
           )}

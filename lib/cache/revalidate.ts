@@ -64,6 +64,7 @@ export const TAGS = {
   books: "books",
   book: (slug: string) => `book:${slug}`,
   catalogBooks: "catalog_books",
+  catalogBook: (slug: string) => `catalog-book:${slug}`,
   theses: "research_reports",
   thesis: (slug: string) => `thesis:${slug}`,
   publications: "publications",
@@ -114,6 +115,22 @@ export function revalidateBook(
 export function revalidateBookSlugChange(oldSlug: string, newSlug: string) {
   revalidateBook(oldSlug);
   revalidateBook(newSlug);
+}
+
+/**
+ * A physical-catalog record or one of its copies changed. The /catalogs
+ * listing caches its queries with unstable_cache under TAGS.catalogBooks —
+ * revalidatePath alone does NOT purge those entries, which is exactly how a
+ * record used to stay invisible on the listing (with a stale count) for up to
+ * an hour while its detail page was already live. Always call this helper.
+ */
+export function revalidateCatalogBook(slug?: string | null) {
+  revalidateTag(TAGS.catalogBooks, "max");
+  if (slug) {
+    revalidateTag(TAGS.catalogBook(slug), "max");
+    revalidatePublicPath(`/catalogs/${slug}`);
+  }
+  revalidatePublicPath("/catalogs");
 }
 
 export function revalidateThesis(slug?: string | null) {

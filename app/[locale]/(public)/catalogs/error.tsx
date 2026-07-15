@@ -72,6 +72,9 @@ export default function CatalogsError({
               </svg>
               Try again
             </button>
+            {/* Deliberate hard navigation: a full reload is the safest escape
+                hatch from a broken error-boundary state. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/home"
               className="inline-flex h-10 items-center rounded-xl border border-divider bg-bg-surface px-6 text-sm font-semibold text-text-body transition hover:border-divider hover:text-text-heading"

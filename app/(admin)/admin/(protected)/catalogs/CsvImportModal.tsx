@@ -95,7 +95,8 @@ export default function CsvImportModal() {
         setResult(
           `✅ Imported ${res.imported} book${res.imported !== 1 ? "s" : ""} successfully!` +
           (convertedLinks > 0 ? ` · ${convertedLinks} Drive link${convertedLinks !== 1 ? "s" : ""} converted` : "") +
-          (removed > 0 ? ` · ${removed} duplicate row${removed !== 1 ? "s" : ""} skipped` : "")
+          (removed > 0 ? ` · ${removed} duplicate row${removed !== 1 ? "s" : ""} skipped` : "") +
+          (res.problems.length > 0 ? ` · ⚠ ${res.problems.length} row${res.problems.length !== 1 ? "s" : ""} skipped: ${res.problems.slice(0, 3).join("; ")}` : "")
         );
         setCsvText("");
       } catch (err: any) {

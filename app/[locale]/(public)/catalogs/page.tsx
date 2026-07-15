@@ -1,13 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/catalogs/page.tsx
 import { Suspense } from "react";
 import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
-import type { CatalogBook } from "@/lib/catalog";
-import { getAvailability } from "@/lib/catalog";
+import type { CatalogBook, CopyStatusRow } from "@/lib/catalog";
 import CatalogCard from "@/components/ui/books/CatalogCard";
 import CatalogSearchBar from "@/components/ui/search/CatalogSearchBar";
 import Pagination from "@/components/ui/core/Pagination";
@@ -57,6 +55,8 @@ export async function generateMetadata({
 }
 
 // ── Fetch ──────────────────────────────────────────────────────────────────────
+type PublicCatalogBook = CatalogBook & { catalog_copies: CopyStatusRow[] };
+
 const fetchCatalogBooks = unstable_cache(
   async (params: SearchParams) => {
     const supabase = createPublicClient();
@@ -77,9 +77,11 @@ const fetchCatalogBooks = unstable_cache(
   const sortKey = (params.sort && sortMap[params.sort]) ? params.sort : "newest";
   const { column, asc } = sortMap[sortKey];
 
+  // Copy statuses ride along so availability is computed from real copy rows,
+  // not the denormalised counters.
   let query = supabase
     .from("catalog_books")
-    .select("*", { count: "exact" })
+    .select("*, catalog_copies(status)", { count: "exact" })
     .eq("is_active", true)
     .order(column, { ascending: asc })
     .range(from, to);
@@ -104,8 +106,8 @@ const fetchCatalogBooks = unstable_cache(
   if (avail === "available") query = query.gt("copies_available", 0);
 
   const { data, error, count } = await query;
-    if (error) { console.error(error.message); return { books: [] as CatalogBook[], total: 0, page }; }
-    return { books: (data ?? []) as CatalogBook[], total: count ?? 0, page };
+    if (error) { console.error(error.message); return { books: [] as PublicCatalogBook[], total: 0, page }; }
+    return { books: (data ?? []) as PublicCatalogBook[], total: count ?? 0, page };
   },
   ["catalog-books-query"],
   { revalidate: 3600, tags: ["catalog_books"] }
@@ -168,8 +170,6 @@ export default async function CatalogsPage({
   // header collapses to the title and the empty state carries the visit info.
   // As soon as the first record is added this reverts to the normal layout.
   const catalogEmpty = total === 0 && !hasFilters;
-
-  const availOnlyCount = books.filter((b) => getAvailability(b) === "available").length;
 
   return (
     <ClientNavWrapper>
