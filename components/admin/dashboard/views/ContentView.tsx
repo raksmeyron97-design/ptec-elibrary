@@ -91,6 +91,15 @@ export default async function ContentView({
     </span>
   );
 
+  // Zeros render as a muted dash so the non-zero numbers carry the table;
+  // the sr-only "0" keeps the cell unambiguous for screen readers.
+  const mutedZero = (
+    <>
+      <span aria-hidden="true" className="text-text-muted/60">—</span>
+      <span className="sr-only">0</span>
+    </>
+  );
+
   const missingLabel = (missing: string[]) =>
     missing.length === 0
       ? t("metaComplete")
@@ -223,9 +232,17 @@ export default async function ContentView({
                         {t("engagementSub", { viewers: nf.format(row.uniqueViewers), opens: nf.format(row.readerOpens) })}
                       </span>
                     </td>
-                    <td className="px-2 py-2 text-end tabular-nums text-text-body">{nf.format(row.downloads)}</td>
                     <td className="px-2 py-2 text-end tabular-nums text-text-body">
-                      {row.conversionPct === null ? "—" : `${row.conversionPct}%`}
+                      {row.downloads === 0 ? mutedZero : nf.format(row.downloads)}
+                    </td>
+                    <td className="px-2 py-2 text-end tabular-nums text-text-body">
+                      {row.conversionPct === null ? (
+                        <span className="text-text-muted/60">—</span>
+                      ) : row.conversionPct === 0 ? (
+                        mutedZero
+                      ) : (
+                        `${row.conversionPct}%`
+                      )}
                     </td>
                     <td className="px-2 py-2 text-end">{trendIcon(row.delta)}</td>
                     <td className="px-2 py-2 text-end">{pctChip(row.completeness, row.missing)}</td>
