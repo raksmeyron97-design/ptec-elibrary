@@ -45,6 +45,17 @@ export default async function ContentView({
   const rangeLabel = filters.range === "custom" ? data.rangeLabel : tRange(filters.range);
 
   const baseQs = serializeDashboardFilters(filters);
+  // Language-chip link: same view, language filter applied (or cleared when
+  // the chip's language is already the active filter).
+  const langHref = (lang: "en" | "km") => {
+    const sp = new URLSearchParams(
+      serializeDashboardFilters({ ...filters, lang: filters.lang === lang ? "all" : lang }),
+    );
+    if (preset !== "top") sp.set("preset", preset);
+    if (q) sp.set("q", q);
+    const s = sp.toString();
+    return s ? `/admin?${s}` : "/admin";
+  };
   const hrefFor = (p: ContentPreset, page = 1, keepQ = true) => {
     const sp = new URLSearchParams(baseQs);
     if (p !== "top") sp.set("preset", p);
@@ -182,11 +193,12 @@ export default async function ContentView({
           <p className="px-4 py-10 text-center text-[13px] text-text-muted">{t("emptyPreset")}</p>
         ) : (
           <div className="relative mt-2.5 max-h-[600px] overflow-auto">
-            <table className="w-full min-w-[760px] text-[12.5px]">
+            <table className="w-full min-w-[820px] text-[12.5px]">
               <thead className="dash-thead sticky top-0 z-10">
                 <tr className="text-[11px] font-bold">
                   <th scope="col" className="px-4 py-2 text-start font-bold">{t("cols.title")}</th>
                   <th scope="col" className="px-2 py-2 text-start font-bold">{t("cols.type")}</th>
+                  <th scope="col" className="px-2 py-2 text-start font-bold">{t("cols.language")}</th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.engagement")}</th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">{t("cols.downloads")}</th>
                   <th scope="col" className="px-2 py-2 text-end font-bold">
@@ -227,14 +239,30 @@ export default async function ContentView({
                             {row.title}
                           </p>
                           <p className="truncate text-[11px] text-text-muted">
-                            {[row.department, row.language ? t(`langShort.${row.language}`) : null, row.published ? null : t("draft")]
-                              .filter(Boolean)
-                              .join(" · ")}
+                            {[row.department, row.published ? null : t("draft")].filter(Boolean).join(" · ")}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-2 py-2">{typeBadge(row.type)}</td>
+                    <td className="whitespace-nowrap px-2 py-2">
+                      {row.language ? (
+                        <Link
+                          href={langHref(row.language)}
+                          aria-label={t("filterByLang", { lang: t(`langShort.${row.language}`) })}
+                          aria-current={filters.lang === row.language ? "true" : undefined}
+                          className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
+                            filters.lang === row.language
+                              ? "bg-brand text-white ring-brand"
+                              : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-brand/10 hover:text-brand"
+                          }`}
+                        >
+                          {t(`langShort.${row.language}`)}
+                        </Link>
+                      ) : (
+                        <span className="text-[10.5px] text-text-muted/60">—</span>
+                      )}
+                    </td>
                     <td className="px-2 py-2 text-end">
                       <span className="font-semibold tabular-nums text-text-heading">{nf.format(row.views)}</span>
                       <span className="block text-[10.5px] tabular-nums text-text-muted">

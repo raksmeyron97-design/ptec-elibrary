@@ -1328,7 +1328,8 @@
         "trend": "Trend",
         "metadata": "Metadata",
         "actions": "Actions",
-        "engagement": "Views"
+        "engagement": "Views",
+        "language": "Language"
       },
       "conversionFormula": "(reader opens + downloads) ÷ views",
       "langShort": {
@@ -1382,7 +1383,8 @@
         "category": "category"
       },
       "noChange": "no change",
-      "metaFormula": "Metadata completeness — the share of key catalogue fields filled in (cover, description, author, language, department, year, …)"
+      "metaFormula": "Metadata completeness — the share of key catalogue fields filled in (cover, description, author, language, department, year, …)",
+      "filterByLang": "Filter by language: {lang}"
     },
     "health": {
       "title": "Collection health",
