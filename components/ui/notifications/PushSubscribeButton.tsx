@@ -101,7 +101,7 @@ function browserHelp(): string {
 export default function PushSubscribeButton() {
   const t = useTranslations("pushNotifications");
   const { status, loading, busyAction, messageKey, errorCode, enable, repair, disable, test } = usePushNotifications({ autoRepair: true });
-  const help = useMemo(browserHelp, []);
+  const help = useMemo(() => browserHelp(), []);
   const busy = busyAction !== null;
 
   const state = status.kind;

@@ -6,11 +6,27 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch/PR supersedes the running CI — cancel it
+# instead of letting both bill Actions minutes (Playwright runs are the
+# expensive part). main pushes are never cancelled mid-run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
 jobs:
   # Scan the full git history for committed secrets on every push.
   # If this ever fires on a real secret: rotate it first, then clean history.
   secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # On pull_request events gitleaks-action lists the PR's commits via the
+      # API; without this the job 403s ("Resource not accessible by
+      # integration") before scanning anything.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,6 +36,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # On PRs, block newly-introduced dependencies with known vulnerabilities.
+  # Requires the dependency graph — free on public repos, GHAS-only on
+  # private ones (it failed every PR while this repo was private).
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -59,6 +77,10 @@ jobs:
       run: npm run check:hero
 
     - name: Type Check
+      # tsc needs > the ~2GB default heap on this codebase; the runner has 7GB.
+      # Verified locally: passes cleanly at 4GB (OOM'd CI at default).
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
       run: npx tsc --noEmit
       
     - name: Lint
@@ -66,10 +88,29 @@ jobs:
       
     - name: Unit Tests
       run: npx vitest run
-      
+
+  # Playwright suite. Deliberately NOT a required check for merging: it runs
+  # against placeholder Supabase env vars, so the handful of tests that need
+  # real listing/search data have never passed in CI (search-facets, one
+  # mobile smoke assertion). Keep it visible here; promote it to a required
+  # check once CI gets a real database (supabase start or a staging project).
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
-      
+
     - name: Run E2E Tests
       env:
         NEXT_PUBLIC_SUPABASE_URL: "https://your-project-id.supabase.co"

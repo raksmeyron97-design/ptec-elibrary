@@ -32,6 +32,9 @@ export default function AdminError({
             You don&apos;t have permission to view this page. Please contact an administrator
             if you believe this is a mistake.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full
+              reload on purpose: leaving an errored segment via <a> re-runs the
+              server guards and resets the boundary; client nav may not. */}
           <a
             href="/admin"
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg transition-colors"

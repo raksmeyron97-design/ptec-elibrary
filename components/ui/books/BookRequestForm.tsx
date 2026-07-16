@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+// Plain next/link (not i18n/navigation): /auth/* lives outside the locale scheme.
+import Link from "next/link";
 import { BookPlus, X, CheckCircle, AlertCircle } from "lucide-react";
 import { submitBookRequest } from "@/app/actions/book-requests";
 import { createClient } from "@/lib/supabase/client";
@@ -67,9 +69,9 @@ export default function BookRequestForm() {
                 <div className="rounded-xl border border-divider bg-paper p-4 text-center">
                   <p className="text-[13px] text-text-muted">
                     Please{" "}
-                    <a href="/auth/login" className="font-semibold text-brand hover:underline">
+                    <Link href="/auth/login" className="font-semibold text-brand hover:underline">
                       sign in
-                    </a>{" "}
+                    </Link>{" "}
                     to submit a book request.
                   </p>
                 </div>

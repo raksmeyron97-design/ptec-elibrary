@@ -1,0 +1,54 @@
+# Hourly uptime backstop (probes 1 & 2 from docs/MONITORING.md).
+#
+# This is NOT the primary monitor — UptimeRobot/BetterStack at a 5-minute
+# interval is (see docs/MONITORING.md §Uptime probes). This job exists so a
+# total outage still produces an alert (GitHub "workflow failed" email) even
+# if the external monitor was never set up or its account lapses.
+#
+# Actions minutes are free on public repos, so this runs every 15 minutes.
+# If the repo ever goes private again, loosen to hourly (each run bills a
+# full minute against the 2,000/month free tier).
+name: Uptime Backstop
+
+on:
+  schedule:
+    - cron: "7/15 * * * *" # every 15 min, off the top-of-hour cron rush
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Three attempts 30s apart per probe: a single blip (cold function,
+      # transient network) must not page; only a sustained failure fails the run.
+      - name: Probe production
+        run: |
+          set -u
+          check() {
+            local name=$1 url=$2 must_contain=${3:-}
+            local attempt code body
+            for attempt in 1 2 3; do
+              body=$(curl -sS --max-time 15 "$url" -w '\n%{http_code}' 2>&1)
+              code=${body##*$'\n'}
+              if [ "$code" = "200" ]; then
+                if [ -z "$must_contain" ] || printf '%s' "$body" | grep -q "$must_contain"; then
+                  echo "OK: $name (attempt $attempt)"
+                  return 0
+                fi
+                echo "attempt $attempt: $name returned 200 but body lacks \"$must_contain\""
+              else
+                echo "attempt $attempt: $name returned ${code:-no-response}"
+              fi
+              [ "$attempt" -lt 3 ] && sleep 30
+            done
+            echo "::error title=Uptime probe failed::$name unhealthy after 3 attempts — see docs/MONITORING.md runbook 1"
+            return 1
+          }
+
+          fail=0
+          check "GET /api/health (DB + storage reachability)" "https://library.ptec.edu.kh/api/health" || fail=1
+          check "GET /home (homepage, tunnel, app process)" "https://library.ptec.edu.kh/home" "PTEC" || fail=1
+          exit "$fail"
