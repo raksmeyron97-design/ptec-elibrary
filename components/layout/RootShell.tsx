@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { getMessages } from "next-intl/server";
@@ -130,8 +131,9 @@ export default async function RootShell({
           crossOrigin="anonymous"
         />
         <link rel="preconnect" href="https://storage-ptec.online" />
-        <script
-          suppressHydrationWarning
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
       </head>
