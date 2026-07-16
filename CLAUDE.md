@@ -21,7 +21,7 @@ npx tsx scripts/embed-library.ts   # Backfill pgvector embeddings for AI search
 
 `postinstall` copies PDF.js assets via `scripts/copy-pdf-assets.mjs`.
 
-Database migrations are in `supabase/migrations/` and must be applied sequentially. For local Supabase: `supabase start`.
+Database migrations are in `supabase/migrations/` and are applied to the hosted DB by CI (`.github/workflows/migrate.yml`: dry-run on PRs, apply on merge to main — see `supabase/MIGRATIONS.md`). Never apply by hand in the dashboard SQL editor. For local Supabase: `supabase start`. The `e2e` CI job boots a fresh local stack, so every migration must apply cleanly from the squashed baseline; `node scripts/migrations/check-schema-drift.mjs` diffs hosted columns against the chain.
 
 ## Architecture
 
