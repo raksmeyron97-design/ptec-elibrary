@@ -5,14 +5,14 @@
 # total outage still produces an alert (GitHub "workflow failed" email) even
 # if the external monitor was never set up or its account lapses.
 #
-# Cost note (private repo): each run bills 1 Actions minute. Hourly ≈ 744
-# min/month of the 2,000 free — do not tighten the cron below 30 minutes;
-# use the external monitor for fast detection instead.
+# Actions minutes are free on public repos, so this runs every 15 minutes.
+# If the repo ever goes private again, loosen to hourly (each run bills a
+# full minute against the 2,000/month free tier).
 name: Uptime Backstop
 
 on:
   schedule:
-    - cron: "23 * * * *" # hourly, off the top-of-hour cron rush
+    - cron: "7/15 * * * *" # every 15 min, off the top-of-hour cron rush
   workflow_dispatch:
 
 permissions: {}

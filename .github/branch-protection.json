@@ -1,7 +1,7 @@
 {
   "required_status_checks": {
     "strict": false,
-    "contexts": ["test", "secret-scan"]
+    "contexts": ["test", "secret-scan", "dependency-review"]
   },
   "enforce_admins": true,
   "required_pull_request_reviews": null,

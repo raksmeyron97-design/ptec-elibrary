@@ -35,10 +35,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # NOTE: a dependency-review job (actions/dependency-review-action) used to
-  # run on PRs, but it hard-requires GitHub Advanced Security on private
-  # repos and failed every PR. Restore it if the repo goes public or gets a
-  # GHAS/Pro plan; until then `npm audit` below covers vulnerable deps.
+  # On PRs, block newly-introduced dependencies with known vulnerabilities.
+  # Requires the dependency graph — free on public repos, GHAS-only on
+  # private ones (it failed every PR while this repo was private).
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
 
   test:
     runs-on: ubuntu-latest
