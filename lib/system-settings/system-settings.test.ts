@@ -105,10 +105,10 @@ describe("allowlist: public SiteConfig shape is closed", () => {
 
 describe("phone normalization (Cambodia)", () => {
   it("accepts local and international input and canonicalizes", () => {
-    expect(normalizeKhPhone("092 788 990")).toBe("092 788 990");
-    expect(normalizeKhPhone("092788990")).toBe("092 788 990");
-    expect(normalizeKhPhone("+855 92 788 990")).toBe("092 788 990");
-    expect(normalizeKhPhone("(+855) 92-788-990")).toBe("092 788 990");
+    expect(normalizeKhPhone("012 345 678")).toBe("012 345 678");
+    expect(normalizeKhPhone("012345678")).toBe("012 345 678");
+    expect(normalizeKhPhone("+855 12 345 678")).toBe("012 345 678");
+    expect(normalizeKhPhone("(+855) 12-345-678")).toBe("012 345 678");
     expect(normalizeKhPhone("0123456789")).toBe("012 345 6789"); // 10-digit
   });
 
@@ -119,8 +119,8 @@ describe("phone normalization (Cambodia)", () => {
   });
 
   it("derives tel: and international display", () => {
-    expect(phoneToTel("092 788 990")).toBe("tel:+85592788990");
-    expect(phoneToIntlDisplay("092 788 990")).toBe("(+855) 92 788 990");
+    expect(phoneToTel("012 345 678")).toBe("tel:+85512345678");
+    expect(phoneToIntlDisplay("012 345 678")).toBe("(+855) 12 345 678");
   });
 });
 
@@ -159,7 +159,7 @@ describe("section validators", () => {
   it("contact rejects a bad email and normalizes phones", () => {
     const result = validateContact({
       ...DEFAULT_SECTION_DOCS.contact,
-      phone: "+855 92 788 990",
+      phone: "+855 12 345 678",
       email: "not-an-email",
     });
     expect(result.ok).toBe(false);
@@ -167,9 +167,9 @@ describe("section validators", () => {
       expect(result.errors.map((e) => e.path)).toContain("email");
     }
 
-    const good = validateContact({ ...DEFAULT_SECTION_DOCS.contact, phone: "+855 92 788 990" });
+    const good = validateContact({ ...DEFAULT_SECTION_DOCS.contact, phone: "+855 12 345 678" });
     expect(good.ok).toBe(true);
-    if (good.ok) expect(good.value.phone).toBe("092 788 990");
+    if (good.ok) expect(good.value.phone).toBe("012 345 678");
   });
 
   it("hours rejects close <= open, overlaps and bad closure ranges", () => {

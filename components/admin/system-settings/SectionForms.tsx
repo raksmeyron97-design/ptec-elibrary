@@ -112,7 +112,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           required
           disabled={disabled}
           maxLength={32}
-          placeholder="092 788 990"
+          placeholder="012 345 678"
           usedIn="Header top bar · Footer · Contact page · Posts footer · JSON-LD"
         />
         {phonePreview && (

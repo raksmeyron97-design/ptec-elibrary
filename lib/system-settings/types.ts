@@ -29,7 +29,7 @@ export type OrganizationSettings = {
 };
 
 export type ContactSettings = {
-  /** Main institution phone, local display format e.g. "092 788 990". */
+  /** Main institution phone, local display format e.g. "012 345 678". */
   phone: string;
   /** Library front-desk phone (may equal `phone`). */
   phoneLibrary: string;

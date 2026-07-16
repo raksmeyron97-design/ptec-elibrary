@@ -70,14 +70,14 @@ export function isSettingSection(v: unknown): v is SettingSection {
 
 // ── Phone (Cambodia) ─────────────────────────────────────────────────────────
 
-/** Digits only, e.g. "092 788 990" → "092788990". */
+/** Digits only, e.g. "012 345 678" → "012345678". */
 export function phoneDigits(display: string): string {
   return display.replace(/\D/g, "");
 }
 
 /**
- * Validate a Cambodian phone number in local display form ("092 788 990" or
- * "+855 92 788 990"). Returns the canonical local display ("0XX XXX XXX(X)")
+ * Validate a Cambodian phone number in local display form ("012 345 678" or
+ * "+855 12 345 678"). Returns the canonical local display ("0XX XXX XXX(X)")
  * or null when invalid.
  */
 export function normalizeKhPhone(input: string): string | null {
@@ -90,12 +90,12 @@ export function normalizeKhPhone(input: string): string | null {
   return `0${rest.slice(0, 2)} ${rest.slice(2, 5)} ${rest.slice(5)}`;
 }
 
-/** "092 788 990" → "tel:+85592788990". Input must already be normalized. */
+/** "012 345 678" → "tel:+85512345678". Input must already be normalized. */
 export function phoneToTel(display: string): string {
   return `tel:+855${phoneDigits(display).replace(/^0/, "")}`;
 }
 
-/** "092 788 990" → "(+855) 92 788 990" (international display format). */
+/** "012 345 678" → "(+855) 12 345 678" (international display format). */
 export function phoneToIntlDisplay(display: string): string {
   const rest = phoneDigits(display).replace(/^0/, "");
   return `(+855) ${rest.slice(0, 2)} ${rest.slice(2, 5)} ${rest.slice(5)}`;
@@ -190,7 +190,7 @@ export function validateContact(input: unknown): ValidationResult<ContactSetting
   const phoneRaw = c.str(obj, "phone", "phone", { max: 32 });
   const phone = phoneRaw ? normalizeKhPhone(phoneRaw) : null;
   if (phoneRaw && !phone) {
-    c.fail("phone", "Enter a valid Cambodian phone number (e.g. 092 788 990).");
+    c.fail("phone", "Enter a valid Cambodian phone number (e.g. 012 345 678).");
   }
 
   const phoneLibraryRaw = c.str(obj, "phoneLibrary", "phoneLibrary", { max: 32 });
