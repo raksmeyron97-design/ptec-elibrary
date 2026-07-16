@@ -2,6 +2,30 @@
 
 This project uses [Supabase migrations](https://supabase.com/docs/guides/deployment/database-migrations) to version the Postgres schema. All migration files live in `supabase/migrations/` and are applied **sequentially by filename**.
 
+## Hosted-database pipeline (CI) — added 2026-07-16
+
+Migrations are applied to the hosted DB by `.github/workflows/migrate.yml`:
+
+- **PRs** touching `supabase/migrations/**` get a `supabase db push --dry-run`
+  against the hosted DB (shows what would apply). The `e2e` CI job separately
+  proves the whole chain applies cleanly from scratch (`supabase start` on a
+  fresh local stack).
+- **Merges to main** touching `supabase/migrations/**` apply pending
+  migrations for real. No more dashboard SQL-editor applies — that workflow
+  left the history table empty and the code full of "pre-migration" fallbacks.
+
+Setup (one secret): add `SUPABASE_DB_URL` in GitHub → Settings → Secrets →
+Actions, set to the **Session pooler** connection string from the Supabase
+dashboard (Connect → Session pooler, port 5432). Not the direct `db.<ref>`
+host (IPv6-only — unreachable from GitHub runners) and not the transaction
+pooler on 6543.
+
+History bootstrap: everything through `0098` was applied by hand before this
+pipeline existed, so the first workflow run executes
+`scripts/migrations/bootstrap-history.mjs`, which marks the versions in
+`supabase/applied-baseline-2026-07-16.txt` (verified live via object probes
+on 2026-07-16) as applied without running any SQL. It is a no-op afterwards.
+
 ## Creating a new migration
 
 ```bash

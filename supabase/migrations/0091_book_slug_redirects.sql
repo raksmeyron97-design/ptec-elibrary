@@ -41,4 +41,3 @@ create policy "book_slug_redirects_public_read"
   on public.book_slug_redirects
   for select
   using (true);
-x

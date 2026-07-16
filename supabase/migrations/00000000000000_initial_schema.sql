@@ -70,7 +70,10 @@ CREATE TABLE public.profiles (
   avatar_url     text,
   role           text DEFAULT 'reader',
   -- Super admins can promote/demote users without password confirmation. (0022)
-  is_super_admin boolean NOT NULL DEFAULT false
+  is_super_admin boolean NOT NULL DEFAULT false,
+  -- Production drift captured 2026-07-16: existed on hosted (dashboard-made),
+  -- read by 0072's signup-analytics backfill.
+  created_at     timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
 -- ── authors (0001) ────────────────────────────────────────────────────────────
@@ -78,6 +81,7 @@ CREATE TABLE public.authors (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text UNIQUE NOT NULL,
   bio        text,
+  photo_url  text, -- production drift captured 2026-07-16 (dashboard-made)
   created_at timestamptz DEFAULT timezone('utc'::text, now())
 );
 
@@ -136,10 +140,14 @@ CREATE TABLE public.book_files (
 );
 
 -- ── download_logs (0001) ──────────────────────────────────────────────────────
+-- NOTE: the original 0001 defined book_id, but production was changed (via
+-- the dashboard, no migration) to book_file_id → book_files. Every app
+-- insert and migration 0072's backfill use book_file_id, so the baseline
+-- must say book_file_id or fresh applies break at 0072 (SQLSTATE 42703).
 CREATE TABLE public.download_logs (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
-  book_id       uuid REFERENCES public.books(id) ON DELETE CASCADE,
+  book_file_id  uuid REFERENCES public.book_files(id) ON DELETE CASCADE,
   downloaded_at timestamptz DEFAULT timezone('utc'::text, now())
 );
 
@@ -149,7 +157,6 @@ CREATE TABLE public.posts (
   title         text NOT NULL,
   slug          text UNIQUE NOT NULL,
   content       text,
-  cover_image   text,
   is_published  boolean DEFAULT false,
   created_at    timestamptz DEFAULT timezone('utc'::text, now()),
   -- Denormalized counters kept in sync by triggers; never written by
@@ -165,7 +172,16 @@ CREATE TABLE public.posts (
   cover_urls    text[] NOT NULL DEFAULT '{}',
   views         integer NOT NULL DEFAULT 0,
   updated_at    timestamptz NOT NULL DEFAULT now(),
-  tags          text[] NOT NULL DEFAULT '{}'  -- (0035)
+  tags          text[] NOT NULL DEFAULT '{}',  -- (0035)
+  -- Production drift captured 2026-07-16: these existed on hosted
+  -- (dashboard-made, no migration file) and the homepage/posts CMS reads
+  -- them. cover_image was likewise REMOVED to match production.
+  abstract       text,
+  attachments    jsonb NOT NULL DEFAULT '[]'::jsonb,
+  download_count integer NOT NULL DEFAULT 0,
+  featured       boolean NOT NULL DEFAULT false,
+  pinned         boolean NOT NULL DEFAULT false,
+  publish_at     timestamptz
 );
 
 -- ── saved_books (0001) ────────────────────────────────────────────────────────
@@ -224,7 +240,9 @@ CREATE TABLE public.catalog_books (
   keywords         text[] NOT NULL DEFAULT '{}',  -- (0018)
   embedding        vector(768),                    -- (0029)
   created_at       timestamptz DEFAULT timezone('utc'::text, now()),
-  updated_at       timestamptz DEFAULT timezone('utc'::text, now())
+  updated_at       timestamptz DEFAULT timezone('utc'::text, now()),
+  -- Production drift captured 2026-07-16 (dashboard-made):
+  created_by       uuid REFERENCES public.profiles(id) ON DELETE SET NULL
 );
 
 -- ── catalog_copies (0001) ─────────────────────────────────────────────────────
@@ -232,7 +250,15 @@ CREATE TABLE public.catalog_copies (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   catalog_book_id uuid REFERENCES public.catalog_books(id) ON DELETE CASCADE,
   status          text DEFAULT 'available',
-  created_at      timestamptz DEFAULT timezone('utc'::text, now())
+  created_at      timestamptz DEFAULT timezone('utc'::text, now()),
+  -- Production drift captured 2026-07-16 (dashboard-made, used by the
+  -- admin copies panel):
+  barcode         text,
+  call_number     text,
+  holding_library text,
+  notes           text,
+  shelf_location  text,
+  updated_at      timestamptz NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
 -- ── contact_rate_limit (0005) ─────────────────────────────────────────────────

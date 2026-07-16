@@ -1,0 +1,80 @@
+# Database migration pipeline (see supabase/MIGRATIONS.md).
+#
+# - PRs touching supabase/migrations/**: dry-run against the hosted DB and
+#   report what WOULD be applied (the e2e job separately proves the chain
+#   applies cleanly from scratch on a local stack).
+# - Push to main touching supabase/migrations/**: apply pending migrations
+#   for real via `supabase db push`.
+#
+# Requires the SUPABASE_DB_URL secret: the **Session pooler** connection
+# string (aws-*.pooler.supabase.com:5432) — NOT the direct db.<ref> host
+# (IPv6-only, unreachable from GitHub runners) and NOT the transaction
+# pooler on 6543 (breaks prepared statements / advisory locks).
+#
+# First run bootstraps supabase_migrations.schema_migrations from
+# supabase/applied-baseline-2026-07-16.txt (every version in that manifest
+# was verified applied on the hosted DB on 2026-07-16 via object probes);
+# it is a no-op once the history table has rows.
+name: Migrate Database
+
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "supabase/migrations/**" ]
+  pull_request:
+    branches: [ "main" ]
+    paths: [ "supabase/migrations/**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-hosted-db
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secret
+        run: |
+          if [ -z "${{ secrets.SUPABASE_DB_URL }}" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not configured — see supabase/MIGRATIONS.md"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Bootstrap migration history (no-op after first run)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          npm i --no-save --no-audit --no-fund pg
+          node scripts/migrations/bootstrap-history.mjs
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dry run (PR)
+        if: github.event_name == 'pull_request'
+        run: supabase db push --dry-run --include-all --db-url "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Apply migrations (main)
+        if: github.event_name != 'pull_request'
+        run: echo Y | supabase db push --include-all --db-url "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Show final history
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: supabase migration list --db-url "$SUPABASE_DB_URL" | tail -15
