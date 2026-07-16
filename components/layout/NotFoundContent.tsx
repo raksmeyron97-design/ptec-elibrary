@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/core/Button";
 // every page's flight payload, and importing Link here made webpack attach the
 // (protected) admin dashboard chunk to /admin/login just to resolve the Link
 // module. A full navigation off a 404 is fine.
+/* eslint-disable @next/next/no-html-link-for-pages -- see comment above */
 export default async function NotFoundContent({ locale }: { locale?: string }) {
   // global-not-found renders outside the [locale] tree and must pass the locale
   // explicitly; inside the tree setRequestLocale() has already supplied it.

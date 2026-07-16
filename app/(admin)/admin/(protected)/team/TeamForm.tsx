@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
   UserCircle, Upload, X, Search, Link as LinkIcon, Camera, Briefcase,
@@ -1055,13 +1056,13 @@ export default function TeamForm({
               </>
             )}
           </button>
-          <a
+          <Link
             href="/admin/team"
             onClick={handleCancel}
             className="inline-flex h-11 cursor-pointer items-center rounded-lg px-4 text-sm font-semibold text-text-muted transition hover:text-text-body"
           >
             Cancel
-          </a>
+          </Link>
           {isDirty && !busy && (
             <span className="ml-auto text-xs font-medium text-amber-600">Unsaved changes</span>
           )}
