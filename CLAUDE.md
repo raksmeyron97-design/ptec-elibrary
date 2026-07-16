@@ -96,6 +96,13 @@ All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`
 
 Located at `/admin`, all sections under `(protected)/`, each gated by the permission system. Key sections: **catalogs** (books CRUD with bulk CSV import and physical copy management), **theses**, **posts**, **publications**, **announcements**, **book-requests**, **users**, **roles**, **team**, **upload**, **manage** (categories/departments), and **logs** (audit trail written via `app/actions/audit.ts`).
 
+### System Settings (global site configuration)
+
+- `/admin/system-settings` manages organization names, contacts, address, opening hours, social/map links, and SEO defaults with a draft → publish → version-history/rollback workflow (tables `site_settings` + `site_setting_versions`, migration `0098`; service-role-only RLS). Full docs: `docs/SYSTEM-SETTINGS.md`.
+- **Read config via `getSiteConfig()`** (`lib/system-settings/config.ts`, cached under the `site-config` tag) in server code; pass values to client components as props. `lib/ptec.ts` is now only the documented fallback + seed source — never add new imports of it to public UI.
+- Publishing calls `revalidateSiteConfig()` (tag + both locale layout trees). Saving a draft never touches the public cache.
+- Permission resource: `settings` (admin/super_admin write). Every settings server action re-checks `requirePermission("settings", "write")`.
+
 ### Key Design Patterns
 
 - **Theme**: Dark/light toggled via `ptec.theme` in localStorage. Admin panel forces light mode (`AdminThemeEnforcer`). Theme applied before paint via inline script to avoid FOUC.

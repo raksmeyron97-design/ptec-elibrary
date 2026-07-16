@@ -13,7 +13,7 @@ import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
 
 export const revalidate = 3600;
 
@@ -157,9 +157,10 @@ export default async function CatalogsPage({
   const params = await searchParams;
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/catalogs" : "/catalogs";
-  const [{ books, total, page }, categories] = await Promise.all([
+  const [{ books, total, page }, categories, cfg] = await Promise.all([
     fetchCatalogBooks(params),
     fetchCategories(),
+    getSiteConfig(),
   ]);
 
   const pageSize   = resolvePageSize(params.size);
@@ -310,16 +311,16 @@ export default async function CatalogsPage({
                   <div className="rounded-xl border border-divider bg-paper p-4">
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t('emptyHoursLabel')}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-text-body" lang={locale}>
-                      {locale === "km" ? PTEC.hours.km : PTEC.hours.en}
+                      {locale === "km" ? cfg.hours.km : cfg.hours.en}
                     </p>
                   </div>
                   <div className="rounded-xl border border-divider bg-paper p-4">
                     <h3 className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t('emptyVisitLabel')}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-text-body" lang={locale}>
-                      {locale === "km" ? PTEC.address.km : PTEC.address.en}
+                      {locale === "km" ? cfg.address.km : cfg.address.en}
                     </p>
                     <a
-                      href={PTEC.links.mapPlace}
+                      href={cfg.links.mapPlace}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-2 inline-block text-sm font-semibold text-brand underline decoration-dotted underline-offset-2 transition-colors hover:text-brand-hover"

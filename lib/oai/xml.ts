@@ -206,7 +206,9 @@ export function decodeResumptionToken(token: string): ResumptionState | null {
 
 // ── Dublin Core (oai_dc) metadata ────────────────────────────────────────
 
-export function buildDcMetadata(record: OaiRecord): string {
+/** `publisherName` should come from the published system settings
+ *  (getSiteConfig().name.en); PTEC.name.en is the documented code fallback. */
+export function buildDcMetadata(record: OaiRecord, publisherName: string = PTEC.name.en): string {
   const parts: string[] = [];
   parts.push(
     '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" ' +
@@ -216,7 +218,7 @@ export function buildDcMetadata(record: OaiRecord): string {
   );
   parts.push(tag("dc:title", record.title));
   for (const creator of record.creators) parts.push(tag("dc:creator", creator));
-  parts.push(tag("dc:publisher", PTEC.name.en));
+  parts.push(tag("dc:publisher", publisherName));
   for (const subject of record.subjects) parts.push(tag("dc:subject", subject));
   if (record.description) parts.push(tag("dc:description", record.description));
   if (record.date) parts.push(tag("dc:date", record.date));
@@ -237,8 +239,8 @@ export function buildHeader(record: OaiRecord): string {
   );
 }
 
-export function buildRecordXml(record: OaiRecord): string {
-  return `<record>${buildHeader(record)}<metadata>${buildDcMetadata(record)}</metadata></record>`;
+export function buildRecordXml(record: OaiRecord, publisherName?: string): string {
+  return `<record>${buildHeader(record)}<metadata>${buildDcMetadata(record, publisherName)}</metadata></record>`;
 }
 
 // ── Envelope ─────────────────────────────────────────────────────────────

@@ -85,7 +85,21 @@ export const TAGS = {
   /** Shared public counters (lib/collection-stats.ts) — the only sanctioned
    *  source for "how many resources" figures. */
   collectionStats: "collection-stats",
+  /** Global site configuration (lib/system-settings/config.ts): names,
+   *  contacts, hours, links, SEO defaults. */
+  siteConfig: "site-config",
 } as const;
+
+/**
+ * Published site settings changed (publish or rollback in
+ * /admin/system-settings). The navbar and footer render contact details on
+ * EVERY public page, so this is one of the few justified layout-wide
+ * invalidations: the site-config tag plus both locale trees.
+ */
+export function revalidateSiteConfig() {
+  revalidateTag(TAGS.siteConfig, "max");
+  revalidateLocalizedPath("/", "layout");
+}
 
 /**
  * Public collection counts changed (create / delete / publish / unpublish /

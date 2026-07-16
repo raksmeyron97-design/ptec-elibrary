@@ -10,7 +10,7 @@ import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
 
 // ── SVG Icons (outline style) ─────────────────────────────────────────────────
 const HomeIcon = (
@@ -52,6 +52,8 @@ export default async function Navbar() {
   const t = await getTranslations("nav");
   const footerT = await getTranslations("footer");
   const locale = (await getLocale()) as "en" | "km";
+  // Published system settings — contact strip + social links live here.
+  const cfg = await getSiteConfig();
 
   // Priority order: items collapse into the "More" menu from the END of this
   // list when horizontal space runs out (PriorityNav), so put the most
@@ -82,15 +84,15 @@ export default async function Navbar() {
         <div className="relative z-[70] hidden border-b border-white/10 bg-blue-950 text-[13px] text-gold-100 dark:bg-bg-surface dark:text-text-body xl:block">
           <div className="mx-auto flex h-9 w-full max-w-[1536px] items-center justify-between gap-6 px-6 xl:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-5">
-              <a href={PTEC.phoneTel} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+              <a href={cfg.phoneTel} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="phone" className="text-[14px] text-accent" />
-                <span>{PTEC.phoneIntl}</span>
+                <span>{cfg.phoneIntl}</span>
               </a>
-              <a href={`mailto:${PTEC.email}`} className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+              <a href={`mailto:${cfg.email}`} className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="mail" className="text-[14px] text-accent" />
-                <span className="truncate">{PTEC.email}</span>
+                <span className="truncate">{cfg.email}</span>
               </a>
-              <a href={PTEC.links.mapPlace} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+              <a href={cfg.links.mapPlace} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="map-pin" className="text-[14px] text-accent" />
                 <span>{footerT("getDirections")}</span>
               </a>
@@ -98,13 +100,13 @@ export default async function Navbar() {
 
             <div className="flex shrink-0 items-center gap-4">
               <div className="flex items-center gap-1.5" aria-label="PTEC social links">
-                <a href={PTEC.links.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="Facebook">
+                <a href={cfg.links.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="Facebook">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
-                <a href={PTEC.links.youtube} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="YouTube">
+                <a href={cfg.links.youtube} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="YouTube">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z"/></svg>
                 </a>
-                <a href={PTEC.links.website} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="PTEC official website">
+                <a href={cfg.links.website} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300" aria-label="PTEC official website">
                   <Icon name="globe" className="text-[15px]" />
                 </a>
               </div>
@@ -153,7 +155,16 @@ export default async function Navbar() {
             <NavbarSession />
 
             {/* Hamburger + drawer — mobile/tablet only (below lg) */}
-            <MobileMenu navLinks={mobileNavLinks} locale={locale} />
+            <MobileMenu
+              navLinks={mobileNavLinks}
+              locale={locale}
+              contact={{
+                phone: cfg.phone,
+                phoneTel: cfg.phoneTel,
+                email: cfg.email,
+                mapPlace: cfg.links.mapPlace,
+              }}
+            />
           </div>
         </div>
       </NavbarStickyWrapper>

@@ -1,5 +1,8 @@
 import { PTEC } from "@/lib/ptec";
 import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+
+// The footer contact email prefers the PUBLISHED system settings (callers
+// pass it via `contactEmail`); PTEC.email is the documented code fallback.
 import { CONTACT_CATEGORY_LABELS, type ContactCategory } from "@/lib/contact/validate";
 
 /**
@@ -30,7 +33,7 @@ export function categoryLabel(category: string): string {
 const BRAND_NAVY = "#1E3A8A";
 const BRAND_GOLD = "#DDB022";
 
-function layout(opts: { preheader: string; bodyHtml: string }): string {
+function layout(opts: { preheader: string; bodyHtml: string; contactEmail?: string }): string {
   return `<!doctype html>
 <html>
   <head>
@@ -62,7 +65,7 @@ function layout(opts: { preheader: string; bodyHtml: string }): string {
                 <p style="margin:0;color:#6B7280;font-size:12px;">
                   ${escapeHtml(PTEC_LIBRARY_NAME)} ·
                   <a href="${SITE_URL}" style="color:${BRAND_NAVY};text-decoration:none;">${SITE_URL.replace(/^https?:\/\//, "")}</a>
-                  · ${escapeHtml(PTEC.email)}
+                  · ${escapeHtml(opts.contactEmail ?? PTEC.email)}
                 </p>
               </td>
             </tr>
@@ -82,6 +85,8 @@ function fieldRow(label: string, value: string): string {
 }
 
 export interface AdminNotificationInput {
+  /** Published support email for the footer (falls back to lib/ptec.ts). */
+  contactEmail?: string;
   name: string;
   email: string;
   phone?: string | null;
@@ -130,10 +135,12 @@ export function adminNotificationEmail(input: AdminNotificationInput): {
     .filter((line): line is string => line !== null)
     .join("\n");
 
-  return { subject, html: layout({ preheader: input.subject, bodyHtml }), text };
+  return { subject, html: layout({ preheader: input.subject, bodyHtml, contactEmail: input.contactEmail }), text };
 }
 
 export interface UserConfirmationInput {
+  /** Published support email for the footer (falls back to lib/ptec.ts). */
+  contactEmail?: string;
   name: string;
   subject: string;
   category: string;
@@ -173,10 +180,12 @@ export function userConfirmationEmail(input: UserConfirmationInput): {
     input.message,
   ].join("\n");
 
-  return { subject, html: layout({ preheader: subject, bodyHtml }), text };
+  return { subject, html: layout({ preheader: subject, bodyHtml, contactEmail: input.contactEmail }), text };
 }
 
 export interface AdminReplyInput {
+  /** Published support email for the footer (falls back to lib/ptec.ts). */
+  contactEmail?: string;
   name: string;
   subject: string;
   replyBody: string;
@@ -210,5 +219,5 @@ export function adminReplyEmail(input: AdminReplyInput): {
     input.originalMessage,
   ].join("\n");
 
-  return { subject, html: layout({ preheader: input.replyBody.slice(0, 120), bodyHtml }), text };
+  return { subject, html: layout({ preheader: input.replyBody.slice(0, 120), bodyHtml, contactEmail: input.contactEmail }), text };
 }

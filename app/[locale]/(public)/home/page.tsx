@@ -17,6 +17,7 @@ import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import LibraryNow from "@/components/ui/home/LibraryNow";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
@@ -67,12 +68,13 @@ export default async function HomePage() {
     fetchPriority: "high",
   });
 
-  const [t, locale, trendingBooks, trendingTerms, paths] = await Promise.all([
+  const [t, locale, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
     getTranslations("home"),
     getLocale(),
     getTrendingBooksCached(),
     getTrendingTermsCached(),
     getPublishedPaths(),
+    getSiteConfig(),
   ]);
 
   const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
@@ -283,7 +285,11 @@ export default async function HomePage() {
 
       {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
       <div className="cv-auto">
-        <LibraryNow />
+        <LibraryNow
+          openingHoursSpec={[...siteConfig.hours.openingHoursSpec]}
+          closures={siteConfig.hours.closures}
+          mapPlaceUrl={siteConfig.links.mapPlace}
+        />
       </div>
 
       {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════

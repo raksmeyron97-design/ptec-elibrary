@@ -18,7 +18,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import {
   OAI_METADATA_PREFIX,
   OAI_PAGE_SIZE,
@@ -171,14 +171,17 @@ function parseDateRange(filters: ListFilters): { from?: Date; until?: Date } {
 // ── Verb handlers ────────────────────────────────────────────────────────
 
 async function handleIdentify(): Promise<string> {
-  const earliest = await computeEarliestDatestamp();
+  const [earliest, cfg] = await Promise.all([
+    computeEarliestDatestamp(),
+    getSiteConfig(),
+  ]);
   const domain = oaiDomain();
   return (
     "<Identify>" +
     `<repositoryName>${escapeXml(PTEC_LIBRARY_NAME)}</repositoryName>` +
     `<baseURL>${escapeXml(BASE_URL)}</baseURL>` +
     "<protocolVersion>2.0</protocolVersion>" +
-    `<adminEmail>${escapeXml(PTEC.email)}</adminEmail>` +
+    `<adminEmail>${escapeXml(cfg.email)}</adminEmail>` +
     `<earliestDatestamp>${escapeXml(earliest)}</earliestDatestamp>` +
     "<deletedRecord>no</deletedRecord>" +
     "<granularity>YYYY-MM-DDThh:mm:ssZ</granularity>" +
@@ -226,15 +229,17 @@ function handleListSets(args: Record<string, string>): string {
 }
 
 async function handleGetRecord(args: Record<string, string>): Promise<string> {
+  const publisherName = (await getSiteConfig()).name.en;
   requireOaiDc(args.metadataPrefix);
   const parsed = parseOaiIdentifier(args.identifier);
   if (!parsed) throw new OaiError("idDoesNotExist", `Unknown or illegal identifier: ${args.identifier}`);
   const record = await getOaiRecord(parsed.setSpec, parsed.localId);
   if (!record) throw new OaiError("idDoesNotExist", `Unknown identifier: ${args.identifier}`);
-  return `<GetRecord>${buildRecordXml(record)}</GetRecord>`;
+  return `<GetRecord>${buildRecordXml(record, publisherName)}</GetRecord>`;
 }
 
 async function handleList(verb: "ListIdentifiers" | "ListRecords", args: Record<string, string>): Promise<string> {
+  const publisherName = (await getSiteConfig()).name.en;
   const filters = resolveListFilters(verb, args);
   const range = parseDateRange(filters);
 
@@ -249,7 +254,7 @@ async function handleList(verb: "ListIdentifiers" | "ListRecords", args: Record<
 
   const page = all.slice(filters.offset, filters.offset + OAI_PAGE_SIZE);
   const items = page
-    .map((record) => (verb === "ListRecords" ? buildRecordXml(record) : buildHeader(record)))
+    .map((record) => (verb === "ListRecords" ? buildRecordXml(record, publisherName) : buildHeader(record)))
     .join("");
 
   const nextOffset = filters.offset + page.length;

@@ -35,6 +35,7 @@ import {
   SearchX,
   Gauge,
   Inbox,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
@@ -155,6 +156,7 @@ function getNavTree(
   if (perm(p, "users", "write"))         administration.push({ name: "Library Team",  href: "/admin/team",  icon: UserCircle  });
   if (perm(p, "users", "write"))         administration.push({ name: "Users",         href: "/admin/users", icon: Users       });
   if (perm(p, "roles", "write") || isSA) administration.push({ name: "Roles",         href: "/admin/roles", icon: ShieldCheck });
+  if (perm(p, "settings", "read") || isSA) administration.push({ name: "System Settings", href: "/admin/system-settings", icon: SlidersHorizontal });
   if (isAdmin)                           administration.push({ name: "Security Logs", href: "/admin/logs",  icon: Shield      });
 
   const tree: NavNode[] = [

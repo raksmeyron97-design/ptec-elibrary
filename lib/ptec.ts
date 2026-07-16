@@ -1,6 +1,18 @@
 /**
- * Single source of truth for all PTEC contact info, social links, and map URLs.
- * Import this wherever you need links — never hardcode them again.
+ * FALLBACK defaults for PTEC contact info, social links, and map URLs.
+ *
+ * Since migration 0098 the live single source of truth is the `site_settings`
+ * table, managed at /admin/system-settings and read through
+ * lib/system-settings/config.ts (`getSiteConfig()`). This constant remains as:
+ *   • the code-level fallback when the settings table is missing/unreachable,
+ *   • the seed values behind lib/system-settings/defaults.ts,
+ *   • the documented safe default for the few client-side spots that cannot
+ *     receive server config (e.g. the PDF reader's report-broken mailto).
+ *
+ * New code must call getSiteConfig() (server) or receive values via props —
+ * do NOT add new imports of this constant to public UI components, and never
+ * hand-edit values here expecting the live site to change: published settings
+ * override them.
  */
 
 export const PTEC = {

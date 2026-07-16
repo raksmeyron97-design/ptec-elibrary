@@ -6,6 +6,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { validateContactInput, type ContactInput } from "@/lib/contact/validate";
 import { sendGmail, GmailSendError } from "@/lib/gmail";
 import { adminNotificationEmail, userConfirmationEmail } from "@/lib/email/contact-templates";
+import { getSiteConfig } from "@/lib/system-settings/config";
 
 // Bots that auto-fill every field trip the honeypot; bots that submit the
 // instant the page loads trip the fill-time floor. Real users need several
@@ -221,6 +222,7 @@ export async function POST(req: NextRequest) {
   // the message is already safely stored above.
   try {
     const notification = adminNotificationEmail({
+      contactEmail: (await getSiteConfig()).email,
       name: cleanName,
       email: cleanEmail,
       phone: cleanPhone,
@@ -258,6 +260,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const confirmation = userConfirmationEmail({
+      contactEmail: (await getSiteConfig()).email,
       name: cleanName,
       category: cleanCategory,
       subject: cleanSubject,

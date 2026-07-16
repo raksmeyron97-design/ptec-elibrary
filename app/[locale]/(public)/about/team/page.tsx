@@ -8,7 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import {
   PUBLIC_MEMBER_SELECT, LEGACY_MEMBER_SELECT, fromLegacyRow,
   type LegacyTeamMemberRow, type PublicTeamMember, type PublicTeamSection,
@@ -113,7 +113,10 @@ async function getPublicTeamData(): Promise<{
 }
 
 export default async function TeamPage() {
-  const { members, sections } = await getPublicTeamData();
+  const [{ members, sections }, cfg] = await Promise.all([
+    getPublicTeamData(),
+    getSiteConfig(),
+  ]);
   const sectionsWithMembers = sections.filter((s) =>
     members.some((m) => m.section_id === s.id)
   );
@@ -133,8 +136,8 @@ export default async function TeamPage() {
         url: SITE_URL,
         parentOrganization: {
           "@type": "CollegeOrUniversity",
-          name: PTEC.name.en,
-          sameAs: [...PTEC.sameAs],
+          name: cfg.name.en,
+          sameAs: [...cfg.sameAs],
         },
         employee: members.map((m) => ({
           "@type": "Person",
@@ -293,7 +296,7 @@ export default async function TeamPage() {
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
               <a
-                href={PTEC.phoneLibraryTel}
+                href={cfg.phoneLibraryTel}
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-blue-950 transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-950"
               >
                 <Phone className="h-4 w-4" aria-hidden="true" />
@@ -307,7 +310,7 @@ export default async function TeamPage() {
                 Visit Library Services
               </Link>
               <a
-                href={PTEC.links.telegram}
+                href={cfg.links.telegram}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -320,15 +323,15 @@ export default async function TeamPage() {
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5 text-xs text-white/60">
               <span className="inline-flex items-center gap-1.5">
                 <Phone className="h-3 w-3" aria-hidden="true" />
-                Library desk: {PTEC.phoneLibrary}
+                Library desk: {cfg.phoneLibrary}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Mail className="h-3 w-3" aria-hidden="true" />
-                {PTEC.email}
+                {cfg.email}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <CalendarClock className="h-3 w-3" aria-hidden="true" />
-                {PTEC.hours.en}
+                {cfg.hours.en}
               </span>
             </div>
           </div>

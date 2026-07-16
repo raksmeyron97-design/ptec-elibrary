@@ -5,6 +5,7 @@
 import { GoogleGenAI, Content, FunctionDeclaration } from "@google/genai";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { LIBRARY_INFO, LibraryInfoTopic } from "@/lib/library-info";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { generateEmbedding } from "@/lib/gemini-embeddings";
@@ -352,12 +353,15 @@ async function getBookDetails(args: { slug: string }): Promise<Record<string, un
   };
 }
 
-function getLibraryInfo(args: { topic: LibraryInfoTopic }): Record<string, unknown> {
+async function getLibraryInfo(args: { topic: LibraryInfoTopic }): Promise<Record<string, unknown>> {
   const L = LIBRARY_INFO;
+  // Contact/hours facts come from the PUBLISHED system settings; the static
+  // editorial content (mission, rules, history…) stays in lib/library-info.
+  const cfg = await getSiteConfig();
   switch (args.topic) {
-    case "hours":      return { en: L.hours.en, km: L.hours.km, timingsPage: L.links.timings };
-    case "location":   return { en: L.location.en, km: L.location.km, phone: L.phone, email: L.email };
-    case "contact":    return { phone: L.phone, email: L.email, website: L.website, en: L.location.en };
+    case "hours":      return { en: cfg.hours.en, km: cfg.hours.km, timingsPage: L.links.timings };
+    case "location":   return { en: cfg.address.en, km: cfg.address.km, phone: cfg.phone, email: cfg.email };
+    case "contact":    return { phone: cfg.phone, email: cfg.email, website: cfg.links.website, en: cfg.address.en };
     case "borrowing":  return { en: L.borrowing.en, km: L.borrowing.km, rulesPage: L.links.rules };
     case "rules":      return { en: L.rules.en, km: L.rules.km, rulesPage: L.links.rules };
     case "membership": return { en: L.membership.en, km: L.membership.km, rulesPage: L.links.rules };
@@ -491,7 +495,7 @@ async function executeFunction(
       }];
     }
   } else if (name === "get_library_info") {
-    result = getLibraryInfo(args as { topic: LibraryInfoTopic });
+    result = await getLibraryInfo(args as { topic: LibraryInfoTopic });
   } else {
     result = { error: `Unknown function: ${name}` };
   }

@@ -106,7 +106,10 @@ describe("no resurrected hardcoded counters", () => {
   it("no source file hardcodes a '###+ resources' style figure", () => {
     // The homepage figure must come from lib/collection-stats.ts. A literal
     // like "120+" next to a resources label is the exact bug this guards.
-    const offenders = grepSource("120+").filter((f) => f !== "lib/ptec-consistency.test.ts");
+    // lib/collection-stats.test.ts legitimately asserts the "120+" output of
+    // formatApproximateCount — that's the formatter's own test, not a hardcode.
+    const allowed = ["lib/ptec-consistency.test.ts", "lib/collection-stats.test.ts"];
+    const offenders = grepSource("120+").filter((f) => !allowed.includes(f));
     expect(offenders).toEqual([]);
   });
 });

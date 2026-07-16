@@ -6,7 +6,6 @@ import { useState, useMemo } from "react";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { useTranslations, useLocale } from 'next-intl';
-import { PTEC } from "@/lib/ptec";
 
 type PostCard = {
   id: string;
@@ -41,7 +40,24 @@ function formatDate(iso: string | null, locale: string): string {
   });
 }
 
-export default function PostsListClient({ posts }: { posts: PostCard[] }) {
+export type PostsSiteContact = {
+  addressEn: string;
+  addressKm: string;
+  phone: string;
+  phoneTel: string;
+  email: string;
+  hoursEn: string;
+  hoursKm: string;
+};
+
+export default function PostsListClient({
+  posts,
+  siteContact,
+}: {
+  posts: PostCard[];
+  /** Published contact details from the server page — no hard-coding here. */
+  siteContact: PostsSiteContact;
+}) {
   const t = useTranslations('posts');
   const locale = useLocale();
   const [query, setQuery]         = useState("");
@@ -430,27 +446,27 @@ export default function PostsListClient({ posts }: { posts: PostCard[] }) {
           <div className="bg-[#0b1530] rounded-xl p-5 shadow-md">
             <h3 className="font-khmer-serif font-bold text-white text-base m-0 mb-3">{t('contactTitle')}</h3>
             <p className="m-0 mb-4 text-sm leading-relaxed text-blue-200/75">
-              {locale === "km" ? PTEC.address.km : PTEC.address.en}
+              {locale === "km" ? siteContact.addressKm : siteContact.addressEn}
             </p>
             <div className="flex flex-col gap-2.5">
-              <a href={PTEC.phoneTel} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
+              <a href={siteContact.phoneTel} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l1.28-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
                 </svg>
-                {PTEC.phone}
+                {siteContact.phone}
               </a>
-              <a href={`mailto:${PTEC.email}`} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
+              <a href={`mailto:${siteContact.email}`} className="no-underline text-blue-200 hover:text-white transition-colors inline-flex items-center gap-2 text-sm">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                {PTEC.email}
+                {siteContact.email}
               </a>
               <span className="text-blue-300/60 text-xs inline-flex items-center gap-2">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="shrink-0">
                   <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
                 </svg>
-                {locale === "km" ? PTEC.hours.km : PTEC.hours.en}
+                {locale === "km" ? siteContact.hoursKm : siteContact.hoursEn}
               </span>
             </div>
           </div>

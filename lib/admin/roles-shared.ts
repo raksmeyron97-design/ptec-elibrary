@@ -69,6 +69,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     resources: [
       { key: "users", label: "Users", description: "Accounts, team directory, and role assignment" },
       { key: "roles", label: "Roles", description: "This permission matrix itself" },
+      { key: "settings", label: "System Settings", description: "Global site configuration: contacts, hours, links, SEO" },
     ],
   },
 ];

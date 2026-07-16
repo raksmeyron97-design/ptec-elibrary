@@ -5,7 +5,7 @@ import FooterEffects from "./FooterEffects";
 import { Seal } from "@/components/ui/core/Seal";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import { getLocale, getTranslations } from "next-intl/server";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import { DIGITAL_LIBRARY_ITEMS } from "./digital-library-nav";
 import { ABOUT_NAV_ITEMS } from "./about-nav";
 
@@ -157,6 +157,9 @@ export default async function Footer() {
   const t = await getTranslations("footer");
   const navT = await getTranslations("nav");
   const locale = (await getLocale()) as "en" | "km";
+  // Published system settings (cached under "site-config") — the single
+  // source for contact details, hours and links shown here.
+  const cfg = await getSiteConfig();
   // No auth lookup here, deliberately. This used to run a second Supabase Auth
   // round-trip plus a profiles query — on top of the navbar's — on every public
   // page render, and the cookies() read made the whole public tree uncacheable.
@@ -186,8 +189,8 @@ export default async function Footer() {
     { label: t("links.policy"), href: "/policy" },
   ];
 
-  const address = locale === "km" ? PTEC.address.km : PTEC.address.en;
-  const hours = locale === "km" ? PTEC.hours.km : PTEC.hours.en;
+  const address = locale === "km" ? cfg.address.km : cfg.address.en;
+  const hours = locale === "km" ? cfg.hours.km : cfg.hours.en;
 
   return (
     <footer className="footer-night relative mt-auto w-full overflow-hidden border-t border-blue-900/35 text-blue-50">
@@ -221,10 +224,10 @@ export default async function Footer() {
               </div>
               <div className="min-w-0">
                 <p lang="km" className="truncate font-khmer-serif text-[13px] font-bold leading-tight text-gold-200">
-                  បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
+                  {cfg.libraryName.km}
                 </p>
                 <h2 id="footer-brand-heading" className="footer-shine mt-1 w-fit text-[27px] font-bold leading-tight tracking-wide">
-                  PTEC Library
+                  {cfg.libraryName.en}
                 </h2>
               </div>
             </div>
@@ -232,17 +235,17 @@ export default async function Footer() {
               {t("description")}
             </p>
             <div className="flex flex-wrap items-center gap-2.5" aria-label={t("socialLinks")}>
-              <SocialLink href={PTEC.links.facebook} label="Facebook">
+              <SocialLink href={cfg.links.facebook} label="Facebook">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                 </svg>
               </SocialLink>
-              <SocialLink href={PTEC.links.youtube} label="YouTube">
+              <SocialLink href={cfg.links.youtube} label="YouTube">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
                 </svg>
               </SocialLink>
-              <SocialLink href={PTEC.links.website} label={t("officialWebsite")}>
+              <SocialLink href={cfg.links.website} label={t("officialWebsite")}>
                 <Icon name="globe" className="text-[16px]" />
               </SocialLink>
               <InstallPWA
@@ -269,22 +272,23 @@ export default async function Footer() {
               <span>{address}</span>
             </ContactRow>
             <ContactRow icon="phone" label={t("phoneLabel")}>
-              <a href={PTEC.phoneTel} className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
-                {PTEC.phoneIntl}
+              <a href={cfg.phoneTel} className="transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                {cfg.phoneIntl}
               </a>
             </ContactRow>
             <ContactRow icon="mail" label={t("emailLabel")}>
-              <a href={`mailto:${PTEC.email}`} className="break-words transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
-                {PTEC.email}
+              <a href={`mailto:${cfg.email}`} className="break-words transition-colors hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
+                {cfg.email}
               </a>
             </ContactRow>
             <ContactRow icon="clock" label={t("hoursLabel")}>
               <span>{hours}</span>
             </ContactRow>
+            {cfg.links.mapEmbed && (
             <div className="hidden sm:block">
               <div className="overflow-hidden rounded-[11px] border border-white/10 bg-white/[0.04]">
                 <iframe
-                  src={PTEC.links.mapEmbed}
+                  src={cfg.links.mapEmbed}
                   title={t("mapTitle")}
                   width="100%"
                   height="128"
@@ -296,8 +300,9 @@ export default async function Footer() {
                 />
               </div>
             </div>
+            )}
             <a
-              href={PTEC.links.mapPlace}
+              href={cfg.links.mapPlace}
               target="_blank"
               rel="noopener noreferrer"
               data-fx-magnetic

@@ -1,11 +1,34 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import RootShell from "@/components/layout/RootShell";
 import { routing } from "@/i18n/routing";
 import { rootMetadata, rootViewport } from "@/app/root-metadata";
+import { getSiteConfig } from "@/lib/system-settings/config";
 
-export const metadata = rootMetadata;
 export const viewport = rootViewport;
+
+// SEO defaults come from the PUBLISHED system settings, layered over the
+// static rootMetadata baseline. getSiteConfig() is unstable_cache'd (no
+// cookies/headers), so this keeps every public page prerenderable; pages
+// with their own generateMetadata still override as before.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const [{ locale }, cfg] = await Promise.all([params, getSiteConfig()]);
+  const description =
+    locale === "km" ? cfg.seo.siteDescription.km : cfg.seo.siteDescription.en;
+  return {
+    ...rootMetadata,
+    title: {
+      default: cfg.seo.siteTitle,
+      template: cfg.seo.titleTemplate,
+    },
+    description,
+  };
+}
 
 // Root layout for the whole public tree. Owning <html> here (rather than in a
 // single app/layout.tsx above this segment) is what lets the locale arrive as a

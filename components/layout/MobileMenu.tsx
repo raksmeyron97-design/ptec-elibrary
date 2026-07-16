@@ -14,7 +14,6 @@ import MobileAboutAccordion from "./MobileAboutAccordion";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import InstallPWA from "@/components/ui/pwa/InstallPWA";
 import { Seal } from "@/components/ui/core/Seal";
-import { PTEC } from "@/lib/ptec";
 import { useSession } from "@/components/providers/SessionProvider";
 import { clearPrivateBrowserState } from "@/lib/sw-client";
 
@@ -23,6 +22,14 @@ type NavItem = { label: string; href: string };
 type MobileMenuProps = {
   navLinks: NavItem[];
   locale: "en" | "km";
+  /** Published contact details, passed from the server-rendered Navbar so
+   *  this client component never hard-codes institution data. */
+  contact: {
+    phone: string;
+    phoneTel: string;
+    email: string;
+    mapPlace: string;
+  };
 };
 
 function getInitials(name: string | null, email: string) {
@@ -41,7 +48,7 @@ function sectionLabelClass() {
   return "px-4 pb-2 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-text-muted";
 }
 
-export default function MobileMenu({ navLinks, locale }: MobileMenuProps) {
+export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProps) {
   // The drawer is only ever opened by hand, long after /api/me has answered, so
   // it can read the viewer straight from context — no server round-trip and no
   // session data baked into the cached page HTML.
@@ -278,15 +285,15 @@ export default function MobileMenu({ navLinks, locale }: MobileMenuProps) {
             <div className="mt-2 border-t border-divider">
               <p className={sectionLabelClass()}>{footerT("information")}</p>
               <div className="space-y-1">
-                <a href={PTEC.phoneTel} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                <a href={contact.phoneTel} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
                   <Icon name="phone" className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                  {PTEC.phone}
+                  {contact.phone}
                 </a>
-                <a href={`mailto:${PTEC.email}`} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                <a href={`mailto:${contact.email}`} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
                   <Icon name="mail" className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                  {PTEC.email}
+                  {contact.email}
                 </a>
-                <a href={PTEC.links.mapPlace} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
+                <a href={contact.mapPlace} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
                   <Icon name="map-pin" className="h-4 w-4 text-text-muted" aria-hidden="true" />
                   {footerT("getDirections")}
                 </a>

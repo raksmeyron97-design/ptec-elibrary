@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { getSiteConfig } from "@/lib/system-settings/config";
+import { dayName, upcomingClosures } from "@/lib/system-settings/hours";
+import { parseOpeningHours, type DayRange } from "@/lib/library-hours";
 
 export async function generateMetadata({
   params,
@@ -22,30 +25,74 @@ export async function generateMetadata({
   };
 }
 
-const SCHEDULE = [
-  {
-    day_km: "ច័ន្ទ – សុក្រ",
-    day_en: "Mon – Fri",
-    hours: "7:00 – 17:00",
-    closed: false,
-    highlight: false,
-  },
-  {
-    day_km: "ថ្ងៃសៅរ៍",
-    day_en: "Saturday",
-    hours: "8:00 – 16:00",
-    closed: false,
-    highlight: false,
-    // NOTE: source data listed "8.00-4.00"; assumed 08:00–16:00 (4 PM). Confirm with library admin.
-  },
-  {
-    day_km: "ថ្ងៃអាទិត្យ",
-    day_en: "Sunday",
-    hours: "បិទ",
-    hours_en: "Closed",
-    closed: true,
-    highlight: false,
-  },
+type ScheduleRow = {
+  day_km: string;
+  day_en: string;
+  hours: string;
+  hours_en?: string;
+  closed: boolean;
+  highlight: boolean;
+  online?: boolean;
+};
+
+const fmtRange = (r: DayRange) => {
+  const f = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
+  return `${f(r.open)} – ${f(r.close)}`;
+};
+
+/**
+ * Weekly rows derived from the PUBLISHED opening-hours settings — consecutive
+ * days sharing identical windows collapse into one row ("Mon – Fri"), closed
+ * days into a single "Closed" row. Editorial rows (holidays, exam period,
+ * online 24/7) stay static below.
+ */
+function buildWeeklyRows(spec: readonly string[]): ScheduleRow[] {
+  const sched = parseOpeningHours(spec);
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  const key = (d: number) => sched[d].map(fmtRange).join(", ");
+  const rows: ScheduleRow[] = [];
+  const closedDays: number[] = [];
+
+  let i = 0;
+  while (i < order.length) {
+    const day = order[i];
+    if (sched[day].length === 0) {
+      closedDays.push(day);
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < order.length && key(order[j + 1]) === key(day)) j++;
+    // English ranges use short names ("Mon – Fri"), single days the full name
+    // ("Saturday") — matches the page's original copy.
+    const enShort = (d: number) => dayName("en", d).slice(0, 3);
+    rows.push({
+      day_km:
+        i === j
+          ? `ថ្ងៃ${dayName("km", day)}`
+          : `${dayName("km", day)} – ${dayName("km", order[j])}`,
+      day_en: i === j ? dayName("en", day) : `${enShort(day)} – ${enShort(order[j])}`,
+      hours: key(day),
+      closed: false,
+      highlight: false,
+    });
+    i = j + 1;
+  }
+
+  if (closedDays.length > 0) {
+    rows.push({
+      day_km: closedDays.map((d) => `ថ្ងៃ${dayName("km", d)}`).join(" "),
+      day_en: closedDays.map((d) => dayName("en", d)).join(", "),
+      hours: "បិទ",
+      hours_en: "Closed",
+      closed: true,
+      highlight: false,
+    });
+  }
+  return rows;
+}
+
+const STATIC_ROWS: ScheduleRow[] = [
   {
     day_km: "ថ្ងៃបុណ្យ / ឈប់សម្រាក",
     day_en: "Holidays",
@@ -72,7 +119,10 @@ const SCHEDULE = [
   },
 ];
 
-export default function LibraryTimingsPage() {
+export default async function LibraryTimingsPage() {
+  const cfg = await getSiteConfig();
+  const SCHEDULE = [...buildWeeklyRows(cfg.hours.openingHoursSpec), ...STATIC_ROWS];
+  const closures = upcomingClosures(new Date(), cfg.hours.closures);
   return (
     <div className="min-h-screen bg-paper">
       {/* ── Hero ─────────────────────────────────────────── */}
@@ -209,6 +259,29 @@ export default function LibraryTimingsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Upcoming special closures from the published settings */}
+        {closures.length > 0 && (
+          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <h2 className="text-sm font-bold text-text-heading">
+              ការបិទពិសេស <span className="font-kh" lang="km">· </span>Upcoming closures
+            </h2>
+            <ul className="mt-3 space-y-2">
+              {closures.map((c, i) => (
+                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+                  <span className="font-semibold tabular-nums text-text-heading">
+                    {c.from}
+                    {c.to !== c.from && ` → ${c.to}`}
+                  </span>
+                  <span className="text-text-body">{c.reason.en}</span>
+                  {c.reason.km && (
+                    <span lang="km" className="font-kh text-text-muted">{c.reason.km}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Decorative divider */}
         <div className="flex items-center justify-center gap-3 mt-14" aria-hidden="true">

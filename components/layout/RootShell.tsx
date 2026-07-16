@@ -20,7 +20,8 @@ import IntlProvider from "@/components/providers/IntlProvider";
 import { pickMessages, ROOT_NAMESPACES } from "@/i18n/pick-messages";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
 import { SITE_URL } from "@/lib/seo/site";
-import { PTEC } from "@/lib/ptec";
+import { getSiteConfig } from "@/lib/system-settings/config";
+import type { SiteConfig } from "@/lib/system-settings/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The <html>/<body> shell, shared by every root layout.
@@ -47,61 +48,66 @@ import { PTEC } from "@/lib/ptec";
 // with stable @id anchors. Nothing else may declare an Organization/Library/
 // WebSite node — duplicates with diverging names/URLs read as conflicting
 // entities to search engines (the home page used to).
-const address = {
-  "@type": "PostalAddress",
-  streetAddress: PTEC.address.streetAddress,
-  addressLocality: PTEC.address.city,
-  addressCountry: PTEC.address.country,
-};
+//
+// Values come from the PUBLISHED system settings (cached under "site-config"
+// — no cookies/headers, so the public tree keeps prerendering).
+function buildSiteGraph(cfg: SiteConfig) {
+  const address = {
+    "@type": "PostalAddress",
+    streetAddress: cfg.address.streetAddress,
+    addressLocality: cfg.address.city,
+    addressCountry: cfg.address.country,
+  };
 
-const SITE_GRAPH = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "EducationalOrganization",
-      "@id": `${SITE_URL}/#organization`,
-      name: PTEC.name.en,
-      alternateName: PTEC.name.short,
-      url: PTEC.links.website,
-      logo: `${SITE_URL}/logo.png`,
-      telephone: PTEC.phone,
-      email: PTEC.email,
-      sameAs: PTEC.sameAs,
-      description:
-        "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
-      address,
-    },
-    {
-      "@type": "Library",
-      "@id": `${SITE_URL}/#library`,
-      name: "PTEC Digital Library",
-      url: SITE_URL,
-      image: `${SITE_URL}/logo.png`,
-      telephone: PTEC.phone,
-      email: PTEC.email,
-      description:
-        "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
-      inLanguage: ["km", "en"],
-      isAccessibleForFree: true,
-      openingHours: PTEC.hours.openingHoursSpec,
-      address,
-      parentOrganization: { "@id": `${SITE_URL}/#organization` },
-    },
-    {
-      "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
-      name: "PTEC Digital Library",
-      url: SITE_URL,
-      inLanguage: ["km", "en"],
-      publisher: { "@id": `${SITE_URL}/#organization` },
-      potentialAction: {
-        "@type": "SearchAction",
-        target: `${SITE_URL}/search?q={search_term_string}`,
-        "query-input": "required name=search_term_string",
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "EducationalOrganization",
+        "@id": `${SITE_URL}/#organization`,
+        name: cfg.name.en,
+        alternateName: cfg.name.short,
+        url: cfg.links.website,
+        logo: `${SITE_URL}/logo.png`,
+        telephone: cfg.phone,
+        email: cfg.email,
+        sameAs: cfg.sameAs,
+        description:
+          "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
+        address,
       },
-    },
-  ],
-};
+      {
+        "@type": "Library",
+        "@id": `${SITE_URL}/#library`,
+        name: cfg.seo.siteName,
+        url: SITE_URL,
+        image: `${SITE_URL}/logo.png`,
+        telephone: cfg.phone,
+        email: cfg.email,
+        description:
+          "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
+        inLanguage: ["km", "en"],
+        isAccessibleForFree: true,
+        openingHours: cfg.hours.openingHoursSpec,
+        address,
+        parentOrganization: { "@id": `${SITE_URL}/#organization` },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: cfg.seo.siteName,
+        url: SITE_URL,
+        inLanguage: ["km", "en"],
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/search?q={search_term_string}`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  };
+}
 
 export default async function RootShell({
   locale,
@@ -113,7 +119,10 @@ export default async function RootShell({
   // Passing `locale` explicitly keeps next-intl off `headers()` — see
   // i18n/request.ts. Root provider carries only what root-level client
   // components use; each root layout adds its own namespace set below it.
-  const messages = pickMessages(await getMessages({ locale }), ROOT_NAMESPACES);
+  const [messages, siteConfig] = await Promise.all([
+    getMessages({ locale }).then((m) => pickMessages(m, ROOT_NAMESPACES)),
+    getSiteConfig(),
+  ]);
 
   return (
     <html
@@ -142,7 +151,7 @@ export default async function RootShell({
         className="bg-bg-app font-sans text-text-body antialiased"
       >
         <IntlProvider locale={locale} messages={messages}>
-          <JsonLd data={SITE_GRAPH} />
+          <JsonLd data={buildSiteGraph(siteConfig)} />
           <Suspense fallback={null}>
             <NavigationProgress />
           </Suspense>

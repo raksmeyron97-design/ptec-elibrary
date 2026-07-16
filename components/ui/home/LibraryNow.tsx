@@ -2,15 +2,16 @@
 
 // components/ui/home/LibraryNow.tsx
 // The bridge between the always-on e-library and the physical library on
-// campus. Open/closed is computed from PTEC.hours in Cambodia time (never the
-// viewer's device timezone) via lib/library-hours. The live status renders
-// after mount to stay hydration-safe and correct even when the page HTML was
-// cached; the digital side and all links are meaningful without JS.
+// campus. The schedule + closures arrive as props from the server-rendered
+// home page (published system settings); open/closed is computed in Cambodia
+// time (never the viewer's device timezone) via lib/library-hours. The live
+// status renders after mount to stay hydration-safe and correct even when the
+// page HTML was cached; the digital side and all links are meaningful
+// without JS.
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
 import { Globe, MapPin, Clock, Navigation, Phone, ArrowRight, Dot } from "lucide-react";
-import { PTEC } from "@/lib/ptec";
 import {
   getLibraryStatus,
   zonedNow,
@@ -18,8 +19,19 @@ import {
   formatTimeLabel,
   weekdayLabel,
 } from "@/lib/library-hours";
+import { activeClosure } from "@/lib/system-settings/hours";
+import type { HoursClosure } from "@/lib/system-settings/types";
 
-export default function LibraryNow() {
+export default function LibraryNow({
+  openingHoursSpec,
+  closures = [],
+  mapPlaceUrl,
+}: {
+  /** schema.org opening-hours spec from the published settings. */
+  openingHoursSpec: string[];
+  closures?: HoursClosure[];
+  mapPlaceUrl: string;
+}) {
   const t = useTranslations("home");
   const locale = useLocale();
   const [now, setNow] = useState<Date | null>(null);
@@ -37,12 +49,19 @@ export default function LibraryNow() {
     };
   }, []);
 
-  const status = now ? getLibraryStatus(now) : null;
-  const sched = parseOpeningHours(PTEC.hours.openingHoursSpec);
+  // A special closure (public holiday, temporary closure) overrides the
+  // weekly schedule for the whole Cambodia-local day.
+  const closure = now ? activeClosure(now, closures) : null;
+  const status = now && !closure ? getLibraryStatus(now, openingHoursSpec) : null;
+  const sched = parseOpeningHours(openingHoursSpec);
   const zoned = now ? zonedNow(now) : null;
-  const todayRanges = zoned ? sched[zoned.weekday] : [];
-  const todayLabel =
-    todayRanges.length > 0
+  const todayRanges = zoned && !closure ? sched[zoned.weekday] : [];
+  const closureReason = closure
+    ? (locale === "km" ? closure.reason.km : closure.reason.en) || t("libraryNowClosed")
+    : null;
+  const todayLabel = closure
+    ? closureReason!
+    : todayRanges.length > 0
       ? todayRanges
           .map((r) => `${formatTimeLabel(r.open, locale)} – ${formatTimeLabel(r.close, locale)}`)
           .join(", ")
@@ -58,6 +77,7 @@ export default function LibraryNow() {
   }
 
   const isOpen = status?.isOpen ?? false;
+  const statusKnown = status !== null || closure !== null;
 
   const linkClass =
     "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
@@ -117,7 +137,7 @@ export default function LibraryNow() {
                 <MapPin className="h-[22px] w-[22px]" strokeWidth={1.9} />
               </span>
               {/* Live status — icon + text, not colour alone. Placeholder pre-mount. */}
-              {status ? (
+              {statusKnown ? (
                 <span
                   className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ${
                     isOpen
@@ -158,7 +178,7 @@ export default function LibraryNow() {
                 <Clock className="h-4 w-4" aria-hidden />
                 {t("libraryNowHoursLink")}
               </Link>
-              <a href={PTEC.links.mapPlace} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              <a href={mapPlaceUrl} target="_blank" rel="noopener noreferrer" className={linkClass}>
                 <Navigation className="h-4 w-4" aria-hidden />
                 {t("libraryNowDirections")}
                 <span className="sr-only">({t("partnersOpensNewTab")})</span>

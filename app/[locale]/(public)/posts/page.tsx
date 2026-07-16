@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import PostsListClient from "./PostsListClient";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import { getTranslations } from 'next-intl/server';
 import { SITE_URL } from "@/lib/seo/site";
 
@@ -25,6 +26,7 @@ export const metadata: Metadata = {
 export default async function PostsPage() {
   const t = await getTranslations('posts');
   const tNav = await getTranslations('nav');
+  const cfg = await getSiteConfig();
   const supabase = await createClient();
 
   const { data: posts } = await supabase
@@ -74,7 +76,18 @@ export default async function PostsPage() {
         </div>
       </div>
 
-      <PostsListClient posts={cards} />
+      <PostsListClient
+        posts={cards}
+        siteContact={{
+          addressEn: cfg.address.en,
+          addressKm: cfg.address.km,
+          phone: cfg.phone,
+          phoneTel: cfg.phoneTel,
+          email: cfg.email,
+          hoursEn: cfg.hours.en,
+          hoursKm: cfg.hours.km,
+        }}
+      />
     </div>
   );
 }
