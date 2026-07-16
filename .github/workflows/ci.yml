@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# A newer push to the same branch/PR supersedes the running CI — cancel it
+# instead of letting both bill Actions minutes (Playwright runs are the
+# expensive part). main pushes are never cancelled mid-run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   # Scan the full git history for committed secrets on every push.
   # If this ever fires on a real secret: rotate it first, then clean history.

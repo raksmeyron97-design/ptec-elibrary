@@ -30,6 +30,13 @@ dependency-health endpoint.
 The Docker `HEALTHCHECK` already probes `/home` from inside the box; probe 2
 adds dependency depth and an outside-in view.
 
+**Backstop** (added 2026-07-16): `.github/workflows/uptime.yml` runs probes
+1 & 2 hourly from GitHub Actions and fails the workflow on sustained failure
+(3 attempts, 30s apart) — GitHub emails the repo owner on failure. It is a
+safety net only; detection latency is up to ~1h and the cron must stay ≥30 min
+(private-repo Actions billing). The external monitor above remains the
+primary, fast-detection alert.
+
 ## Log-based alerts
 
 All security-relevant events are one-line JSON with `evt:"security"`
