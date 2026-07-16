@@ -136,10 +136,14 @@ CREATE TABLE public.book_files (
 );
 
 -- ── download_logs (0001) ──────────────────────────────────────────────────────
+-- NOTE: the original 0001 defined book_id, but production was changed (via
+-- the dashboard, no migration) to book_file_id → book_files. Every app
+-- insert and migration 0072's backfill use book_file_id, so the baseline
+-- must say book_file_id or fresh applies break at 0072 (SQLSTATE 42703).
 CREATE TABLE public.download_logs (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid REFERENCES public.profiles(id) ON DELETE CASCADE,
-  book_id       uuid REFERENCES public.books(id) ON DELETE CASCADE,
+  book_file_id  uuid REFERENCES public.book_files(id) ON DELETE CASCADE,
   downloaded_at timestamptz DEFAULT timezone('utc'::text, now())
 );
 
