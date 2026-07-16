@@ -10,7 +10,7 @@ PTEC e-Library is a free public digital library for Phnom Penh Teacher Education
 
 ```bash
 npm run dev          # Start development server
-npm run build        # Production build
+npm run build        # Production build (next build --webpack — NEVER switch to Turbopack: it silently skips building app/sw.ts, killing the PWA)
 npm run lint         # ESLint
 npm test             # Vitest unit tests (watch mode)
 npx vitest run lib/books.test.ts   # Run a single test file
@@ -31,11 +31,14 @@ Database migrations are in `supabase/migrations/` and must be applied sequential
 - `app/(auth)/` — authentication flows (login, signup, forgot/reset password)
 - `app/(admin)/admin/` — admin panel: `login`, `mfa` (enroll/verify), and `(protected)/` which holds all admin sections
 
-The root `app/layout.tsx` injects an inline theme-init script (FOUC prevention) and wraps everything in `IntlProvider`.
+There is deliberately **no `app/layout.tsx`**. Three root layouts each own `<html>` via the shared `components/layout/RootShell.tsx` (theme-init inline script for FOUC prevention + `IntlProvider`): `app/[locale]/layout.tsx` (public — locale arrives as a root param, keeping the tree prerenderable), `app/(auth)/layout.tsx`, and `app/(admin)/layout.tsx` (both cookie-driven, dynamic). Don't reintroduce a single root layout — reading `headers()`/`cookies()` above `[locale]` is what previously forced every public page to `private, no-store`.
 
 ### Middleware (`middleware.ts`)
 
-Builds a per-request CSP with a nonce (propagated via the `x-nonce` header), redirects `/` → `/home`, and only calls Supabase `getUser()` for routes that actually need auth (`/dashboard`, `/profile`, auth pages) — public pages take a fast path with no network call.
+- **Split CSP**: auth/admin paths get a per-request nonce CSP (propagated via `x-nonce`; a stricter report-only policy reports to `/api/csp-report`); public paths get a nonce-free `unsafe-inline` policy so they stay prerenderable (a nonce forces dynamic rendering, and any nonce/hash voids `unsafe-inline`). Never set `x-nonce` on public paths.
+- Redirects `/` (and `/km`) → `/home` (308), strips `/en` prefixes, rewrites English requests internally to `/en/...`, and rewrites unknown public slugs to a real 404 (public pages have `loading.tsx`, which would otherwise stream a 200 first).
+- Only calls Supabase `getUser()` for routes that actually need auth (`/dashboard`, `/profile`, auth pages) — public pages take a fast path with no network call.
+- Static assets like `/pdf/*` (including extensionless files, e.g. `LICENSE`) and `/hero/*` must bypass locale rewriting — breaking this 404s SW-precached files and kills service-worker install.
 
 ### Auth, Roles & Authorization
 
@@ -70,14 +73,16 @@ All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`
 
 - `lib/books.ts` / `lib/book-utils.ts` — `mapRowToBook()` normalises any Supabase row (from either the `books_with_stats` view or an embedded select) into the `Book` type. It handles both data shapes transparently.
 - `lib/catalog.ts`, `lib/theses.ts` — similar fetch/map utilities for catalog books and theses.
+- **Collection counts**: `lib/collection-stats.ts` is the single source for public item counts (digital books + theses + publications; physical catalog excluded). It's cached under the `collection-stats` tag — content mutation helpers must revalidate that tag.
 - **Naming caveat**: "theses" were previously called "research reports". The UI, routes (`/theses`), and files use *theses*, but the DB table is still `research_reports`, the permissions resource is `research`, and the upload folder is `research/`.
 - `app/actions/` — all Server Actions, domain-scoped per file (books, theses, reviews, reading-lists, reading-progress, book-notes, book-annotations, book-requests, subscriptions, notifications, post-comments, upload, export, audit, etc.).
 
 ### Internationalisation (i18n)
 
 - Built with `next-intl` v4, using **locale-prefixed routing** (`localePrefix: "as-needed"`, `i18n/routing.ts`): English is unprefixed (`/theses/foo`), Khmer lives under `/km` (`/km/theses/foo`). Only `app/(public)` participates — `app/(admin)` and `app/(auth)` are deliberately **not** locale-routed and stay exactly as before (unprefixed, cookie-driven).
-- All `(public)` routes live under `app/[locale]/(public)/`. `middleware.ts` resolves the locale from the URL for non-admin/auth/api requests: it strips/validates a `/km` prefix, redirects `/en*` → unprefixed (no duplicate default-locale URLs), and for English invisibly rewrites the request to `/en/...` internally (via `NextResponse.rewrite`) so the file router matches — the browser URL and `usePathname()` stay clean. It then sets an `x-locale` request header (mirroring the existing `x-nonce` pattern).
-- `i18n/request.ts` reads that `x-locale` header first; if absent (admin/auth requests), it falls back to the `ptec_locale` cookie exactly as before — this is how the root `app/layout.tsx` (which sits *above* the `[locale]` segment and can't read `params.locale` directly) still resolves the correct locale for every request.
+- All `(public)` routes live under `app/[locale]/(public)/`. `middleware.ts` resolves the locale from the URL for non-admin/auth/api requests: it strips/validates a `/km` prefix, redirects `/en*` → unprefixed (no duplicate default-locale URLs), and for English invisibly rewrites the request to `/en/...` internally (via `NextResponse.rewrite`) so the file router matches — the browser URL and `usePathname()` stay clean. It also sets an `x-locale` request header (consumed by `lib/analytics/events.ts` — locale resolution for rendering does NOT use it, see below).
+- `i18n/request.ts` resolves the locale **without ever reading `headers()`** (one `headers()` call there would opt the entire public tree out of static rendering): explicit `locale` param → `requestLocale` (unreliable across this app's segment split — tried, never trusted) → `rootLocale()` from `next/root-params` (the mechanism that actually carries the locale on public pages) → `ptec_locale` cookie (reached only on `/admin` and `/auth`, which are dynamic anyway).
+- **Message payload trimming**: root layouts load only their route group's namespaces via `pickMessages()` (`i18n/pick-messages.ts` — `PUBLIC_NAMESPACES`, `AUTH_NAMESPACES`, `ADMIN_NAMESPACES`...), guarded by `lib/i18n-namespaces.test.ts`. New translation namespaces must be added to the right list or components render raw keys.
 - **Navigation**: `i18n/navigation.ts` exports locale-aware `Link`/`redirect`/`usePathname`/`useRouter`/`getPathname` (via `createNavigation`) — use these for any link/redirect targeting a route under `(public)`. Never use them for `/admin/*` or `/auth/*` targets (those are outside the locale scheme and would get an incorrect `/km` prefix); import plain `next/link`/`next/navigation` for those, even from within otherwise-localized files (several files intentionally mix both, e.g. a dashboard page's "admin" link).
 - `components/ui/books/ClientNavWrapper.tsx` (`FilterLink`/`FilterSelect`/`SortSelect`/`RowsPerPageSelect`, used by `Pagination.tsx`) is shared with the admin panel and deliberately **not** locale-aware — it navigates via a plain `basePath` prop. Public listing pages must pass an explicit locale-prefixed `basePath` (e.g. `locale === "km" ? "/km/books" : "/books"`); admin call sites are untouched.
 - `LanguageSwitcher.tsx` does real path-based switching (`router.replace(pathname + query, { locale })` from `i18n/navigation.ts`), not just a cookie write + refresh.
@@ -110,7 +115,9 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 - **`books_with_stats` view**: Used in listing queries to get `review_count` and `avg_rating` without N+1 queries. `mapRowToBook()` also handles the embedded-reviews shape for detail page queries.
 - **Sanitization**: `lib/sanitize.ts` + `isomorphic-dompurify` for rendered markdown. When building PostgREST `.or(...)` filter strings from user input, strip filter metacharacters first (see `sanitizeSearchTerm` in `app/api/chat/route.ts`).
 - **RLS rule for new tables**: every migration that creates a `public` table MUST enable RLS (+ policies) or `REVOKE ALL … FROM public, anon, authenticated` in the same file — PostgREST exposes all public-schema tables by default. Policy matrix + behavioral probes: `docs/RLS-MATRIX.md`, `lib/rls.test.ts` (`RLS_PROBE=1`).
-- **Security headers / CSP**: static headers in `next.config.ts`, nonce CSP (plus a stricter report-only policy reporting to `/api/csp-report`) in `middleware.ts` — never add a second CSP in `next.config.ts`. Staged tightening plan: `docs/SECURITY-HEADERS.md`.
+- **Caching / revalidation**: public pages are prerendered/ISR; because English is internally rewritten to `/en/...`, **`revalidatePath("/books")` is a silent no-op** — revalidate `/en/books` and `/km/books` (or the relevant cache tag) instead.
+- **Security headers / CSP**: static headers in `next.config.ts`, the split CSP (see Middleware) in `middleware.ts` — never add a second CSP in `next.config.ts`. Staged tightening plan: `docs/SECURITY-HEADERS.md`.
+- **Deployment region**: `vercel.json` pins functions to `sin1` next to the Supabase instance (Singapore) — removing it moves functions to `iad1` and wrecks TTFB. Hero images under `public/hero/` are served immutable — rename the file when changing one.
 - **Monitoring**: `/api/health` (DB + storage probes) for uptime monitors; alerts + incident runbooks in `docs/MONITORING.md`; `x-request-id` correlation is set by middleware on every request.
 
 ## Environment Variables
