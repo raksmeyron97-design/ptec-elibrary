@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { getMessages } from "next-intl/server";
@@ -140,9 +139,16 @@ export default async function RootShell({
           crossOrigin="anonymous"
         />
         <link rel="preconnect" href="https://storage-ptec.online" />
-        <Script
+        {/* Plain inline <script>, deliberately NOT next/script: on nonce-CSP
+            routes (admin/auth) next/script gets the nonce auto-injected
+            server-side, and browsers hide nonce values from the DOM ("" vs
+            undefined) — a dev-only hydration warning on every admin page.
+            A raw script gets no nonce (it is sha256-allowlisted in the nonce
+            policy, see lib/csp.ts) and, sitting in <head>, still runs before
+            paint — FOUC prevention is unchanged. */}
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
       </head>
