@@ -6,8 +6,7 @@
 // page needs, following app/actions/theses.ts conventions (books:write
 // permission, DB-backed rate limit, audit log with request metadata).
 
-import { revalidateTag } from "next/cache";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
@@ -47,8 +46,11 @@ async function enforceRateLimit(userId: string) {
   if (!success) throw new Error("Too many changes — please wait a moment and try again.");
 }
 
-function revalidateAll() {
-  revalidateTag("books", "max");
+function revalidateAll(slug?: string | null) {
+  // Status transitions (publish/unpublish/archive/delete) change the public
+  // counters, listings and — via affectsHome — the homepage shelves, so go
+  // through the central helper rather than hand-picking tags.
+  revalidateBook(slug, { affectsHome: true });
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 }
 
@@ -117,8 +119,7 @@ async function setEbookStatus(
   const meta = await requestMeta();
   await logAdminAction(user.id, auditAction, "books", id, { title: row?.title, ...meta });
 
-  revalidateAll();
-  if (row?.slug) revalidatePath(`/books/${row.slug}`);
+  revalidateAll(row?.slug);
   if (shouldNotify && row?.slug && row?.title) {
     after(() => notifyNewBookPublished({ id, title: row.title, slug: row.slug }));
   }
@@ -212,8 +213,7 @@ export async function replaceBookFile(
   const meta = await requestMeta();
   await logAdminAction(user.id, "book.replace_pdf", "books", bookId, { title: book.title, ...meta });
 
-  revalidateAll();
-  revalidatePath(`/books/${book.slug}`);
+  revalidateAll(book.slug);
 
   const oldUrl = existing?.file_url;
   if (oldUrl && oldUrl !== file.fileUrl) {

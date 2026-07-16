@@ -82,8 +82,23 @@ export const TAGS = {
   homeTheses: "home-theses",
   homePublications: "home-publications",
   homePosts: "home-posts",
-  homeStats: "home-stats",
+  /** Shared public counters (lib/collection-stats.ts) — the only sanctioned
+   *  source for "how many resources" figures. */
+  collectionStats: "collection-stats",
 } as const;
+
+/**
+ * Public collection counts changed (create / delete / publish / unpublish /
+ * archive / restore of any counted entity). Busts the shared stats cache and
+ * the /home page, which renders the "digital resources" figure. Called from
+ * every entity helper below — a routine metadata edit re-counts too, which is
+ * deliberately accepted: the entry is one tiny row and a wrong count on the
+ * busiest page is worse than an extra recount.
+ */
+export function revalidateCollectionStats() {
+  revalidateTag(TAGS.collectionStats, "max");
+  revalidatePublicPath("/home");
+}
 
 /**
  * A book changed. Invalidates its own detail page, the listings it appears in,
@@ -104,6 +119,7 @@ export function revalidateBook(
     revalidatePublicPath(`/books/${slug}`);
   }
   revalidatePublicPath("/books");
+  revalidateCollectionStats();
   if (affectsHome) {
     revalidateTag(TAGS.homeBooks, "max");
     revalidatePublicPath("/home");
@@ -131,6 +147,7 @@ export function revalidateCatalogBook(slug?: string | null) {
     revalidatePublicPath(`/catalogs/${slug}`);
   }
   revalidatePublicPath("/catalogs");
+  revalidateCollectionStats();
 }
 
 export function revalidateThesis(slug?: string | null) {
@@ -141,6 +158,7 @@ export function revalidateThesis(slug?: string | null) {
   }
   revalidatePublicPath("/theses");
   revalidateTag(TAGS.homeTheses, "max");
+  revalidateCollectionStats();
 }
 
 export function revalidatePublication(slug?: string | null) {
@@ -151,6 +169,7 @@ export function revalidatePublication(slug?: string | null) {
   }
   revalidatePublicPath("/publications");
   revalidateTag(TAGS.homePublications, "max");
+  revalidateCollectionStats();
 }
 
 export function revalidatePost(slug?: string | null) {
@@ -171,6 +190,7 @@ export function revalidateLearningPath(slug?: string | null) {
   }
   revalidatePublicPath("/paths");
   revalidatePublicPath("/home"); // paths are rendered in ThisWeekAtPtec
+  revalidateCollectionStats();
 }
 
 export function revalidateTeam() {

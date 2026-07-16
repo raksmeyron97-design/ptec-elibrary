@@ -2,7 +2,7 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { requireLibrarian } from "@/lib/auth/requireAdmin";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateLearningPath } from "@/lib/cache/revalidate";
 import { slugify } from "@/lib/books";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -532,8 +532,7 @@ export async function savePath(
     return { error: err instanceof Error ? err.message : "Failed to save path." };
   }
 
-  revalidatePath("/paths");
-  revalidatePath(`/paths/${slug}`);
+  revalidateLearningPath(slug);
   revalidatePath("/admin/paths");
   return { success: true, id: id!, slug };
 }
@@ -542,7 +541,7 @@ export async function deletePath(pathId: string): Promise<{ success: true } | { 
   const { supabase } = await requireLibrarian();
   const { error } = await supabase.from("learning_paths").delete().eq("id", pathId);
   if (error) return { error: error.message };
-  revalidatePath("/paths");
+  revalidateLearningPath();
   revalidatePath("/admin/paths");
   return { success: true };
 }

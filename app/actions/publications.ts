@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidatePublication } from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
@@ -43,7 +43,11 @@ function sanitizeSearchTerm(input: string): string {
     .slice(0, 200);
 }
 
-function revalidateAll() {
+function revalidateAll(slug?: string | null) {
+  // Central helper busts the publications + collection-stats tags, the
+  // public listing/detail pages and the homepage; the loop keeps the
+  // admin-side paths fresh.
+  revalidatePublication(slug);
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 }
 
@@ -360,7 +364,7 @@ export async function createPublication(
   }
   await logAdminAction(userId, "publication.create", "publications", created.id, { title: created.title });
   await createAdminNotification("new_publication", `New publication: "${created.title}"`, undefined, "/admin/publications");
-  revalidateAll();
+  revalidateAll(created.slug as string);
   return { success: true as const, id: created.id as string };
 }
 
@@ -440,7 +444,7 @@ export async function updatePublication(
     after(() => indexPdfPagesSafe("publication", id, pdfUrl));
   }
   await logAdminAction(userId, "publication.update", "publications", id, { title: formData.title });
-  revalidateAll();
+  revalidateAll(formData.slug);
   return { success: true as const };
 }
 

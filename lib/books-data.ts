@@ -85,7 +85,7 @@ function resolveSort(sort: string | undefined): { key: string; def: SortDef } {
 async function buildListingQuery(
   supabase: ReturnType<typeof createPublicClient>,
   params: BooksListParams,
-  opts: { count?: "estimated" } = {}
+  opts: { count?: "exact" } = {}
 ) {
   const q = sanitizeQuery(params.q);
   const dept = params.dept?.trim();
@@ -171,9 +171,11 @@ export const getBooksPage = unstable_cache(
     const to = from + size - 1;
     const { def } = resolveSort(params.sort);
 
-    // "estimated" = exact count for small result sets, planner estimate for
-    // large ones — never a full-table count per request like "exact".
-    const { query } = await buildListingQuery(supabase, params, { count: "estimated" });
+    // EXACT count, not "estimated": the planner estimate tracks table
+    // statistics, not data, and made the visible total flap (113 vs 116)
+    // while nothing changed. At this catalog's scale an exact count is a
+    // trivial index scan, and the result is cached under the "books" tag.
+    const { query } = await buildListingQuery(supabase, params, { count: "exact" });
     const { data, error, count } = await query.range(from, to);
 
     if (error) {

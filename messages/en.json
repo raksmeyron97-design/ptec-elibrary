@@ -165,7 +165,7 @@
     "featuredCollections": "Featured Collections",
     "allDepartments": "All departments",
     "ctaHeading": "Begin Your Learning Journey Today",
-    "ctaBody": "100+ educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
+    "ctaBody": "{count} educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
     "ctaBrowse": "Browse all resources",
     "ctaPhysical": "Physical Library",
     "heroTitle": "Expand your knowledge with PTEC",
@@ -365,7 +365,8 @@
     "libraryNowHoursLink": "All opening hours",
     "libraryNowDirections": "Get directions",
     "libraryNowContact": "Contact librarian",
-    "libraryNowCatalogCta": "Browse physical catalog"
+    "libraryNowCatalogCta": "Browse physical catalog",
+    "ctaBodyNoCount": "Textbooks, research papers, and teaching guides — available free to every educator in Cambodia."
   },
   "books": {
     "title": "Books",

@@ -6,7 +6,7 @@
 // app/actions/publications.ts and degrades gracefully until migration
 // 0085_publication_authoring_workspace.sql is applied.
 
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidatePublication } from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
@@ -42,7 +42,10 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
 }
 
-function revalidateAll() {
+function revalidateAll(slug?: string | null) {
+  // Central helper busts the publications + collection-stats tags and the
+  // public pages; the loop keeps the admin-side paths fresh.
+  revalidatePublication(slug);
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 }
 

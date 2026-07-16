@@ -134,6 +134,45 @@ export function formatTimeLabel(min: number, locale: string): string {
   return `${h12}:${mm} ${period}`;
 }
 
+/** "7:00–17:00" (24-hour, en-dash) — shared by compactHoursLabel. */
+function compactRange(r: DayRange): string {
+  const f = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
+  return `${f(r.open)}–${f(r.close)}`;
+}
+
+// Khmer weekday initials for the compact label (ច=Mon … អា=Sun).
+const KM_DAY_SHORT = ["អា", "ច", "អ", "ព", "ព្រ", "សុ", "សៅ"] as const;
+const EN_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/**
+ * Compact one-line hours label derived from the openingHoursSpec SSOT —
+ * e.g. km: "ច-សុ 7:00–17:00 · ស 8:00–16:00", en: "Mon-Fri 7:00–17:00 ·
+ * Sat 8:00–16:00". Use this instead of hand-writing hour strings so a
+ * schedule change in lib/ptec.ts propagates everywhere.
+ */
+export function compactHoursLabel(
+  locale: "en" | "km",
+  spec: readonly string[] = PTEC.hours.openingHoursSpec,
+): string {
+  const sched = parseOpeningHours(spec);
+  const names = locale === "km" ? KM_DAY_SHORT : EN_DAY_SHORT;
+  const segments: string[] = [];
+  // Group consecutive weekdays (Mon→Sun scan) sharing an identical window.
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  let i = 0;
+  while (i < order.length) {
+    const ranges = sched[order[i]];
+    if (!ranges.length) { i++; continue; }
+    const key = ranges.map(compactRange).join(",");
+    let j = i;
+    while (j + 1 < order.length && sched[order[j + 1]].map(compactRange).join(",") === key) j++;
+    const dayLabel = i === j ? names[order[i]] : `${names[order[i]]}-${names[order[j]]}`;
+    segments.push(`${dayLabel} ${key}`);
+    i = j + 1;
+  }
+  return segments.join(" · ");
+}
+
 /**
  * Localised short weekday label for a day `dayOffset` days after `now`, read in
  * Cambodia time. Cambodia has no DST, so adding whole days is exact.

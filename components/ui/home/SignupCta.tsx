@@ -9,18 +9,22 @@
 // visible to crawlers) and hidden after hydration for signed-in users by
 // <SignedOutOnly>.
 import { Link } from "@/i18n/navigation";
-import { getHomeStats } from "@/lib/home-stats";
+import { getCollectionStats, formatApproximateCount } from "@/lib/collection-stats";
 import { getTranslations, getLocale } from "next-intl/server";
 
 export default async function SignupCta() {
   const [t, locale, stats] = await Promise.all([
     getTranslations("home"),
     getLocale(),
-    getHomeStats(),
+    getCollectionStats(),
   ]);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
-  const resourceCount = stats.resources ?? 0;
+  // The label reads "Digital resources", so the figure must follow the shared
+  // counting rule (e-books + theses + publications — NOT physical catalog
+  // records). When stats can't be loaded, the chip is omitted entirely rather
+  // than showing a stale or zero figure.
+  const digitalTotal = stats?.totalDigitalResources ?? null;
 
   return (
     <section className="hero-ink relative overflow-hidden">
@@ -88,9 +92,12 @@ export default async function SignupCta() {
           {t("ctaHeading")}
         </h2>
 
-        {/* Subtitle */}
+        {/* Subtitle — the resource figure interpolates the live rounded
+            count; with stats unavailable it makes no numeric claim at all. */}
         <p className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.75] text-blue-100/75 sm:text-[16px]">
-          {t("ctaBody")}
+          {digitalTotal !== null
+            ? t("ctaBody", { count: formatApproximateCount(digitalTotal) })
+            : t("ctaBodyNoCount")}
         </p>
 
         {/* CTA buttons */}
@@ -126,17 +133,35 @@ export default async function SignupCta() {
           </Link>
         </div>
 
-        {/* Micro-stats strip — resource count comes from live stats, not a
-            hardcoded claim that can drift from reality. */}
+        {/* Micro-stats strip — resource count comes from the shared
+            collection-stats service, not a hardcoded claim that can drift. */}
         <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {[
-            { value: `${resourceCount}+`, label: t("ctaStatResources") },
-            { value: t("ctaStatFree"), label: t("ctaStatOpenAccess") },
-            { value: "EN / ខ្មែរ", label: t("ctaStatBilingual") },
-          ].map(({ value, label }, i) => (
+            ...(digitalTotal !== null
+              ? [
+                  {
+                    value: formatApproximateCount(digitalTotal),
+                    srValue: String(digitalTotal),
+                    label: t("ctaStatResources"),
+                  },
+                ]
+              : []),
+            { value: t("ctaStatFree"), srValue: null, label: t("ctaStatOpenAccess") },
+            { value: "EN / ខ្មែរ", srValue: null, label: t("ctaStatBilingual") },
+          ].map(({ value, srValue, label }, i) => (
             <div key={label} className="flex items-center gap-2">
               {i > 0 && <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />}
-              <span className="text-[14px] font-bold text-white">{value}</span>
+              <span className="text-[14px] font-bold text-white">
+                {srValue ? (
+                  <>
+                    {/* Exact figure for screen readers; rounded "N+" visually. */}
+                    <span aria-hidden>{value}</span>
+                    <span className="sr-only">{srValue}</span>
+                  </>
+                ) : (
+                  value
+                )}
+              </span>
               <span className="text-[12px] text-blue-200/50">{label}</span>
             </div>
           ))}

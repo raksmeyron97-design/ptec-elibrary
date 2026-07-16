@@ -4,7 +4,7 @@
 // All of this data is public (is_published = true only) and identical for
 // every visitor, so it is fetched with the service client (no cookie access —
 // cookie reads would opt the whole route out of caching) and memoised with
-// unstable_cache for 5 minutes, same pattern as lib/home-stats.ts.
+// unstable_cache for 5 minutes, same pattern as lib/collection-stats.ts.
 //
 // Per-user data (auth state, ContinueReading) must NOT move here.
 import { unstable_cache } from "next/cache";

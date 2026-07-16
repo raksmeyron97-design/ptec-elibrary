@@ -18,8 +18,7 @@
 //   * a redirect whose old_slug equals the canonical slug is never created
 //     (no self-loop).
 
-import { revalidateTag } from "next/cache";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateBookSlugChange } from "@/lib/cache/revalidate";
 import { headers } from "next/headers";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
@@ -132,7 +131,10 @@ export async function retireDuplicateBook(input: {
     ...meta,
   });
 
-  revalidateTag("books", "max");
+  // Retiring a duplicate removes one published book and 301s its old URL —
+  // both slugs' pages, the listings, and the public counters must all drop
+  // the retired record together.
+  revalidateBookSlugChange(retired.slug, canonical.slug);
   REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
 
   return { success: true, redirectFrom: retired.slug, redirectTo: canonical.slug };

@@ -1,8 +1,7 @@
 "use server";
 
 // app/admin/books/actions.ts
-import { revalidateTag } from "next/cache";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
@@ -262,10 +261,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     after(() => notifyNewBookPublished({ id: book.id, title, slug: book.slug }));
   }
 
-  revalidateTag("books", "max");
-  revalidatePath("/");
-  revalidatePath("/books");
-  revalidatePath(`/books/${book.slug}`);
+  revalidateBook(book.slug, { affectsHome: true });
 
   // Full-text page indexing (book_pages, migration 0066). Runs after the
   // response is sent so the admin isn't kept waiting on PDF parsing; failures
@@ -290,7 +286,7 @@ export async function deleteBook(bookId: string) {
 
   const { data: bookData } = await supabase
     .from("books")
-    .select("cover_url")
+    .select("cover_url, slug")
     .eq("id", bookId)
     .single();
 
@@ -329,8 +325,9 @@ export async function deleteBook(bookId: string) {
 
   await logAdminAction(user.id, "book.delete", "books", bookId);
 
-  revalidateTag("books", "max");
-  revalidatePath("/books");
+  // Include the deleted book's own detail page — leaving it cached would keep
+  // serving a page for a record that no longer exists.
+  revalidateBook(bookData?.slug, { affectsHome: true });
   revalidatePath("/admin");
   revalidatePath("/admin/manage");
 }
@@ -461,10 +458,7 @@ export async function updateBook(bookId: string, formData: FormData) {
 
   await logAdminAction(user.id, "book.update", "books", bookId, { title });
 
-  revalidateTag("books", "max");
-  revalidatePath("/");
-  revalidatePath("/books");
-  revalidatePath(`/books/${book.slug}`);
+  revalidateBook(book.slug, { affectsHome: true });
   revalidatePath("/admin");
   revalidatePath("/admin/manage");
   redirect(`/books/${book.slug}`);

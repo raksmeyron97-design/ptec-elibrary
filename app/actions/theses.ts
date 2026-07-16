@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidateThesis } from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { headers } from "next/headers";
 import { zimaDelete } from "@/lib/zima";
@@ -16,11 +16,20 @@ import { isGenericThesisTitle } from "@/lib/seo/thesis-seo";
 import { logContentView } from "@/lib/analytics/events";
 
 
+// Admin-side paths only; public tags/paths/counters are handled by the
+// central revalidateThesis() helper — see revalidateAllTheses() below.
 const REVALIDATE_PATHS = [
   "/admin/theses",
-  "/theses",
   "/theses/summary",
 ];
+
+/** Every thesis mutation goes through here: busts the research_reports +
+ *  collection-stats tags, the /theses listing (both locales), the homepage
+ *  shelf, and the admin paths above. */
+function revalidateAllTheses() {
+  revalidateThesis();
+  for (const p of REVALIDATE_PATHS) revalidatePath(p);
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
@@ -403,7 +412,7 @@ export async function toggleThesisPublishStatus(id: string, isPublished: boolean
   const meta = await requestMeta();
   await logAdminAction(admin.user.id, isPublished ? "thesis.publish" : "thesis.unpublish", "research_reports", id, meta);
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   return { success: true };
 }
 
@@ -441,7 +450,7 @@ export async function createThesis(formData: ThesisData) {
   await logAdminAction(admin.user.id, "thesis.create", "research_reports", created?.id, { title: formData.title, status: sanitized.data.status, ...meta });
 
   await createAdminNotification("new_report", `New thesis: "${formData.title}"`, undefined, "/theses");
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
 
   // Full-text page indexing (book_pages) — background, non-blocking, log-only on failure.
   if (created?.id && formData.file_url) {
@@ -487,7 +496,7 @@ export async function deleteThesis(id: string) {
   const meta = await requestMeta();
   await logAdminAction(admin.user.id, "thesis.delete", "research_reports", id, { title: row?.title, ...meta });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   return { success: true };
 }
 
@@ -533,7 +542,7 @@ export async function updateThesis(id: string, formData: ThesisData) {
   const meta = await requestMeta();
   await logAdminAction(admin.user.id, "thesis.update", "research_reports", id, { title: formData.title, status: sanitized.data.status, ...meta });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
 
   // Full-text page indexing (book_pages) — only when the PDF actually changed.
   const newFileUrl = formData.file_url;
@@ -581,7 +590,7 @@ async function setThesisStatus(id: string, status: ThesisStatus, extra?: Record<
   const meta = await requestMeta();
   await logAdminAction(admin.user.id, actionMap[status], "research_reports", id, { title: row.title, ...meta });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
 }
 
 export async function archiveThesis(id: string) {
@@ -631,7 +640,7 @@ export async function duplicateThesis(id: string) {
   const meta = await requestMeta();
   await logAdminAction(user.id, "thesis.duplicate", "research_reports", copy.id, { sourceId: id, ...meta });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   return { success: true, id: copy.id as string };
 }
 
@@ -663,7 +672,7 @@ export async function bulkUpdateTheses(
 
     const meta = await requestMeta();
     await logAdminAction(user.id, "thesis.bulk_action", "research_reports", undefined, { action, ids, ...meta });
-    REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+    revalidateAllTheses();
     if (error) return { success: count ?? 0, failed: ids.length - (count ?? 0) };
     return { success: count ?? ids.length, failed: 0 };
   }
@@ -692,7 +701,7 @@ export async function bulkUpdateTheses(
   const meta = await requestMeta();
   await logAdminAction(user.id, "thesis.bulk_action", "research_reports", undefined, { action, ids, payload, ...meta });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   if (error) return { success: 0, failed: ids.length };
   return { success: count ?? ids.length, failed: 0 };
 }
@@ -1279,7 +1288,7 @@ export async function setThesisDownloadOverride(
     ...meta,
   });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   revalidatePath("/theses");
   return { success: true };
 }
@@ -1321,7 +1330,7 @@ export async function bulkSetThesisDownloadOverride(
     ...meta,
   });
 
-  REVALIDATE_PATHS.forEach((p) => revalidatePath(p));
+  revalidateAllTheses();
   revalidatePath("/theses");
   return { success: true, count: affected, failed: cleanIds.length - affected };
 }

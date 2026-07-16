@@ -5,6 +5,7 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Icon, { type IconName } from "@/components/ui/core/Icon";
 import { Button } from "@/components/ui/core/Button";
 import { PTEC } from "@/lib/ptec";
+import { compactHoursLabel } from "@/lib/library-hours";
 import {
   validateContactInput,
   CONTACT_CATEGORIES,
@@ -17,7 +18,6 @@ const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 // Library-specific phone (different from the main PTEC institution line) —
 // single-sourced from lib/ptec.ts so the numbers can't drift between pages.
 const LIBRARY_PHONE = PTEC.phoneLibrary;
-// NOTE: email confirmed as info@ptec.edu.kh
 const LIBRARY_EMAIL = PTEC.email;
 
 const contactItems: { icon: IconName; label_km: string; label_en: string; value: string; href?: string }[] = [
@@ -39,7 +39,9 @@ const contactItems: { icon: IconName; label_km: string; label_en: string; value:
     icon: "clock",
     label_km: "ម៉ោងបើក",
     label_en: "Hours",
-    value: "ច-សុ 7:00–17:00 · សៅ 8:00–16:00",
+    // Derived from the opening-hours SSOT (lib/ptec.ts) — never hand-write
+    // hour strings; they drift from the footer/JSON-LD when hours change.
+    value: compactHoursLabel("km"),
   },
   {
     icon: "map-pin",

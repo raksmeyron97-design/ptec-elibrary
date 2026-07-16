@@ -15,8 +15,11 @@
 // librarians cannot verify their own records; admins can, but the action is
 // audit-logged as a self-approval override.
 
-import { revalidateTag } from "next/cache";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import {
+  revalidateLocalizedPath as revalidatePath,
+  revalidateBook,
+  revalidateThesis,
+} from "@/lib/cache/revalidate";
 import { requireLibrarian, requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import {
@@ -202,13 +205,16 @@ export async function getPendingReviewCount(): Promise<number> {
 }
 
 function revalidateFor(type: ReviewItemType) {
+  // Review transitions publish/unpublish content, so they change listings,
+  // detail data, the homepage shelves AND the public counters — the central
+  // helpers cover all of those (including the research_reports tag, which
+  // this function used to miss: approving a thesis left the cached /theses
+  // listing stale until its TTL lapsed).
   if (type === "book") {
-    revalidateTag("books", "max");
-    revalidatePath("/books");
+    revalidateBook(undefined, { affectsHome: true });
   } else {
-    revalidatePath("/theses");
+    revalidateThesis();
   }
-  revalidatePath("/");
   revalidatePath("/admin/review");
 }
 
