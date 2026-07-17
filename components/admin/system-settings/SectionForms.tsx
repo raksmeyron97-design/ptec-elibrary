@@ -600,6 +600,68 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
           </p>
         </div>
       </div>
+
+      <FieldGroup
+        title="Search engine indexing"
+        hint="Takes effect after publishing, like every setting here. Only production can ever be indexed — previews and staging are always noindex regardless of this switch."
+      >
+        <label className="flex items-start gap-3 rounded-xl border border-divider bg-white p-4">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-brand"
+            checked={doc.indexingEnabled}
+            onChange={(e) => onChange({ ...doc, indexingEnabled: e.target.checked })}
+            disabled={disabled}
+          />
+          <span>
+            <span className="block text-sm font-semibold text-text-heading">
+              Allow search engines to index the site
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-600">
+              Turning this off marks every public page <code>noindex</code> and empties the
+              sitemap — the site will gradually drop out of Google. Use only during major
+              content resets.
+            </span>
+          </span>
+        </label>
+        {!doc.indexingEnabled && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            Indexing is OFF. Once published, search engines will be told to remove the whole
+            site from their results.
+          </p>
+        )}
+      </FieldGroup>
+
+      <FieldGroup
+        title="Search engine verification"
+        hint="Paste only the content value from the verification meta tag — not the whole tag."
+      >
+        <TextField
+          id="seo-verify-google"
+          label="Google Search Console token"
+          value={doc.verification.google}
+          onChange={(google) =>
+            onChange({ ...doc, verification: { ...doc.verification, google } })
+          }
+          error={errorFor(errors, "verification.google")}
+          disabled={disabled}
+          maxLength={120}
+          placeholder="e.g. dBw5CvburAxi537Rp9qi5uG2174Vb6JwHwIRwPSLIK8"
+          usedIn='Rendered as <meta name="google-site-verification"> on public pages'
+        />
+        <TextField
+          id="seo-verify-bing"
+          label="Bing Webmaster token"
+          value={doc.verification.bing}
+          onChange={(bing) =>
+            onChange({ ...doc, verification: { ...doc.verification, bing } })
+          }
+          error={errorFor(errors, "verification.bing")}
+          disabled={disabled}
+          maxLength={120}
+          usedIn='Rendered as <meta name="msvalidate.01"> on public pages'
+        />
+      </FieldGroup>
     </div>
   );
 }

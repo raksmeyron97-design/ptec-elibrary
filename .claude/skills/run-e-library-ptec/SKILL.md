@@ -98,7 +98,7 @@ npx vitest run lib/books.test.ts   # single file
 
 - **`waitUntil: 'networkidle'` times out.** Next.js dev mode keeps a HMR websocket open permanently, so `networkidle` never fires. The driver uses `domcontentloaded` + a 1.5s hydration wait instead.
 
-- **`/` redirects to `/home`.** The app root issues a 307 to `/home`. Playwright follows redirects automatically, so `screenshot /` lands on `/home`. Curl without `-L` shows 307.
+- **`/` IS the homepage; `/home` redirects to `/`.** Since 2026-07 the canonical homepage is the root — legacy `/home` (and `/km/home`) issue a 308 to `/` (`/km`). Playwright follows redirects automatically; curl without `-L` on `/home` shows 308.
 
 - **Admin login has Cloudflare Turnstile CAPTCHA.** The Turnstile widget is visible in the admin login screenshot (`/admin/login`) but stays in "Verifying..." state headlessly. You can screenshot and inspect the login form, but automated submission is blocked by the CAPTCHA. Admin panel testing requires a valid session cookie.
 

@@ -3,6 +3,7 @@
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { createServiceClient } from "@/lib/supabase/server";
+import { SITE_URL } from "@/lib/seo/site";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
 
@@ -152,7 +153,7 @@ export async function sendPasswordReset(targetUserId: string): Promise<ActionRes
     if (!target?.email) return { success: false, error: "This user has no email on file" };
 
     const service = createServiceClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/reset-password`;
+    const redirectTo = `${SITE_URL}/reset-password`;
     const { error } = await service.auth.resetPasswordForEmail(target.email, { redirectTo });
     if (error) return { success: false, error: error.message };
 
@@ -192,7 +193,7 @@ export async function inviteUser(email: string, role: AppRole = "reader"): Promi
     }
 
     const service = createServiceClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/reset-password`;
+    const redirectTo = `${SITE_URL}/reset-password`;
     const { data, error } = await service.auth.admin.inviteUserByEmail(clean, { redirectTo });
     if (error) return { success: false, error: error.message };
 

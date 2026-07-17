@@ -1,4 +1,5 @@
 // TEMPORARY preview route for visual verification of dashboard components — delete after use.
+import { notFound } from "next/navigation";
 import ReadingStats from "@/components/ui/dashboard/ReadingStats";
 import ContinueLearningPaths from "@/components/ui/dashboard/ContinueLearningPaths";
 import NewForYou from "@/components/ui/dashboard/NewForYou";
@@ -9,7 +10,8 @@ import RecommendedBooks from "@/components/ui/dashboard/RecommendedBooks";
 export const dynamic = "force-dynamic";
 
 export default function DevDashboardPreview() {
-  if (process.env.NODE_ENV === "production") return null;
+  // A blank 200 here would be a classic soft-404 — return a real 404 outside dev.
+  if (process.env.NODE_ENV === "production") notFound();
 
   return (
     <div className="min-h-screen bg-bg-body pb-12">

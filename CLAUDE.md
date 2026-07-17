@@ -27,7 +27,7 @@ Database migrations are in `supabase/migrations/` and are applied to the hosted 
 
 ### Route Groups
 
-- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). Root `/` (and `/km`) redirects to `/home` (`/km/home`) in middleware.
+- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). The homepage IS the locale root: `app/[locale]/(public)/(home)/page.tsx` serves `/` and `/km` (the pathless `(home)` group keeps home-specific loading/error boundaries); legacy `/home` (`/km/home`) 308-redirects to `/` (`/km`) in middleware.
 - `app/(auth)/` — authentication flows (login, signup, forgot/reset password)
 - `app/(admin)/admin/` — admin panel: `login`, `mfa` (enroll/verify), and `(protected)/` which holds all admin sections
 
@@ -36,7 +36,8 @@ There is deliberately **no `app/layout.tsx`**. Three root layouts each own `<htm
 ### Middleware (`middleware.ts`)
 
 - **Split CSP**: auth/admin paths get a per-request nonce CSP (propagated via `x-nonce`; a stricter report-only policy reports to `/api/csp-report`); public paths get a nonce-free `unsafe-inline` policy so they stay prerenderable (a nonce forces dynamic rendering, and any nonce/hash voids `unsafe-inline`). Never set `x-nonce` on public paths.
-- Redirects `/` (and `/km`) → `/home` (308), strips `/en` prefixes, rewrites English requests internally to `/en/...`, and rewrites unknown public slugs to a real 404 (public pages have `loading.tsx`, which would otherwise stream a 200 first).
+- Redirects legacy `/home` (and `/km/home`) → `/` (`/km`) with a 308, strips `/en` prefixes (`/en` and `/en/home` collapse to `/` in one hop), rewrites English requests internally to `/en/...` (`/` → `/en`), and rewrites unknown public slugs to a real 404 (public pages have `loading.tsx`, which would otherwise stream a 200 first).
+- Sets `X-Robots-Tag` from `lib/seo/indexing.ts`: blanket noindex on non-indexable environments, `noindex, nofollow` on private surfaces (admin/auth/api/dashboard/profile/lists/offline-books) everywhere.
 - Only calls Supabase `getUser()` for routes that actually need auth (`/dashboard`, `/profile`, auth pages) — public pages take a fast path with no network call.
 - Static assets like `/pdf/*` (including extensionless files, e.g. `LICENSE`) and `/hero/*` must bypass locale rewriting — breaking this 404s SW-precached files and kills service-worker install.
 
@@ -117,6 +118,7 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 - **RLS rule for new tables**: every migration that creates a `public` table MUST enable RLS (+ policies) or `REVOKE ALL … FROM public, anon, authenticated` in the same file — PostgREST exposes all public-schema tables by default. Policy matrix + behavioral probes: `docs/RLS-MATRIX.md`, `lib/rls.test.ts` (`RLS_PROBE=1`).
 - **Caching / revalidation**: public pages are prerendered/ISR; because English is internally rewritten to `/en/...`, **`revalidatePath("/books")` is a silent no-op** — revalidate `/en/books` and `/km/books` (or the relevant cache tag) instead.
 - **Security headers / CSP**: static headers in `next.config.ts`, the split CSP (see Middleware) in `middleware.ts` — never add a second CSP in `next.config.ts`. Staged tightening plan: `docs/SECURITY-HEADERS.md`.
+- **SEO / indexing policy**: indexing is opt-in per environment — `lib/seo/indexing.ts` (`isIndexableEnvironment()`: `VERCEL_ENV=production` or `SEO_INDEXING=on`; previews/CI/staging default noindex) ANDed with the admin switch in System Settings → SEO. Three layers (next.config build header, middleware runtime header, metadata robots); robots.txt/sitemap are env-gated and settings-gated. Base URLs go through `lib/seo/site.ts` (`SITE_URL`/`absoluteUrl()`) — never read `NEXT_PUBLIC_SITE_URL` directly. Publish gates live in `lib/publish-readiness.ts` (shared by theses actions + review queue). Full picture: `docs/SEO-ARCHITECTURE.md`.
 - **Deployment region**: `vercel.json` pins functions to `sin1` next to the Supabase instance (Singapore) — removing it moves functions to `iad1` and wrecks TTFB. Hero images under `public/hero/` are served immutable — rename the file when changing one.
 - **Monitoring**: `/api/health` (DB + storage probes) for uptime monitors; alerts + incident runbooks in `docs/MONITORING.md`; `x-request-id` correlation is set by middleware on every request.
 

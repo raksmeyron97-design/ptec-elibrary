@@ -5,6 +5,7 @@ import RootShell from "@/components/layout/RootShell";
 import { routing } from "@/i18n/routing";
 import { rootMetadata, rootViewport } from "@/app/root-metadata";
 import { getSiteConfig } from "@/lib/system-settings/config";
+import { defaultRobots } from "@/lib/seo/indexing";
 
 export const viewport = rootViewport;
 
@@ -20,6 +21,7 @@ export async function generateMetadata({
   const [{ locale }, cfg] = await Promise.all([params, getSiteConfig()]);
   const description =
     locale === "km" ? cfg.seo.siteDescription.km : cfg.seo.siteDescription.en;
+  const { google, bing } = cfg.seo.verification;
   return {
     ...rootMetadata,
     title: {
@@ -27,6 +29,17 @@ export async function generateMetadata({
       template: cfg.seo.titleTemplate,
     },
     description,
+    // Environment gate AND admin kill switch — either can force noindex,
+    // neither can force indexing of a non-production deployment.
+    robots: defaultRobots({ indexingEnabled: cfg.seo.indexingEnabled }),
+    ...(google || bing
+      ? {
+          verification: {
+            ...(google ? { google } : {}),
+            ...(bing ? { other: { "msvalidate.01": bing } } : {}),
+          },
+        }
+      : {}),
   };
 }
 

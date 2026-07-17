@@ -127,7 +127,7 @@ export default async function AuthorPage({ params }: PageProps) {
 
   const authorUrl = `${SITE_URL}/authors/${author.slug}`;
   const breadcrumbs = breadcrumbSchema([
-    { name: "Home", path: "/home" },
+    { name: "Home", path: "/" },
     { name: "Authors", path: "/books" },
     { name: author.name },
   ]);
@@ -150,7 +150,7 @@ export default async function AuthorPage({ params }: PageProps) {
       />
       <div className="mx-auto max-w-5xl">
         <nav className="mb-5 text-[13px] font-medium text-text-muted">
-          <Link href="/home" className="hover:text-brand">Home</Link>
+          <Link href="/" className="hover:text-brand">Home</Link>
           <span className="mx-2">/</span>
           <Link href="/books" className="hover:text-brand">Authors</Link>
         </nav>

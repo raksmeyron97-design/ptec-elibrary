@@ -213,7 +213,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       : null;
 
   const pubBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/home" },
+    { name: "Home", path: "/" },
     { name: "Publications", path: "/publications" },
     { name: pub.title },
   ]);

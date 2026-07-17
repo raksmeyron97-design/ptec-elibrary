@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
  * the two narrowest supported widths, both locales.
  */
 
-const ROUTES = ["/home", "/books", "/theses", "/catalogs", "/contact"];
+const ROUTES = ["/", "/books", "/theses", "/catalogs", "/contact"];
 const WIDTHS = [320, 390];
 
 for (const width of WIDTHS) {

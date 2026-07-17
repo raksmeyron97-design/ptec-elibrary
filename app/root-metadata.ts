@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/seo/site";
+import { defaultRobots } from "@/lib/seo/indexing";
 
 // Shared by every root layout (see components/layout/RootShell.tsx for why
 // there is more than one). Page-level generateMetadata still overrides these.
@@ -32,10 +33,11 @@ export const rootMetadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  // Environment-aware: hard noindex on previews/dev/staging, index only on
+  // real production (lib/seo/indexing.ts). The public layout layers the
+  // admin-managed kill switch on top; (admin)/(auth) layouts override to a
+  // permanent noindex.
+  robots: defaultRobots(),
   manifest: "/manifest.webmanifest",
 };
 

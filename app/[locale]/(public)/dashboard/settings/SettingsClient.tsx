@@ -201,7 +201,7 @@ export default function SettingsClient({
         return;
       }
       // Account is gone and the session is cleared — leave the dashboard.
-      router.push("/home");
+      router.push("/");
       router.refresh();
     });
   };

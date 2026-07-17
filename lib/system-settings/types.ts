@@ -84,6 +84,18 @@ export type SeoSettings = {
   /** Product/site name for JSON-LD WebSite/Library nodes and email branding. */
   siteName: string;
   siteDescription: LocalizedText;
+  /** Admin kill switch. False = site-wide noindex + empty sitemap, even in
+   *  production. ANDed with the environment gate (lib/seo/indexing.ts) —
+   *  it can never make a preview/staging deployment indexable. */
+  indexingEnabled: boolean;
+  /** Webmaster-tools verification tokens (meta-tag content values, not full
+   *  tags). Empty string = tag omitted. */
+  verification: {
+    /** google-site-verification */
+    google: string;
+    /** msvalidate.01 (Bing) */
+    bing: string;
+  };
 };
 
 export type SectionDocMap = {

@@ -135,7 +135,7 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
           style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}
         >
           <div className="flex shrink-0 items-center justify-between border-b border-divider px-4 py-3">
-            <Link href="/home" onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
+            <Link href="/" onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
               <Seal size={42} />
               <span className="min-w-0">
                 <span lang="km" className="block truncate font-khmer-serif text-[13px] font-bold leading-tight text-brand">

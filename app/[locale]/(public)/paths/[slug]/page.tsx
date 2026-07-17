@@ -74,7 +74,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
   const description = pathLocalizedDescription(seoInput, locale);
 
   const pathBreadcrumb = breadcrumbSchema([
-    { name: t("breadcrumbHome"), path: "/home" },
+    { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbPaths"), path: "/paths" },
     { name: title },
   ]);
@@ -90,7 +90,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
       <div className="mx-auto max-w-[900px] px-4 py-8 md:px-10 md:py-12">
         {/* ── Breadcrumb ── */}
         <nav aria-label="Breadcrumb" className="mb-5 flex items-center gap-1.5 text-[13px] font-medium text-text-muted">
-          <Link href="/home" className="hover:text-brand">{t("breadcrumbHome")}</Link>
+          <Link href="/" className="hover:text-brand">{t("breadcrumbHome")}</Link>
           <span>/</span>
           <Link href="/paths" className="hover:text-brand">{t("breadcrumbPaths")}</Link>
         </nav>

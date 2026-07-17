@@ -13,6 +13,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { rateLimit } from "@/lib/rate-limit";
+import { SITE_URL } from "@/lib/seo/site";
 import { queuePublicationEmbedding } from "@/lib/publications/admin-side-effects";
 import {
   upgradeLegacyCitationTokens,
@@ -434,7 +435,7 @@ export async function lookupDoiMetadata(rawDoi: string): Promise<DoiLookupResult
   if (!perUser.success || !global.success) return { status: "rate_limited" };
 
   try {
-    const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://elibrary.ptec.edu.kh";
+    const site = SITE_URL;
     const response = await fetch(
       `https://api.crossref.org/works/${encodeURIComponent(doi)}`,
       {

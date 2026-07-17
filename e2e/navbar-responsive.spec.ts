@@ -31,7 +31,7 @@ async function expectActionsOnScreen(page: Page) {
 test.describe("Responsive navbar", () => {
   test("km @1366: no overflow, actions stay on-screen", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
-    await page.goto("/km/home");
+    await page.goto("/km");
     await settleNavbar(page);
 
     await expectNoHorizontalOverflow(page);
@@ -42,7 +42,7 @@ test.describe("Responsive navbar", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
-    await page.goto("/km/home");
+    await page.goto("/km");
     await settleNavbar(page);
 
     await expectNoHorizontalOverflow(page);
@@ -74,7 +74,7 @@ test.describe("Responsive navbar", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/home");
+    await page.goto("/");
     await settleNavbar(page);
 
     await expectNoHorizontalOverflow(page);
@@ -95,7 +95,7 @@ test.describe("Responsive navbar", () => {
 
   test("resizing while More is open removes it cleanly", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 900 });
-    await page.goto("/km/home");
+    await page.goto("/km");
     await settleNavbar(page);
 
     const more = page.getByRole("button", { name: "បន្ថែម" });
@@ -111,7 +111,7 @@ test.describe("Responsive navbar", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/km/home");
+    await page.goto("/km");
     await settleNavbar(page);
 
     await expectNoHorizontalOverflow(page);
