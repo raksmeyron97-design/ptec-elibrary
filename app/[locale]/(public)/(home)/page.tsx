@@ -1,4 +1,7 @@
-// app/(public)/home/page.tsx
+// app/[locale]/(public)/(home)/page.tsx — the homepage, served at the locale
+// root (/ and /km). The (home) route group exists so the homepage keeps its
+// own loading/error boundaries without leaking them to sibling routes.
+// Legacy /home URLs 308-redirect here in middleware.ts.
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { preload } from "react-dom";
@@ -37,7 +40,7 @@ export async function generateMetadata({
   return {
     title: "Free Teaching Resources & Educational Books",
     description: "PTEC Digital Library — free textbooks, teaching resources, and research reports from Phnom Penh Teacher Education College (PTEC). Available in Khmer and English.",
-    alternates: localeAlternates("/home", locale),
+    alternates: localeAlternates("/", locale),
     openGraph: {
       title: "PTEC Digital Library — Free Teaching Resources",
       description: "Browse free textbooks, teaching materials, and research reports from Phnom Penh Teacher Education College. Available online in Khmer and English.",

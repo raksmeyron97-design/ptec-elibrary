@@ -27,5 +27,10 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
+    // e2e asserts PRODUCTION-shaped SEO output (robots.txt, sitemap, meta
+    // robots). Local/CI servers are non-indexable by default (opt-in policy,
+    // lib/seo/indexing.ts), so force the indexable branch for the suite; the
+    // non-indexable defaults are covered by lib/seo/indexing.test.ts.
+    env: { ...(process.env as Record<string, string>), SEO_INDEXING: 'on' },
   },
 });

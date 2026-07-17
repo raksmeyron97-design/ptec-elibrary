@@ -204,7 +204,7 @@ export default async function PostDetailPage({
   };
 
   const postBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/home" },
+    { name: "Home", path: "/" },
     { name: "News & Events", path: "/posts" },
     { name: post.title },
   ]);

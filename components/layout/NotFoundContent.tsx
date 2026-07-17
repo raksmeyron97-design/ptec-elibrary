@@ -23,7 +23,7 @@ export default async function NotFoundContent({ locale }: { locale?: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-bg-body px-6 py-16 font-sans">
       <div className="w-full max-w-[560px] text-center">
-        <a href="/home" className="inline-flex items-center justify-center" aria-label="PTEC Library">
+        <a href="/" className="inline-flex items-center justify-center" aria-label="PTEC Library">
           <Seal size={72} />
         </a>
 
@@ -56,7 +56,7 @@ export default async function NotFoundContent({ locale }: { locale?: string }) {
         </form>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium">
-          <a href="/home" className="inline-flex min-h-11 items-center gap-1.5 text-brand hover:underline underline-offset-4">
+          <a href="/" className="inline-flex min-h-11 items-center gap-1.5 text-brand hover:underline underline-offset-4">
             <Icon name="arrow-left" className="text-[15px]" />
             {t("goHome")}
           </a>

@@ -73,6 +73,8 @@ export const DEFAULT_SEO: SeoSettings = {
     en: "Access free teaching resources, books, and educational materials from the Phnom Penh Teacher Education College (PTEC).",
     km: "",
   },
+  indexingEnabled: true,
+  verification: { google: "", bing: "" },
 };
 
 export const DEFAULT_SECTION_DOCS: SectionDocMap = {

@@ -1,8 +1,10 @@
 import { MetadataRoute } from 'next';
 import { createServiceClient } from '@/lib/supabase/server';
-import { SITE_URL } from '@/lib/seo/site';
 import { slugify } from '@/lib/books';
 import { sitemapLastmod } from '@/lib/seo/book-seo';
+import { localeUrls } from '@/lib/seo/alternates';
+import { isIndexableEnvironment } from '@/lib/seo/indexing';
+import { getSiteConfig } from '@/lib/system-settings/config';
 
 // Revalidate hourly so the sitemap picks up newly published content
 // without being frozen at build time.
@@ -12,13 +14,11 @@ export const revalidate = 3600;
 // alternates.languages field so both locales stay discoverable without
 // doubling the number of sitemap entries.
 function withAlternates(path: string) {
+  const { en, km } = localeUrls(path);
   return {
-    url: `${SITE_URL}${path}`,
+    url: en,
     alternates: {
-      languages: {
-        en: `${SITE_URL}${path}`,
-        km: `${SITE_URL}/km${path}`,
-      },
+      languages: { en, km },
     },
   };
 }
@@ -216,7 +216,8 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   // single significant-update time — so they carry a changeFrequency/priority
   // hint but NO lastmod (a fabricated per-deploy timestamp is worse than none).
   const staticUrls: MetadataRoute.Sitemap = [
-    entry('/home', { changeFrequency: 'daily', priority: 1.0 }),
+    // The canonical homepage is the locale root — /home 308s here.
+    entry('/', { changeFrequency: 'daily', priority: 1.0 }),
     entry('/books', { changeFrequency: 'daily', priority: 0.9 }),
     entry('/theses', { changeFrequency: 'daily', priority: 0.9 }),
     entry('/theses/summary', { changeFrequency: 'daily', priority: 0.6 }),
@@ -286,6 +287,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Non-production deployments never publish a sitemap (indexing there is
+  // opt-in — lib/seo/indexing.ts), and the admin kill switch empties it too.
+  const indexable = isIndexableEnvironment() && (await getSiteConfig()).seo.indexingEnabled;
+  if (!indexable) return [];
+
   const entries = await buildEntries();
   if (entries.length > MAX_SITEMAP_ENTRIES) {
     console.warn(

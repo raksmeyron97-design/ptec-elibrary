@@ -388,11 +388,40 @@ export function validateSeo(input: unknown): ValidationResult<SeoSettings> {
   const descEn = c.str(descObj, "en", "siteDescription.en", { max: 300 });
   const descKm = c.str(descObj, "km", "siteDescription.km", { max: 300, required: false });
 
+  // Documents published before these fields existed simply omit them — treat
+  // missing as the safe default rather than failing the whole section.
+  const indexingRaw = (obj as Record<string, unknown>).indexingEnabled;
+  if (indexingRaw !== undefined && typeof indexingRaw !== "boolean") {
+    c.fail("indexingEnabled", "Must be on or off.");
+  }
+  const indexingEnabled = typeof indexingRaw === "boolean" ? indexingRaw : true;
+
+  const verObj = isRecord(obj.verification)
+    ? (obj.verification as Record<string, unknown>)
+    : {};
+  const verificationToken = (key: "google" | "bing"): string => {
+    const v = c.str(verObj, key, `verification.${key}`, { max: 120, required: false });
+    if (v && !/^[A-Za-z0-9_\-=+./:]+$/.test(v)) {
+      c.fail(
+        `verification.${key}`,
+        "Paste only the content value of the verification meta tag (letters, digits, - _ = . / :).",
+      );
+      return "";
+    }
+    return v;
+  };
+  const verification = {
+    google: verificationToken("google"),
+    bing: verificationToken("bing"),
+  };
+
   const value: SeoSettings = {
     siteTitle,
     titleTemplate,
     siteName,
     siteDescription: { en: descEn, km: descKm },
+    indexingEnabled,
+    verification,
   };
 
   return c.errors.length ? { ok: false, errors: c.errors } : { ok: true, value };

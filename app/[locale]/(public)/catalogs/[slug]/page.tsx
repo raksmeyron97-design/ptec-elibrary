@@ -223,7 +223,7 @@ export default async function CatalogBookPage({
   ].filter((f) => f.value);
 
   const catalogBreadcrumbSchema = breadcrumbSchema([
-    { name: "Home", path: "/home" },
+    { name: "Home", path: "/" },
     { name: "Books In Library", path: "/catalogs" },
     { name: b.title },
   ]);
@@ -255,7 +255,7 @@ export default async function CatalogBookPage({
         <div className="relative mx-auto max-w-[1100px] px-4 pb-6 pt-4 md:px-12">
           {/* Breadcrumb */}
           <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-text-muted">
-            <Link href="/home" className="transition-colors hover:text-brand">{t("detail.home")}</Link>
+            <Link href="/" className="transition-colors hover:text-brand">{t("detail.home")}</Link>
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <Link href="/catalogs" className="transition-colors hover:text-brand">{t("detail.library")}</Link>
             <svg className="h-3.5 w-3.5 shrink-0 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden><path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>

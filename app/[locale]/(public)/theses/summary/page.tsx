@@ -311,7 +311,7 @@ export default async function ThesesSummaryPage({
 
   // ── Structured data ────────────────────────────────────────────────────────
   const crumbs = breadcrumbSchema([
-    { name: tNav("home"), path: "/home" },
+    { name: tNav("home"), path: "/" },
     { name: tNav("theses"), path: "/theses" },
     { name: tNav("summaryIndex") },
   ]);

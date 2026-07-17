@@ -59,7 +59,7 @@ export default async function Navbar() {
   // list when horizontal space runs out (PriorityNav), so put the most
   // important destinations first.
   const navEntries: PriorityNavEntry[] = [
-    { kind: "link", href: "/home", label: t("home"), icon: HomeIcon },
+    { kind: "link", href: "/", label: t("home"), icon: HomeIcon },
     { kind: "digitalLibrary" },
     { kind: "link", href: "/catalogs", label: t("booksInLibrary"), icon: BooksIcon },
     { kind: "link", href: "/posts", label: t("posts"), icon: PostsIcon },
@@ -67,7 +67,7 @@ export default async function Navbar() {
   ];
 
   const mobileNavLinks = [
-    { label: t("home"), href: "/home" },
+    { label: t("home"), href: "/" },
     { label: t("booksInLibrary"), href: "/catalogs" },
     { label: t("posts"), href: "/posts" },
   ];
@@ -125,7 +125,7 @@ export default async function Navbar() {
         <div className="mx-auto grid h-16 max-w-[1536px] grid-cols-[minmax(0,auto)_minmax(0,1fr)_auto] items-center gap-1.5 px-3 sm:px-5 lg:h-[72px] xl:gap-3 xl:px-8">
           {/* Zone 1: brand */}
           <Link
-            href="/home"
+            href="/"
             className="group flex min-w-0 items-center gap-2 sm:gap-3"
           >
             <div className="shrink-0 scale-90 sm:scale-100 origin-left">

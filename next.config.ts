@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import withSerwistInit from "@serwist/next";
 import withNextIntl from 'next-intl/plugin';
+// Relative import: path aliases are not resolved inside next.config.ts.
+import { isIndexableEnvironment, NOINDEX_HEADER_VALUE } from "./lib/seo/indexing";
 
 const withNextIntlPlugin = withNextIntl('./i18n/request.ts');
 
@@ -75,6 +77,20 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // Non-production builds (previews, branch deploys, staging, local) are
+      // noindex on EVERY response — including static files (PDFs, images)
+      // that middleware's matcher never sees. Evaluated at build time; a
+      // Vercel preview build has VERCEL_ENV=preview, so this bakes in there
+      // and never on production builds. Middleware + metadata robots are the
+      // other two layers (lib/seo/indexing.ts).
+      ...(!isIndexableEnvironment()
+        ? [
+            {
+              source: "/:path*",
+              headers: [{ key: "X-Robots-Tag", value: NOINDEX_HEADER_VALUE }],
+            },
+          ]
+        : []),
       // Hero image variants are effectively content-versioned: if the photo
       // ever changes, scripts/optimize-hero.mjs output must get new filenames
       // (bump the name, not the content) — that's what makes immutable safe.

@@ -10,6 +10,12 @@ import {
   needsEval,
   usesNonceCsp,
 } from "@/lib/csp";
+import {
+  isIndexableEnvironment,
+  isPrivateSurfacePath,
+  NOINDEX_HEADER_VALUE,
+  PRIVATE_SURFACE_HEADER_VALUE,
+} from "@/lib/seo/indexing";
 
 // Paths that require an active session on the main domain
 const PROTECTED_PREFIXES = ["/dashboard", "/profile"];
@@ -84,6 +90,18 @@ export async function middleware(request: NextRequest) {
 
   request.headers.set('x-request-id', requestId);
 
+  // ── Indexing safety (lib/seo/indexing.ts) ──────────────────────────────
+  // Non-production deployments (previews, branch URLs, local, staging) get a
+  // blanket noindex header; private surfaces (/admin, /auth, /api, account
+  // pages — cspPath is already locale-stripped) get one in EVERY environment.
+  // Metadata-level robots are the second layer; robots.txt is never the only
+  // mechanism.
+  const robotsTag = !isIndexableEnvironment()
+    ? NOINDEX_HEADER_VALUE
+    : isPrivateSurfacePath(cspPath)
+      ? PRIVATE_SURFACE_HEADER_VALUE
+      : null;
+
   // Attach the standard security headers to any response this middleware returns.
   const applySecurity = (res: NextResponse) => {
     res.headers.set('Content-Security-Policy', cspHeader);
@@ -92,6 +110,7 @@ export async function middleware(request: NextRequest) {
       res.headers.set('Reporting-Endpoints', 'csp-endpoint="/api/csp-report"');
     }
     if (nonceB64) res.headers.set('x-nonce', nonceB64);
+    if (robotsTag) res.headers.set('X-Robots-Tag', robotsTag);
     res.headers.set('x-request-id', requestId);
     return res;
   };
@@ -190,7 +209,7 @@ export async function middleware(request: NextRequest) {
 
         const adminPanelRoles = ['staff', 'librarian', 'admin', 'super_admin'];
         if (!adminPanelRoles.includes(profile?.role ?? '')) {
-          const res = NextResponse.redirect(new URL("/home", request.url));
+          const res = NextResponse.redirect(new URL("/", request.url));
           return applySecurity(copyCookies(res));
         }
       }
@@ -222,11 +241,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // Explicit /en prefix is not canonical under "as-needed" — collapse to the
-  // bare path in a single hop (redirects straight to /home if bare).
+  // bare path in a single hop (/en → /, /en/home → / — never via /home).
   if (pathname === "/en" || pathname.startsWith("/en/")) {
-    const stripped = pathname === "/en" ? "/" : pathname.slice(3);
-    const target = stripped === "/" ? "/home" : stripped;
-    const res = NextResponse.redirect(new URL(target + url.search, request.url), 301);
+    let stripped = pathname === "/en" ? "/" : pathname.slice(3);
+    if (stripped === "/home") stripped = "/";
+    const res = NextResponse.redirect(new URL(stripped + url.search, request.url), 301);
     return applySecurity(res);
   }
 
@@ -236,10 +255,15 @@ export async function middleware(request: NextRequest) {
   if (pathWithoutLocale === "") pathWithoutLocale = "/";
   const localePrefix = activeLocale === "km" ? "/km" : "";
 
-  // Fast-path redirect for the domain/locale root to bypass Supabase network calls.
-  // 308 (permanent) so search engines consolidate signals onto /home.
-  if (pathWithoutLocale === "/") {
-    const res = NextResponse.redirect(new URL(`${localePrefix}/home`, request.url), 308);
+  // The canonical homepage is the locale root (/ and /km). The legacy /home
+  // URLs 308 onto it so search engines consolidate every homepage signal on
+  // one URL. (Until 2026-07 the redirect ran the OTHER way — / → /home; the
+  // sitemap, nav links, and canonicals all moved to / in the same change.)
+  if (pathWithoutLocale === "/home") {
+    const res = NextResponse.redirect(
+      new URL(`${localePrefix || "/"}${url.search}`, request.url),
+      308,
+    );
     return applySecurity(res);
   }
 
@@ -317,7 +341,9 @@ export async function middleware(request: NextRequest) {
   // the prefix is already real in the URL; no rewrite needed.
   const buildLocaleResponse = () => {
     if (activeLocale === "en") {
-      const rewriteUrl = new URL('/en' + pathWithoutLocale + url.search, request.url);
+      // "/" must rewrite to exactly "/en" (not "/en/") to match the root page.
+      const rewritePath = pathWithoutLocale === "/" ? "/en" : "/en" + pathWithoutLocale;
+      const rewriteUrl = new URL(rewritePath + url.search, request.url);
       return NextResponse.rewrite(rewriteUrl, { request: { headers: request.headers } });
     }
     return NextResponse.next({ request: { headers: request.headers } });

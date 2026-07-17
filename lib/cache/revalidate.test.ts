@@ -47,10 +47,12 @@ describe("revalidateLocalizedPath", () => {
 });
 
 describe("collection-stats invalidation (public counters)", () => {
-  it("revalidateCollectionStats busts the stats tag and /home in both locales", () => {
+  it("revalidateCollectionStats busts the stats tag and the homepage in both locales", () => {
     revalidateCollectionStats();
     expect(tags()).toContain(TAGS.collectionStats);
-    expect(paths()).toEqual(expect.arrayContaining(["/en/home", "/km/home"]));
+    // Homepage prerender keys are the locale roots — /en and /km, never
+    // "/en/" or the retired /home route.
+    expect(paths()).toEqual(expect.arrayContaining(["/en", "/km"]));
   });
 
   // Publishing/unpublishing/creating/deleting ANY counted entity must move
@@ -79,8 +81,8 @@ describe("entity helpers", () => {
         "/km/books/my-book",
         "/en/books",
         "/km/books",
-        "/en/home",
-        "/km/home",
+        "/en",
+        "/km",
       ]),
     );
   });

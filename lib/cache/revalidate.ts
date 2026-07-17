@@ -21,10 +21,11 @@ import { routing } from "@/i18n/routing";
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Revalidate a public page in every locale. `path` is the locale-less,
- *  leading-slash path as it appears in the UI — e.g. "/books/my-slug". */
+ *  leading-slash path as it appears in the UI — e.g. "/books/my-slug".
+ *  "/" is the homepage (prerender keys /en and /km — never "/en/"). */
 export function revalidatePublicPath(path: string) {
   for (const locale of routing.locales) {
-    revalidatePath(`/${locale}${path}`);
+    revalidatePath(path === "/" ? `/${locale}` : `/${locale}${path}`);
   }
 }
 
@@ -111,7 +112,7 @@ export function revalidateSiteConfig() {
  */
 export function revalidateCollectionStats() {
   revalidateTag(TAGS.collectionStats, "max");
-  revalidatePublicPath("/home");
+  revalidatePublicPath("/");
 }
 
 /**
@@ -136,7 +137,7 @@ export function revalidateBook(
   revalidateCollectionStats();
   if (affectsHome) {
     revalidateTag(TAGS.homeBooks, "max");
-    revalidatePublicPath("/home");
+    revalidatePublicPath("/");
   }
 }
 
@@ -203,7 +204,7 @@ export function revalidateLearningPath(slug?: string | null) {
     revalidatePublicPath(`/paths/${slug}`);
   }
   revalidatePublicPath("/paths");
-  revalidatePublicPath("/home"); // paths are rendered in ThisWeekAtPtec
+  revalidatePublicPath("/"); // paths are rendered in ThisWeekAtPtec
   revalidateCollectionStats();
 }
 
@@ -215,7 +216,7 @@ export function revalidateTeam() {
 export function revalidateTaxonomy() {
   revalidateTag(TAGS.categories, "max");
   revalidateTag(TAGS.departments, "max");
-  revalidatePublicPath("/home");
+  revalidatePublicPath("/");
   revalidatePublicPath("/books");
   revalidatePublicPath("/catalogs");
 }

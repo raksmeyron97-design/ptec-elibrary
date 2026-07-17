@@ -148,7 +148,7 @@ export default async function TeamPage() {
       },
     },
     breadcrumbSchema([
-      { name: "Home", path: "/home" },
+      { name: "Home", path: "/" },
       { name: "Library Team" },
     ]),
   ];
@@ -172,7 +172,7 @@ export default async function TeamPage() {
         <nav aria-label="Breadcrumb" className="mb-8">
           <ol className="flex flex-wrap items-center gap-1.5 text-xs text-text-muted">
             <li>
-              <Link href="/home" className="transition-colors hover:text-brand">Home</Link>
+              <Link href="/" className="transition-colors hover:text-brand">Home</Link>
             </li>
             <li aria-hidden="true"><ChevronRight className="h-3 w-3" /></li>
             <li aria-current="page" className="font-semibold text-text-body">Library Team</li>

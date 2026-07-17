@@ -76,7 +76,7 @@ export default function CatalogsError({
                 hatch from a broken error-boundary state. */}
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
-              href="/home"
+              href="/"
               className="inline-flex h-10 items-center rounded-xl border border-divider bg-bg-surface px-6 text-sm font-semibold text-text-body transition hover:border-divider hover:text-text-heading"
             >
               Go home

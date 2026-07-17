@@ -30,6 +30,7 @@ import {
 import { evaluateQuality, type QualityReport } from "@/lib/metadata-quality";
 import { apa } from "@/lib/citations";
 import { SITE_URL } from "@/lib/seo/site";
+import { checkBookPublishReady, checkThesisPublishReady } from "@/lib/publish-readiness";
 
 export type ReviewItemType = "book" | "research";
 
@@ -226,6 +227,39 @@ type ActionResult = { success: true } | { error: string };
  * carries one. `emergency` lets admins bypass the state machine for
  * authorized corrections — always audit-logged as an override.
  */
+/** First hard blocker preventing this record from going live, or null.
+ *  Reads the canonical server row; fails open when the lookup itself fails
+ *  (the transition's own update will surface real errors). */
+async function publishBlockerFor(
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
+  type: ReviewItemType,
+  id: string,
+): Promise<string | null> {
+  if (type === "book") {
+    const { data, error } = await supabase
+      .from("books")
+      .select("title, slug")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) return null;
+    const { count, error: fileError } = await supabase
+      .from("book_files")
+      .select("id", { count: "exact", head: true })
+      .eq("book_id", id);
+    if (fileError) return null;
+    return checkBookPublishReady({ title: data.title, slug: data.slug, hasFile: (count ?? 0) > 0 });
+  }
+  const { data, error } = await supabase
+    .from("research_reports")
+    .select(
+      "title, slug, program, cohort, academic_year, author_names, advisor_name, file_url, cover_url, abstract, keywords, references, license, official_title_verified",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return checkThesisPublishReady({ ...data, status: "published" });
+}
+
 export async function transitionContent(
   type: ReviewItemType,
   id: string,
@@ -266,6 +300,15 @@ export async function transitionContent(
       const check = canActorTransition({ role, from: current.status, to, isOwnContent });
       if (!check.allowed) return { error: check.reason ?? "Transition not allowed" };
       if (check.override) override = check.override;
+    }
+
+    // Publish-readiness gate: the review queue must not be a side door around
+    // the per-entity publish checks (lib/publish-readiness.ts). Re-reads the
+    // canonical server row; fails OPEN on lookup errors (e.g. a pre-0086
+    // stack missing a column) — matching this file's legacy fallbacks.
+    if (to === "published" || to === "scheduled") {
+      const blocker = await publishBlockerFor(supabase, type, id);
+      if (blocker) return { error: blocker };
     }
 
     const now = new Date().toISOString();

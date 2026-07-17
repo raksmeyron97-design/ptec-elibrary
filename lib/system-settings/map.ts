@@ -48,6 +48,13 @@ export function buildSiteConfig(docs: SectionDocMap): SiteConfig {
         // Khmer falls back to English rather than rendering empty meta text.
         km: seo.siteDescription.km || seo.siteDescription.en,
       },
+      // Documents published before these fields existed omit them: missing
+      // means "indexing on" / "no verification tokens".
+      indexingEnabled: seo.indexingEnabled !== false,
+      verification: {
+        google: seo.verification?.google ?? "",
+        bing: seo.verification?.bing ?? "",
+      },
     },
   };
 }

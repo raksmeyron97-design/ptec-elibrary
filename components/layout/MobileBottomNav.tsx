@@ -107,7 +107,7 @@ export default function MobileBottomNav() {
   // Search owns the center slot — it is the #1 task of a library. The profile
   // sheet trigger moves to the right edge.
   const leftNav = [
-    { label: t("home"),        href: "/home",  Icon: HomeIcon  },
+    { label: t("home"),        href: "/",  Icon: HomeIcon  },
     { label: t("eResources"),  href: "/books", Icon: BookIcon  },
   ];
   const rightNav = [

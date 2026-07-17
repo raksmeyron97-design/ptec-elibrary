@@ -19,7 +19,7 @@ export default function CatalogBookError({
       {/* Breadcrumb */}
       <div className="bg-bg-surface border-b border-divider px-4 py-3 md:px-12">
         <div className="mx-auto max-w-[1100px] flex items-center gap-2 text-sm text-text-muted">
-          <Link href="/home" className="hover:text-brand transition">
+          <Link href="/" className="hover:text-brand transition">
             Home
           </Link>
           <span>›</span>

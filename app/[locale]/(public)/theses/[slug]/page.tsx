@@ -252,7 +252,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     locale,
   );
   const thesisBreadcrumbSchema = breadcrumbSchema([
-    { name: tNav("home"), path: "/home" },
+    { name: tNav("home"), path: "/" },
     { name: tNav("theses"), path: "/theses" },
     { name: report.title },
   ]);
