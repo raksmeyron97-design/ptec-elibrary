@@ -54,8 +54,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 USER nextjs
 EXPOSE 3000
 
-# /home is the cheapest full-stack route (static-ish public page)
+# / is the cheapest full-stack route (static-ish public page; /home is a 308 now)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q --spider http://127.0.0.1:3000/home || exit 1
+  CMD wget -q --spider http://127.0.0.1:3000/ || exit 1
 
 CMD ["node", "server.js"]

@@ -19,7 +19,7 @@ dependency-health endpoint.
 
 | # | Probe | Expect | Interval | Covers |
 |---|---|---|---|---|
-| 1 | `GET /home` | 200, body contains "PTEC" | 1–5 min | homepage availability, tunnel, app process |
+| 1 | `GET /` | 200, body contains "PTEC" | 1–5 min | homepage availability, tunnel, app process (`/home` now 308-redirects to `/` — probe `/` directly, or a monitor that doesn't follow redirects will false-alarm) |
 | 2 | `GET /api/health` | 200 (`503` = degraded) | 1–5 min | **DB reachability + Zima Storage reachability** |
 | 3 | `GET /api/search/popular` | 200 JSON | 15 min | search API path |
 | 4 | `GET /books` | 200 | 15 min | listing + Supabase read path |
@@ -95,7 +95,7 @@ Each runbook: confirm → mitigate → root-cause → follow-up. Quote the
 `x-request-id` from any failing response when filing issues.
 
 ### 1. Website unavailable
-1. Confirm from outside: probe 1 failing? `curl -I https://library.ptec.edu.kh/home`.
+1. Confirm from outside: probe 1 failing? `curl -I https://library.ptec.edu.kh/`.
 2. Cloudflare status + tunnel: `docker logs cloudflared` on the box (tunnel
    is outbound-only; a dead tunnel = 502/530 from Cloudflare).
 3. App container: `docker ps`, `docker logs app --tail 200`. Restart:

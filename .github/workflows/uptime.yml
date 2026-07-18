@@ -50,5 +50,5 @@ jobs:
 
           fail=0
           check "GET /api/health (DB + storage reachability)" "https://library.ptec.edu.kh/api/health" || fail=1
-          check "GET /home (homepage, tunnel, app process)" "https://library.ptec.edu.kh/home" "PTEC" || fail=1
+          check "GET / (homepage, tunnel, app process)" "https://library.ptec.edu.kh/" "PTEC" || fail=1
           exit "$fail"

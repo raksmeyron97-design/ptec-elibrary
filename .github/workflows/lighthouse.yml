@@ -49,8 +49,8 @@ jobs:
         run: |
           npm install -g @lhci/cli@0.14.x
           lhci autorun \
-            --collect.url="$SITE/home" \
-            --collect.url="$SITE/km/home" \
+            --collect.url="$SITE/" \
+            --collect.url="$SITE/km" \
             --collect.url="$SITE/books" \
             --collect.url="${{ steps.urls.outputs.book }}" \
             --collect.url="$SITE/theses" \
@@ -68,7 +68,7 @@ jobs:
     steps:
       - name: Crawl internal links
         run: |
-          npx linkinator@6 "$SITE/home" \
+          npx linkinator@6 "$SITE/" \
             --recurse \
             --timeout 15000 \
             --skip "^(?!https://library\\.ptec\\.edu\\.kh)" \
