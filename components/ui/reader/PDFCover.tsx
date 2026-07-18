@@ -20,6 +20,7 @@ export default function PDFCover({ title, coverUrl, label, author }: PDFCoverPro
           title={title}
           author={author}
           category={label}
+          alt={author ? `Book cover: ${title} by ${author}` : `Book cover: ${title}`}
           variant="detail"
           priority
           sizes="(max-width: 768px) 100vw, 300px"

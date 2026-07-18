@@ -154,6 +154,8 @@
     "new": "NEW"
   },
   "home": {
+    "seoTitle": "Free Digital Library for Teacher Education",
+    "seoDescription": "Free textbooks, teaching resources, and research reports from Phnom Penh Teacher Education College — read online or download in Khmer and English.",
     "tagline": "Phnom Penh Teacher Education College",
     "headline": "The Digital Library for the Next Generation of Teachers",
     "description": "Textbooks, research papers, and teaching resources — carefully curated, open and free for every student and educator.",
@@ -1174,8 +1176,8 @@
     "growingTitle": "This repository is growing",
     "growingCta": "Submit your research",
     "seoTitle": "Student Theses & Research Reports",
-    "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keyword.",
-    "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College (PTEC). Search by program, cohort, academic year, author, advisor, and keyword.",
+    "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, and keyword.",
+    "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, advisor, and keyword.",
     "collectionName": "Student Theses — PTEC Digital Library",
     "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
     "pageLabel": "Page"
@@ -1725,7 +1727,7 @@
     "h1": "Learn with purpose, not just search",
     "intro": "Curated, ordered reading paths built from the library's own collection — designed around real PTEC teacher-training topics, from foundational pedagogy to classroom action research.",
     "seoTitle": "Teacher Learning Paths",
-    "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around real teacher-training topics.",
+    "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around teacher-training topics.",
     "collectionName": "Teacher Learning Paths — PTEC Digital Library",
     "collectionDescription": "Curated, ordered learning paths built from the PTEC Digital Library's own collection.",
     "emptyTitle": "No learning paths published yet",

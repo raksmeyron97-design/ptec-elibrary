@@ -1,4 +1,5 @@
 import { Link } from "@/i18n/navigation";
+import { decodeSlugParam } from "@/lib/slug";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
@@ -96,7 +97,8 @@ async function resolveAuthor(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const author = await resolveAuthor(slug);
   if (!author) return { title: "Author not found" };
 
@@ -121,7 +123,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function AuthorPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const author = await resolveAuthor(slug);
   if (!author) notFound();
 

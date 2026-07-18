@@ -49,9 +49,9 @@ export default function CitePublication({ publication }: { publication: Publicat
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
+      <h2 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
         <Quote className="h-4 w-4 text-brand" /> {t("citeArticle")}
-      </h3>
+      </h2>
 
       {/* Format tabs */}
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-bg-app p-1">
@@ -62,7 +62,7 @@ export default function CitePublication({ publication }: { publication: Publicat
               aria-pressed={active}
               className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active
-                  ? "bg-brand text-white shadow-sm"
+                  ? "bg-brand text-brand-contrast shadow-sm"
                   : "text-text-muted hover:bg-bg-surface hover:text-text-body"
               }`}
             >

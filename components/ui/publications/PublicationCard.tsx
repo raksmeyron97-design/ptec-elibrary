@@ -82,9 +82,9 @@ export default function PublicationCard({ publication }: { publication: Publicat
           </Badge>
 
           {/* Title — emphasized as the primary identifier */}
-          <h3 className="text-[13.5px] font-khmer-serif font-bold leading-snug tracking-tight text-text-heading line-clamp-2 transition-colors group-hover:text-brand sm:text-[15px]">
+          <h2 className="text-[13.5px] font-khmer-serif font-bold leading-snug tracking-tight text-text-heading line-clamp-2 transition-colors group-hover:text-brand sm:text-[15px]">
             {publication.title}
-          </h3>
+          </h2>
           {publication.title_km && (
             <p className="mt-1 font-khmer-serif text-[11.5px] leading-snug text-text-muted line-clamp-1 sm:text-[12.5px]">
               {publication.title_km}

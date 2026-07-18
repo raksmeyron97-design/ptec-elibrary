@@ -194,22 +194,44 @@ export async function middleware(request: NextRequest) {
 
     // ── Admin Path Logic ─────────────────────────────────────────
     if (pathname.startsWith("/admin")) {
+      const adminPanelRoles = ['staff', 'librarian', 'admin', 'super_admin'];
+
       if (pathname !== "/admin/login" && pathname !== "/admin/auth/signout") {
         if (!user) {
           const res = NextResponse.redirect(new URL("/admin/login", request.url));
           return applySecurity(copyCookies(res));
         }
 
-        // Check role — allow any admin-panel role
+        // Check role — allow any admin-panel role, or the legacy
+        // is_super_admin flag (same acceptance rule as lib/auth-guards.ts)
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, is_super_admin')
           .eq('id', user.id)
           .single();
 
-        const adminPanelRoles = ['staff', 'librarian', 'admin', 'super_admin'];
-        if (!adminPanelRoles.includes(profile?.role ?? '')) {
+        if (
+          !adminPanelRoles.includes(profile?.role ?? '') &&
+          !profile?.is_super_admin
+        ) {
           const res = NextResponse.redirect(new URL("/", request.url));
+          return applySecurity(copyCookies(res));
+        }
+      }
+
+      // Already-authenticated admin-panel users skip the login page
+      if (pathname === "/admin/login" && user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, is_super_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (
+          adminPanelRoles.includes(profile?.role ?? '') ||
+          profile?.is_super_admin
+        ) {
+          const res = NextResponse.redirect(new URL("/admin", request.url));
           return applySecurity(copyCookies(res));
         }
       }

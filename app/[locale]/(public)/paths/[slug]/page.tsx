@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -43,7 +44,8 @@ function toPathSeoInput(path: LearningPathDetail): LearningPathSeoInput {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const path = await getPathBySlug(slug);
   if (!path) return {};
   return buildPathMetadata(toPathSeoInput(path), locale);
@@ -57,7 +59,8 @@ const RESOURCE_ICON: Record<StepResourceType, typeof BookOpen> = {
 };
 
 export default async function LearningPathDetailPage({ params }: PageProps) {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const [path, t] = await Promise.all([getPathBySlug(slug), getTranslations("paths")]);
   if (!path) notFound();
 

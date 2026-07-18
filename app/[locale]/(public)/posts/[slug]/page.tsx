@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
+import { decodeSlugParam } from "@/lib/slug";
 import NextLink from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
@@ -58,7 +59,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string; locale: string }>;
 }): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
@@ -104,7 +106,8 @@ export default async function PostDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const t = await getTranslations("posts");
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeSlugParam(rawSlug);
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

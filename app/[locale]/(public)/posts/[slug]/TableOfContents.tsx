@@ -99,7 +99,7 @@ export default function TableOfContents({ toc }: Props) {
                     className={[
                       "flex-none w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors",
                       isActive
-                        ? "bg-brand text-white"
+                        ? "bg-brand text-brand-contrast"
                         : "bg-paper border border-divider text-text-muted",
                     ].join(" ")}
                   >

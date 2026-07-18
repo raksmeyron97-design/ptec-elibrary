@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
+import { decodeSlugParam } from "@/lib/slug";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
@@ -85,7 +86,10 @@ const getBookMeta = unstable_cache(
 export async function generateMetadata({
   params,
 }: BookDetailPageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  // generateMetadata receives decoded params while the page body gets them
+  // encoded — decodeSlugParam is idempotent, so normalize in both places.
+  const slug = decodeSlugParam(rawSlug);
   const book = await getBookMeta(slug);
 
   if (!book) {
@@ -187,10 +191,11 @@ const getCopies = unstable_cache(
 );
 
 export default async function BookDetailPage({ params }: BookDetailPageProps) {
-  const [{ slug, locale }, t] = await Promise.all([
+  const [{ slug: rawSlug, locale }, t] = await Promise.all([
     params,
     getTranslations("bookDetail"),
   ]);
+  const slug = decodeSlugParam(rawSlug);
   const book = await getBook(slug);
   if (!book) notFound();
 

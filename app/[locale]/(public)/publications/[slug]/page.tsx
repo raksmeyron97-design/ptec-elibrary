@@ -1,4 +1,5 @@
 import { Suspense, cache } from "react";
+import { decodeSlugParam } from "@/lib/slug";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
@@ -89,7 +90,8 @@ function formatDate(dateStr: string | null): string | null {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const { data: pub } = await getPublicationOnce(slug);
 
   if (!pub) {
@@ -103,7 +105,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PublicationDetailPage({ params }: PageProps) {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const { data: pub, error } = await getPublicationOnce(slug);
 
   if (error || !pub) {

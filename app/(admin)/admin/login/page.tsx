@@ -31,10 +31,13 @@ export default function AdminLoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
 
     if (error) {
-      if (error.message.includes("Invalid login")) {
+      // One generic message for credential/confirmation failures — a
+      // distinct "email not confirmed" branch confirms the account exists.
+      if (
+        error.message.includes("Invalid login") ||
+        error.message.includes("Email not confirmed")
+      ) {
         setError("Email or password is incorrect. Please try again.");
-      } else if (error.message.includes("Email not confirmed")) {
-        setError("Please check your email and confirm your account first.");
       } else {
         setError(error.message);
       }
@@ -74,6 +77,7 @@ export default function AdminLoginPage() {
                 <span className="text-sm font-semibold text-text-body">Admin Email</span>
                 <input
                   type="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -86,6 +90,7 @@ export default function AdminLoginPage() {
                 <span className="text-sm font-semibold text-text-body">Password</span>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

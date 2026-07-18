@@ -58,7 +58,7 @@ export default function ThesisTabs({
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
                       isActive
-                        ? "bg-brand text-white"
+                        ? "bg-brand text-brand-contrast"
                         : "bg-bg-surface text-text-muted"
                     }`}
                   >
