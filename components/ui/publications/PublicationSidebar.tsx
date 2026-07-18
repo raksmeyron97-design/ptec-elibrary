@@ -49,7 +49,7 @@ export default async function PublicationSidebar({
 
       {/* Quick actions */}
       <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">{t("quickActions")}</h3>
+        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">{t("quickActions")}</h2>
         <ActionButtons
           id={pub.id}
           contentType="publication"

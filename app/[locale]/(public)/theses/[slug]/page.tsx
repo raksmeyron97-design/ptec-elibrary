@@ -1,4 +1,5 @@
 import { notFound, permanentRedirect } from "next/navigation";
+import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import type { AppRole } from "@/lib/types/roles";
@@ -120,7 +121,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ThesisDetailPage({ params }: PageProps) {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   let { data: report } = await getThesisBySlug(slug);
 
   if (!report && UUID_RE.test(slug)) {

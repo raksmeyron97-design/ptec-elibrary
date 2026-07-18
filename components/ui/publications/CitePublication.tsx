@@ -49,9 +49,9 @@ export default function CitePublication({ publication }: { publication: Publicat
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
+      <h2 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
         <Quote className="h-4 w-4 text-brand" /> {t("citeArticle")}
-      </h3>
+      </h2>
 
       {/* Format tabs */}
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-bg-app p-1">

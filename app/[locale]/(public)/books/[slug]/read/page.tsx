@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
@@ -43,7 +44,8 @@ const getReadableBook = unstable_cache(
 
 
 export async function generateMetadata({ params }: ReadPageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const book = await getReadableBook(slug);
   if (!book) return {};
   return {

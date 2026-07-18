@@ -93,6 +93,18 @@ function truncate(text: string): string {
   return text.length > MAX_META_DESCRIPTION ? `${text.slice(0, MAX_META_DESCRIPTION)}...` : text;
 }
 
+// Journal article titles routinely exceed 100 chars; the <title> tag (plus the
+// "· PTEC Library" template suffix) gets a word-boundary cut. og/twitter/JSON-LD
+// keep the full title.
+const MAX_TITLE_TAG = 60;
+
+export function truncateTitleTag(text: string): string {
+  if (text.length <= MAX_TITLE_TAG) return text;
+  const cut = text.slice(0, MAX_TITLE_TAG + 1);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${cut.slice(0, lastSpace > 40 ? lastSpace : MAX_TITLE_TAG).trimEnd()}…`;
+}
+
 export function publicationFallbackDescription(pub: PublicationSeoInput, locale: string): string {
   const title = locale === "km" && pub.titleKm ? clean(pub.titleKm) : clean(pub.title);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
@@ -129,7 +141,7 @@ export function buildPublicationMetadata(pub: PublicationSeoInput, locale: strin
   const imageAlt = locale === "km" ? `គម្របអត្ថបទ៖ ${title}` : `Article cover: ${title}`;
 
   return {
-    title,
+    title: truncateTitleTag(title),
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,

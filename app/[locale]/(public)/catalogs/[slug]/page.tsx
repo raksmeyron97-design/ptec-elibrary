@@ -1,5 +1,6 @@
 // app/catalogs/[slug]/page.tsx
 import { Link } from "@/i18n/navigation";
+import { decodeSlugParam } from "@/lib/slug";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
@@ -95,7 +96,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string; locale: string }>;
 }): Promise<Metadata> {
-  const { slug, locale } = await params;
+  const { slug: rawSlug, locale } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const record = await fetchCatalogRecord(slug);
   if (!record) return { title: "Book not found", robots: { index: false } };
   const { book } = record;
@@ -158,7 +160,8 @@ export default async function CatalogBookPage({
 }: {
   params: Promise<{ slug: string; locale: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeSlugParam(rawSlug);
   const [record, t] = await Promise.all([
     fetchCatalogRecord(slug),
     getTranslations("catalogs"),

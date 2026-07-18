@@ -37,13 +37,14 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "home" });
   return {
-    title: "Free Teaching Resources & Educational Books",
-    description: "PTEC Digital Library — free textbooks, teaching resources, and research reports from Phnom Penh Teacher Education College (PTEC). Available in Khmer and English.",
+    title: t("seoTitle"),
+    description: t("seoDescription"),
     alternates: localeAlternates("/", locale),
     openGraph: {
-      title: "PTEC Digital Library — Free Teaching Resources",
-      description: "Browse free textbooks, teaching materials, and research reports from Phnom Penh Teacher Education College. Available online in Khmer and English.",
+      title: t("seoTitle"),
+      description: t("seoDescription"),
       type: "website",
       images: ["/og-default.png"],
     },

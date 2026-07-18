@@ -61,9 +61,9 @@ export default async function PublicationMetadataCard({
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <h3 className="mb-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
+      <h2 className="mb-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
         {t("metadataHeading")}
-      </h3>
+      </h2>
       <dl className="divide-y divide-divider/60 text-[13px]">
         <Row icon={<BookOpen className={iconClass} />} label={t("fieldType")} value={TYPE_LABELS[pub.article_type] ?? pub.article_type} />
         {pub.journal_name && (

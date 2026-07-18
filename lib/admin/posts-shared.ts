@@ -6,6 +6,8 @@
  * keep importing from "@/lib/admin/posts" unchanged.
  */
 
+import { unicodeSlug } from "@/lib/slug";
+
 export const CATEGORIES = ["Research", "Announcement", "Event", "Journal", "Other"] as const;
 export type PostCategory = (typeof CATEGORIES)[number];
 
@@ -60,13 +62,7 @@ export function normalizeVisibility(raw: string | null | undefined): PostVisibil
 }
 
 export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return unicodeSlug(input);
 }
 
 export type PostsQueryParams = {

@@ -5,6 +5,8 @@
 // so it can be safely imported from Client Components ("use client").
 // ──────────────────────────────────────────────────────────────
 
+import { asciiSlug, unicodeSlug } from "@/lib/slug";
+
 export type Book = {
   slug: string;
   title: string;
@@ -74,13 +76,7 @@ export const coverColors = [
 ];
 
 export function slugify(value: string) {
-  const slug = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || `book-${Date.now()}`;
+  return unicodeSlug(value) || `book-${Date.now()}`;
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -111,8 +107,10 @@ function fileExt(name: string, fallback = "bin") {
 
 /** Per-book folder: `books/{category}/{title}-{uid}` (no trailing slash). */
 export function bookFolder(category: string | null | undefined, title: string, uid: string) {
-  const cat = slugify((category ?? "").trim() || "uncategorized");
-  return `books/${cat}/${slugify(title)}-${uid}`;
+  // Storage keys stay ASCII regardless of the title's script — the {uid}
+  // carries uniqueness, so a Khmer-only title just gets a plain folder name.
+  const cat = asciiSlug((category ?? "").trim()) || "uncategorized";
+  return `books/${cat}/${asciiSlug(title) || "book"}-${uid}`;
 }
 
 /** The book's PDF key inside its folder. */
@@ -127,7 +125,7 @@ export function bookCoverPath(folder: string, coverFileName: string) {
 
 /** Per-post folder: `posts/{title}-{uid}` (no trailing slash). */
 export function postFolder(title: string, uid: string) {
-  return `posts/${slugify(title)}-${uid}`;
+  return `posts/${asciiSlug(title) || "post"}-${uid}`;
 }
 
 /** A numbered cover key inside a post folder, e.g. `.../cover-01.jpg`. */

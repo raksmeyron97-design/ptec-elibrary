@@ -5,6 +5,8 @@
  * re-exports everything here too.
  */
 
+import { unicodeSlug } from "@/lib/slug";
+
 // `rejected` comes from the existing editorial review queue (0061 —
 // app/actions/review.ts can flip research_reports.status to it). It's kept
 // here so badges/labels never crash on a real DB value, even though it
@@ -73,13 +75,7 @@ export function normalizeStatus(raw: string | null | undefined): ThesisStatus {
 }
 
 export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return unicodeSlug(input);
 }
 
 export type ThesisListRow = {
