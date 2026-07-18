@@ -54,8 +54,9 @@ const dryRun = process.argv.includes("--dry-run");
 
 async function rest(path, init = {}) {
   const res = await fetch(`${BASE}/rest/v1/${path}`, { ...init, headers: { ...HEADERS, ...init.headers } });
-  if (!res.ok) throw new Error(`${init.method ?? "GET"} ${path} → ${res.status}: ${await res.text()}`);
-  return res.status === 204 ? null : res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${init.method ?? "GET"} ${path} → ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
 }
 
 async function verifyLive(oldSlug, newSlug) {
