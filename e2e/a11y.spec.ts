@@ -11,6 +11,13 @@ import AxeBuilder from '@axe-core/playwright';
 // not asserted on, matching axe-core's own recommendation to triage those
 // manually rather than block CI on false positives.
 
+// Scan with animations settled: the hero's rotating search placeholder fades
+// through near-zero opacity every few seconds, and axe sampling mid-fade
+// reports phantom color-contrast failures on CI's slower runners (the resting
+// state passes at ~6.6:1). The component honors prefers-reduced-motion, so
+// this pins every scan to the static state.
+test.use({ reducedMotion: 'reduce' });
+
 async function expectNoViolations(page: import('@playwright/test').Page, name: string) {
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
