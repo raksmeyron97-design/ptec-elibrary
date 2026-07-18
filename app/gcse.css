@@ -167,7 +167,7 @@
 .ptec-gsc-container .gsc-cursor-current-page {
   background: var(--ptec-brand) !important;
   border-color: var(--ptec-brand) !important;
-  color: #ffffff !important;
+  color: var(--ptec-brand-contrast) !important;
   font-weight: 700 !important;
 }
 
@@ -354,7 +354,7 @@
   opacity: 0.88 !important;
 }
 .ptec-gcse-page .gsc-search-button-v2 svg {
-  fill: #ffffff !important;
+  fill: var(--ptec-brand-contrast) !important;
   width: 20px !important;
   height: 20px !important;
 }
@@ -522,7 +522,7 @@
 .ptec-gcse-page .gsc-cursor-current-page {
   background: var(--ptec-brand) !important;
   border-color: var(--ptec-brand) !important;
-  color: #fff !important;
+  color: var(--ptec-brand-contrast) !important;
   font-weight: 700 !important;
 }
 

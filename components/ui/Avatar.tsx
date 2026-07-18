@@ -25,7 +25,7 @@ export default function Avatar({
   return (
     <div
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.35)) }}
-      className={`shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-brand text-white font-bold ${className}`}
+      className={`shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-brand text-brand-contrast font-bold ${className}`}
     >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element

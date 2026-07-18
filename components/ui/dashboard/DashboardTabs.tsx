@@ -123,7 +123,7 @@ export default function DashboardTabs({
             onClick={() => setTab(id)}
             className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
               tab === id
-                ? "bg-brand text-white shadow-sm"
+                ? "bg-brand text-brand-contrast shadow-sm"
                 : "text-text-muted hover:bg-paper hover:text-text-body"
             }`}
           >
@@ -131,7 +131,7 @@ export default function DashboardTabs({
             <span className="hidden sm:inline">{labels[id]}</span>
             {counts[id] > 0 && (
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
-                tab === id ? "bg-white/20 text-white" : "bg-brand/10 text-brand"
+                tab === id ? "bg-brand-contrast/20 text-brand-contrast" : "bg-brand/10 text-brand"
               }`}>
                 {counts[id]}
               </span>

@@ -671,7 +671,7 @@ export default function CommentsSection({
                           border border-[#DDB022]/30 flex items-center justify-center shrink-0
                           group-hover:from-[#DDB022] group-hover:to-[#d97706]
                           group-hover:border-transparent transition-all">
-            <svg className="h-4 w-4 text-[#806211] group-hover:text-white transition-colors"
+            <svg className="h-4 w-4 text-accent-text group-hover:text-blue-950 transition-colors"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                  strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
@@ -680,7 +680,7 @@ export default function CommentsSection({
           </div>
           <div>
             <p className="text-sm font-bold text-text-heading font-sans
-                          group-hover:text-[#806211] transition-colors">Login to comment</p>
+                          group-hover:text-accent-text transition-colors">Login to comment</p>
             <p className="text-xs text-text-muted font-sans">Join the conversation — sign in to share your thoughts</p>
           </div>
           <svg className="ml-auto h-4 w-4 text-text-muted group-hover:text-[#DDB022]

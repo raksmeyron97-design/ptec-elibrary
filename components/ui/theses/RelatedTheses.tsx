@@ -103,7 +103,7 @@ export default async function RelatedTheses({
             return (
               <div key={report.id} className="relative">
                 {label && (
-                  <span className="pointer-events-none absolute left-3 top-3 z-30 rounded-full bg-brand/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm backdrop-blur-sm">
+                  <span className="pointer-events-none absolute left-3 top-3 z-30 rounded-full bg-brand/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand-contrast shadow-sm backdrop-blur-sm">
                     {label}
                   </span>
                 )}

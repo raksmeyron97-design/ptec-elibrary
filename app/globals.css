@@ -533,7 +533,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 .qlink:hover {
   background: var(--ptec-brand);
-  color: #fff;
+  color: var(--ptec-brand-contrast);
   border-color: var(--ptec-brand);
 }
 

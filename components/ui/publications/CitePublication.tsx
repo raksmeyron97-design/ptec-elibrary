@@ -62,7 +62,7 @@ export default function CitePublication({ publication }: { publication: Publicat
               aria-pressed={active}
               className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-150 ${
                 active
-                  ? "bg-brand text-white shadow-sm"
+                  ? "bg-brand text-brand-contrast shadow-sm"
                   : "text-text-muted hover:bg-bg-surface hover:text-text-body"
               }`}
             >
