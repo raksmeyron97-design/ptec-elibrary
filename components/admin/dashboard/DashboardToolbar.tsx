@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarRange, Download, ListFilter, Loader2, RotateCw, X } from "lucide-react";
+import { CalendarRange, ListFilter, Loader2, RotateCw, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import ExportMenu from "@/components/admin/ExportMenu";
 import {
   activeFilterCount,
   serializeDashboardFilters,
@@ -137,11 +138,7 @@ export default function DashboardToolbar({
           <span className="hidden sm:inline">{t("refresh")}</span>
           <span className="sr-only sm:hidden">{t("refresh")}</span>
         </button>
-        <a href={exportHref} download className={quietBtn}>
-          <Download className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">{t("exportCsv")}</span>
-          <span className="sr-only sm:hidden">{t("exportCsv")}</span>
-        </a>
+        <ExportMenu href={exportHref} buttonClassName={quietBtn} />
       </div>
 
       {customOpen && (

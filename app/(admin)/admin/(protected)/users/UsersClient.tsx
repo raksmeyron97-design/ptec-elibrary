@@ -13,32 +13,29 @@ import AddUserDialog from "@/components/admin/users/AddUserDialog";
 import { ConfirmDialog, RoleDialog } from "@/components/admin/users/dialogs";
 import { UsersEmptyState, UsersNoResultsState } from "@/components/admin/users/states";
 import type { UserActionIntent } from "@/components/admin/users/UserActionsMenu";
-import { formatDate, userLabel, type UserRow } from "@/lib/admin/users-shared";
-import { ROLE_META, type AppRole } from "@/lib/types/roles";
+import ExportMenu from "@/components/admin/ExportMenu";
+import { userLabel, type UserRow } from "@/lib/admin/users-shared";
+import { type AppRole } from "@/lib/types/roles";
 import {
   assignRole, bulkAssignRole, setUserStatus, sendPasswordReset, deleteUser, type ActionResult,
 } from "@/app/(admin)/admin/(protected)/users/actions";
 
-// ── CSV export (client-side, current page / selection) ───────────────────────
-function toCsv(v: string | number | null | undefined) {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-function exportCsv(rows: UserRow[]) {
-  const header = ["Name", "Email", "Phone", "Role", "Status", "Joined", "Last login"];
-  const lines = rows.map((u) =>
-    [
-      u.fullName ?? "", u.email, u.phone ?? "", ROLE_META[u.role].label, u.status,
-      formatDate(u.createdAt), u.lastLoginAt ? formatDate(u.lastLoginAt) : "Never",
-    ].map(toCsv).join(","),
-  );
-  const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `users-export-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// Exports run server-side (/api/admin/users/export) so they cover the whole
+// filtered result — not just the visible page — with Excel-safe encoding.
+function buildExportHref(
+  q: string | undefined,
+  filterValue: { role: string; status: string; joined: string; sort: string },
+  selectedIds?: string[],
+): string {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (filterValue.role && filterValue.role !== "all") params.set("role", filterValue.role);
+  if (filterValue.status && filterValue.status !== "all") params.set("status", filterValue.status);
+  if (filterValue.joined && filterValue.joined !== "all") params.set("joined", filterValue.joined);
+  if (filterValue.sort) params.set("sort", filterValue.sort);
+  if (selectedIds?.length) params.set("ids", selectedIds.join(","));
+  const qs = params.toString();
+  return `/api/admin/users/export${qs ? `?${qs}` : ""}`;
 }
 
 type Pending =
@@ -173,7 +170,17 @@ export default function UsersClient({
         totalItems={total}
         onAddUser={() => setAddMode("invite")}
         onImport={() => setAddMode("import")}
-        onExport={() => exportCsv(selectedRows.length ? selectedRows : rows)}
+        exportMenu={
+          <ExportMenu
+            href={buildExportHref(
+              searchParams.q,
+              filterValue,
+              selectedRows.length ? selectedRows.map((r) => r.id) : undefined,
+            )}
+            recordCount={selectedRows.length || total}
+            buttonClassName="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body shadow-sm transition hover:bg-paper disabled:cursor-wait disabled:opacity-60"
+          />
+        }
       />
       <UserFilters value={filterValue} hasActiveFilters={hasActiveFilters} />
 
@@ -187,7 +194,13 @@ export default function UsersClient({
         onAssignRole={(role: AppRole) => runBulk(() => bulkAssignRole(Array.from(selectedIds), role), "Roles updated.")}
         onSuspend={() => setPending({ kind: "bulk-suspend", ids: Array.from(selectedIds) })}
         onDelete={() => setPending({ kind: "bulk-delete", ids: Array.from(selectedIds) })}
-        onExport={() => exportCsv(selectedRows)}
+        exportMenu={
+          <ExportMenu
+            href={buildExportHref(searchParams.q, filterValue, selectedRows.map((r) => r.id))}
+            recordCount={selectedRows.length}
+            buttonClassName="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:cursor-wait disabled:opacity-50"
+          />
+        }
         onClear={() => setSelectedIds(new Set())}
       />
 

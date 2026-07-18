@@ -63,7 +63,7 @@ export const AUTH_NAMESPACES = ["auth"] as const;
 /** app/(admin)/admin/(protected): dashboard client components plus the
  *  shared Pagination used by the CRUD tables. Admin login/MFA pages use
  *  no client translations at all. */
-export const ADMIN_NAMESPACES = ["adminCatalogCover", "adminDashboard", "adminLogs", "pagination"] as const;
+export const ADMIN_NAMESPACES = ["adminCatalogCover", "adminDashboard", "adminExport", "adminLogs", "pagination"] as const;
 
 /** Narrow a full message catalogue to the given namespaces. */
 export function pickMessages(

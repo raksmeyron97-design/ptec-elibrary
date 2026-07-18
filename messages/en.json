@@ -1228,7 +1228,6 @@
       "compare": "Compare with previous period",
       "filters": "Filters",
       "refresh": "Refresh",
-      "exportCsv": "Export CSV",
       "from": "From",
       "to": "To",
       "apply": "Apply",
@@ -1690,6 +1689,20 @@
       },
       "definition": "These are independent event volumes — visitors also arrive through direct links, so the streams do not form a sequential funnel. Rates compare only pairs measured on comparable populations."
     }
+  },
+  "adminExport": {
+    "export": "Export",
+    "preparing": "Preparing export…",
+    "menuTitle": "Export {count} records",
+    "xlsx": "Excel workbook (.xlsx)",
+    "xlsxHint": "Recommended — styled sheets, Khmer-safe",
+    "csv": "CSV file (.csv)",
+    "csvHint": "Raw data for other tools",
+    "success": "Downloaded {filename}",
+    "successWithCount": "Downloaded {filename} ({count} records)",
+    "error": "Export failed. Please try again.",
+    "retry": "Retry",
+    "dismiss": "Dismiss"
   },
   "adminCatalogCover": {
     "label": "Book cover",
