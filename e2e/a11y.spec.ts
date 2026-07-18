@@ -16,7 +16,7 @@ import AxeBuilder from '@axe-core/playwright';
 // reports phantom color-contrast failures on CI's slower runners (the resting
 // state passes at ~6.6:1). The component honors prefers-reduced-motion, so
 // this pins every scan to the static state.
-test.use({ reducedMotion: 'reduce' });
+test.use({ contextOptions: { reducedMotion: 'reduce' } });
 
 async function expectNoViolations(page: import('@playwright/test').Page, name: string) {
   const results = await new AxeBuilder({ page })
