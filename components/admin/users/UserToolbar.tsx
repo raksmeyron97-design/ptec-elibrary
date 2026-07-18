@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Search, X, UserPlus, Download, Upload } from "lucide-react";
+import { Search, X, UserPlus, Upload } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/users-url";
 
 export default function UserToolbar({
   totalItems,
   onAddUser,
   onImport,
-  onExport,
+  exportMenu,
 }: {
   totalItems: number;
   onAddUser: () => void;
   onImport: () => void;
-  onExport: () => void;
+  /** Rendered in place of the old Export button (see components/admin/ExportMenu). */
+  exportMenu: ReactNode;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,9 +59,7 @@ export default function UserToolbar({
       </div>
 
       <div className="flex items-center gap-2">
-        <button type="button" onClick={onExport} className={secondaryBtn}>
-          <Download className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Export</span>
-        </button>
+        {exportMenu}
         <button type="button" onClick={onImport} className={secondaryBtn}>
           <Upload className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">Import</span>
         </button>

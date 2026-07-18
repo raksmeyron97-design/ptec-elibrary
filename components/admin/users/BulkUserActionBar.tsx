@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { UserCog, Ban, Trash2, Download, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { UserCog, Ban, Trash2, X } from "lucide-react";
 import { ALL_ROLES, ROLE_META, type AppRole } from "@/lib/types/roles";
 
 export default function BulkUserActionBar({
@@ -11,7 +11,7 @@ export default function BulkUserActionBar({
   onAssignRole,
   onSuspend,
   onDelete,
-  onExport,
+  exportMenu,
   onClear,
 }: {
   count: number;
@@ -20,7 +20,8 @@ export default function BulkUserActionBar({
   onAssignRole: (role: AppRole) => void;
   onSuspend: () => void;
   onDelete: () => void;
-  onExport: () => void;
+  /** Export menu for the selected rows (see components/admin/ExportMenu). */
+  exportMenu: ReactNode;
   onClear: () => void;
 }) {
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
@@ -69,9 +70,7 @@ export default function BulkUserActionBar({
           )}
         </div>
 
-        <button type="button" disabled={busy} onClick={onExport} className={btn}>
-          <Download className="h-3.5 w-3.5" /> Export
-        </button>
+        {exportMenu}
         <button type="button" disabled={busy} onClick={onSuspend} className={btn}>
           <Ban className="h-3.5 w-3.5" /> Suspend
         </button>
