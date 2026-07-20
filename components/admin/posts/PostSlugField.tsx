@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { slugify } from "@/lib/admin/posts-shared";
 import { checkSlugAvailableAction } from "@/app/(admin)/admin/(protected)/posts/actions";
 
@@ -21,6 +22,7 @@ export default function PostSlugField({
   disabled?: boolean;
   siteUrl: string;
 }) {
+  const t = useTranslations("adminPostForm.slug");
   const [manuallyEdited, setManuallyEdited] = useState(false);
   const [availability, setAvailability] = useState<Availability>("idle");
   const lastChecked = useRef<string>("");
@@ -48,7 +50,7 @@ export default function PostSlugField({
   return (
     <div>
       <label htmlFor="slug-field" className="mb-1.5 block text-sm font-semibold text-text-body">
-        Slug <span className="text-red-500">*</span>
+        {t("label")} <span className="text-red-500">*</span>
       </label>
       <input
         id="slug-field"
@@ -64,9 +66,9 @@ export default function PostSlugField({
       />
       <p id="slug-help" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
         <span className="font-mono">{siteUrl}/posts/{slug || "…"}</span>
-        {availability === "checking" && <span className="text-text-muted">Checking…</span>}
-        {availability === "available" && <span className="font-semibold text-emerald-600">Available</span>}
-        {availability === "taken" && <span className="font-semibold text-red-600">Already taken — choose another</span>}
+        {availability === "checking" && <span className="text-text-muted">{t("checking")}</span>}
+        {availability === "available" && <span className="font-semibold text-emerald-600">{t("available")}</span>}
+        {availability === "taken" && <span className="font-semibold text-red-600">{t("taken")}</span>}
       </p>
     </div>
   );

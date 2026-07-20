@@ -1,22 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import { CATEGORIES, VISIBILITY_OPTIONS, type PostCategory, type PostStatus, type PostVisibility } from "@/lib/admin/posts-shared";
 
 const fieldClass =
   "h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60";
 
-const STATUS_OPTIONS: { value: PostStatus; label: string; help: string }[] = [
-  { value: "draft", label: "Draft", help: "Not visible to the public" },
-  { value: "published", label: "Publish now", help: "Goes live immediately on save" },
-  { value: "scheduled", label: "Schedule", help: "Goes live automatically at a future date/time" },
-];
-
-const VISIBILITY_LABELS: Record<PostVisibility, string> = {
-  public: "Public — listed and searchable",
-  unlisted: "Unlisted — viewable via direct link only",
-  admin_only: "Admin only — hidden from the public site",
-};
+const STATUS_VALUES: PostStatus[] = ["draft", "published", "scheduled"];
 
 export default function PostPublishPanel({
   status,
@@ -41,30 +32,31 @@ export default function PostPublishPanel({
   onCategoryChange: (category: PostCategory) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("adminPostForm.publish");
   return (
     <div className="space-y-5 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
       <div>
-        <span className="mb-2 block text-sm font-semibold text-text-body">Publish settings</span>
-        <div className="space-y-2" role="radiogroup" aria-label="Publish status">
-          {STATUS_OPTIONS.map((opt) => (
+        <span className="mb-2 block text-sm font-semibold text-text-body">{t("settings")}</span>
+        <div className="space-y-2" role="radiogroup" aria-label={t("statusAria")}>
+          {STATUS_VALUES.map((value) => (
             <label
-              key={opt.value}
+              key={value}
               className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 transition ${
-                status === opt.value ? "border-brand bg-brand/5" : "border-divider hover:bg-paper"
+                status === value ? "border-brand bg-brand/5" : "border-divider hover:bg-paper"
               }`}
             >
               <input
                 type="radio"
                 name="status"
-                value={opt.value}
-                checked={status === opt.value}
-                onChange={() => onStatusChange(opt.value)}
+                value={value}
+                checked={status === value}
+                onChange={() => onStatusChange(value)}
                 disabled={disabled}
                 className="mt-0.5 h-4 w-4 border-divider text-brand focus:ring-focus-ring/30"
               />
               <span>
-                <span className="block text-sm font-semibold text-text-heading">{opt.label}</span>
-                <span className="block text-xs text-text-muted">{opt.help}</span>
+                <span className="block text-sm font-semibold text-text-heading">{t(`status.${value}.label`)}</span>
+                <span className="block text-xs text-text-muted">{t(`status.${value}.help`)}</span>
               </span>
             </label>
           ))}
@@ -73,7 +65,7 @@ export default function PostPublishPanel({
         {status === "scheduled" && (
           <div className="mt-2.5">
             <label htmlFor="scheduledAt" className="mb-1.5 block text-xs font-semibold text-text-body">
-              Publish date &amp; time <span className="text-red-500">*</span>
+              {t("publishDate")} <span className="text-red-500">*</span>
             </label>
             <input
               id="scheduledAt"
@@ -95,24 +87,24 @@ export default function PostPublishPanel({
       </div>
 
       <div>
-        <span className="mb-1.5 block text-sm font-semibold text-text-body">Visibility</span>
+        <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("visibility")}</span>
         <SearchableSelect
           name="visibility"
-          ariaLabel="Visibility"
+          ariaLabel={t("visibility")}
           value={visibility}
           onChange={(v) => onVisibilityChange(v as PostVisibility)}
           disabled={disabled}
-          options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: VISIBILITY_LABELS[v] }))}
+          options={VISIBILITY_OPTIONS.map((v) => ({ value: v, label: t(`visibilityLabels.${v}`) }))}
         />
       </div>
 
       <div>
         <span className="mb-1.5 block text-sm font-semibold text-text-body">
-          Category <span className="text-red-500">*</span>
+          {t("category")} <span className="text-red-500">*</span>
         </span>
         <SearchableSelect
           name="category"
-          ariaLabel="Category"
+          ariaLabel={t("category")}
           required
           value={category}
           onChange={(v) => onCategoryChange(v as PostCategory)}

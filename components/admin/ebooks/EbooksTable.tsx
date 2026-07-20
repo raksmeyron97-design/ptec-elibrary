@@ -2,16 +2,71 @@
 
 import { Fragment } from "react";
 import Link from "next/link";
-import { Eye, Download, ExternalLink } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Eye, Download, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
 import { EBOOK_STATUS_BADGE_STYLES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
+import { withUpdatedParams } from "@/lib/admin/ebooks-url";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+/** Column header wired to the URL-driven sort presets. `asc`/`desc` are keys
+ *  from EBOOK_SORT_OPTIONS; when `desc` is omitted the column has one order. */
+function SortableTh({
+  label,
+  asc,
+  desc,
+  defaultDir = "asc",
+  className = "",
+}: {
+  label: string;
+  asc: string;
+  desc?: string;
+  defaultDir?: "asc" | "desc";
+  className?: string;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const current = searchParams.get("sort") ?? "newest";
+  const isAsc = current === asc;
+  const isDesc = desc !== undefined && current === desc;
+  const next = isAsc
+    ? (desc ?? asc)
+    : isDesc
+      ? asc
+      : defaultDir === "desc" && desc
+        ? desc
+        : asc;
+
+  return (
+    <th
+      scope="col"
+      aria-sort={isAsc ? "ascending" : isDesc ? "descending" : undefined}
+      className={className}
+    >
+      <button
+        type="button"
+        onClick={() => router.push(withUpdatedParams(searchParams, { sort: next }))}
+        className="inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        {label}
+        {isAsc ? (
+          <ArrowUp className="h-3 w-3" aria-hidden="true" />
+        ) : isDesc ? (
+          <ArrowDown className="h-3 w-3" aria-hidden="true" />
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />
+        )}
+      </button>
+    </th>
+  );
 }
 
 type RowActions = {
@@ -38,15 +93,17 @@ export default function EbooksTable({
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
 }) {
+  const t = useTranslations("adminEbooks.table");
+  const tStatus = useTranslations("adminEbooks.status");
   return (
     <div className="hidden rounded-xl border border-divider bg-bg-surface shadow-sm md:block">
       <div className="">
         <table className="w-full text-sm">
-          <caption className="sr-only">E-books list</caption>
+          <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
               <th scope="col" className="w-10 px-4 py-3">
-                <label className="sr-only" htmlFor="select-all-ebooks">Select all e-books</label>
+                <label className="sr-only" htmlFor="select-all-ebooks">{t("selectAll")}</label>
                 <input
                   id="select-all-ebooks"
                   type="checkbox"
@@ -55,17 +112,17 @@ export default function EbooksTable({
                   className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
                 />
               </th>
-              <th scope="col" className="w-14 px-2 py-3 text-center">Cover</th>
-              <th scope="col" className="px-4 py-3">Book Info</th>
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">Author</th>
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">Department</th>
-              <th scope="col" className="hidden px-4 py-3 xl:table-cell">Year</th>
-              <th scope="col" className="hidden px-4 py-3 xl:table-cell">File Health</th>
-              <th scope="col" className="hidden px-4 py-3 xl:table-cell">Metadata</th>
-              <th scope="col" className="hidden px-4 py-3 text-right lg:table-cell">Stats</th>
-              <th scope="col" className="px-4 py-3 text-center">Status</th>
-              <th scope="col" className="hidden px-4 py-3 xl:table-cell">Updated</th>
-              <th scope="col" className="px-4 py-3 text-right">Actions</th>
+              <th scope="col" className="w-14 px-2 py-3 text-center">{t("cover")}</th>
+              <SortableTh label={t("bookInfo")} asc="title-asc" desc="title-desc" className="px-4 py-3" />
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("author")}</th>
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("department")}</th>
+              <SortableTh label={t("year")} asc="year-asc" desc="year-desc" defaultDir="desc" className="hidden px-4 py-3 xl:table-cell" />
+              <th scope="col" className="hidden px-4 py-3 xl:table-cell">{t("fileHealth")}</th>
+              <SortableTh label={t("metadata")} asc="metadata-quality" className="hidden px-4 py-3 xl:table-cell" />
+              <SortableTh label={t("statsCol")} asc="most-downloaded" className="hidden px-4 py-3 text-right lg:table-cell" />
+              <th scope="col" className="px-4 py-3 text-center">{t("statusCol")}</th>
+              <SortableTh label={t("updated")} asc="updated" className="hidden px-4 py-3 xl:table-cell" />
+              <th scope="col" className="px-4 py-3 text-right">{t("actionsCol")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
@@ -77,7 +134,7 @@ export default function EbooksTable({
                 <Fragment key={book.id}>
                   <tr className={`transition-colors hover:bg-paper/80 ${isBusy ? "opacity-50" : ""} ${isSelected ? "bg-brand/5" : ""}`}>
                     <td className="px-4 py-3">
-                      <label className="sr-only" htmlFor={`select-ebook-${book.id}`}>Select {book.title}</label>
+                      <label className="sr-only" htmlFor={`select-ebook-${book.id}`}>{t("selectOne", { title: book.title })}</label>
                       <input
                         id={`select-ebook-${book.id}`}
                         type="checkbox"
@@ -102,7 +159,7 @@ export default function EbooksTable({
                         {book.language ? ` · ${book.language}` : ""}
                         {book.fileSizeKb ? ` · ${formatFileSize(book.fileSizeKb)}` : ""}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-text-muted lg:hidden">{book.author ?? "No author"}</p>
+                      <p className="mt-0.5 truncate text-xs text-text-muted lg:hidden">{book.author ?? t("noAuthor")}</p>
                     </td>
                     <td className="hidden px-4 py-3 text-text-body lg:table-cell max-w-[160px] truncate">
                       {book.author ?? "—"}
@@ -129,7 +186,7 @@ export default function EbooksTable({
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${EBOOK_STATUS_BADGE_STYLES[book.status]}`}>
-                        {EBOOK_STATUS_LABELS[book.status]}
+                        {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
                       </span>
                     </td>
                     <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted xl:table-cell">
@@ -141,8 +198,8 @@ export default function EbooksTable({
                           <Link
                             href={`/books/${book.slug}`}
                             target="_blank"
-                            title="View public page"
-                            aria-label={`View public page for ${book.title}`}
+                            title={t("viewPublic")}
+                            aria-label={t("viewPublicFor", { title: book.title })}
                             className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
                           >
                             <ExternalLink className="h-4 w-4" />

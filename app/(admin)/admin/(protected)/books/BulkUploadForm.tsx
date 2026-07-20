@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 
+import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
@@ -197,23 +198,24 @@ async function runQueue(
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-const STATUS_META: Record<RowStatus, { label: string; cls: string }> = {
-  pending:          { label: "Pending",         cls: "bg-slate-100 text-slate-500" },
-  "uploading-pdf":  { label: "Uploading PDF…",  cls: "bg-blue-100 text-blue-600" },
-  "uploading-cover":{ label: "Uploading cover…",cls: "bg-cyan-100 text-cyan-600" },
-  saving:           { label: "Saving…",         cls: "bg-amber-100 text-amber-600" },
-  done:             { label: "Done ✓",           cls: "bg-emerald-100 text-emerald-700" },
-  error:            { label: "Error",            cls: "bg-red-100 text-red-600" },
+const STATUS_META: Record<RowStatus, { cls: string }> = {
+  pending:          { cls: "bg-slate-100 text-slate-500" },
+  "uploading-pdf":  { cls: "bg-blue-100 text-blue-600" },
+  "uploading-cover":{ cls: "bg-cyan-100 text-cyan-600" },
+  saving:           { cls: "bg-amber-100 text-amber-600" },
+  done:             { cls: "bg-emerald-100 text-emerald-700" },
+  error:            { cls: "bg-red-100 text-red-600" },
 };
 
 function StatusBadge({ status }: { status: RowStatus }) {
-  const { label, cls } = STATUS_META[status];
+  const t = useTranslations("adminUpload.bulk.rowStatus");
+  const { cls } = STATUS_META[status];
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ${cls}`}>
       {(status === "uploading-pdf" || status === "uploading-cover" || status === "saving") && (
         <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
-      {label}
+      {t(status)}
     </span>
   );
 }
@@ -318,6 +320,7 @@ export default function BulkUploadForm() {
   // ── Derived stats ──────────────────────────────────────────────
 
   const total   = jobs.length;
+  const t = useTranslations("adminUpload.bulk");
   const done    = jobs.filter((j) => j.status === "done").length;
   const errors  = jobs.filter((j) => j.status === "error").length;
   const missing = jobs.filter((j) => j.status === "pending" && !j.pdfFile).length;
@@ -368,10 +371,9 @@ export default function BulkUploadForm() {
             <FileSpreadsheet className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-text-heading">Step 1 — Prepare your CSV</h2>
+            <h2 className="text-sm font-bold text-text-heading">{t("step1")}</h2>
             <p className="text-xs text-text-muted">
-              Fill in metadata for each book and save as{" "}
-              <code className="rounded bg-paper px-1 py-0.5 font-mono">.csv</code>
+              {t.rich("step1Sub", { code: (c) => <code className="rounded bg-paper px-1 py-0.5 font-mono">{c}</code> })}
             </p>
           </div>
         </div>
@@ -382,7 +384,7 @@ export default function BulkUploadForm() {
               <thead>
                 <tr className="border-b border-divider bg-bg-surface">
                   {["title*","author*","category*","department*","language*","pdf_file*","cover_file","keywords","isbn","year","pages","summary"].map((h) => (
-                    <th key={h} className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-text-muted">{h}</th>
+                    <th key={h} scope="col" className="whitespace-nowrap px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-text-muted">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -405,9 +407,7 @@ export default function BulkUploadForm() {
             </table>
           </div>
           <p className="mt-2.5 text-[11px] text-text-muted">
-            <span className="text-rose-500">*</span> Required.{" "}
-            <code className="font-mono">pdf_file</code> and <code className="font-mono">cover_file</code>{" "}
-            must match the exact filenames in your folders.
+            {t.rich("requiredNote", { star: (c) => <span className="text-rose-500">{c}</span>, code: (c) => <code className="font-mono">{c}</code> })}
           </p>
         </div>
       </div>
@@ -419,8 +419,8 @@ export default function BulkUploadForm() {
             <FolderOpen className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-text-heading">Step 2 — Select files</h2>
-            <p className="text-xs text-text-muted">CSV, PDF folder, and optional cover folder</p>
+            <h2 className="text-sm font-bold text-text-heading">{t("step2")}</h2>
+            <p className="text-xs text-text-muted">{t("step2Sub")}</p>
           </div>
         </div>
 
@@ -433,8 +433,8 @@ export default function BulkUploadForm() {
               </span>
               <DropZoneDisplay
                 ready={csvReady}
-                readyLabel={`${csvRows.length} rows parsed`}
-                idleLabel="Click to select CSV"
+                readyLabel={t("csvReady", { count: csvRows.length })}
+                idleLabel={t("selectCsv")}
                 icon={<FileSpreadsheet className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
                 checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
               />
@@ -455,8 +455,8 @@ export default function BulkUploadForm() {
               </span>
               <DropZoneDisplay
                 ready={pdfReady}
-                readyLabel={`${pdfIndex.size} PDF files`}
-                idleLabel="Click to select PDFs"
+                readyLabel={t("pdfReady", { count: pdfIndex.size })}
+                idleLabel={t("selectPdfs")}
                 icon={<FileText className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
                 checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
               />
@@ -480,8 +480,8 @@ export default function BulkUploadForm() {
               </span>
               <DropZoneDisplay
                 ready={coverIndex.size > 0}
-                readyLabel={`${coverIndex.size} cover files`}
-                idleLabel="Click to select covers"
+                readyLabel={t("coversReady", { count: coverIndex.size })}
+                idleLabel={t("selectCovers")}
                 icon={<ImageIcon className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
                 checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
               />
@@ -526,11 +526,11 @@ export default function BulkUploadForm() {
                 <UploadIcon className="h-[18px] w-[18px]" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-text-heading">Step 3 — Review &amp; Upload</h2>
+                <h2 className="text-sm font-bold text-text-heading">{t("step3")}</h2>
                 <p className="text-xs text-text-muted">
-                  {total} books · {done} done · {errors} errors
+                  {t("summary", { total, done, errors })}
                   {missing > 0 && (
-                    <span style={{ color: "#d97706" }}> · {missing} PDF missing</span>
+                    <span style={{ color: "#d97706" }}> · {t("pdfMissing", { count: missing })}</span>
                   )}
                 </p>
               </div>
@@ -565,12 +565,12 @@ export default function BulkUploadForm() {
                   className="border-b border-divider text-[11px] font-bold uppercase tracking-wider text-text-muted"
                   style={{ background: "var(--ptec-paper)" }}
                 >
-                  <th className="px-4 py-2.5 text-left">#</th>
-                  <th className="px-4 py-2.5 text-left">Title</th>
-                  <th className="px-4 py-2.5 text-left">Author</th>
-                  <th className="px-4 py-2.5 text-left">PDF</th>
-                  <th className="px-4 py-2.5 text-left">Cover</th>
-                  <th className="px-4 py-2.5 text-left">Status</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">#</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">{t("col.title")}</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">{t("col.author")}</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">{t("col.pdf")}</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">{t("col.cover")}</th>
+                  <th scope="col" className="px-4 py-2.5 text-left">{t("col.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-divider">
@@ -645,18 +645,18 @@ export default function BulkUploadForm() {
                   className="btn-brand-gradient inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <UploadIcon className="h-4 w-4" />
-                  Start bulk upload ({jobs.filter((j) => j.pdfFile).length} books)
+                  {t("startUpload", { count: jobs.filter((j) => j.pdfFile).length })}
                 </button>
               </>
             ) : running ? (
               <div className="flex items-center gap-2 text-sm text-text-muted">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Uploading {concurrency} books in parallel…
+                {t("uploadingParallel", { count: concurrency })}
               </div>
             ) : (
               <div className="flex items-center gap-4">
                 <p className="text-sm font-semibold" style={{ color: "#0f9d6b" }}>
-                  Completed: {done} uploaded{errors > 0 ? `, ${errors} failed` : ""}
+                  {t("completed", { done })}{errors > 0 ? t("completedFailed", { errors }) : ""}
                 </p>
                 {errors > 0 && (
                   <button
@@ -669,7 +669,7 @@ export default function BulkUploadForm() {
                     className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
-                    Retry {errors} failed
+                    {t("retryFailed", { errors })}
                   </button>
                 )}
               </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { AppRole } from "@/lib/types/roles";
 import { ROLE_META } from "@/lib/types/roles";
 import { ALL_RESOURCE_KEYS, levelAt, type PermMatrix } from "@/lib/admin/roles-shared";
@@ -32,6 +33,9 @@ function RoleCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations("adminRoles.overview");
+  const tRoles = useTranslations("adminUsers.roles");
+  const tRoleDesc = useTranslations("adminUsers.roleDescriptions");
   const meta = ROLE_META[role];
   const Icon = ROLE_ICON[role];
   const pct = totalUsers > 0 ? Math.round((count / totalUsers) * 100) : 0;
@@ -67,17 +71,17 @@ function RoleCard({
       </div>
 
       <div className="mt-3 flex items-baseline justify-between gap-2">
-        <h3 className="text-sm font-bold text-text-heading">{meta.label}</h3>
+        <h3 className="text-sm font-bold text-text-heading">{tRoles(role)}</h3>
         <span className="text-lg font-bold tabular-nums text-text-heading">{count}</span>
       </div>
       <p className="mt-0.5 line-clamp-2 min-h-[2.25rem] text-xs leading-snug text-text-muted">
-        {meta.description}
+        {tRoleDesc(role)}
       </p>
 
       {/* User share */}
       <div className="mt-3">
         <div className="mb-1 flex items-center justify-between text-[10px] font-medium text-text-muted">
-          <span>{count === 1 ? "1 user" : `${count} users`}</span>
+          <span>{t("userCount", { count })}</span>
           <span className="tabular-nums">{pct}%</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper">
@@ -89,11 +93,11 @@ function RoleCard({
       <div className="mt-3 flex items-center gap-3 border-t border-divider pt-2.5 text-[10px] font-semibold">
         <span className="inline-flex items-center gap-1 text-emerald-600">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-          {write} full
+          {t("fullCount", { count: write })}
         </span>
         <span className="inline-flex items-center gap-1 text-blue-600">
           <span className="h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden="true" />
-          {read} read
+          {t("readCount", { count: read })}
         </span>
       </div>
     </button>
@@ -115,17 +119,18 @@ export default function RoleOverview({
   selectedRole: AppRole | null;
   onSelectRole: (role: AppRole | null) => void;
 }) {
+  const t = useTranslations("adminRoles.overview");
   return (
-    <section aria-label="Role overview">
+    <section aria-label={t("aria")}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">Roles</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">{t("heading")}</h2>
         {selectedRole && (
           <button
             type="button"
             onClick={() => onSelectRole(null)}
             className="text-xs font-semibold text-brand hover:underline"
           >
-            Clear focus
+            {t("clearFocus")}
           </button>
         )}
       </div>

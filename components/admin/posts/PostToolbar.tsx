@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { withUpdatedParams } from "@/lib/admin/posts-url";
 export default function PostToolbar({ totalItems }: { totalItems: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminPosts.toolbar");
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
   // Debounce: push the URL 350ms after the user stops typing.
@@ -27,28 +29,28 @@ export default function PostToolbar({ totalItems }: { totalItems: number }) {
       <div className="flex flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm">
         <Search className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
         <label htmlFor="post-search" className="sr-only">
-          Search posts
+          {t("searchLabel")}
         </label>
         <input
           id="post-search"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search posts by title, author, category, or tag…"
+          placeholder={t("searchPlaceholder")}
           className="flex-1 bg-transparent text-sm text-text-heading placeholder-text-muted outline-none"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery("")}
-            aria-label="Clear search"
+            aria-label={t("clearSearch")}
             className="text-text-muted hover:text-text-body"
           >
             <X className="h-4 w-4" />
           </button>
         )}
         <span className="whitespace-nowrap text-xs text-text-muted" aria-live="polite">
-          {totalItems.toLocaleString()} result{totalItems !== 1 ? "s" : ""}
+          {t("results", { count: totalItems })}
         </span>
       </div>
 
@@ -57,7 +59,7 @@ export default function PostToolbar({ totalItems }: { totalItems: number }) {
         className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
       >
         <Plus className="h-4 w-4" strokeWidth={2.5} />
-        Create Post
+        {t("create")}
       </Link>
     </div>
   );

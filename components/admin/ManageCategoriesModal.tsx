@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { addCategory, updateCategory, deleteCategory } from "@/app/(admin)/admin/(protected)/books/actions";
+import { ConfirmDialog } from "@/components/admin/kit";
 
 interface Category {
   id: string;
@@ -28,6 +29,10 @@ export default function ManageCategoriesModal() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const supabase = createClient();
 
@@ -93,17 +98,20 @@ export default function ManageCategoriesModal() {
     }
   }
 
-  async function handleDelete(id: string, currentName: string) {
-    if (!confirm(`Are you sure you want to delete the category "${currentName}"?`)) return;
-
+  async function handleDelete() {
+    if (!deleteTarget) return;
     setError(null);
+    setIsDeleting(true);
     try {
-      const res = await deleteCategory(id);
+      const res = await deleteCategory(deleteTarget.id);
       if (res.error) throw new Error(res.error);
       await loadCategories();
       window.dispatchEvent(new CustomEvent("ptec:categories-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete category");
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -202,7 +210,7 @@ export default function ManageCategoriesModal() {
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button type="button" onClick={() => handleDelete(cat.id, cat.name)}
+                            <button type="button" onClick={() => setDeleteTarget(cat)}
                               className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Delete"
                             >
@@ -219,6 +227,17 @@ export default function ManageCategoriesModal() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete this category?"
+        description={deleteTarget ? <>You are about to delete <strong>“{deleteTarget.name}”</strong>. This cannot be undone.</> : undefined}
+        confirmLabel="Delete category"
+        busyLabel="Deleting…"
+        busy={isDeleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </>
   );
 }

@@ -13,6 +13,7 @@ import { uploadToZima } from "@/app/actions/upload";
 import { createTeamMember, updateTeamMember } from "./actions";
 import type { TeamMemberRow, TeamSection, ProfileOption } from "./actions";
 import MemberCard, { PALETTES } from "@/components/team/MemberCard";
+import { ConfirmDialog } from "@/components/admin/kit";
 import type { PublicTeamMember } from "@/lib/team/public";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -345,9 +346,12 @@ export default function TeamForm({
     }
   }
 
+  const [cancelConfirm, setCancelConfirm] = useState(false);
+
   function handleCancel(e: React.MouseEvent) {
-    if (isDirty && !window.confirm("Discard unsaved changes?")) {
+    if (isDirty) {
       e.preventDefault();
+      setCancelConfirm(true);
     }
   }
 
@@ -1063,6 +1067,17 @@ export default function TeamForm({
           >
             Cancel
           </Link>
+          <ConfirmDialog
+            open={cancelConfirm}
+            title="Discard unsaved changes?"
+            description="Your edits to this team member have not been saved and will be lost."
+            confirmLabel="Discard changes"
+            onCancel={() => setCancelConfirm(false)}
+            onConfirm={() => {
+              setCancelConfirm(false);
+              router.push("/admin/team");
+            }}
+          />
           {isDirty && !busy && (
             <span className="ml-auto text-xs font-medium text-amber-600">Unsaved changes</span>
           )}

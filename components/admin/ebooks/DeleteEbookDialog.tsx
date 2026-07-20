@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 
 export type DeleteTarget =
@@ -18,6 +19,7 @@ export default function DeleteEbookDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("adminEbooks.deleteDialog");
   const headingId = "delete-ebook-heading";
   const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -69,18 +71,14 @@ export default function DeleteEbookDialog({
           </span>
           <div>
             <h2 id={headingId} className="text-lg font-bold text-text-heading">
-              {isBulk ? `Delete ${count} e-books?` : "Delete e-book?"}
+              {isBulk ? t("titleBulk", { count }) : t("title")}
             </h2>
             <p className="mt-1.5 text-sm text-text-body">
-              {isBulk ? (
-                <>You are about to delete <strong>{count} e-books</strong>, including their PDF and cover files. This action cannot be undone.</>
-              ) : (
-                <>You are about to delete: <strong>{target.title}</strong>. This action cannot be undone.</>
-              )}
+              {isBulk
+                ? t("bodyBulk", { count })
+                : t("body", { title: target.title })}
             </p>
-            <p className="mt-2 text-xs text-text-muted">
-              Consider Archive instead if you may need this e-book again — archived e-books are removed from the public library but not erased.
-            </p>
+            <p className="mt-2 text-xs text-text-muted">{t("hint")}</p>
           </div>
         </div>
 
@@ -91,7 +89,7 @@ export default function DeleteEbookDialog({
             disabled={busy}
             className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:opacity-50"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             ref={confirmRef}
@@ -100,7 +98,7 @@ export default function DeleteEbookDialog({
             disabled={busy}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? "Deleting…" : isBulk ? "Delete e-books" : "Delete e-book"}
+            {busy ? t("busy") : isBulk ? t("confirmBulk") : t("confirm")}
           </button>
         </div>
       </div>

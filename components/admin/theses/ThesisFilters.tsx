@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/theses-url";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -61,6 +62,11 @@ export default function ThesisFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminTheses.filters");
+  const tStatus = useTranslations("adminTheses.status");
+  const tSort = useTranslations("adminTheses.sort");
+  const tFile = useTranslations("adminTheses.fileStatus");
+  const tQuality = useTranslations("adminEbooks.quality");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const setParam = (key: string, v: string) => {
@@ -68,12 +74,12 @@ export default function ThesisFilters({
   };
 
   const chips: { key: string; label: string }[] = [];
-  if (value.status && value.status !== "all") chips.push({ key: "status", label: `Status: ${STATUS_LABELS[value.status as keyof typeof STATUS_LABELS] ?? value.status}` });
-  if (value.program && value.program !== "all") chips.push({ key: "program", label: `Program: ${programs.find((p) => p.code === value.program)?.label ?? value.program}` });
-  if (value.cohort && value.cohort !== "all") chips.push({ key: "cohort", label: `Cohort: ${cohorts.find((c) => c.value === value.cohort)?.label ?? value.cohort}` });
-  if (value.academicYear && value.academicYear !== "all") chips.push({ key: "academicYear", label: `Year: ${value.academicYear}` });
-  if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: FILE_STATUS_LABELS[value.fileStatus as keyof typeof FILE_STATUS_LABELS] ?? value.fileStatus });
-  if (value.metadataQuality && value.metadataQuality !== "all") chips.push({ key: "metadataQuality", label: `Metadata: ${METADATA_TIER_LABELS[value.metadataQuality as MetadataQualityTier] ?? value.metadataQuality}` });
+  if (value.status && value.status !== "all") chips.push({ key: "status", label: t("statusChip", { label: STATUS_LABELS[value.status as keyof typeof STATUS_LABELS] ? tStatus(value.status) : value.status }) });
+  if (value.program && value.program !== "all") chips.push({ key: "program", label: t("programChip", { label: programs.find((p) => p.code === value.program)?.label ?? value.program }) });
+  if (value.cohort && value.cohort !== "all") chips.push({ key: "cohort", label: t("cohortChip", { label: cohorts.find((c) => c.value === value.cohort)?.label ?? value.cohort }) });
+  if (value.academicYear && value.academicYear !== "all") chips.push({ key: "academicYear", label: t("yearChip", { label: value.academicYear }) });
+  if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: FILE_STATUS_LABELS[value.fileStatus as keyof typeof FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
+  if (value.metadataQuality && value.metadataQuality !== "all") chips.push({ key: "metadataQuality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.metadataQuality as MetadataQualityTier] ? tQuality(value.metadataQuality) : value.metadataQuality }) });
 
   return (
     <div className="flex flex-col gap-2">
@@ -81,30 +87,30 @@ export default function ThesisFilters({
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="status-filter"
-            ariaLabel="Filter by status"
+            ariaLabel={t("byStatus")}
             value={value.status || "all"}
             onChange={(v) => setParam("status", v)}
-            options={[{ value: "all", label: "All statuses" }, ...STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+            options={[{ value: "all", label: t("allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]}
           />
         </div>
 
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="program-filter"
-            ariaLabel="Filter by program"
+            ariaLabel={t("byProgram")}
             value={value.program || "all"}
             onChange={(v) => setParam("program", v)}
-            options={[{ value: "all", label: "All programs" }, ...programs.map((p) => ({ value: p.code, label: p.label }))]}
+            options={[{ value: "all", label: t("allPrograms") }, ...programs.map((p) => ({ value: p.code, label: p.label }))]}
           />
         </div>
 
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="sort-filter"
-            ariaLabel="Sort theses"
+            ariaLabel={t("sortTheses")}
             value={value.sort || "newest"}
             onChange={(v) => setParam("sort", v)}
-            options={SORT_OPTIONS.map((s) => ({ value: s, label: SORT_LABELS[s] }))}
+            options={SORT_OPTIONS.map((s) => ({ value: s, label: tSort(s) }))}
           />
         </div>
 
@@ -122,13 +128,13 @@ export default function ThesisFilters({
             onClick={() => router.push("/admin/theses")}
             className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
           >
-            Clear filters
+            {t("clearFilters")}
           </button>
         )}
       </div>
 
       {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+        <div className="flex flex-wrap items-center gap-1.5" aria-label={t("activeFilters")}>
           {chips.map((chip) => (
             <button
               key={chip.key}
@@ -138,7 +144,7 @@ export default function ThesisFilters({
             >
               {chip.label}
               <X className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">Remove filter</span>
+              <span className="sr-only">{t("removeFilter")}</span>
             </button>
           ))}
         </div>
@@ -163,6 +169,9 @@ function MoreFiltersButton({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminTheses.filters");
+  const tFile = useTranslations("adminTheses.fileStatus");
+  const tQuality = useTranslations("adminEbooks.quality");
   const headingId = "thesis-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -224,7 +233,7 @@ function MoreFiltersButton({
         }`}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        More filters
+        {t("moreFilters")}
       </button>
 
       {open && (
@@ -241,11 +250,11 @@ function MoreFiltersButton({
             className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
           >
             <div className="mb-5 flex items-center justify-between">
-              <h2 id={headingId} className="text-lg font-bold text-text-heading">More filters</h2>
+              <h2 id={headingId} className="text-lg font-bold text-text-heading">{t("moreFilters")}</h2>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                aria-label="Close"
+                aria-label={t("close")}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading"
               >
                 <X className="h-5 w-5" />
@@ -254,47 +263,47 @@ function MoreFiltersButton({
 
             <div className="space-y-4">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Cohort</span>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("cohort")}</span>
                 <SearchableSelect
                   ref={firstFieldRef}
                   name="cohort-filter"
-                  ariaLabel="Cohort"
+                  ariaLabel={t("cohort")}
                   value={cohort || "all"}
                   onChange={setCohort}
-                  options={[{ value: "all", label: "All cohorts" }, ...cohorts.map((c) => ({ value: c.value, label: c.label }))]}
+                  options={[{ value: "all", label: t("allCohorts") }, ...cohorts.map((c) => ({ value: c.value, label: c.label }))]}
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Academic year</span>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("academicYear")}</span>
                 <SearchableSelect
                   name="academic-year-filter"
-                  ariaLabel="Academic year"
+                  ariaLabel={t("academicYear")}
                   value={academicYear || "all"}
                   onChange={setAcademicYear}
-                  options={[{ value: "all", label: "All years" }, ...academicYears.map((y) => ({ value: y.value, label: y.label }))]}
+                  options={[{ value: "all", label: t("allYears") }, ...academicYears.map((y) => ({ value: y.value, label: y.label }))]}
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">File status</span>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("fileStatusLabel")}</span>
                 <SearchableSelect
                   name="file-status-filter"
-                  ariaLabel="File status"
+                  ariaLabel={t("fileStatusLabel")}
                   value={fileStatus || "all"}
                   onChange={setFileStatus}
-                  options={[{ value: "all", label: "Any file status" }, ...FILE_STATUS_OPTIONS.map((f) => ({ value: f, label: FILE_STATUS_LABELS[f] }))]}
+                  options={[{ value: "all", label: t("anyFileStatus") }, ...FILE_STATUS_OPTIONS.map((f) => ({ value: f, label: tFile(f) }))]}
                 />
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Metadata quality</span>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("metadataQuality")}</span>
                 <SearchableSelect
                   name="metadata-quality-filter"
-                  ariaLabel="Metadata quality"
+                  ariaLabel={t("metadataQuality")}
                   value={metadataQuality || "all"}
                   onChange={setMetadataQuality}
-                  options={[{ value: "all", label: "Any quality" }, ...METADATA_QUALITY_OPTIONS.map((q) => ({ value: q, label: METADATA_TIER_LABELS[q] }))]}
+                  options={[{ value: "all", label: t("anyQuality") }, ...METADATA_QUALITY_OPTIONS.map((q) => ({ value: q, label: tQuality(q) }))]}
                 />
               </label>
             </div>
@@ -305,13 +314,13 @@ function MoreFiltersButton({
                 onClick={() => { setCohort(""); setAcademicYear(""); setFileStatus(""); setMetadataQuality(""); }}
                 className="text-[13px] font-semibold text-text-muted hover:text-brand"
               >
-                Clear these
+                {t("clearThese")}
               </button>
               <button
                 type="submit"
                 className="ml-auto inline-flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover"
               >
-                Apply
+                {t("apply")}
               </button>
             </div>
           </form>

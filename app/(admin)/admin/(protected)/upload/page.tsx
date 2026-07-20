@@ -1,4 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/admin/kit";
 import UploadPageClient from "./UploadPageClient";
 
 export default async function AdminUploadPage({
@@ -18,9 +20,12 @@ export default async function AdminUploadPage({
     .order("created_at", { ascending: false })
     .limit(5);
 
+  const t = await getTranslations("adminShell.nav");
+
   return (
     <div className="mx-auto max-w-[1100px] space-y-8">
       <div className="flex flex-col gap-8">
+        <PageHeader title={t("uploadBook")} className="mb-0" />
         {/* ── Client Component with Tab Switcher ── */}
         <UploadPageClient recentBooks={recentBooks || []} initialTitle={initialTitle} />
       </div>

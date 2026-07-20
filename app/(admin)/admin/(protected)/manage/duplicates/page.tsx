@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { findDuplicateGroups, type DuplicateBook } from "@/lib/admin/duplicates";
+import { PageHeader } from "@/components/admin/kit";
 import DuplicateGroupsClient from "@/components/admin/ebooks/DuplicateGroupsClient";
 
 // Duplicate e-book review workspace. Read-only detection here; the retire
@@ -51,7 +53,10 @@ async function loadDuplicateBooks(): Promise<DuplicateBook[]> {
 
 export default async function DuplicatesPage() {
   await requirePermission("books", "write");
-  const books = await loadDuplicateBooks();
+  const [t, books] = await Promise.all([
+    getTranslations("adminDuplicates"),
+    loadDuplicateBooks(),
+  ]);
   const groups = findDuplicateGroups(books);
 
   return (
@@ -61,17 +66,10 @@ export default async function DuplicatesPage() {
           href="/admin/manage"
           className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-text-muted hover:text-brand"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Manage E-books
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          {t("back")}
         </Link>
-        <h1 className="text-2xl font-bold text-text-heading">Duplicate Review</h1>
-        <p className="mt-1 max-w-2xl text-sm text-text-muted">
-          Probable duplicate records, grouped by shared ISBN, PDF file identity, or
-          matching title with a corroborating signal. Nothing is merged automatically —
-          pick the record to keep, then retire the others. Retiring archives the
-          duplicate (its reviews and analytics are preserved) and adds a permanent 301
-          redirect from its URL to the record you keep.
-        </p>
+        <PageHeader title={t("title")} description={t("description")} className="mb-0" />
       </div>
 
       <DuplicateGroupsClient

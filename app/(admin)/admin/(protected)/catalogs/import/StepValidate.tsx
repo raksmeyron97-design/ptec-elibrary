@@ -7,6 +7,7 @@
 // Status is always conveyed with text — never color alone.
 
 import { useMemo, useState, type Dispatch } from "react";
+import { useTranslations } from "next-intl";
 import {
   buildFailedRowsCsv,
   type RowStatus,
@@ -18,12 +19,12 @@ const PAGE_SIZE = 50;
 
 type Filter = "all" | RowStatus | "skipped";
 
-const STATUS_BADGE: Record<RowStatus | "skipped", { label: string; cls: string; icon: string }> = {
-  ready:     { label: "Ready",     cls: "bg-emerald-50 border-emerald-200 text-emerald-700", icon: "✓" },
-  warning:   { label: "Warning",   cls: "bg-amber-50 border-amber-200 text-amber-700",       icon: "!" },
-  error:     { label: "Error",     cls: "bg-red-50 border-red-200 text-red-600",             icon: "✕" },
-  duplicate: { label: "Duplicate", cls: "bg-sky-50 border-sky-200 text-sky-700",             icon: "≡" },
-  skipped:   { label: "Skipped",   cls: "bg-paper border-divider text-text-muted",           icon: "–" },
+const STATUS_BADGE: Record<RowStatus | "skipped", { cls: string; icon: string }> = {
+  ready:     { cls: "bg-emerald-50 border-emerald-200 text-emerald-700", icon: "✓" },
+  warning:   { cls: "bg-amber-50 border-amber-200 text-amber-700",       icon: "!" },
+  error:     { cls: "bg-red-50 border-red-200 text-red-600",             icon: "✕" },
+  duplicate: { cls: "bg-sky-50 border-sky-200 text-sky-700",             icon: "≡" },
+  skipped:   { cls: "bg-paper border-divider text-text-muted",           icon: "–" },
 };
 
 export default function StepValidate({
@@ -35,6 +36,8 @@ export default function StepValidate({
   dispatch: Dispatch<WizardAction>;
   importSet: ImportSet | null;
 }) {
+  const t = useTranslations("adminCatalog.import.validate");
+  const tf = useTranslations("adminCatalog.import.fields");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -70,7 +73,7 @@ export default function StepValidate({
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
         </svg>
-        <p className="text-sm font-semibold">Validating rows and checking the catalog for duplicates…</p>
+        <p className="text-sm font-semibold">{t("validating")}</p>
       </div>
     );
   }
@@ -78,11 +81,11 @@ export default function StepValidate({
   if (!summary || !importSet) return null;
 
   const cards: { label: string; value: number; tone: string; f: Filter }[] = [
-    { label: "Total rows", value: summary.total, tone: "text-text-heading", f: "all" },
-    { label: "Ready", value: summary.ready, tone: "text-emerald-600", f: "ready" },
-    { label: "Warnings", value: summary.warnings, tone: "text-amber-600", f: "warning" },
-    { label: "Errors", value: summary.errors, tone: "text-red-500", f: "error" },
-    { label: "Duplicates", value: summary.duplicates, tone: "text-sky-600", f: "duplicate" },
+    { label: t("totalRows"), value: summary.total, tone: "text-text-heading", f: "all" },
+    { label: t("statusLabel.ready"), value: summary.ready, tone: "text-emerald-600", f: "ready" },
+    { label: t("warnings"), value: summary.warnings, tone: "text-amber-600", f: "warning" },
+    { label: t("errors"), value: summary.errors, tone: "text-red-500", f: "error" },
+    { label: t("duplicates"), value: summary.duplicates, tone: "text-sky-600", f: "duplicate" },
   ];
 
   const opts = state.options;
@@ -95,13 +98,13 @@ export default function StepValidate({
       <p className="text-sm text-text-body" role="status">
         Validation completed.{" "}
         <span className="font-bold text-text-heading">
-          {importSet.importableRows.toLocaleString()} of {summary.total.toLocaleString()} rows
+          {t("importableOf", { importable: importSet.importableRows, total: summary.total })}
         </span>{" "}
         will be imported with the current options.
       </p>
 
       {/* Summary cards (double as filters) */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5" role="group" aria-label="Validation summary — click a card to filter">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5" role="group" aria-label={t("summaryAria")}>
         {cards.map((c) => (
           <button
             key={c.label}
@@ -124,8 +127,8 @@ export default function StepValidate({
           type="search"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search title, author, ISBN, barcode or row number…"
-          aria-label="Search preview rows"
+          placeholder={t("searchPlaceholder")}
+          aria-label={t("searchAria")}
           className="h-9 w-full max-w-sm rounded-lg border border-divider bg-paper px-3 text-xs text-text-body outline-none focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
         />
         <span className="text-xs text-text-muted" aria-live="polite">
@@ -137,10 +140,10 @@ export default function StepValidate({
       <div className="overflow-hidden rounded-2xl border border-divider bg-bg-surface">
         <div className="max-h-[340px] overflow-auto">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Validation preview</caption>
+            <caption className="sr-only">{t("previewCaption")}</caption>
             <thead className="sticky top-0 z-10">
               <tr className="border-b border-divider bg-paper">
-                {["Row", "Status", "Title / Author", "ISBN", "Copies", "Issues", ""].map((h, i) => (
+                {["Row", "Status", t("col.titleAuthor"), "ISBN", "Copies", "Issues", ""].map((h, i) => (
                   <th key={i} scope="col" className="whitespace-nowrap px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">
                     {h}
                   </th>
@@ -151,7 +154,7 @@ export default function StepValidate({
               {pageRows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-sm text-text-muted">
-                    No rows match this filter.
+                    {t("noRowsMatch")}
                   </td>
                 </tr>
               ) : pageRows.map((r) => {
@@ -163,6 +166,7 @@ export default function StepValidate({
                     key={r.rowNumber}
                     row={r}
                     badge={badge}
+                    statusLabel={t(`statusLabel.${key}`)}
                     isOpen={isOpen}
                     onToggle={() => setExpanded(isOpen ? null : r.rowNumber)}
                     onSkipToggle={() => dispatch({ type: "TOGGLE_ROW_SKIP", rowNumber: r.rowNumber })}
@@ -173,7 +177,7 @@ export default function StepValidate({
           </table>
         </div>
         {pageCount > 1 && (
-          <nav className="flex items-center justify-between border-t border-divider bg-paper/50 px-3 py-2 text-xs" aria-label="Preview pagination">
+          <nav className="flex items-center justify-between border-t border-divider bg-paper/50 px-3 py-2 text-xs" aria-label={t("paginationAria")}>
             <button type="button" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}
               className="rounded-lg border border-divider px-3 py-1 font-semibold text-text-body transition hover:bg-paper disabled:opacity-40">
               ← Previous
@@ -197,15 +201,15 @@ export default function StepValidate({
 
       {/* Options panel */}
       <fieldset className="rounded-2xl border border-divider bg-paper/50 p-4">
-        <legend className="px-1 text-xs font-bold uppercase tracking-wider text-text-muted">Import options</legend>
+        <legend className="px-1 text-xs font-bold uppercase tracking-wider text-text-muted">{t("importOptions")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <p className="mb-1.5 text-xs font-bold text-text-heading">Books that already exist in the catalog</p>
-            <div className="space-y-1.5" role="radiogroup" aria-label="Duplicate strategy">
+            <p className="mb-1.5 text-xs font-bold text-text-heading">{t("duplicatesHeading")}</p>
+            <div className="space-y-1.5" role="radiogroup" aria-label={t("dupStrategyAria")}>
               {([
-                ["skip", "Skip them (safest — nothing is changed)"],
-                ["update", "Fill in missing details only, and add new copies"],
-                ["create", "Create separate records anyway"],
+                ["skip", t("dup.skip")],
+                ["update", t("dup.fill")],
+                ["create", t("dup.separate")],
               ] as const).map(([value, label]) => (
                 <label key={value} className="flex cursor-pointer items-start gap-2 text-xs text-text-body">
                   <input
@@ -221,18 +225,18 @@ export default function StepValidate({
             </div>
           </div>
           <div className="space-y-1.5">
-            <p className="mb-1.5 text-xs font-bold text-text-heading">Rows &amp; reference values</p>
+            <p className="mb-1.5 text-xs font-bold text-text-heading">{t("rowsRefHeading")}</p>
             <label className="flex cursor-pointer items-start gap-2 text-xs text-text-body">
               <input type="checkbox" checked={opts.includeWarnings} onChange={(e) => setOpts({ includeWarnings: e.target.checked })} className="mt-0.5" />
-              <span>Import rows that have warnings</span>
+              <span>{t("importWarnings")}</span>
             </label>
             <label className="flex cursor-pointer items-start gap-2 text-xs text-text-body">
               <input type="checkbox" checked={opts.defaultOneCopy} onChange={(e) => setOpts({ defaultOneCopy: e.target.checked })} className="mt-0.5" />
-              <span>Create one copy for rows without a barcode or copies count</span>
+              <span>{t("createOneCopy")}</span>
             </label>
             <label className="flex cursor-pointer items-start gap-2 text-xs text-text-body">
               <input type="checkbox" checked={opts.strictReferenceValues} onChange={(e) => setOpts({ strictReferenceValues: e.target.checked })} className="mt-0.5" />
-              <span>Treat new category / department values as errors (strict mode)</span>
+              <span>{t("strictMode")}</span>
             </label>
             {(summary.newCategories.length > 0 || summary.newDepartments.length > 0) && (
               <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-2 text-[11px] leading-relaxed text-amber-800">
@@ -255,7 +259,7 @@ export default function StepValidate({
       >
         {nothingToImport ? (
           <>
-            <p className="font-bold text-red-700">Nothing can be imported with the current selection.</p>
+            <p className="font-bold text-red-700">{t("nothingImportable")}</p>
             <p className="mt-1 text-xs text-red-600">
               Fix the errors in your CSV (download the error rows above), go back to mapping, or adjust the options.
             </p>
@@ -297,16 +301,20 @@ export default function StepValidate({
 function RowLine({
   row,
   badge,
+  statusLabel,
   isOpen,
   onToggle,
   onSkipToggle,
 }: {
   row: ValidatedRow;
-  badge: { label: string; cls: string; icon: string };
+  badge: { cls: string; icon: string };
+  statusLabel: string;
   isOpen: boolean;
   onToggle: () => void;
   onSkipToggle: () => void;
 }) {
+  const t = useTranslations("adminCatalog.import.validate");
+  const tf = useTranslations("adminCatalog.import.fields");
   const copies = row.normalized.copies_total ?? (row.normalized.barcode || row.normalized.accession_number ? 1 : null);
   return (
     <>
@@ -314,12 +322,12 @@ function RowLine({
         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs text-text-muted">{row.rowNumber}</td>
         <td className="whitespace-nowrap px-3 py-2">
           <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold ${badge.cls}`}>
-            <span aria-hidden>{badge.icon}</span> {badge.label}
+            <span aria-hidden>{badge.icon}</span> {statusLabel}
           </span>
         </td>
         <td className="max-w-[240px] px-3 py-2">
-          <p className="truncate text-xs font-semibold text-text-heading">{row.normalized.title || <span className="italic font-normal text-red-500">missing title</span>}</p>
-          <p className="truncate text-[11px] text-text-muted">{row.normalized.author || <span className="italic text-red-400">missing author</span>}</p>
+          <p className="truncate text-xs font-semibold text-text-heading">{row.normalized.title || <span className="italic font-normal text-red-500">{t("missingTitle")}</span>}</p>
+          <p className="truncate text-[11px] text-text-muted">{row.normalized.author || <span className="italic text-red-400">{t("missingAuthor")}</span>}</p>
         </td>
         <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-text-muted">{row.normalized.isbn ?? "—"}</td>
         <td className="whitespace-nowrap px-3 py-2 text-xs text-text-muted">{copies ?? "—"}</td>
@@ -334,10 +342,10 @@ function RowLine({
             type="button"
             onClick={onToggle}
             aria-expanded={isOpen}
-            aria-label={`${isOpen ? "Hide" : "Show"} details for row ${row.rowNumber}`}
+            aria-label={isOpen ? t("hideDetails", { row: row.rowNumber }) : t("showDetails", { row: row.rowNumber })}
             className="rounded-lg border border-divider px-2 py-1 text-[11px] font-semibold text-text-body transition hover:bg-paper"
           >
-            {isOpen ? "Hide" : "Details"}
+            {isOpen ? "Hide" : t("details")}
           </button>
         </td>
       </tr>
@@ -346,9 +354,9 @@ function RowLine({
           <td colSpan={7} className="px-4 py-3">
             <div className="grid gap-3 text-xs sm:grid-cols-2">
               <div>
-                <p className="mb-1 font-bold text-text-heading">Issues</p>
+                <p className="mb-1 font-bold text-text-heading">{t("issues")}</p>
                 {row.issues.length === 0 ? (
-                  <p className="text-text-muted">No issues — this row is ready.</p>
+                  <p className="text-text-muted">{t("noIssues")}</p>
                 ) : (
                   <ul className="space-y-1">
                     {row.issues.map((i, idx) => (
@@ -366,18 +374,18 @@ function RowLine({
                 )}
               </div>
               <div>
-                <p className="mb-1 font-bold text-text-heading">Normalized values</p>
+                <p className="mb-1 font-bold text-text-heading">{t("normalizedValues")}</p>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-text-muted">
                   {([
-                    ["Language", row.normalized.language],
-                    ["Category", row.normalized.category ?? "—"],
-                    ["Department", row.normalized.department ?? "—"],
-                    ["Shelf", row.normalized.shelf_location ?? "—"],
-                    ["Barcode", row.normalized.barcode ?? "—"],
-                    ["Accession", row.normalized.accession_number ?? "—"],
-                    ["Year", row.normalized.year ?? "—"],
-                    ["Cover", coverLabel(row)],
-                    ["Keywords", row.normalized.keywords.join(", ") || "—"],
+                    [tf("language"), row.normalized.language],
+                    [tf("category"), row.normalized.category ?? "—"],
+                    [tf("department"), row.normalized.department ?? "—"],
+                    [t("shelf"), row.normalized.shelf_location ?? "—"],
+                    [tf("barcode"), row.normalized.barcode ?? "—"],
+                    [tf("accession_number"), row.normalized.accession_number ?? "—"],
+                    [t("year"), row.normalized.year ?? "—"],
+                    [t("cover"), coverLabel(row)],
+                    [tf("keywords"), row.normalized.keywords.join(", ") || "—"],
                   ] as const).map(([k, v]) => (
                     <FragmentRow key={k} k={k} v={String(v)} />
                   ))}
@@ -391,7 +399,7 @@ function RowLine({
                       : "border-divider text-text-body hover:bg-paper"
                   }`}
                 >
-                  {row.skipped ? "Restore row" : "Skip this row"}
+                  {row.skipped ? t("restoreRow") : t("skipRow")}
                 </button>
               </div>
             </div>

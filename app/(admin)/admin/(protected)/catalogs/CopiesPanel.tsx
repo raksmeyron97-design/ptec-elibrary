@@ -8,6 +8,7 @@
 // the librarian builds via quick-add / the sequence generator and saves in one
 // transactional call (saveCopies) — either every copy is created or none.
 
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   type CopyStatus,
@@ -49,10 +50,11 @@ function clientId() {
 type PendingRow = GeneratedCopy & { clientId: string };
 
 function StatusBadge({ status }: { status: CopyStatus }) {
+  const t = useTranslations("adminCatalog.copies.status");
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold whitespace-nowrap ${copyStatusBadgeClass(status)}`}>
       <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${copyStatusDotClass(status)}`} />
-      {COPY_STATUS[status].label}
+      {t(status)}
     </span>
   );
 }
@@ -68,6 +70,8 @@ export default function CopiesPanel({
   bookShelfLocation?: string | null;
   initialCopies: CatalogCopy[];
 }) {
+  const t = useTranslations("adminCatalog.copies");
+  const tStatus = useTranslations("adminCatalog.copies.status");
   const [copies, setCopies] = useState<CatalogCopy[]>(initialCopies);
   const [showWithdrawn, setShowWithdrawn] = useState(false);
   const [pending, setPending] = useState<PendingRow[]>([]);
@@ -128,7 +132,7 @@ export default function CopiesPanel({
     try {
       setCopies(await fetchCopiesForBook(bookId));
     } catch (e) {
-      flash("error", e instanceof Error ? e.message : "Failed to reload copies");
+      flash("error", e instanceof Error ? e.message : t("toasts.reloadFailed"));
     }
   }
 
@@ -230,7 +234,7 @@ export default function CopiesPanel({
       if (res.success) {
         setEditingId(null);
         await reload();
-        flash("notice", "Copy updated.");
+        flash("notice", t("toasts.updated"));
       } else {
         flash("error", res.error);
       }
@@ -240,7 +244,7 @@ export default function CopiesPanel({
   function handleStatusChange(copyId: string, status: CopyStatus) {
     startTransition(async () => {
       const res = await updateCopyStatus(copyId, status);
-      if (res.success) { await reload(); flash("notice", "Status updated — public availability refreshed."); }
+      if (res.success) { await reload(); flash("notice", t("toasts.statusUpdated")); }
       else flash("error", res.error);
     });
   }
@@ -253,7 +257,7 @@ export default function CopiesPanel({
       setConfirm(null);
       if (res.success) {
         await reload();
-        flash("notice", kind === "archive" ? "Copy withdrawn — it no longer counts toward availability." : "Copy permanently deleted.");
+        flash("notice", kind === "archive" ? t("toasts.withdrawn") : t("toasts.deleted"));
       } else {
         flash("error", res.error);
       }
@@ -282,7 +286,7 @@ export default function CopiesPanel({
       </div>
 
       {/* ── Summary chips ── */}
-      <div className="flex flex-wrap gap-2" aria-label="Copy summary">
+      <div className="flex flex-wrap gap-2" aria-label={t("summaryAria")}>
         {[
           { label: "Total", value: stats.total, cls: "text-text-heading" },
           { label: "Available", value: stats.available, cls: "text-emerald-600" },
@@ -303,7 +307,7 @@ export default function CopiesPanel({
             className="inline-flex items-center gap-1.5 rounded-full border border-divider px-3 py-1 text-[11px] font-semibold text-text-muted transition hover:border-brand hover:text-brand"
             aria-pressed={showWithdrawn}
           >
-            {showWithdrawn ? "Hide" : "Show"} withdrawn ({withdrawnCopies.length})
+            {showWithdrawn ? t("hideWithdrawn", { count: withdrawnCopies.length }) : t("showWithdrawn", { count: withdrawnCopies.length })}
           </button>
         )}
       </div>
@@ -318,7 +322,7 @@ export default function CopiesPanel({
 
         {visibleCopies.length === 0 ? (
           <div className="px-4 py-10 text-center">
-            <p className="text-sm font-semibold text-text-heading">No copies yet</p>
+            <p className="text-sm font-semibold text-text-heading">{t("noCopies")}</p>
             <p className="mt-1 text-xs text-text-muted">
               Use the quick-add buttons or the sequence generator below — new copies appear as a pending batch you save in one step.
             </p>
@@ -328,10 +332,10 @@ export default function CopiesPanel({
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs">
-                <caption className="sr-only">Physical copies of this book</caption>
+                <caption className="sr-only">{t("tableCaption")}</caption>
                 <thead>
                   <tr className="border-b border-divider text-left">
-                    {["#", "Barcode", "Accession", "Call number", "Shelf", "Status", "Notes", "Actions"].map((h) => (
+                    {["#", t("col.barcode"), t("col.accession"), t("col.callNumber"), t("col.shelf"), t("col.status"), t("col.notes"), t("col.actions")].map((h) => (
                       <th key={h} scope="col" className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-text-muted whitespace-nowrap">
                         {h}
                       </th>
@@ -423,16 +427,16 @@ export default function CopiesPanel({
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-bold text-text-heading">
-                            Copy {copy.copy_number ?? "—"}
+                            {t("copyN", { n: copy.copy_number ?? "—" })}
                             {copy.barcode && <span className="ml-2 font-mono text-xs font-semibold text-text-muted">{copy.barcode}</span>}
                           </span>
                           <StatusBadge status={status} />
                         </div>
                         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-text-muted">
-                          {copy.accession_number && (<><dt className="font-medium">Accession</dt><dd className="font-mono text-text-body">{copy.accession_number}</dd></>)}
-                          {copy.call_number && (<><dt className="font-medium">Call no.</dt><dd className="font-mono text-text-body">{copy.call_number}</dd></>)}
-                          {copy.shelf_location && (<><dt className="font-medium">Shelf</dt><dd className="font-mono text-text-body">{copy.shelf_location}</dd></>)}
-                          {copy.notes && (<><dt className="font-medium">Notes</dt><dd className="text-text-body">{copy.notes}</dd></>)}
+                          {copy.accession_number && (<><dt className="font-medium">{t("col.accession")}</dt><dd className="font-mono text-text-body">{copy.accession_number}</dd></>)}
+                          {copy.call_number && (<><dt className="font-medium">{t("col.callNo")}</dt><dd className="font-mono text-text-body">{copy.call_number}</dd></>)}
+                          {copy.shelf_location && (<><dt className="font-medium">{t("col.shelf")}</dt><dd className="font-mono text-text-body">{copy.shelf_location}</dd></>)}
+                          {copy.notes && (<><dt className="font-medium">{t("col.notes")}</dt><dd className="text-text-body">{copy.notes}</dd></>)}
                         </dl>
                         <RowActions
                           copy={copy}
@@ -456,9 +460,9 @@ export default function CopiesPanel({
       {/* ── Add copies ── */}
       <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">Add copies</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("addCopies")}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-text-muted">Quick add:</span>
+            <span className="text-[11px] text-text-muted">{t("quickAdd")}</span>
             {[1, 3, 5, 10].map((n) => (
               <button
                 key={n}
@@ -475,7 +479,7 @@ export default function CopiesPanel({
               aria-expanded={showGenerator}
               className="rounded-lg border border-brand/40 px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand/5"
             >
-              {showGenerator ? "Close generator" : "Generate sequence…"}
+              {showGenerator ? t("closeGenerator") : t("generateSequence")}
             </button>
           </div>
         </div>
@@ -485,55 +489,55 @@ export default function CopiesPanel({
           <div className="rounded-xl border border-divider bg-paper/50 p-4">
             <p className="mb-3 text-[11px] text-text-muted">
               Generates numbered barcodes / accession numbers (e.g. PTEC-001250, PTEC-001251, …) and appends
-              the copies to the pending batch below — nothing is saved until you press <strong>Save all copies</strong>.
+              the copies to the pending batch below — nothing is saved until you press <strong>{t("saveAllCopies")}</strong>.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
-                <label htmlFor="gen-count" className={labelCls}>Number of copies</label>
+                <label htmlFor="gen-count" className={labelCls}>{t("gen.count")}</label>
                 <input id="gen-count" type="number" min={1} max={100} value={gen.count}
                   onChange={(e) => setGen({ ...gen, count: e.target.value })} className={inputCls} />
               </div>
               <div>
-                <label htmlFor="gen-bprefix" className={labelCls}>Barcode prefix</label>
+                <label htmlFor="gen-bprefix" className={labelCls}>{t("gen.barcodePrefix")}</label>
                 <input id="gen-bprefix" value={gen.barcodePrefix}
-                  onChange={(e) => setGen({ ...gen, barcodePrefix: e.target.value })} className={inputCls} placeholder="PTEC-" />
+                  onChange={(e) => setGen({ ...gen, barcodePrefix: e.target.value })} className={inputCls} placeholder={t("barcodePrefixPlaceholder")} />
               </div>
               <div>
-                <label htmlFor="gen-bstart" className={labelCls}>Barcode start no.</label>
+                <label htmlFor="gen-bstart" className={labelCls}>{t("gen.barcodeStart")}</label>
                 <input id="gen-bstart" type="number" min={0} value={gen.barcodeStart}
-                  onChange={(e) => setGen({ ...gen, barcodeStart: e.target.value })} className={inputCls} placeholder="e.g. 1250 (blank = none)" />
+                  onChange={(e) => setGen({ ...gen, barcodeStart: e.target.value })} className={inputCls} placeholder={t("barcodeStartPlaceholder")} />
               </div>
               <div>
-                <label htmlFor="gen-aprefix" className={labelCls}>Accession prefix</label>
+                <label htmlFor="gen-aprefix" className={labelCls}>{t("gen.accessionPrefix")}</label>
                 <input id="gen-aprefix" value={gen.accessionPrefix}
-                  onChange={(e) => setGen({ ...gen, accessionPrefix: e.target.value })} className={inputCls} placeholder="ACC-" />
+                  onChange={(e) => setGen({ ...gen, accessionPrefix: e.target.value })} className={inputCls} placeholder={t("accessionPrefixPlaceholder")} />
               </div>
               <div>
-                <label htmlFor="gen-astart" className={labelCls}>Accession start no.</label>
+                <label htmlFor="gen-astart" className={labelCls}>{t("gen.accessionStart")}</label>
                 <input id="gen-astart" type="number" min={0} value={gen.accessionStart}
-                  onChange={(e) => setGen({ ...gen, accessionStart: e.target.value })} className={inputCls} placeholder="blank = none" />
+                  onChange={(e) => setGen({ ...gen, accessionStart: e.target.value })} className={inputCls} placeholder={t("blankNone")} />
               </div>
               <div>
-                <label htmlFor="gen-call" className={labelCls}>Base call number</label>
+                <label htmlFor="gen-call" className={labelCls}>{t("gen.baseCallNumber")}</label>
                 <input id="gen-call" value={gen.callNumberBase}
-                  onChange={(e) => setGen({ ...gen, callNumberBase: e.target.value })} className={inputCls} placeholder="341.6 MEL → 341.6 MEL C.1" />
+                  onChange={(e) => setGen({ ...gen, callNumberBase: e.target.value })} className={inputCls} placeholder={t("callNumberGenPlaceholder")} />
               </div>
               <div>
-                <label htmlFor="gen-shelf" className={labelCls}>Shelf location</label>
+                <label htmlFor="gen-shelf" className={labelCls}>{t("field.shelfLocation")}</label>
                 <input id="gen-shelf" value={gen.shelfLocation}
                   onChange={(e) => setGen({ ...gen, shelfLocation: e.target.value })} className={inputCls} placeholder={bookShelfLocation ?? "B-2-01"} />
               </div>
               <div>
-                <label htmlFor="gen-status" className={labelCls}>Status</label>
+                <label htmlFor="gen-status" className={labelCls}>{t("field.status")}</label>
                 <select id="gen-status" value={gen.status}
                   onChange={(e) => setGen({ ...gen, status: e.target.value as CopyStatus })} className={inputCls}>
-                  {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
                 </select>
               </div>
               <div>
-                <label htmlFor="gen-cond" className={labelCls}>Condition</label>
+                <label htmlFor="gen-cond" className={labelCls}>{t("field.condition")}</label>
                 <input id="gen-cond" value={gen.condition}
-                  onChange={(e) => setGen({ ...gen, condition: e.target.value })} className={inputCls} placeholder="e.g. New, Good" />
+                  onChange={(e) => setGen({ ...gen, condition: e.target.value })} className={inputCls} placeholder={t("conditionPlaceholder2")} />
               </div>
             </div>
             <div className="mt-3 flex justify-end">
@@ -586,36 +590,36 @@ export default function CopiesPanel({
                   </div>
                   <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
                     <div>
-                      <label htmlFor={`p-bar-${row.clientId}`} className={labelCls}>Barcode</label>
+                      <label htmlFor={`p-bar-${row.clientId}`} className={labelCls}>{t("field.barcode")}</label>
                       <input id={`p-bar-${row.clientId}`} value={row.barcode ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { barcode: e.target.value || null })} placeholder="PTEC-001250" />
+                        onChange={(e) => updatePendingRow(row.clientId, { barcode: e.target.value || null })} placeholder={t("barcodePlaceholder")} />
                     </div>
                     <div>
-                      <label htmlFor={`p-acc-${row.clientId}`} className={labelCls}>Accession</label>
+                      <label htmlFor={`p-acc-${row.clientId}`} className={labelCls}>{t("col.accession")}</label>
                       <input id={`p-acc-${row.clientId}`} value={row.accession_number ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { accession_number: e.target.value || null })} placeholder="ACC-001250" />
+                        onChange={(e) => updatePendingRow(row.clientId, { accession_number: e.target.value || null })} placeholder={t("accessionPlaceholder")} />
                     </div>
                     <div>
-                      <label htmlFor={`p-call-${row.clientId}`} className={labelCls}>Call number</label>
+                      <label htmlFor={`p-call-${row.clientId}`} className={labelCls}>{t("field.callNumber")}</label>
                       <input id={`p-call-${row.clientId}`} value={row.call_number ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { call_number: e.target.value || null })} placeholder="341.6 MEL C.1" />
+                        onChange={(e) => updatePendingRow(row.clientId, { call_number: e.target.value || null })} placeholder={t("callNumberPlaceholder")} />
                     </div>
                     <div>
-                      <label htmlFor={`p-shelf-${row.clientId}`} className={labelCls}>Shelf</label>
+                      <label htmlFor={`p-shelf-${row.clientId}`} className={labelCls}>{t("col.shelf")}</label>
                       <input id={`p-shelf-${row.clientId}`} value={row.shelf_location ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { shelf_location: e.target.value || null })} placeholder="B-2-01" />
+                        onChange={(e) => updatePendingRow(row.clientId, { shelf_location: e.target.value || null })} placeholder={t("shelfPlaceholder")} />
                     </div>
                     <div>
-                      <label htmlFor={`p-status-${row.clientId}`} className={labelCls}>Status</label>
+                      <label htmlFor={`p-status-${row.clientId}`} className={labelCls}>{t("field.status")}</label>
                       <select id={`p-status-${row.clientId}`} value={row.status} className={inputCls}
                         onChange={(e) => updatePendingRow(row.clientId, { status: e.target.value as CopyStatus })}>
-                        {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{tStatus(o.value)}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label htmlFor={`p-notes-${row.clientId}`} className={labelCls}>Notes</label>
+                      <label htmlFor={`p-notes-${row.clientId}`} className={labelCls}>{t("col.notes")}</label>
                       <input id={`p-notes-${row.clientId}`} value={row.notes ?? ""} className={inputCls}
-                        onChange={(e) => updatePendingRow(row.clientId, { notes: e.target.value || null })} placeholder="Optional" />
+                        onChange={(e) => updatePendingRow(row.clientId, { notes: e.target.value || null })} placeholder={t("optional")} />
                     </div>
                   </div>
                 </li>
@@ -636,7 +640,7 @@ export default function CopiesPanel({
                 disabled={isPending}
                 className="rounded-xl bg-brand px-6 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
               >
-                {isPending ? "Saving…" : `Save all copies (${pending.length})`}
+                {isPending ? t("saving") : `Save all copies (${pending.length})`}
               </button>
             </div>
             <p className="text-right text-[10px] text-text-muted">
@@ -668,21 +672,22 @@ function RowActions({
   onConfirmed: () => void;
   busy: boolean;
 }) {
+  const t = useTranslations("adminCatalog.copies");
   const confirming = confirm?.id === copy.id ? confirm : null;
 
   if (confirming) {
     return (
       <div className="flex items-center gap-1.5 whitespace-nowrap">
         <span className="text-[10px] font-semibold text-text-muted">
-          {confirming.kind === "archive" ? "Withdraw this copy?" : "Delete permanently?"}
+          {confirming.kind === "archive" ? t("withdrawConfirm") : t("deleteConfirm")}
         </span>
         <button type="button" onClick={onConfirmed} disabled={busy}
           className="rounded-lg bg-red-500 px-2 py-1 text-[10px] font-bold text-white transition hover:bg-red-600 disabled:opacity-50">
-          {busy ? "…" : "Confirm"}
+          {busy ? "…" : t("confirm")}
         </button>
         <button type="button" onClick={() => setConfirm(null)}
           className="rounded-lg border border-divider px-2 py-1 text-[10px] text-text-muted transition hover:bg-paper">
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     );
@@ -696,13 +701,13 @@ function RowActions({
       </button>
       {status !== "withdrawn" && (
         <button type="button" onClick={() => setConfirm({ kind: "archive", id: copy.id })}
-          title="Withdraw from circulation (kept for records)"
+          title={t("withdrawTitle")}
           className="rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted transition hover:border-amber-400 hover:text-amber-600">
           Withdraw
         </button>
       )}
       <button type="button" onClick={() => setConfirm({ kind: "delete", id: copy.id })}
-        title="Permanently delete (data-entry mistakes only)"
+        title={t("deleteTitle")}
         className="rounded-lg border border-divider px-2 py-1 text-[10px] font-semibold text-text-muted transition hover:border-red-300 hover:text-red-500">
         Delete
       </button>
@@ -725,6 +730,7 @@ function EditCopyForm({
   onCancel: () => void;
   busy: boolean;
 }) {
+  const t = useTranslations("adminCatalog.copies");
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value });
 
@@ -732,42 +738,42 @@ function EditCopyForm({
     <div className="space-y-3 rounded-xl border border-brand/25 bg-brand/[0.03] p-3">
       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
         <div>
-          <label htmlFor="edit-copy-no" className={labelCls}>Copy no.</label>
+          <label htmlFor="edit-copy-no" className={labelCls}>{t("field.copyNo")}</label>
           <input id="edit-copy-no" type="number" min={1} value={form.copy_number} onChange={set("copy_number")} className={inputCls} />
         </div>
         <div>
-          <label htmlFor="edit-barcode" className={labelCls}>Barcode</label>
-          <input id="edit-barcode" value={form.barcode} onChange={set("barcode")} className={inputCls} placeholder="PTEC-001250" />
+          <label htmlFor="edit-barcode" className={labelCls}>{t("field.barcode")}</label>
+          <input id="edit-barcode" value={form.barcode} onChange={set("barcode")} className={inputCls} placeholder={t("barcodePlaceholder")} />
         </div>
         <div>
-          <label htmlFor="edit-accession" className={labelCls}>Accession no.</label>
-          <input id="edit-accession" value={form.accession_number} onChange={set("accession_number")} className={inputCls} placeholder="ACC-001250" />
+          <label htmlFor="edit-accession" className={labelCls}>{t("field.accessionNo")}</label>
+          <input id="edit-accession" value={form.accession_number} onChange={set("accession_number")} className={inputCls} placeholder={t("accessionPlaceholder")} />
         </div>
         <div>
-          <label htmlFor="edit-call" className={labelCls}>Call number</label>
-          <input id="edit-call" value={form.call_number} onChange={set("call_number")} className={inputCls} placeholder="341.6 MEL C.1" />
+          <label htmlFor="edit-call" className={labelCls}>{t("field.callNumber")}</label>
+          <input id="edit-call" value={form.call_number} onChange={set("call_number")} className={inputCls} placeholder={t("callNumberPlaceholder")} />
         </div>
         <div>
-          <label htmlFor="edit-shelf" className={labelCls}>Shelf location</label>
-          <input id="edit-shelf" value={form.shelf_location} onChange={set("shelf_location")} className={inputCls} placeholder="B-2-01" />
+          <label htmlFor="edit-shelf" className={labelCls}>{t("field.shelfLocation")}</label>
+          <input id="edit-shelf" value={form.shelf_location} onChange={set("shelf_location")} className={inputCls} placeholder={t("shelfPlaceholder")} />
         </div>
         <div>
-          <label htmlFor="edit-library" className={labelCls}>Holding library</label>
+          <label htmlFor="edit-library" className={labelCls}>{t("field.holdingLibrary")}</label>
           <input id="edit-library" value={form.holding_library} onChange={set("holding_library")} className={inputCls} />
         </div>
         <div>
-          <label htmlFor="edit-status" className={labelCls}>Status</label>
+          <label htmlFor="edit-status" className={labelCls}>{t("field.status")}</label>
           <select id="edit-status" value={form.status} onChange={set("status")} className={inputCls}>
-            {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {COPY_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(`status.${o.value}`)}</option>)}
           </select>
         </div>
         <div>
-          <label htmlFor="edit-condition" className={labelCls}>Condition</label>
-          <input id="edit-condition" value={form.condition} onChange={set("condition")} className={inputCls} placeholder="e.g. Good" />
+          <label htmlFor="edit-condition" className={labelCls}>{t("field.condition")}</label>
+          <input id="edit-condition" value={form.condition} onChange={set("condition")} className={inputCls} placeholder={t("conditionPlaceholder")} />
         </div>
         <div className="sm:col-span-3 lg:col-span-4">
-          <label htmlFor="edit-notes" className={labelCls}>Notes</label>
-          <input id="edit-notes" value={form.notes} onChange={set("notes")} className={inputCls} placeholder="Optional" />
+          <label htmlFor="edit-notes" className={labelCls}>{t("col.notes")}</label>
+          <input id="edit-notes" value={form.notes} onChange={set("notes")} className={inputCls} placeholder={t("optional")} />
         </div>
       </div>
       <div className="flex justify-end gap-2">
@@ -777,7 +783,7 @@ function EditCopyForm({
         </button>
         <button type="button" onClick={onSave} disabled={busy}
           className="rounded-lg bg-brand px-4 py-1.5 text-xs font-bold text-white transition hover:bg-brand-hover disabled:opacity-50">
-          {busy ? "Saving…" : "Save copy"}
+          {busy ? t("saving") : t("saveCopy")}
         </button>
       </div>
     </div>

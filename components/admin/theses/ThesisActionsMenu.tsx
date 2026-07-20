@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -42,6 +43,7 @@ export default function ThesisActionsMenu({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("adminTheses.actions");
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -84,7 +86,7 @@ export default function ThesisActionsMenu({
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Actions for ${thesis.title}`}
+        aria-label={t("menuFor", { title: thesis.title })}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-text-heading disabled:opacity-50"
       >
         <MoreVertical className="h-4 w-4" />
@@ -94,23 +96,23 @@ export default function ThesisActionsMenu({
         <div
           ref={menuRef}
           role="menu"
-          aria-label={`Actions for ${thesis.title}`}
+          aria-label={t("menuFor", { title: thesis.title })}
           className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
         >
           {isPublished ? (
             <Link href={publicPath} target="_blank" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-              <Eye className="h-4 w-4 text-text-muted" /> View public thesis
+              <Eye className="h-4 w-4 text-text-muted" /> {t("viewPublic")}
             </Link>
           ) : (
             <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true">
-              <Eye className="h-4 w-4 text-text-muted" /> Not published yet
+              <Eye className="h-4 w-4 text-text-muted" /> {t("notPublished")}
             </span>
           )}
           <Link href={`/admin/theses/edit/${thesis.id}`} role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            <Pencil className="h-4 w-4 text-text-muted" /> Edit
+            <Pencil className="h-4 w-4 text-text-muted" /> {t("edit")}
           </Link>
           <button type="button" role="menuitem" className={itemClass} onClick={() => run(onDuplicate)}>
-            <Copy className="h-4 w-4 text-text-muted" /> Duplicate
+            <Copy className="h-4 w-4 text-text-muted" /> {t("duplicate")}
           </button>
           <button
             type="button"
@@ -120,7 +122,7 @@ export default function ThesisActionsMenu({
               navigator.clipboard?.writeText(`${window.location.origin}${publicPath}`);
             })}
           >
-            <Link2 className="h-4 w-4 text-text-muted" /> Copy public link
+            <Link2 className="h-4 w-4 text-text-muted" /> {t("copyLink")}
           </button>
           {/* The public file route only serves published rows (drafts must never be
               publicly downloadable) — so this link only appears once published. */}
@@ -131,7 +133,7 @@ export default function ThesisActionsMenu({
               onClick={() => setOpen(false)}
               className={itemClass}
             >
-              <Download className="h-4 w-4 text-text-muted" /> Download PDF
+              <Download className="h-4 w-4 text-text-muted" /> {t("downloadPdf")}
             </a>
           )}
 
@@ -139,20 +141,20 @@ export default function ThesisActionsMenu({
 
           {isPublished ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnpublish)}>
-              <XCircle className="h-4 w-4 text-text-muted" /> Unpublish
+              <XCircle className="h-4 w-4 text-text-muted" /> {t("unpublish")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onPublish)}>
-              <CheckCircle2 className="h-4 w-4 text-text-muted" /> Publish
+              <CheckCircle2 className="h-4 w-4 text-text-muted" /> {t("publish")}
             </button>
           )}
           {isArchived ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnarchive)}>
-              <ArchiveRestore className="h-4 w-4 text-text-muted" /> Restore from archive
+              <ArchiveRestore className="h-4 w-4 text-text-muted" /> {t("restore")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onArchive)}>
-              <Archive className="h-4 w-4 text-text-muted" /> Archive
+              <Archive className="h-4 w-4 text-text-muted" /> {t("archive")}
             </button>
           )}
 
@@ -164,7 +166,7 @@ export default function ThesisActionsMenu({
             className={`${itemClass} text-red-600 hover:bg-red-50`}
             onClick={() => run(onDelete)}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("delete")}
           </button>
         </div>
       )}

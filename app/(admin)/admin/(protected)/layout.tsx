@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { ToastProvider } from "@/components/admin/kit";
 import IntlProvider from "@/components/providers/IntlProvider";
 import { getLocale, getMessages } from "next-intl/server";
 import { pickMessages, ADMIN_NAMESPACES } from "@/i18n/pick-messages";
@@ -67,17 +68,19 @@ export default async function AdminLayout({
       locale={locale}
       messages={pickMessages(allMessages, ADMIN_NAMESPACES)}
     >
-      <AdminSidebar
-        email={identity.user.email}
-        fullName={identity.fullName}
-        avatarUrl={identity.avatarUrl}
-        role={identity.role}
-        isSuperAdmin={identity.isSuperAdmin}
-        userPermissions={identity.perms}
-        badges={badges}
-      >
-        {children}
-      </AdminSidebar>
+      <ToastProvider>
+        <AdminSidebar
+          email={identity.user.email}
+          fullName={identity.fullName}
+          avatarUrl={identity.avatarUrl}
+          role={identity.role}
+          isSuperAdmin={identity.isSuperAdmin}
+          userPermissions={identity.perms}
+          badges={badges}
+        >
+          {children}
+        </AdminSidebar>
+      </ToastProvider>
     </IntlProvider>
   );
 }

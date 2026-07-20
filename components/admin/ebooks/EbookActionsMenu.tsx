@@ -17,6 +17,7 @@ import {
   ArchiveRestore,
   Trash2,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { EbookListRow } from "@/lib/admin/ebooks-shared";
 
 /**
@@ -41,6 +42,7 @@ export default function EbookActionsMenu({
   onRestore: () => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
+  const t = useTranslations("adminEbooks.actions");
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -84,7 +86,7 @@ export default function EbookActionsMenu({
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Actions for ${book.title}`}
+        aria-label={t("menuFor", { title: book.title })}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-text-heading disabled:opacity-50"
       >
         <MoreVertical className="h-4 w-4" />
@@ -94,26 +96,26 @@ export default function EbookActionsMenu({
         <div
           ref={menuRef}
           role="menu"
-          aria-label={`Actions for ${book.title}`}
+          aria-label={t("menuFor", { title: book.title })}
           className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
         >
           {isPublished ? (
             <Link href={publicPath} target="_blank" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-              <Eye className="h-4 w-4 text-text-muted" /> View public page
+              <Eye className="h-4 w-4 text-text-muted" /> {t("viewPublic")}
             </Link>
           ) : (
             <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true">
-              <Eye className="h-4 w-4 text-text-muted" /> Not published yet
+              <Eye className="h-4 w-4 text-text-muted" /> {t("notPublished")}
             </span>
           )}
           <Link href={`/admin/edit/${book.id}`} role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            <Pencil className="h-4 w-4 text-text-muted" /> Edit metadata
+            <Pencil className="h-4 w-4 text-text-muted" /> {t("editMetadata")}
           </Link>
           <Link href={`/admin/edit/${book.id}#replace-pdf`} role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            <UploadCloud className="h-4 w-4 text-text-muted" /> Replace PDF
+            <UploadCloud className="h-4 w-4 text-text-muted" /> {t("replacePdf")}
           </Link>
           <Link href={`/admin/edit/${book.id}#cover`} role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            <ImageUp className="h-4 w-4 text-text-muted" /> {book.coverUrl ? "Replace cover" : "Upload cover"}
+            <ImageUp className="h-4 w-4 text-text-muted" /> {book.coverUrl ? t("replaceCover") : t("uploadCover")}
           </Link>
           <button
             type="button"
@@ -123,7 +125,7 @@ export default function EbookActionsMenu({
               navigator.clipboard?.writeText(`${window.location.origin}${publicPath}`);
             })}
           >
-            <Link2 className="h-4 w-4 text-text-muted" /> Copy public link
+            <Link2 className="h-4 w-4 text-text-muted" /> {t("copyLink")}
           </button>
           {hasPdf && (
             <a
@@ -132,32 +134,32 @@ export default function EbookActionsMenu({
               onClick={() => setOpen(false)}
               className={itemClass}
             >
-              <Download className="h-4 w-4 text-text-muted" /> Download PDF
+              <Download className="h-4 w-4 text-text-muted" /> {t("downloadPdf")}
             </a>
           )}
 
           <div className="my-1 h-px bg-divider" />
 
-          <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true" title="Coming soon">
-            <Star className="h-4 w-4 text-text-muted" /> Feature book
+          <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true" title={t("comingSoon")}>
+            <Star className="h-4 w-4 text-text-muted" /> {t("featureBook")}
           </span>
 
           {isPublished ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnpublish)}>
-              <XCircle className="h-4 w-4 text-text-muted" /> Unpublish
+              <XCircle className="h-4 w-4 text-text-muted" /> {t("unpublish")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onPublish)}>
-              <CheckCircle2 className="h-4 w-4 text-text-muted" /> Publish
+              <CheckCircle2 className="h-4 w-4 text-text-muted" /> {t("publish")}
             </button>
           )}
           {isArchived ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onRestore)}>
-              <ArchiveRestore className="h-4 w-4 text-text-muted" /> Restore from archive
+              <ArchiveRestore className="h-4 w-4 text-text-muted" /> {t("restore")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onArchive)}>
-              <Archive className="h-4 w-4 text-text-muted" /> Archive
+              <Archive className="h-4 w-4 text-text-muted" /> {t("archive")}
             </button>
           )}
 
@@ -169,7 +171,7 @@ export default function EbookActionsMenu({
             className={`${itemClass} text-red-600 hover:bg-red-50`}
             onClick={() => run(() => onDeleteRequest(book.id, book.title))}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("delete")}
           </button>
         </div>
       )}

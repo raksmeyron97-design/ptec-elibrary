@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { X, Mail, Phone, Calendar, Clock, BookMarked, Star, UserCog, Ban, CircleCheck, Loader2 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
 import { fetchUserDetail } from "@/app/(admin)/admin/(protected)/users/actions";
@@ -29,6 +30,9 @@ export default function UserDetailDrawer({
   onClose: () => void;
   onIntent: (intent: UserActionIntent) => void;
 }) {
+  const t = useTranslations("adminUsers.drawer");
+  const tTable = useTranslations("adminUsers.table");
+  const tTime = useTranslations("adminUsers.time");
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -56,7 +60,7 @@ export default function UserDetailDrawer({
   const actionBtn = "inline-flex items-center justify-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[13px] font-semibold text-text-body shadow-sm transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true" aria-label={`Details for ${userLabel(user)}`}>
+    <div className="fixed inset-0 z-[100] flex justify-end" role="dialog" aria-modal="true" aria-label={t("detailsFor", { name: userLabel(user) })}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}
@@ -67,14 +71,14 @@ export default function UserDetailDrawer({
         <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-divider bg-bg-surface px-5 py-4">
           <Avatar url={user.avatarUrl ?? null} name={user.fullName} email={user.email} size={52} />
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-lg font-bold leading-tight text-text-heading">{user.fullName ?? "No name"}</h2>
+            <h2 className="truncate text-lg font-bold leading-tight text-text-heading">{user.fullName ?? tTable("noName")}</h2>
             <p className="truncate text-sm text-text-muted">{user.email || "—"}</p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <RoleBadge role={user.role} isSuperAdmin={user.isSuperAdmin} />
               <StatusBadge status={user.status} />
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close details" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
+          <button type="button" onClick={onClose} aria-label={t("closeDetails")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -82,38 +86,38 @@ export default function UserDetailDrawer({
         {/* Quick actions */}
         <div className="grid grid-cols-2 gap-2 px-5 py-4">
           <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("assignRole")}>
-            <UserCog className="h-4 w-4" /> Assign role
+            <UserCog className="h-4 w-4" /> {t("assignRole")}
           </button>
           {suspended ? (
             <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("activate")}>
-              <CircleCheck className="h-4 w-4 text-emerald-600" /> Reactivate
+              <CircleCheck className="h-4 w-4 text-emerald-600" /> {t("reactivate")}
             </button>
           ) : (
             <button type="button" className={actionBtn} disabled={!canManage} onClick={() => onIntent("suspend")}>
-              <Ban className="h-4 w-4 text-amber-600" /> Suspend
+              <Ban className="h-4 w-4 text-amber-600" /> {t("suspend")}
             </button>
           )}
         </div>
 
         {/* Account */}
-        <Section title="Account">
+        <Section title={t("account")}>
           <dl className="space-y-2.5 text-sm">
-            <Row icon={<Mail className="h-4 w-4" />} label="Email">{user.email || <span className="text-text-muted">—</span>}</Row>
-            <Row icon={<Phone className="h-4 w-4" />} label="Phone">{user.phone ?? <span className="text-text-muted">—</span>}</Row>
-            <Row icon={<Calendar className="h-4 w-4" />} label="Joined">{formatDate(user.createdAt)}</Row>
-            <Row icon={<Clock className="h-4 w-4" />} label="Last login">{formatRelative(user.lastLoginAt)}</Row>
+            <Row icon={<Mail className="h-4 w-4" />} label={t("email")}>{user.email || <span className="text-text-muted">—</span>}</Row>
+            <Row icon={<Phone className="h-4 w-4" />} label={t("phone")}>{user.phone ?? <span className="text-text-muted">—</span>}</Row>
+            <Row icon={<Calendar className="h-4 w-4" />} label={tTable("joined")}>{formatDate(user.createdAt)}</Row>
+            <Row icon={<Clock className="h-4 w-4" />} label={tTable("lastLogin")}>{formatRelative(user.lastLoginAt, tTime)}</Row>
           </dl>
         </Section>
 
         {/* Activity */}
-        <Section title="Recent activity">
+        <Section title={t("recentActivity")}>
           {loading ? (
             <SkeletonLines n={3} />
           ) : (
             <>
               <div className="mb-3 flex gap-4 text-xs">
-                <span className="inline-flex items-center gap-1.5 text-text-muted"><BookMarked className="h-3.5 w-3.5" /> {detail?.downloadCount ?? 0} downloads</span>
-                <span className="inline-flex items-center gap-1.5 text-text-muted"><Star className="h-3.5 w-3.5" /> {detail?.reviewCount ?? 0} reviews</span>
+                <span className="inline-flex items-center gap-1.5 text-text-muted"><BookMarked className="h-3.5 w-3.5" /> {t("downloads", { count: detail?.downloadCount ?? 0 })}</span>
+                <span className="inline-flex items-center gap-1.5 text-text-muted"><Star className="h-3.5 w-3.5" /> {t("reviews", { count: detail?.reviewCount ?? 0 })}</span>
               </div>
               {detail?.recentActivity && detail.recentActivity.length > 0 ? (
                 <ul className="space-y-2">
@@ -122,13 +126,13 @@ export default function UserDetailDrawer({
                       <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${a.kind === "download" ? "bg-blue-400" : "bg-amber-400"}`} aria-hidden="true" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-text-body">{a.label}</span>
-                        <span className="text-[11px] text-text-muted">{formatRelative(a.at)}</span>
+                        <span className="text-[11px] text-text-muted">{formatRelative(a.at, tTime)}</span>
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-text-muted">No recent activity.</p>
+                <p className="text-sm text-text-muted">{t("noActivity")}</p>
               )}
             </>
           )}
@@ -138,10 +142,10 @@ export default function UserDetailDrawer({
         {canManage && (
           <div className="mt-auto flex items-center gap-2 border-t border-divider px-5 py-4">
             <button type="button" onClick={() => onIntent("resetPassword")} className={`${actionBtn} flex-1`}>
-              Reset password
+              {t("resetPassword")}
             </button>
             <button type="button" onClick={() => onIntent("delete")} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-600 transition hover:bg-red-100">
-              Delete user
+              {t("deleteUser")}
             </button>
           </div>
         )}

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useToast } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import UserToolbar from "@/components/admin/users/UserToolbar";
 import UserFilters from "@/components/admin/users/UserFilters";
@@ -66,12 +68,12 @@ export default function UsersClient({
   hasAnyAtAll: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminUsers");
+  const toast = useToast();
   const [, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const [drawerUser, setDrawerUser] = useState<UserRow | null>(null);
   const [roleUser, setRoleUser] = useState<UserRow | null>(null);
@@ -89,29 +91,29 @@ export default function UsersClient({
   }
 
   async function run(id: string, fn: () => Promise<ActionResult>, successMsg?: string) {
-    setBusyId(id); setError(null); setNotice(null);
+    setBusyId(id);
     try {
       const r = await fn();
-      if (!r.success) setError(r.error ?? "Action failed");
-      else { if (successMsg) setNotice(successMsg); refresh(); }
+      if (!r.success) toast.error(r.error ?? t("toasts.failed"));
+      else { if (successMsg) toast.success(successMsg); refresh(); }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed");
+      toast.error(e instanceof Error ? e.message : t("toasts.failed"));
     } finally {
       setBusyId(null);
     }
   }
 
   async function runBulk(fn: () => Promise<ActionResult>, successMsg?: string) {
-    setBulkBusy(true); setError(null); setNotice(null);
+    setBulkBusy(true);
     try {
       const r = await fn();
-      if (!r.success) setError(r.error ?? "Bulk action failed");
-      else if (successMsg) setNotice(successMsg);
-      if (r.error && r.success) setNotice(r.error);
+      if (!r.success) toast.error(r.error ?? t("toasts.bulkFailed"));
+      else if (successMsg) toast.success(successMsg);
+      if (r.error && r.success) toast.warning(r.error);
       setSelectedIds(new Set());
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Bulk action failed");
+      toast.error(e instanceof Error ? e.message : t("toasts.bulkFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -121,7 +123,7 @@ export default function UsersClient({
     switch (intent) {
       case "view": setDrawerUser(user); break;
       case "assignRole": setRoleUser(user); break;
-      case "activate": run(user.id, () => setUserStatus(user.id, "activate"), "User reactivated."); break;
+      case "activate": run(user.id, () => setUserStatus(user.id, "activate"), t("toasts.reactivated")); break;
       case "resetPassword": setPending({ kind: "reset", user }); break;
       case "suspend": setPending({ kind: "suspend", user }); break;
       case "delete": setPending({ kind: "delete", user }); break;
@@ -141,16 +143,16 @@ export default function UsersClient({
 
   async function confirmPending() {
     if (!pending) return;
-    if (pending.kind === "reset") { setPending(null); await run(pending.user.id, () => sendPasswordReset(pending.user.id), "Password reset email sent."); return; }
-    if (pending.kind === "suspend") { setPending(null); await run(pending.user.id, () => setUserStatus(pending.user.id, "suspend"), "User suspended."); return; }
-    if (pending.kind === "delete") { setPending(null); if (drawerUser?.id === pending.user.id) setDrawerUser(null); await run(pending.user.id, () => deleteUser(pending.user.id), "User deleted."); return; }
+    if (pending.kind === "reset") { setPending(null); await run(pending.user.id, () => sendPasswordReset(pending.user.id), t("toasts.resetSent")); return; }
+    if (pending.kind === "suspend") { setPending(null); await run(pending.user.id, () => setUserStatus(pending.user.id, "suspend"), t("toasts.suspended")); return; }
+    if (pending.kind === "delete") { setPending(null); if (drawerUser?.id === pending.user.id) setDrawerUser(null); await run(pending.user.id, () => deleteUser(pending.user.id), t("toasts.deleted")); return; }
     if (pending.kind === "bulk-suspend") {
       const ids = pending.ids; setPending(null);
       await runBulk(async () => {
         let failed = 0;
         for (const id of ids) { const r = await setUserStatus(id, "suspend"); if (!r.success) failed++; }
-        return failed ? { success: failed < ids.length, error: `${failed} failed` } : { success: true };
-      }, "Users suspended.");
+        return failed ? { success: failed < ids.length, error: t("toasts.someFailed", { count: failed }) } : { success: true };
+      }, t("toasts.bulkSuspended"));
       return;
     }
     if (pending.kind === "bulk-delete") {
@@ -158,8 +160,8 @@ export default function UsersClient({
       await runBulk(async () => {
         let failed = 0;
         for (const id of ids) { const r = await deleteUser(id); if (!r.success) failed++; }
-        return failed ? { success: failed < ids.length, error: `${failed} failed` } : { success: true };
-      }, "Users deleted.");
+        return failed ? { success: failed < ids.length, error: t("toasts.someFailed", { count: failed }) } : { success: true };
+      }, t("toasts.bulkDeleted"));
       return;
     }
   }
@@ -184,14 +186,11 @@ export default function UsersClient({
       />
       <UserFilters value={filterValue} hasActiveFilters={hasActiveFilters} />
 
-      {error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {notice && <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
-
       <BulkUserActionBar
         count={selectedIds.size}
         busy={bulkBusy}
         canAssignAdmin={callerCanAssignAdmin}
-        onAssignRole={(role: AppRole) => runBulk(() => bulkAssignRole(Array.from(selectedIds), role), "Roles updated.")}
+        onAssignRole={(role: AppRole) => runBulk(() => bulkAssignRole(Array.from(selectedIds), role), t("toasts.rolesUpdated"))}
         onSuspend={() => setPending({ kind: "bulk-suspend", ids: Array.from(selectedIds) })}
         onDelete={() => setPending({ kind: "bulk-delete", ids: Array.from(selectedIds) })}
         exportMenu={
@@ -260,7 +259,7 @@ export default function UsersClient({
           canAssignAdmin={callerCanAssignAdmin}
           busy={busyId === roleUser.id}
           onCancel={() => setRoleUser(null)}
-          onConfirm={async (role) => { const u = roleUser; setRoleUser(null); await run(u.id, () => assignRole(u.id, role), "Role updated."); }}
+          onConfirm={async (role) => { const u = roleUser; setRoleUser(null); await run(u.id, () => assignRole(u.id, role), t("toasts.roleUpdated")); }}
         />
       )}
 
@@ -269,23 +268,23 @@ export default function UsersClient({
           busy={bulkBusy || busyId !== null}
           danger={pending.kind === "delete" || pending.kind === "bulk-delete"}
           title={
-            pending.kind === "reset" ? "Send password reset?"
-            : pending.kind === "suspend" ? "Suspend this user?"
-            : pending.kind === "delete" ? "Delete this user?"
-            : pending.kind === "bulk-suspend" ? `Suspend ${"ids" in pending ? pending.ids.length : 0} users?`
-            : `Delete ${"ids" in pending ? pending.ids.length : 0} users?`
+            pending.kind === "reset" ? t("confirm.resetTitle")
+            : pending.kind === "suspend" ? t("confirm.suspendTitle")
+            : pending.kind === "delete" ? t("confirm.deleteTitle")
+            : pending.kind === "bulk-suspend" ? t("confirm.bulkSuspendTitle", { count: "ids" in pending ? pending.ids.length : 0 })
+            : t("confirm.bulkDeleteTitle", { count: "ids" in pending ? pending.ids.length : 0 })
           }
           body={
-            pending.kind === "reset" ? <>A recovery email will be sent to <b>{pending.user.email}</b>. They can set a new password from the link.</>
-            : pending.kind === "suspend" ? <>They will be signed out and blocked from logging in until reactivated.</>
-            : pending.kind === "delete" ? <>This permanently deletes <b>{userLabel(pending.user)}</b> and their account data. This cannot be undone.</>
-            : pending.kind === "bulk-suspend" ? <>They will be signed out and blocked until reactivated.</>
-            : <>This permanently deletes the selected accounts. This cannot be undone.</>
+            pending.kind === "reset" ? t("confirm.resetBody", { email: pending.user.email ?? "" })
+            : pending.kind === "suspend" ? t("confirm.suspendBody")
+            : pending.kind === "delete" ? t("confirm.deleteBody", { name: userLabel(pending.user) })
+            : pending.kind === "bulk-suspend" ? t("confirm.bulkSuspendBody")
+            : t("confirm.bulkDeleteBody")
           }
           confirmLabel={
-            pending.kind === "reset" ? "Send email"
-            : pending.kind === "suspend" || pending.kind === "bulk-suspend" ? "Suspend"
-            : "Delete"
+            pending.kind === "reset" ? t("confirm.sendEmail")
+            : pending.kind === "suspend" || pending.kind === "bulk-suspend" ? t("confirm.suspend")
+            : t("confirm.delete")
           }
           onCancel={() => setPending(null)}
           onConfirm={confirmPending}

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useToast } from "@/components/admin/kit";
 import BulkEbookActionBar from "@/components/admin/ebooks/BulkEbookActionBar";
 import EbooksTable from "@/components/admin/ebooks/EbooksTable";
 import EbookMobileCard from "@/components/admin/ebooks/EbookMobileCard";
@@ -60,13 +62,14 @@ export default function EbooksListClient({
   hasAnyEbooksAtAll: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminEbooks.toasts");
+  const toast = useToast();
   const [, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -82,16 +85,16 @@ export default function EbooksListClient({
 
   async function runRowAction(id: string, fn: () => Promise<{ success: boolean; error?: string }>) {
     setBusyId(id);
-    setError(null);
     try {
       const result = await fn();
       if (!result.success) {
-        setError(result.error ?? "Action failed");
+        toast.error(result.error ?? t("failed"));
       } else {
+        toast.success(t("updated"));
         startTransition(() => router.refresh());
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message : t("failed"));
     } finally {
       setBusyId(null);
     }
@@ -99,14 +102,14 @@ export default function EbooksListClient({
 
   async function runBulkAction(action: BulkEbookAction, payload?: { departmentId?: string; tag?: string }) {
     setBulkBusy(true);
-    setError(null);
     try {
       const result = await bulkUpdateEbooks(Array.from(selectedIds), action, payload);
-      if (result.error) setError(result.error);
+      if (result.error) toast.error(result.error);
+      else toast.success(t("updated"));
       setSelectedIds(new Set());
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk action failed");
+      toast.error(err instanceof Error ? err.message : t("bulkFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -115,20 +118,20 @@ export default function EbooksListClient({
   async function confirmDelete() {
     if (!deleteTarget) return;
     setBulkBusy(true);
-    setError(null);
     try {
       if (deleteTarget.kind === "single") {
         const result = await deleteEbook(deleteTarget.id);
-        if (!result.success) throw new Error(result.error ?? "Delete failed");
+        if (!result.success) throw new Error(result.error ?? t("deleteFailed"));
       } else {
         const result = await bulkUpdateEbooks(deleteTarget.ids, "delete");
-        if (result.error) setError(result.error);
+        if (result.error) toast.error(result.error);
         setSelectedIds(new Set());
       }
       setDeleteTarget(null);
+      toast.success(t("deleted"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -137,20 +140,20 @@ export default function EbooksListClient({
   async function confirmArchive() {
     if (!archiveTarget) return;
     setBulkBusy(true);
-    setError(null);
     try {
       if (archiveTarget.kind === "single") {
         const result = await archiveEbook(archiveTarget.id);
-        if (!result.success) throw new Error(result.error ?? "Archive failed");
+        if (!result.success) throw new Error(result.error ?? t("archiveFailed"));
       } else {
         const result = await bulkUpdateEbooks(archiveTarget.ids, "archive");
-        if (result.error) setError(result.error);
+        if (result.error) toast.error(result.error);
         setSelectedIds(new Set());
       }
       setArchiveTarget(null);
+      toast.success(t("archived"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Archive failed");
+      toast.error(err instanceof Error ? err.message : t("archiveFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -175,10 +178,6 @@ export default function EbooksListClient({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</div>
-      )}
-
       <BulkEbookActionBar
         count={selectedIds.size}
         busy={bulkBusy}

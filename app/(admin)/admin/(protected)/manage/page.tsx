@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import EbookStats from "@/components/admin/ebooks/EbookStats";
 import EbookToolbar from "@/components/admin/ebooks/EbookToolbar";
@@ -30,7 +32,8 @@ export default async function ManageEbooksPage({
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
-  const [ebooksResult, summary, filterOptions] = await Promise.all([
+  const [t, ebooksResult, summary, filterOptions] = await Promise.all([
+    getTranslations("adminEbooks"),
     getEbooks({
       q: sp.q,
       status: sp.status,
@@ -56,10 +59,7 @@ export default async function ManageEbooksPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-heading">Manage E-books</h1>
-        <p className="text-sm text-text-muted">Search, edit, publish, and maintain digital books in the PTEC Library.</p>
-      </div>
+      <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <EbookStats summary={summary} />
 

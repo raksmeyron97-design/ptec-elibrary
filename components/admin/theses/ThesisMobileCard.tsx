@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Eye, Download } from "lucide-react";
 import ThesisActionsMenu from "@/components/admin/theses/ThesisActionsMenu";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
@@ -36,6 +37,9 @@ export default function ThesisMobileCard({
   onDuplicate: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
+  const t = useTranslations("adminTheses.table");
+  const tStatus = useTranslations("adminTheses.status");
+  const tDl = useTranslations("adminTheses.downloadPolicy");
   return (
     <div className="space-y-3 md:hidden">
       {rows.map((thesis) => {
@@ -51,7 +55,7 @@ export default function ThesisMobileCard({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggleSelect(thesis.id)}
-                aria-label={`Select ${thesis.title}`}
+                aria-label={t("selectOne", { title: thesis.title })}
                 className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
               />
               {thesis.coverUrl ? (
@@ -62,13 +66,13 @@ export default function ThesisMobileCard({
               )}
               <div className="min-w-0 flex-1">
                 <p className="font-semibold leading-[1.6] text-text-heading line-clamp-2">{thesis.title}</p>
-                <p className="mt-0.5 truncate text-xs text-text-muted">{thesis.authorNames || "No author listed"}</p>
+                <p className="mt-0.5 truncate text-xs text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
                 <p className="mt-1 text-xs text-text-muted">
-                  {programLabel(programs, thesis.program)} · {thesis.cohort ? `Cohort ${thesis.cohort}` : "No cohort"}
+                  {programLabel(programs, thesis.program)} · {thesis.cohort ? t("cohort", { cohort: thesis.cohort }) : t("noCohort")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_BADGE_STYLES[thesis.status]}`}>
-                    {STATUS_LABELS[thesis.status]}
+                    {STATUS_LABELS[thesis.status] ? tStatus(thesis.status) : thesis.status}
                   </span>
                   <ThesisMetadataBadge thesis={thesis} />
                   {(() => {
@@ -79,7 +83,7 @@ export default function ThesisMobileCard({
                           eff.policy === "allowed" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {eff.policy === "allowed" ? "DL allowed" : "DL blocked"}
+                        {eff.policy === "allowed" ? tDl("dlAllowed") : tDl("dlBlocked")}
                         {eff.isTopTen && thesis.rank != null ? ` · #${thesis.rank}` : ""}
                       </span>
                     );

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { CheckCircle2, XCircle, FolderCog, Archive, Trash2, Download, X } from "lucide-react";
 
@@ -30,6 +31,7 @@ export default function BulkThesisActionBar({
   const [yearPickerOpen, setYearPickerOpen] = useState(false);
   const [cohortValue, setCohortValue] = useState("");
   const [yearValue, setYearValue] = useState("");
+  const t = useTranslations("adminTheses.bulk");
 
   if (count === 0) return null;
 
@@ -39,27 +41,27 @@ export default function BulkThesisActionBar({
   return (
     <div
       role="toolbar"
-      aria-label="Bulk thesis actions"
+      aria-label={t("toolbarLabel")}
       className="sticky top-[64px] z-20 flex flex-wrap items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-4 py-2.5 shadow-sm"
     >
       <button
         type="button"
         onClick={onClear}
-        aria-label="Clear selection"
+        aria-label={t("clearSelection")}
         className="flex h-7 w-7 items-center justify-center rounded-full text-brand hover:bg-brand/10"
       >
         <X className="h-3.5 w-3.5" />
       </button>
       <span className="text-[13.5px] font-bold text-brand">
-        {count} thesis{count !== 1 ? "es" : ""} selected
+        {t("selected", { count })}
       </span>
 
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <button type="button" disabled={busy} onClick={onPublish} className={btn}>
-          <CheckCircle2 className="h-3.5 w-3.5" /> Publish
+          <CheckCircle2 className="h-3.5 w-3.5" /> {t("publish")}
         </button>
         <button type="button" disabled={busy} onClick={onUnpublish} className={btn}>
-          <XCircle className="h-3.5 w-3.5" /> Unpublish
+          <XCircle className="h-3.5 w-3.5" /> {t("unpublish")}
         </button>
 
         <div className="relative">
@@ -71,11 +73,11 @@ export default function BulkThesisActionBar({
             aria-expanded={cohortPickerOpen}
             className={btn}
           >
-            <FolderCog className="h-3.5 w-3.5" /> Change cohort
+            <FolderCog className="h-3.5 w-3.5" /> {t("changeCohort")}
           </button>
           {cohortPickerOpen && (
-            <div role="dialog" aria-label="Change cohort" className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-divider bg-bg-surface p-3 shadow-xl">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted" htmlFor="bulk-cohort-value">New cohort</label>
+            <div role="dialog" aria-label={t("changeCohort")} className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-divider bg-bg-surface p-3 shadow-xl">
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted" htmlFor="bulk-cohort-value">{t("newCohort")}</label>
               <input
                 id="bulk-cohort-value"
                 type="text"
@@ -90,7 +92,7 @@ export default function BulkThesisActionBar({
                 onClick={() => { onChangeCohort(cohortValue.trim()); setCohortPickerOpen(false); setCohortValue(""); }}
                 className="mt-2 w-full rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
               >
-                Apply to {count} thesis{count !== 1 ? "es" : ""}
+                {t("applyTo", { count })}
               </button>
             </div>
           )}
@@ -105,11 +107,11 @@ export default function BulkThesisActionBar({
             aria-expanded={yearPickerOpen}
             className={btn}
           >
-            <FolderCog className="h-3.5 w-3.5" /> Change year
+            <FolderCog className="h-3.5 w-3.5" /> {t("changeYear")}
           </button>
           {yearPickerOpen && (
-            <div role="dialog" aria-label="Change academic year" className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-divider bg-bg-surface p-3 shadow-xl">
-              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted" htmlFor="bulk-year-value">New academic year</label>
+            <div role="dialog" aria-label={t("changeYear")} className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-divider bg-bg-surface p-3 shadow-xl">
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted" htmlFor="bulk-year-value">{t("newYear")}</label>
               <input
                 id="bulk-year-value"
                 type="text"
@@ -124,17 +126,17 @@ export default function BulkThesisActionBar({
                 onClick={() => { onChangeAcademicYear(yearValue.trim()); setYearPickerOpen(false); setYearValue(""); }}
                 className="mt-2 w-full rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
               >
-                Apply to {count} thesis{count !== 1 ? "es" : ""}
+                {t("applyTo", { count })}
               </button>
             </div>
           )}
         </div>
 
         <button type="button" disabled={busy} onClick={onExportCsv} className={btn}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
+          <Download className="h-3.5 w-3.5" /> {t("exportCsv")}
         </button>
         <button type="button" disabled={busy} onClick={onArchive} className={btn}>
-          <Archive className="h-3.5 w-3.5" /> Archive
+          <Archive className="h-3.5 w-3.5" /> {t("archive")}
         </button>
         <button
           type="button"
@@ -142,7 +144,7 @@ export default function BulkThesisActionBar({
           onClick={onDelete}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Trash2 className="h-3.5 w-3.5" /> Delete
+          <Trash2 className="h-3.5 w-3.5" /> {t("delete")}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { BookOpen, ImageOff } from "lucide-react";
 
 const COVERS = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
@@ -25,6 +26,7 @@ export default function EbookCover({
   title: string;
   className?: string;
 }) {
+  const t = useTranslations("adminEbooks.coverAlt");
   const [failed, setFailed] = useState(false);
 
   if (!coverUrl) {
@@ -32,7 +34,7 @@ export default function EbookCover({
       <div
         className={`${className} flex shrink-0 items-center justify-center rounded border border-dashed border-divider bg-paper text-text-muted`}
         role="img"
-        aria-label={`No cover for ${title}`}
+        aria-label={t("noCover", { title })}
       >
         <BookOpen className="h-4 w-4 opacity-50" aria-hidden="true" />
       </div>
@@ -44,8 +46,8 @@ export default function EbookCover({
       <div
         className={`${className} flex shrink-0 items-center justify-center rounded border border-red-200 bg-red-50 text-red-500`}
         role="img"
-        aria-label={`Broken cover image for ${title}`}
-        title="Cover image failed to load"
+        aria-label={t("brokenCover", { title })}
+        title={t("failedToLoad")}
       >
         <ImageOff className="h-4 w-4" aria-hidden="true" />
       </div>

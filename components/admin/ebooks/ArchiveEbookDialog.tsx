@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Archive } from "lucide-react";
 
 export type ArchiveTarget =
@@ -18,6 +19,7 @@ export default function ArchiveEbookDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("adminEbooks.archiveDialog");
   const headingId = "archive-ebook-heading";
   const confirmRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -67,14 +69,12 @@ export default function ArchiveEbookDialog({
           </span>
           <div>
             <h2 id={headingId} className="text-lg font-bold text-text-heading">
-              {isBulk ? `Archive ${count} e-books?` : "Archive e-book?"}
+              {isBulk ? t("titleBulk", { count }) : t("title")}
             </h2>
             <p className="mt-1.5 text-sm text-text-body">
-              {isBulk ? (
-                <>This will remove <strong>{count} e-books</strong> from the public library but keep them in the admin system.</>
-              ) : (
-                <>This will remove <strong>{target.title}</strong> from the public library but keep it in the admin system.</>
-              )}
+              {isBulk
+                ? t("bodyBulk", { count })
+                : t("body", { title: target.title })}
             </p>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function ArchiveEbookDialog({
             disabled={busy}
             className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:opacity-50"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             ref={confirmRef}
@@ -95,7 +95,7 @@ export default function ArchiveEbookDialog({
             disabled={busy}
             className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? "Archiving…" : "Archive"}
+            {busy ? t("busy") : t("confirm")}
           </button>
         </div>
       </div>

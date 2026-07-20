@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ChevronRight, Lock, Inbox } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ROLE_META } from "@/lib/types/roles";
@@ -39,11 +40,17 @@ export default function PermissionMatrix({
   openGroups: Record<string, boolean>;
   onToggleGroup: (id: string) => void;
 }) {
+  const t = useTranslations("adminRoles.matrix");
+  const tGroups = useTranslations("adminRoles.groups");
+  const tGroupDesc = useTranslations("adminRoles.groupDescriptions");
+  const tRes = useTranslations("adminRoles.resources");
+  const tResDesc = useTranslations("adminRoles.resourceDescriptions");
+  const tRoles = useTranslations("adminUsers.roles");
   const visibleRoles = roleFilter === "all" ? allRoles : [roleFilter];
   const q = query.trim().toLowerCase();
 
   function resourceMatches(r: Resource): boolean {
-    if (q && !`${r.label} ${r.description} ${r.key}`.toLowerCase().includes(q)) return false;
+    if (q && !`${r.label} ${r.description} ${r.key} ${tRes(r.key)} ${tResDesc(r.key)}`.toLowerCase().includes(q)) return false;
     if (diffOnly && !rowDiffersAcrossRoles(draft, allRoles, r.key)) return false;
     return true;
   }
@@ -63,12 +70,12 @@ export default function PermissionMatrix({
         {totalMatches === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
             <Inbox className="h-8 w-8 text-slate-300" aria-hidden="true" />
-            <p className="text-sm font-semibold text-text-heading">No features match your filters</p>
-            <p className="text-xs text-text-muted">Try clearing the search or the “Differences only” filter.</p>
+            <p className="text-sm font-semibold text-text-heading">{t("noMatchesTitle")}</p>
+            <p className="text-xs text-text-muted">{t("noMatchesBody")}</p>
           </div>
         ) : (
           <table className="w-full min-w-[680px] border-separate border-spacing-0 text-sm">
-            <caption className="sr-only">Permissions by role and feature</caption>
+            <caption className="sr-only">{t("caption")}</caption>
             <thead>
               <tr>
                 <th
@@ -76,7 +83,7 @@ export default function PermissionMatrix({
                   className={`sticky left-0 top-0 z-30 border-b border-divider ${headBg} px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-text-muted`}
                   style={{ minWidth: 220 }}
                 >
-                  Feature
+                  {t("feature")}
                 </th>
                 {visibleRoles.map((role) => {
                   const meta = ROLE_META[role];
@@ -89,7 +96,7 @@ export default function PermissionMatrix({
                     >
                       <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${meta.bgColor} ${meta.color} ${meta.borderColor}`}>
                         {isLockedRole(role) && <Lock className="h-3 w-3" aria-hidden="true" />}
-                        {meta.label}
+                        {tRoles(role)}
                       </span>
                     </th>
                   );
@@ -118,8 +125,8 @@ export default function PermissionMatrix({
                       >
                         <ChevronRight className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
                         <GroupIcon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                        <span className="text-xs font-bold uppercase tracking-wide text-text-heading">{group.label}</span>
-                        <span className="text-[11px] font-medium normal-case text-text-muted">— {group.description}</span>
+                        <span className="text-xs font-bold uppercase tracking-wide text-text-heading">{tGroups(group.id)}</span>
+                        <span className="text-[11px] font-medium normal-case text-text-muted">— {tGroupDesc(group.id)}</span>
                         <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[10px] font-bold tabular-nums text-text-muted ring-1 ring-inset ring-divider">
                           {group.resources.length}
                         </span>
@@ -135,8 +142,8 @@ export default function PermissionMatrix({
                           scope="row"
                           className="sticky left-0 z-10 border-b border-divider bg-bg-surface px-4 py-3 text-left align-middle transition-colors group-hover/row:bg-slate-50"
                         >
-                          <div className="font-semibold text-text-heading">{res.label}</div>
-                          <div className="mt-0.5 text-[11px] font-normal leading-snug text-text-muted">{res.description}</div>
+                          <div className="font-semibold text-text-heading">{tRes(res.key)}</div>
+                          <div className="mt-0.5 text-[11px] font-normal leading-snug text-text-muted">{tResDesc(res.key)}</div>
                         </th>
                         {visibleRoles.map((role) => {
                           const level = levelAt(draft, role, res.key);
@@ -153,7 +160,7 @@ export default function PermissionMatrix({
                                     value={level}
                                     dirty={dirty}
                                     onChange={(l) => onChange(role, res.key, l)}
-                                    ariaLabel={`${res.label} permission for ${ROLE_META[role].label}`}
+                                    ariaLabel={t("permFor", { feature: tRes(res.key), role: tRoles(role) })}
                                   />
                                 ) : (
                                   <PermPill level={locked ? "write" : level} locked={locked} />
@@ -173,11 +180,11 @@ export default function PermissionMatrix({
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-divider bg-paper px-4 py-3 text-[11px] text-text-muted">
-        <span className="font-bold uppercase tracking-wide">Legend</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="write" /> Create, edit &amp; delete</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="read" /> View only</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="none" /> No access</span>
-        <span className="ml-auto inline-flex items-center gap-1.5"><Lock className="h-3 w-3" aria-hidden="true" /> Super Admin is always full access</span>
+        <span className="font-bold uppercase tracking-wide">{t("legend")}</span>
+        <span className="inline-flex items-center gap-1.5"><PermPill level="write" /> {t("legendWrite")}</span>
+        <span className="inline-flex items-center gap-1.5"><PermPill level="read" /> {t("legendRead")}</span>
+        <span className="inline-flex items-center gap-1.5"><PermPill level="none" /> {t("legendNone")}</span>
+        <span className="ml-auto inline-flex items-center gap-1.5"><Lock className="h-3 w-3" aria-hidden="true" /> {t("legendLocked")}</span>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 const fieldClass =
   "w-full rounded-lg border border-divider px-3.5 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60";
 
@@ -22,17 +24,18 @@ export default function ThesisSeoSettings({
   slug: string;
   disabled?: boolean;
 }) {
-  const previewTitle = seoTitle || fallbackTitle || "Untitled thesis";
-  const previewDescription = seoDescription || fallbackDescription || "No description yet.";
+  const t = useTranslations("adminThesisForm.seo");
+  const previewTitle = seoTitle || fallbackTitle || t("untitled");
+  const previewDescription = seoDescription || fallbackDescription || t("noDescription");
   const previewImage = ogImage || fallbackImage;
 
   return (
     <div className="space-y-4 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
-      <h3 className="text-sm font-bold text-text-heading">SEO &amp; sharing</h3>
+      <h3 className="text-sm font-bold text-text-heading">{t("heading")}</h3>
 
       <label className="block">
         <span className="mb-1 flex items-center justify-between text-xs font-semibold text-text-body">
-          SEO title
+          {t("seoTitle")}
           <span className="font-normal text-text-muted">{seoTitle.length}/60</span>
         </span>
         <input
@@ -49,7 +52,7 @@ export default function ThesisSeoSettings({
 
       <label className="block">
         <span className="mb-1 flex items-center justify-between text-xs font-semibold text-text-body">
-          SEO description
+          {t("seoDescription")}
           <span className="font-normal text-text-muted">{seoDescription.length}/160</span>
         </span>
         <textarea
@@ -57,27 +60,27 @@ export default function ThesisSeoSettings({
           value={seoDescription}
           onChange={(e) => onSeoDescriptionChange(e.target.value)}
           disabled={disabled}
-          placeholder={fallbackDescription || "Short description shown in search results (defaults to an abstract excerpt)"}
+          placeholder={fallbackDescription || t("descPlaceholder")}
           maxLength={200}
           className={`${fieldClass} resize-none`}
         />
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-xs font-semibold text-text-body">Open Graph image URL</span>
+        <span className="mb-1 block text-xs font-semibold text-text-body">{t("ogImage")}</span>
         <input
           type="text"
           value={ogImage}
           onChange={(e) => onOgImageChange(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
           disabled={disabled}
-          placeholder="Defaults to the cover image"
+          placeholder={t("ogPlaceholder")}
           className={fieldClass}
         />
       </label>
 
       <div className="rounded-lg border border-divider p-3">
-        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">Search preview</p>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">{t("searchPreview")}</p>
         <p className="truncate text-[13px] text-emerald-800">{siteUrl}/theses/{slug || "…"}</p>
         <p className="truncate text-[18px] text-blue-800 hover:underline">{previewTitle}</p>
         <p className="line-clamp-2 text-[13px] text-text-body">{previewDescription}</p>

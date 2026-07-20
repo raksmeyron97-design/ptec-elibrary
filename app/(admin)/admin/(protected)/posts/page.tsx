@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import PostStats from "@/components/admin/posts/PostStats";
 import PostToolbar from "@/components/admin/posts/PostToolbar";
@@ -30,7 +32,8 @@ export default async function AdminPostsPage({
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
-  const [postsResult, summary, authors] = await Promise.all([
+  const [t, postsResult, summary, authors] = await Promise.all([
+    getTranslations("adminPosts"),
     getPosts({
       q: sp.q,
       category: sp.category,
@@ -56,10 +59,7 @@ export default async function AdminPostsPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-heading">Manage Posts</h1>
-        <p className="text-sm text-text-muted">Create, edit, and publish your library posts.</p>
-      </div>
+      <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <PostStats summary={summary} />
 

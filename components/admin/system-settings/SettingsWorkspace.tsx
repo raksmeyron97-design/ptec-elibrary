@@ -26,6 +26,7 @@ import type {
   SettingsWorkspaceData,
 } from "@/lib/system-settings/types";
 import { SETTING_SECTIONS } from "@/lib/system-settings/types";
+import { ConfirmDialog } from "@/components/admin/kit";
 import { diffPaths, validateSectionDoc } from "@/lib/system-settings/schemas";
 import {
   discardSettingsDraft,
@@ -166,9 +167,11 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
     [router, runSave],
   );
 
+  const [discardTarget, setDiscardTarget] = useState<SettingSection | null>(null);
+
   const handleDiscard = useCallback(
     async (section: SettingSection) => {
-      if (!window.confirm("Discard the draft and return to the published values?")) return;
+      setDiscardTarget(null);
       setBusy(true);
       try {
         const result = await discardSettingsDraft(section);
@@ -428,7 +431,7 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
                       <button
                         type="button"
                         disabled={!editable || busy}
-                        onClick={() => handleDiscard(section)}
+                        onClick={() => setDiscardTarget(section)}
                         className="rounded-xl border border-divider px-3.5 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Discard draft
@@ -522,6 +525,17 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={discardTarget !== null}
+        title="Discard this draft?"
+        description="The draft will be discarded and the section returns to the published values."
+        confirmLabel="Discard draft"
+        busyLabel="Discarding…"
+        busy={busy}
+        onCancel={() => setDiscardTarget(null)}
+        onConfirm={() => discardTarget && void handleDiscard(discardTarget)}
+      />
     </div>
   );
 }

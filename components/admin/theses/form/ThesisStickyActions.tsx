@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Eye } from "lucide-react";
 import ThesisAutosaveStatus, { type AutosaveStatus } from "./ThesisAutosaveStatus";
 import type { ThesisStatus } from "@/lib/admin/theses-shared";
@@ -28,14 +29,15 @@ export default function ThesisStickyActions({
   onPreview: () => void;
   autosaveStatus?: AutosaveStatus;
 }) {
+  const t = useTranslations("adminThesisForm.actions");
   const primaryLabel =
     status === "published"
-      ? "Publish"
+      ? t("publish")
       : status === "scheduled"
-        ? "Schedule Publish"
+        ? t("schedule")
         : isEdit
-          ? "Update"
-          : "Save Draft";
+          ? t("update")
+          : t("saveDraft");
 
   const primaryDisabled = submitting || (status === "scheduled" && !scheduledAtSet);
   const showDraftShortcut = status !== "draft";
@@ -52,7 +54,7 @@ export default function ThesisStickyActions({
           disabled={submitting}
           className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-divider px-4 text-sm font-semibold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isEdit && wasPublished ? "Unpublish" : "Save Draft"}
+          {isEdit && wasPublished ? t("unpublish") : t("saveDraft")}
         </button>
       )}
 
@@ -62,7 +64,7 @@ export default function ThesisStickyActions({
         disabled={submitting}
         className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-divider px-4 text-sm font-semibold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Eye className="h-4 w-4" /> Preview
+        <Eye className="h-4 w-4" /> {t("preview")}
       </button>
 
       <button
@@ -72,7 +74,7 @@ export default function ThesisStickyActions({
         disabled={primaryDisabled}
         className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {submitting ? "Saving…" : primaryLabel}
+        {submitting ? t("saving") : primaryLabel}
       </button>
     </div>
   );

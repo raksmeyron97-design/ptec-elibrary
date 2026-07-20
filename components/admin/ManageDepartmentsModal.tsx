@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { X, Edit2, Trash2, Plus, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { addDepartment, updateDepartment, deleteDepartment } from "@/app/(admin)/admin/(protected)/books/actions";
+import { ConfirmDialog } from "@/components/admin/kit";
 
 interface Department {
   id: string;
@@ -28,6 +29,10 @@ export default function ManageDepartmentsModal() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const supabase = createClient();
 
@@ -93,17 +98,20 @@ export default function ManageDepartmentsModal() {
     }
   }
 
-  async function handleDelete(id: string, currentName: string) {
-    if (!confirm(`Are you sure you want to delete the department "${currentName}"?`)) return;
-
+  async function handleDelete() {
+    if (!deleteTarget) return;
     setError(null);
+    setIsDeleting(true);
     try {
-      const res = await deleteDepartment(id);
+      const res = await deleteDepartment(deleteTarget.id);
       if (res.error) throw new Error(res.error);
       await loadDepartments();
       window.dispatchEvent(new CustomEvent("ptec:departments-changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete department");
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -202,7 +210,7 @@ export default function ManageDepartmentsModal() {
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button type="button" onClick={() => handleDelete(dept.id, dept.name)}
+                            <button type="button" onClick={() => setDeleteTarget(dept)}
                               className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Delete"
                             >
@@ -219,6 +227,17 @@ export default function ManageDepartmentsModal() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete this department?"
+        description={deleteTarget ? <>You are about to delete <strong>“{deleteTarget.name}”</strong>. This cannot be undone.</> : undefined}
+        confirmLabel="Delete department"
+        busyLabel="Deleting…"
+        busy={isDeleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </>
   );
 }

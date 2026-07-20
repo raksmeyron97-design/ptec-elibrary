@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useCallback } from "react";
 import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
 
@@ -190,6 +191,7 @@ export default function MarkdownEditor({
   const tab = controlledTab ?? internalTab;
   const setTab = onTabChange ?? setInternalTab;
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
+  const tr = useTranslations("adminPostForm.editor");
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const wordCount = value.trim() ? value.trim().split(/\s+/).filter(Boolean).length : 0;
@@ -302,7 +304,7 @@ export default function MarkdownEditor({
       ref={wrapperRef}
       role={isFullscreen ? "dialog" : undefined}
       aria-modal={isFullscreen || undefined}
-      aria-label={isFullscreen ? "Fullscreen content editor" : undefined}
+      aria-label={isFullscreen ? tr("fullscreenLabel") : undefined}
       className={[
         "flex flex-col overflow-hidden border-divider bg-bg-surface shadow-sm transition-all",
         isFullscreen
@@ -324,9 +326,9 @@ export default function MarkdownEditor({
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
           <span className="text-sm font-semibold text-text-body">
-            Content{required && <span className="ml-0.5 text-red-500">*</span>}
+            {tr("content")}{required && <span className="ml-0.5 text-red-500">*</span>}
           </span>
-          <span className="hidden text-xs text-text-muted sm:inline">— Markdown</span>
+          <span className="hidden text-xs text-text-muted sm:inline">— {tr("markdown")}</span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -355,7 +357,7 @@ export default function MarkdownEditor({
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 )}
-                {t}
+                {tr(`tab.${t}`)}
               </button>
             ))}
           </div>
@@ -363,8 +365,8 @@ export default function MarkdownEditor({
           <button
             type="button"
             onClick={() => setIsFullscreen((v) => !v)}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            title={isFullscreen ? tr("exitFullscreen") : tr("fullscreen")}
+            aria-label={isFullscreen ? tr("exitFullscreen") : tr("fullscreen")}
             aria-pressed={isFullscreen}
             className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition hover:bg-blue-50 hover:text-brand"
           >
@@ -396,8 +398,8 @@ export default function MarkdownEditor({
               <button
                 key={item.id}
                 type="button"
-                title={item.label}
-                aria-label={item.label}
+                title={tr(`tools.${item.id}`)}
+                aria-label={tr(`tools.${item.id}`)}
                 onClick={() => applyTool(item)}
                 className="flex h-7 min-w-[28px] shrink-0 items-center justify-center rounded px-1 text-text-muted transition-all hover:bg-blue-50 hover:text-brand active:scale-95 cursor-pointer"
               >
@@ -410,8 +412,8 @@ export default function MarkdownEditor({
           <div className="relative">
             <button
               type="button"
-              title="Insert image"
-              aria-label="Insert image"
+title={tr("insertImage")}
+              aria-label={tr("insertImage")}
               aria-haspopup="menu"
               aria-expanded={imagePickerOpen}
               onClick={() => setImagePickerOpen((v) => !v)}
@@ -424,9 +426,9 @@ export default function MarkdownEditor({
               </svg>
             </button>
             {imagePickerOpen && (
-              <div role="menu" aria-label="Insert image" className="absolute left-0 z-30 mt-1 w-64 rounded-xl border border-divider bg-bg-surface p-2 shadow-xl">
+              <div role="menu" aria-label={tr("insertImage")} className="absolute left-0 z-30 mt-1 w-64 rounded-xl border border-divider bg-bg-surface p-2 shadow-xl">
                 {images.length === 0 ? (
-                  <p className="px-2 py-3 text-xs text-text-muted">Upload a cover image first — it will show up here to insert.</p>
+                  <p className="px-2 py-3 text-xs text-text-muted">{tr("uploadFirst")}</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-1.5">
                     {images.map((img, idx) => (
@@ -434,8 +436,8 @@ export default function MarkdownEditor({
                         key={img.url}
                         type="button"
                         role="menuitem"
-                        title={img.alt || `Image ${idx + 1}`}
-                        aria-label={`Insert ${img.alt || `image ${idx + 1}`}`}
+                        title={img.alt || tr("imageN", { n: idx + 1 })}
+                        aria-label={tr("insertN", { name: img.alt || tr("imageN", { n: idx + 1 }) })}
                         onClick={() => {
                           insertAtCursor(`![${img.alt ?? ""}](${img.url})`);
                           setImagePickerOpen(false);
@@ -493,8 +495,8 @@ export default function MarkdownEditor({
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
               </div>
-              <p className="text-sm font-semibold text-text-body">Nothing to preview</p>
-              <p className="mt-1 text-xs text-text-muted">Switch to Write and add some content first.</p>
+              <p className="text-sm font-semibold text-text-body">{tr("nothingToPreview")}</p>
+              <p className="mt-1 text-xs text-text-muted">{tr("switchToWrite")}</p>
             </div>
           )}
         </div>
@@ -507,19 +509,19 @@ export default function MarkdownEditor({
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 6h16M4 12h16M4 18h7"/>
             </svg>
-            {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
+            {tr("words", { count: wordCount })}
           </span>
           <span className="text-divider">·</span>
-          <span>{charCount.toLocaleString()} chars</span>
+          <span>{tr("chars", { count: charCount })}</span>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 18 22 12 16 6"/>
             <polyline points="8 6 2 12 8 18"/>
           </svg>
-          <span>Markdown</span>
+          <span>{tr("markdown")}</span>
           <span className="text-divider">·</span>
-          <span>Tab = 2 spaces{isFullscreen ? " · Esc to exit" : ""}</span>
+          <span>{tr("tabHint")}{isFullscreen ? tr("escHint") : ""}</span>
         </div>
       </div>
     </div>

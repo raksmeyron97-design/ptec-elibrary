@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Eye } from "lucide-react";
+import { useTranslations } from "next-intl";
 import PostActionsMenu from "@/components/admin/posts/PostActionsMenu";
 import { CATEGORY_BADGE_STYLES, STATUS_BADGE_STYLES, STATUS_LABELS, type PostListRow } from "@/lib/admin/posts-shared";
 
@@ -36,15 +37,17 @@ export default function PostsTable({
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
 }) {
+  const t = useTranslations("adminPosts.table");
+  const tStatus = useTranslations("adminPosts.status");
   return (
     <div className="hidden rounded-xl border border-divider bg-bg-surface shadow-sm md:block">
       <div className="">
         <table className="w-full text-sm">
-          <caption className="sr-only">Posts list</caption>
+          <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
               <th scope="col" className="w-10 px-4 py-3">
-                <label className="sr-only" htmlFor="select-all-posts">Select all posts</label>
+                <label className="sr-only" htmlFor="select-all-posts">{t("selectAll")}</label>
                 <input
                   id="select-all-posts"
                   type="checkbox"
@@ -54,14 +57,14 @@ export default function PostsTable({
                 />
               </th>
               <th scope="col" className="px-4 py-3">#</th>
-              <th scope="col" className="px-4 py-3">Title</th>
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">Category</th>
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">Author</th>
-              <th scope="col" className="px-4 py-3 text-center">Status</th>
-              <th scope="col" className="hidden px-4 py-3 text-right xl:table-cell">Views</th>
-              <th scope="col" className="hidden px-4 py-3 lg:table-cell">Created</th>
-              <th scope="col" className="hidden px-4 py-3 xl:table-cell">Updated</th>
-              <th scope="col" className="px-4 py-3 text-right">Actions</th>
+              <th scope="col" className="px-4 py-3">{t("titleCol")}</th>
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("category")}</th>
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("author")}</th>
+              <th scope="col" className="px-4 py-3 text-center">{t("statusCol")}</th>
+              <th scope="col" className="hidden px-4 py-3 text-right xl:table-cell">{t("views")}</th>
+              <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("created")}</th>
+              <th scope="col" className="hidden px-4 py-3 xl:table-cell">{t("updated")}</th>
+              <th scope="col" className="px-4 py-3 text-right">{t("actionsCol")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-divider">
@@ -74,7 +77,7 @@ export default function PostsTable({
                   className={`transition-colors hover:bg-paper/80 ${isBusy ? "opacity-50" : ""} ${isSelected ? "bg-brand/5" : ""}`}
                 >
                   <td className="px-4 py-3">
-                    <label className="sr-only" htmlFor={`select-post-${post.id}`}>Select {post.title}</label>
+                    <label className="sr-only" htmlFor={`select-post-${post.id}`}>{t("selectOne", { title: post.title })}</label>
                     <input
                       id={`select-post-${post.id}`}
                       type="checkbox"
@@ -106,7 +109,7 @@ export default function PostsTable({
                   <td className="hidden max-w-[160px] truncate px-4 py-3 text-text-body lg:table-cell">{post.author}</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_BADGE_STYLES[post.status]}`}>
-                      {STATUS_LABELS[post.status]}
+                      {STATUS_LABELS[post.status] ? tStatus(post.status) : post.status}
                     </span>
                   </td>
                   <td className="hidden px-4 py-3 text-right tabular-nums xl:table-cell">

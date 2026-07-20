@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ImagePlus, X } from "lucide-react";
 
 interface CoverDropzoneProps {
@@ -23,6 +24,7 @@ export default function CoverDropzone({
   onChange,
   onRemove,
 }: CoverDropzoneProps) {
+  const t = useTranslations("adminThesisForm.dropzone");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -38,12 +40,12 @@ export default function CoverDropzone({
     <div className="flex items-start gap-4">
       {displayUrl ? (
         <div className="relative h-32 w-[88px] shrink-0 overflow-hidden rounded-xl border border-divider shadow-md">
-          <img src={displayUrl} alt="Cover preview" className="h-full w-full object-cover" />
+          <img src={displayUrl} alt={t("coverPreview")} className="h-full w-full object-cover" />
           {canRemove && (
             <button
               type="button"
               onClick={onRemove}
-              aria-label="Remove cover"
+              aria-label={t("removeCover")}
               className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/65 text-white transition-colors hover:bg-black/85"
             >
               <X className="h-3 w-3" />
@@ -52,7 +54,7 @@ export default function CoverDropzone({
         </div>
       ) : (
         <div className="flex h-32 w-[88px] shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-divider bg-paper text-center text-[11px] font-medium text-text-muted">
-          {removed ? "Removed" : "No cover"}
+          {removed ? t("removed") : t("noCover")}
         </div>
       )}
 
@@ -67,9 +69,9 @@ export default function CoverDropzone({
       >
         <ImagePlus className="h-6 w-6 text-text-muted" />
         <p className="text-xs leading-tight text-text-muted">
-          <span className="font-semibold text-brand">{displayUrl ? "Click to replace" : "Click to upload"}</span> or drag and drop
+          <span className="font-semibold text-brand">{displayUrl ? t("clickReplace") : t("clickUpload")}</span> {t("orDragDrop")}
         </p>
-        <p className="text-[11px] text-text-muted/70">{file ? file.name : "PNG, JPG, WEBP"}</p>
+        <p className="text-[11px] text-text-muted/70">{file ? file.name : t("imageFormats")}</p>
         <input
           ref={inputRef}
           type="file"

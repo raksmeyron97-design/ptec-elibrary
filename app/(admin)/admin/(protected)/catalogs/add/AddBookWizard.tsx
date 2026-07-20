@@ -3,6 +3,7 @@
 // Guided flow for new records: 1) bibliographic info → 2) physical copies.
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { addCatalogBook } from "../actions";
 import CopiesPanel from "../CopiesPanel";
@@ -19,6 +20,7 @@ interface BookData {
 }
 
 export default function AddBookWizard({ categories }: { categories: string[] }) {
+  const t = useTranslations("adminCatalog.form");
   const [step, setStep] = useState<1 | 2>(1);
   const [book, setBook] = useState<BookData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +45,11 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         });
         setStep(2);
       } else {
-        setError(result.error || "Failed to add book.");
+        setError(result.error || t("addFailed"));
         setFieldErrors(result.fieldErrors ?? {});
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setError(err instanceof Error ? err.message : t("unexpectedError"));
     } finally {
       setLoading(false);
     }
@@ -81,16 +83,16 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           <div className="mb-5 flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white" aria-hidden>✓</span>
-              <span className="text-sm font-semibold text-text-muted">Book Info — saved</span>
+              <span className="text-sm font-semibold text-text-muted">{t("step.infoSaved")}</span>
             </div>
             <div className="h-px w-8 bg-divider" aria-hidden />
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand text-[11px] font-bold text-white" aria-hidden>2</span>
-              <span className="text-sm font-bold text-text-body">Physical Copies</span>
+              <span className="text-sm font-bold text-text-body">{t("step.physicalCopies")}</span>
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-text-heading">Add Physical Copies</h1>
+          <h1 className="text-2xl font-bold text-text-heading">{t("addCopiesTitle")}</h1>
 
           {/* Book summary pill */}
           <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-divider bg-bg-surface px-3 py-1.5 shadow-sm">
@@ -106,13 +108,13 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
 
         <div className="flex items-center justify-between rounded-2xl border border-divider bg-bg-surface px-6 py-4 shadow-sm">
           <p className="text-xs text-text-muted">
-            The book is already saved and listed publicly. You can come back to add copies later from the catalog admin.
+            {t("savedNotice")}
           </p>
           <Link
             href="/admin/catalogs"
             className="rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
           >
-            Done — back to catalog
+            {t("doneBackToCatalog")}
           </Link>
         </div>
       </div>
@@ -127,10 +129,10 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
             <path d="M19 12H5m0 0 7 7m-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Back to catalogue admin
+          {t("backToCatalog")}
         </Link>
-        <h1 className="text-2xl font-bold text-text-heading">Add Physical Book</h1>
-        <p className="mt-1 text-sm text-text-muted">Step 1 of 2 — bibliographic information. Physical copies come next.</p>
+        <h1 className="text-2xl font-bold text-text-heading">{t("addBookTitle")}</h1>
+        <p className="mt-1 text-sm text-text-muted">{t("step1Subtitle")}</p>
       </div>
 
       {/* Error banner */}
@@ -146,51 +148,51 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         {/* ── Core info ── */}
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label htmlFor="f-title" className={labelCls}>Title *</label>
-            <input id="f-title" name="title" required placeholder="e.g. Introduction to Cambodian Law" {...errProps("title")}
+            <label htmlFor="f-title" className={labelCls}>{t("titleReq")}</label>
+            <input id="f-title" name="title" required placeholder={t("titlePlaceholder")} {...errProps("title")}
               onChange={(e) => setPreview((p) => ({ ...p, title: e.target.value }))} />
             {fieldError("title")}
           </div>
 
           <div>
-            <label htmlFor="f-author" className={labelCls}>Author *</label>
-            <input id="f-author" name="author" required placeholder="Author full name" {...errProps("author")}
+            <label htmlFor="f-author" className={labelCls}>{t("authorReq")}</label>
+            <input id="f-author" name="author" required placeholder={t("authorPlaceholder")} {...errProps("author")}
               onChange={(e) => setPreview((p) => ({ ...p, author: e.target.value }))} />
             {fieldError("author")}
           </div>
 
           <div>
-            <label htmlFor="f-language" className={labelCls}>Language *</label>
+            <label htmlFor="f-language" className={labelCls}>{t("languageReq")}</label>
             <select id="f-language" name="language" defaultValue="km" className={inputCls}>
-              <option value="km">Khmer (ខ្មែរ)</option>
-              <option value="en">English</option>
-              <option value="fr">French</option>
-              <option value="zh">Chinese</option>
-              <option value="other">Other</option>
+              <option value="km">{t("lang.km")}</option>
+              <option value="en">{t("lang.en")}</option>
+              <option value="fr">{t("lang.fr")}</option>
+              <option value="zh">{t("lang.zh")}</option>
+              <option value="other">{t("lang.other")}</option>
             </select>
           </div>
 
           <div>
-            <label htmlFor="f-isbn" className={labelCls}>ISBN</label>
+            <label htmlFor="f-isbn" className={labelCls}>{t("isbn")}</label>
             <input id="f-isbn" name="isbn" placeholder="978-0-000-00000-0" {...errProps("isbn")} />
             {fieldError("isbn")}
           </div>
 
           <div>
-            <label htmlFor="f-publisher" className={labelCls}>Publisher</label>
-            <input id="f-publisher" name="publisher" placeholder="Optional" {...errProps("publisher")} />
+            <label htmlFor="f-publisher" className={labelCls}>{t("publisher")}</label>
+            <input id="f-publisher" name="publisher" placeholder={t("optional")} {...errProps("publisher")} />
             {fieldError("publisher")}
           </div>
 
           <div>
-            <label htmlFor="f-year" className={labelCls}>Publication year</label>
+            <label htmlFor="f-year" className={labelCls}>{t("year")}</label>
             <input id="f-year" name="year" inputMode="numeric" placeholder={String(new Date().getFullYear())} {...errProps("year")} />
             {fieldError("year")}
           </div>
 
           <div>
-            <label htmlFor="f-category" className={labelCls}>Category</label>
-            <input id="f-category" name="category" list="cat-list" placeholder="e.g. Law, Science…" {...errProps("category")}
+            <label htmlFor="f-category" className={labelCls}>{t("category")}</label>
+            <input id="f-category" name="category" list="cat-list" placeholder={t("categoryPlaceholder")} {...errProps("category")}
               onChange={(e) => setPreview((p) => ({ ...p, category: e.target.value }))} />
             <datalist id="cat-list">
               {categories.map((c) => <option key={c} value={c} />)}
@@ -199,8 +201,8 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           </div>
 
           <div>
-            <label htmlFor="f-department" className={labelCls}>Department</label>
-            <input id="f-department" name="department" placeholder="e.g. Public Law" {...errProps("department")} />
+            <label htmlFor="f-department" className={labelCls}>{t("department")}</label>
+            <input id="f-department" name="department" placeholder={t("departmentPlaceholder")} {...errProps("department")} />
             {fieldError("department")}
           </div>
         </div>
@@ -208,13 +210,13 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         <hr className="border-divider" />
 
         {/* ── Library-specific ── */}
-        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">Library Details</h2>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("libraryDetails")}</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="f-shelf" className={labelCls}>Default shelf location</label>
+            <label htmlFor="f-shelf" className={labelCls}>{t("shelfLocation")}</label>
             <input id="f-shelf" name="shelf_location" placeholder="A-3-12" {...errProps("shelf_location")} />
-            <p className="mt-1 text-[10px] text-text-muted">Pre-fills new copies — each copy can override it</p>
+            <p className="mt-1 text-[10px] text-text-muted">{t("shelfHint")}</p>
             {fieldError("shelf_location")}
           </div>
 
@@ -232,21 +234,21 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         {fieldError("cover")}
 
         <div>
-          <label htmlFor="f-description" className={labelCls}>Description</label>
-          <textarea id="f-description" name="description" rows={4} placeholder="Brief description of the book…"
+          <label htmlFor="f-description" className={labelCls}>{t("description")}</label>
+          <textarea id="f-description" name="description" rows={4} placeholder={t("descriptionPlaceholder")}
             className={inputCls + " resize-none" + (fieldErrors.description ? " !border-red-300" : "")} />
           {fieldError("description")}
         </div>
 
         <div>
-          <label className={labelCls}>Keywords / Tags (ពាក្យគន្លឺះ)</label>
+          <label className={labelCls}>{t("keywords")}</label>
           <TagInput
             name="keywords"
-            placeholder="e.g. ច្បាប់, law, reference…"
+            placeholder={t("keywordsPlaceholder")}
             disabled={loading}
           />
           <p className="mt-1 text-[10px] text-text-muted">
-            ចុច Enter ឬ , ដើម្បីបន្ថែម tag
+            {t("keywordsHint")}
           </p>
         </div>
 
@@ -256,14 +258,14 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
             href="/admin/catalogs"
             className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body transition hover:bg-paper"
           >
-            Cancel
+            {t("cancel")}
           </Link>
           <button
             type="submit"
             disabled={loading}
             className="rounded-xl bg-brand px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? "Saving…" : "Save book & add copies"}
+            {loading ? t("saving") : t("saveAndAddCopies")}
           </button>
         </div>
       </form>

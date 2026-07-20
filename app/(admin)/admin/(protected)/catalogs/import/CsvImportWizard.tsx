@@ -36,17 +36,20 @@ import {
   missingRequiredFields,
   type ValidatedRow,
 } from "@/lib/catalog-import";
+import { useTranslations } from "next-intl";
+import { ConfirmDialog } from "@/components/admin/kit";
 import StepUpload from "./StepUpload";
 import StepMapping from "./StepMapping";
 import StepValidate from "./StepValidate";
 import StepImport from "./StepImport";
 
-const STEPS = ["Upload", "Map columns", "Validate", "Import"] as const;
+const STEP_KEYS = ["upload", "mapping", "validate", "import"] as const;
 
 export default function CsvImportWizard() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, dispatch] = useReducer(wizardReducer, INITIAL_STATE);
+  const t = useTranslations("adminCatalog.import.wizard");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef(false);
@@ -68,24 +71,28 @@ export default function CsvImportWizard() {
   const hasWorkInProgress =
     state.parsed !== null && state.phase !== "done" && state.phase !== "importing";
 
-  const requestClose = useCallback(() => {
-    if (state.phase === "importing") {
-      // Never dismiss a running import silently.
-      const ok = window.confirm(
-        "An import is running. Closing this window stops it after the current batch — books already imported stay in the catalog. Stop the import?",
-      );
-      if (!ok) return;
-      cancelRef.current = true;
-      dispatch({ type: "REQUEST_CANCEL" });
-      return; // the import loop closes the run; keep the dialog for the summary
-    }
-    if (hasWorkInProgress) {
-      if (!window.confirm("Discard this import setup?")) return;
-    }
+  // Never dismiss a running import (or a half-built setup) silently.
+  const [closeConfirm, setCloseConfirm] = useState<null | "importing" | "discard">(null);
+  const closeConfirmRef = useRef(closeConfirm);
+  closeConfirmRef.current = closeConfirm;
+
+  const actuallyClose = useCallback(() => {
     setOpen(false);
     dispatch({ type: "RESET" });
     triggerRef.current?.focus();
-  }, [state.phase, hasWorkInProgress]);
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (state.phase === "importing") {
+      setCloseConfirm("importing");
+      return;
+    }
+    if (hasWorkInProgress) {
+      setCloseConfirm("discard");
+      return;
+    }
+    actuallyClose();
+  }, [state.phase, hasWorkInProgress, actuallyClose]);
 
   // Body scroll lock + Escape + initial focus.
   useEffect(() => {
@@ -96,7 +103,9 @@ export default function CsvImportWizard() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        requestClose();
+        // The confirm layer owns Escape while it is open.
+        if (closeConfirmRef.current) setCloseConfirm(null);
+        else requestClose();
       }
       // Minimal focus trap: keep Tab inside the dialog.
       if (e.key === "Tab" && dialogRef.current) {
@@ -307,7 +316,7 @@ export default function CsvImportWizard() {
   }, [router]);
 
   function footer() {
-    const backBtn = (onClick: () => void, label = "Back") => (
+    const backBtn = (onClick: () => void, label = t("back")) => (
       <button type="button" onClick={onClick}
         className="inline-flex h-11 items-center rounded-xl border border-divider px-5 text-sm font-semibold text-text-body transition hover:bg-paper">
         {label}
@@ -328,8 +337,8 @@ export default function CsvImportWizard() {
             <span className="mr-auto text-xs text-text-muted">
               Limits: {Math.round(IMPORT_LIMITS.maxFileBytes / (1024 * 1024))} MB · {IMPORT_LIMITS.maxRows.toLocaleString()} rows
             </span>
-            {backBtn(requestClose, "Cancel")}
-            {primaryBtn(() => dispatch({ type: "GO_TO_MAPPING" }), "Continue", !state.parsed)}
+            {backBtn(requestClose, t("cancel"))}
+            {primaryBtn(() => dispatch({ type: "GO_TO_MAPPING" }), t("continue"), !state.parsed)}
           </>
         );
       case "mapping":
@@ -341,14 +350,14 @@ export default function CsvImportWizard() {
               </span>
             )}
             {backBtn(() => dispatch({ type: "BACK_TO_UPLOAD" }))}
-            {primaryBtn(() => void runValidation(), "Validate rows", missingRequired.length > 0)}
+            {primaryBtn(() => void runValidation(), t("validateRows"), missingRequired.length > 0)}
           </>
         );
       case "validating":
         return (
           <>
             {backBtn(() => dispatch({ type: "BACK_TO_MAPPING" }))}
-            {primaryBtn(() => {}, "Validating…", true)}
+            {primaryBtn(() => {}, t("validating"), true)}
           </>
         );
       case "preview": {
@@ -359,8 +368,8 @@ export default function CsvImportWizard() {
             {primaryBtn(
               () => void runImport(false),
               importSet && importSet.toUpdate > 0
-                ? `Import ${importSet.toCreate} new · update ${importSet.toUpdate}`
-                : `Import ${importSet?.toCreate ?? 0} book${(importSet?.toCreate ?? 0) === 1 ? "" : "s"}`,
+                ? t("importNewUpdate", { create: importSet.toCreate, update: importSet.toUpdate })
+                : t("importBooks", { count: importSet?.toCreate ?? 0 }),
               n === 0,
             )}
           </>
@@ -372,7 +381,7 @@ export default function CsvImportWizard() {
             onClick={handleCancelImport}
             disabled={state.progress.cancelRequested}
             className="inline-flex h-11 items-center rounded-xl border border-red-200 px-5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50">
-            {state.progress.cancelRequested ? "Finishing current batch…" : "Cancel import"}
+            {state.progress.cancelRequested ? t("finishingBatch") : t("cancelImport")}
           </button>
         );
       case "done":
@@ -382,7 +391,7 @@ export default function CsvImportWizard() {
               className="mr-auto inline-flex h-11 items-center rounded-xl border border-divider px-5 text-sm font-semibold text-text-body transition hover:bg-paper">
               Import another file
             </button>
-            {primaryBtn(handleDone, "Done")}
+            {primaryBtn(handleDone, t("done"))}
           </>
         );
     }
@@ -403,7 +412,7 @@ export default function CsvImportWizard() {
           <polyline points="17 8 12 3 7 8" />
           <line x1="12" y1="3" x2="12" y2="15" />
         </svg>
-        Import CSV
+        {t("importCsv")}
       </button>
 
       {open && (
@@ -423,11 +432,11 @@ export default function CsvImportWizard() {
             <div className="flex items-center justify-between gap-4 border-b border-divider bg-paper px-4 py-3.5 sm:rounded-t-2xl sm:px-6">
               <div className="min-w-0">
                 <h2 id="csv-wizard-title" className="text-base font-bold text-text-heading">
-                  Import Books from CSV
+                  {t("dialogTitle")}
                 </h2>
                 {/* Step indicator */}
-                <ol className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]" aria-label="Import steps">
-                  {STEPS.map((label, i) => {
+                <ol className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]" aria-label={t("stepsAria")}>
+                  {STEP_KEYS.map((label, i) => {
                     const num = (i + 1) as 1 | 2 | 3 | 4;
                     const current = num === step;
                     const complete = num < step;
@@ -441,14 +450,14 @@ export default function CsvImportWizard() {
                         >
                           {complete ? "✓" : num}
                         </span>
-                        <span className={current ? "font-bold text-text-heading" : "text-text-muted"}>{label}</span>
-                        {i < STEPS.length - 1 && <span aria-hidden className="text-text-muted/50">→</span>}
+                        <span className={current ? "font-bold text-text-heading" : "text-text-muted"}>{t(`steps.${label}`)}</span>
+                        {i < STEP_KEYS.length - 1 && <span aria-hidden className="text-text-muted/50">→</span>}
                       </li>
                     );
                   })}
                 </ol>
               </div>
-              <button type="button" onClick={requestClose} aria-label="Close import wizard"
+              <button type="button" onClick={requestClose} aria-label={t("closeWizard")}
                 className="rounded-lg p-1.5 text-text-muted transition hover:bg-bg-surface hover:text-text-body">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
                   <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
@@ -477,6 +486,29 @@ export default function CsvImportWizard() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={closeConfirm !== null}
+        title={closeConfirm === "importing" ? "Stop the running import?" : "Discard this import setup?"}
+        description={
+          closeConfirm === "importing"
+            ? "Closing stops the import after the current batch — books already imported stay in the catalog."
+            : "Your uploaded file, column mapping, and validation results will be lost."
+        }
+        confirmLabel={closeConfirm === "importing" ? "Stop import" : "Discard setup"}
+        onCancel={() => setCloseConfirm(null)}
+        onConfirm={() => {
+          if (closeConfirm === "importing") {
+            cancelRef.current = true;
+            dispatch({ type: "REQUEST_CANCEL" });
+            // The import loop ends the run; keep the wizard open for the summary.
+            setCloseConfirm(null);
+          } else {
+            setCloseConfirm(null);
+            actuallyClose();
+          }
+        }}
+      />
     </>
   );
 }

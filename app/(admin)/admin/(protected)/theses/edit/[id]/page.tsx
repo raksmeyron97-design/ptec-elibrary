@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { getThesisById } from "@/app/actions/theses";
 import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
 import DownloadAccessCard from "@/components/admin/theses/DownloadAccessCard";
@@ -71,6 +72,7 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
     ogImage: report.og_image ?? null,
   };
 
+  const t = await getTranslations("adminThesisForm");
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       <div className="flex items-center gap-4">
@@ -80,7 +82,7 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <p className="text-text-muted text-sm">Update details for this thesis</p>
+        <p className="text-text-muted text-sm">{t("editSubtitle")}</p>
       </div>
 
       <DownloadAccessCard

@@ -1,4 +1,5 @@
-import { scoreMetadataQuality, METADATA_TIER_LABELS, METADATA_TIER_STYLES, type MetadataQualityInput } from "@/lib/admin/thesis-metadata-quality";
+import { useTranslations } from "next-intl";
+import { scoreMetadataQuality, METADATA_TIER_STYLES, type MetadataQualityInput } from "@/lib/admin/thesis-metadata-quality";
 
 /**
  * Small completeness badge (spec section 5). Color is never the only signal
@@ -7,14 +8,16 @@ import { scoreMetadataQuality, METADATA_TIER_LABELS, METADATA_TIER_STYLES, type 
  */
 export default function ThesisMetadataBadge({ thesis }: { thesis: MetadataQualityInput }) {
   const { score, tier, missing } = scoreMetadataQuality(thesis);
-  const missingLabel = missing.length ? `Missing: ${missing.map((m) => m.label).join(", ")}` : "All fields complete";
+  const t = useTranslations("adminEbooks.qualityBadge");
+  const tQuality = useTranslations("adminEbooks.quality");
+  const missingLabel = missing.length ? t("missing", { fields: missing.map((m) => m.label).join(", ") }) : t("complete");
 
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${METADATA_TIER_STYLES[tier]}`}
       title={missingLabel}
     >
-      {METADATA_TIER_LABELS[tier]} · {score}%
+      {tQuality(tier)} · {score}%
       <span className="sr-only">. {missingLabel}.</span>
     </span>
   );

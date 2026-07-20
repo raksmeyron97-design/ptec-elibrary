@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Search, CornerDownLeft, ExternalLink } from "lucide-react";
 
 type CmdIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
@@ -36,6 +37,7 @@ export type AdminCommandPaletteHandle = { open: () => void };
 const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: AdminCommand[] }>(
   function AdminCommandPalette({ commands }, ref) {
   const router = useRouter();
+  const t = useTranslations("adminShell.palette");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIdx, setActiveIdx] = useState(0);
@@ -87,13 +89,13 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
       ...matched,
       {
         id: "__search",
-        label: `Search e-books for “${query.trim()}”`,
-        group: "Search",
+        label: t("searchEbooksFor", { query: query.trim() }),
+        group: t("search"),
         href: `/admin/manage?q=${encodeURIComponent(query.trim())}`,
         icon: Search,
       },
     ];
-  }, [commands, query]);
+  }, [commands, query, t]);
 
   // ── Group for display while keeping a stable flat index for keyboard nav ──
   const groups = useMemo(() => {
@@ -176,7 +178,7 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Command menu"
+        aria-label={t("dialogLabel")}
         className="relative flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-2xl motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-150"
         style={{ maxHeight: "min(70vh, 560px)" }}
       >
@@ -190,7 +192,7 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
             aria-expanded="true"
             aria-controls={listboxId}
             aria-activedescendant={results.length ? `${baseId}-opt-${activeIdx}` : undefined}
-            aria-label="Search actions and pages"
+            aria-label={t("inputLabel")}
             autoComplete="off"
             spellCheck={false}
             value={query}
@@ -199,7 +201,7 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
               setActiveIdx(0);
             }}
             onKeyDown={onInputKeyDown}
-            placeholder="Search actions, pages, e-books…"
+            placeholder={t("placeholder")}
             className="h-14 w-full bg-transparent text-[15px] text-text-heading outline-none placeholder:text-text-muted"
           />
           <kbd className="hidden shrink-0 rounded-md border border-divider bg-paper px-1.5 py-0.5 font-sans text-[10px] font-medium text-text-muted sm:inline-block">
@@ -208,10 +210,10 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
         </div>
 
         {/* Results */}
-        <div id={listboxId} role="listbox" aria-label="Commands" className="overflow-y-auto overscroll-contain py-2">
+        <div id={listboxId} role="listbox" aria-label={t("commands")} className="overflow-y-auto overscroll-contain py-2">
           {results.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] text-text-muted">
-              No matches for “{query.trim()}”.
+              {t("noMatches", { query: query.trim() })}
             </p>
           ) : (
             groups.map(({ group, items }) => (
@@ -268,15 +270,15 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-divider bg-bg-surface px-1.5 py-0.5 font-sans">↑</kbd>
             <kbd className="rounded border border-divider bg-bg-surface px-1.5 py-0.5 font-sans">↓</kbd>
-            navigate
+            {t("navigate")}
           </span>
           <span className="flex items-center gap-1.5">
             <kbd className="rounded border border-divider bg-bg-surface px-1.5 py-0.5 font-sans">↵</kbd>
-            open
+            {t("open")}
           </span>
           <span className="ml-auto flex items-center gap-1.5">
             <kbd className="rounded border border-divider bg-bg-surface px-1.5 py-0.5 font-sans">esc</kbd>
-            close
+            {t("close")}
           </span>
         </div>
       </div>

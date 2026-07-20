@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CheckCircle2, AlertTriangle, XCircle, Search } from "lucide-react";
 import { scoreBookSeo, type BookSeoFields, type SeoCheckStatus } from "@/lib/admin/book-seo-score";
 import { bookMetaDescription } from "@/lib/seo/book-seo";
@@ -42,6 +43,7 @@ export default function BookSeoPanel({
     "en",
   );
 
+  const t = useTranslations("adminEbooks.seoPanel");
   return (
     <div className="overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
       <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
@@ -49,8 +51,8 @@ export default function BookSeoPanel({
           <Search className="h-[18px] w-[18px]" />
         </span>
         <div className="flex-1">
-          <h2 className="text-sm font-bold text-text-heading">SEO &amp; Metadata Quality</h2>
-          <p className="text-xs text-text-muted">Factual completeness — never blocks saving</p>
+          <h2 className="text-sm font-bold text-text-heading">{t("title")}</h2>
+          <p className="text-xs text-text-muted">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <div
@@ -66,7 +68,7 @@ export default function BookSeoPanel({
         {/* Search-result preview */}
         <div className="rounded-xl border border-divider bg-paper p-3">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
-            Google preview
+            {t("googlePreview")}
           </p>
           <p className="truncate text-sm font-medium text-[#1a0dab]">{previewTitle}</p>
           <p className="truncate text-xs text-emerald-700">library.ptec.edu.kh › books › {slug || "…"}</p>
@@ -83,7 +85,7 @@ export default function BookSeoPanel({
                   {c.label}
                   {!c.weighted && (
                     <span className="ml-1.5 rounded bg-paper px-1 py-0.5 text-[9px] font-medium uppercase tracking-wide text-text-muted">
-                      optional
+                      {t("optional")}
                     </span>
                   )}
                 </p>

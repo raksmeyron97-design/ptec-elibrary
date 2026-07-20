@@ -2017,5 +2017,2211 @@
       "next": "Next",
       "summary": "Page {page} of {pages} · {total} events"
     }
+  },
+  "adminShell": {
+    "brand": {
+      "library": "PTEC Library",
+      "panel": "Admin Panel",
+      "mobileTitle": "PTEC Admin"
+    },
+    "nav": {
+      "menu": "Menu",
+      "dashboard": "Dashboard",
+      "inbox": "Inbox",
+      "groupBooks": "Books",
+      "uploadBook": "Upload Book",
+      "reviewQueue": "Review Queue",
+      "manageEbooks": "Manage E-books",
+      "duplicates": "Duplicates",
+      "catalog": "Catalog",
+      "bookRequests": "Book Requests",
+      "groupContent": "Content",
+      "posts": "Posts",
+      "theses": "Theses",
+      "publications": "Publications",
+      "learningPaths": "Learning Paths",
+      "announcements": "Announcements",
+      "groupInsights": "Insights",
+      "searchInsights": "Search Insights",
+      "dataQuality": "Data Quality",
+      "groupAdministration": "Administration",
+      "libraryTeam": "Library Team",
+      "users": "Users",
+      "roles": "Roles",
+      "systemSettings": "System Settings",
+      "securityLogs": "Security Logs",
+      "ariaNavigation": "Admin navigation",
+      "ariaSections": "Admin sections",
+      "openMenu": "Open navigation menu",
+      "closeMenu": "Close navigation menu",
+      "expandSidebar": "Expand sidebar",
+      "collapseSidebar": "Collapse sidebar",
+      "collapse": "Collapse",
+      "viewPublicSite": "View public site",
+      "signOut": "Sign out",
+      "badgeAttention": "{count} items awaiting action",
+      "badgeCritical": "{count} items need attention"
+    },
+    "roles": {
+      "superAdmin": "Super Admin",
+      "admin": "Admin",
+      "librarian": "Librarian",
+      "staff": "Staff"
+    },
+    "topbar": {
+      "searchLabel": "Search actions, pages, e-books…",
+      "openProfileSettings": "Open my profile settings",
+      "openProfileMenu": "Open profile menu",
+      "myProfile": "My profile"
+    },
+    "palette": {
+      "dialogLabel": "Command menu",
+      "inputLabel": "Search actions and pages",
+      "placeholder": "Search actions, pages, e-books…",
+      "commands": "Commands",
+      "actions": "Actions",
+      "goTo": "Go to",
+      "search": "Search",
+      "addEbook": "Add e-book",
+      "addThesis": "Add thesis",
+      "addPublication": "Add publication",
+      "createPost": "Create post",
+      "manageUsers": "Invite or manage users",
+      "viewPublicSite": "View public site",
+      "searchEbooksFor": "Search e-books for “{query}”",
+      "noMatches": "No matches for “{query}”.",
+      "navigate": "navigate",
+      "open": "open",
+      "close": "close"
+    },
+    "bell": {
+      "label": "Notifications",
+      "unreadLabel": "Notifications ({count} unread)",
+      "markAllRead": "Mark all read",
+      "close": "Close",
+      "caughtUp": "All caught up!",
+      "empty": "No notifications yet",
+      "view": "View",
+      "viewLogs": "View security logs",
+      "justNow": "just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago"
+    },
+    "locale": {
+      "label": "Language",
+      "en": "EN",
+      "km": "ខ្មែរ"
+    },
+    "toast": {
+      "dismiss": "Dismiss"
+    },
+    "confirm": {
+      "cancel": "Cancel",
+      "working": "Working…"
+    }
+  },
+  "adminBookRequests": {
+    "title": "Book Requests",
+    "description": "Review and manage book requests submitted by readers.",
+    "pendingBadge": "{count} pending",
+    "search": "Search by title, author, or ISBN…",
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "approved": "Approved",
+      "added": "Added",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "added": "Added",
+      "rejected": "Rejected"
+    },
+    "table": {
+      "request": "Request",
+      "reason": "Reason",
+      "requested": "Requested",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "by": "by {author}",
+    "isbn": "ISBN {isbn}",
+    "actions": {
+      "approve": "Approve",
+      "markAdded": "Mark as added",
+      "reject": "Reject",
+      "delete": "Delete",
+      "details": "Details & note",
+      "hideDetails": "Hide details"
+    },
+    "note": {
+      "label": "Admin note",
+      "placeholder": "Admin note (optional) — saved with the next status change…",
+      "current": "Current note: {note}"
+    },
+    "reasonLabel": "Reason",
+    "empty": {
+      "title": "No requests yet",
+      "description": "When readers request books that aren't in the library, they'll appear here."
+    },
+    "noResults": {
+      "title": "No matching requests",
+      "description": "Try a different search term or filter.",
+      "clear": "Clear filters"
+    },
+    "deleteDialog": {
+      "title": "Delete this request?",
+      "description": "You are about to permanently delete the request for “{title}”. This cannot be undone.",
+      "hint": "Rejecting instead keeps the record for reporting.",
+      "confirm": "Delete request",
+      "busy": "Deleting…"
+    },
+    "toasts": {
+      "updated": "Request marked as {status}.",
+      "deleted": "Request deleted.",
+      "updateFailed": "Could not update the request — please try again.",
+      "deleteFailed": "Could not delete the request — please try again."
+    }
+  },
+  "adminAnnouncements": {
+    "title": "Announcements",
+    "description": "Broadcast messages to all library users.",
+    "form": {
+      "heading": "New Announcement",
+      "titleEn": "Title (English)",
+      "titleKm": "Title (Khmer)",
+      "bodyEn": "Body (English)",
+      "bodyKm": "Body (Khmer)",
+      "link": "Link (optional)",
+      "placeholderTitleEn": "e.g. Library closed on 1 January",
+      "placeholderTitleKm": "ចំណងជើងជាភាសាខ្មែរ",
+      "placeholderBodyEn": "Optional description…",
+      "placeholderBodyKm": "សរសេរបន្ថែម…",
+      "placeholderLink": "/books or /theses",
+      "submit": "Send to All Users",
+      "sending": "Sending…"
+    },
+    "toasts": {
+      "sent": "Announcement sent to all users.",
+      "failed": "Failed to send announcement."
+    },
+    "list": {
+      "heading": "Recent Announcements",
+      "emptyTitle": "No announcements yet",
+      "emptyDescription": "Messages you broadcast will appear here."
+    },
+    "push": {
+      "heading": "Push Notification",
+      "subheading": "Send to all subscribed users",
+      "titleLabel": "Title",
+      "messageLabel": "Message",
+      "linkLabel": "Link (optional)",
+      "placeholderTitle": "e.g. New books added!",
+      "placeholderMessage": "Brief message shown in the notification…",
+      "placeholderLink": "/books",
+      "send": "Send Push Notification",
+      "sending": "Sending…",
+      "sent": "Sent to {count, plural, one {# device} other {# devices}}.",
+      "failed": "Failed to send.",
+      "network": "Network error. Please try again."
+    }
+  },
+  "adminReview": {
+    "title": "Review Queue",
+    "waiting": "{count} waiting",
+    "description": "Books and theses in the verification workflow. Approving verifies the metadata and publishes; “verify only” marks it checked without publishing. Editors cannot verify their own records.",
+    "filters": {
+      "all": "All"
+    },
+    "status": {
+      "draft": "Draft",
+      "imported": "Imported",
+      "needs_review": "Needs review",
+      "in_review": "In review",
+      "changes_requested": "Changes requested",
+      "verified": "Verified",
+      "scheduled": "Scheduled",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "quality": "Quality {grade} · {score}%",
+    "verifiedBadge": "Verified",
+    "typeBook": "E-Book",
+    "typeThesis": "Thesis",
+    "by": "by {author}",
+    "addedBy": "added by {name}",
+    "you": "(you)",
+    "missing": "Missing: {fields}",
+    "reviewerNote": "Reviewer note:",
+    "actions": {
+      "edit": "Edit",
+      "preview": "Preview",
+      "details": "Details",
+      "hideDetails": "Hide details",
+      "startReview": "Start review",
+      "approvePublish": "Approve & publish",
+      "verifyOnly": "Verify only",
+      "requestChanges": "Request changes",
+      "resubmit": "Resubmit for review",
+      "archive": "Archive",
+      "publishNow": "Publish now",
+      "cancelSchedule": "Cancel schedule"
+    },
+    "noteBox": {
+      "label": "What needs to change?",
+      "recorded": "(recorded and shown to the editor)",
+      "placeholder": "e.g. Author name doesn't match the title page; publication year missing",
+      "send": "Send back with note",
+      "cancel": "Cancel"
+    },
+    "details": {
+      "checklist": "Metadata checklist",
+      "required": "required",
+      "citation": "Citation preview",
+      "unverifiedNote": "Shown with an “unverified” notice on public pages and excluded from repository feeds until verified.",
+      "reviewer": "Assigned reviewer",
+      "unassigned": "Unassigned",
+      "history": "Change history"
+    },
+    "versions": {
+      "load": "Load change history",
+      "loading": "Loading…",
+      "none": "No recorded changes yet (history starts once migration 0086 is applied).",
+      "system": "System",
+      "restore": "Restore",
+      "restoreTitle": "Restore this previous version?",
+      "restoreDescription": "The current values are snapshotted first, so this can be undone.",
+      "restoreConfirm": "Restore version",
+      "restoreBusy": "Restoring…",
+      "loadFailed": "Could not load history"
+    },
+    "empty": {
+      "title": "Nothing waiting for review",
+      "description": "Uploads submitted for review will appear here."
+    },
+    "toasts": {
+      "updated": "Status updated.",
+      "reviewerUpdated": "Reviewer updated.",
+      "restored": "Version restored.",
+      "failed": "Action failed — please try again."
+    }
+  },
+  "adminPaths": {
+    "title": "Learning Paths",
+    "description": "Curated reading paths for PTEC trainees — ordered sequences of books, theses, and other resources.",
+    "newPath": "New path",
+    "status": {
+      "published": "Published",
+      "draft": "Draft"
+    },
+    "steps": "{count, plural, one {# step} other {# steps}}",
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "empty": {
+      "title": "No learning paths yet",
+      "description": "Create the first one to get started."
+    },
+    "deleteDialog": {
+      "title": "Delete this learning path?",
+      "description": "You are about to permanently delete “{title}”. This cannot be undone.",
+      "confirm": "Delete path",
+      "busy": "Deleting…"
+    },
+    "toasts": {
+      "deleted": "Learning path deleted.",
+      "deleteFailed": "Could not delete the path — please try again."
+    }
+  },
+  "adminDuplicates": {
+    "back": "Manage E-books",
+    "title": "Duplicate Review",
+    "description": "Probable duplicate records, grouped by shared ISBN, PDF file identity, or matching title with a corroborating signal. Nothing is merged automatically — pick the record to keep, then retire the others. Retiring archives the duplicate (its reviews and analytics are preserved) and adds a permanent 301 redirect from its URL to the record you keep.",
+    "empty": {
+      "title": "No probable duplicates found",
+      "description": "No published books currently share an ISBN, PDF file, or a matching title with a corroborating signal."
+    },
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "records": "{count} records",
+    "signals": {
+      "isbn": "same ISBN",
+      "content-hash": "identical PDF file",
+      "file-size": "same file size",
+      "title": "same title",
+      "author": "same author",
+      "year": "same year"
+    },
+    "keep": "Keep",
+    "keepThis": "Keep this record",
+    "view": "View",
+    "retire": "Retire → keep selected",
+    "retireDialog": {
+      "title": "Retire this duplicate?",
+      "description": "“{title}” will be archived and its URL will permanently redirect to the record you keep. Reviews and analytics are preserved.",
+      "confirm": "Retire duplicate",
+      "busy": "Retiring…"
+    },
+    "toasts": {
+      "retired": "Retired /books/{from} → /books/{to}",
+      "failed": "Could not retire the record — please try again."
+    }
+  },
+  "adminDataQuality": {
+    "title": "Data quality",
+    "description": "Inspect published records, repair missing metadata, and resolve files that readers cannot open.",
+    "urgent": "{count} urgent repairs",
+    "noUrgent": "No urgent repairs",
+    "alert": {
+      "title": "Metadata quality could not be calculated",
+      "body": "Check the database connection and schema before treating this dashboard as a clean result."
+    },
+    "health": {
+      "eyebrow": "Collection health",
+      "completeness": "{percent}% metadata completeness",
+      "barLabel": "{percent}% average metadata completeness",
+      "needMeta": "{count} of {total} records need metadata",
+      "complete": "{count} complete"
+    },
+    "sweep": {
+      "eyebrow": "File sweep",
+      "checked": "{count} links checked",
+      "unavailable": "Health checks unavailable",
+      "barLabel": "{healthy} healthy, {unknown} unknown, {broken} broken file links",
+      "healthy": "{count} healthy",
+      "unknown": "{count} unknown",
+      "broken": "{count} broken",
+      "noBaseline": "No file links have been checked yet. Run a sweep to establish a baseline.",
+      "applyMigration": "Apply the file-health migration before running a link sweep."
+    },
+    "metrics": {
+      "aria": "Quality metrics",
+      "books": "Books",
+      "theses": "Theses",
+      "metadataQueue": "Metadata queue",
+      "brokenLinks": "Broken links",
+      "publishedRecords": "{count} published records",
+      "needingEdits": "Published records needing edits",
+      "lastSweep": "Last sweep {time}"
+    },
+    "gaps": {
+      "title": "Metadata repair queue",
+      "subtitle": "Lowest completeness first, so high-impact edits stay at the top.",
+      "showing": "Showing {shown} of {total}",
+      "completeTitle": "Published metadata is complete",
+      "completeBody": "New gaps will appear here automatically.",
+      "typeBook": "E-book",
+      "typeThesis": "Thesis",
+      "edit": "Edit",
+      "editAria": "Edit metadata for {title}"
+    },
+    "files": {
+      "title": "File repairs",
+      "subtitle": "Links confirmed broken in the latest recorded checks.",
+      "noneTitle": "No broken links recorded",
+      "noneBody": "Last checked {time}.",
+      "noBaselineTitle": "No health baseline",
+      "noBaselineBody": "Run the checker before treating this as a clean result.",
+      "pdf": "PDF file",
+      "cover": "Cover image",
+      "unreachable": "Unreachable",
+      "deleted": "Deleted record",
+      "repair": "Repair record",
+      "refresh": "Refresh the sweep"
+    },
+    "time": {
+      "never": "never",
+      "unknown": "unknown",
+      "today": "today",
+      "yesterday": "yesterday",
+      "daysAgo": "{count} days ago"
+    }
+  },
+  "adminSearchInsights": {
+    "title": "Search Analytics",
+    "description": "Search behavior from the last 30 days: what people look for, where search fails, which results earn clicks, and how Khmer and English usage compares.",
+    "metrics": {
+      "totalSearches": "Total searches",
+      "hintTotal": "All logged global-search queries",
+      "noResults": "No results",
+      "hintNoResults": "Useful acquisition signals",
+      "clickRate": "Click rate",
+      "hintClickRate": "Recorded result clicks per search",
+      "languageSplit": "Language split",
+      "hintLanguage": "Khmer / English search usage"
+    },
+    "lists": {
+      "topKeywords": "Top searched keywords",
+      "emptyTop": "No search activity recorded yet.",
+      "noResultTerms": "Searches with no results",
+      "emptyNoResult": "No zero-result searches recorded.",
+      "missingRequests": "Missing book requests",
+      "emptyMissing": "No failed searches to review yet.",
+      "successful": "Successful search terms",
+      "emptySuccessful": "No successful searches recorded yet."
+    },
+    "clicked": {
+      "title": "Most clicked results",
+      "empty": "No clicked search results recorded yet. New clicks appear after migration 0080 is applied.",
+      "caption": "Most clicked search results",
+      "colResult": "Result",
+      "colType": "Type",
+      "colClicks": "Clicks"
+    },
+    "trends": {
+      "daily": "Daily trend · 14 days",
+      "weekly": "Weekly trend · 30 days",
+      "monthly": "Monthly trend · 6 months",
+      "barAria": "{title} search volume",
+      "pointSr": "{label}: {count} searches, {noResults} with no results."
+    },
+    "language": {
+      "title": "Khmer vs English usage",
+      "khmer": "Khmer",
+      "english": "English",
+      "other": "Other",
+      "pctOfSearches": "{pct}% of searches"
+    },
+    "time": {
+      "recently": "recently",
+      "today": "today",
+      "yesterday": "yesterday",
+      "daysAgo": "{count} days ago"
+    },
+    "actionCenter": {
+      "title": "Zero-result action center",
+      "open": "{count} open",
+      "showHandled": "Show handled",
+      "description": "Failed searches grouped by spelling. Resolve each one: map a synonym, pin a curated result, raise an acquisition request, or dismiss bot noise.",
+      "emptyNone": "No zero-result searches in this window.",
+      "emptyHandled": "Everything has been handled — nice.",
+      "last": "last {time}",
+      "spellings": "{count} spellings",
+      "filtersUsed": "filters used",
+      "possibleMatch": "Possible match: {matches}",
+      "actions": {
+        "synonym": "Synonym",
+        "curate": "Curate",
+        "acquire": "Acquire",
+        "reviewed": "Reviewed",
+        "spam": "Spam"
+      },
+      "actionLabels": {
+        "reviewed": "Reviewed",
+        "ignored": "Ignored (spam/bot)",
+        "acquisition": "Acquisition requested",
+        "synonym": "Synonym added",
+        "curated": "Curated result",
+        "redirect": "Redirect"
+      },
+      "synonymPanel": {
+        "aria": "Synonyms for {term}",
+        "placeholder": "Search this instead (comma-separate alternatives)",
+        "save": "Save synonym",
+        "note": "Applied only when “{term}” finds zero results — normal ranking never changes."
+      },
+      "curatedPanel": {
+        "ariaTitle": "Curated result title for {term}",
+        "ariaUrl": "Curated result URL for {term}",
+        "titlePlaceholder": "Result title",
+        "urlPlaceholder": "/books/slug or /theses/slug",
+        "pin": "Pin result"
+      },
+      "toasts": {
+        "reviewed": "Marked as reviewed.",
+        "ignored": "Dismissed as spam.",
+        "acquisition": "Acquisition request created.",
+        "synonym": "Synonym saved.",
+        "curated": "Result pinned.",
+        "failed": "Action failed. Please try again."
+      }
+    }
+  },
+  "adminUsers": {
+    "title": "Users",
+    "description": "Manage members, roles, and account access.",
+    "roles": {
+      "reader": "Reader",
+      "staff": "Staff",
+      "librarian": "Librarian",
+      "admin": "Admin",
+      "super_admin": "Super Admin"
+    },
+    "roleDescriptions": {
+      "reader": "Default public user — browse and read content only",
+      "staff": "Can manage posts and announcements",
+      "librarian": "Can manage books, catalog, theses, and uploads",
+      "admin": "Full library management including user roles",
+      "super_admin": "Full access — can assign any role including admin"
+    },
+    "status": {
+      "active": "Active",
+      "pending": "Pending",
+      "disabled": "Disabled",
+      "blocked": "Blocked"
+    },
+    "toolbar": {
+      "searchLabel": "Search users",
+      "searchPlaceholder": "Search by name, email, or phone…",
+      "clearSearch": "Clear search",
+      "count": "{count, plural, one {# user} other {# users}}",
+      "import": "Import",
+      "addUser": "Add User"
+    },
+    "stats": {
+      "total": "Total Users",
+      "readers": "Readers",
+      "staff": "Staff",
+      "librarians": "Librarians",
+      "admins": "Admins",
+      "newThisMonth": "New This Month",
+      "vsLastMonth": "vs last month"
+    },
+    "filters": {
+      "byRole": "Filter by role",
+      "byStatus": "Filter by status",
+      "byJoined": "Filter by join date",
+      "sortUsers": "Sort users",
+      "allRoles": "All roles",
+      "allStatuses": "All statuses",
+      "roleChip": "Role: {label}",
+      "statusChip": "Status: {label}",
+      "joinedChip": "Joined: {label}",
+      "reset": "Reset filters",
+      "active": "Active filters",
+      "remove": "Remove filter"
+    },
+    "joined": {
+      "all": "Any time",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days",
+      "year": "Last 12 months"
+    },
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "name_asc": "Name A→Z",
+      "name_desc": "Name Z→A",
+      "recent_login": "Recently active"
+    },
+    "table": {
+      "caption": "Users — click a row to open details",
+      "selectAll": "Select all users on this page",
+      "user": "User",
+      "role": "Role",
+      "status": "Status",
+      "joined": "Joined",
+      "lastLogin": "Last login",
+      "actions": "Actions",
+      "selectUser": "Select {name}",
+      "noName": "No name",
+      "you": "YOU"
+    },
+    "time": {
+      "never": "Never",
+      "justNow": "Just now",
+      "minAgo": "{count} min ago",
+      "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+      "yesterday": "Yesterday",
+      "daysAgo": "{count} days ago"
+    },
+    "actions": {
+      "menuFor": "Actions for {name}",
+      "viewProfile": "View profile",
+      "assignRole": "Assign role",
+      "resetPassword": "Reset password",
+      "reactivate": "Reactivate user",
+      "suspend": "Suspend user",
+      "delete": "Delete user"
+    },
+    "bulk": {
+      "toolbarLabel": "Bulk user actions",
+      "clearSelection": "Clear selection",
+      "selected": "{count, plural, one {# user selected} other {# users selected}}",
+      "assignRole": "Assign role",
+      "superAdminOnly": "super admin",
+      "suspend": "Suspend",
+      "delete": "Delete"
+    },
+    "dialogs": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "working": "Working…",
+      "assignRole": "Assign role",
+      "chooseFor": "Choose the system permission for",
+      "superAdminOnly": "super admin only",
+      "saving": "Saving…",
+      "saveRole": "Save role"
+    },
+    "drawer": {
+      "detailsFor": "Details for {name}",
+      "closeDetails": "Close details",
+      "assignRole": "Assign role",
+      "reactivate": "Reactivate",
+      "suspend": "Suspend",
+      "account": "Account",
+      "email": "Email",
+      "phone": "Phone",
+      "recentActivity": "Recent activity",
+      "downloads": "{count} downloads",
+      "reviews": "{count} reviews",
+      "noActivity": "No recent activity.",
+      "resetPassword": "Reset password",
+      "deleteUser": "Delete user"
+    },
+    "addDialog": {
+      "title": "Add users",
+      "close": "Close",
+      "inviteOne": "Invite one",
+      "importList": "Import list",
+      "emailAddress": "Email address",
+      "emailAddresses": "Email addresses",
+      "bulkPlaceholder": "One per line, or comma-separated\nalice@example.com\nbob@example.com",
+      "bulkHint": "Up to 50 addresses. Each receives an invitation email.",
+      "assignRole": "Assign role",
+      "superAdminOnly": "super admin only",
+      "inviteFailed": "Invite failed",
+      "importFailed": "Import failed",
+      "invitationSent": "Invitation sent to {email}.",
+      "invitedCount": "{count, plural, one {Invited # user.} other {Invited # users.}}",
+      "sending": "Sending…",
+      "sendInvite": "Send invite",
+      "sendInvites": "Send invites"
+    },
+    "states": {
+      "emptyTitle": "No users yet",
+      "emptyBody": "Once people sign up or you invite them, they'll appear here for you to manage.",
+      "noResultsTitle": "No users match your filters",
+      "noResultsBody": "Try a different search term, or reset the filters to see everyone."
+    },
+    "toasts": {
+      "failed": "Action failed",
+      "bulkFailed": "Bulk action failed",
+      "reactivated": "User reactivated.",
+      "resetSent": "Password reset email sent.",
+      "suspended": "User suspended.",
+      "deleted": "User deleted.",
+      "bulkSuspended": "Users suspended.",
+      "bulkDeleted": "Users deleted.",
+      "rolesUpdated": "Roles updated.",
+      "roleUpdated": "Role updated.",
+      "someFailed": "{count} failed"
+    },
+    "confirm": {
+      "resetTitle": "Send password reset?",
+      "suspendTitle": "Suspend this user?",
+      "deleteTitle": "Delete this user?",
+      "bulkSuspendTitle": "Suspend {count} users?",
+      "bulkDeleteTitle": "Delete {count} users?",
+      "resetBody": "A recovery email will be sent to {email}. They can set a new password from the link.",
+      "suspendBody": "They will be signed out and blocked from logging in until reactivated.",
+      "deleteBody": "This permanently deletes {name} and their account data. This cannot be undone.",
+      "bulkSuspendBody": "They will be signed out and blocked until reactivated.",
+      "bulkDeleteBody": "This permanently deletes the selected accounts. This cannot be undone.",
+      "sendEmail": "Send email",
+      "suspend": "Suspend",
+      "delete": "Delete"
+    }
+  },
+  "adminRoles": {
+    "header": {
+      "title": "Role Management",
+      "description": "Define what each role can see and do across the library. Assign these roles to individual people from the Users page.",
+      "lastUpdated": "Permissions last updated",
+      "by": "by",
+      "defaultMatrix": "Using the default permission matrix",
+      "manageUserRoles": "Manage user roles",
+      "usersShort": "Users",
+      "editing": "Editing",
+      "editPermissions": "Edit permissions"
+    },
+    "workspace": {
+      "savedChanges": "{count, plural, one {Saved # change} other {Saved # changes}}",
+      "justNow": "just now",
+      "conflict": "{count} of these were changed by someone else — reload to see the latest values.",
+      "saveFailed": "Could not save changes",
+      "matrixAria": "Permission matrix",
+      "permissions": "Permissions",
+      "hintEdit": "Set each role’s access level per feature",
+      "hintView": "What each role can do across the system"
+    },
+    "overview": {
+      "aria": "Role overview",
+      "heading": "Roles",
+      "clearFocus": "Clear focus",
+      "userCount": "{count, plural, one {# user} other {# users}}",
+      "fullCount": "{count} full",
+      "readCount": "{count} read"
+    },
+    "toolbar": {
+      "searchLabel": "Search features",
+      "searchPlaceholder": "Search features…",
+      "clearSearch": "Clear search",
+      "category": "Category",
+      "allCategories": "All categories",
+      "role": "Role",
+      "allRoles": "All roles",
+      "differences": "Differences",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "reset": "Reset"
+    },
+    "matrix": {
+      "noMatchesTitle": "No features match your filters",
+      "noMatchesBody": "Try clearing the search or the “Differences only” filter.",
+      "caption": "Permissions by role and feature",
+      "feature": "Feature",
+      "permFor": "{feature} permission for {role}",
+      "legend": "Legend",
+      "legendWrite": "Create, edit & delete",
+      "legendRead": "View only",
+      "legendNone": "No access",
+      "legendLocked": "Super Admin is always full access",
+      "viewingRole": "Viewing role",
+      "alwaysFull": "Always full access"
+    },
+    "levels": {
+      "none": "No access",
+      "read": "Read",
+      "write": "Full access",
+      "noneShort": "None",
+      "readShort": "Read",
+      "writeShort": "Write",
+      "noneDescription": "Cannot see or use this area",
+      "readDescription": "Can view but not change",
+      "writeDescription": "Can create, edit, and delete"
+    },
+    "groups": {
+      "library": "Library",
+      "content": "Content",
+      "communication": "Communication",
+      "administration": "Administration"
+    },
+    "groupDescriptions": {
+      "library": "Digital and physical collection management",
+      "content": "Editorial and academic publishing",
+      "communication": "Messages from library visitors",
+      "administration": "People, roles, and system access"
+    },
+    "resources": {
+      "books": "E-books",
+      "catalog": "Catalog",
+      "posts": "Posts",
+      "research": "Theses",
+      "publications": "Publications",
+      "learning_paths": "Learning Paths",
+      "announcements": "Announcements",
+      "contact": "Inbox",
+      "users": "Users",
+      "roles": "Roles",
+      "settings": "System Settings"
+    },
+    "resourceDescriptions": {
+      "books": "Upload, review, and manage digital books",
+      "catalog": "Physical collection and copy records",
+      "posts": "News articles and blog posts",
+      "research": "Student theses and research reports",
+      "publications": "Institutional academic publications",
+      "learning_paths": "Curated teacher learning journeys",
+      "announcements": "Site-wide announcement banners",
+      "contact": "Contact-form messages and replies",
+      "users": "Accounts, team directory, and role assignment",
+      "roles": "This permission matrix itself",
+      "settings": "Global site configuration: contacts, hours, links, SEO"
+    },
+    "actionBar": {
+      "saving": "Saving changes…",
+      "allSaved": "All changes saved",
+      "couldNotSave": "Could not save",
+      "conflictShort": "Someone else changed these permissions",
+      "unsaved": "{count, plural, one {# unsaved change} other {# unsaved changes}}",
+      "noChanges": "No changes yet",
+      "review": "Review",
+      "cancel": "Cancel",
+      "savingShort": "Saving…",
+      "save": "Save",
+      "saveChanges": "Save changes"
+    },
+    "review": {
+      "title": "Review changes",
+      "summary": "{count, plural, one {# permission change will be saved.} other {# permission changes will be saved.}}",
+      "close": "Close",
+      "keepEditing": "Keep editing",
+      "saving": "Saving…",
+      "confirmSave": "Confirm & save"
+    }
+  },
+  "adminEbooks": {
+    "title": "Manage E-books",
+    "description": "Search, edit, publish, and maintain digital books in the PTEC Library.",
+    "stats": {
+      "total": "Total E-books",
+      "archived": "{count} archived",
+      "live": "Live",
+      "awaitingReview": "{count} awaiting review",
+      "drafts": "Drafts",
+      "missingCovers": "Missing Covers",
+      "missingPdfs": "Missing PDFs",
+      "brokenLinks": "{count} broken link(s)",
+      "downloads": "Downloads",
+      "storage": "Storage Used",
+      "weakMetadata": "Weak Metadata"
+    },
+    "toolbar": {
+      "searchLabel": "Search e-books",
+      "searchPlaceholder": "Search e-books by title, author, department, keyword…",
+      "clearSearch": "Clear search",
+      "results": "{count, plural, one {# result} other {# results}}",
+      "upload": "Upload E-book"
+    },
+    "status": {
+      "draft": "Draft",
+      "pending_review": "Needs Review",
+      "published": "Live",
+      "rejected": "Rejected",
+      "archived": "Archived"
+    },
+    "sort": {
+      "newest": "Recently uploaded",
+      "oldest": "Oldest first",
+      "updated": "Recently updated",
+      "most-downloaded": "Most downloaded",
+      "most-viewed": "Most viewed",
+      "title-asc": "Title A–Z",
+      "title-desc": "Title Z–A",
+      "year-desc": "Year newest",
+      "year-asc": "Year oldest",
+      "size-desc": "File size largest",
+      "size-asc": "File size smallest",
+      "metadata-quality": "Metadata completeness"
+    },
+    "fileStatus": {
+      "has_pdf": "PDF ready",
+      "missing_pdf": "Missing PDF",
+      "broken_file": "Broken file",
+      "large_file": "Large file"
+    },
+    "coverStatus": {
+      "has_cover": "Cover ready",
+      "missing_cover": "Missing cover",
+      "broken_cover": "Broken cover"
+    },
+    "quality": {
+      "complete": "Complete",
+      "good": "Good",
+      "needs_review": "Needs Review",
+      "incomplete": "Incomplete"
+    },
+    "filters": {
+      "statusChip": "Status: {label}",
+      "deptChip": "Department: {label}",
+      "categoryChip": "Category: {label}",
+      "yearChip": "Year: {label}",
+      "languageChip": "Language: {label}",
+      "metadataChip": "Metadata: {label}",
+      "byStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "byDepartment": "Filter by department",
+      "allDepartments": "All departments",
+      "sortEbooks": "Sort e-books",
+      "clearFilters": "Clear filters",
+      "activeFilters": "Active filters",
+      "removeFilter": "Remove filter",
+      "moreFilters": "More filters",
+      "close": "Close",
+      "category": "Category",
+      "allCategories": "All categories",
+      "year": "Year",
+      "allYears": "All years",
+      "language": "Language",
+      "allLanguages": "All languages",
+      "fileStatusLabel": "File status",
+      "anyFileStatus": "Any file status",
+      "coverStatusLabel": "Cover status",
+      "anyCoverStatus": "Any cover status",
+      "metadataQuality": "Metadata quality",
+      "anyQuality": "Any quality",
+      "clearThese": "Clear these",
+      "apply": "Apply"
+    },
+    "actions": {
+      "menuFor": "Actions for {title}",
+      "viewPublic": "View public page",
+      "notPublished": "Not published yet",
+      "editMetadata": "Edit metadata",
+      "replacePdf": "Replace PDF",
+      "replaceCover": "Replace cover",
+      "uploadCover": "Upload cover",
+      "copyLink": "Copy public link",
+      "downloadPdf": "Download PDF",
+      "comingSoon": "Coming soon",
+      "featureBook": "Feature book",
+      "unpublish": "Unpublish",
+      "publish": "Publish",
+      "restore": "Restore from archive",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "bulk": {
+      "toolbarLabel": "Bulk e-book actions",
+      "clearSelection": "Clear selection",
+      "selected": "{count, plural, one {# e-book selected} other {# e-books selected}}",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "changeDept": "Change department",
+      "newDept": "New department",
+      "choose": "Choose…",
+      "addTag": "Add tag",
+      "tag": "Tag",
+      "tagPlaceholder": "e.g. reviewed",
+      "applyTo": "{count, plural, one {Apply to # e-book} other {Apply to # e-books}}",
+      "exportCsv": "Export CSV",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "table": {
+      "caption": "E-books list",
+      "selectAll": "Select all e-books",
+      "cover": "Cover",
+      "bookInfo": "Book Info",
+      "author": "Author",
+      "department": "Department",
+      "year": "Year",
+      "fileHealth": "File Health",
+      "metadata": "Metadata",
+      "statsCol": "Stats",
+      "statusCol": "Status",
+      "updated": "Updated",
+      "actionsCol": "Actions",
+      "selectOne": "Select {title}",
+      "noAuthor": "No author",
+      "noDepartment": "No department",
+      "noYear": "No year",
+      "view": "View",
+      "edit": "Edit",
+      "viewPublic": "View public page",
+      "viewPublicFor": "View public page for {title}"
+    },
+    "toasts": {
+      "failed": "Action failed",
+      "bulkFailed": "Bulk action failed",
+      "updated": "E-book updated.",
+      "deleted": "E-book deleted.",
+      "deleteFailed": "Delete failed",
+      "archived": "E-book archived.",
+      "archiveFailed": "Archive failed"
+    },
+    "deleteDialog": {
+      "title": "Delete e-book?",
+      "titleBulk": "Delete {count} e-books?",
+      "body": "You are about to delete: {title}. This action cannot be undone.",
+      "bodyBulk": "You are about to delete {count} e-books, including their PDF and cover files. This action cannot be undone.",
+      "hint": "Consider Archive instead if you may need this e-book again — archived e-books are removed from the public library but not erased.",
+      "cancel": "Cancel",
+      "confirm": "Delete e-book",
+      "confirmBulk": "Delete e-books",
+      "busy": "Deleting…"
+    },
+    "archiveDialog": {
+      "title": "Archive e-book?",
+      "titleBulk": "Archive {count} e-books?",
+      "body": "This will remove {title} from the public library but keep it in the admin system.",
+      "bodyBulk": "This will remove {count} e-books from the public library but keep them in the admin system.",
+      "cancel": "Cancel",
+      "confirm": "Archive",
+      "busy": "Archiving…"
+    },
+    "qualityBadge": {
+      "missing": "Missing: {fields}",
+      "complete": "All fields complete"
+    },
+    "fileHealth": {
+      "brokenFile": "Broken file",
+      "pdfReady": "PDF ready",
+      "missingPdf": "Missing PDF",
+      "brokenCover": "Broken cover",
+      "noCover": "No cover",
+      "coverPresent": "Cover present",
+      "largeFile": "Large file"
+    },
+    "coverAlt": {
+      "noCover": "No cover for {title}",
+      "brokenCover": "Broken cover image for {title}",
+      "failedToLoad": "Cover image failed to load"
+    },
+    "seoPanel": {
+      "title": "SEO & Metadata Quality",
+      "subtitle": "Factual completeness — never blocks saving",
+      "googlePreview": "Google preview",
+      "optional": "optional"
+    },
+    "states": {
+      "emptyTitle": "No e-books yet",
+      "emptyBody": "Upload your first e-book to start building the PTEC Library.",
+      "uploadCta": "Upload E-book",
+      "noResultsTitle": "No e-books found",
+      "noResultsBody": "Try changing your search or filters.",
+      "clearFilters": "Clear filters"
+    }
+  },
+  "adminTheses": {
+    "title": "Manage Theses",
+    "description": "Upload, publish, and maintain the PTEC student thesis repository.",
+    "stats": {
+      "total": "Total Theses",
+      "published": "Published",
+      "drafts": "Drafts",
+      "pendingReview": "Pending Review",
+      "views": "Views",
+      "downloads": "Downloads",
+      "missingMetadata": "Missing Metadata",
+      "missingFiles": "Missing Files"
+    },
+    "toolbar": {
+      "searchLabel": "Search theses",
+      "searchPlaceholder": "Search theses by title, author, advisor, program, keyword…",
+      "clearSearch": "Clear search",
+      "results": "{count, plural, one {# result} other {# results}}",
+      "upload": "Upload Thesis"
+    },
+    "status": {
+      "draft": "Draft",
+      "pending_review": "Pending Review",
+      "published": "Published",
+      "scheduled": "Scheduled",
+      "archived": "Archived",
+      "rejected": "Rejected"
+    },
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "most-viewed": "Most viewed",
+      "most-downloaded": "Most downloaded",
+      "title-asc": "Title A–Z",
+      "title-desc": "Title Z–A",
+      "updated": "Recently updated",
+      "metadata-quality": "Metadata completeness"
+    },
+    "fileStatus": {
+      "has_pdf": "PDF ready",
+      "missing_pdf": "Missing PDF",
+      "has_cover": "Has cover",
+      "missing_cover": "No cover",
+      "coverPresent": "Cover present"
+    },
+    "filters": {
+      "statusChip": "Status: {label}",
+      "programChip": "Program: {label}",
+      "cohortChip": "Cohort: {label}",
+      "yearChip": "Year: {label}",
+      "metadataChip": "Metadata: {label}",
+      "byStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "byProgram": "Filter by program",
+      "allPrograms": "All programs",
+      "sortTheses": "Sort theses",
+      "clearFilters": "Clear filters",
+      "activeFilters": "Active filters",
+      "removeFilter": "Remove filter",
+      "moreFilters": "More filters",
+      "close": "Close",
+      "cohort": "Cohort",
+      "allCohorts": "All cohorts",
+      "academicYear": "Academic year",
+      "allYears": "All years",
+      "fileStatusLabel": "File status",
+      "anyFileStatus": "Any file status",
+      "metadataQuality": "Metadata quality",
+      "anyQuality": "Any quality",
+      "clearThese": "Clear these",
+      "apply": "Apply"
+    },
+    "table": {
+      "caption": "Theses list",
+      "selectAll": "Select all theses",
+      "cover": "Cover",
+      "titleCol": "Title / Author / Advisor",
+      "programCol": "Program / Cohort / Year",
+      "metadata": "Metadata",
+      "files": "Files",
+      "statsCol": "Stats",
+      "statusCol": "Status",
+      "download": "Download",
+      "updated": "Updated",
+      "actionsCol": "Actions",
+      "selectOne": "Select {title}",
+      "collapseDetails": "Collapse details for {title}",
+      "expandDetails": "Expand details for {title}",
+      "noAuthor": "No author listed",
+      "advisor": "Advisor: {name}",
+      "noAdvisor": "No advisor listed",
+      "cohort": "Cohort {cohort}",
+      "noCohort": "No cohort",
+      "noYear": "No year"
+    },
+    "downloadPolicy": {
+      "adminAllow": "Admin allow",
+      "adminBlock": "Admin block",
+      "automatic": "Automatic",
+      "allowed": "Allowed",
+      "blocked": "Blocked",
+      "topTen": "Top 10 · #{rank}",
+      "dlAllowed": "DL allowed",
+      "dlBlocked": "DL blocked"
+    },
+    "details": {
+      "abstractPreview": "Abstract preview",
+      "noAbstract": "No abstract yet.",
+      "keywords": "Keywords",
+      "noKeywords": "No keywords yet.",
+      "references": "References",
+      "referenceCount": "{count, plural, one {# reference} other {# references}}",
+      "noneYet": "None yet",
+      "publicUrl": "Public URL",
+      "notPublished": "Not published yet"
+    },
+    "actions": {
+      "menuFor": "Actions for {title}",
+      "viewPublic": "View public thesis",
+      "notPublished": "Not published yet",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "copyLink": "Copy public link",
+      "downloadPdf": "Download PDF",
+      "unpublish": "Unpublish",
+      "publish": "Publish",
+      "restore": "Restore from archive",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "bulk": {
+      "toolbarLabel": "Bulk thesis actions",
+      "clearSelection": "Clear selection",
+      "selected": "{count, plural, one {# thesis selected} other {# theses selected}}",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "changeCohort": "Change cohort",
+      "newCohort": "New cohort",
+      "changeYear": "Change year",
+      "newYear": "New academic year",
+      "applyTo": "{count, plural, one {Apply to # thesis} other {Apply to # theses}}",
+      "exportCsv": "Export CSV",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "toasts": {
+      "failed": "Action failed",
+      "bulkFailed": "Bulk action failed",
+      "updated": "Thesis updated.",
+      "deleted": "Thesis deleted.",
+      "deleteFailed": "Delete failed"
+    },
+    "deleteDialog": {
+      "title": "Delete this thesis?",
+      "titleBulk": "Delete {count} theses?",
+      "body": "You are about to permanently delete: {title}, including its PDF and cover files. This action cannot be undone.",
+      "bodyBulk": "You are about to permanently delete {count} theses, including their PDF and cover files. This action cannot be undone.",
+      "hint": "Consider Archive instead if you may need this thesis again — archived theses are hidden from the public site but not erased.",
+      "cancel": "Cancel",
+      "confirm": "Delete thesis",
+      "confirmBulk": "Delete theses",
+      "busy": "Deleting…"
+    },
+    "states": {
+      "emptyTitle": "No theses yet",
+      "emptyBody": "Upload the first student thesis to start building the PTEC research repository.",
+      "uploadCta": "Upload Thesis",
+      "noResultsTitle": "No theses found",
+      "noResultsBody": "Try changing your search or filters.",
+      "clearFilters": "Clear filters"
+    }
+  },
+  "adminPosts": {
+    "title": "Manage Posts",
+    "description": "Create, edit, and publish your library posts.",
+    "stats": {
+      "total": "Total Posts",
+      "live": "Live",
+      "drafts": "Drafts",
+      "scheduled": "Scheduled",
+      "totalViews": "Total Views"
+    },
+    "toolbar": {
+      "searchLabel": "Search posts",
+      "searchPlaceholder": "Search posts by title, author, category, or tag…",
+      "clearSearch": "Clear search",
+      "results": "{count, plural, one {# result} other {# results}}",
+      "create": "Create Post"
+    },
+    "status": {
+      "published": "Live",
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "archived": "Archived"
+    },
+    "sort": {
+      "newest": "Newest first",
+      "oldest": "Oldest first",
+      "most-viewed": "Most viewed",
+      "least-viewed": "Least viewed",
+      "title-asc": "Title A–Z",
+      "title-desc": "Title Z–A"
+    },
+    "dateRange": {
+      "all": "All time",
+      "today": "Today",
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "custom": "Custom range"
+    },
+    "filters": {
+      "byCategory": "Filter by category",
+      "allCategories": "All categories",
+      "byStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "byDate": "Filter by date",
+      "sortPosts": "Sort posts",
+      "clearFilters": "Clear filters",
+      "moreFilters": "More filters",
+      "close": "Close",
+      "author": "Author",
+      "anyAuthor": "Any author",
+      "from": "From",
+      "to": "To",
+      "minViews": "Min. views",
+      "maxViews": "Max. views",
+      "any": "Any",
+      "clearThese": "Clear these",
+      "apply": "Apply"
+    },
+    "table": {
+      "caption": "Posts list",
+      "selectAll": "Select all posts",
+      "titleCol": "Title",
+      "category": "Category",
+      "author": "Author",
+      "statusCol": "Status",
+      "views": "Views",
+      "created": "Created",
+      "updated": "Updated",
+      "actionsCol": "Actions",
+      "selectOne": "Select {title}"
+    },
+    "actions": {
+      "menuFor": "Actions for {title}",
+      "viewPublic": "View public post",
+      "edit": "Edit",
+      "duplicate": "Duplicate",
+      "copyLink": "Copy link",
+      "unpublish": "Unpublish",
+      "publish": "Publish",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "bulk": {
+      "toolbarLabel": "Bulk post actions",
+      "clearSelection": "Clear selection",
+      "selected": "{count, plural, one {# post selected} other {# posts selected}}",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "changeCategory": "Change category",
+      "archive": "Archive",
+      "delete": "Delete"
+    },
+    "toasts": {
+      "failed": "Action failed",
+      "bulkFailed": "Bulk action failed",
+      "updated": "Post updated.",
+      "deleted": "Post deleted.",
+      "deleteFailed": "Delete failed"
+    },
+    "deleteDialog": {
+      "title": "Delete this post?",
+      "titleBulk": "Delete {count} posts?",
+      "body": "You are about to delete: {title}. This action cannot be undone.",
+      "bodyBulk": "You are about to delete {count} posts. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete post",
+      "confirmBulk": "Delete posts",
+      "busy": "Deleting…"
+    },
+    "states": {
+      "emptyTitle": "No posts yet",
+      "emptyBody": "Create your first post to share announcements, events, and research updates.",
+      "createCta": "Create Post",
+      "noResultsTitle": "No posts found",
+      "noResultsBody": "Try changing your search or filters.",
+      "clearFilters": "Clear filters"
+    }
+  },
+  "adminPostForm": {
+    "newTitle": "New post",
+    "editTitle": "Edit post",
+    "unsavedFrom": "You have unsaved changes from {date}.",
+    "restore": "Restore",
+    "discard": "Discard",
+    "uploadingImage": "Uploading image {current} of {total}…",
+    "imageUploadFailed": "Image upload failed: {error}",
+    "savingPost": "Saving post…",
+    "saveFailed": "Save failed",
+    "scheduledFor": "Scheduled for {date}",
+    "justNow": "Just now",
+    "title": "Title",
+    "titlePlaceholder": "Post title",
+    "excerpt": "Excerpt",
+    "excerptPlaceholder": "Short summary shown on cards and search results…",
+    "excerptHint": "Recommended length: 120–160 characters.",
+    "excerptAutoHint": "Excerpt will be auto-generated from content if left empty.",
+    "tags": "Tags",
+    "tagsPlaceholder": "e.g. education, ការអប់រំ…",
+    "publish": {
+      "settings": "Publish settings",
+      "statusAria": "Publish status",
+      "status": {
+        "draft": {
+          "label": "Draft",
+          "help": "Not visible to the public"
+        },
+        "published": {
+          "label": "Publish now",
+          "help": "Goes live immediately on save"
+        },
+        "scheduled": {
+          "label": "Schedule",
+          "help": "Goes live automatically at a future date/time"
+        }
+      },
+      "publishDate": "Publish date & time",
+      "visibility": "Visibility",
+      "visibilityLabels": {
+        "public": "Public — listed and searchable",
+        "unlisted": "Unlisted — viewable via direct link only",
+        "admin_only": "Admin only — hidden from the public site"
+      },
+      "category": "Category"
+    },
+    "actions": {
+      "publish": "Publish",
+      "schedule": "Schedule Post",
+      "saveChanges": "Save Changes",
+      "saveDraft": "Save Draft",
+      "autosave": {
+        "unsaved": "Unsaved changes",
+        "saving": "Saving…",
+        "saved": "Draft saved",
+        "error": "Autosave failed"
+      },
+      "unpublish": "Unpublish",
+      "saveAsDraft": "Save as Draft",
+      "preview": "Preview",
+      "saving": "Saving…"
+    },
+    "seo": {
+      "untitled": "Untitled post",
+      "noDescription": "No description yet.",
+      "heading": "SEO & sharing",
+      "seoTitle": "SEO title",
+      "seoDescription": "SEO description",
+      "descPlaceholder": "Short description shown in search results",
+      "ogImage": "Open Graph image URL",
+      "ogPlaceholder": "Defaults to the hero cover image",
+      "searchPreview": "Search preview"
+    },
+    "slug": {
+      "label": "Slug",
+      "checking": "Checking…",
+      "available": "Available",
+      "taken": "Already taken — choose another"
+    },
+    "cover": {
+      "errBadType": "{name}: must be JPEG, PNG, WebP, or AVIF",
+      "errTooLarge": "{name}: must be under 5 MB",
+      "errMaxImages": "Maximum {max} images allowed",
+      "label": "Cover images",
+      "hint": "(optional · up to {max} · JPEG, PNG, WebP · max 5 MB each)",
+      "coverImageN": "Cover image {n}",
+      "heroCover": "Hero cover",
+      "setHero": "Set as hero cover",
+      "isHeroN": "Image {n} is the hero cover",
+      "setHeroN": "Set image {n} as hero cover",
+      "undoRemove": "Undo remove",
+      "remove": "Remove",
+      "undoRemoveN": "Undo remove for image {n}",
+      "removeN": "Remove image {n}",
+      "removed": "REMOVED",
+      "altPlaceholder": "Alt text (for accessibility & SEO)",
+      "altLabelN": "Alt text for image {n}",
+      "uploadLabel": "Upload cover images",
+      "chooseOrDrop": "Choose or drop images",
+      "addMore": "Add more images",
+      "reorderHint": "Drag thumbnails to reorder. Click the star to set the hero cover — defaults to the first image."
+    },
+    "preview": {
+      "heading": "Post preview",
+      "desktop": "Desktop preview",
+      "mobile": "Mobile preview",
+      "close": "Close preview",
+      "untitled": "Untitled post",
+      "nothingYet": "Nothing to preview yet."
+    },
+    "editor": {
+      "fullscreenLabel": "Fullscreen content editor",
+      "content": "Content",
+      "markdown": "Markdown",
+      "tab": {
+        "write": "Write",
+        "preview": "Preview"
+      },
+      "exitFullscreen": "Exit fullscreen",
+      "fullscreen": "Fullscreen",
+      "tools": {
+        "h1": "Heading 1",
+        "h2": "Heading 2",
+        "h3": "Heading 3",
+        "bold": "Bold (Ctrl+B)",
+        "italic": "Italic (Ctrl+I)",
+        "code": "Inline code",
+        "codeblock": "Code block",
+        "quote": "Blockquote",
+        "ul": "Bullet list",
+        "ol": "Numbered list",
+        "link": "Link (Ctrl+K)",
+        "table": "Insert table",
+        "hr": "Horizontal rule"
+      },
+      "insertImage": "Insert image",
+      "uploadFirst": "Upload a cover image first — it will show up here to insert.",
+      "imageN": "Image {n}",
+      "insertN": "Insert {name}",
+      "nothingToPreview": "Nothing to preview",
+      "switchToWrite": "Switch to Write and add some content first.",
+      "words": "{count, plural, one {# word} other {# words}}",
+      "chars": "{count} chars",
+      "tabHint": "Tab = 2 spaces",
+      "escHint": " · Esc to exit"
+    }
+  },
+  "adminThesisForm": {
+    "newTitle": "Upload Thesis",
+    "editTitle": "Edit Thesis",
+    "createSubtitle": "Add a new student thesis to the repository",
+    "editSubtitle": "Update details for this thesis",
+    "saveFailed": "Save failed",
+    "unsavedFrom": "You have unsaved changes from {date}.",
+    "restore": "Restore",
+    "discard": "Discard",
+    "progress": {
+      "pdf": "Uploading PDF…",
+      "cover": "Uploading cover…",
+      "supplementary": "Uploading supplementary file {current} of {total}…",
+      "saving": "Saving thesis…"
+    },
+    "files": {
+      "currentPdf": "Current PDF attached",
+      "pdfOnly": "PDF files only",
+      "pdfThesis": "PDF Thesis",
+      "coverImage": "Cover Image",
+      "altText": "Alt text (recommended)",
+      "altPlaceholder": "Describe the cover image for screen readers",
+      "supplementary": "Supplementary Files (Optional)",
+      "supplementaryHint": "Dataset, slides, appendices — PDF, Word, Excel, PowerPoint, CSV",
+      "remove": "Remove {name}",
+      "optionalDescription": "Optional description",
+      "clickUpload": "Click to upload",
+      "orDragDrop": "or drag and drop"
+    },
+    "actions": {
+      "publish": "Publish",
+      "schedule": "Schedule Publish",
+      "update": "Update",
+      "saveDraft": "Save Draft",
+      "unpublish": "Unpublish",
+      "preview": "Preview",
+      "saving": "Saving…"
+    },
+    "autosave": {
+      "unsaved": "Unsaved changes",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Autosave failed"
+    },
+    "steps": {
+      "navAria": "Thesis form steps",
+      "basic": "Basic Info",
+      "classification": "Classification",
+      "people": "People",
+      "abstract": "Abstract",
+      "references": "References",
+      "files": "Files",
+      "review": "Review",
+      "srErrors": ", {count, plural, one {# error} other {# errors}}",
+      "srComplete": ", complete",
+      "srCurrent": ", current step"
+    },
+    "basic": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. The impact of digital learning...",
+      "doi": "DOI / Official ID (Optional)",
+      "doiPlaceholder": "e.g. 10.1234/abc or https://doi.org/...",
+      "thesisType": "Thesis Type",
+      "language": "Language",
+      "license": "License",
+      "types": {
+        "thesis": "Thesis",
+        "research_report": "Research Report",
+        "capstone": "Capstone Project",
+        "action_research": "Action Research",
+        "other": "Other"
+      },
+      "languages": {
+        "km": "Khmer",
+        "en": "English",
+        "km_en": "Khmer + English"
+      }
+    },
+    "classification": {
+      "intro": "Classification controls how this thesis appears on the public thesis page and summary index.",
+      "manageCohorts": "Manage Cohorts & Years",
+      "program": "Program",
+      "faculty": "Faculty / Major",
+      "subject": "Subject",
+      "cohort": "Cohort",
+      "academicYear": "Academic Year",
+      "loading": "Loading…",
+      "selectProgram": "-- Select Program --",
+      "selectFaculty": "-- Select Faculty/Major --",
+      "selectCohort": "-- Select Cohort --",
+      "selectYear": "-- Select Year --",
+      "selectSubject": "-- Select Subject --",
+      "bilingualPlaceholder": "English Name | Khmer Name",
+      "bilingualHint": "Format: English Name | Khmer Name",
+      "cohortPlaceholder": "Enter cohort number…",
+      "cohortHint": "Enter a number (e.g. 7)",
+      "yearPlaceholder": "Enter year (e.g. 2025-2026)…",
+      "yearHint": "Format: YYYY-YYYY (e.g. 2025-2026)"
+    },
+    "people": {
+      "authors": "Author(s)",
+      "author": "author",
+      "authorCount": "{count, plural, one {# author} other {# authors}}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "authorPlaceholder": "e.g. Sok San",
+      "remove": "Remove {name}",
+      "addAuthor": "Add author",
+      "advisor": "Advisor Name",
+      "advisorPlaceholder": "e.g. Dr. Chea Vutha",
+      "coAdvisor": "Co-Advisor Name (Optional)",
+      "optional": "Optional",
+      "publicationDate": "Publication Date",
+      "defenseDate": "Defense Date (Optional)",
+      "submittedDate": "Submitted Date (Optional)"
+    },
+    "abstract": {
+      "abstractLabel": "Abstract",
+      "undo": "Undo",
+      "cleanText": "Clean pasted text",
+      "abstractPlaceholder": "Brief summary of the objective, method, findings, and conclusion...",
+      "stats": "{words} words · {chars} characters · ~{min} min read",
+      "khmerDetected": " · Khmer detected",
+      "recommendedHint": "Recommended length: 150–300 words. Summarize the objective, methodology, findings, and conclusion.",
+      "keywordsLabel": "Keywords / Tags",
+      "keywordsPlaceholder": "e.g. ការស្រាវជ្រាវ, education, STEM…",
+      "keywordsHint": "Press Enter or , to add a tag — max 10, Khmer and English both allowed.",
+      "tooShort": "Shorter than the recommended 150–300 words.",
+      "tooLong": "Longer than the recommended 150–300 words.",
+      "goodLength": "Within the recommended length."
+    },
+    "references": {
+      "label": "References / Bibliography (Optional)",
+      "count": "{count, plural, one {# reference} other {# references}}",
+      "empty": "No references added yet.",
+      "moveUp": "Move reference up",
+      "moveDown": "Move reference down",
+      "refPlaceholder": "e.g. Doe, J. (2020). Book title...",
+      "linkDetected": "Link/DOI detected",
+      "remove": "Remove reference",
+      "pastePlaceholder": "Paste your block of references here...",
+      "cancel": "Cancel",
+      "smartSplit": "Smart Split & Add",
+      "addRow": "Add empty row",
+      "pasteBlob": "Paste a blob",
+      "oneLine": "One reference per line"
+    },
+    "seo": {
+      "untitled": "Untitled thesis",
+      "noDescription": "No description yet.",
+      "heading": "SEO & sharing",
+      "seoTitle": "SEO title",
+      "seoDescription": "SEO description",
+      "descPlaceholder": "Short description shown in search results (defaults to an abstract excerpt)",
+      "ogImage": "Open Graph image URL",
+      "ogPlaceholder": "Defaults to the cover image",
+      "searchPreview": "Search preview"
+    },
+    "citation": {
+      "heading": "Citation preview",
+      "format": "Citation format",
+      "copy": "Copy citation",
+      "qualityHint": "Author and publication year improve citation quality — consider adding them."
+    },
+    "review": {
+      "untitled": "Untitled thesis",
+      "noAuthor": "No author listed",
+      "noProgram": "No program",
+      "cohort": "Cohort {cohort}",
+      "noCohort": "No cohort",
+      "noYear": "No year",
+      "openPreview": "Open public preview",
+      "recommendations": "{count, plural, one {# recommendation before publishing} other {# recommendations before publishing}}",
+      "complete": "Metadata looks complete."
+    },
+    "preview": {
+      "heading": "Public preview",
+      "desktop": "Desktop preview",
+      "mobile": "Mobile preview",
+      "close": "Close preview",
+      "untitled": "Untitled thesis",
+      "noAuthor": "No author listed",
+      "advisor": "Advisor: {name}",
+      "noProgram": "No program",
+      "cohort": "Cohort {cohort}",
+      "noCohort": "No cohort",
+      "noYear": "No year",
+      "download": "Download",
+      "cite": "Cite",
+      "abstract": "Abstract",
+      "nothingYet": "Nothing to preview yet.",
+      "references": "References"
+    },
+    "dropzone": {
+      "replacePdf": "Replace thesis PDF",
+      "uploadPdf": "Upload thesis PDF",
+      "clickReplace": "Click to replace",
+      "clickUpload": "Click to upload",
+      "orDragDrop": "or drag and drop",
+      "pdfOnly": "PDF files only",
+      "recommendedSize": "Recommended: under 25 MB when possible. Compress scanned PDFs before uploading.",
+      "largeWarning": "This PDF is large and may load slowly in the online reader.",
+      "pdfFile": "Thesis PDF file",
+      "coverPreview": "Cover preview",
+      "removeCover": "Remove cover",
+      "removed": "Removed",
+      "noCover": "No cover",
+      "imageFormats": "PNG, JPG, WEBP"
+    },
+    "addableSelect": {
+      "addFailed": "Failed to add. Please try again.",
+      "addFailedShort": "Failed to add.",
+      "search": "Search…",
+      "noResults": "No results found.",
+      "add": "Add “{value}”"
+    },
+    "cohortManager": {
+      "loadFailed": "Failed to load",
+      "heading": "Manage Programs, Faculties & Cohorts",
+      "close": "Close",
+      "loading": "Loading…"
+    },
+    "cohorts": {
+      "pageTitle": "Manage Programs, Faculties & Cohorts",
+      "pageDescription": "Add, edit, or remove programs, faculties, cohorts, and their academic year options. Changes appear immediately in upload forms.",
+      "dismiss": "Dismiss",
+      "programsHeading": "Programs",
+      "programsSub": "Manage all available programs",
+      "addProgram": "Add Program",
+      "newProgram": "New Program",
+      "codePlaceholderProgram": "Code (e.g. b_ed_12_4) *",
+      "years": "Years",
+      "hasFaculty": "Has Faculty",
+      "noPrograms": "No programs yet. Add one above.",
+      "deleteProgramConfirm": "Delete program + all data?",
+      "deleteProgram": "Delete program",
+      "codePlaceholder": "Code *",
+      "addFaculty": "Add Faculty",
+      "noFaculties": "No faculties yet.",
+      "cohortNumberPlaceholder": "Cohort number *",
+      "displayLabelOptional": "Display label (optional)",
+      "displayLabelBlank": "Display label (blank = use number)",
+      "addCohort": "Add Cohort",
+      "noCohorts": "No cohorts yet.",
+      "deleteCohortConfirm": "Delete + all years?",
+      "editLabel": "Edit label",
+      "deleteCohort": "Delete cohort",
+      "academicYears": "Academic Years",
+      "yearPlaceholder": "e.g. 2025-2026",
+      "addYear": "Add Year",
+      "noYears": "No academic years yet.",
+      "save": "Save",
+      "collapse": "Collapse",
+      "expand": "Expand",
+      "edit": "Edit",
+      "delete": "Delete",
+      "englishNamePlaceholderReq": "English name *",
+      "englishNamePlaceholder": "English name",
+      "khmerNamePlaceholder": "Khmer name",
+      "deleteConfirm": "Delete?",
+      "yes": "Yes",
+      "err": {
+        "programCode": "Program code is required.",
+        "englishName": "English name is required.",
+        "facultyCode": "Faculty code is required.",
+        "cohortNumber": "Enter a valid cohort number (≥ 1).",
+        "yearLabel": "Year label is required."
+      }
+    }
+  },
+  "adminCatalog": {
+    "form": {
+      "addFailed": "Failed to add book.",
+      "unexpectedError": "An unexpected error occurred.",
+      "step": {
+        "infoSaved": "Book Info — saved",
+        "physicalCopies": "Physical Copies"
+      },
+      "addCopiesTitle": "Add Physical Copies",
+      "savedNotice": "The book is already saved and listed publicly. You can come back to add copies later from the catalog admin.",
+      "doneBackToCatalog": "Done — back to catalog",
+      "backToCatalog": "Back to catalogue admin",
+      "addBookTitle": "Add Physical Book",
+      "step1Subtitle": "Step 1 of 2 — bibliographic information. Physical copies come next.",
+      "titleReq": "Title *",
+      "titlePlaceholder": "e.g. Introduction to Cambodian Law",
+      "authorReq": "Author *",
+      "authorPlaceholder": "Author full name",
+      "languageReq": "Language *",
+      "lang": {
+        "km": "Khmer (ខ្មែរ)",
+        "en": "English",
+        "fr": "French",
+        "zh": "Chinese",
+        "other": "Other"
+      },
+      "isbn": "ISBN",
+      "publisher": "Publisher",
+      "optional": "Optional",
+      "year": "Publication year",
+      "yearPlaceholder2": "e.g. 2019",
+      "category": "Category",
+      "categoryPlaceholder": "e.g. Law, Science…",
+      "department": "Department",
+      "departmentPlaceholder": "e.g. Public Law",
+      "libraryDetails": "Library Details",
+      "shelfLocation": "Default shelf location",
+      "shelfHint": "Pre-fills new copies — each copy can override it",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of the book…",
+      "keywords": "Keywords / Tags",
+      "keywordsPlaceholder": "e.g. ច្បាប់, law, reference…",
+      "keywordsHint": "Press Enter or , to add a tag",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "saveAndAddCopies": "Save book & add copies"
+    },
+    "edit": {
+      "title": "Edit Book",
+      "savedMessage": "Book information saved. The public page has been refreshed.",
+      "updateFailed": "Failed to update book.",
+      "discardTitle": "Discard unsaved changes?",
+      "discardBody": "You have unsaved changes on the book form. They will be lost if you switch tabs.",
+      "discardConfirm": "Discard changes",
+      "listedPublicly": "Listed publicly",
+      "unlisted": "Unlisted",
+      "viewPublic": "View public page ↗",
+      "tabsAria": "Book editor sections",
+      "tabInfo": "Book Information",
+      "tabCopies": "Physical Copies ({count})",
+      "unsavedChanges": "Unsaved changes",
+      "copies": "{count, plural, one {copy} other {copies}}",
+      "available": "{count} available",
+      "totalsHint": "Totals are calculated from copy records and cannot be edited here.",
+      "managePhysical": "Manage physical copies →",
+      "saveChanges": "Save changes",
+      "savedShort": "Saved"
+    },
+    "copies": {
+      "heading": "Physical Copies",
+      "status": {
+        "available": "Available",
+        "on_loan": "On Loan",
+        "reserved": "Reserved",
+        "reference_only": "Reference Only",
+        "processing": "Processing",
+        "in_repair": "In Repair",
+        "damaged": "Damaged",
+        "lost": "Lost",
+        "missing": "Missing",
+        "withdrawn": "Withdrawn"
+      },
+      "toasts": {
+        "reloadFailed": "Failed to reload copies",
+        "updated": "Copy updated.",
+        "statusUpdated": "Status updated — public availability refreshed.",
+        "withdrawn": "Copy withdrawn — it no longer counts toward availability.",
+        "deleted": "Copy permanently deleted."
+      },
+      "summaryAria": "Copy summary",
+      "summary": {
+        "total": "Total",
+        "available": "Available",
+        "onLoan": "On loan",
+        "reserved": "Reserved",
+        "referenceOnly": "Reference only",
+        "unavailable": "Unavailable"
+      },
+      "noCopies": "No copies yet",
+      "tableCaption": "Physical copies of this book",
+      "col": {
+        "barcode": "Barcode",
+        "accession": "Accession",
+        "callNumber": "Call number",
+        "callNo": "Call no.",
+        "shelf": "Shelf",
+        "status": "Status",
+        "notes": "Notes",
+        "actions": "Actions"
+      },
+      "addCopies": "Add copies",
+      "quickAdd": "Quick add:",
+      "saveAllCopies": "Save all copies",
+      "closeGenerator": "Close generator",
+      "generateSequence": "Generate sequence…",
+      "gen": {
+        "count": "Number of copies",
+        "barcodePrefix": "Barcode prefix",
+        "barcodeStart": "Barcode start no.",
+        "accessionPrefix": "Accession prefix",
+        "accessionStart": "Accession start no.",
+        "baseCallNumber": "Base call number"
+      },
+      "field": {
+        "shelfLocation": "Shelf location",
+        "status": "Status",
+        "condition": "Condition",
+        "barcode": "Barcode",
+        "callNumber": "Call number",
+        "copyNo": "Copy no.",
+        "accessionNo": "Accession no.",
+        "holdingLibrary": "Holding library"
+      },
+      "barcodePrefixPlaceholder": "PTEC-",
+      "barcodeStartPlaceholder": "e.g. 1250 (blank = none)",
+      "accessionPrefixPlaceholder": "ACC-",
+      "blankNone": "blank = none",
+      "callNumberGenPlaceholder": "341.6 MEL → 341.6 MEL C.1",
+      "conditionPlaceholder2": "e.g. New, Good",
+      "barcodePlaceholder": "PTEC-001250",
+      "accessionPlaceholder": "ACC-001250",
+      "callNumberPlaceholder": "341.6 MEL C.1",
+      "shelfPlaceholder": "B-2-01",
+      "conditionPlaceholder": "e.g. Good",
+      "optional": "Optional",
+      "saving": "Saving…",
+      "saveCopy": "Save copy",
+      "withdrawConfirm": "Withdraw this copy?",
+      "deleteConfirm": "Delete permanently?",
+      "withdrawTitle": "Withdraw from circulation (kept for records)",
+      "deleteTitle": "Permanently delete (data-entry mistakes only)",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "hideWithdrawn": "Hide withdrawn ({count})",
+      "showWithdrawn": "Show withdrawn ({count})",
+      "copyN": "Copy {n}"
+    },
+    "import": {
+      "fields": {
+        "title": "Title",
+        "author": "Author",
+        "isbn": "ISBN",
+        "publisher": "Publisher",
+        "year": "Year",
+        "language": "Language",
+        "category": "Category",
+        "department": "Department",
+        "shelf_location": "Shelf location",
+        "copies_total": "Copies total",
+        "description": "Description",
+        "accession_number": "Accession number",
+        "barcode": "Barcode",
+        "cover_url": "Cover URL",
+        "keywords": "Keywords",
+        "accession": "Accession"
+      },
+      "wizard": {
+        "importCsv": "Import CSV",
+        "dialogTitle": "Import Books from CSV",
+        "stepsAria": "Import steps",
+        "closeWizard": "Close import wizard",
+        "steps": {
+          "upload": "Upload",
+          "mapping": "Map columns",
+          "validate": "Validate",
+          "import": "Import"
+        },
+        "back": "Back",
+        "cancel": "Cancel",
+        "continue": "Continue",
+        "validateRows": "Validate rows",
+        "validating": "Validating…",
+        "importNewUpdate": "Import {create} new · update {update}",
+        "importBooks": "{count, plural, one {Import # book} other {Import # books}}",
+        "finishingBatch": "Finishing current batch…",
+        "cancelImport": "Cancel import",
+        "done": "Done"
+      },
+      "upload": {
+        "sourceAria": "CSV source",
+        "uploadFile": "Upload file",
+        "pasteCsv": "Paste CSV",
+        "replaceFile": "Replace file",
+        "remove": "Remove",
+        "reading": "Reading file…",
+        "dropHere": "Drop your CSV file here",
+        "chooseFile": "choose a file",
+        "pasteHint": "Paste CSV — the first line must be the header row",
+        "pasteSample": "Paste sample data",
+        "clear": "Clear",
+        "csvTextAria": "CSV text",
+        "fileUnusable": "The file could not be used",
+        "required": "Required:",
+        "optional": "Optional:",
+        "blankTemplate": "↓ Blank template",
+        "exampleCsv": "↓ Example CSV",
+        "hideColumns": "Hide all supported columns",
+        "viewColumns": "View all supported columns",
+        "supportedColumns": "Supported CSV columns",
+        "col": {
+          "column": "Column",
+          "required": "Required",
+          "type": "Type",
+          "example": "Example",
+          "rule": "Rule"
+        },
+        "yes": "Yes",
+        "no": "No",
+        "dataRows": "{count, plural, one {# data row} other {# data rows}}",
+        "delimiter": "{name} delimiter",
+        "limits": ".csv (UTF-8) · up to {mb} MB · up to {rows} rows",
+        "characters": "{count} characters",
+        "approxRows": "≈ {count} data rows",
+        "parsed": "✓ Parsed — {count} rows · {delimiter} delimiter",
+        "formatNote": "Google Drive share links in cover_url are converted automatically. Comma, semicolon and tab delimiters are detected. Column names don’t need to match exactly — you’ll map them in the next step."
+      },
+      "mapping": {
+        "caption": "Column mapping",
+        "mappedOf": "<b>{mapped}</b> of {total} columns mapped",
+        "dataRows": "{count} data rows",
+        "mapRequired": "Map the required columns: {fields}",
+        "allMapped": "✓ All required columns mapped",
+        "validationFailed": "Validation could not run",
+        "col": {
+          "csvColumn": "CSV column",
+          "sampleValues": "Sample values",
+          "mapsTo": "Maps to",
+          "status": "Status"
+        },
+        "statusLabel": {
+          "ignored": "Ignored",
+          "manual": "Manual",
+          "matched": "Matched",
+          "checkMatch": "Check match"
+        },
+        "empty": "empty",
+        "destinationAria": "Destination field for column {column}",
+        "ignoreColumn": "— Ignore this column —",
+        "requiredSuffix": "· required",
+        "footnote": "Columns marked “Check match” were guessed from a similar name — confirm they point to the right field. Ignored columns are not imported."
+      },
+      "validate": {
+        "validating": "Validating rows and checking the catalog for duplicates…",
+        "summaryAria": "Validation summary — click a card to filter",
+        "totalRows": "Total rows",
+        "warnings": "Warnings",
+        "errors": "Errors",
+        "duplicates": "Duplicates",
+        "importableOf": "{importable} of {total} rows",
+        "searchPlaceholder": "Search title, author, ISBN, barcode or row number…",
+        "searchAria": "Search preview rows",
+        "previewCaption": "Validation preview",
+        "col": {
+          "titleAuthor": "Title / Author"
+        },
+        "noRowsMatch": "No rows match this filter.",
+        "paginationAria": "Preview pagination",
+        "statusLabel": {
+          "ready": "Ready",
+          "warning": "Warning",
+          "error": "Error",
+          "duplicate": "Duplicate",
+          "skipped": "Skipped"
+        },
+        "hideDetails": "Hide details for row {row}",
+        "showDetails": "Show details for row {row}",
+        "missingTitle": "missing title",
+        "missingAuthor": "missing author",
+        "issues": "Issues",
+        "noIssues": "No issues — this row is ready.",
+        "normalizedValues": "Normalized values",
+        "shelf": "Shelf",
+        "year": "Year",
+        "cover": "Cover",
+        "driveConverted": "Drive link converted",
+        "restoreRow": "Restore row",
+        "skipRow": "Skip this row",
+        "duplicatesHeading": "Books that already exist in the catalog",
+        "dupStrategyAria": "Duplicate strategy",
+        "dup": {
+          "skip": "Skip them (safest — nothing is changed)",
+          "fill": "Fill in missing details only, and add new copies",
+          "separate": "Create separate records anyway"
+        },
+        "rowsRefHeading": "Rows & reference values",
+        "createOneCopy": "Create one copy for rows without a barcode or copies count",
+        "strictMode": "Treat new category / department values as errors (strict mode)",
+        "importOptions": "Import options",
+        "importWarnings": "Import rows that have warnings",
+        "nothingImportable": "Nothing can be imported with the current selection.",
+        "details": "Details"
+      },
+      "progress": {
+        "importing": "Importing books…",
+        "rowsProcessed": "{processed} of {total} rows processed",
+        "batchOf": "batch {current} of {total}",
+        "progressAria": "Import progress",
+        "created": "Created",
+        "updated": "Updated",
+        "skipped": "Skipped",
+        "failed": "Failed",
+        "cancelling": "Cancelling — the current batch will finish safely, and everything already imported stays in the catalog.",
+        "keepOpen": "Keep this window open. Books are written in small batches — cancelling keeps completed batches.",
+        "completedWithFailures": "Import completed with some failures",
+        "completed": "Import completed",
+        "cancelled": "Import cancelled",
+        "stopped": "Import stopped",
+        "cancelledNote": "Batches finished before cancelling were imported — the counts below are exact.",
+        "booksCreated": "Books created",
+        "booksUpdated": "Books updated",
+        "copiesCreated": "Copies created",
+        "duplicatesSkipped": "Duplicates skipped",
+        "rowsFailed": "Rows failed",
+        "rowsExcluded": "Rows excluded",
+        "failedRows": "Failed rows",
+        "rowError": "Row {row}: {message}",
+        "failedShort": "failed",
+        "andMore": "…and {count} more — download the failed-rows CSV below.",
+        "downloadReport": "↓ Download full report",
+        "downloadFailed": "↓ Download failed rows (fix & re-import)",
+        "viewImported": "View imported books →",
+        "recordedNote": "This import was recorded in the admin activity log",
+        "importId": "import"
+      }
+    }
+  },
+  "adminUpload": {
+    "tabSingle": "Single Upload",
+    "tabBulk": "Bulk Upload",
+    "single": {
+      "phaseStep": {
+        "uploadingPdf": "Uploading PDF…",
+        "uploadingCover": "Uploading cover…",
+        "saving": "Saving record"
+      },
+      "chooseFirst": "Choose a PDF first.",
+      "err": {
+        "pdfRequired": "A PDF file is required",
+        "pdfOnly": "Only PDF files can be uploaded",
+        "coverType": "Cover must be JPEG, PNG, WebP, or AVIF",
+        "coverSize": "Cover image must be under 5 MB",
+        "titleRequired": "Title is required",
+        "uploadFailed": "Upload failed"
+      },
+      "files": "Files",
+      "filesSub": "PDF (required) · Cover image (optional)",
+      "pdfReady": "PDF ready",
+      "pdfFile": "PDF file",
+      "replacePdfAria": "Replace PDF file",
+      "clickReplace": "Click to replace",
+      "clickSelectPdf": "Click to select PDF",
+      "readingPdf": "Reading PDF…",
+      "autoFill": "✨ Auto-fill with AI",
+      "autoFillHint": "Drafts title, author, year, language & summary — review before saving.",
+      "replaceCoverAria": "Replace cover image",
+      "clickReplaceCover": "Click to replace cover",
+      "removeCover": "Remove cover",
+      "coverImage": "Cover image",
+      "recentUploads": "Recent uploads",
+      "noBooks": "No books uploaded yet.",
+      "bookDetails": "Book Details",
+      "bookDetailsSub": "Title, author, category, and more",
+      "optional": "Optional",
+      "field": {
+        "title": "Title",
+        "titlePlaceholder": "Book title",
+        "author": "Author",
+        "authorPlaceholder": "Author or institution",
+        "isbn": "ISBN",
+        "publisher": "Publisher",
+        "license": "License",
+        "category": "Category",
+        "language": "Language",
+        "department": "Department",
+        "year": "Year",
+        "pages": "Pages",
+        "summary": "Summary",
+        "summaryPlaceholder": "Short description for readers…",
+        "keywords": "Keywords / Tags",
+        "keywordsPlaceholder": "e.g. គណិតវិទ្យា, algebra, textbook…"
+      },
+      "visibility": "Visibility",
+      "publishNow": "Publish immediately",
+      "submitReview": "Submit for review",
+      "hiddenUntilApproved": "(stays hidden until approved)",
+      "submitPublish": "Upload and publish",
+      "submitForReview": "Upload for review"
+    },
+    "bulk": {
+      "rowStatus": {
+        "pending": "Pending",
+        "uploading-pdf": "Uploading PDF…",
+        "uploading-cover": "Uploading cover…",
+        "saving": "Saving…",
+        "done": "Done ✓",
+        "error": "Error"
+      },
+      "step1": "Step 1 — Prepare your CSV",
+      "step1Sub": "Fill in metadata for each book and save as <code>.csv</code>",
+      "requiredNote": "<star>*</star> Required. <code>pdf_file</code> and <code>cover_file</code> must match the exact filenames in your folders.",
+      "step2": "Step 2 — Select files",
+      "step2Sub": "CSV, PDF folder, and optional cover folder",
+      "step3": "Step 3 — Review & Upload",
+      "csvReady": "{count} rows parsed",
+      "selectCsv": "Click to select CSV",
+      "pdfReady": "{count} PDF files",
+      "selectPdfs": "Click to select PDFs",
+      "coversReady": "{count} cover files",
+      "selectCovers": "Click to select covers",
+      "col": {
+        "title": "Title",
+        "author": "Author",
+        "pdf": "PDF",
+        "cover": "Cover",
+        "status": "Status"
+      },
+      "summary": "{total} books · {done} done · {errors} errors",
+      "pdfMissing": "{count} PDF missing",
+      "startUpload": "{count, plural, one {Start bulk upload (# book)} other {Start bulk upload (# books)}}",
+      "uploadingParallel": "Uploading {count} books in parallel…",
+      "completed": "Completed: {done} uploaded",
+      "completedFailed": ", {errors} failed",
+      "retryFailed": "Retry {errors} failed"
+    }
   }
 }

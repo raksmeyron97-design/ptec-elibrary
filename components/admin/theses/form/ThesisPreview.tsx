@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Monitor, Smartphone, X, Download, Quote } from "lucide-react";
 
 type Viewport = "desktop" | "mobile";
@@ -30,6 +31,7 @@ export default function ThesisPreview({
   coverUrl: string | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("adminThesisForm.preview");
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const headingId = "thesis-preview-heading";
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -70,17 +72,17 @@ export default function ThesisPreview({
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-bg-surface shadow-2xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-divider px-5 py-3">
-          <h2 id={headingId} className="text-sm font-bold text-text-heading">Public preview</h2>
+          <h2 id={headingId} className="text-sm font-bold text-text-heading">{t("heading")}</h2>
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-lg border border-divider bg-paper p-0.5">
-              <button type="button" onClick={() => setViewport("desktop")} aria-pressed={viewport === "desktop"} aria-label="Desktop preview" title="Desktop preview" className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "desktop" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}>
+              <button type="button" onClick={() => setViewport("desktop")} aria-pressed={viewport === "desktop"} aria-label={t("desktop")} title={t("desktop")} className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "desktop" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}>
                 <Monitor className="h-4 w-4" />
               </button>
-              <button type="button" onClick={() => setViewport("mobile")} aria-pressed={viewport === "mobile"} aria-label="Mobile preview" title="Mobile preview" className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "mobile" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}>
+              <button type="button" onClick={() => setViewport("mobile")} aria-pressed={viewport === "mobile"} aria-label={t("mobile")} title={t("mobile")} className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "mobile" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}>
                 <Smartphone className="h-4 w-4" />
               </button>
             </div>
-            <button ref={closeRef} type="button" onClick={onClose} aria-label="Close preview" className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-paper hover:text-text-heading">
+            <button ref={closeRef} type="button" onClick={onClose} aria-label={t("close")} className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-paper hover:text-text-heading">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -96,27 +98,27 @@ export default function ThesisPreview({
                 <div className="h-56 w-40 shrink-0 rounded-lg border border-dashed border-divider bg-paper" />
               )}
               <div className="min-w-0">
-                <h1 className="text-2xl font-bold leading-[1.6] text-text-heading">{title || "Untitled thesis"}</h1>
-                <p className="mt-2 text-sm text-text-body">{authorNames || "No author listed"}</p>
-                {advisorName && <p className="text-sm text-text-muted">Advisor: {advisorName}</p>}
+                <h1 className="text-2xl font-bold leading-[1.6] text-text-heading">{title || t("untitled")}</h1>
+                <p className="mt-2 text-sm text-text-body">{authorNames || t("noAuthor")}</p>
+                {advisorName && <p className="text-sm text-text-muted">{t("advisor", { name: advisorName })}</p>}
                 <p className="mt-1 text-xs text-text-muted">
-                  {program || "No program"} · {cohort ? `Cohort ${cohort}` : "No cohort"} · {academicYear || "No year"}
+                  {program || t("noProgram")} · {cohort ? t("cohort", { cohort }) : t("noCohort")} · {academicYear || t("noYear")}
                 </p>
                 <div className="mt-4 flex gap-2">
                   <button type="button" disabled className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-bold text-white opacity-60">
-                    <Download className="h-3.5 w-3.5" /> Download
+                    <Download className="h-3.5 w-3.5" /> {t("download")}
                   </button>
                   <button type="button" disabled className="inline-flex items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-body opacity-60">
-                    <Quote className="h-3.5 w-3.5" /> Cite
+                    <Quote className="h-3.5 w-3.5" /> {t("cite")}
                   </button>
                 </div>
               </div>
             </div>
 
             <div className="border-t border-divider p-5 sm:p-8">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">Abstract</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">{t("abstract")}</h2>
               <p className="mt-2 whitespace-pre-wrap text-[15px] leading-[1.75] text-text-body">
-                {abstract.trim() || "Nothing to preview yet."}
+                {abstract.trim() || t("nothingYet")}
               </p>
 
               {keywords.length > 0 && (
@@ -129,7 +131,7 @@ export default function ThesisPreview({
 
               {references.filter(Boolean).length > 0 && (
                 <div className="mt-8 border-t border-divider pt-5">
-                  <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">References</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">{t("references")}</h2>
                   <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-text-body">
                     {references.filter(Boolean).map((r, i) => <li key={i}>{r}</li>)}
                   </ol>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ChevronRight, Lock, Inbox } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ROLE_META } from "@/lib/types/roles";
@@ -41,12 +42,17 @@ export default function PermissionAccordion({
   openGroups: Record<string, boolean>;
   onToggleGroup: (id: string) => void;
 }) {
+  const t = useTranslations("adminRoles.matrix");
+  const tGroups = useTranslations("adminRoles.groups");
+  const tRes = useTranslations("adminRoles.resources");
+  const tResDesc = useTranslations("adminRoles.resourceDescriptions");
+  const tRoles = useTranslations("adminUsers.roles");
   const meta = ROLE_META[role];
   const locked = isLockedRole(role);
   const q = query.trim().toLowerCase();
 
   function resourceMatches(r: Resource): boolean {
-    if (q && !`${r.label} ${r.description} ${r.key}`.toLowerCase().includes(q)) return false;
+    if (q && !`${r.label} ${r.description} ${r.key} ${tRes(r.key)} ${tResDesc(r.key)}`.toLowerCase().includes(q)) return false;
     if (diffOnly && !rowDiffersAcrossRoles(draft, allRoles, r.key)) return false;
     return true;
   }
@@ -60,7 +66,7 @@ export default function PermissionAccordion({
     <div className="space-y-3">
       {/* Role selector */}
       <div>
-        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-text-muted">Viewing role</div>
+        <div className="mb-2 text-xs font-bold uppercase tracking-wide text-text-muted">{t("viewingRole")}</div>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {allRoles.map((r) => {
             const m = ROLE_META[r];
@@ -79,7 +85,7 @@ export default function PermissionAccordion({
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                {m.label}
+                {tRoles(r)}
               </button>
             );
           })}
@@ -88,10 +94,10 @@ export default function PermissionAccordion({
 
       {/* Selected role banner */}
       <div className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 ${meta.bgColor} ${meta.borderColor}`}>
-        <span className={`text-sm font-bold ${meta.color}`}>{meta.label}</span>
+        <span className={`text-sm font-bold ${meta.color}`}>{tRoles(role)}</span>
         {locked && (
           <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-            <Lock className="h-3 w-3" aria-hidden="true" /> Always full access
+            <Lock className="h-3 w-3" aria-hidden="true" /> {t("alwaysFull")}
           </span>
         )}
       </div>
@@ -99,7 +105,7 @@ export default function PermissionAccordion({
       {groups.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-divider bg-bg-surface px-6 py-12 text-center">
           <Inbox className="h-7 w-7 text-slate-300" aria-hidden="true" />
-          <p className="text-sm font-semibold text-text-heading">No features match your filters</p>
+          <p className="text-sm font-semibold text-text-heading">{t("noMatchesTitle")}</p>
         </div>
       ) : (
         groups.map((group) => {
@@ -114,7 +120,7 @@ export default function PermissionAccordion({
                 className="flex w-full items-center gap-2 bg-paper px-4 py-3 text-left transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
               >
                 <GroupIcon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                <span className="text-xs font-bold uppercase tracking-wide text-text-heading">{group.label}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-text-heading">{tGroups(group.id)}</span>
                 <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[10px] font-bold tabular-nums text-text-muted ring-1 ring-inset ring-divider">
                   {group.resources.length}
                 </span>
@@ -128,8 +134,8 @@ export default function PermissionAccordion({
                     return (
                       <li key={res.key} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-text-heading">{res.label}</div>
-                          <div className="mt-0.5 text-[11px] leading-snug text-text-muted">{res.description}</div>
+                          <div className="text-sm font-semibold text-text-heading">{tRes(res.key)}</div>
+                          <div className="mt-0.5 text-[11px] leading-snug text-text-muted">{tResDesc(res.key)}</div>
                         </div>
                         <div className="shrink-0">
                           {editMode && !locked ? (
@@ -137,7 +143,7 @@ export default function PermissionAccordion({
                               value={level}
                               dirty={dirty}
                               onChange={(l) => onChange(role, res.key, l)}
-                              ariaLabel={`${res.label} permission for ${meta.label}`}
+                              ariaLabel={t("permFor", { feature: tRes(res.key), role: tRoles(role) })}
                               showLabels={false}
                             />
                           ) : (

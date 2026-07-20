@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Check, FileText, GraduationCap, Users, AlignLeft, BookOpen, Paperclip, ClipboardCheck, type LucideIcon } from "lucide-react";
 
 export type ThesisStepKey = "basic" | "classification" | "people" | "abstract" | "references" | "files" | "review";
@@ -32,6 +33,7 @@ export default function ThesisStepNav({
   errorCounts: Partial<Record<ThesisStepKey, number>>;
   onSelect: (step: ThesisStepKey) => void;
 }) {
+  const t = useTranslations("adminThesisForm.steps");
   const activeIndex = THESIS_STEPS.findIndex((s) => s.key === active);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -48,7 +50,7 @@ export default function ThesisStepNav({
       {/* Desktop vertical / tablet horizontal — same markup, CSS handles the switch */}
       <div
         role="tablist"
-        aria-label="Thesis form steps"
+        aria-label={t("navAria")}
         className="flex md:flex-col gap-1 overflow-x-auto md:overflow-y-auto border-b md:border-b-0 md:border-r border-divider p-3 md:w-56 md:shrink-0 bg-paper/30"
       >
         {THESIS_STEPS.map((step, i) => {
@@ -73,7 +75,7 @@ export default function ThesisStepNav({
               }`}
             >
               <step.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-brand" : "text-text-muted"}`} />
-              <span className="flex-1 whitespace-nowrap">{step.label}</span>
+              <span className="flex-1 whitespace-nowrap">{t(step.key)}</span>
               {errCount > 0 ? (
                 <span
                   className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
@@ -85,8 +87,8 @@ export default function ThesisStepNav({
                 <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
               ) : null}
               <span className="sr-only" aria-live="polite">
-                {errCount > 0 ? `, ${errCount} error${errCount === 1 ? "" : "s"}` : isDone ? ", complete" : ""}
-                {isActive ? ", current step" : ""}
+                {errCount > 0 ? t("srErrors", { count: errCount }) : isDone ? t("srComplete") : ""}
+                {isActive ? t("srCurrent") : ""}
               </span>
             </button>
           );

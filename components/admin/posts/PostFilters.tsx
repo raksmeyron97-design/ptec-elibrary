@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/posts-url";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -52,6 +53,10 @@ export default function PostFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminPosts.filters");
+  const tStatus = useTranslations("adminPosts.status");
+  const tSort = useTranslations("adminPosts.sort");
+  const tDate = useTranslations("adminPosts.dateRange");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const setParam = (key: string, v: string) => {
@@ -64,40 +69,40 @@ export default function PostFilters({
       <div className={compactSelectWrapper}>
         <SearchableSelect
           name="category-filter"
-          ariaLabel="Filter by category"
+          ariaLabel={t("byCategory")}
           value={value.category || "All"}
           onChange={(v) => setParam("category", v === "All" ? "" : v)}
-          options={[{ value: "All", label: "All categories" }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]}
+          options={[{ value: "All", label: t("allCategories") }, ...CATEGORIES.map((c) => ({ value: c, label: c }))]}
         />
       </div>
 
       <div className={compactSelectWrapper}>
         <SearchableSelect
           name="status-filter"
-          ariaLabel="Filter by status"
+          ariaLabel={t("byStatus")}
           value={value.status || "all"}
           onChange={(v) => setParam("status", v)}
-          options={[{ value: "all", label: "All statuses" }, ...STATUSES.map((s) => ({ value: s, label: STATUS_LABELS[s] }))]}
+          options={[{ value: "all", label: t("allStatuses") }, ...STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]}
         />
       </div>
 
       <div className={compactSelectWrapper}>
         <SearchableSelect
           name="date-filter"
-          ariaLabel="Filter by date"
+          ariaLabel={t("byDate")}
           value={value.dateRange || "all"}
           onChange={(v) => setParam("dateRange", v)}
-          options={Object.entries(DATE_RANGE_LABELS).map(([k, label]) => ({ value: k, label }))}
+          options={Object.keys(DATE_RANGE_LABELS).map((k) => ({ value: k, label: tDate(k) }))}
         />
       </div>
 
       <div className={compactSelectWrapper}>
         <SearchableSelect
           name="sort-filter"
-          ariaLabel="Sort posts"
+          ariaLabel={t("sortPosts")}
           value={value.sort || "newest"}
           onChange={(v) => setParam("sort", v)}
-          options={SORT_OPTIONS.map((s) => ({ value: s, label: SORT_LABELS[s] }))}
+          options={SORT_OPTIONS.map((s) => ({ value: s, label: tSort(s) }))}
         />
       </div>
 
@@ -114,7 +119,7 @@ export default function PostFilters({
           onClick={() => router.push("/admin/posts")}
           className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
         >
-          Clear filters
+          {t("clearFilters")}
         </button>
       )}
     </div>
@@ -135,6 +140,7 @@ function MoreFiltersButton({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminPosts.filters");
   const headingId = "post-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -202,7 +208,7 @@ function MoreFiltersButton({
         }`}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        More filters
+        {t("moreFilters")}
       </button>
 
       {open && (
@@ -219,11 +225,11 @@ function MoreFiltersButton({
             className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
           >
             <div className="mb-5 flex items-center justify-between">
-              <h2 id={headingId} className="text-lg font-bold text-text-heading">More filters</h2>
+              <h2 id={headingId} className="text-lg font-bold text-text-heading">{t("moreFilters")}</h2>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                aria-label="Close"
+                aria-label={t("close")}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading"
               >
                 <X className="h-5 w-5" />
@@ -232,21 +238,21 @@ function MoreFiltersButton({
 
             <div className="space-y-4">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Author</span>
+                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("author")}</span>
                 <SearchableSelect
                   ref={firstFieldRef}
                   name="author-filter"
-                  ariaLabel="Author"
+                  ariaLabel={t("author")}
                   value={authorId}
                   onChange={setAuthorId}
-                  options={[{ value: "", label: "Any author" }, ...authors.map((a) => ({ value: a.id, label: a.name }))]}
+                  options={[{ value: "", label: t("anyAuthor") }, ...authors.map((a) => ({ value: a.id, label: a.name }))]}
                 />
               </label>
 
               {value.dateRange === "custom" && (
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">From</span>
+                    <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("from")}</span>
                     <input
                       type="date"
                       value={dateFrom}
@@ -255,7 +261,7 @@ function MoreFiltersButton({
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">To</span>
+                    <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("to")}</span>
                     <input
                       type="date"
                       value={dateTo}
@@ -268,7 +274,7 @@ function MoreFiltersButton({
 
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Min. views</span>
+                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("minViews")}</span>
                   <input
                     type="number"
                     min={0}
@@ -279,13 +285,13 @@ function MoreFiltersButton({
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Max. views</span>
+                  <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("maxViews")}</span>
                   <input
                     type="number"
                     min={0}
                     value={maxViews}
                     onChange={(e) => setMaxViews(e.target.value)}
-                    placeholder="Any"
+                    placeholder={t("any")}
                     className={`${selectClass} w-full`}
                   />
                 </label>
@@ -298,13 +304,13 @@ function MoreFiltersButton({
                 onClick={() => { setAuthorId(""); setDateFrom(""); setDateTo(""); setMinViews(""); setMaxViews(""); }}
                 className="text-[13px] font-semibold text-text-muted hover:text-brand"
               >
-                Clear these
+                {t("clearThese")}
               </button>
               <button
                 type="submit"
                 className="ml-auto inline-flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover"
               >
-                Apply
+                {t("apply")}
               </button>
             </div>
           </form>

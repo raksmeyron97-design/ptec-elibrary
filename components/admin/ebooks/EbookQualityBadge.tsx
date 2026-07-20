@@ -1,6 +1,6 @@
+import { useTranslations } from "next-intl";
 import {
   scoreEbookQuality,
-  METADATA_TIER_LABELS,
   METADATA_TIER_STYLES,
   type EbookQualityInput,
 } from "@/lib/admin/ebook-quality";
@@ -11,15 +11,17 @@ import {
  * readers the missing-field detail the sighted tooltip shows.
  */
 export default function EbookQualityBadge({ book }: { book: EbookQualityInput }) {
+  const t = useTranslations("adminEbooks.qualityBadge");
+  const tQuality = useTranslations("adminEbooks.quality");
   const { score, tier, missing } = scoreEbookQuality(book);
-  const missingLabel = missing.length ? `Missing: ${missing.map((m) => m.label).join(", ")}` : "All fields complete";
+  const missingLabel = missing.length ? t("missing", { fields: missing.map((m) => m.label).join(", ") }) : t("complete");
 
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${METADATA_TIER_STYLES[tier]}`}
       title={missingLabel}
     >
-      {METADATA_TIER_LABELS[tier]} · {score}%
+      {tQuality(tier)} · {score}%
       <span className="sr-only">. {missingLabel}.</span>
     </span>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Star, Upload, Undo2, X } from "lucide-react";
 
 export const MAX_IMAGES = 10;
@@ -24,6 +25,7 @@ export default function PostCoverUploader({
   error?: string | null;
   onError: (message: string | null) => void;
 }) {
+  const t = useTranslations("adminPostForm.cover");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragIdx = useRef<number | null>(null);
 
@@ -38,15 +40,15 @@ export default function PostCoverUploader({
 
     for (const file of files) {
       if (!ALLOWED_TYPES.includes(file.type)) {
-        errors.push(`${file.name}: must be JPEG, PNG, WebP, or AVIF`);
+        errors.push(t("errBadType", { name: file.name }));
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`${file.name}: must be under 5 MB`);
+        errors.push(t("errTooLarge", { name: file.name }));
         continue;
       }
       if (activeCount + newItems.length >= MAX_IMAGES) {
-        errors.push(`Maximum ${MAX_IMAGES} images allowed`);
+        errors.push(t("errMaxImages", { max: MAX_IMAGES }));
         break;
       }
       newItems.push({
@@ -97,8 +99,8 @@ export default function PostCoverUploader({
     <div>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold text-text-body">
-          Cover images{" "}
-          <span className="font-normal text-text-muted">(optional · up to {MAX_IMAGES} · JPEG, PNG, WebP · max 5 MB each)</span>
+          {t("label")}{" "}
+          <span className="font-normal text-text-muted">{t("hint", { max: MAX_IMAGES })}</span>
         </span>
         {activeCount > 0 && (
           <span className="rounded-full bg-paper px-2.5 py-0.5 text-xs font-semibold text-text-body">{activeCount} / {MAX_IMAGES}</span>
@@ -121,7 +123,7 @@ export default function PostCoverUploader({
               >
                 <div className="relative" style={{ aspectRatio: "4/3" }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={item.alt || `Cover image ${idx + 1}`} className="h-full w-full object-cover" />
+                  <img src={src} alt={item.alt || t("coverImageN", { n: idx + 1 })} className="h-full w-full object-cover" />
 
                   <span className="absolute left-1.5 top-1.5 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-bold text-white">{idx + 1}</span>
 
@@ -129,8 +131,8 @@ export default function PostCoverUploader({
                     <button
                       type="button"
                       onClick={() => setHero(idx)}
-                      title={item.isHero ? "Hero cover" : "Set as hero cover"}
-                      aria-label={item.isHero ? `Image ${idx + 1} is the hero cover` : `Set image ${idx + 1} as hero cover`}
+                      title={item.isHero ? t("heroCover") : t("setHero")}
+                      aria-label={item.isHero ? t("isHeroN", { n: idx + 1 }) : t("setHeroN", { n: idx + 1 })}
                       aria-pressed={item.isHero}
                       className={`absolute right-1 top-1 rounded-full p-1 transition ${item.isHero ? "bg-amber-400 text-white" : "bg-black/50 text-white opacity-0 group-hover:opacity-100"}`}
                     >
@@ -142,8 +144,8 @@ export default function PostCoverUploader({
                     type="button"
                     disabled={disabled}
                     onClick={() => (item.kind === "existing" ? toggleRemoveExisting(idx) : removeNew(idx))}
-                    title={removed ? "Undo remove" : "Remove"}
-                    aria-label={removed ? `Undo remove for image ${idx + 1}` : `Remove image ${idx + 1}`}
+                    title={removed ? t("undoRemove") : t("remove")}
+                    aria-label={removed ? t("undoRemoveN", { n: idx + 1 }) : t("removeN", { n: idx + 1 })}
                     className="absolute bottom-1 right-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:cursor-not-allowed"
                   >
                     {removed ? <Undo2 className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
@@ -151,7 +153,7 @@ export default function PostCoverUploader({
 
                   {removed && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">REMOVED</span>
+                      <span className="rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">{t("removed")}</span>
                     </div>
                   )}
                 </div>
@@ -160,8 +162,8 @@ export default function PostCoverUploader({
                     type="text"
                     value={item.alt}
                     onChange={(e) => updateItem(idx, { alt: e.target.value })}
-                    placeholder="Alt text (for accessibility & SEO)"
-                    aria-label={`Alt text for image ${idx + 1}`}
+                    placeholder={t("altPlaceholder")}
+                    aria-label={t("altLabelN", { n: idx + 1 })}
                     disabled={disabled}
                     className="w-full border-t border-divider bg-bg-surface px-2 py-1.5 text-[11px] outline-none placeholder:text-text-muted/70 disabled:opacity-60"
                   />
@@ -182,7 +184,7 @@ export default function PostCoverUploader({
         className="hidden"
         id="cover-file-input"
       />
-      <label htmlFor="cover-file-input" className="sr-only">Upload cover images</label>
+      <label htmlFor="cover-file-input" className="sr-only">{t("uploadLabel")}</label>
       <button
         type="button"
         disabled={disabled || activeCount >= MAX_IMAGES}
@@ -190,10 +192,10 @@ export default function PostCoverUploader({
         className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-divider bg-paper py-4 text-sm font-semibold text-text-body transition hover:border-brand hover:bg-cyan-50/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Upload className="h-5 w-5" />
-        {activeCount === 0 ? "Choose or drop images" : "Add more images"}
+        {activeCount === 0 ? t("chooseOrDrop") : t("addMore")}
       </button>
       <p className="mt-1.5 text-xs text-text-muted">
-        Drag thumbnails to reorder. Click the star to set the hero cover — defaults to the first image.
+        {t("reorderHint")}
       </p>
       {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
     </div>

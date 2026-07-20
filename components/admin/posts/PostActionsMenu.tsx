@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -37,6 +38,7 @@ export default function PostActionsMenu({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("adminPosts.actions");
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -75,7 +77,7 @@ export default function PostActionsMenu({
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Actions for ${post.title}`}
+        aria-label={t("menuFor", { title: post.title })}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-text-heading disabled:opacity-50"
       >
         <MoreVertical className="h-4 w-4" />
@@ -85,7 +87,7 @@ export default function PostActionsMenu({
         <div
           ref={menuRef}
           role="menu"
-          aria-label={`Actions for ${post.title}`}
+          aria-label={t("menuFor", { title: post.title })}
           className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
         >
           <Link
@@ -95,7 +97,7 @@ export default function PostActionsMenu({
             onClick={() => setOpen(false)}
             className={itemClass}
           >
-            <Eye className="h-4 w-4 text-text-muted" /> View public post
+            <Eye className="h-4 w-4 text-text-muted" /> {t("viewPublic")}
           </Link>
           <Link
             href={`/admin/posts/edit/${post.id}`}
@@ -103,10 +105,10 @@ export default function PostActionsMenu({
             onClick={() => setOpen(false)}
             className={itemClass}
           >
-            <Pencil className="h-4 w-4 text-text-muted" /> Edit
+            <Pencil className="h-4 w-4 text-text-muted" /> {t("edit")}
           </Link>
           <button type="button" role="menuitem" className={itemClass} onClick={() => run(onDuplicate)}>
-            <Copy className="h-4 w-4 text-text-muted" /> Duplicate
+            <Copy className="h-4 w-4 text-text-muted" /> {t("duplicate")}
           </button>
           <button
             type="button"
@@ -116,23 +118,23 @@ export default function PostActionsMenu({
               navigator.clipboard?.writeText(`${window.location.origin}/posts/${post.slug}`);
             })}
           >
-            <Link2 className="h-4 w-4 text-text-muted" /> Copy link
+            <Link2 className="h-4 w-4 text-text-muted" /> {t("copyLink")}
           </button>
 
           <div className="my-1 h-px bg-divider" />
 
           {post.status === "published" ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnpublish)}>
-              <XCircle className="h-4 w-4 text-text-muted" /> Unpublish
+              <XCircle className="h-4 w-4 text-text-muted" /> {t("unpublish")}
             </button>
           ) : (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onPublish)}>
-              <CheckCircle2 className="h-4 w-4 text-text-muted" /> Publish
+              <CheckCircle2 className="h-4 w-4 text-text-muted" /> {t("publish")}
             </button>
           )}
           {post.status !== "archived" && (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onArchive)}>
-              <Archive className="h-4 w-4 text-text-muted" /> Archive
+              <Archive className="h-4 w-4 text-text-muted" /> {t("archive")}
             </button>
           )}
 
@@ -144,7 +146,7 @@ export default function PostActionsMenu({
             className={`${itemClass} text-red-600 hover:bg-red-50`}
             onClick={() => run(onDelete)}
           >
-            <Trash2 className="h-4 w-4" /> Delete
+            <Trash2 className="h-4 w-4" /> {t("delete")}
           </button>
         </div>
       )}

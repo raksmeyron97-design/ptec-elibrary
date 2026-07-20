@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 export type BookRequestStatus = "pending" | "approved" | "rejected" | "added";
@@ -77,6 +78,7 @@ export async function getMyBookRequests(): Promise<BookRequest[]> {
 
 // ── Admin: list all requests ─────────────────────────────────
 export async function adminGetBookRequests(status?: BookRequestStatus): Promise<BookRequest[]> {
+  await requirePermission("books", "read");
   const supabase = createServiceClient();
   let query = supabase
     .from("book_requests")
@@ -95,6 +97,7 @@ export async function adminUpdateBookRequest(
   status: BookRequestStatus,
   adminNote?: string,
 ) {
+  await requirePermission("books", "write");
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("book_requests")
@@ -109,6 +112,7 @@ export async function adminUpdateBookRequest(
 
 // ── Admin: delete a request ───────────────────────────────────
 export async function adminDeleteBookRequest(id: string) {
+  await requirePermission("books", "write");
   const supabase = createServiceClient();
   const { error } = await supabase.from("book_requests").delete().eq("id", id);
   if (error) return { error: error.message };

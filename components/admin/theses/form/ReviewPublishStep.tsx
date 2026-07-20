@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisSeoSettings from "./ThesisSeoSettings";
@@ -11,11 +12,7 @@ import type { MetadataQualityInput } from "@/lib/admin/thesis-metadata-quality";
 const fieldClass =
   "h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:opacity-60";
 
-const STATUS_OPTIONS: { value: ThesisStatus; label: string; help: string }[] = [
-  { value: "draft", label: "Draft", help: "Not visible to the public" },
-  { value: "published", label: "Publish now", help: "Goes live immediately on save" },
-  { value: "scheduled", label: "Schedule", help: "Goes live automatically at a future date/time" },
-];
+const STATUS_VALUES: ThesisStatus[] = ["draft", "published", "scheduled"];
 
 export default function ReviewPublishStep({
   thesis,
@@ -46,6 +43,8 @@ export default function ReviewPublishStep({
   onPreview: () => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("adminThesisForm.review");
+  const tp = useTranslations("adminPostForm.publish");
   const warnings = thesisPublishWarnings({
     title: thesis.title ?? "", slug: thesis.slug ?? "", program: thesis.program, cohort: thesis.cohort,
     academicYear: thesis.academicYear, authorNames: thesis.authorNames, advisorName: thesis.advisorName,
@@ -66,10 +65,10 @@ export default function ReviewPublishStep({
                 <div className="h-24 w-16 shrink-0 rounded border border-dashed border-divider bg-paper" />
               )}
               <div>
-                <h3 className="text-base font-bold leading-snug text-text-heading">{thesis.title || "Untitled thesis"}</h3>
-                <p className="mt-1 text-sm text-text-muted">{thesis.authorNames || "No author listed"}</p>
+                <h3 className="text-base font-bold leading-snug text-text-heading">{thesis.title || t("untitled")}</h3>
+                <p className="mt-1 text-sm text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
                 <p className="text-xs text-text-muted">
-                  {thesis.program || "No program"} · {thesis.cohort ? `Cohort ${thesis.cohort}` : "No cohort"} · {thesis.academicYear || "No year"}
+                  {thesis.program || t("noProgram")} · {thesis.cohort ? t("cohort", { cohort: thesis.cohort }) : t("noCohort")} · {thesis.academicYear || t("noYear")}
                 </p>
                 <p className="mt-1 font-mono text-xs text-brand">{siteUrl}/theses/{slug || "…"}</p>
               </div>
@@ -82,14 +81,14 @@ export default function ReviewPublishStep({
             onClick={onPreview}
             className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-body hover:bg-paper"
           >
-            <Eye className="h-3.5 w-3.5" /> Open public preview
+            <Eye className="h-3.5 w-3.5" /> {t("openPreview")}
           </button>
         </div>
 
         {warnings.length > 0 ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
-              <AlertTriangle className="h-4 w-4" /> {warnings.length} recommendation{warnings.length !== 1 ? "s" : ""} before publishing
+              <AlertTriangle className="h-4 w-4" /> {t("recommendations", { count: warnings.length })}
             </p>
             <ul className="mt-2 space-y-1 text-sm text-amber-800">
               {warnings.map((w) => <li key={w.key}>• {w.label}</li>)}
@@ -115,27 +114,27 @@ export default function ReviewPublishStep({
       <div className="space-y-5">
         <div className="space-y-4 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
           <div>
-            <span className="mb-2 block text-sm font-semibold text-text-body">Publish settings</span>
-            <div className="space-y-2" role="radiogroup" aria-label="Publish status">
-              {STATUS_OPTIONS.map((opt) => (
+            <span className="mb-2 block text-sm font-semibold text-text-body">{tp("settings")}</span>
+            <div className="space-y-2" role="radiogroup" aria-label={tp("statusAria")}>
+              {STATUS_VALUES.map((value) => (
                 <label
-                  key={opt.value}
+                  key={value}
                   className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 transition ${
-                    status === opt.value ? "border-brand bg-brand/5" : "border-divider hover:bg-paper"
+                    status === value ? "border-brand bg-brand/5" : "border-divider hover:bg-paper"
                   }`}
                 >
                   <input
                     type="radio"
                     name="status"
-                    value={opt.value}
-                    checked={status === opt.value}
-                    onChange={() => onStatusChange(opt.value)}
+                    value={value}
+                    checked={status === value}
+                    onChange={() => onStatusChange(value)}
                     disabled={disabled}
                     className="mt-0.5 h-4 w-4 border-divider text-brand focus:ring-focus-ring/30"
                   />
                   <span>
-                    <span className="block text-sm font-semibold text-text-heading">{opt.label}</span>
-                    <span className="block text-xs text-text-muted">{opt.help}</span>
+                    <span className="block text-sm font-semibold text-text-heading">{tp(`status.${value}.label`)}</span>
+                    <span className="block text-xs text-text-muted">{tp(`status.${value}.help`)}</span>
                   </span>
                 </label>
               ))}
@@ -144,7 +143,7 @@ export default function ReviewPublishStep({
             {status === "scheduled" && (
               <div className="mt-2.5">
                 <label htmlFor="thesis-scheduledAt" className="mb-1.5 block text-xs font-semibold text-text-body">
-                  Publish date &amp; time <span className="text-red-500">*</span>
+                  {tp("publishDate")} <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="thesis-scheduledAt"

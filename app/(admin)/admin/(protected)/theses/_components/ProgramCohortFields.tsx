@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState, useEffect } from "react";
 import { getSubjectsForFaculty, type SubjectOption } from "@/lib/theses/programs";
 import {
@@ -46,6 +47,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
   const [allFaculties, setAllFaculties] = useState<ThesisFaculty[]>([]);
   const [allCohorts, setAllCohorts] = useState<ThesisCohort[]>([]);
   const [allYears, setAllYears] = useState<ThesisAcademicYear[]>([]);
+  const t = useTranslations("adminThesisForm.classification");
   const [loadingData, setLoadingData] = useState(true);
 
   // ── Cascade state ────────────────────────────────────────────────────────────
@@ -288,16 +290,16 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {/* Program */}
       <div>
         <label className="block text-sm font-semibold text-text-body mb-1.5">
-          កម្មវិធី (Program) <span className="text-red-500">*</span>
+          {t("program")} <span className="text-red-500">*</span>
         </label>
         <AddableSelect
           value={program}
           onChange={(code) => { handleProgramChange(code); }}
           options={programOptions}
           onAdd={handleAddProgram}
-          placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសកម្មវិធី / Select Program --"}
-          addPlaceholder="English Name | ឈ្មោះខ្មែរ"
-          addHint="Format: English Name | Khmer Name"
+          placeholder={loadingData ? t("loading") : t("selectProgram")}
+          addPlaceholder={t("bilingualPlaceholder")}
+          addHint={t("bilingualHint")}
           disabled={loadingData}
         />
       </div>
@@ -306,16 +308,16 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {hasFaculty && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            មហាវិទ្យាល័យ / ជំនាញ (Faculty/Major) <span className="text-red-500">*</span>
+            {t("faculty")} <span className="text-red-500">*</span>
           </label>
           <AddableSelect
             value={faculty}
             onChange={(code) => { handleFacultyChange(code); }}
             options={facultyOptions}
             onAdd={program ? handleAddFaculty : undefined}
-            placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសជំនាញ / Select Faculty/Major --"}
-            addPlaceholder="English Name | ឈ្មោះខ្មែរ"
-            addHint="Format: English Name | Khmer Name"
+            placeholder={loadingData ? t("loading") : t("selectFaculty")}
+            addPlaceholder={t("bilingualPlaceholder")}
+            addHint={t("bilingualHint")}
             disabled={!program || loadingData}
           />
         </div>
@@ -325,14 +327,14 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {hasSubject && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            មុខវិជ្ជា (Subject) <span className="text-red-500">*</span>
+            {t("subject")} <span className="text-red-500">*</span>
           </label>
           <select
             value={subject}
             onChange={(e) => handleSubjectChange(e.target.value)}
             className={SELECT_CLASS}
           >
-            <option value="">-- ជ្រើសរើសមុខវិជ្ជា / Select Subject --</option>
+            <option value="">{t("selectSubject")}</option>
             {subjectOptions.map((s) => (
               <option key={s.code} value={s.code}>
                 {s.nameKm} — {s.nameEn}
@@ -346,32 +348,32 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            ជំនាន់ (Cohort) <span className="text-red-500">*</span>
+            {t("cohort")} <span className="text-red-500">*</span>
           </label>
           <AddableSelect
             value={cohortId}
             onChange={(id) => { handleCohortChange(id); }}
             options={cohortOptions}
             onAdd={program ? handleAddCohort : undefined}
-            placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសជំនាន់ --"}
-            addPlaceholder="Enter cohort number…"
-            addHint="Enter a number (e.g. 7)"
+            placeholder={loadingData ? t("loading") : t("selectCohort")}
+            addPlaceholder={t("cohortPlaceholder")}
+            addHint={t("cohortHint")}
             disabled={!program || loadingData}
           />
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            ឆ្នាំសិក្សា (Academic Year) <span className="text-red-500">*</span>
+            {t("academicYear")} <span className="text-red-500">*</span>
           </label>
           <AddableSelect
             value={academicYear}
             onChange={(y) => { handleYearChange(y); }}
             options={yearOptions}
             onAdd={cohortId && cohortId !== "__legacy__" ? handleAddYear : undefined}
-            placeholder={loadingData ? "Loading…" : "-- ជ្រើសរើសឆ្នាំ --"}
-            addPlaceholder="Enter year (e.g. 2025-2026)…"
-            addHint="Format: YYYY-YYYY (e.g. 2025-2026)"
+            placeholder={loadingData ? t("loading") : t("selectYear")}
+            addPlaceholder={t("yearPlaceholder")}
+            addHint={t("yearHint")}
             disabled={!cohortId || loadingData}
           />
         </div>

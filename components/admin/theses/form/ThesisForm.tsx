@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createThesis, updateThesis } from "@/app/actions/theses";
@@ -77,6 +78,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
   const router = useRouter();
   const isEdit = !!initial;
 
+  const t = useTranslations("adminThesisForm");
   const [phase, setPhase] = useState<Phase>("idle");
   const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -376,7 +378,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
       let fileSizeKb = initial?.fileSizeKb ?? null;
       let contentHash: string | null = null;
       if (pdfFile) {
-        setUploadProgress("Uploading PDF…");
+        setUploadProgress(t("progress.pdf"));
         const res = await uploadOne(pdfFile, `${folder}/thesis.pdf`, "private", isEdit ? { excludeType: "research", excludeId: initial!.id } : {});
         finalPdfUrl = res.url;
         fileSizeKb = Math.round(pdfFile.size / 1024);
@@ -385,7 +387,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
 
       let finalCoverUrl: string | null = coverRemoved ? null : initial?.coverUrl ?? null;
       if (coverFile) {
-        setUploadProgress("Uploading cover…");
+        setUploadProgress(t("progress.cover"));
         const ext = coverFile.name.split(".").pop()?.toLowerCase() || "jpg";
         const res = await uploadOne(coverFile, `${folder}/cover.${ext}`, "public");
         finalCoverUrl = res.url;
@@ -393,7 +395,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
 
       const uploadedSupplementary: SupplementaryFile[] = [...supplementaryExisting];
       for (let i = 0; i < supplementaryNew.length; i++) {
-        setUploadProgress(`Uploading supplementary file ${i + 1} of ${supplementaryNew.length}…`);
+        setUploadProgress(t("progress.supplementary", { current: i + 1, total: supplementaryNew.length }));
         const item = supplementaryNew[i];
         const safeName = sanitizeFilename(item.file.name);
         const res = await uploadOne(item.file, `${folder}/supplementary/${safeName}`, "public");
@@ -401,7 +403,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
       }
 
       setPhase("saving");
-      setUploadProgress("Saving thesis…");
+      setUploadProgress(t("progress.saving"));
 
       const dbData = {
         title: title.trim(),
@@ -452,20 +454,20 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
     } catch (err) {
       setPhase("idle");
       setUploadProgress("");
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? "Edit Thesis" : "Upload Thesis"}</h1>
+      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? t("editTitle") : t("newTitle")}</h1>
 
       {availableDraft && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <span>You have unsaved changes from {new Date(availableDraft.updatedAt).toLocaleString()}.</span>
+          <span>{t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}</span>
           <span className="flex gap-2">
-            <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">Restore</button>
-            <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">Discard</button>
+            <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">{t("restore")}</button>
+            <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">{t("discard")}</button>
           </span>
         </div>
       )}
@@ -537,7 +539,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
           )}
           {activeStep === "files" && (
             <FilesStep
-              pdfFile={pdfFile} onPdfChange={handlePdfChange} existingPdfLabel={initial?.fileUrl ? "Current PDF attached" : "PDF files only"}
+              pdfFile={pdfFile} onPdfChange={handlePdfChange} existingPdfLabel={initial?.fileUrl ? t("files.currentPdf") : t("files.pdfOnly")}
               coverFile={coverFile} coverPreview={coverPreview} existingCoverUrl={initial?.coverUrl} coverRemoved={coverRemoved}
               onCoverChange={handleCoverChange} onCoverRemove={handleCoverRemove}
               coverAltText={coverAltText} onCoverAltTextChange={setCoverAltText}

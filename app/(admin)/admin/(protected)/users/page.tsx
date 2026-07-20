@@ -1,4 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/admin/kit";
 import UsersClient from "./UsersClient";
 import UserStats from "@/components/admin/users/UserStats";
 import { getUsers, getUsersSummary } from "@/lib/admin/users";
@@ -28,7 +30,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const joined = (JOINED_RANGE_OPTIONS as readonly string[]).includes(joinedRaw) ? (joinedRaw as JoinedRange) : "all";
   const sort = (USER_SORT_OPTIONS as readonly string[]).includes(sortRaw) ? (sortRaw as UserSort) : "newest";
 
-  const [summary, result, callerIdentity] = await Promise.all([
+  const [t, summary, result, callerIdentity] = await Promise.all([
+    getTranslations("adminUsers"),
     getUsersSummary(),
     getUsers({ q, role, status, joined, sort, page, pageSize: PAGE_SIZE }),
     (async () => {
@@ -52,10 +55,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-heading">Users</h1>
-        <p className="text-sm text-text-muted">Manage members, roles, and account access.</p>
-      </div>
+      <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <UserStats summary={summary} />
 

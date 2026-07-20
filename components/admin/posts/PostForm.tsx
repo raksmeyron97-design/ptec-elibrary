@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { uploadToZima } from "@/app/actions/upload";
 import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/actions";
 import { autosavePostDraft, getPostDraft, discardPostDraft, type PostDraftKey, type PostDraftPayload } from "@/app/actions/post-drafts";
@@ -50,6 +51,7 @@ function toDatetimeLocal(iso: string | null): string {
 }
 
 export default function PostForm({ initial, authorName }: { initial?: PostInitial; authorName: string }) {
+  const t = useTranslations("adminPostForm");
   const isEdit = !!initial;
   const editorSectionRef = useRef<HTMLDivElement>(null);
 
@@ -254,14 +256,14 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
         const uid = Date.now().toString(36).slice(-6);
         const folder = `posts/${finalSlug}-${uid}`;
         for (let i = 0; i < newItems.length; i++) {
-          setUploadProgress(`Uploading image ${i + 1} of ${newItems.length}…`);
+          setUploadProgress(t("uploadingImage", { current: i + 1, total: newItems.length }));
           const { file } = newItems[i];
           const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
           const imageFile = new File([file], `image-${String(i + 1).padStart(2, "0")}.${ext}`, { type: file.type });
           const fd = new FormData();
           fd.append("file", imageFile);
           const res = await uploadToZima(fd, folder);
-          if ("error" in res) throw new Error(`Image upload failed: ${res.error}`);
+          if ("error" in res) throw new Error(t("imageUploadFailed", { error: res.error }));
           uploadedUrls.push(res.publicUrl);
         }
       }
@@ -284,7 +286,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
       }
 
       setPhase("saving");
-      setUploadProgress("Saving post…");
+      setUploadProgress(t("savingPost"));
 
       const payload = new FormData();
       payload.set("title", title.trim());
@@ -315,31 +317,31 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
     } catch (err) {
       setPhase("idle");
       setUploadProgress("");
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : t("saveFailed"));
     }
   }
 
   const dateLabel = status === "scheduled" && scheduledAt
-    ? `Scheduled for ${new Date(scheduledAt).toLocaleString()}`
+    ? t("scheduledFor", { date: new Date(scheduledAt).toLocaleString() })
     : initial?.createdAt
       ? new Date(initial.createdAt).toLocaleDateString()
-      : "Just now";
+      : t("justNow");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? "Edit post" : "New post"}</h1>
+      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? t("editTitle") : t("newTitle")}</h1>
 
       {availableDraft && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span>
-            You have unsaved changes from {new Date(availableDraft.updatedAt).toLocaleString()}.
+            {t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}
           </span>
           <span className="flex gap-2">
             <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">
-              Restore
+              {t("restore")}
             </button>
             <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
-              Discard
+              {t("discard")}
             </button>
           </span>
         </div>
@@ -370,7 +372,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
         <div className="space-y-5 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm sm:p-6">
           <label className="block">
             <span className="mb-1.5 block text-sm font-semibold text-text-body">
-              Title <span className="text-red-500">*</span>
+              {t("title")} <span className="text-red-500">*</span>
             </span>
             <input
               value={title}
@@ -378,7 +380,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
               onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
               required
               disabled={busy}
-              placeholder="Post title"
+              placeholder={t("titlePlaceholder")}
               aria-invalid={!!fieldErrors.title}
               aria-describedby={fieldErrors.title ? "title-error" : undefined}
               className="h-11 w-full rounded-lg border border-divider px-4 text-lg leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60 aria-[invalid=true]:border-red-400"
@@ -399,7 +401,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
 
           <label className="block">
             <span className="mb-1 flex items-center justify-between text-sm font-semibold text-text-body">
-              Excerpt
+              {t("excerpt")}
               <span className={`font-normal ${excerptCount > 160 ? "text-amber-600" : "text-text-muted"}`}>
                 {excerptCount}/160
               </span>
@@ -409,11 +411,11 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
               value={excerpt}
               onChange={(e) => setExcerpt(e.target.value)}
               disabled={busy}
-              placeholder="Short summary shown on cards and search results…"
+              placeholder={t("excerptPlaceholder")}
               className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
             />
             <p className="mt-1 text-xs text-text-muted">
-              {excerpt.trim() ? "Recommended length: 120–160 characters." : "Excerpt will be auto-generated from content if left empty."}
+              {excerpt.trim() ? t("excerptHint") : t("excerptAutoHint")}
             </p>
           </label>
 
@@ -454,8 +456,8 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
               onChange={setTags}
               disabled={busy}
               max={10}
-              label="Tags"
-              placeholder="e.g. education, ការអប់រំ…"
+              label={t("tags")}
+              placeholder={t("tagsPlaceholder")}
             />
           </div>
 
