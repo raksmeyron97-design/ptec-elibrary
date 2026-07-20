@@ -143,6 +143,7 @@ function IndividualPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t("searchUsersPlaceholder")}
+        aria-label={t("selectUsers")}
         className="h-10 w-full rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body focus:outline-none focus:ring-2 focus:ring-brand/30"
       />
       {searching && <p className="mt-1 text-xs text-text-muted">{t("searching")}</p>}

@@ -67,7 +67,7 @@ export default function StepReview({
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3">
           <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-warning"><AlertTriangle className="h-3.5 w-3.5" /> {t("warningsHeading")}</p>
           <ul className="list-inside list-disc space-y-0.5 text-xs text-text-body">
-            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+            {warnings.map((w) => <li key={w}>{w}</li>)}
           </ul>
         </div>
       )}

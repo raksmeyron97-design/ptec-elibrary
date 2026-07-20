@@ -61,7 +61,7 @@ export default function AnnouncementTemplatesClient({ templates, canWrite }: { t
     <div>
       {canWrite && (
         <div className="mb-4 flex justify-end">
-          <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-hover">
+          <button type="button" onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-hover">
             <Plus className="h-4 w-4" /> {t("newTemplate")}
           </button>
         </div>
@@ -81,13 +81,13 @@ export default function AnnouncementTemplatesClient({ templates, canWrite }: { t
                 </Link>
                 {canWrite && (
                   <>
-                    <button onClick={() => setEditing(tpl)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper">
+                    <button type="button" onClick={() => setEditing(tpl)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper">
                       <Pencil className="h-3 w-3" /> {t("edit")}
                     </button>
-                    <button disabled={busy} onClick={() => handleDuplicate(tpl.id)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper disabled:opacity-60">
+                    <button type="button" disabled={busy} onClick={() => handleDuplicate(tpl.id)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-body hover:bg-paper disabled:opacity-60">
                       <Copy className="h-3 w-3" /> {t("duplicate")}
                     </button>
-                    <button disabled={busy} onClick={() => handleArchive(tpl.id)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-muted hover:bg-paper disabled:opacity-60">
+                    <button type="button" disabled={busy} onClick={() => handleArchive(tpl.id)} className="inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1 text-xs font-semibold text-text-muted hover:bg-paper disabled:opacity-60">
                       <Archive className="h-3 w-3" /> {t("archive")}
                     </button>
                   </>
@@ -153,42 +153,42 @@ function TemplateEditor({ initial, id, onClose, onSaved }: { initial: TemplateIn
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-bg-surface p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-text-heading">{id ? t("editTemplate") : t("newTemplate")}</h2>
-          <button onClick={onClose} aria-label={t("close")} className="text-text-muted hover:text-text-heading"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="text-text-muted hover:text-text-heading"><X className="h-5 w-5" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className={labelClass}>{t("nameField")}</label>
-            <input value={form.name} onChange={(e) => patch({ name: e.target.value })} className={inputClass} />
+            <label className={labelClass} htmlFor="tpl-name">{t("nameField")}</label>
+            <input id="tpl-name" value={form.name} onChange={(e) => patch({ name: e.target.value })} className={inputClass} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>{t("typeField")}</label>
-              <select value={form.type} onChange={(e) => patch({ type: e.target.value })} className={inputClass}>
+              <label className={labelClass} htmlFor="tpl-type">{t("typeField")}</label>
+              <select id="tpl-type" value={form.type} onChange={(e) => patch({ type: e.target.value })} className={inputClass}>
                 {ANNOUNCEMENT_TYPES.map((ty) => <option key={ty} value={ty}>{tType(ty)}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelClass}>{t("priorityField")}</label>
-              <select value={form.priority} onChange={(e) => patch({ priority: e.target.value })} className={inputClass}>
+              <label className={labelClass} htmlFor="tpl-priority">{t("priorityField")}</label>
+              <select id="tpl-priority" value={form.priority} onChange={(e) => patch({ priority: e.target.value })} className={inputClass}>
                 {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className={labelClass}>{t("titleEnField")}</label>
-            <input value={form.titleEn} onChange={(e) => patch({ titleEn: e.target.value })} className={inputClass} />
+            <label className={labelClass} htmlFor="tpl-title-en">{t("titleEnField")}</label>
+            <input id="tpl-title-en" value={form.titleEn} onChange={(e) => patch({ titleEn: e.target.value })} className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>{t("titleKmField")}</label>
-            <input value={form.titleKm} onChange={(e) => patch({ titleKm: e.target.value })} className={`${inputClass} font-khmer`} />
+            <label className={labelClass} htmlFor="tpl-title-km">{t("titleKmField")}</label>
+            <input id="tpl-title-km" value={form.titleKm} onChange={(e) => patch({ titleKm: e.target.value })} className={`${inputClass} font-khmer`} />
           </div>
           <div>
-            <label className={labelClass}>{t("summaryEnField")}</label>
-            <textarea value={form.summaryEn} onChange={(e) => patch({ summaryEn: e.target.value })} rows={2} className="w-full rounded-lg border border-divider bg-paper px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+            <label className={labelClass} htmlFor="tpl-summary-en">{t("summaryEnField")}</label>
+            <textarea id="tpl-summary-en" value={form.summaryEn} onChange={(e) => patch({ summaryEn: e.target.value })} rows={2} className="w-full rounded-lg border border-divider bg-paper px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
           </div>
           <div>
-            <label className={labelClass}>{t("ctaUrlField")}</label>
-            <input value={form.ctaUrl} onChange={(e) => patch({ ctaUrl: e.target.value })} className={inputClass} />
+            <label className={labelClass} htmlFor="tpl-cta-url">{t("ctaUrlField")}</label>
+            <input id="tpl-cta-url" value={form.ctaUrl} onChange={(e) => patch({ ctaUrl: e.target.value })} className={inputClass} />
           </div>
           <div>
             <span className={labelClass}>{t("defaultChannelsField")}</span>
@@ -200,8 +200,8 @@ function TemplateEditor({ initial, id, onClose, onSaved }: { initial: TemplateIn
           </div>
         </div>
         <div className="mt-5 flex justify-end gap-3">
-          <button onClick={onClose} className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body hover:bg-paper">{t("cancel")}</button>
-          <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-hover disabled:opacity-60">
+          <button type="button" onClick={onClose} className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body hover:bg-paper">{t("cancel")}</button>
+          <button type="button" onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-hover disabled:opacity-60">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />} {t("save")}
           </button>
         </div>

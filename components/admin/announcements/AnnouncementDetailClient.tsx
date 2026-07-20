@@ -88,37 +88,37 @@ export default function AnnouncementDetailClient({ detail, canWrite, canPush }: 
               </Link>
             )}
             {canWrite && (
-              <button disabled={busy} onClick={() => run(async () => { const { id } = await duplicateAnnouncement(row.id); router.push(`/admin/announcements/${id}/edit`); })} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => run(async () => { const { id } = await duplicateAnnouncement(row.id); router.push(`/admin/announcements/${id}/edit`); })} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
                 <Copy className="h-3.5 w-3.5" /> {t("duplicate")}
               </button>
             )}
             {canWrite && actions.includes("approve") && (
-              <button disabled={busy} onClick={() => run(() => approveAnnouncement(row.id), "toasts.approved")} className="inline-flex items-center gap-1.5 rounded-xl bg-success px-3.5 py-2 text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => run(() => approveAnnouncement(row.id), "toasts.approved")} className="inline-flex items-center gap-1.5 rounded-xl bg-success px-3.5 py-2 text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
                 <ThumbsUp className="h-3.5 w-3.5" /> {t("approve")}
               </button>
             )}
             {canWrite && actions.includes("reject") && (
-              <button disabled={busy} onClick={() => { setRejectOpen(true); setRejectReason(""); }} className="inline-flex items-center gap-1.5 rounded-xl border border-danger/30 bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-danger transition hover:bg-danger/5 disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => { setRejectOpen(true); setRejectReason(""); }} className="inline-flex items-center gap-1.5 rounded-xl border border-danger/30 bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-danger transition hover:bg-danger/5 disabled:opacity-60">
                 <ThumbsDown className="h-3.5 w-3.5" /> {t("reject")}
               </button>
             )}
             {canWrite && actions.includes("cancelSchedule") && (
-              <button disabled={busy} onClick={() => run(() => cancelScheduledAnnouncement(row.id), "toasts.cancelled")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => run(() => cancelScheduledAnnouncement(row.id), "toasts.cancelled")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
                 <CalendarX className="h-3.5 w-3.5" /> {t("cancelSchedule")}
               </button>
             )}
             {canWrite && actions.includes("pause") && (
-              <button disabled={busy} onClick={() => run(() => pauseAnnouncement(row.id), "toasts.paused")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => run(() => pauseAnnouncement(row.id), "toasts.paused")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
                 <PauseCircle className="h-3.5 w-3.5" /> {t("pause")}
               </button>
             )}
             {canPush && actions.includes("resendFailed") && (latestJob?.failed ?? 0) > 0 && (
-              <button disabled={busy} onClick={() => run(async () => { const r = await resendFailedDeliveriesAction(row.id); toast.info(t("toasts.retryQueued", { count: r.queued })); }, "toasts.retryQueued")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => run(async () => { const r = await resendFailedDeliveriesAction(row.id); toast.info(t("toasts.retryQueued", { count: r.queued })); }, "toasts.retryQueued")} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
                 <RotateCcw className="h-3.5 w-3.5" /> {t("resendFailed")}
               </button>
             )}
             {canWrite && actions.includes("archive") && (
-              <button disabled={busy} onClick={() => setArchiveConfirmOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
+              <button type="button" disabled={busy} onClick={() => setArchiveConfirmOpen(true)} className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-3.5 py-2 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-60">
                 <Archive className="h-3.5 w-3.5" /> {t("archive")}
               </button>
             )}
@@ -134,8 +134,8 @@ export default function AnnouncementDetailClient({ detail, canWrite, canPush }: 
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-bold text-text-heading">{t("contentHeading")}</h2>
               <div className="inline-flex rounded-lg border border-divider bg-paper p-0.5">
-                <button onClick={() => setLocale("en")} className={`rounded-md px-3 py-1 text-xs font-semibold ${locale === "en" ? "bg-brand text-white" : "text-text-muted"}`}>EN</button>
-                <button onClick={() => setLocale("km")} className={`rounded-md px-3 py-1 text-xs font-semibold ${locale === "km" ? "bg-brand text-white" : "text-text-muted"}`}>KM</button>
+                <button type="button" onClick={() => setLocale("en")} className={`rounded-md px-3 py-1 text-xs font-semibold ${locale === "en" ? "bg-brand text-white" : "text-text-muted"}`}>EN</button>
+                <button type="button" onClick={() => setLocale("km")} className={`rounded-md px-3 py-1 text-xs font-semibold ${locale === "km" ? "bg-brand text-white" : "text-text-muted"}`}>KM</button>
               </div>
             </div>
             {locale === "en" ? (
@@ -232,8 +232,8 @@ export default function AnnouncementDetailClient({ detail, canWrite, canPush }: 
             <label className="mt-3 block text-xs font-semibold text-text-muted" htmlFor="reject-reason">{t("rejectReasonLabel")}</label>
             <textarea id="reject-reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-divider bg-paper px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setRejectOpen(false)} className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body hover:bg-paper">{t("cancel")}</button>
-              <button
+              <button type="button" onClick={() => setRejectOpen(false)} className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body hover:bg-paper">{t("cancel")}</button>
+              <button type="button"
                 onClick={() => { setRejectOpen(false); run(() => rejectAnnouncement(row.id, rejectReason), "toasts.rejected"); }}
                 className="rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white hover:opacity-90"
               >
