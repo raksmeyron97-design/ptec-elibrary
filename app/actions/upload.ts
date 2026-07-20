@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import { zimaUpload, zimaDelete } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
-const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications"];
+const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications", "announcements"];
 
 function validateFolder(folder: string): void {
   const topLevel = folder.split("/")[0];
@@ -28,6 +28,7 @@ function permissionResourceForFolder(folder: string): string {
   if (top === "posts") return "posts";
   if (top === "research" || top === "reports") return "research";
   if (top === "publications") return "publications";
+  if (top === "announcements") return "announcements";
   return "books";
 }
 
@@ -35,7 +36,7 @@ function permissionResourceForFolder(folder: string): string {
 function presetsForFolder(folder: string) {
   const top = folder.split("/")[0];
   if (top === "books") return BOOK_COVER_OPTS;
-  if (top === "posts") return POST_IMAGE_OPTS;
+  if (top === "posts" || top === "announcements") return POST_IMAGE_OPTS;
   return {};
 }
 

@@ -15,6 +15,7 @@ export type ResourceType =
   | "thesis"
   | "publication"
   | "post"
+  | "announcement"
   | "account"
   | "system";
 
@@ -23,6 +24,7 @@ export const RESOURCE_TYPES: ResourceType[] = [
   "thesis",
   "publication",
   "post",
+  "announcement",
   "account",
   "system",
 ];

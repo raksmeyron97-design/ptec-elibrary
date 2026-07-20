@@ -89,6 +89,8 @@ export const TAGS = {
   /** Global site configuration (lib/system-settings/config.ts): names,
    *  contacts, hours, links, SEO defaults. */
   siteConfig: "site-config",
+  /** Active website-banner announcements (lib/announcements-public.ts). */
+  announcementBanner: "announcement-banner",
 } as const;
 
 /**
@@ -99,6 +101,16 @@ export const TAGS = {
  */
 export function revalidateSiteConfig() {
   revalidateTag(TAGS.siteConfig, "max");
+  revalidateLocalizedPath("/", "layout");
+}
+
+/**
+ * An announcement's website-banner visibility changed (publish / pause /
+ * archive / expire). The banner renders in the public layout on every page,
+ * so — like site settings — this is a justified layout-wide invalidation.
+ */
+export function revalidateAnnouncementBanner() {
+  revalidateTag(TAGS.announcementBanner, "max");
   revalidateLocalizedPath("/", "layout");
 }
 

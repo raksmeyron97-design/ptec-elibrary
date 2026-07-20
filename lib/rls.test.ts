@@ -75,6 +75,12 @@ const ANON_ZERO_TABLES = [
   "search_result_clicks",
   "team_members", // 0071 closed anon reads; served via service role
   "role_permissions",
+  // 0100 Announcement Center — service-role only, no anon/authenticated policies.
+  "announcements",
+  "announcement_delivery_jobs",
+  "announcement_push_deliveries",
+  "announcement_status_history",
+  "announcement_templates",
 ];
 
 // Tables anonymous users must NOT be able to write to (content tables).

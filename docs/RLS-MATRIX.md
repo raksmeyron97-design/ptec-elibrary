@@ -89,6 +89,7 @@ only (RLS enabled, no client policies — PostgREST returns zero rows / 42501).
 | role_permissions | admin SELECT; svc write |
 | post_drafts / thesis_drafts | admin (ALL) |
 | book_pages / book_chunks | svc (RLS enabled, no policies) |
+| announcements / announcement_delivery_jobs / announcement_push_deliveries / announcement_status_history / announcement_templates | svc only — RLS enabled, no anon/authenticated policies (0100). All reads/writes go through admin Server Actions (`requirePermission("announcements"\|"announcements_push", ...)`) and the `/api/cron/publish-scheduled` sweep, both service-role. Public banner reads go through a separate cached service-role helper (`lib/announcements-public.ts`), never client-side. |
 
 ## Key protections verified
 
