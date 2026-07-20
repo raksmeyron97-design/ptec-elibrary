@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { FileCheck2, FileX2, FileWarning, ImageOff, Scale } from "lucide-react";
 import { LARGE_FILE_KB, type EbookListRow } from "@/lib/admin/ebooks-shared";
 
@@ -21,6 +22,7 @@ function Badge({ tone, icon: Icon, label }: { tone: string; icon: typeof FileChe
  * so an OK badge means "present", not "verified this second".
  */
 export default function EbookFileHealthBadge({ book }: { book: EbookListRow }) {
+  const t = useTranslations("adminEbooks.fileHealth");
   const hasPdf = Boolean(book.fileUrl);
   const hasCover = Boolean(book.coverUrl);
   const isLarge = (book.fileSizeKb ?? 0) >= LARGE_FILE_KB;
@@ -28,20 +30,20 @@ export default function EbookFileHealthBadge({ book }: { book: EbookListRow }) {
   return (
     <div className="flex flex-col items-start gap-1">
       {book.fileBroken ? (
-        <Badge tone={bad} icon={FileWarning} label="Broken file" />
+        <Badge tone={bad} icon={FileWarning} label={t("brokenFile")} />
       ) : hasPdf ? (
-        <Badge tone={good} icon={FileCheck2} label="PDF ready" />
+        <Badge tone={good} icon={FileCheck2} label={t("pdfReady")} />
       ) : (
-        <Badge tone={bad} icon={FileX2} label="Missing PDF" />
+        <Badge tone={bad} icon={FileX2} label={t("missingPdf")} />
       )}
       {book.coverBroken ? (
-        <Badge tone={bad} icon={ImageOff} label="Broken cover" />
+        <Badge tone={bad} icon={ImageOff} label={t("brokenCover")} />
       ) : !hasCover ? (
-        <Badge tone={warn} icon={ImageOff} label="No cover" />
+        <Badge tone={warn} icon={ImageOff} label={t("noCover")} />
       ) : (
-        <span className="sr-only">Cover present</span>
+        <span className="sr-only">{t("coverPresent")}</span>
       )}
-      {isLarge && <Badge tone={amber} icon={Scale} label="Large file" />}
+      {isLarge && <Badge tone={amber} icon={Scale} label={t("largeFile")} />}
     </div>
   );
 }

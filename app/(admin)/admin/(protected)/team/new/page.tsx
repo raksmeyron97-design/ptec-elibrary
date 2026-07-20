@@ -13,6 +13,7 @@ export default async function NewTeamMemberPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
+      <h1 className="sr-only">Add new team member</h1>
       <Link
         href="/admin/team"
         className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-text-muted transition hover:text-text-body"

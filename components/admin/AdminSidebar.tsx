@@ -37,6 +37,7 @@ import {
   Inbox,
   SlidersHorizontal,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
 // Client-safe half only — lib/admin/sidebar-badges.ts is `server-only`.
@@ -45,6 +46,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Avatar from "@/components/ui/Avatar";
 import NotificationBell from "@/components/admin/NotificationBell";
+import AdminLanguageSwitcher from "@/components/admin/AdminLanguageSwitcher";
 import AdminCommandPalette, {
   type AdminCommand,
   type AdminCommandPaletteHandle,
@@ -65,7 +67,12 @@ type NavChild = {
 
 type NavNode =
   | { type: "link"; name: string; href: string; icon: NavIcon; badge?: BadgeInfo }
-  | { type: "group"; name: string; icon: NavIcon; children: NavChild[] };
+  /** `key` is the stable, locale-independent id (open-state storage etc.);
+   *  `name` is the translated label. */
+  | { type: "group"; key: string; name: string; icon: NavIcon; children: NavChild[] };
+
+/** Translator narrowed to what the nav needs (adminShell.nav namespace). */
+type NavT = (key: string, values?: Record<string, string | number>) => string;
 
 function perm(perms: Record<string, PermLevel>, resource: string, minLevel: "read" | "write"): boolean {
   const level = perms[resource] ?? "none";
@@ -86,15 +93,16 @@ function groupBadgeOf(children: NavChild[]): BadgeInfo | undefined {
 /** Visible count pill. Gold = work waiting, rose = something broken; the number
  *  itself carries the meaning, so status is never conveyed by colour alone. */
 function CountPill({ badge, className = "" }: { badge: BadgeInfo; className?: string }) {
+  const t = useTranslations("adminShell.nav");
   const critical = badge.severity === "critical";
   return (
     <span
       className={`inline-flex min-w-[18px] shrink-0 items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-[17px] tabular-nums ${className}`}
-      style={{ background: critical ? "#E11D48" : "#DDB022", color: critical ? "#FFFFFF" : "#0B1530" }}
+      style={{ background: critical ? "var(--ptec-rose)" : "var(--ptec-accent)", color: critical ? "#FFFFFF" : "var(--color-blue-950)" }}
     >
       <span aria-hidden="true">{badge.count > 99 ? "99+" : badge.count}</span>
       <span className="sr-only">
-        {badge.count} {critical ? "items need attention" : "items awaiting action"}
+        {t(critical ? "badgeCritical" : "badgeAttention", { count: badge.count })}
       </span>
     </span>
   );
@@ -106,7 +114,7 @@ function CountDot({ severity }: { severity: BadgeInfo["severity"] }) {
     <span
       className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full"
       style={{
-        background: severity === "critical" ? "#F43F5E" : "#DDB022",
+        background: severity === "critical" ? "#F43F5E" : "var(--ptec-accent)",
         boxShadow: "0 0 0 2px rgba(13,24,54,0.95)",
       }}
       aria-hidden="true"
@@ -123,6 +131,7 @@ function getNavTree(
   isSuperAdmin: boolean,
   userPermissions: Record<string, PermLevel>,
   badges: SidebarBadges = EMPTY_SIDEBAR_BADGES,
+  t: NavT,
 ): NavNode[] {
   const isSA    = isSuperAdmin || role === "super_admin";
   const isAdmin = ADMIN_ROLES.includes(role) || isSA;
@@ -133,40 +142,40 @@ function getNavTree(
   const crit = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "critical" } : undefined);
 
   const books: NavChild[] = [];
-  if (perm(p, "books",   "write")) books.push({ name: "Upload Book",   href: "/admin/upload",        icon: Upload         });
-  if (perm(p, "books",   "write")) books.push({ name: "Review Queue",  href: "/admin/review",        icon: ClipboardCheck, badge: attn(badges.review) });
-  if (perm(p, "books",   "read"))  books.push({ name: "Manage E-books", href: "/admin/manage",        icon: BookCopy       });
-  if (perm(p, "books",   "write")) books.push({ name: "Duplicates",     href: "/admin/manage/duplicates", icon: Copy       });
-  if (perm(p, "catalog", "read"))  books.push({ name: "Catalog",       href: "/admin/catalogs",      icon: Library        });
-  if (perm(p, "books",   "read"))  books.push({ name: "Book Requests", href: "/admin/book-requests", icon: BookPlus, badge: attn(badges.bookRequests) });
+  if (perm(p, "books",   "write")) books.push({ name: t("uploadBook"),   href: "/admin/upload",        icon: Upload         });
+  if (perm(p, "books",   "write")) books.push({ name: t("reviewQueue"),  href: "/admin/review",        icon: ClipboardCheck, badge: attn(badges.review) });
+  if (perm(p, "books",   "read"))  books.push({ name: t("manageEbooks"), href: "/admin/manage",        icon: BookCopy       });
+  if (perm(p, "books",   "write")) books.push({ name: t("duplicates"),   href: "/admin/manage/duplicates", icon: Copy       });
+  if (perm(p, "catalog", "read"))  books.push({ name: t("catalog"),      href: "/admin/catalogs",      icon: Library        });
+  if (perm(p, "books",   "read"))  books.push({ name: t("bookRequests"), href: "/admin/book-requests", icon: BookPlus, badge: attn(badges.bookRequests) });
 
   const content: NavChild[] = [];
-  if (perm(p, "posts",          "read")) content.push({ name: "Posts",          href: "/admin/posts",         icon: FileText      });
-  if (perm(p, "research",       "read")) content.push({ name: "Theses",         href: "/admin/theses",        icon: GraduationCap });
-  if (perm(p, "publications",   "read")) content.push({ name: "Publications",   href: "/admin/publications",  icon: ScrollText    });
-  if (perm(p, "learning_paths", "read")) content.push({ name: "Learning Paths", href: "/admin/paths",         icon: Route         });
-  if (perm(p, "announcements",  "read")) content.push({ name: "Announcements",  href: "/admin/announcements", icon: Megaphone     });
+  if (perm(p, "posts",          "read")) content.push({ name: t("posts"),         href: "/admin/posts",         icon: FileText      });
+  if (perm(p, "research",       "read")) content.push({ name: t("theses"),        href: "/admin/theses",        icon: GraduationCap });
+  if (perm(p, "publications",   "read")) content.push({ name: t("publications"),  href: "/admin/publications",  icon: ScrollText    });
+  if (perm(p, "learning_paths", "read")) content.push({ name: t("learningPaths"), href: "/admin/paths",         icon: Route         });
+  if (perm(p, "announcements",  "read")) content.push({ name: t("announcements"), href: "/admin/announcements", icon: Megaphone     });
 
   const insights: NavChild[] = [];
-  if (perm(p, "books", "read")) insights.push({ name: "Search Insights", href: "/admin/search-insights", icon: SearchX });
-  if (perm(p, "books", "read")) insights.push({ name: "Data Quality",    href: "/admin/data-quality",    icon: Gauge, badge: crit(badges.dataQuality) });
+  if (perm(p, "books", "read")) insights.push({ name: t("searchInsights"), href: "/admin/search-insights", icon: SearchX });
+  if (perm(p, "books", "read")) insights.push({ name: t("dataQuality"),    href: "/admin/data-quality",    icon: Gauge, badge: crit(badges.dataQuality) });
 
   // Administration — role-gated items (security-sensitive) live here too
   const administration: NavChild[] = [];
-  if (perm(p, "users", "write"))         administration.push({ name: "Library Team",  href: "/admin/team",  icon: UserCircle  });
-  if (perm(p, "users", "write"))         administration.push({ name: "Users",         href: "/admin/users", icon: Users       });
-  if (perm(p, "roles", "write") || isSA) administration.push({ name: "Roles",         href: "/admin/roles", icon: ShieldCheck });
-  if (perm(p, "settings", "read") || isSA) administration.push({ name: "System Settings", href: "/admin/system-settings", icon: SlidersHorizontal });
-  if (isAdmin)                           administration.push({ name: "Security Logs", href: "/admin/logs",  icon: Shield      });
+  if (perm(p, "users", "write"))         administration.push({ name: t("libraryTeam"),  href: "/admin/team",  icon: UserCircle  });
+  if (perm(p, "users", "write"))         administration.push({ name: t("users"),        href: "/admin/users", icon: Users       });
+  if (perm(p, "roles", "write") || isSA) administration.push({ name: t("roles"),        href: "/admin/roles", icon: ShieldCheck });
+  if (perm(p, "settings", "read") || isSA) administration.push({ name: t("systemSettings"), href: "/admin/system-settings", icon: SlidersHorizontal });
+  if (isAdmin)                           administration.push({ name: t("securityLogs"), href: "/admin/logs",  icon: Shield      });
 
   const tree: NavNode[] = [
-    { type: "link", name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { type: "link", name: t("dashboard"), href: "/admin", icon: LayoutDashboard },
   ];
-  if (perm(p, "contact", "read")) tree.push({ type: "link", name: "Inbox", href: "/admin/inbox", icon: Inbox, badge: attn(badges.inbox) });
-  if (books.length)          tree.push({ type: "group", name: "Books",          icon: BookOpen,  children: books          });
-  if (content.length)        tree.push({ type: "group", name: "Content",        icon: Newspaper, children: content        });
-  if (insights.length)       tree.push({ type: "group", name: "Insights",       icon: BarChart3, children: insights       });
-  if (administration.length) tree.push({ type: "group", name: "Administration", icon: Settings,  children: administration });
+  if (perm(p, "contact", "read")) tree.push({ type: "link", name: t("inbox"), href: "/admin/inbox", icon: Inbox, badge: attn(badges.inbox) });
+  if (books.length)          tree.push({ type: "group", key: "books",          name: t("groupBooks"),          icon: BookOpen,  children: books          });
+  if (content.length)        tree.push({ type: "group", key: "content",        name: t("groupContent"),        icon: Newspaper, children: content        });
+  if (insights.length)       tree.push({ type: "group", key: "insights",       name: t("groupInsights"),       icon: BarChart3, children: insights       });
+  if (administration.length) tree.push({ type: "group", key: "administration", name: t("groupAdministration"), icon: Settings,  children: administration });
   return tree;
 }
 
@@ -217,7 +226,7 @@ function TopLevelLink({
         aria-current={active ? "page" : undefined}
         aria-label={collapsed ? link.name : undefined}
         title={collapsed ? undefined : link.name}
-        className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+        className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
         style={{
           padding: collapsed ? "10px" : "10px 12px",
           justifyContent: collapsed ? "center" : undefined,
@@ -238,7 +247,7 @@ function TopLevelLink({
         {active && (
           <span
             className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-            style={{ background: "#DDB022" }}
+            style={{ background: "var(--ptec-accent)" }}
           />
         )}
         <Icon
@@ -246,7 +255,7 @@ function TopLevelLink({
           style={{
             width: "18px",
             height: "18px",
-            color: active ? "#DDB022" : "rgba(255,255,255,0.55)",
+            color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
           }}
         />
         {!collapsed && <span className="flex-1 truncate">{link.name}</span>}
@@ -287,7 +296,7 @@ function ChildLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       title={link.name}
-      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
       style={{
         padding: "7px 10px",
         color: active ? "#FFFFFF" : "rgba(255,255,255,0.60)",
@@ -305,14 +314,14 @@ function ChildLink({
       {/* Gold tick on the guide line for the active child */}
       <span
         className="absolute -left-[13px] top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-full transition-all duration-150"
-        style={{ background: active ? "#DDB022" : "transparent" }}
+        style={{ background: active ? "var(--ptec-accent)" : "transparent" }}
       />
       <Icon
         className="shrink-0"
         style={{
           width: "15px",
           height: "15px",
-          color: active ? "#DDB022" : "rgba(255,255,255,0.42)",
+          color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.42)",
         }}
       />
       <span className="flex-1 truncate">{link.name}</span>
@@ -361,7 +370,7 @@ function NavGroup({
           aria-haspopup="menu"
           aria-expanded={flyoutOpen}
           onClick={flyoutOpen ? hideFly : showFly}
-          className="relative flex w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+          className="relative flex w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
           style={{
             padding: "10px",
             background: childActive ? "rgba(255,255,255,0.14)" : undefined,
@@ -371,7 +380,7 @@ function NavGroup({
           {childActive && (
             <span
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-              style={{ background: "#DDB022" }}
+              style={{ background: "var(--ptec-accent)" }}
             />
           )}
           <Icon
@@ -379,7 +388,7 @@ function NavGroup({
             style={{
               width: "18px",
               height: "18px",
-              color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
+              color: childActive ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
             }}
           />
           {groupBadge && <CountDot severity={groupBadge.severity} />}
@@ -415,7 +424,7 @@ function NavGroup({
                     aria-current={active ? "page" : undefined}
                     title={child.name}
                     onClick={() => { hideFly(); onNavigate(); }}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
                     style={{
                       color: active ? "#FFFFFF" : "rgba(255,255,255,0.65)",
                       background: active ? "rgba(255,255,255,0.12)" : undefined,
@@ -432,7 +441,7 @@ function NavGroup({
                       style={{
                         width: "15px",
                         height: "15px",
-                        color: active ? "#DDB022" : "rgba(255,255,255,0.45)",
+                        color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.45)",
                       }}
                     />
                     <span className="flex-1 truncate">{child.name}</span>
@@ -455,7 +464,7 @@ function NavGroup({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#DDB022]"
+        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
         style={{
           padding: "10px 12px",
           color: childActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.70)",
@@ -472,7 +481,7 @@ function NavGroup({
           style={{
             width: "18px",
             height: "18px",
-            color: childActive ? "#DDB022" : "rgba(255,255,255,0.55)",
+            color: childActive ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
           }}
         />
         <span className="flex-1 text-left truncate leading-5" title={group.name}>{group.name}</span>
@@ -481,7 +490,7 @@ function NavGroup({
         {!open && groupBadge ? (
           <CountPill badge={groupBadge} />
         ) : childActive && !open ? (
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "#DDB022" }} />
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--ptec-accent)" }} />
         ) : null}
         <ChevronRight
           className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
@@ -514,11 +523,11 @@ function NavGroup({
   );
 }
 
-function getRoleLabel(role: AppRole, isSuperAdmin: boolean): string {
-  if (isSuperAdmin || role === "super_admin") return "Super Admin";
-  if (role === "admin") return "Admin";
-  if (role === "librarian") return "Librarian";
-  if (role === "staff") return "Staff";
+function getRoleLabel(role: AppRole, isSuperAdmin: boolean, t: NavT): string {
+  if (isSuperAdmin || role === "super_admin") return t("superAdmin");
+  if (role === "admin") return t("admin");
+  if (role === "librarian") return t("librarian");
+  if (role === "staff") return t("staff");
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
@@ -545,6 +554,11 @@ export default function AdminSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const tNav = useTranslations("adminShell.nav");
+  const tBrand = useTranslations("adminShell.brand");
+  const tTopbar = useTranslations("adminShell.topbar");
+  const tPalette = useTranslations("adminShell.palette");
+  const tRoles = useTranslations("adminShell.roles");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -552,8 +566,8 @@ export default function AdminSidebar({
   const profileRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<AdminCommandPaletteHandle>(null);
 
-  const navTree = getNavTree(role, isSuperAdmin, userPermissions, badges);
-  const roleLabel = getRoleLabel(role, isSuperAdmin);
+  const navTree = getNavTree(role, isSuperAdmin, userPermissions, badges, tNav);
+  const roleLabel = getRoleLabel(role, isSuperAdmin, tRoles);
 
   const publicSiteUrl = process.env.NEXT_PUBLIC_ROOT_DOMAIN
     ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
@@ -566,41 +580,46 @@ export default function AdminSidebar({
     const canWrite = (resource: string) => (userPermissions[resource] ?? "none") === "write";
     const list: AdminCommand[] = [];
 
-    if (canWrite("books")) list.push({ id: "act-upload", label: "Add e-book", group: "Actions", href: "/admin/upload", icon: Upload, keywords: "new create book pdf" });
-    if (canWrite("research")) list.push({ id: "act-thesis", label: "Add thesis", group: "Actions", href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
-    if (canWrite("publications")) list.push({ id: "act-pub", label: "Add publication", group: "Actions", href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
-    if (canWrite("posts")) list.push({ id: "act-post", label: "Create post", group: "Actions", href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
-    if (canWrite("users")) list.push({ id: "act-users", label: "Invite or manage users", group: "Actions", href: "/admin/users", icon: Users, keywords: "invite people accounts staff" });
+    const actions = tPalette("actions");
+    const goTo = tPalette("goTo");
+
+    if (canWrite("books")) list.push({ id: "act-upload", label: tPalette("addEbook"), group: actions, href: "/admin/upload", icon: Upload, keywords: "new create book pdf" });
+    if (canWrite("research")) list.push({ id: "act-thesis", label: tPalette("addThesis"), group: actions, href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
+    if (canWrite("publications")) list.push({ id: "act-pub", label: tPalette("addPublication"), group: actions, href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
+    if (canWrite("posts")) list.push({ id: "act-post", label: tPalette("createPost"), group: actions, href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
+    if (canWrite("users")) list.push({ id: "act-users", label: tPalette("manageUsers"), group: actions, href: "/admin/users", icon: Users, keywords: "invite people accounts staff" });
 
     for (const node of navTree) {
       if (node.type === "link") {
-        list.push({ id: `nav-${node.href}`, label: node.name, group: "Go to", href: node.href, icon: node.icon });
+        list.push({ id: `nav-${node.href}`, label: node.name, group: goTo, href: node.href, icon: node.icon });
       } else {
         for (const child of node.children) {
-          list.push({ id: `nav-${child.href}`, label: child.name, group: "Go to", href: child.href, icon: child.icon, keywords: node.name });
+          list.push({ id: `nav-${child.href}`, label: child.name, group: goTo, href: child.href, icon: child.icon, keywords: node.name });
         }
       }
     }
 
-    list.push({ id: "ext-site", label: "View public site", group: "Go to", href: publicSiteUrl, icon: ExternalLink, external: true, keywords: "open website live" });
+    list.push({ id: "ext-site", label: tPalette("viewPublicSite"), group: goTo, href: publicSiteUrl, icon: ExternalLink, external: true, keywords: "open website live" });
     return list;
     // navTree is derived from these inputs; rebuild the list when they change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role, isSuperAdmin, userPermissions, badges, publicSiteUrl]);
+  }, [role, isSuperAdmin, userPermissions, badges, publicSiteUrl, tPalette]);
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
 
-  const activeGroupName = (() => {
+  // Stable, locale-independent group key — the persisted open-state must not
+  // change when the UI language does.
+  const activeGroupKey = (() => {
     for (const node of navTree) {
-      if (node.type === "group" && node.children.some(c => isActive(c.href))) return node.name;
+      if (node.type === "group" && node.children.some(c => isActive(c.href))) return node.key;
     }
     return null;
   })();
 
   // Open the group holding the current page by default (deterministic for SSR).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
-    activeGroupName ? { [activeGroupName]: true } : {},
+    activeGroupKey ? { [activeGroupKey]: true } : {},
   );
 
   useEffect(() => {
@@ -617,17 +636,17 @@ export default function AdminSidebar({
 
   // Navigating into a section always reveals it, even if previously closed
   // (state adjustment during render — avoids an extra effect pass).
-  const [revealedGroup, setRevealedGroup] = useState(activeGroupName);
-  if (activeGroupName !== revealedGroup) {
-    setRevealedGroup(activeGroupName);
-    if (activeGroupName && !openGroups[activeGroupName]) {
-      setOpenGroups(prev => ({ ...prev, [activeGroupName]: true }));
+  const [revealedGroup, setRevealedGroup] = useState(activeGroupKey);
+  if (activeGroupKey !== revealedGroup) {
+    setRevealedGroup(activeGroupKey);
+    if (activeGroupKey && !openGroups[activeGroupKey]) {
+      setOpenGroups(prev => ({ ...prev, [activeGroupKey]: true }));
     }
   }
 
-  const toggleGroup = (name: string) => {
+  const toggleGroup = (key: string) => {
     setOpenGroups(prev => {
-      const next = { ...prev, [name]: !prev[name] };
+      const next = { ...prev, [key]: !prev[key] };
       localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(next));
       return next;
     });
@@ -694,14 +713,14 @@ export default function AdminSidebar({
           >
             <Image src="/logo_footer.webp" alt="PTEC" width={24} height={24} className="object-contain" />
           </div>
-          <span className="font-bold text-white text-sm tracking-tight">PTEC Admin</span>
+          <span className="font-bold text-white text-sm tracking-tight">{tBrand("mobileTitle")}</span>
         </div>
         <button
           type="button"
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-lg cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#DDB022]"
+          className="p-2 rounded-lg cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           style={{ color: "rgba(255,255,255,0.80)" }}
-          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-label={mobileOpen ? tNav("closeMenu") : tNav("openMenu")}
           aria-expanded={mobileOpen}
           aria-controls="admin-mobile-nav"
         >
@@ -720,7 +739,7 @@ export default function AdminSidebar({
       {/* ── Sidebar ── */}
       <aside
         id="admin-mobile-nav"
-        aria-label="Admin navigation"
+        aria-label={tNav("ariaNavigation")}
         role={mobileOpen ? "dialog" : undefined}
         aria-modal={mobileOpen ? true : undefined}
         className={`
@@ -749,12 +768,12 @@ export default function AdminSidebar({
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="font-bold text-base tracking-tight text-white leading-tight">PTEC Library</div>
+              <div className="font-bold text-base tracking-tight text-white leading-tight">{tBrand("library")}</div>
               <div
                 className="text-[11px] font-medium tracking-wide"
                 style={{ color: "rgba(255,255,255,0.40)" }}
               >
-                Admin Panel
+                {tBrand("panel")}
               </div>
             </div>
           )}
@@ -762,7 +781,7 @@ export default function AdminSidebar({
 
         {/* ── Navigation: parent groups with expandable children ── */}
         <nav
-          aria-label="Admin sections"
+          aria-label={tNav("ariaSections")}
           className="flex-1 overflow-y-auto space-y-1"
           style={{ padding: collapsed ? "12px 8px" : "12px 10px" }}
         >
@@ -771,7 +790,7 @@ export default function AdminSidebar({
               className="px-3 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-widest select-none"
               style={{ color: "rgba(255,255,255,0.32)" }}
             >
-              Menu
+              {tNav("menu")}
             </div>
           )}
           {navTree.map((node, i) => {
@@ -779,7 +798,7 @@ export default function AdminSidebar({
             // Divider between the run of standalone links and the first group.
             const showDivider = node.type === "group" && prev?.type === "link";
             return (
-              <div key={node.type === "link" ? node.href : node.name}>
+              <div key={node.type === "link" ? node.href : node.key}>
                 {showDivider && (
                   <div
                     className="my-2"
@@ -798,8 +817,8 @@ export default function AdminSidebar({
                   <NavGroup
                     group={node}
                     collapsed={collapsed}
-                    open={!!openGroups[node.name]}
-                    onToggle={() => toggleGroup(node.name)}
+                    open={!!openGroups[node.key]}
+                    onToggle={() => toggleGroup(node.key)}
                     isActive={isActive}
                     onNavigate={() => setMobileOpen(false)}
                   />
@@ -832,14 +851,14 @@ export default function AdminSidebar({
               (e.currentTarget as HTMLElement).style.background = "";
               (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.50)";
             }}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? tNav("expandSidebar") : tNav("collapseSidebar")}
           >
             {collapsed
               ? <PanelLeftOpen className="w-4 h-4 shrink-0" />
               : (
                 <>
                   <PanelLeftClose className="w-4 h-4 shrink-0" />
-                  <span className="text-xs font-medium">Collapse</span>
+                  <span className="text-xs font-medium">{tNav("collapse")}</span>
                 </>
               )
             }
@@ -880,7 +899,7 @@ export default function AdminSidebar({
             }}
           >
             <ExternalLink className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-xs font-medium">View public site</span>}
+            {!collapsed && <span className="text-xs font-medium">{tNav("viewPublicSite")}</span>}
           </a>
 
           {/* Sign out */}
@@ -903,7 +922,7 @@ export default function AdminSidebar({
               }}
             >
               <LogOut className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-xs font-medium">Sign out</span>}
+              {!collapsed && <span className="text-xs font-medium">{tNav("signOut")}</span>}
             </button>
           </form>
         </div>
@@ -921,9 +940,10 @@ export default function AdminSidebar({
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
               className="w-1.5 h-5 rounded-full shrink-0"
-              style={{ background: "linear-gradient(to bottom, #DDB022, #4f46e5)" }}
+              style={{ background: "linear-gradient(to bottom, var(--ptec-accent), var(--ptec-indigo))" }}
             />
-            <h1 className="text-sm font-semibold text-text-heading capitalize truncate">{pageLabel}</h1>
+            {/* Contextual label only — each page owns its real <h1>. */}
+            <span className="text-sm font-semibold text-text-heading capitalize truncate">{pageLabel}</span>
 
           </div>
 
@@ -944,7 +964,7 @@ export default function AdminSidebar({
             {/* slate-600 — this is a real label (not a placeholder), so it must
                 clear WCAG AA 4.5:1 against the near-white field. */}
             <span className="flex-1 text-sm" style={{ color: "#475569" }}>
-              Search actions, pages, e-books…
+              {tTopbar("searchLabel")}
             </span>
             <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
               ⌘K
@@ -954,6 +974,9 @@ export default function AdminSidebar({
           {/* Right: actions + avatar */}
           <div className="flex items-center gap-2 shrink-0">
 
+            {/* EN/ខ្មែរ locale toggle (cookie-driven) */}
+            <AdminLanguageSwitcher />
+
             {/* Notification bell — self-contained with polling + slide panel */}
             <NotificationBell />
 
@@ -962,7 +985,7 @@ export default function AdminSidebar({
               type="button"
               className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               style={{ color: "#64748B" }}
-              aria-label="Open my profile settings"
+              aria-label={tTopbar("openProfileSettings")}
               onClick={() => router.push("/admin/profile")}
             >
               <Settings style={{ width: "18px", height: "18px" }} />
@@ -977,7 +1000,7 @@ export default function AdminSidebar({
                 type="button"
                 onClick={() => setProfileOpen(prev => !prev)}
                 className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                aria-label="Open profile menu"
+                aria-label={tTopbar("openProfileMenu")}
                 aria-expanded={profileOpen}
               >
                 <Avatar url={avatarUrl} name={fullName} email={email ?? "admin"} size={32} />
@@ -1047,7 +1070,7 @@ export default function AdminSidebar({
                       onClick={() => setProfileOpen(false)}
                     >
                       <UserCircle style={{ width: "15px", height: "15px" }} />
-                      <span>My profile</span>
+                      <span>{tTopbar("myProfile")}</span>
                     </Link>
 
                     <a
@@ -1063,7 +1086,7 @@ export default function AdminSidebar({
                       onClick={() => setProfileOpen(false)}
                     >
                       <ExternalLink style={{ width: "15px", height: "15px" }} />
-                      <span>View public site</span>
+                      <span>{tNav("viewPublicSite")}</span>
                     </a>
 
                     <div className="my-1 mx-2 h-px bg-divider" />
@@ -1081,7 +1104,7 @@ export default function AdminSidebar({
                         }}
                       >
                         <LogOut style={{ width: "15px", height: "15px" }} />
-                        <span>Sign out</span>
+                        <span>{tNav("signOut")}</span>
                       </button>
                     </form>
                   </div>

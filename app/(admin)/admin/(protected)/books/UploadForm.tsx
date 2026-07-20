@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 
+import { useTranslations } from "next-intl";
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -62,12 +63,13 @@ function FieldLabel({
 
 // ── Multi-step progress indicator ─────────────────────────────
 const PHASE_STEPS = [
-  { id: "uploading-pdf",   label: "Uploading PDF",   color: "#4f46e5" },
-  { id: "uploading-cover", label: "Uploading cover", color: "#0e7490" },
-  { id: "saving",          label: "Saving record",   color: "#0f9d6b" },
+  { id: "uploading-pdf",   color: "#4f46e5" },
+  { id: "uploading-cover", color: "#0e7490" },
+  { id: "saving",          color: "#0f9d6b" },
 ] as const;
 
 function PhaseStepper({ phase }: { phase: Phase }) {
+  const t = useTranslations("adminUpload.single.phaseStep");
   if (phase === "idle") return null;
   const order = PHASE_STEPS.map((s) => s.id as string);
   const ci = order.indexOf(phase);
@@ -108,7 +110,7 @@ function PhaseStepper({ phase }: { phase: Phase }) {
                     color: isActive ? step.color : isDone ? "#0f9d6b" : "#9CA3AF",
                   }}
                 >
-                  {step.label}
+                  {t(step.id)}
                 </span>
               </div>
             </Fragment>
@@ -121,10 +123,10 @@ function PhaseStepper({ phase }: { phase: Phase }) {
       >
         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
         {phase === "uploading-pdf"
-          ? "Uploading PDF…"
+          ? t("uploadingPdf")
           : phase === "uploading-cover"
-          ? "Uploading cover…"
-          : "Saving…"}
+          ? t("uploadingCover")
+          : t("saving")}
       </div>
     </div>
   );
@@ -146,6 +148,7 @@ export default function UploadForm({
   const [catList, setCatList]           = useState<string[]>([]);
   const [aiLoading, setAiLoading]       = useState(false);
   const [aiError, setAiError]           = useState<string | null>(null);
+  const t = useTranslations("adminUpload.single");
 
   const pdfInputRef   = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -193,7 +196,7 @@ export default function UploadForm({
 
   async function handleAutoFill() {
     const file = pdfInputRef.current?.files?.[0];
-    if (!file) { setAiError("Choose a PDF first."); return; }
+    if (!file) { setAiError(t("chooseFirst")); return; }
 
     setAiLoading(true);
     setAiError(null);
@@ -228,19 +231,19 @@ export default function UploadForm({
     const formData = new FormData(form);
 
     const pdf = formData.get("pdf");
-    if (!(pdf instanceof File) || pdf.size === 0) { setError("A PDF file is required"); return; }
-    if (pdf.type !== "application/pdf") { setError("Only PDF files can be uploaded"); return; }
+    if (!(pdf instanceof File) || pdf.size === 0) { setError(t("err.pdfRequired")); return; }
+    if (pdf.type !== "application/pdf") { setError(t("err.pdfOnly")); return; }
 
     const cover    = formData.get("cover");
     const hasCover = cover instanceof File && cover.size > 0;
     if (hasCover) {
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/avif"];
-      if (!allowed.includes((cover as File).type)) { setError("Cover must be JPEG, PNG, WebP, or AVIF"); return; }
-      if ((cover as File).size > 5 * 1024 * 1024)  { setError("Cover image must be under 5 MB"); return; }
+      if (!allowed.includes((cover as File).type)) { setError(t("err.coverType")); return; }
+      if ((cover as File).size > 5 * 1024 * 1024)  { setError(t("err.coverSize")); return; }
     }
 
     const title = (formData.get("title") as string)?.trim();
-    if (!title) { setError("Title is required"); return; }
+    if (!title) { setError(t("err.titleRequired")); return; }
 
     try {
       setPhase("uploading-pdf");
@@ -311,15 +314,15 @@ export default function UploadForm({
       }
     } catch (err) {
       setPhase("idle");
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : t("err.uploadFailed"));
     }
   }
 
   const phaseLabel: Record<Phase, string> = {
-    "idle":            "Upload and publish",
-    "uploading-pdf":   "Uploading PDF…",
-    "uploading-cover": "Uploading cover…",
-    "saving":          "Saving…",
+    "idle":            t("submitPublish"),
+    "uploading-pdf":   t("phaseStep.uploadingPdf"),
+    "uploading-cover": t("phaseStep.uploadingCover"),
+    "saving":          t("phaseStep.saving"),
   };
 
   return (
@@ -337,15 +340,15 @@ export default function UploadForm({
             <FileText className="h-[18px] w-[18px]" />
           </span>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-text-heading">Files</h2>
-            <p className="text-xs text-text-muted">PDF (required) · Cover image (optional)</p>
+            <h2 className="text-sm font-bold text-text-heading">{t("files")}</h2>
+            <p className="text-xs text-text-muted">{t("filesSub")}</p>
           </div>
           {pdfName && (
             <span
               className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
               style={{ background: "rgba(15,157,107,0.10)", color: "#0f9d6b" }}
             >
-              PDF ready
+              {t("pdfReady")}
             </span>
           )}
         </div>
@@ -353,11 +356,11 @@ export default function UploadForm({
         <div className="p-6 space-y-5">
           {/* PDF dropzone */}
           <div>
-            <FieldLabel required>PDF file</FieldLabel>
+            <FieldLabel required>{t("pdfFile")}</FieldLabel>
             <div
               role="button"
               tabIndex={busy ? -1 : 0}
-              aria-label={pdfName ? "Replace PDF file" : "Upload PDF file"}
+              aria-label={pdfName ? t("replacePdfAria") : "Upload PDF file"}
               className="relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-11 text-center transition-all cursor-pointer group"
               style={{
                 borderColor: pdfName ? "#0f9d6b" : "var(--ptec-divider)",
@@ -382,11 +385,11 @@ export default function UploadForm({
                   <p className="max-w-xs truncate text-sm font-semibold" style={{ color: "#0f9d6b" }}>
                     {pdfName}
                   </p>
-                  <p className="text-xs text-text-muted">Click to replace</p>
+                  <p className="text-xs text-text-muted">{t("clickReplace")}</p>
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-semibold text-text-heading">Click to select PDF</p>
+                  <p className="text-sm font-semibold text-text-heading">{t("clickSelectPdf")}</p>
                   <p className="text-xs text-text-muted">or drag &amp; drop · PDF only · max 100 MB</p>
                   <p className="max-w-sm text-[11px] leading-5 text-text-muted">
                     Large PDFs may load slowly for students. Recommended size: under 25 MB when possible; compress scanned PDFs before uploading.
@@ -398,7 +401,7 @@ export default function UploadForm({
                 name="pdf"
                 type="file"
                 accept=".pdf,application/pdf"
-                aria-label="PDF file"
+                aria-label={t("pdfFile")}
                 required
                 disabled={busy}
                 onChange={handlePdfChange}
@@ -417,13 +420,13 @@ export default function UploadForm({
                   {aiLoading ? (
                     <>
                       <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
-                      Reading PDF…
+                      {t("readingPdf")}
                     </>
                   ) : (
-                    <>✨ Auto-fill with AI</>
+                    <>{t("autoFill")}</>
                   )}
                 </button>
-                <span className="text-[11px] text-text-muted">Drafts title, author, year, language &amp; summary — review before saving.</span>
+                <span className="text-[11px] text-text-muted">{t("autoFillHint")}</span>
               </div>
             )}
             {aiError && <p className="mt-1.5 text-[12px] font-medium text-red-600">{aiError}</p>}
@@ -456,7 +459,7 @@ export default function UploadForm({
                       if (coverInputRef.current) coverInputRef.current.value = "";
                     }}
                     className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/65 text-[10px] text-white transition-colors hover:bg-black/85 disabled:opacity-50"
-                    aria-label="Remove cover"
+                    aria-label={t("removeCover")}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -469,21 +472,21 @@ export default function UploadForm({
               <div
                 role="button"
                 tabIndex={busy ? -1 : 0}
-                aria-label={coverPreview ? "Replace cover image" : "Upload cover image"}
+                aria-label={coverPreview ? t("replaceCoverAria") : "Upload cover image"}
                 className="relative flex h-32 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
                 onClick={() => !busy && coverInputRef.current?.click()}
                 onKeyDown={(e) => activatePickerFromKeyboard(e, () => !busy && coverInputRef.current?.click())}
               >
                 <ImagePlus className="h-6 w-6 text-text-muted" />
                 <p className="text-xs text-text-muted leading-tight">
-                  {coverPreview ? "Click to replace cover" : "Click to select cover image"}
+                  {coverPreview ? t("clickReplaceCover") : "Click to select cover image"}
                 </p>
                 <input
                   ref={coverInputRef}
                   name="cover"
                   type="file"
                   accept=".jpg,.jpeg,.png,.webp,.avif,image/jpeg,image/png,image/webp,image/avif"
-                  aria-label="Cover image"
+                  aria-label={t("coverImage")}
                   disabled={busy}
                   onChange={handleCoverChange}
                   onClick={(e) => e.stopPropagation()}
@@ -502,7 +505,7 @@ export default function UploadForm({
           className="border-b border-divider px-5 py-4"
           style={{ background: "linear-gradient(135deg,#1E3A8A,#0F2160)" }}
         >
-          <h2 className="text-sm font-bold text-white">Recent uploads</h2>
+          <h2 className="text-sm font-bold text-white">{t("recentUploads")}</h2>
           <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
             Last 5 books added
           </p>
@@ -545,7 +548,7 @@ export default function UploadForm({
             ))}
           </ul>
         ) : (
-          <p className="px-5 py-4 text-sm text-text-muted">No books uploaded yet.</p>
+          <p className="px-5 py-4 text-sm text-text-muted">{t("noBooks")}</p>
         )}
       </div>
         </div>
@@ -558,21 +561,21 @@ export default function UploadForm({
             <BookOpen className="h-[18px] w-[18px]" />
           </span>
           <div>
-            <h2 className="text-sm font-bold text-text-heading">Book Details</h2>
-            <p className="text-xs text-text-muted">Title, author, category, and more</p>
+            <h2 className="text-sm font-bold text-text-heading">{t("bookDetails")}</h2>
+            <p className="text-xs text-text-muted">{t("bookDetailsSub")}</p>
           </div>
         </div>
 
         <div className="p-6 space-y-5">
           {/* Title — full width */}
           <label className="block">
-            <FieldLabel required>Title</FieldLabel>
+            <FieldLabel required>{t("field.title")}</FieldLabel>
             <input
               ref={titleInputRef}
               name="title"
               required
               defaultValue={initialTitle}
-              placeholder="Book title"
+              placeholder={t("field.titlePlaceholder")}
               disabled={busy}
               className={INPUT_CLASS}
             />
@@ -581,12 +584,12 @@ export default function UploadForm({
           <div className="grid gap-5 md:grid-cols-2">
             {/* Author */}
             <label>
-              <FieldLabel required>Author</FieldLabel>
+              <FieldLabel required>{t("field.author")}</FieldLabel>
               <input
                 ref={authorInputRef}
                 name="author"
                 required
-                placeholder="Author or institution"
+                placeholder={t("field.authorPlaceholder")}
                 disabled={busy}
                 className={INPUT_CLASS}
               />
@@ -594,10 +597,10 @@ export default function UploadForm({
 
             {/* ISBN */}
             <label>
-              <FieldLabel>ISBN</FieldLabel>
+              <FieldLabel>{t("field.isbn")}</FieldLabel>
               <input
                 name="isbn"
-                placeholder="Optional"
+                placeholder={t("optional")}
                 disabled={busy}
                 className={INPUT_CLASS}
               />
@@ -605,10 +608,10 @@ export default function UploadForm({
 
             {/* Publisher */}
             <label>
-              <FieldLabel>Publisher</FieldLabel>
+              <FieldLabel>{t("field.publisher")}</FieldLabel>
               <input
                 name="publisher"
-                placeholder="Optional"
+                placeholder={t("optional")}
                 disabled={busy}
                 className={INPUT_CLASS}
               />
@@ -616,7 +619,7 @@ export default function UploadForm({
 
             {/* License */}
             <label>
-              <FieldLabel>License</FieldLabel>
+              <FieldLabel>{t("field.license")}</FieldLabel>
               <select name="license" disabled={busy} defaultValue="" className={SELECT_CLASS}>
                 {LICENSE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -626,13 +629,13 @@ export default function UploadForm({
 
             {/* Category */}
             <div>
-              <FieldLabel required>Category</FieldLabel>
+              <FieldLabel required>{t("field.category")}</FieldLabel>
               <SearchableSelect name="category" required options={catList} disabled={busy} />
             </div>
 
             {/* Language */}
             <label>
-              <FieldLabel required>Language</FieldLabel>
+              <FieldLabel required>{t("field.language")}</FieldLabel>
               <select
                 ref={languageSelectRef}
                 name="language"
@@ -651,7 +654,7 @@ export default function UploadForm({
 
             {/* Department */}
             <div>
-              <FieldLabel required>Department</FieldLabel>
+              <FieldLabel required>{t("field.department")}</FieldLabel>
               <SearchableSelect
                 name="department"
                 required
@@ -662,7 +665,7 @@ export default function UploadForm({
 
             {/* Year */}
             <label>
-              <FieldLabel>Year</FieldLabel>
+              <FieldLabel>{t("field.year")}</FieldLabel>
               <input
                 ref={yearInputRef}
                 name="year"
@@ -677,7 +680,7 @@ export default function UploadForm({
 
             {/* Pages */}
             <label>
-              <FieldLabel>Pages</FieldLabel>
+              <FieldLabel>{t("field.pages")}</FieldLabel>
               <input
                 name="pages"
                 type="number"
@@ -691,23 +694,23 @@ export default function UploadForm({
 
           {/* Summary */}
           <label className="block">
-            <FieldLabel>Summary</FieldLabel>
+            <FieldLabel>{t("field.summary")}</FieldLabel>
             <textarea
               ref={summaryInputRef}
               name="summary"
               rows={4}
               disabled={busy}
-              placeholder="Short description for readers…"
+              placeholder={t("field.summaryPlaceholder")}
               className="w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm outline-none transition-all focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body"
             />
           </label>
 
           {/* Tags */}
           <div>
-            <FieldLabel>Keywords / Tags (ពាក្យគន្លឺះ)</FieldLabel>
+            <FieldLabel>{t("field.keywords")}</FieldLabel>
             <TagInput
               name="tags"
-              placeholder="e.g. គណិតវិទ្យា, algebra, textbook…"
+              placeholder={t("field.keywordsPlaceholder")}
               disabled={busy}
             />
             <p className="mt-1.5 text-[11px] text-text-muted">
@@ -728,7 +731,7 @@ export default function UploadForm({
       {/* Publish mode */}
       <fieldset className="rounded-xl border border-divider bg-bg-surface px-4 py-3">
         <legend className="px-1 text-[11px] font-bold uppercase tracking-wider text-text-muted">
-          Visibility
+          {t("visibility")}
         </legend>
         <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-text-body">
@@ -739,7 +742,7 @@ export default function UploadForm({
               onChange={() => setPublishMode("published")}
               className="h-4 w-4 accent-[#4f46e5]"
             />
-            Publish immediately
+            {t("publishNow")}
           </label>
           <label className="flex cursor-pointer items-center gap-2 text-sm text-text-body">
             <input
@@ -749,8 +752,8 @@ export default function UploadForm({
               onChange={() => setPublishMode("pending_review")}
               className="h-4 w-4 accent-[#4f46e5]"
             />
-            Submit for review
-            <span className="text-[11px] text-text-muted">(stays hidden until approved)</span>
+            {t("submitReview")}
+            <span className="text-[11px] text-text-muted">{t("hiddenUntilApproved")}</span>
           </label>
         </div>
       </fieldset>
@@ -769,7 +772,7 @@ export default function UploadForm({
         ) : (
           <>
             <Upload className="h-4 w-4" />
-            {publishMode === "published" ? "Upload and publish" : "Upload for review"}
+            {publishMode === "published" ? t("submitPublish") : t("submitForReview")}
           </>
         )}
       </button>

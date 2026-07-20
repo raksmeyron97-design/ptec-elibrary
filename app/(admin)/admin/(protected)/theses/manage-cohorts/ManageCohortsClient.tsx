@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -41,6 +42,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   const [programs, setPrograms] = useState<ThesisProgram[]>(initialPrograms);
   const [faculties, setFaculties] = useState<ThesisFaculty[]>(initialFaculties);
   const [cohorts, setCohorts] = useState<ThesisCohort[]>(initialCohorts);
+  const t = useTranslations("adminThesisForm.cohorts");
   const [years, setYears] = useState<ThesisAcademicYear[]>(initialYears);
 
   // ── Program CRUD state ─────────────────────────────────────────────────────
@@ -119,8 +121,8 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
 
   async function handleAddProgram() {
     const code = newProgCode.trim().toLowerCase().replace(/\s+/g, "_");
-    if (!code) { setProgAddErr("Program code is required."); return; }
-    if (!newProgNameEn.trim()) { setProgAddErr("English name is required."); return; }
+    if (!code) { setProgAddErr(t("err.programCode")); return; }
+    if (!newProgNameEn.trim()) { setProgAddErr(t("err.englishName")); return; }
 
     setProgAddLoading(true);
     setProgAddErr("");
@@ -176,8 +178,8 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
 
   async function handleAddFaculty(programCode: string) {
     const code = newFacCode.trim().toLowerCase().replace(/\s+/g, "_");
-    if (!code) { setFacAddErr("Faculty code is required."); return; }
-    if (!newFacNameEn.trim()) { setFacAddErr("English name is required."); return; }
+    if (!code) { setFacAddErr(t("err.facultyCode")); return; }
+    if (!newFacNameEn.trim()) { setFacAddErr(t("err.englishName")); return; }
 
     setFacAddLoading(true);
     setFacAddErr("");
@@ -228,7 +230,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   async function handleAddCohort(programCode: string) {
     const num = parseInt(newCohortNum.trim(), 10);
     if (isNaN(num) || num < 1) {
-      setCohortAddErr("Enter a valid cohort number (≥ 1).");
+      setCohortAddErr(t("err.cohortNumber"));
       return;
     }
     setCohortAddLoading(true);
@@ -277,7 +279,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
 
   async function handleAddYear(cohortId: string) {
     const label = newYearLabel.trim();
-    if (!label) { setYearAddErr("Year label is required."); return; }
+    if (!label) { setYearAddErr(t("err.yearLabel")); return; }
     setYearAddLoading(true);
     setYearAddErr("");
     const { data, error } = await addThesisAcademicYear({ cohortId, label });
@@ -319,7 +321,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {globalError}
           <button type="button" onClick={() => setGlobalError("")} className="ml-2 font-semibold underline">
-            Dismiss
+            {t("dismiss")}
           </button>
         </div>
       )}
@@ -330,8 +332,8 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
       <section className="rounded-xl border border-divider bg-bg-surface overflow-hidden">
         <div className="flex items-center justify-between gap-4 bg-brand/5 px-5 py-3 border-b border-divider">
           <div>
-            <h2 className="text-base font-bold text-text-heading">កម្មវិធី (Programs)</h2>
-            <p className="text-xs text-text-muted">Manage all available programs</p>
+            <h2 className="text-base font-bold text-text-heading">{t("programsHeading")}</h2>
+            <p className="text-xs text-text-muted">{t("programsSub")}</p>
           </div>
           <button
             type="button"
@@ -342,20 +344,20 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
             }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/5 transition-colors"
           >
-            <Plus className="w-3.5 h-3.5" /> Add Program
+            <Plus className="w-3.5 h-3.5" /> {t("addProgram")}
           </button>
         </div>
 
         {/* Add program form */}
         {addingProgram && (
           <div className="px-5 py-3 border-b border-divider bg-brand/5">
-            <p className="text-xs font-semibold text-text-body mb-2">New Program</p>
+            <p className="text-xs font-semibold text-text-body mb-2">{t("newProgram")}</p>
             <div className="flex flex-wrap gap-2 items-start">
               <input
                 type="text"
                 value={newProgCode}
                 onChange={(e) => setNewProgCode(e.target.value)}
-                placeholder="Code (e.g. b_ed_12_4) *"
+                placeholder={t("codePlaceholderProgram")}
                 className={`${INPUT_CLASS} w-40`}
                 autoFocus
               />
@@ -363,14 +365,14 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 type="text"
                 value={newProgNameEn}
                 onChange={(e) => setNewProgNameEn(e.target.value)}
-                placeholder="English name *"
+                placeholder={t("englishNamePlaceholderReq")}
                 className={`${INPUT_CLASS} w-52`}
               />
               <input
                 type="text"
                 value={newProgNameKm}
                 onChange={(e) => setNewProgNameKm(e.target.value)}
-                placeholder="ឈ្មោះខ្មែរ"
+                placeholder={t("khmerNamePlaceholder")}
                 className={`${INPUT_CLASS} w-48`}
               />
               <input
@@ -378,7 +380,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 min={1}
                 value={newProgDuration}
                 onChange={(e) => setNewProgDuration(e.target.value)}
-                placeholder="Years"
+                placeholder={t("years")}
                 className={`${INPUT_CLASS} w-20`}
               />
               <label className="inline-flex items-center gap-1.5 text-xs text-text-body h-9 cursor-pointer">
@@ -388,7 +390,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                   onChange={(e) => setNewProgHasFaculty(e.target.checked)}
                   className="rounded border-divider"
                 />
-                Has Faculty
+                {t("hasFaculty")}
               </label>
               <button
                 type="button"
@@ -397,7 +399,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 className="inline-flex items-center gap-1.5 h-9 rounded-lg bg-brand px-3 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50"
               >
                 {progAddLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                Save
+                {t("save")}
               </button>
               <button
                 type="button"
@@ -413,7 +415,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
 
         {/* Programs list */}
         {programs.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-text-muted italic">No programs yet. Add one above.</p>
+          <p className="px-5 py-4 text-sm text-text-muted italic">{t("noPrograms")}</p>
         ) : (
           <ul className="divide-y divide-divider">
             {programs.map((prog) => {
@@ -434,7 +436,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                       type="button"
                       onClick={() => setExpandedProgCode(isExpanded ? null : prog.code)}
                       className="text-text-muted hover:text-brand transition-colors"
-                      title={isExpanded ? "Collapse" : "Expand"}
+                      title={isExpanded ? t("collapse") : t("expand")}
                     >
                       {isExpanded ? (
                         <ChevronDown className="w-4 h-4" />
@@ -450,7 +452,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           type="text"
                           value={editProgNameEn}
                           onChange={(e) => setEditProgNameEn(e.target.value)}
-                          placeholder="English name"
+                          placeholder={t("englishNamePlaceholder")}
                           className={`${INPUT_CLASS} flex-1 max-w-xs`}
                           autoFocus
                         />
@@ -458,7 +460,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           type="text"
                           value={editProgNameKm}
                           onChange={(e) => setEditProgNameKm(e.target.value)}
-                          placeholder="ឈ្មោះខ្មែរ"
+                          placeholder={t("khmerNamePlaceholder")}
                           className={`${INPUT_CLASS} flex-1 max-w-xs`}
                         />
                         <button
@@ -504,21 +506,21 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                             setEditProgNameKm(prog.name_km);
                           }}
                           className="text-text-muted hover:text-brand transition-colors"
-                          title="Edit"
+                          title={t("edit")}
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
 
                         {deleteProgId === prog.id ? (
                           <div className="flex items-center gap-1">
-                            <span className="text-xs text-text-muted">Delete program + all data?</span>
+                            <span className="text-xs text-text-muted">{t("deleteProgramConfirm")}</span>
                             <button
                               type="button"
                               onClick={() => handleDeleteProgram(prog.id)}
                               disabled={deleteProgLoading}
                               className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                             >
-                              {deleteProgLoading ? "…" : "Yes"}
+                              {deleteProgLoading ? "…" : t("yes")}
                             </button>
                             <button
                               type="button"
@@ -533,7 +535,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                             type="button"
                             onClick={() => setDeleteProgId(prog.id)}
                             className="text-text-muted hover:text-red-500 transition-colors"
-                            title="Delete program"
+                            title={t("deleteProgram")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -561,7 +563,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               }}
                               className="inline-flex items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand/5 transition-colors"
                             >
-                              <Plus className="w-3 h-3" /> Add Faculty
+                              <Plus className="w-3 h-3" /> {t("addFaculty")}
                             </button>
                           </div>
 
@@ -572,7 +574,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                 type="text"
                                 value={newFacCode}
                                 onChange={(e) => setNewFacCode(e.target.value)}
-                                placeholder="Code *"
+                                placeholder={t("codePlaceholder")}
                                 className={`${INPUT_CLASS} w-32`}
                                 autoFocus
                               />
@@ -580,14 +582,14 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                 type="text"
                                 value={newFacNameEn}
                                 onChange={(e) => setNewFacNameEn(e.target.value)}
-                                placeholder="English name *"
+                                placeholder={t("englishNamePlaceholderReq")}
                                 className={`${INPUT_CLASS} w-44`}
                               />
                               <input
                                 type="text"
                                 value={newFacNameKm}
                                 onChange={(e) => setNewFacNameKm(e.target.value)}
-                                placeholder="ឈ្មោះខ្មែរ"
+                                placeholder={t("khmerNamePlaceholder")}
                                 className={`${INPUT_CLASS} w-40`}
                               />
                               <label className="inline-flex items-center gap-1.5 text-xs text-text-body h-9 cursor-pointer">
@@ -606,7 +608,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                 className="inline-flex items-center gap-1 h-9 rounded-lg bg-brand px-3 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50"
                               >
                                 {facAddLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                Save
+                                {t("save")}
                               </button>
                               <button
                                 type="button"
@@ -620,7 +622,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           )}
 
                           {progFaculties.length === 0 ? (
-                            <p className="text-xs text-text-muted italic">No faculties yet.</p>
+                            <p className="text-xs text-text-muted italic">{t("noFaculties")}</p>
                           ) : (
                             <ul className="space-y-1">
                               {progFaculties.map((fac) => (
@@ -667,20 +669,20 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           type="button"
                                           onClick={() => { setEditFacId(fac.id); setEditFacNameEn(fac.name_en); setEditFacNameKm(fac.name_km); }}
                                           className="text-text-muted hover:text-brand transition-colors"
-                                          title="Edit"
+                                          title={t("edit")}
                                         >
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
                                         {deleteFacId === fac.id ? (
                                           <div className="flex items-center gap-1">
-                                            <span className="text-xs text-text-muted">Delete?</span>
+                                            <span className="text-xs text-text-muted">{t("deleteConfirm")}</span>
                                             <button
                                               type="button"
                                               onClick={() => handleDeleteFaculty(fac.id)}
                                               disabled={deleteFacLoading}
                                               className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                                             >
-                                              {deleteFacLoading ? "…" : "Yes"}
+                                              {deleteFacLoading ? "…" : t("yes")}
                                             </button>
                                             <button
                                               type="button"
@@ -695,7 +697,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             type="button"
                                             onClick={() => setDeleteFacId(fac.id)}
                                             className="text-text-muted hover:text-red-500 transition-colors"
-                                            title="Delete"
+                                            title={t("delete")}
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
@@ -726,7 +728,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                             }}
                             className="inline-flex items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand/5 transition-colors"
                           >
-                            <Plus className="w-3 h-3" /> Add Cohort
+                            <Plus className="w-3 h-3" /> {t("addCohort")}
                           </button>
                         </div>
 
@@ -738,7 +740,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               min={1}
                               value={newCohortNum}
                               onChange={(e) => setNewCohortNum(e.target.value)}
-                              placeholder="Cohort number *"
+                              placeholder={t("cohortNumberPlaceholder")}
                               className={`${INPUT_CLASS} w-36`}
                               autoFocus
                             />
@@ -746,7 +748,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               type="text"
                               value={newCohortLabel}
                               onChange={(e) => setNewCohortLabel(e.target.value)}
-                              placeholder="Display label (optional)"
+                              placeholder={t("displayLabelOptional")}
                               className={`${INPUT_CLASS} w-48`}
                             />
                             <button
@@ -756,7 +758,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               className="inline-flex items-center gap-1.5 h-9 rounded-lg bg-brand px-3 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50"
                             >
                               {cohortAddLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                              Save
+                              {t("save")}
                             </button>
                             <button
                               type="button"
@@ -770,7 +772,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                         )}
 
                         {progCohorts.length === 0 ? (
-                          <p className="text-xs text-text-muted italic">No cohorts yet.</p>
+                          <p className="text-xs text-text-muted italic">{t("noCohorts")}</p>
                         ) : (
                           <ul className="space-y-1">
                             {progCohorts.map((cohort) => {
@@ -789,7 +791,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                       type="button"
                                       onClick={() => setExpandedCohortId(isCohortExpanded ? null : cohort.id)}
                                       className="text-text-muted hover:text-brand transition-colors"
-                                      title={isCohortExpanded ? "Collapse" : "Expand"}
+                                      title={isCohortExpanded ? t("collapse") : t("expand")}
                                     >
                                       {isCohortExpanded ? (
                                         <ChevronDown className="w-3.5 h-3.5" />
@@ -804,7 +806,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           type="text"
                                           value={editCohortLabel}
                                           onChange={(e) => setEditCohortLabel(e.target.value)}
-                                          placeholder="Display label (blank = use number)"
+                                          placeholder={t("displayLabelBlank")}
                                           className={`${INPUT_CLASS} flex-1 max-w-xs`}
                                           autoFocus
                                         />
@@ -848,21 +850,21 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             setEditCohortLabel(cohort.label ?? "");
                                           }}
                                           className="text-text-muted hover:text-brand transition-colors"
-                                          title="Edit label"
+                                          title={t("editLabel")}
                                         >
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
 
                                         {deleteCohortId === cohort.id ? (
                                           <div className="flex items-center gap-1">
-                                            <span className="text-xs text-text-muted">Delete + all years?</span>
+                                            <span className="text-xs text-text-muted">{t("deleteCohortConfirm")}</span>
                                             <button
                                               type="button"
                                               onClick={() => handleDeleteCohort(cohort.id)}
                                               disabled={deleteCohortLoading}
                                               className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                                             >
-                                              {deleteCohortLoading ? "…" : "Yes"}
+                                              {deleteCohortLoading ? "…" : t("yes")}
                                             </button>
                                             <button
                                               type="button"
@@ -877,7 +879,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             type="button"
                                             onClick={() => setDeleteCohortId(cohort.id)}
                                             className="text-text-muted hover:text-red-500 transition-colors"
-                                            title="Delete cohort"
+                                            title={t("deleteCohort")}
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
@@ -891,7 +893,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                     <div className="ml-6 border-l-2 border-divider pl-4 py-2 space-y-2">
                                       <div className="flex items-center justify-between mb-1">
                                         <p className="text-xs font-semibold text-text-muted">
-                                          Academic Years
+                                          {t("academicYears")}
                                         </p>
                                         <button
                                           type="button"
@@ -902,7 +904,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           }}
                                           className="inline-flex items-center gap-1 rounded-lg border border-divider bg-bg-surface px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand/5 transition-colors"
                                         >
-                                          <Plus className="w-3 h-3" /> Add Year
+                                          <Plus className="w-3 h-3" /> {t("addYear")}
                                         </button>
                                       </div>
 
@@ -913,7 +915,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             type="text"
                                             value={newYearLabel}
                                             onChange={(e) => setNewYearLabel(e.target.value)}
-                                            placeholder="e.g. 2025-2026"
+                                            placeholder={t("yearPlaceholder")}
                                             className={`${INPUT_CLASS} w-40`}
                                             autoFocus
                                           />
@@ -924,7 +926,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             className="inline-flex items-center gap-1 h-9 rounded-lg bg-brand px-3 text-xs font-medium text-white hover:bg-brand/90 disabled:opacity-50"
                                           >
                                             {yearAddLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                            Save
+                                            {t("save")}
                                           </button>
                                           <button
                                             type="button"
@@ -938,7 +940,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                       )}
 
                                       {cohortYears.length === 0 ? (
-                                        <p className="text-xs text-text-muted italic">No academic years yet.</p>
+                                        <p className="text-xs text-text-muted italic">{t("noYears")}</p>
                                       ) : (
                                         <ul className="space-y-1">
                                           {cohortYears.map((yr) => (
@@ -976,20 +978,20 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                                       type="button"
                                                       onClick={() => { setEditYearId(yr.id); setEditYearLabel(yr.label); }}
                                                       className="text-text-muted hover:text-brand transition-colors"
-                                                      title="Edit"
+                                                      title={t("edit")}
                                                     >
                                                       <Pencil className="w-3.5 h-3.5" />
                                                     </button>
                                                     {deleteYearId === yr.id ? (
                                                       <div className="flex items-center gap-1">
-                                                        <span className="text-xs text-text-muted">Delete?</span>
+                                                        <span className="text-xs text-text-muted">{t("deleteConfirm")}</span>
                                                         <button
                                                           type="button"
                                                           onClick={() => handleDeleteYear(yr.id)}
                                                           disabled={deleteYearLoading}
                                                           className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
                                                         >
-                                                          {deleteYearLoading ? "…" : "Yes"}
+                                                          {deleteYearLoading ? "…" : t("yes")}
                                                         </button>
                                                         <button
                                                           type="button"
@@ -1004,7 +1006,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                                         type="button"
                                                         onClick={() => setDeleteYearId(yr.id)}
                                                         className="text-text-muted hover:text-red-500 transition-colors"
-                                                        title="Delete"
+                                                        title={t("delete")}
                                                       >
                                                         <Trash2 className="w-3.5 h-3.5" />
                                                       </button>

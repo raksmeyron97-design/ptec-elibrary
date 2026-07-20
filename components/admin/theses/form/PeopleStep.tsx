@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 
 const INPUT_CLASS =
@@ -25,6 +26,7 @@ export default function PeopleStep({
   disabled?: boolean;
   authorsError?: string;
 }) {
+  const t = useTranslations("adminThesisForm.people");
   function updateAuthor(i: number, value: string) {
     const next = [...authors];
     next[i] = value;
@@ -46,10 +48,10 @@ export default function PeopleStep({
       <div>
         <div className="mb-2 flex items-center justify-between">
           <label className={LABEL_CLASS.replace("mb-1.5", "")}>
-            Author(s) <span className="text-red-500">*</span>
+            {t("authors")} <span className="text-red-500">*</span>
           </label>
           <span className="text-xs text-brand font-medium bg-brand/10 px-2 py-0.5 rounded-full">
-            {authors.length} author{authors.length !== 1 ? "s" : ""}
+            {t("authorCount", { count: authors.length })}
           </span>
         </div>
 
@@ -57,10 +59,10 @@ export default function PeopleStep({
           {authors.map((name, i) => (
             <div key={i} className="flex items-center gap-2">
               <div className="flex flex-col">
-                <button type="button" disabled={disabled || i === 0} onClick={() => moveAuthor(i, -1)} aria-label={`Move ${name || "author"} up`} className="text-text-muted/50 hover:text-brand disabled:opacity-20">
+                <button type="button" disabled={disabled || i === 0} onClick={() => moveAuthor(i, -1)} aria-label={t("moveUp", { name: name || t("author") })} className="text-text-muted/50 hover:text-brand disabled:opacity-20">
                   <ChevronUp className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" disabled={disabled || i === authors.length - 1} onClick={() => moveAuthor(i, 1)} aria-label={`Move ${name || "author"} down`} className="text-text-muted/50 hover:text-brand disabled:opacity-20">
+                <button type="button" disabled={disabled || i === authors.length - 1} onClick={() => moveAuthor(i, 1)} aria-label={t("moveDown", { name: name || t("author") })} className="text-text-muted/50 hover:text-brand disabled:opacity-20">
                   <ChevronDown className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -68,14 +70,14 @@ export default function PeopleStep({
                 value={name}
                 onChange={(e) => updateAuthor(i, e.target.value)}
                 disabled={disabled}
-                placeholder="e.g. Sok San"
+                placeholder={t("authorPlaceholder")}
                 className={INPUT_CLASS}
               />
               <button
                 type="button"
                 onClick={() => removeAuthor(i)}
                 disabled={disabled}
-                aria-label={`Remove ${name || "author"}`}
+                aria-label={t("remove", { name: name || t("author") })}
                 className="shrink-0 text-text-muted/50 hover:text-red-500 disabled:opacity-40"
               >
                 <Trash2 className="h-4 w-4" />
@@ -91,7 +93,7 @@ export default function PeopleStep({
           disabled={disabled}
           className="mt-2 inline-flex items-center gap-1 rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-muted hover:border-brand hover:text-brand disabled:opacity-50"
         >
-          <Plus className="h-3.5 w-3.5" /> Add author
+          <Plus className="h-3.5 w-3.5" /> {t("addAuthor")}
         </button>
       </div>
 
@@ -99,12 +101,12 @@ export default function PeopleStep({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className={LABEL_CLASS}>Advisor Name</label>
-          <input value={advisorName} onChange={(e) => onAdvisorNameChange(e.target.value)} disabled={disabled} placeholder="e.g. Dr. Chea Vutha" className={INPUT_CLASS} />
+          <label className={LABEL_CLASS}>{t("advisor")}</label>
+          <input value={advisorName} onChange={(e) => onAdvisorNameChange(e.target.value)} disabled={disabled} placeholder={t("advisorPlaceholder")} className={INPUT_CLASS} />
         </div>
         <div>
-          <label className={LABEL_CLASS}>Co-Advisor Name (Optional)</label>
-          <input value={coAdvisorName} onChange={(e) => onCoAdvisorNameChange(e.target.value)} disabled={disabled} placeholder="Optional" className={INPUT_CLASS} />
+          <label className={LABEL_CLASS}>{t("coAdvisor")}</label>
+          <input value={coAdvisorName} onChange={(e) => onCoAdvisorNameChange(e.target.value)} disabled={disabled} placeholder={t("optional")} className={INPUT_CLASS} />
         </div>
       </div>
 
@@ -112,15 +114,15 @@ export default function PeopleStep({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
-          <label className={LABEL_CLASS}>Publication Date</label>
+          <label className={LABEL_CLASS}>{t("publicationDate")}</label>
           <input type="date" value={publishedAt} onChange={(e) => onPublishedAtChange(e.target.value)} disabled={disabled} className={INPUT_CLASS} />
         </div>
         <div>
-          <label className={LABEL_CLASS}>Defense Date (Optional)</label>
+          <label className={LABEL_CLASS}>{t("defenseDate")}</label>
           <input type="date" value={defenseDate} onChange={(e) => onDefenseDateChange(e.target.value)} disabled={disabled} className={INPUT_CLASS} />
         </div>
         <div>
-          <label className={LABEL_CLASS}>Submitted Date (Optional)</label>
+          <label className={LABEL_CLASS}>{t("submittedDate")}</label>
           <input type="date" value={submittedDate} onChange={(e) => onSubmittedDateChange(e.target.value)} disabled={disabled} className={INPUT_CLASS} />
         </div>
       </div>

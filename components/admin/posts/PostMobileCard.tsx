@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Eye } from "lucide-react";
 import PostActionsMenu from "@/components/admin/posts/PostActionsMenu";
@@ -31,6 +32,8 @@ export default function PostMobileCard({
   onDuplicate: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
+  const t = useTranslations("adminPosts.table");
+  const tStatus = useTranslations("adminPosts.status");
   return (
     <div className="space-y-3 md:hidden">
       {rows.map((post) => {
@@ -46,7 +49,7 @@ export default function PostMobileCard({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggleSelect(post.id)}
-                aria-label={`Select ${post.title}`}
+                aria-label={t("selectOne", { title: post.title })}
                 className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
               />
               <div className="min-w-0 flex-1">
@@ -63,17 +66,17 @@ export default function PostMobileCard({
                     {post.category}
                   </span>
                   <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${STATUS_BADGE_STYLES[post.status]}`}>
-                    {STATUS_LABELS[post.status]}
+                    {STATUS_LABELS[post.status] ? tStatus(post.status) : post.status}
                   </span>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-y-1.5 text-xs text-text-muted">
-                  <dt className="font-semibold text-text-body">Author</dt>
+                  <dt className="font-semibold text-text-body">{t("author")}</dt>
                   <dd className="text-right truncate">{post.author}</dd>
-                  <dt className="font-semibold text-text-body">Views</dt>
+                  <dt className="font-semibold text-text-body">{t("views")}</dt>
                   <dd className="flex items-center justify-end gap-1 text-right">
                     <Eye className="h-3 w-3" /> {post.views.toLocaleString()}
                   </dd>
-                  <dt className="font-semibold text-text-body">Created</dt>
+                  <dt className="font-semibold text-text-body">{t("created")}</dt>
                   <dd className="text-right">{formatDate(post.createdAt)}</dd>
                 </dl>
               </div>

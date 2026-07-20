@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { X, Loader2 } from "lucide-react";
 import {
   getThesisPrograms,
@@ -37,6 +38,7 @@ type Lookups = {
  * ClassificationStep.tsx.
  */
 export default function CohortYearManager({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("adminThesisForm.cohortManager");
   const [lookups, setLookups] = useState<Lookups | null>(null);
   const [error, setError] = useState<string | null>(null);
   const headingId = "cohort-year-manager-heading";
@@ -54,7 +56,7 @@ export default function CohortYearManager({ onClose }: { onClose: () => void }) 
       ]);
       if (cancelled) return;
       if (programRes.error || facultyRes.error || cohortRes.error || yearRes.error) {
-        setError(programRes.error ?? facultyRes.error ?? cohortRes.error ?? yearRes.error ?? "Failed to load");
+        setError(programRes.error ?? facultyRes.error ?? cohortRes.error ?? yearRes.error ?? t("loadFailed"));
         return;
       }
       setLookups({
@@ -104,12 +106,12 @@ export default function CohortYearManager({ onClose }: { onClose: () => void }) 
         className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-bg-surface shadow-2xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-divider px-5 py-3">
-          <h2 id={headingId} className="text-sm font-bold text-text-heading">Manage Programs, Faculties &amp; Cohorts</h2>
+          <h2 id={headingId} className="text-sm font-bold text-text-heading">{t("heading")}</h2>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("close")}
             className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-paper hover:text-text-heading"
           >
             <X className="h-5 w-5" />
@@ -121,7 +123,7 @@ export default function CohortYearManager({ onClose }: { onClose: () => void }) 
             <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
           ) : !lookups ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-text-muted">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("loading")}
             </div>
           ) : (
             <ManageCohortsClient

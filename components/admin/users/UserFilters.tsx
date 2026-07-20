@@ -1,18 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import { withUpdatedParams, USERS_BASE_PATH } from "@/lib/admin/users-url";
-import { ALL_ROLES, ROLE_META } from "@/lib/types/roles";
+import { ALL_ROLES } from "@/lib/types/roles";
 import {
-  STATUS_META,
   USER_SORT_OPTIONS,
-  USER_SORT_LABELS,
   JOINED_RANGE_OPTIONS,
-  JOINED_RANGE_LABELS,
   type AccountStatus,
-  type JoinedRange,
 } from "@/lib/admin/users-shared";
 
 const STATUS_KEYS: AccountStatus[] = ["active", "pending", "disabled", "blocked"];
@@ -34,17 +31,22 @@ export default function UserFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminUsers");
 
   const setParam = (key: string, v: string) =>
     router.push(withUpdatedParams(searchParams, { [key]: v === "all" || v === "" ? null : v }));
 
+  const roleLabel = (r: string) => t(`roles.${r}`);
+  const statusLabel = (s: string) => t(`status.${s}`);
+  const joinedLabel = (j: string) => t(`joined.${j}`);
+
   const chips: { key: string; label: string }[] = [];
   if (value.role && value.role !== "all")
-    chips.push({ key: "role", label: `Role: ${ROLE_META[value.role as keyof typeof ROLE_META]?.label ?? value.role}` });
+    chips.push({ key: "role", label: t("filters.roleChip", { label: roleLabel(value.role) }) });
   if (value.status && value.status !== "all")
-    chips.push({ key: "status", label: `Status: ${STATUS_META[value.status as AccountStatus]?.label ?? value.status}` });
+    chips.push({ key: "status", label: t("filters.statusChip", { label: statusLabel(value.status) }) });
   if (value.joined && value.joined !== "all")
-    chips.push({ key: "joined", label: `Joined: ${JOINED_RANGE_LABELS[value.joined as JoinedRange] ?? value.joined}` });
+    chips.push({ key: "joined", label: t("filters.joinedChip", { label: joinedLabel(value.joined) }) });
 
   return (
     <div className="flex flex-col gap-2">
@@ -52,40 +54,40 @@ export default function UserFilters({
         <div className={wrap}>
           <SearchableSelect
             name="role-filter"
-            ariaLabel="Filter by role"
+            ariaLabel={t("filters.byRole")}
             value={value.role || "all"}
             onChange={(v) => setParam("role", v)}
-            options={[{ value: "all", label: "All roles" }, ...ALL_ROLES.map((r) => ({ value: r, label: ROLE_META[r].label }))]}
+            options={[{ value: "all", label: t("filters.allRoles") }, ...ALL_ROLES.map((r) => ({ value: r, label: roleLabel(r) }))]}
           />
         </div>
 
         <div className={wrap}>
           <SearchableSelect
             name="status-filter"
-            ariaLabel="Filter by status"
+            ariaLabel={t("filters.byStatus")}
             value={value.status || "all"}
             onChange={(v) => setParam("status", v)}
-            options={[{ value: "all", label: "All statuses" }, ...STATUS_KEYS.map((s) => ({ value: s, label: STATUS_META[s].label }))]}
+            options={[{ value: "all", label: t("filters.allStatuses") }, ...STATUS_KEYS.map((s) => ({ value: s, label: statusLabel(s) }))]}
           />
         </div>
 
         <div className={wrap}>
           <SearchableSelect
             name="joined-filter"
-            ariaLabel="Filter by join date"
+            ariaLabel={t("filters.byJoined")}
             value={value.joined || "all"}
             onChange={(v) => setParam("joined", v)}
-            options={JOINED_RANGE_OPTIONS.map((j) => ({ value: j, label: JOINED_RANGE_LABELS[j] }))}
+            options={JOINED_RANGE_OPTIONS.map((j) => ({ value: j, label: joinedLabel(j) }))}
           />
         </div>
 
         <div className={wrap}>
           <SearchableSelect
             name="sort-filter"
-            ariaLabel="Sort users"
+            ariaLabel={t("filters.sortUsers")}
             value={value.sort || "newest"}
             onChange={(v) => setParam("sort", v)}
-            options={USER_SORT_OPTIONS.map((s) => ({ value: s, label: USER_SORT_LABELS[s] }))}
+            options={USER_SORT_OPTIONS.map((s) => ({ value: s, label: t(`sort.${s}`) }))}
           />
         </div>
 
@@ -95,13 +97,13 @@ export default function UserFilters({
             onClick={() => router.push(USERS_BASE_PATH)}
             className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
           >
-            Reset filters
+            {t("filters.reset")}
           </button>
         )}
       </div>
 
       {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+        <div className="flex flex-wrap items-center gap-1.5" aria-label={t("filters.active")}>
           {chips.map((chip) => (
             <button
               key={chip.key}
@@ -111,7 +113,7 @@ export default function UserFilters({
             >
               {chip.label}
               <X className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">Remove filter</span>
+              <span className="sr-only">{t("filters.remove")}</span>
             </button>
           ))}
         </div>

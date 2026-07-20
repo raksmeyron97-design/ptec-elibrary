@@ -88,19 +88,24 @@ export function formatDate(iso: string | null): string {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** "Yesterday", "3 days ago", "2 hours ago", or a date for older timestamps. */
-export function formatRelative(iso: string | null): string {
-  if (!iso) return "Never";
+/** Translator shape for the optional localized variant (adminUsers.time.*). */
+type RelativeT = (key: string, values?: Record<string, string | number>) => string;
+
+/** "Yesterday", "3 days ago", "2 hours ago", or a date for older timestamps.
+ *  Pass a translator scoped to `adminUsers.time` for localized output; without
+ *  one (e.g. CSV export) the English strings are kept. */
+export function formatRelative(iso: string | null, t?: RelativeT): string {
+  if (!iso) return t ? t("never") : "Never";
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "Never";
+  if (Number.isNaN(then)) return t ? t("never") : "Never";
   const diffMs = Date.now() - then;
   const mins = Math.round(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t ? t("justNow") : "Just now";
+  if (mins < 60) return t ? t("minAgo", { count: mins }) : `${mins} min ago`;
   const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs} hour${hrs !== 1 ? "s" : ""} ago`;
+  if (hrs < 24) return t ? t("hoursAgo", { count: hrs }) : `${hrs} hour${hrs !== 1 ? "s" : ""} ago`;
   const days = Math.round(hrs / 24);
-  if (days === 1) return "Yesterday";
-  if (days < 30) return `${days} days ago`;
+  if (days === 1) return t ? t("yesterday") : "Yesterday";
+  if (days < 30) return t ? t("daysAgo", { count: days }) : `${days} days ago`;
   return formatDate(iso);
 }

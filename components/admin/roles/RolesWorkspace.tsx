@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import {
   PERMISSION_GROUPS,
@@ -36,6 +37,7 @@ export default function RolesWorkspace({
   lastUpdatedBy: string | null;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminRoles.workspace");
   const [, startTransition] = useTransition();
 
   const [editMode, setEditMode] = useState(false);
@@ -113,23 +115,21 @@ export default function RolesWorkspace({
         if (result.status === "ok") {
           setBaseline(draft);
           setSaveState("success");
-          setSaveMessage(`Saved ${payload.length} ${payload.length === 1 ? "change" : "changes"}`);
-          setUpdatedLabel("just now");
+          setSaveMessage(t("savedChanges", { count: payload.length }));
+          setUpdatedLabel(t("justNow"));
           setReviewOpen(false);
           startTransition(() => router.refresh());
         } else if (result.status === "conflict") {
           setSaveState("conflict");
-          setSaveMessage(
-            `${result.conflicts.length} of these were changed by someone else — reload to see the latest values.`,
-          );
+          setSaveMessage(t("conflict", { count: result.conflicts.length }));
           setReviewOpen(false);
         } else {
           setSaveState("error");
-          setSaveMessage(result.message || "Could not save changes");
+          setSaveMessage(result.message || t("saveFailed"));
         }
       } catch (err) {
         setSaveState("error");
-        setSaveMessage(err instanceof Error ? err.message : "Could not save changes");
+        setSaveMessage(err instanceof Error ? err.message : t("saveFailed"));
       }
     });
   }
@@ -157,11 +157,11 @@ export default function RolesWorkspace({
         }}
       />
 
-      <section aria-label="Permission matrix" className="space-y-3">
+      <section aria-label={t("matrixAria")} className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">Permissions</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-text-muted">{t("permissions")}</h2>
           <span className="hidden text-xs text-text-muted sm:block">
-            {editMode ? "Set each role’s access level per feature" : "What each role can do across the system"}
+            {editMode ? t("hintEdit") : t("hintView")}
           </span>
         </div>
 

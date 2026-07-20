@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Eye, Download, ExternalLink } from "lucide-react";
 import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
@@ -29,6 +30,8 @@ export default function EbookMobileCard({
   onRestore: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
+  const t = useTranslations("adminEbooks.table");
+  const tStatus = useTranslations("adminEbooks.status");
   return (
     <div className="space-y-3 md:hidden">
       {rows.map((book) => {
@@ -44,7 +47,7 @@ export default function EbookMobileCard({
                 type="checkbox"
                 checked={isSelected}
                 onChange={() => onToggleSelect(book.id)}
-                aria-label={`Select ${book.title}`}
+                aria-label={t("selectOne", { title: book.title })}
                 className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
               />
               <EbookCover coverUrl={book.coverUrl} title={book.title} className="h-16 w-12 shrink-0" />
@@ -52,13 +55,13 @@ export default function EbookMobileCard({
                 <Link href={`/admin/edit/${book.id}`} className="font-semibold leading-[1.6] text-text-heading line-clamp-2">
                   {book.title}
                 </Link>
-                <p className="mt-0.5 truncate text-xs text-text-muted">{book.author ?? "No author"}</p>
+                <p className="mt-0.5 truncate text-xs text-text-muted">{book.author ?? t("noAuthor")}</p>
                 <p className="mt-1 text-xs text-text-muted">
-                  {book.department ?? "No department"} · {book.year ?? "No year"}
+                  {book.department ?? t("noDepartment")} · {book.year ?? t("noYear")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${EBOOK_STATUS_BADGE_STYLES[book.status]}`}>
-                    {EBOOK_STATUS_LABELS[book.status]}
+                    {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
                   </span>
                   <EbookQualityBadge book={book} />
                 </div>
@@ -79,14 +82,14 @@ export default function EbookMobileCard({
                       target="_blank"
                       className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-divider px-3 text-xs font-semibold text-text-body"
                     >
-                      <ExternalLink className="h-3.5 w-3.5" /> View
+                      <ExternalLink className="h-3.5 w-3.5" /> {t("view")}
                     </Link>
                   )}
                   <Link
                     href={`/admin/edit/${book.id}`}
                     className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-divider px-3 text-xs font-semibold text-text-body"
                   >
-                    Edit
+                    {t("edit")}
                   </Link>
                   <EbookActionsMenu
                     book={book}

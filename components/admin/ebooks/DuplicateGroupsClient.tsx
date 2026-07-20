@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, ExternalLink, ShieldCheck } from "lucide-react";
 import { retireDuplicateBook } from "@/app/actions/duplicates";
+import { ConfirmDialog, EmptyState, useToast } from "@/components/admin/kit";
 
 type UIBook = {
   id: string;
@@ -26,31 +28,21 @@ type UIGroup = {
 };
 
 const CONFIDENCE_STYLES: Record<UIGroup["confidence"], string> = {
-  high: "bg-red-50 text-red-700 border-red-200",
-  medium: "bg-amber-50 text-amber-700 border-amber-200",
-  low: "bg-slate-50 text-slate-600 border-slate-200",
-};
-
-const SIGNAL_LABELS: Record<string, string> = {
-  isbn: "same ISBN",
-  "content-hash": "identical PDF file",
-  "file-size": "same file size",
-  title: "same title",
-  author: "same author",
-  year: "same year",
+  high: "bg-danger/5 text-danger border-danger/25",
+  medium: "bg-warning/5 text-warning border-warning/25",
+  low: "bg-paper text-text-muted border-divider",
 };
 
 export default function DuplicateGroupsClient({ groups }: { groups: UIGroup[] }) {
+  const t = useTranslations("adminDuplicates");
+
   if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-divider bg-bg-surface p-12 text-center">
-        <ShieldCheck className="h-10 w-10 text-emerald-500" />
-        <p className="text-base font-semibold text-text-heading">No probable duplicates found</p>
-        <p className="max-w-sm text-sm text-text-muted">
-          No published books currently share an ISBN, PDF file, or a matching title with a
-          corroborating signal.
-        </p>
-      </div>
+      <EmptyState
+        icon={<ShieldCheck className="h-6 w-6 text-success" />}
+        title={t("empty.title")}
+        description={t("empty.description")}
+      />
     );
   }
 
@@ -64,22 +56,23 @@ export default function DuplicateGroupsClient({ groups }: { groups: UIGroup[] })
 }
 
 function DuplicateGroup({ group }: { group: UIGroup }) {
+  const t = useTranslations("adminDuplicates");
+  const toast = useToast();
   const router = useRouter();
   const [canonicalId, setCanonicalId] = useState<string>(group.books[0]?.id ?? "");
+  const [retireTarget, setRetireTarget] = useState<UIBook | null>(null);
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
 
   const retire = (retiredId: string) => {
-    setError(null);
     startTransition(async () => {
       const res = await retireDuplicateBook({ retiredId, canonicalId });
       if (res.success) {
-        setDone(`Retired /books/${res.redirectFrom} → /books/${res.redirectTo}`);
+        toast.success(t("toasts.retired", { from: res.redirectFrom, to: res.redirectTo }));
         router.refresh();
       } else {
-        setError(res.error);
+        toast.error(res.error || t("toasts.failed"));
       }
+      setRetireTarget(null);
     });
   };
 
@@ -87,13 +80,13 @@ function DuplicateGroup({ group }: { group: UIGroup }) {
     <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
       <div className="flex flex-wrap items-center gap-2 border-b border-divider bg-paper px-4 py-3">
         <span
-          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize ${CONFIDENCE_STYLES[group.confidence]}`}
+          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${CONFIDENCE_STYLES[group.confidence]}`}
         >
-          {group.confidence} confidence
+          {t(`confidence.${group.confidence}`)}
         </span>
         <span className="text-sm text-text-muted">
-          {group.books.length} records ·{" "}
-          {group.signals.map((s) => SIGNAL_LABELS[s] ?? s).join(", ")}
+          {t("records", { count: group.books.length })} ·{" "}
+          {group.signals.map((s) => t(`signals.${s}`)).join(", ")}
         </span>
       </div>
 
@@ -103,7 +96,7 @@ function DuplicateGroup({ group }: { group: UIGroup }) {
           return (
             <div
               key={book.id}
-              className={`flex flex-wrap items-center gap-3 px-4 py-3 ${isCanonical ? "bg-emerald-50/40" : ""}`}
+              className={`flex flex-wrap items-center gap-3 px-4 py-3 ${isCanonical ? "bg-success/5" : ""}`}
             >
               <label className="flex items-center gap-2">
                 <input
@@ -114,15 +107,15 @@ function DuplicateGroup({ group }: { group: UIGroup }) {
                   disabled={pending}
                   className="h-4 w-4 accent-emerald-600"
                 />
-                <span className="sr-only">Keep this record</span>
+                <span className="sr-only">{t("keepThis")}</span>
               </label>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate font-semibold text-text-heading">{book.title}</p>
                   {isCanonical && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                      <CheckCircle2 className="h-3 w-3" /> Keep
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                      <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> {t("keep")}
                     </span>
                   )}
                 </div>
@@ -141,17 +134,17 @@ function DuplicateGroup({ group }: { group: UIGroup }) {
                 target="_blank"
                 className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline"
               >
-                View <ExternalLink className="h-3 w-3" />
+                {t("view")} <ExternalLink className="h-3 w-3" aria-hidden="true" />
               </Link>
 
               {!isCanonical && (
                 <button
                   type="button"
-                  onClick={() => retire(book.id)}
+                  onClick={() => setRetireTarget(book)}
                   disabled={pending}
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                  className="rounded-lg border border-danger/25 bg-danger/5 px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-50"
                 >
-                  {pending ? "Retiring…" : "Retire → keep selected"}
+                  {pending ? t("retireDialog.busy") : t("retire")}
                 </button>
               )}
             </div>
@@ -159,13 +152,16 @@ function DuplicateGroup({ group }: { group: UIGroup }) {
         })}
       </div>
 
-      {(error || done) && (
-        <div
-          className={`border-t border-divider px-4 py-2.5 text-xs font-medium ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}
-        >
-          {error ?? done}
-        </div>
-      )}
+      <ConfirmDialog
+        open={retireTarget !== null}
+        title={t("retireDialog.title")}
+        description={retireTarget ? t("retireDialog.description", { title: retireTarget.title }) : undefined}
+        confirmLabel={t("retireDialog.confirm")}
+        busyLabel={t("retireDialog.busy")}
+        busy={pending}
+        onCancel={() => setRetireTarget(null)}
+        onConfirm={() => retireTarget && retire(retireTarget.id)}
+      />
     </div>
   );
 }

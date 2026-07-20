@@ -5,6 +5,7 @@ import { Bell, X, CheckCheck, BookOpen, Users, FileText, Megaphone, ExternalLink
 import { getNotifications, getUnreadCount, markAsRead, markAllAsRead } from "@/app/actions/notifications";
 import type { Notification } from "@/app/actions/notifications";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 
 const TYPE_META = {
   new_user:     { icon: Users,     bg: "rgba(79,70,229,0.10)",  color: "#4f46e5" },
@@ -13,18 +14,22 @@ const TYPE_META = {
   announcement: { icon: Megaphone, bg: "rgba(239,68,68,0.10)",  color: "#DC2626" },
 } as const;
 
-function timeAgo(dateStr: string): string {
+type BellT = (key: string, values?: Record<string, string | number>) => string;
+
+function timeAgo(dateStr: string, t: BellT): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("justNow");
+  if (mins < 60) return t("minutesAgo", { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return t("hoursAgo", { count: hrs });
+  return t("daysAgo", { count: Math.floor(hrs / 24) });
 }
 
 export default function NotificationBell() {
   const router = useRouter();
+  const t = useTranslations("adminShell.bell");
+  const locale = useLocale();
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -99,7 +104,7 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        aria-label={unreadCount > 0 ? t("unreadLabel", { count: unreadCount }) : t("label")}
         aria-expanded={open}
         className="relative w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100"
         style={{ color: "#64748B" }}
@@ -135,7 +140,7 @@ export default function NotificationBell() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-divider shrink-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-text-heading">Notifications</h2>
+                <h2 className="text-sm font-bold text-text-heading">{t("label")}</h2>
                 {unreadCount > 0 && (
                   <span
                     className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
@@ -154,7 +159,7 @@ export default function NotificationBell() {
                     style={{ color: "#4f46e5" }}
                   >
                     <CheckCheck style={{ width: "13px", height: "13px" }} />
-                    Mark all read
+                    {t("markAllRead")}
                   </button>
                 )}
                 <button
@@ -162,7 +167,7 @@ export default function NotificationBell() {
                   onClick={() => setOpen(false)}
                   className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-slate-100"
                   style={{ color: "#94A3B8" }}
-                  aria-label="Close"
+                  aria-label={t("close")}
                 >
                   <X style={{ width: "15px", height: "15px" }} />
                 </button>
@@ -178,13 +183,15 @@ export default function NotificationBell() {
               ) : notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-14 gap-2">
                   <Bell style={{ width: "32px", height: "32px", color: "#CBD5E1" }} />
-                  <p className="text-sm font-semibold text-slate-400">All caught up!</p>
-                  <p className="text-xs text-slate-300">No notifications yet</p>
+                  <p className="text-sm font-semibold text-slate-400">{t("caughtUp")}</p>
+                  <p className="text-xs text-slate-300">{t("empty")}</p>
                 </div>
               ) : (
                 notifications.map(n => {
                   const meta = TYPE_META[n.type] ?? TYPE_META.announcement;
                   const Icon = meta.icon;
+                  const title = locale === "km" && n.title_km ? n.title_km : n.title_en;
+                  const body = locale === "km" && n.body_km ? n.body_km : n.body_en;
                   return (
                     <button
                       key={n.id}
@@ -205,21 +212,21 @@ export default function NotificationBell() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <p className={`text-sm leading-snug truncate ${n.is_read ? "font-medium text-text-body" : "font-semibold text-text-heading"}`}>
-                            {n.title_en}
+                            {title}
                           </p>
                           {!n.is_read && (
                             <span className="w-2 h-2 rounded-full shrink-0 mt-1.5" style={{ background: "#4f46e5" }} />
                           )}
                         </div>
-                        {n.body_en && (
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{n.body_en}</p>
+                        {body && (
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{body}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1.5">
-                          <span className="text-[10px] text-slate-400">{timeAgo(n.created_at)}</span>
+                          <span className="text-[10px] text-slate-400">{timeAgo(n.created_at, t)}</span>
                           {n.link && (
                             <span className="flex items-center gap-0.5 text-[10px] font-semibold" style={{ color: "#4f46e5" }}>
                               <ExternalLink style={{ width: "10px", height: "10px" }} />
-                              View
+                              {t("view")}
                             </span>
                           )}
                         </div>
@@ -239,7 +246,7 @@ export default function NotificationBell() {
                   className="text-xs font-semibold cursor-pointer hover:underline"
                   style={{ color: "#4f46e5" }}
                 >
-                  View security logs
+                  {t("viewLogs")}
                 </button>
               </div>
             )}

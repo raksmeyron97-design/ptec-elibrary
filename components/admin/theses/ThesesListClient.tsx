@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useToast } from "@/components/admin/kit";
 import BulkThesisActionBar from "@/components/admin/theses/BulkThesisActionBar";
 import ThesesTable from "@/components/admin/theses/ThesesTable";
 import ThesisMobileCard from "@/components/admin/theses/ThesisMobileCard";
@@ -60,13 +62,14 @@ export default function ThesesListClient({
   hasAnyThesesAtAll: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminTheses.toasts");
+  const toast = useToast();
   const [, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -86,12 +89,12 @@ export default function ThesesListClient({
 
   async function runRowAction(id: string, fn: () => Promise<unknown>) {
     setBusyId(id);
-    setError(null);
     try {
       await fn();
+      toast.success(t("updated"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message : t("failed"));
     } finally {
       setBusyId(null);
     }
@@ -99,13 +102,13 @@ export default function ThesesListClient({
 
   async function runBulkAction(action: BulkThesisAction, payload?: { cohort?: string; academicYear?: string; program?: string }) {
     setBulkBusy(true);
-    setError(null);
     try {
       await bulkUpdateTheses(Array.from(selectedIds), action, payload);
       setSelectedIds(new Set());
+      toast.success(t("updated"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk action failed");
+      toast.error(err instanceof Error ? err.message : t("bulkFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -114,7 +117,6 @@ export default function ThesesListClient({
   async function confirmDelete() {
     if (!deleteTarget) return;
     setBulkBusy(true);
-    setError(null);
     try {
       if (deleteTarget.kind === "single") {
         await deleteThesis(deleteTarget.id);
@@ -123,9 +125,10 @@ export default function ThesesListClient({
         setSelectedIds(new Set());
       }
       setDeleteTarget(null);
+      toast.success(t("deleted"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -148,10 +151,6 @@ export default function ThesesListClient({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
-
       <BulkThesisActionBar
         count={selectedIds.size}
         busy={bulkBusy}

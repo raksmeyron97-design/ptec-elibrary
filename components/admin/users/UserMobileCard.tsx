@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Avatar from "@/components/ui/Avatar";
 import { formatDate, formatRelative, type UserRow } from "@/lib/admin/users-shared";
 import { RoleBadge, StatusBadge } from "@/components/admin/users/badges";
@@ -24,6 +25,8 @@ export default function UserMobileCard({
   onOpen: (user: UserRow) => void;
   onIntent: (user: UserRow, intent: UserActionIntent) => void;
 }) {
+  const t = useTranslations("adminUsers.table");
+  const tTime = useTranslations("adminUsers.time");
   return (
     <ul className="space-y-3 md:hidden">
       {rows.map((u) => {
@@ -42,15 +45,15 @@ export default function UserMobileCard({
                 type="checkbox"
                 checked={selected}
                 onChange={() => onToggleSelect(u.id)}
-                aria-label={`Select ${u.fullName ?? u.email}`}
+                aria-label={t("selectUser", { name: u.fullName ?? u.email })}
                 className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
               />
               <button type="button" onClick={() => onOpen(u)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                 <Avatar url={u.avatarUrl ?? null} name={u.fullName} email={u.email} size={40} />
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 font-semibold leading-tight text-text-heading">
-                    <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">No name</span>}</span>
-                    {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">YOU</span>}
+                    <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">{t("noName")}</span>}</span>
+                    {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("you")}</span>}
                   </p>
                   <p className="truncate text-xs text-text-muted">{u.email || "—"}</p>
                 </div>
@@ -70,12 +73,12 @@ export default function UserMobileCard({
 
             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-divider pt-3 text-[11px] text-text-muted">
               <div>
-                <div className="font-semibold uppercase tracking-wide">Joined</div>
+                <div className="font-semibold uppercase tracking-wide">{t("joined")}</div>
                 <div className="mt-0.5 text-text-body">{formatDate(u.createdAt)}</div>
               </div>
               <div>
-                <div className="font-semibold uppercase tracking-wide">Last login</div>
-                <div className="mt-0.5 text-text-body">{formatRelative(u.lastLoginAt)}</div>
+                <div className="font-semibold uppercase tracking-wide">{t("lastLogin")}</div>
+                <div className="mt-0.5 text-text-body">{formatRelative(u.lastLoginAt, tTime)}</div>
               </div>
             </div>
           </li>

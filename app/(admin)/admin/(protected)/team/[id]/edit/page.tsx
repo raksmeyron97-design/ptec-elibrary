@@ -30,6 +30,7 @@ export default async function EditTeamMemberPage({
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
+      <h1 className="sr-only">Edit team member</h1>
       <Link
         href="/admin/team"
         className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-text-muted transition hover:text-text-body"

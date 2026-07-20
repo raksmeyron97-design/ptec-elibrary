@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 
@@ -47,6 +48,7 @@ export default function DeleteThesisDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy]);
 
+  const t = useTranslations("adminTheses.deleteDialog");
   const isBulk = target.kind === "bulk";
   const count = isBulk ? target.ids.length : 1;
 
@@ -69,18 +71,14 @@ export default function DeleteThesisDialog({
           </span>
           <div>
             <h2 id={headingId} className="text-lg font-bold text-text-heading">
-              {isBulk ? `Delete ${count} theses?` : "Delete this thesis?"}
+              {isBulk ? t("titleBulk", { count }) : t("title")}
             </h2>
             <p className="mt-1.5 text-sm text-text-body">
-              {isBulk ? (
-                <>You are about to permanently delete <strong>{count} theses</strong>, including their PDF and cover files. This action cannot be undone.</>
-              ) : (
-                <>You are about to permanently delete: <strong>{target.title}</strong>, including its PDF and cover files. This action cannot be undone.</>
-              )}
+              {isBulk
+                ? t("bodyBulk", { count })
+                : t("body", { title: target.title })}
             </p>
-            <p className="mt-2 text-xs text-text-muted">
-              Consider Archive instead if you may need this thesis again — archived theses are hidden from the public site but not erased.
-            </p>
+            <p className="mt-2 text-xs text-text-muted">{t("hint")}</p>
           </div>
         </div>
 
@@ -91,7 +89,7 @@ export default function DeleteThesisDialog({
             disabled={busy}
             className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:opacity-50"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             ref={confirmRef}
@@ -100,7 +98,7 @@ export default function DeleteThesisDialog({
             disabled={busy}
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? "Deleting…" : "Delete thesis" + (isBulk ? "es" : "")}
+            {busy ? t("busy") : isBulk ? t("confirmBulk") : t("confirm")}
           </button>
         </div>
       </div>

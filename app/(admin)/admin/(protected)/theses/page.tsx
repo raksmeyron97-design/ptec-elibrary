@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import ThesisStats from "@/components/admin/theses/ThesisStats";
 import ThesisToolbar from "@/components/admin/theses/ThesisToolbar";
@@ -28,7 +30,8 @@ export default async function AdminThesesPage({
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
-  const [thesesResult, summary, filterOptions] = await Promise.all([
+  const [t, thesesResult, summary, filterOptions] = await Promise.all([
+    getTranslations("adminTheses"),
     getTheses({
       q: sp.q,
       status: sp.status,
@@ -52,10 +55,7 @@ export default async function AdminThesesPage({
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-text-heading">Manage Theses</h1>
-        <p className="text-sm text-text-muted">Upload, publish, and maintain the PTEC student thesis repository.</p>
-      </div>
+      <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <ThesisStats summary={summary} />
 

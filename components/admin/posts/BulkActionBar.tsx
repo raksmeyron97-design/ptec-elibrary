@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { CheckCircle2, XCircle, Tag, Archive, Trash2, X } from "lucide-react";
 import { CATEGORIES } from "@/lib/admin/posts-shared";
 
@@ -23,6 +24,7 @@ export default function BulkActionBar({
   onDelete: () => void;
   onClear: () => void;
 }) {
+  const t = useTranslations("adminPosts.bulk");
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 
   if (count === 0) return null;
@@ -33,27 +35,27 @@ export default function BulkActionBar({
   return (
     <div
       role="toolbar"
-      aria-label="Bulk post actions"
+      aria-label={t("toolbarLabel")}
       className="sticky top-[64px] z-20 flex flex-wrap items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-4 py-2.5 shadow-sm"
     >
       <button
         type="button"
         onClick={onClear}
-        aria-label="Clear selection"
+        aria-label={t("clearSelection")}
         className="flex h-7 w-7 items-center justify-center rounded-full text-brand hover:bg-brand/10"
       >
         <X className="h-3.5 w-3.5" />
       </button>
       <span className="text-[13.5px] font-bold text-brand">
-        {count} post{count !== 1 ? "s" : ""} selected
+        {t("selected", { count })}
       </span>
 
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <button type="button" disabled={busy} onClick={onPublish} className={btn}>
-          <CheckCircle2 className="h-3.5 w-3.5" /> Publish
+          <CheckCircle2 className="h-3.5 w-3.5" /> {t("publish")}
         </button>
         <button type="button" disabled={busy} onClick={onUnpublish} className={btn}>
-          <XCircle className="h-3.5 w-3.5" /> Unpublish
+          <XCircle className="h-3.5 w-3.5" /> {t("unpublish")}
         </button>
 
         <div className="relative">
@@ -65,7 +67,7 @@ export default function BulkActionBar({
             aria-expanded={categoryPickerOpen}
             className={btn}
           >
-            <Tag className="h-3.5 w-3.5" /> Change category
+            <Tag className="h-3.5 w-3.5" /> {t("changeCategory")}
           </button>
           {categoryPickerOpen && (
             <div role="menu" className="absolute right-0 z-30 mt-1 w-44 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl">
@@ -85,7 +87,7 @@ export default function BulkActionBar({
         </div>
 
         <button type="button" disabled={busy} onClick={onArchive} className={btn}>
-          <Archive className="h-3.5 w-3.5" /> Archive
+          <Archive className="h-3.5 w-3.5" /> {t("archive")}
         </button>
         <button
           type="button"
@@ -93,7 +95,7 @@ export default function BulkActionBar({
           onClick={onDelete}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Trash2 className="h-3.5 w-3.5" /> Delete
+          <Trash2 className="h-3.5 w-3.5" /> {t("delete")}
         </button>
       </div>
     </div>

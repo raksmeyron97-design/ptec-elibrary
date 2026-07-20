@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { X, Mail, Users, CheckCircle2 } from "lucide-react";
-import { ALL_ROLES, ROLE_META, type AppRole } from "@/lib/types/roles";
+import { ALL_ROLES, type AppRole } from "@/lib/types/roles";
 import { inviteUser, bulkInviteUsers } from "@/app/(admin)/admin/(protected)/users/actions";
 
 /**
@@ -20,6 +21,8 @@ export default function AddUserDialog({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminUsers.addDialog");
+  const tRoles = useTranslations("adminUsers.roles");
   const [, startTransition] = useTransition();
   const [mode, setMode] = useState<"invite" | "import">(initialMode);
   const [email, setEmail] = useState("");
@@ -42,19 +45,19 @@ export default function AddUserDialog({
     try {
       if (mode === "invite") {
         const r = await inviteUser(email, role);
-        if (!r.success) { setError(r.error ?? "Invite failed"); return; }
-        setDone(`Invitation sent to ${email}.`);
+        if (!r.success) { setError(r.error ?? t("inviteFailed")); return; }
+        setDone(t("invitationSent", { email }));
         setEmail("");
       } else {
         const emails = bulk.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
         const r = await bulkInviteUsers(emails, role);
-        if (!r.success) { setError(r.error ?? "Import failed"); return; }
-        setDone(`Invited ${emails.length} user${emails.length !== 1 ? "s" : ""}${r.error ? ` (${r.error})` : ""}.`);
+        if (!r.success) { setError(r.error ?? t("importFailed")); return; }
+        setDone(t("invitedCount", { count: emails.length }) + (r.error ? ` (${r.error})` : ""));
         setBulk("");
       }
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
+      setError(err instanceof Error ? err.message : t("inviteFailed"));
     } finally {
       setBusy(false);
     }
@@ -74,20 +77,20 @@ export default function AddUserDialog({
     <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="add-user-heading">
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 id="add-user-heading" className="text-lg font-bold text-text-heading">Add users</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
+          <h2 id="add-user-heading" className="text-lg font-bold text-text-heading">{t("title")}</h2>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="mb-4 inline-flex gap-1 rounded-xl bg-paper p-1">
-          {tab("invite", "Invite one", Mail)}
-          {tab("import", "Import list", Users)}
+          {tab("invite", t("inviteOne"), Mail)}
+          {tab("import", t("importList"), Users)}
         </div>
 
         {mode === "invite" ? (
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Email address</span>
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("emailAddress")}</span>
             <input
               type="email"
               value={email}
@@ -99,21 +102,21 @@ export default function AddUserDialog({
           </label>
         ) : (
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Email addresses</span>
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("emailAddresses")}</span>
             <textarea
               value={bulk}
               onChange={(e) => setBulk(e.target.value)}
               required
               rows={5}
-              placeholder="One per line, or comma-separated&#10;alice@example.com&#10;bob@example.com"
+              placeholder={t("bulkPlaceholder")}
               className="w-full rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 text-sm text-text-body outline-none focus:border-brand"
             />
-            <span className="mt-1 block text-[11px] text-text-muted">Up to 50 addresses. Each receives an invitation email.</span>
+            <span className="mt-1 block text-[11px] text-text-muted">{t("bulkHint")}</span>
           </label>
         )}
 
         <label className="mt-4 block">
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">Assign role</span>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("assignRole")}</span>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as AppRole)}
@@ -121,7 +124,7 @@ export default function AddUserDialog({
           >
             {ALL_ROLES.map((r) => {
               const disabled = (r === "admin" || r === "super_admin") && !canAssignAdmin;
-              return <option key={r} value={r} disabled={disabled}>{ROLE_META[r].label}{disabled ? " (super admin only)" : ""}</option>;
+              return <option key={r} value={r} disabled={disabled}>{tRoles(r)}{disabled ? ` (${t("superAdminOnly")})` : ""}</option>;
             })}
           </select>
         </label>
@@ -134,9 +137,9 @@ export default function AddUserDialog({
         )}
 
         <div className="mt-6 flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper">Close</button>
+          <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-text-body hover:bg-paper">{t("close")}</button>
           <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60">
-            {busy ? "Sending…" : mode === "invite" ? "Send invite" : "Send invites"}
+            {busy ? t("sending") : mode === "invite" ? t("sendInvite") : t("sendInvites")}
           </button>
         </div>
       </form>

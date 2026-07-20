@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Plus, ChevronDown, Search, Loader2 } from "lucide-react";
 
 export interface SelectOption {
@@ -34,6 +35,7 @@ export default function AddableSelect({
   disabled = false,
   addHint,
 }: AddableSelectProps) {
+  const t = useTranslations("adminThesisForm.addableSelect");
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
@@ -83,10 +85,10 @@ export default function AddableSelect({
         setIsOpen(false);
         setSearch("");
       } else {
-        setAddError("Failed to add. Please try again.");
+        setAddError(t("addFailed"));
       }
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : "Failed to add.");
+      setAddError(err instanceof Error ? err.message : t("addFailedShort"));
     } finally {
       setAdding(false);
     }
@@ -121,7 +123,7 @@ export default function AddableSelect({
               type="text"
               value={search}
               onChange={(e) => { setSearch(e.target.value); setAddError(""); }}
-              placeholder={onAdd ? addPlaceholder : "Search…"}
+              placeholder={onAdd ? addPlaceholder : t("search")}
               autoFocus
               className="h-9 w-full rounded-md border border-divider pl-8 pr-3 text-sm text-text-heading outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
             />
@@ -144,7 +146,7 @@ export default function AddableSelect({
             ) : (
               !canAdd && (
                 <li className="px-3 py-3 text-center text-sm text-text-muted">
-                  No results found.
+                  {t("noResults")}
                 </li>
               )
             )}
@@ -170,7 +172,7 @@ export default function AddableSelect({
                 ) : (
                   <Plus className="w-3.5 h-3.5" />
                 )}
-                Add &ldquo;{search.trim()}&rdquo;
+                {t("add", { value: search.trim() })}
               </button>
             </div>
           )}

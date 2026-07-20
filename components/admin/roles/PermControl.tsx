@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PermLevel } from "@/lib/types/roles";
-import { LEVEL_META, LEVEL_ORDER } from "@/lib/admin/roles-shared";
+import { LEVEL_ORDER } from "@/lib/admin/roles-shared";
 import { LEVEL_ICON } from "./icons";
 
 // Level → static colour tokens. Every state also carries a distinct icon and
@@ -20,15 +21,15 @@ const SELECTED_STYLE: Record<PermLevel, string> = {
 
 /** Read-only badge shown in view mode and for the locked super_admin row. */
 export function PermPill({ level, locked }: { level: PermLevel; locked?: boolean }) {
+  const t = useTranslations("adminRoles.levels");
   const Icon = LEVEL_ICON[level];
-  const meta = LEVEL_META[level];
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${PILL_STYLE[level]} ${locked ? "opacity-90" : ""}`}
-      title={meta.description}
+      title={t(`${level}Description`)}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" strokeWidth={2.5} />
-      <span>{meta.short}</span>
+      <span>{t(`${level}Short`)}</span>
     </span>
   );
 }
@@ -52,6 +53,7 @@ export function PermSegmented({
   ariaLabel: string;
   showLabels?: boolean;
 }) {
+  const t = useTranslations("adminRoles.levels");
   return (
     <div
       role="radiogroup"
@@ -62,7 +64,6 @@ export function PermSegmented({
     >
       {LEVEL_ORDER.map((level) => {
         const Icon = LEVEL_ICON[level];
-        const meta = LEVEL_META[level];
         const selected = value === level;
         return (
           <button
@@ -70,8 +71,8 @@ export function PermSegmented({
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={meta.label}
-            title={meta.label}
+            aria-label={t(level)}
+            title={t(level)}
             onClick={() => onChange(level)}
             className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
               selected
@@ -82,7 +83,7 @@ export function PermSegmented({
             <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" strokeWidth={2.5} />
             {/* Only the selected segment shows its text label — compact, yet the
                 current level is always legible without relying on colour. */}
-            {showLabels && selected && <span>{meta.short}</span>}
+            {showLabels && selected && <span>{t(`${level}Short`)}</span>}
           </button>
         );
       })}

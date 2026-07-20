@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FileText } from "lucide-react";
 
 interface PdfDropzoneProps {
@@ -18,7 +19,8 @@ function formatSize(bytes: number) {
 
 const RECOMMENDED_PDF_BYTES = 25 * 1024 * 1024;
 
-export default function PdfDropzone({ file, onChange, existingLabel, actionLabel = "Click to upload" }: PdfDropzoneProps) {
+export default function PdfDropzone({ file, onChange, existingLabel, actionLabel }: PdfDropzoneProps) {
+  const t = useTranslations("adminThesisForm.dropzone");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -33,7 +35,7 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
     <div
       role="button"
       tabIndex={0}
-      aria-label={file ? "Replace thesis PDF" : "Upload thesis PDF"}
+      aria-label={file ? t("replacePdf") : t("uploadPdf")}
       className={`relative flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-6 py-8 text-center cursor-pointer group transition-colors ${
         file
           ? "border-emerald-400 bg-emerald-50/40"
@@ -56,18 +58,18 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
       </span>
       <div className="min-w-0">
         <p className="text-sm">
-          <span className="font-semibold text-brand">{file ? "Click to replace" : actionLabel}</span>{" "}
-          <span className="text-text-muted">or drag and drop</span>
+          <span className="font-semibold text-brand">{file ? t("clickReplace") : (actionLabel ?? t("clickUpload"))}</span>{" "}
+          <span className="text-text-muted">{t("orDragDrop")}</span>
         </p>
         <p className="mt-0.5 max-w-xs truncate text-xs text-text-muted/80">
-          {file ? `${file.name} · ${formatSize(file.size)}` : existingLabel ?? "PDF files only"}
+          {file ? `${file.name} · ${formatSize(file.size)}` : existingLabel ?? t("pdfOnly")}
         </p>
         <p className="mt-1 max-w-sm text-[11px] leading-4 text-text-muted">
-          Recommended: under 25 MB when possible. Compress scanned PDFs before uploading.
+          {t("recommendedSize")}
         </p>
         {file && file.size > RECOMMENDED_PDF_BYTES && (
           <p className="mt-1 text-[11px] font-semibold text-amber-700">
-            This PDF is large and may load slowly in the online reader.
+            {t("largeWarning")}
           </p>
         )}
       </div>
@@ -75,7 +77,7 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
         ref={inputRef}
         type="file"
         accept="application/pdf"
-        aria-label="Thesis PDF file"
+        aria-label={t("pdfFile")}
         className="hidden"
         onChange={(e) => onChange(e.target.files?.[0] || null)}
       />

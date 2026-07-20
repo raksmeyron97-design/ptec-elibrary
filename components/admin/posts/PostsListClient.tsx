@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useToast } from "@/components/admin/kit";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import BulkActionBar from "@/components/admin/posts/BulkActionBar";
@@ -29,12 +31,13 @@ export default function PostsListClient({
   hasAnyPostsAtAll: boolean;
 }) {
   const router = useRouter();
+  const t = useTranslations("adminPosts.toasts");
+  const toast = useToast();
   const [, startTransition] = useTransition();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -50,12 +53,12 @@ export default function PostsListClient({
 
   async function runRowAction(id: string, fn: () => Promise<unknown>) {
     setBusyId(id);
-    setError(null);
     try {
       await fn();
+      toast.success(t("updated"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message : t("failed"));
     } finally {
       setBusyId(null);
     }
@@ -63,13 +66,13 @@ export default function PostsListClient({
 
   async function runBulkAction(action: BulkPostAction, payload?: { category?: string }) {
     setBulkBusy(true);
-    setError(null);
     try {
       await bulkUpdatePosts(Array.from(selectedIds), action, payload);
       setSelectedIds(new Set());
+      toast.success(t("updated"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk action failed");
+      toast.error(err instanceof Error ? err.message : t("bulkFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -78,7 +81,6 @@ export default function PostsListClient({
   async function confirmDelete() {
     if (!deleteTarget) return;
     setBulkBusy(true);
-    setError(null);
     try {
       if (deleteTarget.kind === "single") {
         await deletePost(deleteTarget.id);
@@ -87,9 +89,10 @@ export default function PostsListClient({
         setSelectedIds(new Set());
       }
       setDeleteTarget(null);
+      toast.success(t("deleted"));
       startTransition(() => router.refresh());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : t("deleteFailed"));
     } finally {
       setBulkBusy(false);
     }
@@ -109,10 +112,6 @@ export default function PostsListClient({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
-
       <BulkActionBar
         count={selectedIds.size}
         busy={bulkBusy}

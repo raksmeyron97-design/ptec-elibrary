@@ -68,6 +68,7 @@ export default async function EditBookPage({
 
   return (
     <div className="mx-auto max-w-[800px] space-y-8">
+      <h1 className="sr-only">Edit e-book — {initial.title}</h1>
       <EditForm initial={initial} departments={departments} categories={categories} />
     </div>
   );

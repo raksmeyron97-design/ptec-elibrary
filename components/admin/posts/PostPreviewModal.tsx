@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Monitor, Smartphone, X } from "lucide-react";
 import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
 import { CATEGORY_BADGE_STYLES } from "@/lib/admin/posts-shared";
@@ -28,6 +29,7 @@ export default function PostPreviewModal({
   dateLabel: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("adminPostForm.preview");
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const headingId = "post-preview-heading";
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -71,15 +73,15 @@ export default function PostPreviewModal({
         className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-bg-surface shadow-2xl"
       >
         <div className="flex items-center justify-between gap-3 border-b border-divider px-5 py-3">
-          <h2 id={headingId} className="text-sm font-bold text-text-heading">Post preview</h2>
+          <h2 id={headingId} className="text-sm font-bold text-text-heading">{t("heading")}</h2>
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-lg border border-divider bg-paper p-0.5">
               <button
                 type="button"
                 onClick={() => setViewport("desktop")}
                 aria-pressed={viewport === "desktop"}
-                aria-label="Desktop preview"
-                title="Desktop preview"
+                aria-label={t("desktop")}
+                title={t("desktop")}
                 className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "desktop" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}
               >
                 <Monitor className="h-4 w-4" />
@@ -88,8 +90,8 @@ export default function PostPreviewModal({
                 type="button"
                 onClick={() => setViewport("mobile")}
                 aria-pressed={viewport === "mobile"}
-                aria-label="Mobile preview"
-                title="Mobile preview"
+                aria-label={t("mobile")}
+                title={t("mobile")}
                 className={`flex h-8 w-8 items-center justify-center rounded-md transition ${viewport === "mobile" ? "bg-brand text-white" : "text-text-muted hover:text-text-body"}`}
               >
                 <Smartphone className="h-4 w-4" />
@@ -99,7 +101,7 @@ export default function PostPreviewModal({
               ref={closeRef}
               type="button"
               onClick={onClose}
-              aria-label="Close preview"
+              aria-label={t("close")}
               className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition hover:bg-paper hover:text-text-heading"
             >
               <X className="h-5 w-5" />
@@ -119,12 +121,12 @@ export default function PostPreviewModal({
               <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-medium ${CATEGORY_BADGE_STYLES[category] ?? CATEGORY_BADGE_STYLES.Other}`}>
                 {category}
               </span>
-              <h1 className="mt-3 text-2xl font-bold leading-relaxed text-text-heading">{title || "Untitled post"}</h1>
+              <h1 className="mt-3 text-2xl font-bold leading-relaxed text-text-heading">{title || t("untitled")}</h1>
               <p className="mt-2 text-sm text-text-muted">{authorName} · {dateLabel}</p>
               {excerpt && <p className="mt-4 text-base leading-relaxed text-text-body">{excerpt}</p>}
               <div className="prose-content mt-6">
                 {content.trim() ? <Markdown content={content} /> : (
-                  <p className="text-sm text-text-muted">Nothing to preview yet.</p>
+                  <p className="text-sm text-text-muted">{t("nothingYet")}</p>
                 )}
               </div>
               {tags.length > 0 && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { FilePlus2, X, FileText, FileSpreadsheet, Presentation } from "lucide-react";
 import PdfDropzone from "@/app/(admin)/admin/(protected)/theses/_components/PdfDropzone";
 import CoverDropzone from "@/app/(admin)/admin/(protected)/theses/_components/CoverDropzone";
@@ -45,6 +46,7 @@ export default function FilesStep({
   disabled?: boolean;
   fileError?: string | null;
 }) {
+  const t = useTranslations("adminThesisForm.files");
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -64,14 +66,14 @@ export default function FilesStep({
     <div className="space-y-6">
       <div>
         <label className={LABEL_CLASS}>
-          PDF Thesis <span className="text-red-500">*</span>
+          {t("pdfThesis")} <span className="text-red-500">*</span>
         </label>
         <PdfDropzone file={pdfFile} onChange={onPdfChange} existingLabel={existingPdfLabel} />
         {fileError && <p className="mt-1.5 text-xs text-red-600">{fileError}</p>}
       </div>
 
       <div>
-        <label className={LABEL_CLASS}>Cover Image</label>
+        <label className={LABEL_CLASS}>{t("coverImage")}</label>
         <CoverDropzone
           file={coverFile}
           previewUrl={coverPreview}
@@ -81,12 +83,12 @@ export default function FilesStep({
           onRemove={onCoverRemove}
         />
         <div className="mt-2">
-          <label className="mb-1 block text-xs font-semibold text-text-muted">Alt text (recommended)</label>
+          <label className="mb-1 block text-xs font-semibold text-text-muted">{t("altText")}</label>
           <input
             value={coverAltText}
             onChange={(e) => onCoverAltTextChange(e.target.value)}
             disabled={disabled}
-            placeholder="Describe the cover image for screen readers"
+            placeholder={t("altPlaceholder")}
             className="h-9 w-full rounded-lg border border-divider bg-transparent px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
           />
         </div>
@@ -96,8 +98,8 @@ export default function FilesStep({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <label className={LABEL_CLASS.replace("mb-1.5", "")}>Supplementary Files (Optional)</label>
-          <span className="text-xs text-text-muted">Dataset, slides, appendices — PDF, Word, Excel, PowerPoint, CSV</span>
+          <label className={LABEL_CLASS.replace("mb-1.5", "")}>{t("supplementary")}</label>
+          <span className="text-xs text-text-muted">{t("supplementaryHint")}</span>
         </div>
 
         {(supplementaryExisting.length > 0 || supplementaryNew.length > 0) && (
@@ -111,7 +113,7 @@ export default function FilesStep({
                     <p className="truncate text-sm text-text-body">{f.filename}</p>
                     <p className="text-[11px] text-text-muted">{SUPPLEMENTARY_EXTENSION_LABELS[f.mimeType] ?? f.mimeType} · {formatSize(f.size)}</p>
                   </div>
-                  <button type="button" onClick={() => onRemoveExistingSupplementary(f.url)} disabled={disabled} aria-label={`Remove ${f.filename}`} className="text-text-muted hover:text-red-500 disabled:opacity-40">
+                  <button type="button" onClick={() => onRemoveExistingSupplementary(f.url)} disabled={disabled} aria-label={t("remove", { name: f.filename })} className="text-text-muted hover:text-red-500 disabled:opacity-40">
                     <X className="h-4 w-4" />
                   </button>
                 </li>
@@ -128,11 +130,11 @@ export default function FilesStep({
                       value={item.description}
                       onChange={(e) => onSupplementaryDescriptionChange(i, e.target.value)}
                       disabled={disabled}
-                      placeholder="Optional description"
+                      placeholder={t("optionalDescription")}
                       className="mt-1 h-7 w-full rounded border border-divider bg-transparent px-2 text-xs outline-none focus:border-brand"
                     />
                   </div>
-                  <button type="button" onClick={() => onRemoveNewSupplementary(i)} disabled={disabled} aria-label={`Remove ${item.file.name}`} className="text-text-muted hover:text-red-500 disabled:opacity-40">
+                  <button type="button" onClick={() => onRemoveNewSupplementary(i)} disabled={disabled} aria-label={t("remove", { name: item.file.name })} className="text-text-muted hover:text-red-500 disabled:opacity-40">
                     <X className="h-4 w-4" />
                   </button>
                 </li>
@@ -152,7 +154,7 @@ export default function FilesStep({
         >
           <FilePlus2 className="h-5 w-5 text-text-muted" />
           <p className="text-xs text-text-muted">
-            <span className="font-semibold text-brand">Click to upload</span> or drag and drop
+            <span className="font-semibold text-brand">{t("clickUpload")}</span> {t("orDragDrop")}
           </p>
           <input
             ref={inputRef}

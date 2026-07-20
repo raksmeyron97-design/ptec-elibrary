@@ -1,6 +1,7 @@
 "use client";
 // Step 1 — choose the CSV source: drag-and-drop / file picker, or paste.
 
+import { useTranslations } from "next-intl";
 import { useRef, useState, type Dispatch } from "react";
 import {
   CSV_TEMPLATE_BLANK,
@@ -23,6 +24,7 @@ const OPTIONAL_SUMMARY = "isbn, year, language, category, department, shelf_loca
 
 export default function StepUpload({ state, dispatch }: { state: WizardState; dispatch: Dispatch<WizardAction> }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations("adminCatalog.import.upload");
   const [dragOver, setDragOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [showDocs, setShowDocs] = useState(false);
@@ -83,9 +85,9 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
   return (
     <div className="space-y-5">
       {/* Source tabs */}
-      <div role="tablist" aria-label="CSV source" className="inline-flex items-center gap-1 rounded-xl bg-paper p-1">
-        {tabBtn("file", "Upload file")}
-        {tabBtn("paste", "Paste CSV")}
+      <div role="tablist" aria-label={t("sourceAria")} className="inline-flex items-center gap-1 rounded-xl bg-paper p-1">
+        {tabBtn("file", t("uploadFile"))}
+        {tabBtn("paste", t("pasteCsv"))}
       </div>
 
       {state.sourceType === "file" ? (
@@ -104,8 +106,8 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
                   <p className="font-semibold text-text-heading">{state.fileName}</p>
                   <p className="mt-0.5 text-xs text-text-muted">
                     {state.fileSize != null ? formatBytes(state.fileSize) : ""}
-                    {" · "}{state.parsed.rows.length.toLocaleString()} data row{state.parsed.rows.length === 1 ? "" : "s"}
-                    {" · "}{DELIMITER_LABEL[state.parsed.delimiter] ?? state.parsed.delimiter} delimiter
+                    {" · "}{t("dataRows", { count: state.parsed.rows.length })}
+                    {" · "}{t("delimiter", { name: DELIMITER_LABEL[state.parsed.delimiter] ?? state.parsed.delimiter })}
                     {" · "}UTF-8{state.parsed.hasBom ? " (BOM)" : ""}
                   </p>
                 </div>
@@ -113,11 +115,11 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
               <div className="flex gap-2">
                 <button type="button" onClick={() => fileInputRef.current?.click()}
                   className="rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-xs font-semibold text-text-body transition hover:bg-paper">
-                  Replace file
+                  {t("replaceFile")}
                 </button>
                 <button type="button" onClick={() => dispatch({ type: "CLEAR_SOURCE" })}
                   className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">
-                  Remove
+                  {t("remove")}
                 </button>
               </div>
             </div>
@@ -145,17 +147,17 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
               </svg>
             </div>
             <p className="mt-3 font-semibold text-text-heading">
-              {parsing ? "Reading file…" : "Drop your CSV file here"}
+              {parsing ? t("reading") : t("dropHere")}
             </p>
             <p className="mt-1 text-sm text-text-muted">
               or{" "}
               <button type="button" onClick={() => fileInputRef.current?.click()}
                 className="font-semibold text-brand underline-offset-2 hover:underline">
-                choose a file
+                {t("chooseFile")}
               </button>
             </p>
             <p className="mt-2 text-xs text-text-muted">
-              .csv (UTF-8) · up to {Math.round(IMPORT_LIMITS.maxFileBytes / (1024 * 1024))} MB · up to {IMPORT_LIMITS.maxRows.toLocaleString()} rows
+              {t("limits", { mb: Math.round(IMPORT_LIMITS.maxFileBytes / (1024 * 1024)), rows: IMPORT_LIMITS.maxRows })}
             </p>
           </div>
         )
@@ -164,19 +166,19 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-text-muted">
-              Paste CSV — the first line must be the header row
+              {t("pasteHint")}
             </p>
             <div className="flex gap-2">
               <button type="button"
                 onClick={() => handlePasteParse(CSV_TEMPLATE_EXAMPLE)}
                 className="rounded-lg border border-divider px-2.5 py-1 text-[11px] font-semibold text-text-body transition hover:bg-paper">
-                Paste sample data
+                {t("pasteSample")}
               </button>
               <button type="button"
                 onClick={() => dispatch({ type: "CLEAR_SOURCE" })}
                 disabled={!state.pasteText}
                 className="rounded-lg border border-divider px-2.5 py-1 text-[11px] font-semibold text-text-body transition hover:bg-paper disabled:opacity-40">
-                Clear
+                {t("clear")}
               </button>
             </div>
           </div>
@@ -184,16 +186,16 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
             value={state.pasteText}
             onChange={(e) => handlePasteParse(e.target.value)}
             spellCheck={false}
-            aria-label="CSV text"
+            aria-label={t("csvTextAria")}
             placeholder={"title,author,isbn,year,language,category\nIntroduction to Law,John Smith,978-0-306-40615-7,2020,en,Law"}
             className="h-[280px] w-full resize-y overflow-auto whitespace-pre rounded-xl border border-divider bg-paper px-3 py-2.5 font-mono text-xs leading-relaxed text-text-body outline-none focus:border-brand focus:ring-2 focus:ring-focus-ring/15"
           />
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-text-muted" aria-live="polite">
-            <span>{state.pasteText.length.toLocaleString()} characters</span>
-            {pasteRows > 0 && <span>≈ {pasteRows.toLocaleString()} data rows</span>}
+            <span>{t("characters", { count: state.pasteText.length })}</span>
+            {pasteRows > 0 && <span>{t("approxRows", { count: pasteRows })}</span>}
             {state.parsed && state.sourceType === "paste" && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
-                ✓ Parsed — {state.parsed.rows.length.toLocaleString()} rows · {DELIMITER_LABEL[state.parsed.delimiter] ?? "?"} delimiter
+                {t("parsed", { count: state.parsed.rows.length, delimiter: DELIMITER_LABEL[state.parsed.delimiter] ?? "?" })}
               </span>
             )}
           </div>
@@ -217,7 +219,7 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
       {/* Errors */}
       {(fileError || state.parseError) && (
         <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <p className="font-bold">The file could not be used</p>
+          <p className="font-bold">{t("fileUnusable")}</p>
           <p className="mt-0.5">{fileError ?? state.parseError}</p>
         </div>
       )}
@@ -227,29 +229,28 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="text-xs leading-relaxed">
             <p>
-              <span className="font-bold text-text-heading">Required:</span>{" "}
+              <span className="font-bold text-text-heading">{t("required")}</span>{" "}
               <code className="rounded bg-brand/10 px-1 font-mono text-brand">{REQUIRED_FIELDS.join(", ")}</code>
             </p>
             <p className="mt-1 text-text-muted">
-              <span className="font-semibold text-text-body">Optional:</span> {OPTIONAL_SUMMARY}
+              <span className="font-semibold text-text-body">{t("optional")}</span> {OPTIONAL_SUMMARY}
             </p>
             <p className="mt-1 text-text-muted">
-              Google Drive share links in <code className="font-mono">cover_url</code>{" "}are converted automatically.
-              Comma, semicolon and tab delimiters are detected. Column names don&rsquo;t need to match exactly — you&rsquo;ll map them in the next step.
+              {t("formatNote")}
             </p>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-1.5">
             <button type="button" onClick={() => downloadTextFile("ptec-book-import-template.csv", CSV_TEMPLATE_BLANK)}
               className="text-xs font-semibold text-brand hover:underline">
-              ↓ Blank template
+              {t("blankTemplate")}
             </button>
             <button type="button" onClick={() => downloadTextFile("ptec-book-import-example.csv", CSV_TEMPLATE_EXAMPLE)}
               className="text-xs font-semibold text-brand hover:underline">
-              ↓ Example CSV
+              {t("exampleCsv")}
             </button>
             <button type="button" onClick={() => setShowDocs((v) => !v)} aria-expanded={showDocs}
               className="text-xs font-semibold text-text-body hover:underline">
-              {showDocs ? "Hide" : "View"} all supported columns
+              {showDocs ? t("hideColumns") : t("viewColumns")}
             </button>
           </div>
         </div>
@@ -257,10 +258,10 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
         {showDocs && (
           <div className="mt-3 overflow-x-auto rounded-xl border border-divider bg-bg-surface">
             <table className="w-full text-left text-xs">
-              <caption className="sr-only">Supported CSV columns</caption>
+              <caption className="sr-only">{t("supportedColumns")}</caption>
               <thead>
                 <tr className="border-b border-divider bg-paper/60">
-                  {["Column", "Required", "Type", "Example", "Rule"].map((h) => (
+                  {[t("col.column"), t("col.required"), t("col.type"), t("col.example"), t("col.rule")].map((h) => (
                     <th key={h} scope="col" className="whitespace-nowrap px-3 py-2 font-bold uppercase tracking-wide text-text-muted">{h}</th>
                   ))}
                 </tr>
@@ -269,7 +270,7 @@ export default function StepUpload({ state, dispatch }: { state: WizardState; di
                 {FIELD_DOCS.map((d) => (
                   <tr key={d.field}>
                     <td className="whitespace-nowrap px-3 py-2 font-mono font-semibold text-text-heading">{d.field}</td>
-                    <td className="px-3 py-2">{d.required ? <span className="font-bold text-red-500">Yes</span> : <span className="text-text-muted">No</span>}</td>
+                    <td className="px-3 py-2">{d.required ? <span className="font-bold text-red-500">{t("yes")}</span> : <span className="text-text-muted">{t("no")}</span>}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-text-muted">{d.type}</td>
                     <td className="max-w-[180px] truncate px-3 py-2 font-mono text-text-muted">{d.example}</td>
                     <td className="min-w-[220px] px-3 py-2 text-text-muted">{d.rule}</td>

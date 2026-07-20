@@ -49,6 +49,7 @@ import PdfDropzone from "../../theses/_components/PdfDropzone";
 import CoverDropzone from "../../theses/_components/CoverDropzone";
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import TagInput from "@/components/ui/core/TagInput";
+import { ConfirmDialog } from "@/components/admin/kit";
 import { slugify, makeUid } from "@/lib/book-utils";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
 import ContentWorkspace from "./workspace/ContentWorkspace";
@@ -664,11 +665,10 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     }
   }, [publicationId, publishing]);
 
-  const handleUnpublish = useCallback(async () => {
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false);
+
+  const performUnpublish = useCallback(async () => {
     if (!publicationId || publishing) return;
-    if (!window.confirm("Unpublish this article? It disappears from the public library immediately.")) {
-      return;
-    }
     setPublishing(true);
     setPublishError(null);
     try {
@@ -678,6 +678,11 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     } finally {
       setPublishing(false);
     }
+  }, [publicationId, publishing]);
+
+  const handleUnpublish = useCallback(() => {
+    if (!publicationId || publishing) return;
+    setConfirmUnpublish(true);
   }, [publicationId, publishing]);
 
   // ── Cmd/Ctrl+S saves from anywhere in the form ─────────────────────────
@@ -1301,6 +1306,20 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmUnpublish}
+        title="Unpublish this article?"
+        description="It disappears from the public library immediately. You can publish it again later."
+        confirmLabel="Unpublish"
+        busyLabel="Unpublishing…"
+        busy={publishing}
+        onCancel={() => setConfirmUnpublish(false)}
+        onConfirm={() => {
+          setConfirmUnpublish(false);
+          void performUnpublish();
+        }}
+      />
     </form>
   );
 }

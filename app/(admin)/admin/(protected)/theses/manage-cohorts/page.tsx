@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
@@ -16,6 +17,7 @@ export default async function ManageCohortsPage() {
   const cohorts = cohortRes.data ?? [];
   const years = yearRes.data ?? [];
 
+  const t = await getTranslations("adminThesisForm.cohorts");
   return (
     <div className="mx-auto max-w-[900px] space-y-6">
       {/* Header */}
@@ -27,9 +29,9 @@ export default async function ManageCohortsPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-text-heading">Manage Programs, Faculties &amp; Cohorts</h1>
+          <h1 className="text-2xl font-bold text-text-heading">{t("pageTitle")}</h1>
           <p className="text-text-muted text-sm mt-1">
-            Add, edit, or remove programs, faculties, cohorts, and their academic year options. Changes appear immediately in upload forms.
+            {t("pageDescription")}
           </p>
         </div>
       </div>

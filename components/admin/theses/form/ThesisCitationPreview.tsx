@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import { buildCitation, type CiteFormat } from "@/lib/theses/citation";
 
@@ -31,6 +32,7 @@ export default function ThesisCitationPreview({
   doi: string;
   program: string;
 }) {
+  const t = useTranslations("adminThesisForm.citation");
   const [format, setFormat] = useState<CiteFormat>("apa");
   const [copied, setCopied] = useState(false);
 
@@ -58,11 +60,11 @@ export default function ThesisCitationPreview({
   return (
     <div className="space-y-3 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-text-heading">Citation preview</h3>
+        <h3 className="text-sm font-bold text-text-heading">{t("heading")}</h3>
         <div className="w-32 [&_button]:h-8">
           <SearchableSelect
             name="citation-format"
-            ariaLabel="Citation format"
+            ariaLabel={t("format")}
             value={format}
             onChange={(v) => setFormat(v as CiteFormat)}
             options={Object.entries(FORMAT_LABELS).map(([value, label]) => ({ value, label }))}
@@ -74,14 +76,14 @@ export default function ThesisCitationPreview({
         <button
           type="button"
           onClick={copy}
-          aria-label="Copy citation"
+          aria-label={t("copy")}
           className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-bg-surface hover:text-brand"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
       {(!authorNames.trim() || !publishedAt) && (
-        <p className="text-[11px] text-amber-600">Author and publication year improve citation quality — consider adding them.</p>
+        <p className="text-[11px] text-amber-600">{t("qualityHint")}</p>
       )}
     </div>
   );

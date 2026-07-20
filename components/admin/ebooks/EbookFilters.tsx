@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
 import { withUpdatedParams, EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -50,6 +51,12 @@ export default function EbookFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminEbooks.filters");
+  const tStatus = useTranslations("adminEbooks.status");
+  const tSort = useTranslations("adminEbooks.sort");
+  const tFile = useTranslations("adminEbooks.fileStatus");
+  const tCover = useTranslations("adminEbooks.coverStatus");
+  const tQuality = useTranslations("adminEbooks.quality");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const setParam = (key: string, v: string) => {
@@ -59,14 +66,14 @@ export default function EbookFilters({
   const optionLabel = (options: EbookOption[], v: string) => options.find((o) => o.value === v)?.label ?? v;
 
   const chips: { key: string; label: string }[] = [];
-  if (value.status && value.status !== "all") chips.push({ key: "status", label: `Status: ${EBOOK_STATUS_LABELS[value.status as keyof typeof EBOOK_STATUS_LABELS] ?? value.status}` });
-  if (value.dept && value.dept !== "all") chips.push({ key: "dept", label: `Department: ${optionLabel(departments, value.dept)}` });
-  if (value.category && value.category !== "all") chips.push({ key: "category", label: `Category: ${optionLabel(categories, value.category)}` });
-  if (value.year && value.year !== "all") chips.push({ key: "year", label: `Year: ${value.year}` });
-  if (value.language && value.language !== "all") chips.push({ key: "language", label: `Language: ${value.language}` });
-  if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: EBOOK_FILE_STATUS_LABELS[value.fileStatus as keyof typeof EBOOK_FILE_STATUS_LABELS] ?? value.fileStatus });
-  if (value.coverStatus && value.coverStatus !== "all") chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ?? value.coverStatus });
-  if (value.quality && value.quality !== "all") chips.push({ key: "quality", label: `Metadata: ${METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ?? value.quality}` });
+  if (value.status && value.status !== "all") chips.push({ key: "status", label: t("statusChip", { label: EBOOK_STATUS_LABELS[value.status as keyof typeof EBOOK_STATUS_LABELS] ? tStatus(value.status) : value.status }) });
+  if (value.dept && value.dept !== "all") chips.push({ key: "dept", label: t("deptChip", { label: optionLabel(departments, value.dept) }) });
+  if (value.category && value.category !== "all") chips.push({ key: "category", label: t("categoryChip", { label: optionLabel(categories, value.category) }) });
+  if (value.year && value.year !== "all") chips.push({ key: "year", label: t("yearChip", { label: value.year }) });
+  if (value.language && value.language !== "all") chips.push({ key: "language", label: t("languageChip", { label: value.language }) });
+  if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: EBOOK_FILE_STATUS_LABELS[value.fileStatus as keyof typeof EBOOK_FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
+  if (value.coverStatus && value.coverStatus !== "all") chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ? tCover(value.coverStatus) : value.coverStatus });
+  if (value.quality && value.quality !== "all") chips.push({ key: "quality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ? tQuality(value.quality) : value.quality }) });
 
   return (
     <div className="flex flex-col gap-2">
@@ -74,30 +81,30 @@ export default function EbookFilters({
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="status-filter"
-            ariaLabel="Filter by status"
+            ariaLabel={t("byStatus")}
             value={value.status || "all"}
             onChange={(v) => setParam("status", v)}
-            options={[{ value: "all", label: "All statuses" }, ...EBOOK_STATUSES.map((s) => ({ value: s, label: EBOOK_STATUS_LABELS[s] }))]}
+            options={[{ value: "all", label: t("allStatuses") }, ...EBOOK_STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]}
           />
         </div>
 
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="department-filter"
-            ariaLabel="Filter by department"
+            ariaLabel={t("byDepartment")}
             value={value.dept || "all"}
             onChange={(v) => setParam("dept", v)}
-            options={[{ value: "all", label: "All departments" }, ...departments]}
+            options={[{ value: "all", label: t("allDepartments") }, ...departments]}
           />
         </div>
 
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="sort-filter"
-            ariaLabel="Sort e-books"
+            ariaLabel={t("sortEbooks")}
             value={value.sort || "newest"}
             onChange={(v) => setParam("sort", v)}
-            options={EBOOK_SORT_OPTIONS.map((s) => ({ value: s, label: EBOOK_SORT_LABELS[s] }))}
+            options={EBOOK_SORT_OPTIONS.map((s) => ({ value: s, label: tSort(s) }))}
           />
         </div>
 
@@ -116,13 +123,13 @@ export default function EbookFilters({
             onClick={() => router.push(EBOOKS_BASE_PATH)}
             className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
           >
-            Clear filters
+            {t("clearFilters")}
           </button>
         )}
       </div>
 
       {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="Active filters">
+        <div className="flex flex-wrap items-center gap-1.5" aria-label={t("activeFilters")}>
           {chips.map((chip) => (
             <button
               key={chip.key}
@@ -132,7 +139,7 @@ export default function EbookFilters({
             >
               {chip.label}
               <X className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">Remove filter</span>
+              <span className="sr-only">{t("removeFilter")}</span>
             </button>
           ))}
         </div>
@@ -159,6 +166,10 @@ function MoreFiltersButton({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("adminEbooks.filters");
+  const tFile = useTranslations("adminEbooks.fileStatus");
+  const tCover = useTranslations("adminEbooks.coverStatus");
+  const tQuality = useTranslations("adminEbooks.quality");
   const headingId = "ebook-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -230,7 +241,7 @@ function MoreFiltersButton({
         }`}
       >
         <SlidersHorizontal className="h-3.5 w-3.5" />
-        More filters
+        {t("moreFilters")}
       </button>
 
       {open && (
@@ -247,11 +258,11 @@ function MoreFiltersButton({
             className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
           >
             <div className="mb-5 flex items-center justify-between">
-              <h2 id={headingId} className="text-lg font-bold text-text-heading">More filters</h2>
+              <h2 id={headingId} className="text-lg font-bold text-text-heading">{t("moreFilters")}</h2>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                aria-label="Close"
+                aria-label={t("close")}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading"
               >
                 <X className="h-5 w-5" />
@@ -260,69 +271,69 @@ function MoreFiltersButton({
 
             <div className="space-y-4">
               <label className="block">
-                <span className={fieldLabel}>Category</span>
+                <span className={fieldLabel}>{t("category")}</span>
                 <SearchableSelect
                   ref={firstFieldRef}
                   name="category-filter"
-                  ariaLabel="Category"
+                  ariaLabel={t("category")}
                   value={category || "all"}
                   onChange={setCategory}
-                  options={[{ value: "all", label: "All categories" }, ...categories]}
+                  options={[{ value: "all", label: t("allCategories") }, ...categories]}
                 />
               </label>
 
               <label className="block">
-                <span className={fieldLabel}>Year</span>
+                <span className={fieldLabel}>{t("year")}</span>
                 <SearchableSelect
                   name="year-filter"
-                  ariaLabel="Year"
+                  ariaLabel={t("year")}
                   value={year || "all"}
                   onChange={setYear}
-                  options={[{ value: "all", label: "All years" }, ...years]}
+                  options={[{ value: "all", label: t("allYears") }, ...years]}
                 />
               </label>
 
               <label className="block">
-                <span className={fieldLabel}>Language</span>
+                <span className={fieldLabel}>{t("language")}</span>
                 <SearchableSelect
                   name="language-filter"
-                  ariaLabel="Language"
+                  ariaLabel={t("language")}
                   value={language || "all"}
                   onChange={setLanguage}
-                  options={[{ value: "all", label: "All languages" }, ...languages]}
+                  options={[{ value: "all", label: t("allLanguages") }, ...languages]}
                 />
               </label>
 
               <label className="block">
-                <span className={fieldLabel}>File status</span>
+                <span className={fieldLabel}>{t("fileStatusLabel")}</span>
                 <SearchableSelect
                   name="file-status-filter"
-                  ariaLabel="File status"
+                  ariaLabel={t("fileStatusLabel")}
                   value={fileStatus || "all"}
                   onChange={setFileStatus}
-                  options={[{ value: "all", label: "Any file status" }, ...EBOOK_FILE_STATUS_OPTIONS.map((f) => ({ value: f, label: EBOOK_FILE_STATUS_LABELS[f] }))]}
+                  options={[{ value: "all", label: t("anyFileStatus") }, ...EBOOK_FILE_STATUS_OPTIONS.map((f) => ({ value: f, label: tFile(f) }))]}
                 />
               </label>
 
               <label className="block">
-                <span className={fieldLabel}>Cover status</span>
+                <span className={fieldLabel}>{t("coverStatusLabel")}</span>
                 <SearchableSelect
                   name="cover-status-filter"
-                  ariaLabel="Cover status"
+                  ariaLabel={t("coverStatusLabel")}
                   value={coverStatus || "all"}
                   onChange={setCoverStatus}
-                  options={[{ value: "all", label: "Any cover status" }, ...EBOOK_COVER_STATUS_OPTIONS.map((c) => ({ value: c, label: EBOOK_COVER_STATUS_LABELS[c] }))]}
+                  options={[{ value: "all", label: t("anyCoverStatus") }, ...EBOOK_COVER_STATUS_OPTIONS.map((c) => ({ value: c, label: tCover(c) }))]}
                 />
               </label>
 
               <label className="block">
-                <span className={fieldLabel}>Metadata quality</span>
+                <span className={fieldLabel}>{t("metadataQuality")}</span>
                 <SearchableSelect
                   name="quality-filter"
-                  ariaLabel="Metadata quality"
+                  ariaLabel={t("metadataQuality")}
                   value={quality || "all"}
                   onChange={setQuality}
-                  options={[{ value: "all", label: "Any quality" }, ...EBOOK_QUALITY_OPTIONS.map((q) => ({ value: q, label: METADATA_TIER_LABELS[q as MetadataQualityTier] }))]}
+                  options={[{ value: "all", label: t("anyQuality") }, ...EBOOK_QUALITY_OPTIONS.map((q) => ({ value: q, label: tQuality(q) }))]}
                 />
               </label>
             </div>
@@ -333,13 +344,13 @@ function MoreFiltersButton({
                 onClick={() => { setCategory(""); setYear(""); setLanguage(""); setFileStatus(""); setCoverStatus(""); setQuality(""); }}
                 className="text-[13px] font-semibold text-text-muted hover:text-brand"
               >
-                Clear these
+                {t("clearThese")}
               </button>
               <button
                 type="submit"
                 className="ml-auto inline-flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover"
               >
-                Apply
+                {t("apply")}
               </button>
             </div>
           </form>

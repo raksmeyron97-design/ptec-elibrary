@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Avatar from "@/components/ui/Avatar";
 import { formatDate, formatRelative, type UserRow } from "@/lib/admin/users-shared";
 import { RoleBadge, StatusBadge } from "@/components/admin/users/badges";
@@ -28,13 +29,15 @@ export default function UsersTable({
   onOpen: (user: UserRow) => void;
   onIntent: (user: UserRow, intent: UserActionIntent) => void;
 }) {
+  const t = useTranslations("adminUsers.table");
+  const tTime = useTranslations("adminUsers.time");
   const th = "px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wide text-text-muted";
 
   return (
     <div className="hidden rounded-2xl border border-divider bg-bg-surface shadow-sm md:block">
       <div className="">
         <table className="w-full text-sm">
-          <caption className="sr-only">Users — click a row to open details</caption>
+          <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper [&>th:first-child]:rounded-tl-2xl [&>th:last-child]:rounded-tr-2xl">
               <th scope="col" className="w-10 px-4 py-3">
@@ -42,16 +45,16 @@ export default function UsersTable({
                   type="checkbox"
                   checked={allSelected}
                   onChange={onToggleSelectAll}
-                  aria-label="Select all users on this page"
+                  aria-label={t("selectAll")}
                   className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
                 />
               </th>
-              <th scope="col" className={th}>User</th>
-              <th scope="col" className={th}>Role</th>
-              <th scope="col" className={th}>Status</th>
-              <th scope="col" className={`${th} hidden lg:table-cell`}>Joined</th>
-              <th scope="col" className={`${th} hidden xl:table-cell`}>Last login</th>
-              <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">Actions</span></th>
+              <th scope="col" className={th}>{t("user")}</th>
+              <th scope="col" className={th}>{t("role")}</th>
+              <th scope="col" className={th}>{t("status")}</th>
+              <th scope="col" className={`${th} hidden lg:table-cell`}>{t("joined")}</th>
+              <th scope="col" className={`${th} hidden xl:table-cell`}>{t("lastLogin")}</th>
+              <th scope="col" className="px-4 py-3 text-right"><span className="sr-only">{t("actions")}</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
@@ -73,7 +76,7 @@ export default function UsersTable({
                       type="checkbox"
                       checked={selected}
                       onChange={() => onToggleSelect(u.id)}
-                      aria-label={`Select ${u.fullName ?? u.email}`}
+                      aria-label={t("selectUser", { name: u.fullName ?? u.email })}
                       className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
                     />
                   </td>
@@ -83,8 +86,8 @@ export default function UsersTable({
                       <Avatar url={u.avatarUrl ?? null} name={u.fullName} email={u.email} size={38} />
                       <div className="min-w-0">
                         <p className="flex items-center gap-1.5 font-semibold leading-tight text-text-heading">
-                          <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">No name</span>}</span>
-                          {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">YOU</span>}
+                          <span className="truncate">{u.fullName ?? <span className="italic text-text-muted">{t("noName")}</span>}</span>
+                          {isMe && <span className="rounded-full bg-cyan-50 px-1.5 py-0.5 text-[9px] font-bold text-cyan-700">{t("you")}</span>}
                         </p>
                         <p className="truncate text-xs text-text-muted">{u.email || "—"}</p>
                       </div>
@@ -94,7 +97,7 @@ export default function UsersTable({
                   <td className="px-4 py-3"><RoleBadge role={u.role} isSuperAdmin={u.isSuperAdmin} /></td>
                   <td className="px-4 py-3"><StatusBadge status={u.status} /></td>
                   <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted lg:table-cell">{formatDate(u.createdAt)}</td>
-                  <td className="hidden px-4 py-3 text-xs text-text-muted xl:table-cell">{formatRelative(u.lastLoginAt)}</td>
+                  <td className="hidden px-4 py-3 text-xs text-text-muted xl:table-cell">{formatRelative(u.lastLoginAt, tTime)}</td>
 
                   <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                     <UserActionsMenu

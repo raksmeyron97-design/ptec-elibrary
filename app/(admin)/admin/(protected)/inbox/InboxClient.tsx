@@ -43,7 +43,7 @@ import {
 } from "@/app/actions/contact-messages";
 import { CONTACT_CATEGORIES, CONTACT_CATEGORY_LABELS, type ContactCategory } from "@/lib/contact/validate";
 import ConfirmDialog from "@/components/admin/inbox/ConfirmDialog";
-import { ToastStack, useToast } from "@/components/admin/inbox/Toast";
+import { useToast } from "@/components/admin/kit";
 
 const STATUS_FILTERS: { label: string; value: ContactStatusFilter; icon: React.ElementType }[] = [
   { label: "All", value: "all", icon: Mail },
@@ -769,8 +769,6 @@ export default function InboxClient({
           onConfirm={handleConfirmedAction}
         />
       )}
-
-      <ToastStack toasts={toast.toasts} onDismiss={toast.dismiss} />
     </div>
   );
 }

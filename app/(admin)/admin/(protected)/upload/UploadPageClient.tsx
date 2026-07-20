@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import UploadForm from "../books/UploadForm";
 import BulkUploadForm from "../books/BulkUploadForm";
 import ManageCategoriesModal from "@/components/admin/ManageCategoriesModal";
@@ -13,6 +14,7 @@ export default function UploadPageClient({
   recentBooks?: any[];
   initialTitle?: string;
 }) {
+  const t = useTranslations("adminUpload");
   const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
 
   return (
@@ -37,7 +39,7 @@ export default function UploadPageClient({
                 if (!active) (e.currentTarget as HTMLElement).style.color = "var(--ptec-text-muted)";
               }}
             >
-              {tab === "single" ? "Single Upload" : "Bulk Upload"}
+              {tab === "single" ? t("tabSingle") : t("tabBulk")}
             </button>
           );
         })}
