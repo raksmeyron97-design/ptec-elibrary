@@ -1,7 +1,7 @@
 "use server";
 
 // app/admin/posts/actions.ts
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import { revalidateLocalizedPath as revalidatePath, revalidatePost } from "@/lib/cache/revalidate";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { requirePermission } from "@/lib/auth/requireAdmin";
@@ -15,11 +15,14 @@ import {
   slugify,
   uniqueSlug,
   checkSlugAvailable,
+  normalizeEventFormat,
+  normalizeEventStatusOverride,
   type PostCategory,
   type PostStatus,
   type PostVisibility,
 } from "@/lib/admin/posts";
 import { validatePost, firstValidationError } from "@/lib/admin/post-validation";
+import { eventColumnsAvailable } from "@/lib/posts-data";
 
 /** Server Action wrapper — lets client components call the lib helper directly. */
 export async function checkSlugAvailableAction(slug: string, ignoreId?: string): Promise<boolean> {
@@ -112,6 +115,54 @@ function readPublishFields(formData: FormData): PublishFields {
   };
 }
 
+function toIsoOrNull(raw: string | null | undefined): string | null {
+  const v = raw?.toString().trim();
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+type EventFieldColumns = {
+  event_start_at: string | null;
+  event_end_at: string | null;
+  event_location: string | null;
+  event_format: string | null;
+  event_registration_url: string | null;
+  event_registration_deadline: string | null;
+  event_status_override: string | null;
+};
+
+/**
+ * Event columns are only stored for Event-category posts; switching a post away
+ * from Event clears them so stale event data can never resurface publicly.
+ */
+function readEventFields(formData: FormData, category: PostCategory): EventFieldColumns {
+  if (category !== "Event") {
+    return {
+      event_start_at: null,
+      event_end_at: null,
+      event_location: null,
+      event_format: null,
+      event_registration_url: null,
+      event_registration_deadline: null,
+      event_status_override: null,
+    };
+  }
+  return {
+    event_start_at: toIsoOrNull(formData.get("eventStartAt")?.toString()),
+    event_end_at: toIsoOrNull(formData.get("eventEndAt")?.toString()),
+    event_location: formData.get("eventLocation")?.toString().trim() || null,
+    event_format: normalizeEventFormat(formData.get("eventFormat")?.toString() ?? null),
+    event_registration_url: formData.get("eventRegistrationUrl")?.toString().trim() || null,
+    event_registration_deadline: toIsoOrNull(formData.get("eventRegistrationDeadline")?.toString()),
+    event_status_override: normalizeEventStatusOverride(formData.get("eventStatusOverride")?.toString() ?? null),
+  };
+}
+
+function readFeatured(formData: FormData): boolean {
+  return formData.get("featured")?.toString() === "true";
+}
+
 // ── createPost ────────────────────────────────────────────────────
 export async function createPost(formData: FormData) {
   const { supabase, user } = await requirePermission("posts", "write");
@@ -125,11 +176,21 @@ export async function createPost(formData: FormData) {
   const coverMeta = parseCoverMeta(formData);
   const tags = parseTags(formData);
   const { status, scheduledAt, visibility } = readPublishFields(formData);
+  const eventFields = readEventFields(formData, category);
+  const featured = readFeatured(formData);
 
   const requestedSlug = formData.get("slug")?.toString().trim();
   const slugBase = slugify(requestedSlug || title);
 
-  const errors = validatePost({ title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt });
+  const errors = validatePost({
+    title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
+    event: {
+      startAt: eventFields.event_start_at,
+      endAt: eventFields.event_end_at,
+      registrationUrl: eventFields.event_registration_url,
+      registrationDeadline: eventFields.event_registration_deadline,
+    },
+  });
   const firstError = firstValidationError(errors);
   if (firstError) throw new Error(firstError);
 
@@ -151,6 +212,8 @@ export async function createPost(formData: FormData) {
       status,
       scheduled_at: scheduledAt,
       visibility,
+      featured,
+      ...((await eventColumnsAvailable()) ? eventFields : {}),
       seo_title: formData.get("seoTitle")?.toString().trim() || null,
       seo_description: formData.get("seoDescription")?.toString().trim() || null,
       og_image: formData.get("ogImage")?.toString().trim() || null,
@@ -162,8 +225,7 @@ export async function createPost(formData: FormData) {
   const meta = await requestMeta();
   await logAdminAction(user.id, "post.create", "posts", post.id, { title, status, ...meta });
 
-  revalidatePath("/posts");
-  revalidatePath(`/posts/${post.slug}`);
+  revalidatePost(post.slug);
   revalidatePath("/admin/posts");
   redirect(`/admin/posts/edit/${post.id}`);
 }
@@ -181,11 +243,21 @@ export async function updatePost(postId: string, formData: FormData) {
   const coverMeta = parseCoverMeta(formData);
   const tags = parseTags(formData);
   const { status, scheduledAt, visibility } = readPublishFields(formData);
+  const eventFields = readEventFields(formData, category);
+  const featured = readFeatured(formData);
 
   const requestedSlug = formData.get("slug")?.toString().trim();
   const slugBase = slugify(requestedSlug || title);
 
-  const errors = validatePost({ title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt });
+  const errors = validatePost({
+    title, slug: slugBase || "post", category, content, excerpt, tags, status, scheduledAt,
+    event: {
+      startAt: eventFields.event_start_at,
+      endAt: eventFields.event_end_at,
+      registrationUrl: eventFields.event_registration_url,
+      registrationDeadline: eventFields.event_registration_deadline,
+    },
+  });
   const firstError = firstValidationError(errors);
   if (firstError) throw new Error(firstError);
 
@@ -218,6 +290,8 @@ export async function updatePost(postId: string, formData: FormData) {
       status,
       scheduled_at: scheduledAt,
       visibility,
+      featured,
+      ...((await eventColumnsAvailable()) ? eventFields : {}),
       cover_url: coverUrls[0] ?? null,
       cover_urls: coverUrls,
       cover_meta: coverMeta,
@@ -233,8 +307,7 @@ export async function updatePost(postId: string, formData: FormData) {
   const meta = await requestMeta();
   await logAdminAction(user.id, "post.update", "posts", post.id, { title, status, ...meta });
 
-  revalidatePath("/posts");
-  revalidatePath(`/posts/${post.slug}`);
+  revalidatePost(post.slug);
   revalidatePath("/admin/posts");
   redirect(`/admin/posts/edit/${postId}`);
 }
@@ -265,7 +338,7 @@ export async function deletePost(postId: string) {
   const meta = await requestMeta();
   await logAdminAction(user.id, "post.delete", "posts", postId, { title: postData?.title, ...meta });
 
-  revalidatePath("/posts");
+  revalidatePost();
   revalidatePath("/admin/posts");
 }
 
@@ -291,8 +364,7 @@ async function setStatus(postId: string, status: PostStatus, extra?: Record<stri
   const meta = await requestMeta();
   await logAdminAction(user.id, actionMap[status], "posts", postId, { title: post.title, ...meta });
 
-  revalidatePath("/posts");
-  revalidatePath(`/posts/${post.slug}`);
+  revalidatePost(post.slug);
   revalidatePath("/admin/posts");
 }
 
@@ -321,13 +393,17 @@ export async function duplicatePost(postId: string) {
   const { supabase, user } = await requirePermission("posts", "write");
   await enforceRateLimit(user.id);
 
-  const { data: source, error: fetchError } = await supabase
+  const withEvents = await eventColumnsAvailable();
+  // Typed as plain string so supabase-js skips literal-type parsing of the
+  // dynamic column list (same pattern as lib/books-data.ts listingSelect).
+  const duplicateSelect: string = `title, content, excerpt, category, tags, cover_url, cover_urls, cover_meta, author_id, seo_title, seo_description, og_image${withEvents ? ", event_start_at, event_end_at, event_location, event_format, event_registration_url, event_registration_deadline, event_status_override" : ""}`;
+  const { data, error: fetchError } = await supabase
     .from("posts")
-    .select(
-      "title, content, excerpt, category, tags, cover_url, cover_urls, cover_meta, author_id, seo_title, seo_description, og_image",
-    )
+    .select(duplicateSelect)
     .eq("id", postId)
     .single();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const source = data as any;
   if (fetchError || !source) throw new Error("Post not found");
 
   const copyTitle = `${source.title} (Copy)`;
@@ -349,6 +425,19 @@ export async function duplicatePost(postId: string) {
       seo_title: source.seo_title,
       seo_description: source.seo_description,
       og_image: source.og_image,
+      // Copy event details, but never the featured flag — a duplicate must not
+      // silently become a second featured story.
+      ...(withEvents
+        ? {
+            event_start_at: source.event_start_at,
+            event_end_at: source.event_end_at,
+            event_location: source.event_location,
+            event_format: source.event_format,
+            event_registration_url: source.event_registration_url,
+            event_registration_deadline: source.event_registration_deadline,
+            event_status_override: source.event_status_override,
+          }
+        : {}),
       status: "draft",
     })
     .select("id")
@@ -387,7 +476,7 @@ export async function bulkUpdatePosts(
 
     const meta = await requestMeta();
     await logAdminAction(user.id, "post.bulk_action", "posts", undefined, { action, ids, ...meta });
-    revalidatePath("/posts");
+    revalidatePost();
     revalidatePath("/admin/posts");
     if (error) return { success: count ?? 0, failed: ids.length - (count ?? 0) };
     return { success: count ?? ids.length, failed: 0 };
@@ -411,7 +500,7 @@ export async function bulkUpdatePosts(
   const meta = await requestMeta();
   await logAdminAction(user.id, "post.bulk_action", "posts", undefined, { action, ids, payload, ...meta });
 
-  revalidatePath("/posts");
+  revalidatePost();
   revalidatePath("/admin/posts");
   if (error) return { success: 0, failed: ids.length };
   return { success: count ?? ids.length, failed: 0 };

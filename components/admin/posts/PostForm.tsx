@@ -9,6 +9,7 @@ import TagInput from "@/components/ui/core/TagInput";
 import MarkdownEditor from "@/components/admin/posts/MarkdownEditor";
 import PostSlugField from "@/components/admin/posts/PostSlugField";
 import PostPublishPanel from "@/components/admin/posts/PostPublishPanel";
+import PostEventDetails, { type EventDraft } from "@/components/admin/posts/PostEventDetails";
 import PostCoverUploader, { type CoverItem } from "@/components/admin/posts/PostCoverUploader";
 import SeoSettings from "@/components/admin/posts/SeoSettings";
 import PostFormStickyActions from "@/components/admin/posts/PostFormStickyActions";
@@ -37,6 +38,14 @@ export type PostInitial = {
   seoTitle: string | null;
   seoDescription: string | null;
   ogImage: string | null;
+  featured: boolean;
+  eventStartAt: string | null;
+  eventEndAt: string | null;
+  eventLocation: string | null;
+  eventFormat: string | null;
+  eventRegistrationUrl: string | null;
+  eventRegistrationDeadline: string | null;
+  eventStatusOverride: string | null;
   createdAt: string | null;
 };
 
@@ -76,6 +85,19 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
   const [scheduledAtError, setScheduledAtError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<PostValidationErrors>({});
   const [restoreVersion, setRestoreVersion] = useState(0);
+
+  // Featured flag + event fields (the latter only apply when category "Event").
+  const [featured, setFeatured] = useState(initial?.featured ?? false);
+  const [event, setEvent] = useState<EventDraft>({
+    startAt: toDatetimeLocal(initial?.eventStartAt ?? null),
+    endAt: toDatetimeLocal(initial?.eventEndAt ?? null),
+    location: initial?.eventLocation ?? "",
+    format: initial?.eventFormat ?? "",
+    registrationUrl: initial?.eventRegistrationUrl ?? "",
+    registrationDeadline: toDatetimeLocal(initial?.eventRegistrationDeadline ?? null),
+    statusOverride: initial?.eventStatusOverride ?? "",
+  });
+  const patchEvent = useCallback((next: Partial<EventDraft>) => setEvent((e) => ({ ...e, ...next })), []);
 
   const [coverItems, setCoverItems] = useState<CoverItem[]>(() =>
     (initial?.coverUrls ?? []).map((url, idx) => ({
@@ -145,7 +167,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
   useEffect(() => {
     payloadRef.current = {
       title, slug, excerpt, content, category, tags, status, scheduledAt, visibility,
-      seoTitle, seoDescription, ogImage,
+      seoTitle, seoDescription, ogImage, featured, event,
       coverUrls: uploadedImages.map((i) => i.url),
     };
   });
@@ -172,7 +194,7 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
     debounceTimerRef.current = setTimeout(performSave, 2000);
     return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, slug, excerpt, content, category, tags, status, scheduledAt, visibility, seoTitle, seoDescription, ogImage, uploadedImages, draftTargetKey]);
+  }, [title, slug, excerpt, content, category, tags, status, scheduledAt, visibility, seoTitle, seoDescription, ogImage, featured, event, uploadedImages, draftTargetKey]);
 
   // Safety net: force a save every 25s if there's unsaved typing that keeps
   // resetting the debounce above (continuous typing for >2s at a time).
@@ -208,6 +230,8 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
     if (typeof p.seoTitle === "string") setSeoTitle(p.seoTitle);
     if (typeof p.seoDescription === "string") setSeoDescription(p.seoDescription);
     if (typeof p.ogImage === "string") setOgImage(p.ogImage);
+    if (typeof p.featured === "boolean") setFeatured(p.featured);
+    if (p.event && typeof p.event === "object") setEvent((prev) => ({ ...prev, ...(p.event as Partial<EventDraft>) }));
     setRestoreVersion((v) => v + 1);
     setAvailableDraft(null);
   }
@@ -232,6 +256,12 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
     const effectiveStatus: PostStatus = intent === "draft" ? "draft" : status;
 
     const finalSlug = slugify(slug || title);
+    const isEventCategory = category === "Event";
+    const eventStartIso = isEventCategory && event.startAt ? new Date(event.startAt).toISOString() : null;
+    const eventEndIso = isEventCategory && event.endAt ? new Date(event.endAt).toISOString() : null;
+    const eventDeadlineIso =
+      isEventCategory && event.registrationDeadline ? new Date(event.registrationDeadline).toISOString() : null;
+
     const errors = validatePost({
       title,
       slug: finalSlug,
@@ -241,6 +271,14 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
       tags,
       status: effectiveStatus,
       scheduledAt: effectiveStatus === "scheduled" ? scheduledAt : null,
+      event: isEventCategory
+        ? {
+            startAt: eventStartIso,
+            endAt: eventEndIso,
+            registrationUrl: event.registrationUrl,
+            registrationDeadline: eventDeadlineIso,
+          }
+        : undefined,
     });
     setFieldErrors(errors);
     if (errors.scheduledAt) setScheduledAtError(errors.scheduledAt);
@@ -300,6 +338,15 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
       payload.set("status", effectiveStatus);
       payload.set("scheduledAt", effectiveStatus === "scheduled" && scheduledAt ? new Date(scheduledAt).toISOString() : "");
       payload.set("visibility", visibility);
+      payload.set("featured", featured ? "true" : "false");
+      // Event fields — the server persists these only when category is "Event".
+      payload.set("eventStartAt", eventStartIso ?? "");
+      payload.set("eventEndAt", eventEndIso ?? "");
+      payload.set("eventLocation", isEventCategory ? event.location.trim() : "");
+      payload.set("eventFormat", isEventCategory ? event.format : "");
+      payload.set("eventRegistrationUrl", isEventCategory ? event.registrationUrl.trim() : "");
+      payload.set("eventRegistrationDeadline", eventDeadlineIso ?? "");
+      payload.set("eventStatusOverride", isEventCategory ? event.statusOverride : "");
       payload.set("seoTitle", seoTitle.trim());
       payload.set("seoDescription", seoDescription.trim());
       payload.set("ogImage", ogImage.trim());
@@ -431,6 +478,19 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
               images={uploadedImages}
             />
           </div>
+
+          {category === "Event" && (
+            <PostEventDetails
+              value={event}
+              onChange={patchEvent}
+              disabled={busy}
+              errors={{
+                startAt: fieldErrors.eventStartAt,
+                endAt: fieldErrors.eventEndAt,
+                registrationUrl: fieldErrors.eventRegistrationUrl,
+              }}
+            />
+          )}
         </div>
 
         {/* ── Sidebar ───────────────────────────────────────────── */}
@@ -447,6 +507,22 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
             onCategoryChange={setCategory}
             disabled={busy}
           />
+
+          <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={featured}
+                onChange={(e) => setFeatured(e.target.checked)}
+                disabled={busy}
+                className="mt-0.5 h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-text-heading">{t("featured.label")}</span>
+                <span className="mt-0.5 block text-xs text-text-muted">{t("featured.help")}</span>
+              </span>
+            </label>
+          </div>
 
           <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
             <TagInput

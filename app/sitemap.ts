@@ -101,10 +101,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .from('posts')
           .select('slug, created_at, updated_at')
           .eq('is_published', true)
-          // Service client bypasses RLS, so the 'admin_only' visibility tier
-          // (internal-only posts) must be excluded explicitly here — the
-          // anon client gets this for free via the posts RLS policy.
-          .neq('visibility', 'admin_only')
+          // Only fully public posts belong in the sitemap. Service client
+          // bypasses RLS, so 'admin_only' AND 'unlisted' (direct-link-only,
+          // deliberately kept out of the public /posts index) are both excluded
+          // here — matching lib/posts-data.ts's listing filter.
+          .eq('visibility', 'public')
           .order('created_at', { ascending: false })
           .range(from, to),
     ),

@@ -6,6 +6,13 @@
 
 import { CATEGORIES, STATUSES, type PostCategory, type PostStatus } from "@/lib/admin/posts-shared";
 
+export type PostEventInput = {
+  startAt?: string | null;
+  endAt?: string | null;
+  registrationUrl?: string | null;
+  registrationDeadline?: string | null;
+};
+
 export type PostValidationInput = {
   title: string;
   slug: string;
@@ -15,9 +22,28 @@ export type PostValidationInput = {
   tags: string[];
   status: string;
   scheduledAt?: string | null;
+  /** Event fields — only validated when category === "Event". */
+  event?: PostEventInput;
 };
 
-export type PostValidationErrors = Partial<Record<keyof PostValidationInput, string>>;
+export type PostValidationErrors = Partial<
+  Record<keyof PostValidationInput | "eventStartAt" | "eventEndAt" | "eventRegistrationUrl", string>
+>;
+
+function parseTime(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+
+function isSafeHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -58,6 +84,24 @@ export function validatePost(input: PostValidationInput): PostValidationErrors {
       const when = new Date(input.scheduledAt).getTime();
       if (Number.isNaN(when)) errors.scheduledAt = "Invalid date/time";
       else if (when <= Date.now()) errors.scheduledAt = "Scheduled time must be in the future";
+    }
+  }
+
+  // Event fields only apply to Event-category posts. They are all optional, but
+  // when supplied they must be internally consistent so the public page can
+  // present a truthful status and registration action.
+  if (input.category === "Event" && input.event) {
+    const start = parseTime(input.event.startAt);
+    const end = parseTime(input.event.endAt);
+    if (input.event.startAt && start === null) errors.eventStartAt = "Invalid event start date/time";
+    if (input.event.endAt && end === null) errors.eventEndAt = "Invalid event end date/time";
+    if (start !== null && end !== null && end < start) {
+      errors.eventEndAt = "Event end must be after the start";
+    }
+    if (input.event.registrationUrl && input.event.registrationUrl.trim()) {
+      if (!isSafeHttpUrl(input.event.registrationUrl.trim())) {
+        errors.eventRegistrationUrl = "Registration link must be a valid http(s) URL";
+      }
     }
   }
 
