@@ -2103,6 +2103,7 @@
       "groupInsights": "Insights",
       "searchInsights": "Search Insights",
       "dataQuality": "Data Quality",
+      "storage": "Storage",
       "groupAdministration": "Administration",
       "libraryTeam": "Library Team",
       "users": "Users",
@@ -2178,6 +2179,204 @@
     "confirm": {
       "cancel": "Cancel",
       "working": "Working…"
+    }
+  },
+  "adminStorage": {
+    "title": "Storage",
+    "description": "Browse, upload, and manage files stored on Zima Storage — without leaving the PTEC admin dashboard.",
+    "overview": {
+      "totalCapacity": "Total capacity",
+      "used": "Used storage",
+      "available": "Available",
+      "totalFiles": "Total files",
+      "totalFolders": "Total folders",
+      "uploadsThisMonth": "Uploads this month",
+      "trashItems": "Items in Trash",
+      "unavailable": "Not available",
+      "categoriesTitle": "Storage by category",
+      "noCategoryData": "No files indexed yet.",
+      "indexOnlyNotice": "Figures reflect files uploaded or adopted through this module. Older files keep working but won't appear here until adopted — ask an engineer to run the reconciliation script."
+    },
+    "toolbar": {
+      "searchPlaceholder": "Search files by name…",
+      "newFolder": "New folder",
+      "upload": "Upload",
+      "refresh": "Refresh",
+      "viewList": "List view",
+      "viewGrid": "Grid view",
+      "filterType": "File type",
+      "filterCategory": "Category",
+      "filterStatus": "Status",
+      "filterUploadedBy": "Uploaded by",
+      "allCategories": "All categories",
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "sortBy": "Sort by",
+      "sortName": "Name",
+      "sortSize": "Size",
+      "sortModified": "Modified date",
+      "sortNewestFirst": "Newest first",
+      "sortOldestFirst": "Oldest first",
+      "trash": "Trash",
+      "backToStorage": "Back to Storage"
+    },
+    "breadcrumb": {
+      "root": "Storage"
+    },
+    "table": {
+      "name": "Name",
+      "type": "Type",
+      "size": "Size",
+      "usedBy": "Used by",
+      "uploadedBy": "Uploaded by",
+      "modified": "Modified",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "trashed": "In Trash",
+      "unindexed": "Not indexed yet"
+    },
+    "actions": {
+      "open": "Open",
+      "preview": "Preview",
+      "download": "Download",
+      "rename": "Rename",
+      "move": "Move",
+      "copy": "Copy",
+      "copyLink": "Copy link",
+      "replace": "Replace file",
+      "trash": "Move to Trash",
+      "restore": "Restore",
+      "deletePermanently": "Delete permanently",
+      "moreActions": "More actions",
+      "linkCopied": "Link copied to clipboard."
+    },
+    "bulk": {
+      "selected": "{count} selected",
+      "moveSelected": "Move selected",
+      "trashSelected": "Move to Trash",
+      "clearSelection": "Clear selection"
+    },
+    "details": {
+      "title": "File details",
+      "filename": "File name",
+      "originalName": "Original file name",
+      "fileType": "File type",
+      "fileSize": "File size",
+      "category": "Category",
+      "visibility": "Visibility",
+      "uploaded": "Uploaded",
+      "modified": "Modified",
+      "uploadedBy": "Uploaded by",
+      "checksum": "Checksum",
+      "usedBy": "Used by",
+      "usedByNone": "No references found in the library database.",
+      "usedByUnknown": "Usage could not be determined.",
+      "noPreview": "Preview isn't available for this file type."
+    },
+    "upload": {
+      "title": "Upload files",
+      "uploadButton": "Upload",
+      "dropHint": "Drag and drop files here, or click to browse",
+      "destination": "Destination",
+      "chooseCategory": "Choose a category…",
+      "selected": "{count} file(s) selected",
+      "uploading": "Uploading…",
+      "processing": "Processing…",
+      "successAll": "All {count} files uploaded successfully.",
+      "successPartial": "{success} of {total} files uploaded — {failed} failed.",
+      "failedAll": "Upload failed for every file.",
+      "possibleDuplicate": "A file with identical content already exists in this category.",
+      "cancel": "Cancel",
+      "retry": "Retry",
+      "done": "Done",
+      "close": "Close",
+      "removeFile": "Remove"
+    },
+    "newFolder": {
+      "title": "New folder",
+      "name": "Folder name",
+      "create": "Create",
+      "cancel": "Cancel"
+    },
+    "rename": {
+      "title": "Rename",
+      "name": "New name",
+      "note": "This only changes the display name — the file's existing link keeps working.",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "move": {
+      "title": "Move to…",
+      "destination": "Destination category",
+      "move": "Move",
+      "cancel": "Cancel",
+      "usageWarning": "This file appears to be referenced by {count} record(s) in the library. Moving it will change its link — update those records afterward.",
+      "usageUnknown": "Usage could not be checked before moving this file."
+    },
+    "trashDialog": {
+      "title": "Move to Trash?",
+      "body": "\"{name}\" will be moved to Trash. You can restore it later from the Trash view.",
+      "usageWarning": "This file appears to be referenced by {count} record(s) in the library — moving it to Trash may break that link.",
+      "confirm": "Move to Trash",
+      "cancel": "Cancel"
+    },
+    "trashView": {
+      "title": "Trash",
+      "empty": "Trash is empty.",
+      "retentionNotice": "Items in Trash are kept for {days} days before they're eligible for permanent deletion.",
+      "restore": "Restore",
+      "deletePermanently": "Delete permanently",
+      "restoredSuccess": "File restored to its original location.",
+      "restoredRenamed": "File restored — a file already existed at the original location, so it was restored under a new name.",
+      "restoreFailed": "Could not restore this file."
+    },
+    "purgeDialog": {
+      "title": "Permanently delete this file?",
+      "body": "This cannot be undone. \"{name}\" will be permanently removed from storage.",
+      "confirmLabel": "Type DELETE to confirm",
+      "confirmPlaceholder": "DELETE",
+      "confirm": "Delete permanently",
+      "cancel": "Cancel",
+      "restrictedNotice": "Permanent deletion is restricted to Super Admins."
+    },
+    "states": {
+      "loading": "Loading storage…",
+      "refreshing": "Refreshing…",
+      "empty": "This folder is empty.",
+      "noResults": "No files match your search or filters.",
+      "clearFilters": "Clear filters",
+      "error": "Something went wrong loading storage.",
+      "retry": "Try again",
+      "forbidden": "You don't have permission to view storage.",
+      "unauthorized": "Your session has expired — please sign in again.",
+      "unavailable": "The storage service is temporarily unavailable. Existing files and downloads elsewhere on the site are unaffected.",
+      "offline": "You appear to be offline. Reconnect and try again.",
+      "partialFailure": "Some information couldn't be loaded. Showing what's available.",
+      "loadMore": "Load more"
+    },
+    "picker": {
+      "title": "Choose from Storage",
+      "uploadNew": "Upload new file",
+      "chooseExisting": "Choose from Storage",
+      "select": "Select",
+      "selected": "Selected",
+      "searchPlaceholder": "Search files…",
+      "noMatches": "No matching files.",
+      "incompatibleType": "This file type isn't accepted here.",
+      "cancel": "Cancel"
+    },
+    "categories": {
+      "books": "Books",
+      "posts": "Posts & news images",
+      "research": "Theses",
+      "reports": "Reports",
+      "team": "Team photos",
+      "avatars": "User avatars",
+      "publications": "Publications",
+      "announcements": "Announcements"
     }
   },
   "adminBookRequests": {

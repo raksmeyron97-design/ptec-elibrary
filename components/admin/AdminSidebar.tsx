@@ -36,6 +36,7 @@ import {
   Gauge,
   Inbox,
   SlidersHorizontal,
+  HardDrive,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
@@ -175,6 +176,13 @@ function getNavTree(
   if (books.length)          tree.push({ type: "group", key: "books",          name: t("groupBooks"),          icon: BookOpen,  children: books          });
   if (content.length)        tree.push({ type: "group", key: "content",        name: t("groupContent"),        icon: Newspaper, children: content        });
   if (insights.length)       tree.push({ type: "group", key: "insights",       name: t("groupInsights"),       icon: BarChart3, children: insights       });
+  // Standalone link (not folded into a group) — used across every content
+  // type, and its permission doesn't line up with either the content-editor
+  // or administration audiences specifically. No badge: computing one would
+  // mean every admin page load calls the separate storage service just to
+  // render the sidebar, which is exactly the coupling CLAUDE.md's "handle
+  // storage downtime without crashing the dashboard" rule warns against.
+  if (perm(p, "storage", "read")) tree.push({ type: "link", name: t("storage"), href: "/admin/storage", icon: HardDrive });
   if (administration.length) tree.push({ type: "group", key: "administration", name: t("groupAdministration"), icon: Settings,  children: administration });
   return tree;
 }

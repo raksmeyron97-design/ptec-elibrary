@@ -15,6 +15,10 @@ import type { TeamMemberRow, TeamSection, ProfileOption } from "./actions";
 import MemberCard, { PALETTES } from "@/components/team/MemberCard";
 import { ConfirmDialog } from "@/components/admin/kit";
 import type { PublicTeamMember } from "@/lib/team/public";
+import StoragePicker from "@/components/admin/storage/StoragePicker";
+import type { StorageFile } from "@/lib/types/storage";
+
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -242,6 +246,17 @@ export default function TeamForm({
     setPhotoFile(null);
     setPhotoPreview(null);
     setPhotoUrl("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  /** Reusing an already-stored file — no upload needed at save time, so
+   *  photoFile stays null and finalPhotoUrl (= photoUrl) is used as-is. */
+  function handlePhotoFromStorage(file: StorageFile) {
+    if (!file.url) return;
+    setError(null);
+    setPhotoFile(null);
+    setPhotoPreview(file.url);
+    setPhotoUrl(file.url);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -494,15 +509,23 @@ export default function TeamForm({
                   onChange={handlePhotoPick}
                   disabled={busy}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={busy}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-divider bg-paper px-5 py-3.5 text-sm font-semibold text-text-body transition hover:border-brand hover:bg-cyan-50/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Upload className="h-4 w-4" />
-                  {photoPreview ? "Replace photo" : "Choose photo"}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={busy}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border-2 border-dashed border-divider bg-paper px-5 py-3.5 text-sm font-semibold text-text-body transition hover:border-brand hover:bg-cyan-50/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    {photoPreview ? "Replace photo" : "Choose photo"}
+                  </button>
+                  <StoragePicker
+                    folder="team"
+                    acceptExtensions={IMAGE_EXTENSIONS}
+                    onSelect={handlePhotoFromStorage}
+                    triggerClassName="flex items-center gap-2 rounded-lg border-2 border-dashed border-divider bg-paper px-5 py-3.5 text-sm font-semibold text-text-body transition hover:border-brand hover:bg-cyan-50/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
                 <p className={helpCls}>Optional — a placeholder icon is shown until one is added.</p>
               </div>
             </div>

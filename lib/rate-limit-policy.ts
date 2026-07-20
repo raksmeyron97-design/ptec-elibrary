@@ -102,6 +102,27 @@ const POLICIES = {
     limit: strictDiv(envInt("RL_EXPORT_PER_MIN", 30)),
     windowMs: 60_000,
   }),
+  /** /admin/storage browsing (list/search/metadata) — per admin. Defense in
+   *  depth: the storage service rate-limits its own /api/v1 independently. */
+  storageBrowse: () => ({
+    limit: envInt("RL_STORAGE_BROWSE_PER_MIN", 120),
+    windowMs: 60_000,
+  }),
+  /** /admin/storage uploads — per admin. */
+  storageUpload: () => ({
+    limit: envInt("RL_STORAGE_UPLOAD_PER_HOUR", 60),
+    windowMs: 3600_000,
+  }),
+  /** /admin/storage mutations (rename/move/copy/trash/restore) — per admin. */
+  storageMutate: () => ({
+    limit: envInt("RL_STORAGE_MUTATE_PER_HOUR", 120),
+    windowMs: 3600_000,
+  }),
+  /** /admin/storage permanent delete — per admin. Deliberately tight. */
+  storagePurge: () => ({
+    limit: envInt("RL_STORAGE_PURGE_PER_HOUR", 10),
+    windowMs: 3600_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;
