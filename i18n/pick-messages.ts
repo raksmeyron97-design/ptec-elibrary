@@ -34,6 +34,7 @@ export const ROOT_NAMESPACES = ["pushNotifications", "home"] as const;
  *  reachable from public pages (incl. shared components/ui/*). */
 export const PUBLIC_NAMESPACES = [
   "abstractReader",
+  "announcementBanner",
   "ask",
   "bookCard",
   "bookDetail",

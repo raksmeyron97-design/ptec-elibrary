@@ -49,7 +49,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "research", label: "Theses", description: "Student theses and research reports" },
       { key: "publications", label: "Publications", description: "Institutional academic publications" },
       { key: "learning_paths", label: "Learning Paths", description: "Curated teacher learning journeys" },
-      { key: "announcements", label: "Announcements", description: "Site-wide announcement banners" },
+      { key: "announcements", label: "Announcements", description: "Create, edit, and schedule announcements (in-app + banner)" },
+      { key: "announcements_push", label: "Announcement Push", description: "Send announcement push notifications to subscribed devices" },
     ],
   },
   {

@@ -5,13 +5,13 @@ import type { AppRole, PermLevel } from "./types/roles";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseService = { from: (table: string) => any };
 
-/** Hardcoded fallback — matches the migration seeds in 0041_role_permissions.sql + 0052_publications.sql + 0098_system_settings.sql */
+/** Hardcoded fallback — matches the migration seeds in 0041_role_permissions.sql + 0052_publications.sql + 0098_system_settings.sql + 0100_announcement_center.sql */
 export const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PermLevel>> = {
-  reader:      { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "read",  announcements: "read",  learning_paths: "read",  users: "none",  roles: "none", contact: "none",  settings: "none"  },
-  staff:       { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "write", announcements: "write", learning_paths: "read",  users: "none",  roles: "none", contact: "write", settings: "none"  },
-  librarian:   { books: "write", catalog: "write", research: "write", publications: "write", posts: "read",  announcements: "read",  learning_paths: "write", users: "none",  roles: "none", contact: "write", settings: "none"  },
-  admin:       { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "none", contact: "write", settings: "write" },
-  super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", learning_paths: "write", users: "write", roles: "write", contact: "write", settings: "write" },
+  reader:      { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "read",  announcements: "read",  announcements_push: "none",  learning_paths: "read",  users: "none",  roles: "none", contact: "none",  settings: "none"  },
+  staff:       { books: "read",  catalog: "read",  research: "read",  publications: "read",  posts: "write", announcements: "write", announcements_push: "none",  learning_paths: "read",  users: "none",  roles: "none", contact: "write", settings: "none"  },
+  librarian:   { books: "write", catalog: "write", research: "write", publications: "write", posts: "read",  announcements: "read",  announcements_push: "none",  learning_paths: "write", users: "none",  roles: "none", contact: "write", settings: "none"  },
+  admin:       { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", announcements_push: "write", learning_paths: "write", users: "write", roles: "none", contact: "write", settings: "write" },
+  super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", announcements_push: "write", learning_paths: "write", users: "write", roles: "write", contact: "write", settings: "write" },
 };
 
 /**

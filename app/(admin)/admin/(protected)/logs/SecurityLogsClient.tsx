@@ -56,6 +56,7 @@ const RESOURCE_STYLE: Record<string, { bg: string; fg: string }> = {
   thesis: { bg: "#ecfeff", fg: "#0e7490" },
   publication: { bg: "#f5f3ff", fg: "#6d28d9" },
   post: { bg: "#f0fdf4", fg: "#15803d" },
+  announcement: { bg: "#fff7ed", fg: "#c2410c" },
   account: { bg: "#f3f4f6", fg: "#374151" },
   system: { bg: "#f3f4f6", fg: "#374151" },
 };
@@ -205,7 +206,7 @@ export default function SecurityLogsClient({
         <Select label={t("range.label")} value={filters.range} onChange={(v) => setParams({ range: v })}
           options={[["24h", t("range.last24h")], ["7d", t("range.last7d")], ["30d", t("range.last30d")], ["90d", t("range.last90d")]]} />
         <Select label={t("filters.resourceType")} value={filters.resourceType} onChange={(v) => setParams({ resource: v })}
-          options={[["all", t("filters.allResources")], ["book", t("resource.book")], ["thesis", t("resource.thesis")], ["publication", t("resource.publication")], ["post", t("resource.post")]]} />
+          options={[["all", t("filters.allResources")], ["book", t("resource.book")], ["thesis", t("resource.thesis")], ["publication", t("resource.publication")], ["post", t("resource.post")], ["announcement", t("resource.announcement")]]} />
         <Select label={t("filters.status")} value={filters.status} onChange={(v) => setParams({ status: v })}
           options={[["all", t("filters.allStatuses")], ["authorized", t("status.authorized")], ["denied", t("status.denied")], ["failed", t("status.failed")], ["success", t("status.success")]]} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", background: "#f7f8fa", border: `1px solid ${BORDER}`, borderRadius: 9, flex: "1 1 240px", minWidth: 200 }}>

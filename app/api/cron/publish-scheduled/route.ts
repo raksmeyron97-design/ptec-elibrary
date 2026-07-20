@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logSecurityEvent } from "@/lib/security-log";
+import { runAnnouncementSweep } from "@/lib/admin/announcements/cron";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * GET /api/cron/publish-scheduled
@@ -15,12 +17,24 @@ export const dynamic = "force-dynamic";
  * scheduled state with 0086 — before that migration the sweep finds no
  * matching book rows, which is harmless.
  *
+ * Also runs the Announcement Center sweep (0100): publishes due scheduled
+ * announcements, resumes any pending/running push delivery job (the
+ * reliability backstop for publishAnnouncement()'s `after()` best-effort
+ * pass — see lib/admin/announcements/delivery.ts), and expires announcements
+ * past `expires_at`. This reuses the SAME already-configured trigger instead
+ * of requiring a second cron/pinger to be set up — see lib/admin/announcements/cron.ts
+ * for the sweep implementation. Wrapped in try/catch so a pre-0100 database
+ * (table not found) never breaks the posts/theses/books sweep above it.
+ *
  * ── Setup ─────────────────────────────────────────────────────────────────
  * Same CRON_SECRET pattern as /api/cron/cleanup — add to vercel.json:
  *   { "crons": [{ "path": "/api/cron/publish-scheduled", "schedule": "*\/15 * * * *" }] }
  * (Vercel Hobby plans only allow once-daily crons; on Hobby, use an external
  * pinger — e.g. cron-job.org — hitting this URL every few minutes instead,
- * with the same `Authorization: Bearer $CRON_SECRET` header.)
+ * with the same `Authorization: Bearer $CRON_SECRET` header.) Push delivery
+ * for an urgent announcement should not wait on this cadence alone — publish
+ * already kicks off a same-request-lifetime `after()` delivery pass; this
+ * sweep is the backstop, not the primary path.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -54,11 +68,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Publish sweep failed" }, { status: 500 });
   }
 
+  let announcements: Awaited<ReturnType<typeof runAnnouncementSweep>> | null = null;
+  try {
+    announcements = await runAnnouncementSweep();
+  } catch (err) {
+    // Degrades to null if 0100 isn't applied yet (relation does not exist) or
+    // any other transient failure — never lets the announcement sweep take
+    // down the posts/theses/books sweep above.
+    console.error("[/api/cron/publish-scheduled] announcement sweep failed:", err instanceof Error ? err.message : err);
+  }
+
   return NextResponse.json({
     ok: true,
     published: (posts.data ?? []).length + (theses.data ?? []).length + (books.data ?? []).length,
     postSlugs: (posts.data ?? []).map((p) => p.slug),
     thesisSlugs: (theses.data ?? []).map((t) => t.slug),
     bookSlugs: (books.data ?? []).map((b) => b.slug),
+    announcements: announcements
+      ? {
+          published: announcements.publishedScheduled.length,
+          publishErrors: announcements.publishErrors.length,
+          jobsProcessed: announcements.jobsProcessed,
+          expired: announcements.expired.length,
+        }
+      : null,
   });
 }
