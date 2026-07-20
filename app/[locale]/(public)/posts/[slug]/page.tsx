@@ -19,8 +19,12 @@ import ImageGallery from "./ImageGallery";
 import RelatedPosts from "./RelatedPosts";
 import CommentsSection from "./CommentsSection";
 import TableOfContents from "./TableOfContents";
+import PostEventPanel from "@/components/ui/posts/PostEventPanel";
+import { eventColumnsAvailable } from "@/lib/posts-data";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { postEventJsonLd } from "@/lib/seo/posts-seo";
+import type { EventFields } from "@/lib/posts/event-status";
 import { getTranslations } from "next-intl/server";
 
 const categoryBadgeStyles: Record<string, string> = {
@@ -118,15 +122,24 @@ export default async function PostDetailPage({
     isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
   }
 
-  const { data: post, error: postError } = await supabase
-    .from("posts")
-    .select(`
+  // Event columns only exist once migration 0099 is applied; selecting them
+  // before that would 42703 the entire query and 404 the post. Probe first.
+  // The select is typed as plain string so supabase-js skips literal-type
+  // parsing of the dynamic column list.
+  const withEvents = await eventColumnsAvailable();
+  const detailSelect: string = `
       id, title, slug, content, excerpt, cover_url, cover_urls, category, tags,
-      is_published, views, like_count, save_count, created_at, updated_at,
+      is_published, views, like_count, save_count, created_at, updated_at${withEvents ? `,
+      event_start_at, event_end_at, event_location, event_format,
+      event_registration_url, event_registration_deadline, event_status_override` : ""},
       author:profiles!author_id ( full_name, email, role )
-    `)
+    `;
+  const { data, error: postError } = await supabase
+    .from("posts")
+    .select(detailSelect)
     .eq("slug", slug)
     .single();
+  const post = data as any;
 
   if (postError) {
     console.error("[PostDetailPage] Supabase error for slug=%s:", slug, postError.message, postError.code);
@@ -165,6 +178,20 @@ export default async function PostDetailPage({
       : (post as any).cover_url ? [(post as any).cover_url] : [];
 
   const coverUrl = coverUrls[0] ?? null;
+
+  const eventFields: EventFields | null =
+    post.category === "Event" && (post as any).event_start_at
+      ? {
+          startAt: (post as any).event_start_at ?? null,
+          endAt: (post as any).event_end_at ?? null,
+          location: (post as any).event_location ?? null,
+          format: (post as any).event_format ?? null,
+          registrationUrl: (post as any).event_registration_url ?? null,
+          registrationDeadline: (post as any).event_registration_deadline ?? null,
+          statusOverride: (post as any).event_status_override ?? null,
+        }
+      : null;
+
   const categoryLabel = t(`category${post.category}` as any);
   const readingTime = computeReadingTime(post.content ?? "");
   const toc = extractToc(post.content ?? "");
@@ -212,9 +239,21 @@ export default async function PostDetailPage({
     { name: post.title },
   ]);
 
+  // An Event-category post is described by schema.org/Event; everything else
+  // stays a schema.org/Article. Only one primary node is emitted.
+  const eventSchema = eventFields
+    ? postEventJsonLd({
+        event: eventFields,
+        title: post.title,
+        description: post.excerpt,
+        url: `${SITE_URL}/posts/${slug}`,
+        image: coverUrl,
+      })
+    : null;
+
   return (
     <article className="min-h-screen bg-bg-app">
-      <JsonLd data={postSchema} />
+      <JsonLd data={eventSchema ?? postSchema} />
       <JsonLd data={postBreadcrumbSchema} />
       <ViewTracker postId={post.id} />
       <ReadingProgress />
@@ -400,6 +439,9 @@ export default async function PostDetailPage({
 
         {/* ── Sidebar ── */}
         <aside className="flex flex-col gap-5 lg:sticky lg:top-[90px]">
+
+          {/* Event details (Event-category posts only) */}
+          {eventFields && <PostEventPanel event={eventFields} title={post.title} />}
 
           {/* Quick facts */}
           <div className="bg-bg-surface border border-divider rounded-2xl overflow-hidden shadow-sm">

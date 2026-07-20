@@ -17,6 +17,28 @@ export type PostStatus = (typeof STATUSES)[number];
 export const VISIBILITY_OPTIONS = ["public", "unlisted", "admin_only"] as const;
 export type PostVisibility = (typeof VISIBILITY_OPTIONS)[number];
 
+// ── Event fields (0099) ─────────────────────────────────────────────────────
+// Only meaningful when category === "Event". Lifecycle status (upcoming /
+// ongoing / ended) is derived from the dates in lib/posts/event-status.ts; only
+// the manual overrides below are stored.
+export const EVENT_FORMATS = ["in_person", "online", "hybrid"] as const;
+export type EventFormatValue = (typeof EVENT_FORMATS)[number];
+
+export const EVENT_STATUS_OVERRIDES = ["cancelled", "postponed"] as const;
+export type EventStatusOverrideValue = (typeof EVENT_STATUS_OVERRIDES)[number];
+
+export function normalizeEventFormat(raw: string | null | undefined): EventFormatValue | null {
+  return (EVENT_FORMATS as readonly string[]).includes(raw ?? "") ? (raw as EventFormatValue) : null;
+}
+
+export function normalizeEventStatusOverride(
+  raw: string | null | undefined,
+): EventStatusOverrideValue | null {
+  return (EVENT_STATUS_OVERRIDES as readonly string[]).includes(raw ?? "")
+    ? (raw as EventStatusOverrideValue)
+    : null;
+}
+
 export const SORT_OPTIONS = [
   "newest",
   "oldest",
