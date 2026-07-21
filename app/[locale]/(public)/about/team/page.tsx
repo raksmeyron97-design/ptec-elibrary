@@ -8,6 +8,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { breadcrumbSchema } from "@/lib/seo/schema";
+import JsonLd from "@/components/seo/JsonLd";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import {
   PUBLIC_MEMBER_SELECT, LEGACY_MEMBER_SELECT, fromLegacyRow,
@@ -162,10 +163,10 @@ export default async function TeamPage() {
 
   return (
     <div className="min-h-screen bg-paper px-4 py-14 md:px-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {/* Admin-authored member names/positions flow into this block, so it must
+          go through the <JsonLd> escaper (which neutralises a "</script>"
+          breakout by encoding "<"), never a raw JSON.stringify. */}
+      <JsonLd data={jsonLd} />
 
       <div className="mx-auto max-w-6xl">
         {/* Breadcrumbs */}
