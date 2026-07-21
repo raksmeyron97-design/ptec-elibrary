@@ -3,6 +3,8 @@
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { zimaUpload, zimaDelete } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
+import { guardUploadContent } from "@/lib/upload-content-guard";
+import { logSecurityEvent } from "@/lib/security-log";
 
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications", "announcements"];
 
@@ -56,10 +58,28 @@ export async function uploadToZima(
     const file = formData.get("file") as File | null;
     if (!file || file.size === 0) throw new Error("No file provided");
 
-    // Optimize image before upload
     const bytes = await file.arrayBuffer();
+
+    // Verify the real content by magic bytes (never the spoofable declared
+    // type) and cap the size — this action previously passed any non-image
+    // through untouched, which allowed uploading script-capable SVG/HTML to
+    // the storage backend. Reject anything that is not a recognised raster
+    // image (or a PDF where the folder allows it).
+    const guard = guardUploadContent(bytes, folder);
+    if (!guard.ok) {
+      logSecurityEvent({
+        type: "upload_rejected",
+        where: "actions/uploadToZima",
+        detail: `${guard.reason} (declared ${file.type || "unknown"}, folder ${folder})`,
+      });
+      throw new Error(`Invalid file: ${guard.reason}.`);
+    }
+
+    // Optimize image before upload. Pass the sniffed type so a mislabeled but
+    // valid image is still routed through sharp (which re-encodes to WebP and
+    // strips any embedded payload) rather than passed through untouched.
     const opts = presetsForFolder(folder);
-    const optimized = await optimizeImage(bytes, file.name, file.type, opts);
+    const optimized = await optimizeImage(bytes, file.name, guard.effectiveType, opts);
     const optimizedFile = new File([optimized.buffer], optimized.filename, {
       type: optimized.contentType,
     });
