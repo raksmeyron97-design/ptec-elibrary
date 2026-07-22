@@ -1,160 +1,145 @@
-import Link from "next/link";
-import { getTranslations, getLocale } from "next-intl/server";
-import { Eye, Users, BookOpenCheck, Download, Library, ArrowRight } from "lucide-react";
-import { getOverviewData, getActionCenter } from "@/lib/admin/intelligence";
-import type { DashboardFilters } from "@/lib/admin/dashboard-shared";
+import { getTranslations } from "next-intl/server";
+import {
+  getOverviewData,
+  getActionCenter,
+  getHealthPulse,
+  getRecentAdminActivity,
+  type HealthPulseData,
+  type AdminActivityEntry,
+} from "@/lib/admin/intelligence";
+import type { DashboardFilters, DashboardMetric } from "@/lib/admin/dashboard-shared";
 import { serializeDashboardFilters } from "@/lib/admin/dashboard-shared";
-import KpiCard from "../KpiCard";
+import { MetricSelectionProvider } from "../MetricSelection";
+import ExecutivePulse from "../ExecutivePulse";
+import NeedsAttentionPanel from "../NeedsAttentionPanel";
 import EngagementChart from "../EngagementChart";
-import DiscoveryEngagement from "../DiscoveryEngagement";
-import ActionCenter from "../ActionCenter";
-import InsightsPanel from "../InsightsPanel";
-import FreshnessLine from "../FreshnessLine";
+import EngagementPathways from "../EngagementPathways";
+import SearchOpportunityPanel from "../SearchOpportunityPanel";
+import ContentPerformancePanel from "../ContentPerformancePanel";
+import AutomatedInsightsPanel from "../AutomatedInsightsPanel";
+import RecentAdminActivity from "../RecentAdminActivity";
+import DataFreshnessBar from "../DataFreshnessBar";
 
-export default async function OverviewView({ filters }: { filters: DashboardFilters }) {
-  const t = await getTranslations("adminDashboard");
-  const locale = await getLocale();
-  const nf = new Intl.NumberFormat(locale === "km" ? "km-KH" : "en-US");
+/**
+ * The Overview: a decision-first control centre, ordered by the questions an
+ * administrator needs answered fastest.
+ *
+ *   1. Is anything broken?          → Executive Pulse (health first)
+ *   2. What needs me now?           → Needs attention
+ *   3. How is engagement moving?    → Engagement trends + pathways
+ *   4. What are readers missing?    → Search opportunities
+ *   5. What content is working?     → Content performance
+ *   6. What should I look at next?  → Rule-based insights + admin activity
+ *
+ * Health and admin activity are loaded alongside the main analytics but are
+ * allowed to fail independently — a failing probe degrades one card, never the
+ * page. `MetricSelectionProvider` is the only client state at this level: it
+ * keeps the KPI row and the chart on the same metric.
+ */
+export default async function OverviewView({
+  filters,
+  metric,
+  canSeeAudit,
+}: {
+  filters: DashboardFilters;
+  metric: DashboardMetric;
+  canSeeAudit: boolean;
+}) {
+  const [t, data, actions, health, activity] = await Promise.all([
+    getTranslations("adminDashboard"),
+    getOverviewData(filters),
+    getActionCenter(filters),
+    // Supporting probes must not take the page down with them.
+    getHealthPulse(filters).catch((): HealthPulseData | null => null),
+    canSeeAudit ? getRecentAdminActivity().catch((): AdminActivityEntry[] => []) : Promise.resolve([]),
+  ]);
 
-  const [data, actions] = await Promise.all([getOverviewData(filters), getActionCenter(filters)]);
-  const { kpis } = data;
-  const rangeLabel =
-    filters.range === "custom" ? data.rangeLabel : t(`rangeLabel.${filters.range}`);
-  const link = (view: "content" | "audience" | "search" | "system") => {
+  const rangeLabel = filters.range === "custom" ? data.rangeLabel : t(`rangeLabel.${filters.range}`);
+  const link = (view: DashboardFilters["view"], extra?: string) => {
     const s = serializeDashboardFilters({ ...filters, view });
-    return s ? `/admin?${s}` : "/admin";
+    const qs = [s, extra].filter(Boolean).join("&");
+    return qs ? `/admin?${qs}` : "/admin";
   };
 
-  const prevOf = (previous: number | undefined) =>
-    previous === undefined ? null : t("kpi.previously", { value: nf.format(previous) });
-
   return (
-    <div className="space-y-4">
-      {/* ── Row 1: NEEDS YOUR ATTENTION — before the KPIs, so the most urgent
-           work is answered first (spec: critical issues before analytics). ── */}
-      <ActionCenter data={actions} variant="banner" />
+    <MetricSelectionProvider initialMetric={metric}>
+      <div className="space-y-4">
+        {/* 1 — Executive Pulse: health first, then the four engagement measures. */}
+        <ExecutivePulse
+          data={data}
+          health={health}
+          actions={actions.items}
+          filters={filters}
+          rangeLabel={rangeLabel}
+        />
 
-      {/* ── Row 2: four equal primary KPIs (no disproportionate hero card) ── */}
-      <section aria-label={t("kpi.sectionLabel", { range: rangeLabel })}>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-12">
-          <div className="lg:col-span-3">
-            <KpiCard
-              accent="visitors"
-              title={t("kpi.uniqueVisitors")}
-              value={nf.format(kpis.uniqueVisitors.value)}
-              definition={t("kpi.uniqueVisitorsDef")}
-              trend={kpis.uniqueVisitors.collecting ? null : kpis.uniqueVisitors.trend}
-              compareLabel={prevOf(kpis.uniqueVisitors.trend?.previous)}
-              badge={kpis.uniqueVisitors.collecting ? t("kpi.collecting") : null}
-              spark={kpis.uniqueVisitors.collecting ? null : kpis.uniqueVisitors.spark}
-              href={link("audience")}
-              drillLabel={t("kpi.drill")}
-              icon={Users}
+        {/* 2 — What needs attention now. */}
+        <NeedsAttentionPanel data={actions} />
+
+        {/* 3 — Engagement trends (8 cols) + measurement pathways (4 cols). */}
+        <div className="grid gap-4 lg:grid-cols-12">
+          <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-4 lg:col-span-8">
+            <h2 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
+              {t("engagement.title")}
+            </h2>
+            <p className="mb-2.5 text-[11.5px] text-text-muted">
+              {t("engagement.subtitle", { range: rangeLabel })}
+            </p>
+            <EngagementChart
+              series={data.engagement.series}
+              prevSeries={data.engagement.prevSeries}
+              annotations={data.engagement.annotations}
+              granularity={data.granularity}
+              compare={filters.compare}
             />
-          </div>
-          <div className="lg:col-span-3">
-            <KpiCard
-              accent="views"
-              title={t("kpi.detailViews")}
-              value={nf.format(kpis.detailViews.value)}
-              definition={t("kpi.detailViewsDef")}
-              trend={kpis.detailViews.trend}
-              compareLabel={prevOf(kpis.detailViews.trend?.previous)}
-              spark={kpis.detailViews.spark}
-              href={link("content")}
-              drillLabel={t("kpi.drill")}
-              icon={Eye}
+          </section>
+
+          <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-4 lg:col-span-4">
+            <h2 id="pathways-heading" className="text-[14px] font-bold text-text-heading">
+              {t("discovery.title")}
+            </h2>
+            <p className="mb-2.5 text-[11.5px] text-text-muted">
+              {t("discovery.subtitle", { range: rangeLabel })}
+            </p>
+            <EngagementPathways
+              volumes={data.discovery.volumes}
+              prevVolumes={data.discovery.prevVolumes}
+              rates={data.discovery.rates}
+              prevRates={data.discovery.prevRates}
+              compare={filters.compare}
+              conversion={data.kpis.conversion}
             />
-          </div>
-          <div className="lg:col-span-3">
-            <KpiCard
-              accent="reader"
-              title={t("kpi.readerOpens")}
-              value={nf.format(kpis.readerOpens.value)}
-              definition={t("kpi.readerOpensDef")}
-              trend={kpis.readerOpens.collecting ? null : kpis.readerOpens.trend}
-              compareLabel={prevOf(kpis.readerOpens.trend?.previous)}
-              badge={kpis.readerOpens.collecting ? t("kpi.collecting") : null}
-              spark={kpis.readerOpens.collecting ? null : kpis.readerOpens.spark}
-              href={link("content")}
-              drillLabel={t("kpi.drill")}
-              icon={BookOpenCheck}
-            />
-          </div>
-          <div className="lg:col-span-3">
-            <KpiCard
-              accent="downloads"
-              title={t("kpi.downloads")}
-              value={nf.format(kpis.downloads.value)}
-              definition={t("kpi.downloadsDef")}
-              trend={kpis.downloads.trend}
-              compareLabel={prevOf(kpis.downloads.trend?.previous)}
-              spark={kpis.downloads.spark}
-              href={link("content")}
-              drillLabel={t("kpi.drill")}
-              icon={Download}
-            />
-          </div>
+          </section>
         </div>
-      </section>
 
-      {/* ── Row 3: engagement chart (8) + discovery & conversion (4) ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <section aria-labelledby="engagement-heading" className="dash-card p-4 lg:col-span-8">
-          <h3 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
-            {t("engagement.title")}
-          </h3>
-          <p className="mb-2.5 text-[11.5px] text-text-muted">
-            {t("engagement.subtitle", { range: rangeLabel })}
-          </p>
-          <EngagementChart
-            series={data.engagement.series}
-            prevSeries={data.engagement.prevSeries}
-            annotations={data.engagement.annotations}
-            granularity={data.granularity}
+        {/* 4 + 5 — Where the collection is short, and what is performing. */}
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+          <SearchOpportunityPanel
+            opportunities={data.searchOpportunities}
+            rangeLabel={rangeLabel}
+            searchHref={link("search")}
+          />
+          <ContentPerformancePanel
+            rows={data.topContent}
+            contentHref={link("content")}
             compare={filters.compare}
           />
-        </section>
-
-        <section aria-labelledby="discovery-heading" className="dash-card p-4 lg:col-span-4">
-          <h3 id="discovery-heading" className="text-[14px] font-bold text-text-heading">
-            {t("discovery.title")}
-          </h3>
-          <p className="mb-2.5 text-[11.5px] text-text-muted">
-            {t("discovery.subtitle", { range: rangeLabel })}
-          </p>
-          <DiscoveryEngagement
-            volumes={data.discovery.volumes}
-            prevVolumes={data.discovery.prevVolumes}
-            rates={data.discovery.rates}
-            prevRates={data.discovery.prevRates}
-            compare={filters.compare}
-            conversion={kpis.conversion}
-          />
-        </section>
-      </div>
-
-      {/* ── Row 4: insights + collection preview ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <InsightsPanel insights={data.insights} />
         </div>
-        <Link
-          href={link("content")}
-          className="dash-card dash-card--interactive group flex items-center gap-3 p-4 lg:col-span-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-        >
-          <span className="dash-ico dash-ico--brand dash-ico--lg" aria-hidden="true">
-            <Library className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-semibold text-text-heading">{t("overview.collectionLink")}</span>
-            <span className="block text-[11.5px] text-text-muted">{t("overview.collectionLinkHint")}</span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-        </Link>
-      </div>
 
-      <FreshnessLine generatedAt={data.generatedAt} note={t("kpi.internalExcluded")} />
-    </div>
+        {/* 6 — What to look at next. */}
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+          <AutomatedInsightsPanel insights={data.insights} emptyHint={t("insights.emptyHint")} />
+          {canSeeAudit && (
+            <RecentAdminActivity entries={activity} logsHref="/admin/logs" generatedAt={data.generatedAt} />
+          )}
+        </div>
+
+        <DataFreshnessBar
+          generatedAt={data.generatedAt}
+          level={health?.level ?? "unknown"}
+          notes={[t("kpi.internalExcluded"), t("states.timezoneNote")]}
+        />
+      </div>
+    </MetricSelectionProvider>
   );
 }

@@ -10,18 +10,26 @@ import {
   type TrendPoint,
 } from "./dashboard";
 import {
+  adminActionLabelKey,
   compareTrend,
+  computeHealthPulse,
   discoveryRates,
   excludeInternal,
+  groupConsecutiveActivity,
   isLikelyTestQuery,
+  isSensitiveAdminAction,
   pct,
   perResource,
+  rankSearchOpportunities,
   serializeDashboardFilters,
   uniqueVisitors,
   type ContentTypeFilter,
   type DashboardFilters,
   type DiscoveryRates,
   type DiscoveryVolumes,
+  type HealthPulse,
+  type SearchOpportunity,
+  type SearchOpportunityInput,
   type TrendInfo,
 } from "./dashboard-shared";
 import { generateInsights, type Insight } from "./insights";
@@ -471,7 +479,35 @@ export type OverviewData = {
     rates: DiscoveryRates;
     prevRates: DiscoveryRates;
   };
+  /** Top performing content in the period, per metric — powers both the
+   *  Overview's content preview and each KPI's details drawer, computed from
+   *  the event rows already in memory (no extra queries). */
+  topContent: TopContentRow[];
+  /** Ranked collection gaps behind the period's search behaviour. */
+  searchOpportunities: SearchOpportunity[];
   insights: Insight[];
+};
+
+export type TopContentRow = {
+  id: string;
+  type: ContentType;
+  title: string;
+  published: boolean;
+  language: "en" | "km" | null;
+  department: string | null;
+  views: number;
+  prevViews: number;
+  readerOpens: number;
+  downloads: number;
+  visitors: number;
+  /** (reader opens + downloads) ÷ views, percent. Null when views = 0. */
+  engagementPct: number | null;
+  /** True when the record has a broken file — the row shows a file warning. */
+  fileBroken: boolean;
+  /** Metadata fields still missing (cover, description, author…). */
+  missing: string[];
+  editHref: string;
+  publicHref: string | null;
 };
 
 function distinctVisitorSeries(rows: EventRow[], win: Window): TrendPoint[] {
@@ -531,8 +567,18 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
   const now = new Date();
   const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
 
-  const [catalog, internalIds, viewRowsAll, readerRowsAll, downloadRowsAll, searchesRes, clicksRes, savesRes, storageErrRes] =
-    await Promise.all([
+  const [
+    catalog,
+    internalIds,
+    viewRowsAll,
+    readerRowsAll,
+    downloadRowsAll,
+    searchesRes,
+    clicksRes,
+    savesRes,
+    storageErrRes,
+    brokenFilesRes,
+  ] = await Promise.all([
       loadContentCatalog(supabase),
       getInternalUserIds(supabase),
       fetchViewRows(supabase, win),
@@ -546,7 +592,7 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
         .limit(10000),
       supabase
         .from("search_result_clicks")
-        .select("clicked_at")
+        .select("clicked_at, normalized_term")
         .gte("clicked_at", win.prevStart.toISOString())
         .lte("clicked_at", win.end.toISOString())
         .limit(10000),
@@ -562,6 +608,7 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
         .in("status", ["error", "timeout"])
         .gte("created_at", win.prevStart.toISOString())
         .lte("created_at", win.end.toISOString()),
+      supabase.from("file_health").select("record_type, record_id").eq("status", "broken").limit(500),
     ]);
 
   const byId = new Map(catalog.map((c) => [`${c.type}:${c.id}`, c]));
@@ -622,9 +669,12 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
     lang: r.query_language,
     term: r.normalized_term,
   }));
-  const clickRows = ((clicksRes.data ?? []) as { clicked_at: string }[]).map((r) => ({
-    current: rowIsCurrent(win, r.clicked_at),
-  }));
+  const clickRows = ((clicksRes.data ?? []) as { clicked_at: string; normalized_term?: string | null }[]).map(
+    (r) => ({
+      current: rowIsCurrent(win, r.clicked_at),
+      term: r.normalized_term ?? null,
+    }),
+  );
   const saveRows = excludeInternal(
     ((savesRes.data ?? []) as { created_at: string; user_id: string | null }[]).map((r) => ({
       current: rowIsCurrent(win, r.created_at),
@@ -742,6 +792,112 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
     periodQuery: serializeDashboardFilters({ ...filters, view: "overview" }),
   });
 
+  // ── Top content (per-record aggregates from rows already in memory) ──
+  // Powers the Overview's content preview and each KPI's details drawer, so
+  // neither needs its own query. Broken-file status comes from the same
+  // file_health probe the Action Center uses.
+  type ContentAgg = {
+    views: number;
+    prevViews: number;
+    opens: number;
+    downloads: number;
+    viewers: Set<string>;
+  };
+  const contentAggs = new Map<string, ContentAgg>();
+  const contentAggOf = (key: string): ContentAgg => {
+    let a = contentAggs.get(key);
+    if (!a) {
+      a = { views: 0, prevViews: 0, opens: 0, downloads: 0, viewers: new Set() };
+      contentAggs.set(key, a);
+    }
+    return a;
+  };
+  for (const r of viewRows) {
+    if (!r.contentId) continue;
+    const a = contentAggOf(`${r.contentType}:${r.contentId}`);
+    if (r.current) {
+      a.views++;
+      const id = r.userId ? `u:${r.userId}` : r.sessionHash ? `s:${r.sessionHash}` : null;
+      if (id) a.viewers.add(id);
+    } else {
+      a.prevViews++;
+    }
+  }
+  for (const r of readerRows ?? []) {
+    if (r.contentId && r.current) contentAggOf(`${r.contentType}:${r.contentId}`).opens++;
+  }
+  for (const r of downloadRows) {
+    if (r.contentId && r.current) contentAggOf(`${r.contentType}:${r.contentId}`).downloads++;
+  }
+
+  const brokenKeys = new Set(
+    ((brokenFilesRes.data ?? []) as { record_type: string; record_id: string }[]).map(
+      (r) => `${r.record_type === "research" ? "research_report" : r.record_type}:${r.record_id}`,
+    ),
+  );
+
+  const TOP_CONTENT_LIMIT = 12;
+  const topContent: TopContentRow[] = [...contentAggs.entries()]
+    .map(([key, agg]) => {
+      const meta = byId.get(key);
+      if (!meta || !metaMatchesFilters(meta, filters)) return null;
+      const engagementBase = agg.opens + agg.downloads;
+      return {
+        id: meta.id,
+        type: meta.type,
+        title: meta.title,
+        published: meta.published,
+        language: meta.language,
+        department: meta.department,
+        views: agg.views,
+        prevViews: agg.prevViews,
+        readerOpens: agg.opens,
+        downloads: agg.downloads,
+        visitors: agg.viewers.size,
+        engagementPct: pct(engagementBase, agg.views),
+        fileBroken: brokenKeys.has(key),
+        missing: meta.missing,
+        editHref: EDIT_HREF[meta.type](meta.id),
+        publicHref: PUBLIC_HREF[meta.type](meta),
+      } satisfies TopContentRow;
+    })
+    .filter((r): r is TopContentRow => r !== null)
+    .sort((a, b) => b.views - a.views || b.readerOpens - a.readerOpens)
+    .slice(0, TOP_CONTENT_LIMIT);
+
+  // ── Search opportunities (same rows the funnel already fetched) ──
+  const termStats = new Map<string, SearchOpportunityInput>();
+  const termStatOf = (term: string): SearchOpportunityInput => {
+    let s = termStats.get(term);
+    if (!s) {
+      s = { term, lang: null, searches: 0, prevSearches: 0, avgResults: 0, clicks: 0 };
+      termStats.set(term, s);
+    }
+    return s;
+  };
+  const resultTotals = new Map<string, { sum: number; n: number }>();
+  for (const s of searchRows) {
+    const stat = termStatOf(s.term);
+    if (s.current) {
+      stat.searches++;
+      if (s.lang && !stat.lang) stat.lang = s.lang;
+      const rt = resultTotals.get(s.term) ?? { sum: 0, n: 0 };
+      rt.sum += s.resultCount ?? 0;
+      rt.n++;
+      resultTotals.set(s.term, rt);
+    } else {
+      stat.prevSearches++;
+    }
+  }
+  for (const c of clickRows) {
+    if (c.current && c.term) termStatOf(c.term).clicks++;
+  }
+  for (const [term, rt] of resultTotals) {
+    const stat = termStats.get(term);
+    if (stat) stat.avgResults = rt.n > 0 ? Math.round((rt.sum / rt.n) * 10) / 10 : null;
+  }
+  const searchOpportunities = rankSearchOpportunities([...termStats.values()]);
+
   const kpi = (rows: EventRow[], current: number, previous: number): KpiDatum => ({
     value: current,
     trend: filters.compare ? compareTrend(current, previous, win.vsLabel) : null,
@@ -801,33 +957,209 @@ export async function getOverviewData(filters: DashboardFilters): Promise<Overvi
         .sort((a, b) => (a.date < b.date ? -1 : 1)),
     },
     discovery,
+    topContent,
+    searchOpportunities,
     insights,
   };
+}
+
+// ── System health pulse ─────────────────────────────────────────────────────
+
+export type HealthPulseData = HealthPulse & {
+  /** Absolute counts behind the checks, for the details drawer. */
+  detail: {
+    brokenFiles: number;
+    storageOps: number;
+    storageErrors: number;
+    aiRequests: number;
+    aiFailures: number;
+    backupAgeHours: number | null;
+  };
+  generatedAt: string;
+};
+
+/**
+ * The "is the library operating normally?" answer, from measured signals only:
+ * broken files (file_health), storage error rate and AI failure rate over the
+ * selected window (app_events), and backup age (ops_events). Rates below their
+ * minimum sample size report "unknown" rather than inventing a verdict — see
+ * computeHealthPulse for the documented thresholds.
+ */
+export async function getHealthPulse(filters: DashboardFilters): Promise<HealthPulseData> {
+  const supabase = createServiceClient();
+  const now = new Date();
+  const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
+
+  const [brokenRes, eventsRes, backupRes] = await Promise.all([
+    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
+    supabase
+      .from("app_events")
+      .select("kind, status")
+      .in("kind", ["storage_operation", "ai_request"])
+      .gte("created_at", win.start.toISOString())
+      .lte("created_at", win.end.toISOString())
+      .limit(10000),
+    supabase
+      .from("ops_events")
+      .select("created_at")
+      .eq("kind", "backup_db")
+      .eq("status", "ok")
+      .order("created_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  const events = (eventsRes.data ?? []) as { kind: string; status: string }[];
+  const isFailure = (s: string) => s === "error" || s === "timeout";
+  const storage = events.filter((e) => e.kind === "storage_operation");
+  const ai = events.filter((e) => e.kind === "ai_request");
+
+  const lastBackupAt = ((backupRes.data ?? []) as { created_at: string }[])[0]?.created_at ?? null;
+  const backupAgeHours = lastBackupAt
+    ? Math.round((now.getTime() - new Date(lastBackupAt).getTime()) / 3_600_000)
+    : null;
+
+  const brokenFiles = brokenRes.count ?? 0;
+  const pulse = computeHealthPulse({
+    brokenFiles,
+    brokenFilesHref: brokenFileFixHref(
+      brokenFiles,
+      (brokenRes.data ?? []) as { record_type: string; record_id: string }[],
+    ),
+    storageOps: storage.length,
+    storageErrors: storage.filter((e) => isFailure(e.status)).length,
+    aiRequests: ai.length,
+    aiFailures: ai.filter((e) => isFailure(e.status)).length,
+    backupAgeHours,
+    systemHref: "/admin?view=system",
+  });
+
+  return {
+    ...pulse,
+    detail: {
+      brokenFiles,
+      storageOps: storage.length,
+      storageErrors: storage.filter((e) => isFailure(e.status)).length,
+      aiRequests: ai.length,
+      aiFailures: ai.filter((e) => isFailure(e.status)).length,
+      backupAgeHours,
+    },
+    generatedAt: now.toISOString(),
+  };
+}
+
+// ── Recent administrative activity ──────────────────────────────────────────
+
+export type AdminActivityEntry = {
+  action: string;
+  /** i18n key under adminDashboard.system.activity.*, or null → humanised. */
+  labelKey: string | null;
+  table: string;
+  actor: string;
+  createdAt: string;
+  /** Repeat count when consecutive identical actions were collapsed. */
+  repeats: number;
+  /** Touches personal data (contact reveal, password reset, suspension…). */
+  sensitive: boolean;
+  href: string | null;
+};
+
+/** Audit tables an admin can be linked straight into. */
+const AUDIT_TARGET_HREF: Record<string, string> = {
+  books: "/admin/books",
+  research_reports: "/admin/theses",
+  publications: "/admin/publications",
+  posts: "/admin/posts",
+  profiles: "/admin/users",
+  book_requests: "/admin/book-requests",
+  contact_messages: "/admin/inbox",
+  announcements: "/admin/announcements",
+  site_settings: "/admin/system-settings",
+};
+
+/**
+ * Latest admin_audit_log entries, with bulk runs collapsed. Caller must gate
+ * this on ADMIN_ROLES — the audit trail names administrators and the records
+ * they touched, so it is not staff-visible.
+ */
+export async function getRecentAdminActivity(limit = 6): Promise<AdminActivityEntry[]> {
+  const supabase = createServiceClient();
+  // Over-fetch so grouping still yields `limit` distinct rows after collapsing.
+  const { data } = await supabase
+    .from("admin_audit_log")
+    .select("action, target_table, created_at, admin:profiles(full_name)")
+    .order("created_at", { ascending: false })
+    .limit(limit * 5);
+
+  type AuditRow = {
+    action: string;
+    target_table: string | null;
+    created_at: string;
+    admin: { full_name: string | null } | { full_name: string | null }[] | null;
+  };
+
+  const rows = ((data ?? []) as AuditRow[]).map((r) => {
+    const admin = Array.isArray(r.admin) ? r.admin[0] : r.admin;
+    return {
+      action: r.action,
+      table: r.target_table ?? "",
+      actor: admin?.full_name ?? "Admin",
+      createdAt: r.created_at,
+    };
+  });
+
+  return groupConsecutiveActivity(rows)
+    .slice(0, limit)
+    .map((g) => ({
+      action: g.head.action,
+      labelKey: adminActionLabelKey(g.head.action),
+      table: g.head.table,
+      actor: g.head.actor,
+      createdAt: g.head.createdAt,
+      repeats: g.entries.length,
+      sensitive: isSensitiveAdminAction(g.head.action),
+      href: AUDIT_TARGET_HREF[g.head.table] ?? null,
+    }));
 }
 
 // ── Action Center ───────────────────────────────────────────────────────────
 
 export type ActionSeverity = "critical" | "warning" | "pending" | "info";
 
+/** Which part of the system an alert belongs to — shown on the row so the
+ *  administrator can tell an operational failure from a content backlog. */
+export type ActionModule = "storage" | "content" | "search" | "requests" | "inbox" | "catalog" | "system";
+
+export type ActionItemKey =
+  | "brokenFiles"
+  | "storageErrors"
+  | "r2Fallback"
+  | "aiFailures"
+  | "missingMetadata"
+  | "contentDrafts"
+  | "staleDrafts"
+  | "pendingRequests"
+  | "contactInbox"
+  | "needsReview"
+  | "zeroResultQueries"
+  | "lowStock"
+  | "catalogEmpty";
+
 export type ActionItem = {
-  key:
-    | "brokenFiles"
-    | "storageErrors"
-    | "r2Fallback"
-    | "aiFailures"
-    | "missingMetadata"
-    | "contentDrafts"
-    | "staleDrafts"
-    | "pendingRequests"
-    | "contactInbox"
-    | "needsReview"
-    | "zeroResultQueries"
-    | "lowStock"
-    | "catalogEmpty";
+  key: ActionItemKey;
   severity: ActionSeverity;
   count: number;
   oldestAt: string | null;
   href: string;
+  module: ActionModule;
+  /**
+   * Measured collateral impact during the selected period, when it can be
+   * quantified from real events (reader/download attempts against broken
+   * files, searches that returned nothing). Absent means "not measurable" —
+   * never a guess.
+   */
+  impact?: { key: "readerAttempts" | "searches"; value: number };
+  /** Extra destinations offered in the row's overflow menu. */
+  secondary?: { key: string; href: string }[];
 };
 
 export type ActionCenterData = {
@@ -872,7 +1204,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     zeroRes,
     catalogRes,
   ] = await Promise.all([
-    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
+    supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(500),
     supabase
       .from("app_events")
       .select("created_at, status")
@@ -910,15 +1242,56 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     else passedKeys.push(item.key);
   };
 
+  // ── Broken files: quantify the reader/download attempts they cost us ──
+  // Only when something is actually broken, so healthy installs pay nothing.
+  const brokenRows = (brokenRes.data ?? []) as { record_type: string; record_id: string }[];
+  const brokenCount = brokenRes.count ?? 0;
+  let brokenAttempts = 0;
+  if (brokenCount > 0 && brokenRows.length > 0) {
+    const ids = brokenRows.map((r) => r.record_id).slice(0, 200);
+    // reader_open_logs arrived in 0090 and download_logs.content_id in 0072:
+    // on a database behind the chain these counts simply aren't available, so
+    // a failure drops the impact line rather than taking the whole queue down.
+    const countOrZero = async (query: PromiseLike<{ count: number | null }>): Promise<number> => {
+      try {
+        return (await query).count ?? 0;
+      } catch {
+        return 0;
+      }
+    };
+    const [openAttempts, downloadAttempts] = await Promise.all([
+      countOrZero(
+        supabase
+          .from("reader_open_logs")
+          .select("id", { count: "exact", head: true })
+          .in("content_id", ids)
+          .gte("opened_at", win.start.toISOString())
+          .lte("opened_at", win.end.toISOString()),
+      ),
+      countOrZero(
+        supabase
+          .from("download_logs")
+          .select("id", { count: "exact", head: true })
+          .in("content_id", ids)
+          .gte("downloaded_at", win.start.toISOString())
+          .lte("downloaded_at", win.end.toISOString()),
+      ),
+    ]);
+    brokenAttempts = openAttempts + downloadAttempts;
+  }
+
   push({
     key: "brokenFiles",
     severity: "critical",
-    count: brokenRes.count ?? 0,
+    count: brokenCount,
     oldestAt: null,
-    href: brokenFileFixHref(
-      brokenRes.count ?? 0,
-      (brokenRes.data ?? []) as { record_type: string; record_id: string }[],
-    ),
+    href: brokenFileFixHref(brokenCount, brokenRows),
+    module: "storage",
+    ...(brokenAttempts > 0 ? { impact: { key: "readerAttempts" as const, value: brokenAttempts } } : {}),
+    secondary: [
+      { key: "dataQuality", href: "/admin/data-quality" },
+      { key: "storage", href: "/admin/storage" },
+    ],
   });
 
   type StorageRow = { created_at: string; status: string };
@@ -930,6 +1303,8 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: storageErrors.length,
     oldestAt: storageErrors[0]?.created_at ?? null,
     href: "/admin?view=system",
+    module: "storage",
+    secondary: [{ key: "storage", href: "/admin/storage" }],
   });
   const fallbacks = storageRows.filter((r) => r.status === "fallback");
   push({
@@ -938,6 +1313,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: fallbacks.length,
     oldestAt: null,
     href: "/admin?view=system",
+    module: "storage",
   });
 
   type AiRow = { status: string };
@@ -950,6 +1326,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: aiRows.length >= 5 && aiFailures / aiRows.length >= 0.2 ? aiFailures : 0,
     oldestAt: null,
     href: "/admin?view=system",
+    module: "system",
   });
 
   type BookHealthRow = {
@@ -974,6 +1351,8 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: missingMeta,
     oldestAt: null,
     href: "/admin/data-quality",
+    module: "content",
+    secondary: [{ key: "contentView", href: "/admin?view=content&preset=incompleteMetadata" }],
   });
 
   const bookDrafts = books.filter((b) => !b.is_published);
@@ -988,6 +1367,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: bookDrafts.length + postDrafts.length + thesisDrafts.length,
     oldestAt: draftDates[0] ?? null,
     href: "/admin/review",
+    module: "content",
   });
   push({
     key: "staleDrafts",
@@ -995,6 +1375,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: draftDates.filter((d) => d < staleCutoff).length,
     oldestAt: draftDates[0] ?? null,
     href: "/admin/review",
+    module: "content",
   });
 
   const requests = (requestsRes.data ?? []) as { created_at: string }[];
@@ -1004,6 +1385,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: requests.length,
     oldestAt: requests[0]?.created_at ?? null,
     href: "/admin/book-requests",
+    module: "requests",
   });
 
   const contacts = (contactRes.data ?? []) as { created_at: string }[];
@@ -1013,6 +1395,7 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: contacts.length,
     oldestAt: contacts[0]?.created_at ?? null,
     href: "/admin/inbox",
+    module: "inbox",
   });
 
   push({
@@ -1021,18 +1404,25 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
     count: needsReviewRes.count ?? 0,
     oldestAt: null,
     href: "/admin/review",
+    module: "content",
   });
 
   const zeroTerms = new Map<string, number>();
   for (const r of (zeroRes.data ?? []) as { normalized_term: string }[]) {
     zeroTerms.set(r.normalized_term, (zeroTerms.get(r.normalized_term) ?? 0) + 1);
   }
+  const repeatedZeroTerms = [...zeroTerms.entries()].filter(([, n]) => n >= 3);
+  // Impact = how many individual searches those repeated terms cost readers.
+  const zeroSearchesAffected = repeatedZeroTerms.reduce((sum, [, n]) => sum + n, 0);
   push({
     key: "zeroResultQueries",
     severity: "warning",
-    count: [...zeroTerms.values()].filter((n) => n >= 3).length,
+    count: repeatedZeroTerms.length,
     oldestAt: null,
     href: "/admin/search-insights",
+    module: "search",
+    ...(zeroSearchesAffected > 0 ? { impact: { key: "searches" as const, value: zeroSearchesAffected } } : {}),
+    secondary: [{ key: "searchView", href: "/admin?view=search" }],
   });
 
   const catalog = (catalogRes.data ?? []) as { copies_total: number | null; copies_available: number | null }[];
@@ -1040,7 +1430,14 @@ export async function getActionCenter(filters: DashboardFilters): Promise<Action
   // An empty physical catalogue is onboarding, not a failure — it lives in
   // Collection Health, never in this queue.
   if (catalog.length > 0) {
-    push({ key: "lowStock", severity: "warning", count: lowStock, oldestAt: null, href: "/admin/catalogs" });
+    push({
+      key: "lowStock",
+      severity: "warning",
+      count: lowStock,
+      oldestAt: null,
+      href: "/admin/catalogs",
+      module: "catalog",
+    });
   }
 
   const order: Record<ActionSeverity, number> = { critical: 0, warning: 1, pending: 2, info: 3 };
