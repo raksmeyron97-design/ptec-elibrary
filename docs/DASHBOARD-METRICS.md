@@ -69,6 +69,72 @@ differ — e.g. downloads recorded before view instrumentation covered
 anonymous visitors) and renders as a dash with an explanation, never as a
 percentage. Raw volumes are listed alongside without any implied sequence.
 
+## Overview redesign (2026-07-22)
+
+The Overview became a control centre rather than a report. **No existing
+metric definition changed** — the additions below are new, derived measures,
+and the KPI/discovery formulas above are untouched.
+
+### System health (new)
+
+`computeHealthPulse` (`lib/admin/dashboard-shared.ts`, unit-tested) turns four
+measured signals into one operational verdict. Each check reports its own
+level so the UI names the failing subsystem instead of showing an opaque
+score, and any check below its minimum sample size reports **unknown** rather
+than inventing a verdict.
+
+| Check | Source | Warning | Critical | Min sample |
+|---|---|---|---|---|
+| Broken files | `file_health.status = 'broken'` | — | > 0 | none (a count) |
+| Storage error rate | `app_events kind=storage_operation`, status error/timeout | ≥ 2% | ≥ 10% | 10 requests |
+| AI failure rate | `app_events kind=ai_request`, status error/timeout | ≥ 20% | — | 5 requests |
+| Backup age | latest `ops_events kind=backup_db status=ok` | > 48 h | > 168 h | none |
+
+Roll-up: any critical → **critical**; any warning → **degraded**; no check
+measurable → **unknown**; otherwise **operational**. The header status line and
+the first Executive Pulse card both read from this.
+
+### Engagement pathways (presentation change only)
+
+The three pairwise rates are unchanged; they are now grouped into two named
+pathways and each rate states its **attribution class**:
+
+- *Attributable* — both sides come from the same instrumented interaction
+  (search → result click).
+- *Independent* — both sides are measured but no event links them
+  (detail view → reader open, detail view → download). The ratio describes
+  population behaviour, not a per-visitor journey.
+
+Every rate also renders its numerator and denominator, so "5.1%" is always
+visible as "18 of 352". No further search conversion is claimed, because
+detail views that follow a search are not linked to that search.
+
+### Search opportunities (new)
+
+`rankSearchOpportunities` (unit-tested) ranks terms searched ≥3 times in the
+period, excluding `isLikelyTestQuery` matches, by volume weighted by how badly
+the term is served (zero results ×3, ≤3 results ×2, CTR < 10% ×1). Every row
+shows searches, mean result count and click-through — the panel never
+recommends an action without displaying the evidence behind it.
+
+### Chart aggregation (new)
+
+Day-bucketed series roll up to weeks (ranges > 45 buckets) or months (> 120),
+selectable by the administrator. Count metrics are **summed**; unique visitors
+are **peaked** (`mode: "max"`) because distinct counts cannot be summed across
+days without double-counting returning readers — the chart says so in a note
+whenever a rolled-up visitor series is shown.
+
+### Alert lifecycle (deliberate non-feature)
+
+Needs-attention items are derived live from the data on every request, not
+stored as tickets. They therefore cannot be assigned, snoozed or manually
+resolved — an item disappears when the underlying condition is fixed, and the
+"Clear" filter lists the checks that currently pass. Search terms are the one
+exception: they can be dismissed, which writes an `ignored`
+`search_term_action` (the same reversible governance trail as
+`/admin/search-insights`) and never deletes raw analytics.
+
 ## Internal-traffic exclusion (verified correction, 2026-07-12)
 
 Hosted-data audit found **58% of view events (205/355) and 5/13 downloads
@@ -159,3 +225,15 @@ dashboard.
 - Thesis reader opens: theses have no online PDF reader surface today, so the
   funnel's reader stage covers books (the migration supports theses and
   publications for the future).
+- Needs-attention items cannot be assigned to an administrator or marked
+  in-progress — there is no alert-state table, and inventing one would mean
+  storing workflow state the dashboard cannot verify. Assignment would need a
+  migration adding an `alert_state` table keyed by (alert key, target id).
+- Automated insights cannot be dismissed or saved for the same reason; they
+  reappear while the condition that produced them holds.
+- Broken-file impact ("N reader-open or download attempts") counts events
+  against the affected records inside the selected period. It is a lower
+  bound: a reader who gave up before triggering an event is not counted.
+- The publishing-event popover reports engagement in the buckets after a
+  publish versus the buckets before it. That is a **correlation** and is
+  worded as one; the data cannot attribute a view to a publishing event.

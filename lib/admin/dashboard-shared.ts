@@ -151,6 +151,256 @@ export function activeFilterCount(f: DashboardFilters): number {
   return n;
 }
 
+// ── Selected engagement metric (KPI ↔ chart link) ────────────────────────────
+//
+// Deliberately NOT part of DashboardFilters: it selects which series the chart
+// draws and which KPI card is highlighted, and changes nothing the server
+// queries. Keeping it out of the filter set means switching metric never
+// invalidates the Suspense key or re-runs an analytics query — the client
+// updates the URL shallowly (history.pushState) and re-renders locally.
+
+export const DASHBOARD_METRICS = ["views", "visitors", "readerOpens", "downloads"] as const;
+export type DashboardMetric = (typeof DASHBOARD_METRICS)[number];
+export const DEFAULT_METRIC: DashboardMetric = "views";
+
+/** Validate a `?metric=` value, falling back to the default for anything unknown. */
+export function parseMetric(raw: string | string[] | undefined): DashboardMetric {
+  const v = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : undefined;
+  return (DASHBOARD_METRICS as readonly string[]).includes(v ?? "") ? (v as DashboardMetric) : DEFAULT_METRIC;
+}
+
+// ── Chart aggregation grain ──────────────────────────────────────────────────
+
+export const CHART_GRAINS = ["day", "week", "month"] as const;
+export type ChartGrain = (typeof CHART_GRAINS)[number];
+
+/**
+ * Which aggregation a day-bucketed series should default to, so a 90-day range
+ * doesn't render 90 unreadable ticks. Hour-bucketed windows (the "today"
+ * range) are never re-aggregated.
+ */
+export function autoGrain(bucketCount: number, granularity: "hour" | "day"): ChartGrain {
+  if (granularity === "hour") return "day";
+  if (bucketCount > 120) return "month";
+  if (bucketCount > 45) return "week";
+  return "day";
+}
+
+/** ISO-week-ish key: the Monday of the bucket's week, as YYYY-MM-DD. */
+function weekKey(ymd: string): string {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Re-bucket a daily series to weekly/monthly totals. Values are summed, which
+ * is correct for count metrics (views, opens, downloads) but NOT for distinct
+ * counts — unique visitors summed across days double-counts a returning
+ * visitor. Callers pass `mode: "max"` for such series so the aggregate shows
+ * the busiest constituent bucket rather than an inflated total; the UI labels
+ * it accordingly.
+ */
+export function aggregateSeries<T extends { date: string; value: number }>(
+  points: T[],
+  grain: ChartGrain,
+  mode: "sum" | "max" = "sum",
+): { date: string; value: number }[] {
+  if (grain === "day" || points.length === 0) return points.map((p) => ({ date: p.date, value: p.value }));
+  const keyOf = (ymd: string) => (grain === "week" ? weekKey(ymd) : `${ymd.slice(0, 7)}-01`);
+  const out: { date: string; value: number }[] = [];
+  const index = new Map<string, number>();
+  for (const p of points) {
+    // Hour buckets ("2026-07-22T14") have no meaningful week/month rollup.
+    const ymd = p.date.length >= 10 ? p.date.slice(0, 10) : p.date;
+    const key = keyOf(ymd);
+    const at = index.get(key);
+    if (at === undefined) {
+      index.set(key, out.length);
+      out.push({ date: key, value: p.value });
+    } else {
+      out[at].value = mode === "sum" ? out[at].value + p.value : Math.max(out[at].value, p.value);
+    }
+  }
+  return out;
+}
+
+// ── System health pulse ──────────────────────────────────────────────────────
+//
+// A single operational answer to "is the library running normally?", derived
+// only from measured signals. Every check reports its own level so the UI can
+// name the failing subsystem instead of showing an opaque score.
+
+export const HEALTH_CHECKS = ["brokenFiles", "storageErrors", "aiFailures", "backupAge"] as const;
+export type HealthCheckKey = (typeof HEALTH_CHECKS)[number];
+export type HealthCheckLevel = "ok" | "warn" | "critical" | "unknown";
+export type HealthLevel = "operational" | "degraded" | "critical" | "unknown";
+
+export type HealthCheck = {
+  key: HealthCheckKey;
+  level: HealthCheckLevel;
+  /** Measured value behind the verdict (count, percentage or hours). */
+  value: number | null;
+  /** Sample size the verdict rests on — below it the check reports "unknown". */
+  sample?: number;
+  href: string;
+};
+
+export type HealthPulse = {
+  level: HealthLevel;
+  checks: HealthCheck[];
+  failing: number;
+  passing: number;
+  unknown: number;
+};
+
+/** Thresholds are constants (not magic numbers inline) so they are documented
+ *  and testable; see docs/DASHBOARD-METRICS.md. */
+export const HEALTH_THRESHOLDS = {
+  /** Storage ops needed before an error rate means anything. */
+  storageMinSample: 10,
+  storageWarnPct: 2,
+  storageCriticalPct: 10,
+  /** AI requests needed before a failure rate means anything. */
+  aiMinSample: 5,
+  aiWarnPct: 20,
+  backupWarnHours: 48,
+  backupCriticalHours: 168,
+} as const;
+
+export function computeHealthPulse(input: {
+  brokenFiles: number;
+  brokenFilesHref: string;
+  storageOps: number;
+  storageErrors: number;
+  aiRequests: number;
+  aiFailures: number;
+  backupAgeHours: number | null;
+  systemHref: string;
+}): HealthPulse {
+  const T = HEALTH_THRESHOLDS;
+
+  const storagePct = input.storageOps > 0 ? (input.storageErrors / input.storageOps) * 100 : null;
+  const aiPct = input.aiRequests > 0 ? (input.aiFailures / input.aiRequests) * 100 : null;
+
+  const checks: HealthCheck[] = [
+    {
+      key: "brokenFiles",
+      level: input.brokenFiles > 0 ? "critical" : "ok",
+      value: input.brokenFiles,
+      href: input.brokenFilesHref,
+    },
+    {
+      key: "storageErrors",
+      level:
+        input.storageOps < T.storageMinSample
+          ? "unknown"
+          : storagePct !== null && storagePct >= T.storageCriticalPct
+            ? "critical"
+            : storagePct !== null && storagePct >= T.storageWarnPct
+              ? "warn"
+              : "ok",
+      value: storagePct === null ? null : Math.round(storagePct * 10) / 10,
+      sample: input.storageOps,
+      href: input.systemHref,
+    },
+    {
+      key: "aiFailures",
+      level:
+        input.aiRequests < T.aiMinSample ? "unknown" : aiPct !== null && aiPct >= T.aiWarnPct ? "warn" : "ok",
+      value: aiPct === null ? null : Math.round(aiPct * 10) / 10,
+      sample: input.aiRequests,
+      href: input.systemHref,
+    },
+    {
+      key: "backupAge",
+      level:
+        input.backupAgeHours === null
+          ? "unknown"
+          : input.backupAgeHours > T.backupCriticalHours
+            ? "critical"
+            : input.backupAgeHours > T.backupWarnHours
+              ? "warn"
+              : "ok",
+      value: input.backupAgeHours,
+      href: input.systemHref,
+    },
+  ];
+
+  const failingCritical = checks.filter((c) => c.level === "critical").length;
+  const failingWarn = checks.filter((c) => c.level === "warn").length;
+  const unknown = checks.filter((c) => c.level === "unknown").length;
+  const passing = checks.filter((c) => c.level === "ok").length;
+
+  const level: HealthLevel =
+    failingCritical > 0 ? "critical" : failingWarn > 0 ? "degraded" : passing === 0 ? "unknown" : "operational";
+
+  return { level, checks, failing: failingCritical + failingWarn, passing, unknown };
+}
+
+// ── Search opportunity ranking ───────────────────────────────────────────────
+
+export type SearchOpportunityKind = "zeroResult" | "lowCoverage" | "lowClickThrough";
+
+export type SearchOpportunityInput = {
+  term: string;
+  lang: string | null;
+  searches: number;
+  prevSearches: number;
+  /** Mean result count across the term's searches in the period. */
+  avgResults: number | null;
+  clicks: number;
+};
+
+export type SearchOpportunity = SearchOpportunityInput & {
+  kind: SearchOpportunityKind;
+  ctrPct: number | null;
+  /** Rising when the term more than doubled off a base of ≥3 searches. */
+  trending: boolean;
+  /** Ranking weight — volume scaled by how badly the term is served. */
+  score: number;
+};
+
+const OPPORTUNITY_MIN_SEARCHES = 3;
+const LOW_COVERAGE_MAX_RESULTS = 3;
+const LOW_CTR_PCT = 10;
+
+/**
+ * Rank search terms by how much collection work they justify. Only terms with
+ * a real repeat signal qualify, obvious test/automation strings are dropped
+ * (`isLikelyTestQuery`), and every returned row carries the numbers behind its
+ * recommendation so the UI never advises without evidence.
+ */
+export function rankSearchOpportunities(
+  rows: SearchOpportunityInput[],
+  limit = 5,
+): SearchOpportunity[] {
+  const out: SearchOpportunity[] = [];
+  for (const r of rows) {
+    if (r.searches < OPPORTUNITY_MIN_SEARCHES) continue;
+    if (isLikelyTestQuery(r.term)) continue;
+
+    const ctrPct = r.clicks > 0 || r.searches > 0 ? Math.round((r.clicks / r.searches) * 1000) / 10 : null;
+    const zero = r.avgResults !== null && r.avgResults < 0.5;
+    const lowCoverage = !zero && r.avgResults !== null && r.avgResults <= LOW_COVERAGE_MAX_RESULTS;
+    const lowCtr = !zero && !lowCoverage && ctrPct !== null && ctrPct < LOW_CTR_PCT;
+    if (!zero && !lowCoverage && !lowCtr) continue;
+
+    const kind: SearchOpportunityKind = zero ? "zeroResult" : lowCoverage ? "lowCoverage" : "lowClickThrough";
+    // Severity weight: nothing to show > barely anything to show > shown but ignored.
+    const weight = zero ? 3 : lowCoverage ? 2 : 1;
+    out.push({
+      ...r,
+      kind,
+      ctrPct,
+      trending: r.prevSearches >= 3 && r.searches >= r.prevSearches * 2,
+      score: r.searches * weight,
+    });
+  }
+  return out.sort((a, b) => b.score - a.score || b.searches - a.searches).slice(0, limit);
+}
+
 // ── Period comparison ────────────────────────────────────────────────────────
 
 export type TrendInfo = {
