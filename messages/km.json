@@ -980,6 +980,11 @@
     "linkAdminPanel": "ផ្ទាំងគ្រប់គ្រង",
     "recentDownloads": "ការទាញយកថ្មីៗ"
   },
+  "metrics": {
+    "views": "{count, plural, other {ការមើល #}}",
+    "downloads": "{count, plural, other {ការទាញយក #}}",
+    "reviews": "{count, plural, other {ការវាយតម្លៃ #}}"
+  },
   "notifications": {
     "bellLabel": "ការជូនដំណឹង",
     "bellLabelWithCount": "ការជូនដំណឹង, {count, plural, =0 {មិនមានសារមិនទាន់អាន} other {# មិនទាន់អាន}}",

@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import type { Book } from "@/lib/books";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
-import Icon from "@/components/ui/core/Icon";
+import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { useTranslations } from "next-intl";
 
 type BookCardProps = {
@@ -41,6 +41,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
 
   const t = useTranslations("home");
   const tc = useTranslations("bookCard");
+  const tm = useTranslations("metrics");
 
   const isContinue = variant === "continue";
   const progress = book.progressPct ?? 0;
@@ -153,31 +154,19 @@ export default function BookCard({ book, variant = "browse", priority = false }:
                 not information. */}
             {!isContinue && ((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0 || reviews > 0) && (
               <div className="mb-2.5 flex flex-col gap-1.5">
-                {((book.viewCount ?? 0) > 0 || (book.downloadCount ?? 0) > 0) && (
-                  <div className="flex items-center gap-2 text-[11px] text-text-muted">
-                    {(book.viewCount ?? 0) > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Icon name="eye" className="h-[13px] w-[13px]" />
-                        {formatCount(book.viewCount ?? 0)}
-                      </span>
-                    )}
-                    {(book.viewCount ?? 0) > 0 && (book.downloadCount ?? 0) > 0 && (
-                      <span className="text-divider">·</span>
-                    )}
-                    {(book.downloadCount ?? 0) > 0 && (
-                      <span className="flex items-center gap-1">
-                        <Icon name="download" className="h-[13px] w-[13px]" />
-                        {formatCount(book.downloadCount ?? 0)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                <ResourceMetrics
+                  views={book.viewCount}
+                  downloads={book.downloadCount}
+                  size="sm"
+                  className="gap-2"
+                />
 
                 {reviews > 0 && (
                   <div className="flex items-center gap-1.5">
                     <RatingStars rating={book.rating} compact />
-                    <span className="text-[10px] text-text-muted">
-                      · {formatCount(reviews)}
+                    <span className="text-[10px] text-text-muted tabular-nums" title={tm("reviews", { count: reviews })}>
+                      <span aria-hidden="true">· {formatCount(reviews)}</span>
+                      <span className="sr-only">{tm("reviews", { count: reviews })}</span>
                     </span>
                   </div>
                 )}

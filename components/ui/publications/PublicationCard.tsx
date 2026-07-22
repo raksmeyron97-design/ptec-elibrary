@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/core/Badge";
 import type { Publication } from "@/lib/publications";
 import { citationYear } from "@/lib/citations";
+import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 
 const TYPE_LABELS: Record<string, string> = {
   article: "Article",
@@ -12,13 +13,6 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function PublicationCard({ publication }: { publication: Publication }) {
-  const formatCount = (n: number) =>
-    n >= 1_000_000
-      ? `${(n / 1_000_000).toFixed(1)}M`
-      : n >= 1_000
-        ? `${(n / 1_000).toFixed(1)}K`
-        : String(n || 0);
-
   const downloads = publication.download_count || 0;
   const views = publication.view_count || 0;
   const keywords = (publication.keywords ?? []).slice(0, 2);
@@ -122,43 +116,7 @@ export default function PublicationCard({ publication }: { publication: Publicat
           {/* ── Footer ── */}
           <div className="mt-auto pt-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {downloads > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                    <svg
-                      className="h-3 w-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 3v13m0 0-4-4m4 4 4-4" />
-                      <path d="M4 20h16" />
-                    </svg>
-                    {formatCount(downloads)}
-                  </span>
-                )}
-
-                {views > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                    <svg
-                      className="h-3 w-3"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    {formatCount(views)}
-                  </span>
-                )}
-              </div>
+              <ResourceMetrics views={views} downloads={downloads} size="xs" />
 
               <span className="inline-flex items-center gap-0.5 rounded-full border border-brand/15 bg-brand/5 px-3 py-1.5 text-[11px] font-bold text-brand transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-contrast sm:px-2.5 sm:py-1 sm:text-[10px]">
                 View
