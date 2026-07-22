@@ -975,6 +975,11 @@
     "linkAdminPanel": "Admin Panel",
     "recentDownloads": "Recent Downloads"
   },
+  "metrics": {
+    "views": "{count, plural, one {# view} other {# views}}",
+    "downloads": "{count, plural, one {# download} other {# downloads}}",
+    "reviews": "{count, plural, one {# review} other {# reviews}}"
+  },
   "notifications": {
     "bellLabel": "Notifications",
     "bellLabelWithCount": "Notifications, {count, plural, =0 {no unread} one {# unread} other {# unread}}",

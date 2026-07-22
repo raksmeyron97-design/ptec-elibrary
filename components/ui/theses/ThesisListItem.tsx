@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Eye, Download, ArrowRight, GraduationCap, Languages, FileX2 } from "lucide-react";
+import { Download, ArrowRight, GraduationCap, Languages, FileX2 } from "lucide-react";
+import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import CiteThis from "@/components/ui/theses/CiteThis";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
@@ -131,14 +132,11 @@ export default async function ThesisListItem({
 
         {/* Footer row */}
         <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-emerald-700 dark:text-emerald-400">
-            <Eye className="h-3.5 w-3.5" />
-            {report.view_count || 0}
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-amber-700 dark:text-amber-400">
-            <Download className="h-3.5 w-3.5" />
-            {report.download_count || 0}
-          </span>
+          <ResourceMetrics
+            views={report.view_count}
+            downloads={report.download_count}
+            size="md"
+          />
           {doi && (
             <a
               href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
