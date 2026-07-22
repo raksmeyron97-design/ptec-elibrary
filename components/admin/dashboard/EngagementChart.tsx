@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Loader2, X } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import type { TrendPoint } from "@/lib/admin/dashboard";
+import {
+  aggregateSeries,
+  autoGrain,
+  CHART_GRAINS,
+  type ChartGrain,
+  type DashboardMetric,
+} from "@/lib/admin/dashboard-shared";
 import { useContainerWidth, formatBucket, niceMax4, AXIS_TEXT, ChartGrid } from "./chart-utils";
+import { useMetricSelection } from "./MetricSelection";
 
 /** Shape returned by /api/admin/dashboard/day-breakdown. */
 type DrillData = {
@@ -14,7 +22,7 @@ type DrillData = {
   items: { type: string; id: string; title: string; views: number; editHref: string }[];
 };
 
-type SeriesKey = "views" | "visitors" | "readerOpens" | "downloads";
+type SeriesKey = DashboardMetric;
 
 const SERIES_COLOR: Record<SeriesKey, string> = {
   views: "#1E3A8A",
@@ -31,6 +39,15 @@ const SERIES_DASH: Record<SeriesKey, string | undefined> = {
   downloads: "8 3 2 3",
 };
 
+/** Unique-visitor buckets are distinct counts — summing them across days would
+ *  double-count returning readers, so weekly/monthly rollups take the peak. */
+const AGGREGATION_MODE: Record<SeriesKey, "sum" | "max"> = {
+  views: "sum",
+  visitors: "max",
+  readerOpens: "sum",
+  downloads: "sum",
+};
+
 export type EngagementSeries = {
   views: TrendPoint[];
   visitors: TrendPoint[];
@@ -38,11 +55,25 @@ export type EngagementSeries = {
   downloads: TrendPoint[];
 };
 
+type Annotation = { date: string; count: number; titles?: string[] };
+
+/** Reader opens are nullable while the event is still collecting. */
+const rawSeriesOf = (k: SeriesKey, src: EngagementSeries): TrendPoint[] =>
+  (k === "readerOpens" ? (src.readerOpens ?? []) : src[k]) as TrendPoint[];
+
 /**
- * Primary engagement chart. Default mode shows ONE selected metric with the
- * previous period as a subtle dashed overlay plus a total/average/peak
- * summary; "Compare metrics" is an explicit opt-in mode for all series.
- * Zero-based axis, publish-annotation toggle, table alternative.
+ * The dashboard's main analytical workspace.
+ *
+ * The metric shown is the one selected in the Executive Pulse (shared through
+ * MetricSelection), so the KPI row and the chart can never disagree. The
+ * toolbar carries only the controls an administrator reaches for constantly —
+ * metric, aggregation, comparison — and everything else (publish markers,
+ * multi-series compare, the data table) lives behind "More".
+ *
+ * Long ranges are rolled up to weeks or months rather than rendered as a comb
+ * of unreadable daily ticks; the roll-up is honest about distinct counts.
+ * Publish markers open a popover naming what was published and how engagement
+ * moved *after* it — never a causal claim.
  */
 export default function EngagementChart({
   series,
@@ -53,67 +84,148 @@ export default function EngagementChart({
 }: {
   series: EngagementSeries;
   prevSeries: EngagementSeries;
-  annotations: { date: string; count: number; titles?: string[] }[];
+  annotations: Annotation[];
   granularity: "hour" | "day";
   compare: boolean;
 }) {
   const t = useTranslations("adminDashboard.engagement");
   const chartId = useId();
   const [ref, width] = useContainerWidth();
-  const [metric, setMetric] = useState<SeriesKey>("views");
+  const { metric, selectMetric } = useMetricSelection();
+
+  const defaultGrain = autoGrain(series.views.length, granularity);
+  const [grain, setGrain] = useState<ChartGrain>(defaultGrain);
   const [compareAll, setCompareAll] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [showTable, setShowTable] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   // ── Point drill-down (that bucket's top viewed titles) ──
   const [drillBucket, setDrillBucket] = useState<string | null>(null);
   const [drillCache, setDrillCache] = useState<Map<string, DrillData>>(new Map());
-  const [drillLoading, setDrillLoading] = useState(false);
-  const [drillError, setDrillError] = useState<string | null>(null);
+  /** Errors are stored with the bucket they belong to, so switching bucket
+   *  clears the message without a synchronous setState inside the effect. */
+  const [drillError, setDrillError] = useState<{ bucket: string; message: string } | null>(null);
   const drillCloseRef = useRef<HTMLButtonElement>(null);
+  const [eventBucket, setEventBucket] = useState<string | null>(null);
+  const eventCloseRef = useRef<HTMLButtonElement>(null);
+  /** Bumped by "retry" so the drill effect re-runs for the same bucket. */
+  const [drillRetry, setDrillRetry] = useState(0);
 
-  const openDrill = (bucket: string) => {
+  // Aggregated series only recompute when the data or the grain changes —
+  // never on hover, focus or a tooltip open.
+  const keys: SeriesKey[] = useMemo(() => ["views", "visitors", "readerOpens", "downloads"], []);
+  const available = useMemo(
+    () => keys.filter((k) => (k === "readerOpens" ? series.readerOpens !== null : true)),
+    [keys, series.readerOpens],
+  );
+  const activeMetric: SeriesKey = available.includes(metric) ? metric : "views";
+
+  const agg = useMemo(() => {
+    const roll = (points: TrendPoint[], k: SeriesKey) =>
+      granularity === "hour" ? points : aggregateSeries(points, grain, AGGREGATION_MODE[k]);
+    const current = {} as Record<SeriesKey, TrendPoint[]>;
+    const previous = {} as Record<SeriesKey, TrendPoint[]>;
+    for (const k of keys) {
+      current[k] = roll(rawSeriesOf(k, series), k);
+      previous[k] = roll(rawSeriesOf(k, prevSeries), k);
+    }
+    return { current, previous };
+  }, [series, prevSeries, grain, granularity, keys]);
+
+  const buckets = agg.current.views.map((p) => p.date);
+
+  // Publish markers follow the same roll-up as the series.
+  const annotationByBucket = useMemo(() => {
+    const map = new Map<string, Annotation>();
+    for (const a of annotations) {
+      const key =
+        granularity === "hour" || grain === "day"
+          ? a.date
+          : (aggregateSeries([{ date: a.date, value: 0 }], grain)[0]?.date ?? a.date);
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += a.count;
+        existing.titles = [...(existing.titles ?? []), ...(a.titles ?? [])].slice(0, 3);
+      } else {
+        map.set(key, { date: key, count: a.count, titles: [...(a.titles ?? [])] });
+      }
+    }
+    return map;
+  }, [annotations, grain, granularity]);
+
+  /** Selecting a bucket is pure state; the request itself lives in the effect
+   *  below, so React cancels an obsolete fetch when the admin moves on. */
+  const openDrill = useCallback((bucket: string) => {
+    setEventBucket(null);
     setDrillBucket(bucket);
-    setDrillError(null);
-    if (drillCache.has(bucket)) return;
-    setDrillLoading(true);
-    fetch(`/api/admin/dashboard/day-breakdown?bucket=${encodeURIComponent(bucket)}`)
+  }, []);
+
+  useEffect(() => {
+    if (!drillBucket || drillCache.has(drillBucket)) return;
+    const controller = new AbortController();
+    fetch(`/api/admin/dashboard/day-breakdown?bucket=${encodeURIComponent(drillBucket)}`, {
+      signal: controller.signal,
+    })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json() as Promise<DrillData>;
       })
-      .then((d) => setDrillCache((prev) => new Map(prev).set(bucket, d)))
-      .catch(() => setDrillError(t("drillError")))
-      .finally(() => setDrillLoading(false));
-  };
+      .then((d) => setDrillCache((prev) => new Map(prev).set(drillBucket, d)))
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setDrillError({ bucket: drillBucket, message: t("drillError") });
+      });
+    // Aborts on unmount and whenever the selected bucket changes.
+    return () => controller.abort();
+  }, [drillBucket, drillCache, drillRetry, t]);
 
-  // Move focus into the panel when it opens so keyboard users land on Close.
+  // Loading is derived, never stored: a bucket is loading exactly while it has
+  // neither a cached result nor an error of its own.
+  const drillErrorMessage = drillBucket && drillError?.bucket === drillBucket ? drillError.message : null;
+  const drillLoading = drillBucket !== null && !drillCache.has(drillBucket) && drillErrorMessage === null;
+
+  // Move focus into whichever panel just opened.
   useEffect(() => {
     if (drillBucket) drillCloseRef.current?.focus();
   }, [drillBucket]);
+  useEffect(() => {
+    if (eventBucket) eventCloseRef.current?.focus();
+  }, [eventBucket]);
 
-  const keys: SeriesKey[] = ["views", "visitors", "readerOpens", "downloads"];
-  const available = keys.filter((k) => (k === "readerOpens" ? series.readerOpens !== null : true));
-  const activeMetric = available.includes(metric) ? metric : "views";
-  const buckets = series.views.map((p) => p.date);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
 
-  const height = 210;
-  const padLeft = 34;
+  // Adaptive height: taller when there is room, never a vast empty box.
+  const height = width > 720 ? 240 : width > 480 ? 210 : 180;
+  const padLeft = 36;
   const padRight = 10;
-  const padTop = 12;
+  const padTop = 14;
   const padBottom = 24;
   const innerW = Math.max(50, width - padLeft - padRight);
   const innerH = height - padTop - padBottom;
 
-  const seriesOf = (k: SeriesKey, src: EngagementSeries): TrendPoint[] =>
-    (k === "readerOpens" ? src.readerOpens ?? [] : src[k]) as TrendPoint[];
-
   const drawn: { key: SeriesKey; points: TrendPoint[]; prev: TrendPoint[] | null }[] = compareAll
-    ? available.map((k) => ({ key: k, points: seriesOf(k, series), prev: null }))
+    ? available.map((k) => ({ key: k, points: agg.current[k], prev: null }))
     : [
         {
           key: activeMetric,
-          points: seriesOf(activeMetric, series),
-          prev: compare ? seriesOf(activeMetric, prevSeries) : null,
+          points: agg.current[activeMetric],
+          prev: compare ? agg.previous[activeMetric] : null,
         },
       ];
 
@@ -130,11 +242,10 @@ export default function EngagementChart({
     y: y(v),
   }));
 
-  const labelEvery = Math.max(1, Math.ceil(buckets.length / Math.max(3, Math.floor(innerW / 70))));
-  const annotationByDate = new Map(annotations.map((a) => [a.date, a]));
+  const labelEvery = Math.max(1, Math.ceil(buckets.length / Math.max(3, Math.floor(innerW / 74))));
+  const bucketFormat: "hour" | "day" = granularity === "hour" ? "hour" : "day";
 
-  /** "2 resources published: Title A, Title B" (titles are capped upstream). */
-  const annotationLabel = (a: { count: number; titles?: string[] }) => {
+  const annotationLabel = (a: Annotation) => {
     const base = t("publishedAnnotation", { count: a.count });
     const titles = a.titles ?? [];
     if (titles.length === 0) return base;
@@ -143,20 +254,32 @@ export default function EngagementChart({
   };
 
   // Summary for the selected metric (single-metric mode).
-  const activePoints = seriesOf(activeMetric, series);
+  const activePoints = agg.current[activeMetric];
   const total = activePoints.reduce((s, p) => s + p.value, 0);
   const avg = activePoints.length > 0 ? Math.round((total / activePoints.length) * 10) / 10 : 0;
   const peak = activePoints.reduce<TrendPoint | null>(
     (best, p) => (p.value > 0 && (!best || p.value > best.value) ? p : best),
     null,
   );
-  const prevTotal = compare
-    ? seriesOf(activeMetric, prevSeries).reduce((s, p) => s + p.value, 0)
-    : null;
+  const prevTotal = compare ? agg.previous[activeMetric].reduce((s, p) => s + p.value, 0) : null;
+  const deltaPct =
+    prevTotal !== null && prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
   const srSummary = compareAll
-    ? drawn.map((s) => t("srSeriesTotal", { series: t(`series.${s.key}`), total: s.points.reduce((a, p) => a + p.value, 0) })).join(" ")
-    : t("srSingleSummary", { series: t(`series.${activeMetric}`), total, avg, peak: peak ? peak.value : 0 });
+    ? drawn
+        .map((s) =>
+          t("srSeriesTotal", {
+            series: t(`series.${s.key}`),
+            total: s.points.reduce((a, p) => a + p.value, 0),
+          }),
+        )
+        .join(" ")
+    : t("srSingleSummary", {
+        series: t(`series.${activeMetric}`),
+        total,
+        avg,
+        peak: peak ? peak.value : 0,
+      });
 
   const pathOf = (points: TrendPoint[]) =>
     points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.value)}`).join(" ");
@@ -168,9 +291,28 @@ export default function EngagementChart({
   };
   const fillId = `${chartId}-fill`;
 
+  /** Engagement in the buckets after a publish marker vs the buckets before —
+   *  reported as correlation, never as cause. */
+  const eventContext = (bucket: string) => {
+    const i = buckets.indexOf(bucket);
+    if (i < 0) return null;
+    const window = Math.min(3, Math.max(1, Math.floor(buckets.length / 6)));
+    const before = activePoints.slice(Math.max(0, i - window), i);
+    const after = activePoints.slice(i, i + window);
+    const sum = (arr: TrendPoint[]) => arr.reduce((s, p) => s + p.value, 0);
+    if (before.length === 0 || after.length === 0) return null;
+    const beforeAvg = sum(before) / before.length;
+    const afterAvg = sum(after) / after.length;
+    if (beforeAvg === 0) return null;
+    return { pct: Math.round(((afterAvg - beforeAvg) / beforeAvg) * 100), window };
+  };
+
+  const menuItemClass =
+    "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand";
+
   return (
     <div>
-      {/* Metric selector + mode toggles */}
+      {/* ── Toolbar: only the controls reached for constantly ── */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <div className="dash-seg" role="group" aria-label={t("metricLabel")}>
           {available.map((k) => (
@@ -179,53 +321,96 @@ export default function EngagementChart({
               type="button"
               aria-pressed={!compareAll && activeMetric === k}
               disabled={compareAll}
-              onClick={() => setMetric(k)}
+              onClick={() => selectMetric(k)}
               className="dash-seg-btn text-[11.5px] disabled:cursor-default disabled:opacity-50"
             >
               {t(`series.${k}`)}
             </button>
           ))}
         </div>
-        {series.readerOpens === null && (
-          <span className="text-[11px] font-medium text-sky-800">{t("readerOpensCollecting")}</span>
+
+        {granularity === "day" && (
+          <div className="dash-seg" role="group" aria-label={t("grainLabel")}>
+            {CHART_GRAINS.map((g) => (
+              <button
+                key={g}
+                type="button"
+                aria-pressed={grain === g}
+                onClick={() => setGrain(g)}
+                className="dash-seg-btn text-[11.5px]"
+              >
+                {t(`grain.${g}`)}
+              </button>
+            ))}
+          </div>
         )}
-        <div className="ms-auto flex items-center gap-3">
-          {showAnnotations && annotations.length > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-medium text-text-muted">
-              <svg width="10" height="10" aria-hidden="true">
-                <circle cx="5" cy="5" r="3.5" fill="#DDB022" />
-              </svg>
-              {t("publishLegend")}
-            </span>
+
+        <div ref={moreRef} className="relative ms-auto">
+          <button
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            onClick={() => setMoreOpen((v) => !v)}
+            className="flex h-8 cursor-pointer items-center gap-1 rounded-[10px] px-2 text-[11.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          >
+            {t("more")}
+            <ChevronDown className="h-3 w-3" aria-hidden="true" />
+          </button>
+          {moreOpen && (
+            <div
+              role="menu"
+              aria-label={t("more")}
+              className="dash-popover absolute end-0 top-full mt-1 w-60 p-1.5"
+            >
+              <label className={menuItemClass}>
+                <input
+                  type="checkbox"
+                  checked={showAnnotations}
+                  onChange={(e) => setShowAnnotations(e.target.checked)}
+                  className="h-3.5 w-3.5 cursor-pointer accent-[#DDB022]"
+                />
+                {t("annotationsToggle")}
+              </label>
+              <label className={menuItemClass}>
+                <input
+                  type="checkbox"
+                  checked={compareAll}
+                  onChange={(e) => setCompareAll(e.target.checked)}
+                  className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand,#1E3A8A)]"
+                />
+                {t("compareMetrics")}
+              </label>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setShowTable((v) => !v);
+                  setMoreOpen(false);
+                }}
+                className={menuItemClass}
+              >
+                {showTable ? t("hideTable") : t("showTable")}
+              </button>
+            </div>
           )}
-          <label className="flex cursor-pointer select-none items-center gap-1 text-[11.5px] font-medium text-text-muted">
-            <input
-              type="checkbox"
-              checked={showAnnotations}
-              onChange={(e) => setShowAnnotations(e.target.checked)}
-              className="h-3 w-3 cursor-pointer accent-[#DDB022]"
-            />
-            {t("annotationsToggle")}
-          </label>
-          <label className="flex cursor-pointer select-none items-center gap-1 text-[11.5px] font-medium text-text-muted">
-            <input
-              type="checkbox"
-              checked={compareAll}
-              onChange={(e) => setCompareAll(e.target.checked)}
-              className="h-3 w-3 cursor-pointer accent-[var(--ptec-brand,#1E3A8A)]"
-            />
-            {t("compareMetrics")}
-          </label>
         </div>
       </div>
 
       {/* Summary line (single-metric mode) or compare legend */}
       {compareAll ? (
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1" aria-hidden="true">
+        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
           {drawn.map((s) => (
             <span key={s.key} className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
-              <svg width="18" height="8">
-                <line x1="0" y1="4" x2="18" y2="4" stroke={SERIES_COLOR[s.key]} strokeWidth="2" strokeDasharray={SERIES_DASH[s.key]} />
+              <svg width="18" height="8" aria-hidden="true">
+                <line
+                  x1="0"
+                  y1="4"
+                  x2="18"
+                  y2="4"
+                  stroke={SERIES_COLOR[s.key]}
+                  strokeWidth="2"
+                  strokeDasharray={SERIES_DASH[s.key]}
+                />
               </svg>
               {t(`series.${s.key}`)}
               <span className="tabular-nums text-text-muted">{s.points.reduce((a, p) => a + p.value, 0)}</span>
@@ -234,8 +419,26 @@ export default function EngagementChart({
         </div>
       ) : (
         <p className="mt-2 text-[12px] text-text-muted">
-          {t("summary", { total, avg, peak: peak ? peak.value : 0, peakDay: peak ? formatBucket(peak.date, granularity) : "—" })}
-          {prevTotal !== null && prevTotal > 0 && <span className="ms-1.5">{t("summaryPrev", { value: prevTotal })}</span>}
+          {t("summary", {
+            total,
+            avg,
+            peak: peak ? peak.value : 0,
+            peakDay: peak ? formatBucket(peak.date, bucketFormat) : "—",
+          })}
+          {prevTotal !== null && prevTotal > 0 && (
+            <span className="ms-1.5">
+              {t("summaryPrev", { value: prevTotal })}
+              {deltaPct !== null && (
+                <span className={`ms-1 font-semibold ${deltaPct >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                  ({deltaPct > 0 ? "+" : ""}
+                  {deltaPct}%)
+                </span>
+              )}
+            </span>
+          )}
+          {grain !== "day" && activeMetric === "visitors" && (
+            <span className="ms-1.5 text-text-muted">{t("visitorRollupNote")}</span>
+          )}
         </p>
       )}
 
@@ -249,35 +452,65 @@ export default function EngagementChart({
           </defs>
           <ChartGrid ticks={ticks} padLeft={padLeft} width={width} padRight={padRight} />
 
-          {/* Soft area fill under the single active series (not in compare mode). */}
           {!compareAll && drawn[0].points.length > 1 && (
             <path d={areaOf(drawn[0].points)} fill={`url(#${fillId})`} stroke="none" />
           )}
 
           {showAnnotations &&
             buckets.map((b, i) => {
-              const ann = annotationByDate.get(b);
+              const ann = annotationByBucket.get(b);
               return ann ? (
-                <g key={`ann-${b}`}>
-                  <line x1={x(i)} y1={padTop} x2={x(i)} y2={padTop + innerH} stroke="#DDB022" strokeWidth="1" strokeDasharray="3 3" />
-                  {/* Oversized transparent hit-area so the hover target isn't a 3.5px dot. */}
-                  <circle cx={x(i)} cy={padTop} r="9" fill="transparent">
+                <g
+                  key={`ann-${b}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={annotationLabel(ann)}
+                  className="cursor-pointer focus:outline-none [&:focus-visible>.ev-focus]:opacity-100"
+                  onClick={() => {
+                    setDrillBucket(null);
+                    setEventBucket(b);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setDrillBucket(null);
+                      setEventBucket(b);
+                    }
+                  }}
+                >
+                  <line
+                    x1={x(i)}
+                    y1={padTop}
+                    x2={x(i)}
+                    y2={padTop + innerH}
+                    stroke="#DDB022"
+                    strokeWidth="1"
+                    strokeDasharray="3 3"
+                  />
+                  <circle cx={x(i)} cy={padTop} r="10" fill="transparent">
                     <title>{annotationLabel(ann)}</title>
                   </circle>
-                  <circle cx={x(i)} cy={padTop} r="3.5" fill="#DDB022" pointerEvents="none">
-                    <title>{annotationLabel(ann)}</title>
-                  </circle>
+                  <circle
+                    className="ev-focus opacity-0 transition-opacity"
+                    cx={x(i)}
+                    cy={padTop}
+                    r="7"
+                    fill="none"
+                    stroke="#B45309"
+                    strokeWidth="1.5"
+                  />
+                  <circle cx={x(i)} cy={padTop} r="3.5" fill="#DDB022" pointerEvents="none" />
                 </g>
               ) : null;
             })}
 
           {/* Previous period — subtle dashed overlay (single-metric mode) */}
-          {!compareAll && drawn[0].prev && (
+          {!compareAll && drawn[0].prev && drawn[0].prev.length > 1 && (
             <path
               d={pathOf(drawn[0].prev)}
               fill="none"
               stroke={SERIES_COLOR[drawn[0].key]}
-              strokeOpacity="0.35"
+              strokeOpacity="0.4"
               strokeWidth="1.5"
               strokeDasharray="4 4"
               strokeLinejoin="round"
@@ -304,7 +537,7 @@ export default function EngagementChart({
                   role="button"
                   tabIndex={0}
                   aria-label={t("drillPointLabel", {
-                    date: formatBucket(p.date, granularity),
+                    date: formatBucket(p.date, bucketFormat),
                     series: t(`series.${s.key}`),
                     value: p.value,
                   })}
@@ -317,7 +550,6 @@ export default function EngagementChart({
                     }
                   }}
                 >
-                  {/* Oversized transparent hit-area; the ring doubles as the focus indicator. */}
                   <circle cx={x(i)} cy={y(p.value)} r="9" fill="transparent" />
                   <circle
                     className="pt-focus opacity-0 transition-opacity"
@@ -329,7 +561,7 @@ export default function EngagementChart({
                     strokeWidth="1.5"
                   />
                   <circle cx={x(i)} cy={y(p.value)} r="2.5" fill={SERIES_COLOR[s.key]}>
-                    <title>{`${formatBucket(p.date, granularity)} · ${t(`series.${s.key}`)}: ${p.value}`}</title>
+                    <title>{`${formatBucket(p.date, bucketFormat)} · ${t(`series.${s.key}`)}: ${p.value}`}</title>
                   </circle>
                 </g>
               ) : null,
@@ -339,18 +571,80 @@ export default function EngagementChart({
           {buckets.map((b, i) =>
             i % labelEvery === 0 ? (
               <text key={b} x={x(i)} y={height - 6} textAnchor="middle" {...AXIS_TEXT}>
-                {formatBucket(b, granularity)}
+                {formatBucket(b, bucketFormat)}
               </text>
             ) : null,
           )}
         </svg>
       </div>
 
+      {/* ── Publishing-event popover ── */}
+      {eventBucket &&
+        (() => {
+          const ann = annotationByBucket.get(eventBucket);
+          if (!ann) return null;
+          const ctx = eventContext(eventBucket);
+          return (
+            <div
+              role="region"
+              aria-label={t("eventTitle", { date: formatBucket(eventBucket, bucketFormat) })}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setEventBucket(null);
+              }}
+              className="mt-2.5 rounded-xl border border-[color-mix(in_srgb,#DDB022_40%,transparent)] bg-[#FEFCF5] p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="dash-eyebrow">{t("eventEyebrow")}</p>
+                  <h4 className="text-[12.5px] font-bold text-text-heading">
+                    {t("eventTitle", { date: formatBucket(eventBucket, bucketFormat) })}
+                  </h4>
+                </div>
+                <button
+                  ref={eventCloseRef}
+                  type="button"
+                  onClick={() => setEventBucket(null)}
+                  aria-label={t("drillClose")}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-white hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </div>
+              <p className="mt-1 text-[12px] text-text-body">{t("publishedAnnotation", { count: ann.count })}</p>
+              {ann.titles && ann.titles.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {ann.titles.map((title) => (
+                    <li key={title} className="truncate text-[11.5px] text-text-muted" dir="auto" title={title}>
+                      • {title}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {ctx && (
+                <p className="mt-1.5 text-[11.5px] leading-4 text-text-muted">
+                  {t("eventCorrelation", {
+                    series: t(`series.${activeMetric}`),
+                    pct: `${ctx.pct > 0 ? "+" : ""}${ctx.pct}`,
+                    window: ctx.window,
+                  })}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => openDrill(eventBucket)}
+                className="mt-1.5 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                {t("eventInspect")}
+              </button>
+            </div>
+          );
+        })()}
+
       {/* ── Point drill-down panel ── */}
       {drillBucket && (
         <div
           role="region"
-          aria-label={t("drillTitle", { date: formatBucket(drillBucket, granularity) })}
+          aria-label={t("drillTitle", { date: formatBucket(drillBucket, bucketFormat) })}
           onKeyDown={(e) => {
             if (e.key === "Escape") setDrillBucket(null);
           }}
@@ -358,7 +652,7 @@ export default function EngagementChart({
         >
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-[12.5px] font-bold text-text-heading">
-              {t("drillTitle", { date: formatBucket(drillBucket, granularity) })}
+              {t("drillTitle", { date: formatBucket(drillBucket, bucketFormat) })}
             </h4>
             <button
               ref={drillCloseRef}
@@ -375,10 +669,20 @@ export default function EngagementChart({
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               {t("drillLoading")}
             </p>
-          ) : drillError && !drillCache.has(drillBucket) ? (
-            <p className="mt-2 text-[12px] font-medium text-rose-700" role="alert">
-              {drillError}
-            </p>
+          ) : drillErrorMessage ? (
+            <div className="mt-2" role="alert">
+              <p className="text-[12px] font-medium text-rose-700">{drillErrorMessage}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDrillError(null);
+                  setDrillRetry((n) => n + 1);
+                }}
+                className="mt-1 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              >
+                {t("retry")}
+              </button>
+            </div>
           ) : (
             (() => {
               const d = drillCache.get(drillBucket);
@@ -396,6 +700,7 @@ export default function EngagementChart({
                           href={item.editHref}
                           className="min-w-0 flex-1 truncate font-medium text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                           title={item.title}
+                          dir="auto"
                         >
                           {item.title}
                         </Link>
@@ -413,22 +718,19 @@ export default function EngagementChart({
       )}
 
       {/* Accessible data table alternative */}
-      <details className="mt-1">
-        <summary className="cursor-pointer text-[11.5px] font-semibold text-text-muted hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-          {t("showTable")}
-        </summary>
+      {showTable && (
         <div className="mt-2 max-h-56 overflow-auto rounded-xl border border-divider">
           <table className="w-full text-[11.5px]" aria-describedby={`${chartId}-caption`}>
             <caption id={`${chartId}-caption`} className="sr-only">
               {srSummary}
             </caption>
-            <thead className="sticky top-0 bg-paper">
+            <thead className="dash-thead sticky top-0 bg-paper">
               <tr>
-                <th scope="col" className="px-2 py-1.5 text-start font-bold text-text-muted">
+                <th scope="col" className="px-2 py-1.5 text-start font-bold">
                   {t("date")}
                 </th>
                 {available.map((k) => (
-                  <th key={k} scope="col" className="px-2 py-1.5 text-end font-bold text-text-muted">
+                  <th key={k} scope="col" className="px-2 py-1.5 text-end font-bold">
                     {t(`series.${k}`)}
                   </th>
                 ))}
@@ -438,11 +740,11 @@ export default function EngagementChart({
               {buckets.map((b, i) => (
                 <tr key={b} className="border-t border-divider">
                   <th scope="row" className="px-2 py-1 text-start font-medium text-text-body">
-                    {formatBucket(b, granularity)}
+                    {formatBucket(b, bucketFormat)}
                   </th>
                   {available.map((k) => (
                     <td key={k} className="px-2 py-1 text-end tabular-nums text-text-body">
-                      {seriesOf(k, series)[i]?.value ?? 0}
+                      {agg.current[k][i]?.value ?? 0}
                     </td>
                   ))}
                 </tr>
@@ -450,7 +752,7 @@ export default function EngagementChart({
             </tbody>
           </table>
         </div>
-      </details>
+      )}
     </div>
   );
 }

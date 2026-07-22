@@ -101,8 +101,24 @@ Retention policy suggestion: 7 daily + 4 weekly + 6 monthly snapshots.
 
 `.github/workflows/ci.yml` runs typecheck, lint, unit + e2e tests, plus:
 
-- `npm audit --omit=dev --audit-level=high` — fails the build on high/critical
-  advisories in production dependencies.
+- `node scripts/audit-gate.mjs` — audits production dependencies and **fails on
+  high/critical advisories that have an actionable fix**, i.e. ones `npm audit
+  fix` can resolve without a semver-major dependency change. High/critical
+  advisories whose only remedy is a semver-major bump, or that have no
+  published fix, are printed prominently with their advisory URLs but do not
+  block the build.
+
+  This replaced a bare `npm audit --omit=dev --audit-level=high` on
+  2026-07-22, after newly-published `sharp`/libvips CVEs
+  ([GHSA-f88m-g3jw-g9cj](https://github.com/advisories/GHSA-f88m-g3jw-g9cj))
+  reachable only through `next` blocked every pull request in the repository.
+  npm's proposed "fix" was downgrading Next 16 → 9.3.3, so the gate was
+  stopping all work without making anything safer.
+
+  The gate needs no allowlist and nothing to revert: as soon as upstream ships
+  a real fix, npm reports it as actionable and the advisory starts failing CI
+  again. **When a warning appears here, check it at the next dependency bump** —
+  a warning means "no fix exists yet", never "ignore this".
 - **gitleaks** — scans the full git history for committed secrets on every push.
 - **dependency-review** — on PRs, flags newly-introduced vulnerable packages.
 

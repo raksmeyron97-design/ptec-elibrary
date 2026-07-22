@@ -71,6 +71,55 @@
   --dash-elev-1: 0 1px 2px rgba(11, 21, 48, .05), 0 1px 1px rgba(11, 21, 48, .03);
   --dash-elev-2: 0 2px 4px rgba(11, 21, 48, .04), 0 10px 24px -12px rgba(11, 21, 48, .16);
   --dash-elev-3: 0 4px 10px -4px rgba(11, 21, 48, .08), 0 18px 40px -16px rgba(30, 58, 138, .26);
+
+  /* Layer scale — one source of truth so nothing on the dashboard can be
+     occluded by the sticky control bar (the old bug: bar and KPI definition
+     popovers both sat on z-20). Kept below the admin shell's sidebar (40)
+     except for full-viewport overlays, which must cover it. */
+  --dash-z-sticky: 30;   /* sticky control bar                    */
+  --dash-z-popover: 44;  /* menus, definition popovers, tooltips  */
+  --dash-z-overlay: 50;  /* drawers + their scrim                 */
+}
+
+/* ── Sticky control bar ───────────────────────────────────────────────────
+   Opaque on purpose: content must pass *under* it, not show through it. */
+.dash-controlbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--dash-z-sticky);
+  margin-inline: -6px;
+  padding-inline: 6px;
+  background: linear-gradient(180deg, #FBFCFE 0%, #F7F9FC 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--dash-blue) 10%, var(--ptec-divider));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .8), 0 6px 14px -12px rgba(11, 21, 48, .5);
+}
+
+/* Keyboard focus must never land underneath the bar. Scoped with :has() so
+   only the dashboard's scroll container gets the offset. */
+main:has(.dash-controlbar) { scroll-padding-top: 104px; }
+
+/* Expandable panel under the bar (custom range / filters). */
+.dash-panel {
+  border-top: 1px solid color-mix(in srgb, var(--ptec-divider) 70%, transparent);
+  background: #fff;
+  padding: 12px 6px 14px;
+  margin-inline: -6px;
+  padding-inline: 12px;
+}
+@media (max-width: 639px) {
+  /* Bottom sheet on phones: reachable with a thumb, never a cramped popover. */
+  .dash-panel {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--dash-z-overlay);
+    margin: 0;
+    border-top: 1px solid var(--ptec-divider);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px -12px rgba(11, 21, 48, .35);
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    max-height: 70vh;
+    overflow-y: auto;
+  }
 }
 
 /* ── Level 1: the page surface — cool-gray → warm-ivory with a faint,
@@ -156,7 +205,16 @@
   border-radius: 11px;
   background: color-mix(in srgb, var(--dash-blue) 6%, var(--ptec-paper));
   border: 1px solid color-mix(in srgb, var(--dash-blue) 10%, transparent);
+  /* Segmented labels never wrap, so on a phone the control must be able to
+     scroll instead of forcing its grid track wider than the viewport. The
+     3px padding keeps focus outlines (offset 1px) clear of the scroll edge. */
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.dash-seg::-webkit-scrollbar { display: none; }
+/* …unless the caller opts into wrapping (filter chips, table presets). */
+.dash-seg.flex-wrap { overflow-x: visible; }
 .dash-seg-btn {
   position: relative;
   cursor: pointer;
@@ -277,6 +335,86 @@
   inset: 0 0 auto 0;
   height: 2px;
   background: linear-gradient(90deg, var(--dash-gold), transparent 70%);
+}
+
+/* Health card strips reuse semantic status colours rather than a metric hue. */
+.dash-kpi--ok      { --dash-kpi-accent: linear-gradient(90deg, #34D399, #047857); }
+.dash-kpi--warn    { --dash-kpi-accent: linear-gradient(90deg, #FBBF24, #B45309); }
+.dash-kpi--crit    { --dash-kpi-accent: linear-gradient(90deg, #FB7185, #BE123C); }
+.dash-kpi--unknown { --dash-kpi-accent: linear-gradient(90deg, #CBD5E1, #94A3B8); }
+
+/* ── Interactive metric card ─────────────────────────────────────────────
+   The whole card is a control: selecting it drives the chart below. Selection
+   shows as a ring + a fully opaque accent strip, alongside aria-pressed. */
+.dash-metric-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--color-bg-surface, #fff);
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ptec-divider) 72%, transparent);
+  box-shadow: var(--dash-elev-1);
+  transition: box-shadow .16s ease, border-color .16s ease;
+}
+.dash-metric-card:hover { box-shadow: var(--dash-elev-2); }
+.dash-metric-card > :first-child { flex: 1 1 auto; }
+.dash-metric-card.is-selected {
+  border-color: color-mix(in srgb, var(--dash-blue) 42%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dash-blue) 34%, transparent), var(--dash-elev-2);
+}
+.dash-metric-card.is-selected::before { opacity: 1; height: 4px; }
+
+/* ── Shared popover surface (definitions, menus) ─────────────────────────── */
+.dash-popover {
+  z-index: var(--dash-z-popover);
+  border-radius: 12px;
+  border: 1px solid var(--ptec-divider);
+  background: var(--color-bg-surface, #fff);
+  box-shadow: 0 12px 32px -12px rgba(11, 21, 48, .35), 0 2px 6px rgba(11, 21, 48, .08);
+}
+
+/* ── Details drawer ──────────────────────────────────────────────────────── */
+.dash-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--dash-z-overlay);
+  background: rgba(11, 21, 48, .38);
+  animation: dash-fade .16s ease-out;
+}
+.dash-drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: calc(var(--dash-z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100vw);
+  background: var(--color-bg-surface, #fff);
+  border-inline-start: 1px solid var(--ptec-divider);
+  box-shadow: -18px 0 48px -24px rgba(11, 21, 48, .5);
+  animation: dash-slide-in .18s ease-out;
+}
+@keyframes dash-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes dash-slide-in { from { transform: translateX(4%); opacity: .6 } to { transform: none; opacity: 1 } }
+
+/* ── Needs-attention row + pathway step ─────────────────────────────────── */
+.dash-attention-row {
+  border: 1px solid color-mix(in srgb, var(--ptec-divider) 60%, transparent);
+  background: color-mix(in srgb, var(--ptec-paper) 40%, #fff);
+  transition: border-color .15s ease, background .15s ease;
+}
+.dash-attention-row:hover {
+  border-color: color-mix(in srgb, var(--dash-blue) 20%, transparent);
+  background: #fff;
+}
+.dash-pathway-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ptec-divider) 60%, transparent);
+  background: color-mix(in srgb, var(--ptec-paper) 55%, #fff);
+  padding: 8px 10px;
 }
 
 /* ── Severity rails (Action Center) ──────────────────────────────────── */

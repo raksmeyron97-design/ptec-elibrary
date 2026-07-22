@@ -4,15 +4,15 @@ import { hasPermission } from "@/lib/permissions";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import {
   parseDashboardFilters,
+  parseMetric,
   serializeDashboardFilters,
+  type DashboardFilters,
   type DashboardView,
 } from "@/lib/admin/dashboard-shared";
-import { getDepartmentOptions } from "@/lib/admin/intelligence";
-import DashboardHeaderCompact, {
-  type QuickActionKey,
-} from "@/components/admin/dashboard/DashboardHeaderCompact";
-import DashboardToolbar from "@/components/admin/dashboard/DashboardToolbar";
-import DashboardTabs from "@/components/admin/dashboard/DashboardTabs";
+import { getDepartmentOptions, getHealthPulse } from "@/lib/admin/intelligence";
+import DashboardHeader, { type QuickActionKey } from "@/components/admin/dashboard/DashboardHeader";
+import HeaderStatus from "@/components/admin/dashboard/HeaderStatus";
+import DashboardControlBar from "@/components/admin/dashboard/DashboardControlBar";
 import SectionBoundary from "@/components/admin/dashboard/SectionBoundary";
 import { OverviewSkeleton, TableSkeleton, CardsSkeleton } from "@/components/admin/dashboard/Skeletons";
 import OverviewView from "@/components/admin/dashboard/views/OverviewView";
@@ -39,6 +39,25 @@ const PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_ROOT_DOMAIN
  * filters, table preset/page) lives in URL search params, so any dashboard
  * state is bookmarkable and shareable between authorized administrators.
  */
+/**
+ * Live status for the header line. Streamed in its own Suspense boundary so a
+ * slow health probe never delays the page shell, and its failure degrades to
+ * "status unavailable" rather than taking the dashboard down.
+ */
+async function DashboardStatus({ filters }: { filters: DashboardFilters }) {
+  const health = await getHealthPulse(filters).catch(() => null);
+  if (!health) return null;
+  const qs = serializeDashboardFilters({ ...filters, view: "system" });
+  return (
+    <HeaderStatus
+      level={health.level}
+      failing={health.failing}
+      generatedAt={health.generatedAt}
+      href={qs ? `/admin?${qs}` : "/admin"}
+    />
+  );
+}
+
 async function getPageIdentity(): Promise<{
   name: string | null;
   role: AppRole;
@@ -89,27 +108,41 @@ export default async function AdminDashboardPage({
   const qParam = typeof sp.q === "string" ? sp.q : undefined;
   const queryViewParam = typeof sp.qview === "string" ? sp.qview : undefined;
 
+  // The selected metric only picks which series the chart draws, so it is
+  // deliberately absent from the Suspense key — switching KPI must not re-run
+  // a single analytics query (the client updates the URL shallowly).
+  const metric = parseMetric(sp.metric);
+
   // Suspense keys: re-show the skeleton whenever the data-affecting params change.
   const suspenseKey = `${filterQs}|${presetParam ?? ""}|${pageParam ?? ""}|${qParam ?? ""}|${queryViewParam ?? ""}`;
 
   return (
-    <div className="dash-shell -mx-7 -my-6 min-h-full px-7 py-6">
-      <div className="mx-auto max-w-[1200px] space-y-4 overflow-x-clip">
-      <DashboardHeaderCompact
-        name={name}
-        role={role}
-        actions={quickActions}
-        publicSiteUrl={PUBLIC_SITE_URL}
-      />
+    <div className="dash-shell -mx-7 -my-6 min-h-full px-7 pb-6 pt-4">
+      <div className="mx-auto max-w-[1400px] space-y-3 overflow-x-clip">
+        <DashboardHeader
+          view={view}
+          name={name}
+          actions={quickActions}
+          publicSiteUrl={PUBLIC_SITE_URL}
+          status={
+            <Suspense fallback={<span className="sr-only">…</span>}>
+              <DashboardStatus filters={activeFilters} />
+            </Suspense>
+          }
+        />
 
-      <DashboardToolbar filters={activeFilters} departments={departments} exportHref={exportHref} />
-
-      <DashboardTabs filters={activeFilters} active={view} showSystem={canSystem} />
+        <DashboardControlBar
+          filters={activeFilters}
+          active={view}
+          showSystem={canSystem}
+          departments={departments}
+          exportHref={exportHref}
+        />
 
       <SectionBoundary>
         {view === "overview" && (
           <Suspense key={suspenseKey} fallback={<OverviewSkeleton />}>
-            <OverviewView filters={activeFilters} />
+            <OverviewView filters={activeFilters} metric={metric} canSeeAudit={canSystem} />
           </Suspense>
         )}
         {view === "content" && (

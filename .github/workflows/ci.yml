@@ -67,8 +67,14 @@ jobs:
     # Fail on high/critical advisories in production dependencies only —
     # dev-tooling advisories are noise and moderate ones are tracked manually
     # (see docs/SECURITY-OPS.md §6).
+    #
+    # The gate fails on advisories that can actually be fixed and warns (without
+    # blocking) on those whose only remedy is a semver-major bump of a framework
+    # dependency. A bare `npm audit --audit-level=high` blocked every PR in the
+    # repo on 2026-07-22 over `sharp` CVEs reachable only through `next`, where
+    # npm's proposed fix was Next 16 → 9.3.3. See scripts/audit-gate.mjs.
     - name: Audit production dependencies
-      run: npm audit --omit=dev --audit-level=high
+      run: node scripts/audit-gate.mjs
 
     # /hero/* ships with a 1-year immutable Cache-Control header — fail fast
     # if public/ptec-library.jpg changed without regenerating the variants
