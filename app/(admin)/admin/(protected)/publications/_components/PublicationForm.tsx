@@ -1072,7 +1072,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                     name="publisher"
                     defaultValue={defaults.publisher}
                     className={INPUT_CLASS}
-                    placeholder="Phnom Penh Teacher Education College"
+                    placeholder="Publisher of record (leave blank if none)"
                   />
                 </div>
                 <div>

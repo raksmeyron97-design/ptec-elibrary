@@ -4,6 +4,7 @@
 
 import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getSiteConfig } from "@/lib/system-settings/config";
 import LoginContent from "./LoginContent";
 
 export const revalidate = 60;
@@ -39,6 +40,15 @@ function formatStat(n: number): string | null {
 // ── Page (server) ────────────────────────────────────────────────────────────
 export default async function LoginPage() {
   const raw = await getLoginStats();
+  // Published organization values for the marketing panel (this is the only
+  // place the auth screens learn the institution name / website).
+  const cfg = await getSiteConfig();
+  const site = {
+    institution: cfg.name.en,
+    website: cfg.links.website,
+    websiteLabel: cfg.links.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""),
+  };
+
 
   const stats = {
     books:     formatStat(raw.totalBooks),
@@ -59,7 +69,7 @@ export default async function LoginPage() {
         </div>
       }
     >
-      <LoginContent stats={stats} />
+      <LoginContent stats={stats} site={site} />
     </Suspense>
   );
 }

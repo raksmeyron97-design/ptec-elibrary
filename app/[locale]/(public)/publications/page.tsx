@@ -19,6 +19,7 @@ import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from "next-intl/server";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export async function generateMetadata({
   const { locale } = await routeParams;
   const tSeo = await getTranslations({ locale, namespace: "publications" });
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/publications",
     locale,
     title: tSeo("seoTitle"),
@@ -146,6 +148,7 @@ export default async function PublicationsPage({
   const isCleanListing = !hasFilters && !params.size;
   const collectionSchema = isCleanListing
     ? publicationsCollectionJsonLd({
+        org: await getOrgIdentity(),
         locale,
         page,
         pageSize,

@@ -16,7 +16,9 @@ lib/system-settings/
   schemas.ts     dependency-free validators + normalizers + diffPaths
   hours.ts       pure derivations: spec, EN/KM sentences, closures
   map.ts         buildSiteConfig() — the PUBLIC ALLOWLIST mapper
-  config.ts      getSiteConfig() — cached published config (server-only)
+  org-identity.ts OrgIdentity type + the ONE emergency fallback (client-safe)
+  config.ts      getSiteConfig() / getOrgIdentity() — cached (server-only)
+lib/seo/org-nodes.ts                           schema.org Organization/Library nodes
   admin.ts       getSettingsWorkspace() — admin read model (server-only)
 app/actions/system-settings.ts                 save draft / discard / publish / rollback
 app/(admin)/admin/(protected)/system-settings/ admin page
@@ -41,6 +43,24 @@ no cookies/headers → prerendered pages stay static). Client components receive
 the values **via props** from their server parents (see `MobileMenu`,
 `LibraryNow`, `PostsListClient`, `ContactClient`). Never query the settings
 tables directly and never return raw rows to a client.
+
+#### Synchronous builders (SEO, JSON-LD, citations, exports, email)
+
+`lib/seo/*`, `lib/exports/works.ts`, `lib/theses/citation.ts` and
+`lib/email/contact-templates.ts` are pure and synchronous, so they cannot await
+`getSiteConfig()`. They take an explicit `OrgIdentity` argument instead:
+
+```ts
+const org = await getOrgIdentity();          // in the server component
+return buildBookMetadata(book, locale, org); // threaded down
+```
+
+This replaced the exported name constants that used to live in `lib/seo/site.ts`
+— those were a second source of truth that publishing could never reach, and
+they had already drifted apart from each other. `lib/settings-consistency.test.ts`
+fails CI if a page under `app/` calls one of these builders without resolving
+`getOrgIdentity()`, and `lib/system-settings/org-identity.test.ts` asserts a
+renamed institution actually reaches Open Graph, JSON-LD and Scholar tags.
 
 Failure model: table missing (migration pending) or unreachable → the config
 is built from `lib/system-settings/defaults.ts`, which byte-matches the
@@ -113,11 +133,18 @@ no deploy needed.
 
 ## Known limitations
 
-- The PDF reader's "report broken file" mailto and the navbar/mobile-drawer
-  brand lockup text still use code constants (documented in `lib/ptec.ts`) —
-  the first is deep in a client component tree, the second is brand identity.
-- `messages/{en,km}.json` `aboutHours*` strings are only used by the unused
-  `HomeBento` component; the consistency test pins them to the fallback spec.
-- Branding assets (logos, favicon, OG image) remain static files under
+- **Editorial prose on the About pages** (`/about`, `/about/collection`,
+  `/about/our-journey`, `/about/rules`, `/about/committee`, `/about/timings`)
+  and the assistant's editorial facts in `lib/library-info.ts` still name the
+  institution inline. These are authored page *content*, not configuration, and
+  are outside the settings schema. `lib/settings-consistency.test.ts` lists them
+  explicitly so the exemption stays a conscious decision rather than a hole.
+- **Branding assets** (logos, favicon, OG image) remain static files under
   `public/` — a future Branding section should reuse `uploadToZima()` with a
   dedicated `branding/` folder gated on `settings:write`.
+- **`emailInternational` has no public consumer.** The admin form now says so
+  rather than implying the value renders somewhere.
+- **Multi-tenancy** is not implemented. The schema is keyed by `section`, not by
+  an `organization_id`. Adding tenancy means a new key column plus an
+  organization resolver in `getSiteConfig()`; nothing in the current code
+  assumes a *specific* institution any more, so the change is additive.

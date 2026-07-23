@@ -13,8 +13,13 @@
 //     locale, including the ?page=N query on paginated collection pages.
 
 import type { Metadata } from "next";
-import { SITE_URL, PTEC_NAME, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { libraryNode } from "@/lib/seo/org-nodes";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 
 export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
@@ -109,7 +114,12 @@ export function bookMetaDescription(book: BookSeoInput, locale: string): string 
 
 // ── Metadata (generateMetadata) ──────────────────────────────────────────────
 
-export function buildBookMetadata(book: BookSeoInput, locale: string): Metadata {
+export function buildBookMetadata(
+  book: BookSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const description = bookMetaDescription(book, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const alternates = localeAlternates(`/books/${book.slug}`, locale);
@@ -120,7 +130,7 @@ export function buildBookMetadata(book: BookSeoInput, locale: string): Metadata 
   const imageAlt =
     book.coverUrl
       ? (locale === "km" ? `ក្របសៀវភៅ៖ ${book.title}` : `Book cover: ${book.title}`)
-      : PTEC_LIBRARY_NAME;
+      : org.siteName;
 
   return {
     title: book.title,
@@ -137,7 +147,7 @@ export function buildBookMetadata(book: BookSeoInput, locale: string): Metadata 
       description,
       type: "article",
       url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
       authors: authors.length > 0 ? authors : undefined,
@@ -171,19 +181,6 @@ function compact(schema: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
-const ptecOrganization = {
-  "@type": "EducationalOrganization",
-  name: PTEC_NAME,
-  url: SITE_URL,
-};
-
-const libraryProvider = {
-  "@type": "Library",
-  name: PTEC_LIBRARY_NAME,
-  url: SITE_URL,
-  parentOrganization: ptecOrganization,
-};
-
 export type BookAggregateRating = {
   ratingValue: number | string;
   reviewCount: number;
@@ -193,7 +190,9 @@ export function bookJsonLd(
   book: BookSeoInput,
   locale: string,
   aggregateRating: BookAggregateRating = null,
+  orgArg?: OrgIdentity,
 ): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = bookCanonicalUrl(book.slug, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const publisher = clean(book.publisher);
@@ -216,7 +215,7 @@ export function bookJsonLd(
     author: authors.length > 0 ? authors.map((name) => ({ "@type": "Person", name })) : undefined,
     // The real publisher only. PTEC hosts the file; that role is `provider`.
     publisher: publisher ? { "@type": "Organization", name: publisher } : undefined,
-    provider: libraryProvider,
+    provider: libraryNode(org),
     inLanguage: languageCode(book.language),
     description: bookMetaDescription(book, locale),
     image: book.coverUrl || FALLBACK_OG_IMAGE,
@@ -258,6 +257,7 @@ export function booksCollectionJsonLd({
   name,
   description,
   books,
+  org: orgArg,
 }: {
   locale: string;
   page: number;
@@ -266,7 +266,10 @@ export function booksCollectionJsonLd({
   name: string;
   description: string;
   books: CollectionBookItem[];
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = booksCollectionUrl(locale, page);
   const offset = (Math.max(1, page) - 1) * pageSize;
 
@@ -279,7 +282,7 @@ export function booksCollectionJsonLd({
     url,
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
-    provider: libraryProvider,
+    provider: libraryNode(org),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: total,

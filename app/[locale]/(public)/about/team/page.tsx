@@ -5,11 +5,11 @@ import {
   Phone, Mail, BookOpen, MessageCircle, ChevronRight,
 } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
-import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import {
   PUBLIC_MEMBER_SELECT, LEGACY_MEMBER_SELECT, fromLegacyRow,
   type LegacyTeamMemberRow, type PublicTeamMember, type PublicTeamSection,
@@ -30,7 +30,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const [{ locale }, org] = await Promise.all([params, getOrgIdentity()]);
   const alternates = localeAlternates("/about/team", locale);
   return {
     title: PAGE_TITLE,
@@ -41,7 +41,7 @@ export async function generateMetadata({
       description: PAGE_DESCRIPTION,
       url: alternates.canonical,
       type: "website",
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       images: [{ url: `${SITE_URL}/og-image.png` }],
     },
     twitter: {
@@ -114,9 +114,10 @@ async function getPublicTeamData(): Promise<{
 }
 
 export default async function TeamPage() {
-  const [{ members, sections }, cfg] = await Promise.all([
+  const [{ members, sections }, cfg, org] = await Promise.all([
     getPublicTeamData(),
     getSiteConfig(),
+    getOrgIdentity(),
   ]);
   const sectionsWithMembers = sections.filter((s) =>
     members.some((m) => m.section_id === s.id)
@@ -133,7 +134,7 @@ export default async function TeamPage() {
       inLanguage: ["en", "km"],
       about: {
         "@type": "Organization",
-        name: PTEC_LIBRARY_NAME,
+        name: org.siteName,
         url: SITE_URL,
         parentOrganization: {
           "@type": "CollegeOrUniversity",
@@ -144,7 +145,7 @@ export default async function TeamPage() {
           "@type": "Person",
           name: m.name_en,
           ...(m.position_en ? { jobTitle: m.position_en } : {}),
-          worksFor: { "@type": "Organization", name: PTEC_LIBRARY_NAME },
+          worksFor: { "@type": "Organization", name: org.siteName },
         })),
       },
     },

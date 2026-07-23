@@ -29,7 +29,8 @@ import {
   getDepartment,
   getLanguageLabel,
 } from "@/lib/theses/report-fields";
-import { PTEC_NAME, SITE_URL } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { thesisScholarMeta } from "@/lib/seo/citation";
 import { buildThesisMetadata, thesisJsonLd, type ThesisSeoInput } from "@/lib/seo/thesis-seo";
@@ -55,9 +56,10 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ slug, locale }, supabase] = await Promise.all([
+  const [{ slug, locale }, supabase, org] = await Promise.all([
     params,
     createClient(),
+    getOrgIdentity(),
   ]);
   const { data: report } = await supabase
     .from('research_reports')
@@ -103,18 +105,23 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 
   // Admin-set SEO overrides (migration 0076) win when present.
-  const base = buildThesisMetadata(seoInput, locale, {
-    seoTitle: seoRow?.seo_title,
-    seoDescription: seoRow?.seo_description,
-    ogImage: seoRow?.og_image,
-  });
+  const base = buildThesisMetadata(
+    seoInput,
+    locale,
+    {
+      seoTitle: seoRow?.seo_title,
+      seoDescription: seoRow?.seo_description,
+      ogImage: seoRow?.og_image,
+    },
+    org,
+  );
 
   return {
     ...base,
     // Google Scholar citation_* meta tags — see lib/seo/citation.ts
     other: {
-      ...thesisScholarMeta(report),
-      'dc.publisher': PTEC_NAME,
+      ...thesisScholarMeta(report, org),
+      'dc.publisher': org.institutionName,
       'dc.type': 'ScholarlyArticle',
     },
   };
@@ -210,6 +217,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
           // the download-permission gate. Reading/preview stays available; the
           // gated Download button (ThesisDownloadButton) is the only save path.
           allowDownload={false}
+          reportEmail={(await getSiteConfig()).email}
         />
       </div>
     ) : (
@@ -252,6 +260,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       references,
     },
     locale,
+    await getOrgIdentity(),
   );
   const thesisBreadcrumbSchema = breadcrumbSchema([
     { name: tNav("home"), path: "/" },
@@ -300,7 +309,14 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             <PublicationMetadata report={report} />
             <ThesisTabs tabs={tabs} defaultTab="abstract" />
           </div>
-          <StickySidebar report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} thesisPath={thesisPath} />
+          <StickySidebar
+            report={report}
+            reportId={id}
+            fileHref={fileHref}
+            shareUrl={shareUrl}
+            thesisPath={thesisPath}
+            institution={(await getOrgIdentity()).institutionName}
+          />
         </div>
 
         {/* ── Related ── */}

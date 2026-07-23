@@ -163,6 +163,10 @@ describe("resumption tokens", () => {
   });
 });
 
+// The publisher name is a required argument now: it comes from the published
+// system settings at request time, never from a compiled-in constant.
+const PUBLISHER = "Phnom Penh Teacher Education College";
+
 describe("record XML", () => {
   it("buildHeader emits identifier, datestamp and setSpec", () => {
     const xml = buildHeader(record);
@@ -172,11 +176,11 @@ describe("record XML", () => {
   });
 
   it("buildDcMetadata maps every populated field and escapes text", () => {
-    const xml = buildDcMetadata(record);
+    const xml = buildDcMetadata(record, PUBLISHER);
     expect(xml).toContain("<dc:title>Reading &amp; &quot;Writing&quot; &lt;Habits&gt;</dc:title>");
     expect(xml).toContain("<dc:creator>Sok San</dc:creator>");
     expect(xml).toContain("<dc:creator>Chan Dara</dc:creator>");
-    expect(xml).toContain("<dc:publisher>Phnom Penh Teacher Education College</dc:publisher>");
+    expect(xml).toContain(`<dc:publisher>${PUBLISHER}</dc:publisher>`);
     expect(xml).toContain("<dc:subject>Education</dc:subject>");
     expect(xml).toContain("<dc:date>2026-06-15</dc:date>");
     expect(xml).toContain("<dc:type>Thesis</dc:type>");
@@ -188,7 +192,7 @@ describe("record XML", () => {
 
   it("buildDcMetadata omits empty optional fields", () => {
     const bare: OaiRecord = { ...record, creators: [], date: null, subjects: [], description: null, languages: [] };
-    const xml = buildDcMetadata(bare);
+    const xml = buildDcMetadata(bare, PUBLISHER);
     expect(xml).not.toContain("<dc:creator>");
     expect(xml).not.toContain("<dc:date>");
     expect(xml).not.toContain("<dc:subject>");
@@ -200,7 +204,7 @@ describe("record XML", () => {
   });
 
   it("buildRecordXml nests header and metadata inside <record>", () => {
-    const xml = buildRecordXml(record);
+    const xml = buildRecordXml(record, PUBLISHER);
     expect(xml.startsWith("<record><header>")).toBe(true);
     expect(xml).toContain("<metadata><oai_dc:dc");
     expect(xml.endsWith("</oai_dc:dc></metadata></record>")).toBe(true);

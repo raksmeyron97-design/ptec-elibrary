@@ -12,6 +12,7 @@ import ReaderOpenPing from "@/components/ui/reader/ReaderOpenPing";
 import Icon from "@/components/ui/core/Icon";
 import { getTranslations } from "next-intl/server";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { getSiteConfig } from "@/lib/system-settings/config";
 
 // Dedicated, chrome-light reading surface. The book detail page embeds the
 // same viewer as a preview; long reading sessions belong here, where the
@@ -96,6 +97,7 @@ export default async function BookReadPage({ params }: ReadPageProps) {
           initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
           allowDownload={true}
           isLoggedIn={!!user}
+          reportEmail={(await getSiteConfig()).email}
         />
       </div>
     </div>

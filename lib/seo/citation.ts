@@ -4,7 +4,11 @@
 // the pages stay thin call sites and this module stays unit-testable without
 // a database. Browser-safe — no server-only imports.
 
-import { SITE_URL, PTEC_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 import type { Publication } from "@/lib/publications";
 import { authorList } from "@/lib/citations";
 import { academicTextToPlainText } from "@/lib/publications/citations";
@@ -105,7 +109,11 @@ export interface ThesisCitationRow {
 /** citation_pdf_url points at /api/theses/[id]/file (NOT /file.pdf — that
  * route segment doesn't exist and 404s). Anonymously readable, serves
  * Content-Type: application/pdf directly. */
-export function thesisScholarMeta(report: ThesisCitationRow): ScholarMeta {
+export function thesisScholarMeta(
+  report: ThesisCitationRow,
+  orgArg?: OrgIdentity,
+): ScholarMeta {
+  const org = resolveOrgIdentity(orgArg);
   const authors = splitAuthorNames(report.author_names);
   const keywords = normalizeKeywords(report.keywords);
   const tags: ScholarMeta = {
@@ -113,7 +121,7 @@ export function thesisScholarMeta(report: ThesisCitationRow): ScholarMeta {
     citation_publication_date: formatScholarDate(report.published_at, report.created_at),
     // Dissertation tag (not citation_technical_report_institution) is the
     // semantically correct Highwire tag for a student thesis/dissertation.
-    citation_dissertation_institution: PTEC_NAME,
+    citation_dissertation_institution: org.institutionName,
     citation_pdf_url: `${SITE_URL}/api/theses/${report.id}/file`,
   };
   if (authors.length > 0) tags.citation_author = authors;

@@ -67,7 +67,7 @@ export const DEFAULT_LINKS: LinksSettings = {
 export const DEFAULT_SEO: SeoSettings = {
   siteTitle: "PTEC Digital Teaching Library",
   titleTemplate: "%s · PTEC Library",
-  // Mirrors PTEC_LIBRARY_NAME in lib/seo/site.ts (JSON-LD + email branding).
+  // Product/site name used by JSON-LD, Open Graph and email branding.
   siteName: "PTEC Digital Library",
   siteDescription: {
     en: "Access free teaching resources, books, and educational materials from the Phnom Penh Teacher Education College (PTEC).",

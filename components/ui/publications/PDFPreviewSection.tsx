@@ -18,12 +18,15 @@ export default function PDFPreviewSection({
   fileHref,
   publicationId,
   hasFile,
+  reportEmail,
 }: {
   title: string;
   pdfUrl: string;
   fileHref: string;
   publicationId: string;
   hasFile: boolean;
+  /** Published support address for the broken-file report link. */
+  reportEmail?: string | null;
 }) {
   const t = useTranslations("publicationDetail");
   const [revealed, setRevealed] = useState(false);
@@ -66,6 +69,7 @@ export default function PDFPreviewSection({
             initialProgressPct={0}
             initialMaxProgressPct={0}
             allowDownload={true}
+            reportEmail={reportEmail}
           />
         </div>
       ) : (

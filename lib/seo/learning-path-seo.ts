@@ -9,7 +9,12 @@
 //     durations exist; educationalLevel only from the record's audience.
 
 import type { Metadata } from "next";
-import { SITE_URL, PTEC_NAME, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
 
 export const FALLBACK_OG_IMAGE = `${SITE_URL}/og-default.png`;
@@ -77,7 +82,12 @@ export function pathsCollectionUrl(locale: string): string {
 
 // ── Metadata (generateMetadata) ──────────────────────────────────────────────
 
-export function buildPathMetadata(path: LearningPathSeoInput, locale: string): Metadata {
+export function buildPathMetadata(
+  path: LearningPathSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates(`/paths/${path.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const title = pathLocalizedTitle(path, locale);
@@ -94,7 +104,7 @@ export function buildPathMetadata(path: LearningPathSeoInput, locale: string): M
       description,
       type: "article",
       url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
       modifiedTime: path.dateModified ?? undefined,
@@ -112,24 +122,26 @@ export function buildPathMetadata(path: LearningPathSeoInput, locale: string): M
 export function buildPathsListingMetadata(
   locale: string,
   { title, description }: { title: string; description: string },
+  orgArg?: OrgIdentity,
 ): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates("/paths", locale);
   return {
     title,
     description,
     alternates,
     openGraph: {
-      title: `${title} | PTEC Library`,
+      title: `${title} | ${org.libraryName}`,
       description,
       type: "website",
       url: alternates.canonical,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
     },
     twitter: {
       card: "summary_large_image",
-      title: `${title} | PTEC Library`,
+      title: `${title} | ${org.libraryName}`,
       description,
     },
   };
@@ -147,7 +159,6 @@ function compact(schema: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
-const provider = { "@type": "EducationalOrganization", name: PTEC_NAME, url: SITE_URL };
 
 /** Sum real step durations → ISO-8601 duration, or undefined when none exist
  *  (never invent a timeRequired). */
@@ -162,7 +173,12 @@ function totalDuration(path: LearningPathSeoInput): string | undefined {
 }
 
 /** Course JSON-LD for a learning-path detail page. Only truthful facts. */
-export function pathCourseJsonLd(path: LearningPathSeoInput, locale: string): Record<string, unknown> {
+export function pathCourseJsonLd(
+  path: LearningPathSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = pathCanonicalUrl(path.slug, locale);
   const audience = clean(path.audience);
   const modules = path.modules ?? [];
@@ -175,7 +191,7 @@ export function pathCourseJsonLd(path: LearningPathSeoInput, locale: string): Re
     description: pathLocalizedDescription(path, locale),
     url,
     mainEntityOfPage: url,
-    provider,
+    provider: organizationNode(org),
     inLanguage: locale === "km" ? "km" : path.language || "en",
     image: path.coverUrl || undefined,
     educationalLevel: audience || undefined,
@@ -204,12 +220,16 @@ export function pathsCollectionJsonLd({
   name,
   description,
   paths,
+  org: orgArg,
 }: {
   locale: string;
   name: string;
   description: string;
   paths: LearningPathSeoInput[];
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = pathsCollectionUrl(locale);
   return compact({
     "@context": "https://schema.org",
@@ -220,7 +240,7 @@ export function pathsCollectionJsonLd({
     url,
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
-    provider: { "@type": "Library", name: PTEC_LIBRARY_NAME, url: SITE_URL, parentOrganization: provider },
+    provider: libraryNode(org),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: paths.length,
@@ -235,7 +255,7 @@ export function pathsCollectionJsonLd({
             name: pathLocalizedTitle(path, locale),
             description: pathLocalizedDescription(path, locale),
             url: pathCanonicalUrl(path.slug, locale),
-            provider,
+            provider: organizationNode(org),
             educationalLevel: clean(path.audience) || undefined,
           }),
         }),

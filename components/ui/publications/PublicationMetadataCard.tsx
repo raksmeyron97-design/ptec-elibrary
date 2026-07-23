@@ -13,6 +13,7 @@ import {
   Copyright,
 } from "lucide-react";
 import type { Publication } from "@/lib/publications";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 const TYPE_LABELS: Record<string, string> = {
   article: "Article",
@@ -20,8 +21,6 @@ const TYPE_LABELS: Record<string, string> = {
   account: "Account",
   editorial: "Editorial",
 };
-
-const PUBLISHER_NAME = "Phnom Penh Teacher Education College";
 
 function Row({
   icon,
@@ -57,7 +56,12 @@ export default async function PublicationMetadataCard({
   year: string | null;
 }) {
   const iconClass = "h-3.5 w-3.5";
-  const t = await getTranslations("publicationDetail");
+  // A publication with no publisher of its own is published by the institution
+  // — resolved from the published settings, never a compiled-in name.
+  const [t, org] = await Promise.all([
+    getTranslations("publicationDetail"),
+    getOrgIdentity(),
+  ]);
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
@@ -83,7 +87,7 @@ export default async function PublicationMetadataCard({
             value={pub.page_start ? [pub.page_start, pub.page_end].filter(Boolean).join("–") : pub.article_no}
           />
         )}
-        <Row icon={<Building2 className={iconClass} />} label={t("fieldPublisher")} value={pub.publisher || PUBLISHER_NAME} />
+        <Row icon={<Building2 className={iconClass} />} label={t("fieldPublisher")} value={pub.publisher || org.institutionName} />
         {pub.isbn && (
           <Row icon={<Barcode className={iconClass} />} label={t("fieldIsbn")} value={<span className="font-mono">{pub.isbn}</span>} />
         )}

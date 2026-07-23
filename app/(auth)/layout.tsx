@@ -3,13 +3,15 @@ import RootShell from "@/components/layout/RootShell";
 import { getMessages } from "next-intl/server";
 import { pickMessages, AUTH_NAMESPACES } from "@/i18n/pick-messages";
 import { getLocaleFromCookie } from "@/lib/locale";
-import { rootMetadata, rootViewport } from "@/app/root-metadata";
+import { identityMetadata, rootViewport } from "@/app/root-metadata";
 import { NOINDEX_ROBOTS } from "@/lib/seo/indexing";
 
 // Auth flows are private surfaces: never indexable, in any environment.
 // robots.txt already disallows /auth, but a disallow alone does not prevent
 // indexing of externally-linked URLs — the meta tag does.
-export const metadata = { ...rootMetadata, robots: NOINDEX_ROBOTS };
+export async function generateMetadata() {
+  return { ...(await identityMetadata()), robots: NOINDEX_ROBOTS };
+}
 export const viewport = rootViewport;
 
 // Root layout for the auth flows. Like the admin panel these live outside the

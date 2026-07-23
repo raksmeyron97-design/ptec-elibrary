@@ -12,7 +12,12 @@
 //   * Schema URLs always match the page's canonical URL for the current locale.
 
 import type { Metadata } from "next";
-import { SITE_URL, PTEC_NAME, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { normalizeDoi } from "@/lib/seo/identifiers";
 import { schemaCitations } from "@/lib/seo/references";
@@ -119,7 +124,12 @@ function truncate(text: string): string {
 }
 
 /** Factual one-liner built only from verified fields — localized, no invention. */
-export function thesisFallbackDescription(thesis: ThesisSeoInput, locale: string): string {
+export function thesisFallbackDescription(
+  thesis: ThesisSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): string {
+  const org = resolveOrgIdentity(orgArg);
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
   const subject = clean(thesis.department) || clean(thesis.program);
   if (locale === "km") {
@@ -129,17 +139,23 @@ export function thesisFallbackDescription(thesis: ThesisSeoInput, locale: string
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const subjectPart = subject ? ` in ${subject}` : "";
-  return `${clean(thesis.title)}${byline} — a student thesis${subjectPart} from Phnom Penh Teacher Education College (PTEC). Read the abstract and download the full PDF for free.`;
+  return `${clean(thesis.title)}${byline} — a student thesis${subjectPart} from ${org.institutionName} (${org.abbreviation}). Read the abstract and download the full PDF for free.`;
 }
 
 /** Meta description: the abstract when substantial, else the factual fallback. */
-export function thesisMetaDescription(thesis: ThesisSeoInput, locale: string): string {
+export function thesisMetaDescription(
+  thesis: ThesisSeoInput,
+  locale: string,
+  org?: OrgIdentity,
+): string {
   const abstract = clean(thesis.abstract);
   if (abstract.length >= 70) return truncate(abstract);
   if (abstract) {
-    return truncate(`${abstract.replace(/[.。។]\s*$/, "")}. ${thesisFallbackDescription(thesis, locale)}`);
+    return truncate(
+      `${abstract.replace(/[.。។]\s*$/, "")}. ${thesisFallbackDescription(thesis, locale, org)}`,
+    );
   }
-  return truncate(thesisFallbackDescription(thesis, locale));
+  return truncate(thesisFallbackDescription(thesis, locale, org));
 }
 
 // ── Detail metadata (generateMetadata) ───────────────────────────────────────
@@ -148,11 +164,14 @@ export function buildThesisMetadata(
   thesis: ThesisSeoInput,
   locale: string,
   overrides?: { seoTitle?: string | null; seoDescription?: string | null; ogImage?: string | null },
+  orgArg?: OrgIdentity,
 ): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates(`/theses/${thesis.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const title = clean(overrides?.seoTitle) || thesis.title;
-  const description = clean(overrides?.seoDescription) || thesisMetaDescription(thesis, locale);
+  const description =
+    clean(overrides?.seoDescription) || thesisMetaDescription(thesis, locale, org);
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
   const keywords = (thesis.keywords ?? []).filter(Boolean);
   const section = clean(thesis.department) || clean(thesis.program) || "Theses";
@@ -166,7 +185,7 @@ export function buildThesisMetadata(
     keywords: keywords.length > 0 ? keywords : undefined,
     // Only real authors — never a fabricated "Unknown Author".
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,
-    publisher: PTEC_NAME,
+    publisher: org.institutionName,
     category: section,
     alternates,
     openGraph: {
@@ -174,7 +193,7 @@ export function buildThesisMetadata(
       description,
       type: "article",
       url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
       authors: authors.length > 0 ? authors : undefined,
@@ -205,19 +224,6 @@ function compact(schema: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
-const ptecPublisher = {
-  "@type": "EducationalOrganization",
-  name: PTEC_NAME,
-  url: SITE_URL,
-};
-
-const libraryProvider = {
-  "@type": "Library",
-  name: PTEC_LIBRARY_NAME,
-  url: SITE_URL,
-  parentOrganization: ptecPublisher,
-};
-
 export type ThesisAggregateRating = { ratingValue: number | string; reviewCount: number } | null;
 
 /**
@@ -225,7 +231,12 @@ export type ThesisAggregateRating = { ratingValue: number | string; reviewCount:
  * references are completeness-filtered, dates are kept distinct, and PTEC is
  * the (legitimate) degree-granting publisher.
  */
-export function thesisJsonLd(thesis: ThesisSeoInput, locale: string): Record<string, unknown> {
+export function thesisJsonLd(
+  thesis: ThesisSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = thesisCanonicalUrl(thesis.slug, locale);
   const authors = (thesis.authors ?? []).map(clean).filter(Boolean);
   const keywords = (thesis.keywords ?? []).filter(Boolean);
@@ -243,13 +254,17 @@ export function thesisJsonLd(thesis: ThesisSeoInput, locale: string): Record<str
     url,
     mainEntityOfPage: url,
     author: authors.length > 0 ? authors.map((name) => ({ "@type": "Person", name })) : undefined,
-    publisher: ptecPublisher,
-    provider: libraryProvider,
-    isPartOf: { "@type": "CreativeWorkSeries", name: "PTEC Student Theses", publisher: ptecPublisher },
+    publisher: organizationNode(org),
+    provider: libraryNode(org),
+    isPartOf: {
+      "@type": "CreativeWorkSeries",
+      name: `${org.abbreviation} Student Theses`,
+      publisher: organizationNode(org),
+    },
     about: department ? { "@type": "Thing", name: department } : undefined,
     inLanguage: languageCode(thesis.language),
     abstract: abstract || undefined,
-    description: abstract || thesisFallbackDescription(thesis, locale),
+    description: abstract || thesisFallbackDescription(thesis, locale, org),
     image: thesis.coverUrl || FALLBACK_OG_IMAGE,
     // Distinct, truthful dates — the website upload time is NOT datePublished.
     datePublished: thesis.datePublished || undefined,
@@ -284,6 +299,7 @@ export function thesesCollectionJsonLd({
   name,
   description,
   theses,
+  org: orgArg,
 }: {
   locale: string;
   page?: number;
@@ -292,7 +308,10 @@ export function thesesCollectionJsonLd({
   name: string;
   description: string;
   theses: CollectionThesisItem[];
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = thesesCollectionUrl(locale, page);
   const offset = (Math.max(1, page) - 1) * pageSize;
 
@@ -305,7 +324,7 @@ export function thesesCollectionJsonLd({
     url,
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
-    provider: libraryProvider,
+    provider: libraryNode(org),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: total,

@@ -10,7 +10,7 @@ import {
   adminReplyEmail,
   userConfirmationEmail,
 } from "@/lib/email/contact-templates";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 import type { ContactCategory } from "@/lib/contact/validate";
 
 // NOTE: do not `export type { ContactCategory }` here - Next's Server
@@ -459,7 +459,7 @@ export async function adminReplyToContactMessage(id: string, input: ReplyInput):
 
   try {
     const template = adminReplyEmail({
-      contactEmail: (await getSiteConfig()).email,
+      org: await getOrgIdentity(),
       name: detail.message.name,
       subject: normalized.subject.replace(/^re:\s*/i, "") || detail.message.subject,
       replyBody: normalized.replyBody,
@@ -593,7 +593,7 @@ async function retryAdminNotification(supabase: ServiceClient, message: ContactM
 
   try {
     const notification = adminNotificationEmail({
-      contactEmail: (await getSiteConfig()).email,
+      org: await getOrgIdentity(),
       name: message.name,
       email: message.email,
       phone: message.phone,
@@ -648,7 +648,7 @@ async function retryUserConfirmation(supabase: ServiceClient, message: ContactMe
 
   try {
     const confirmation = userConfirmationEmail({
-      contactEmail: (await getSiteConfig()).email,
+      org: await getOrgIdentity(),
       name: message.name,
       category: message.category,
       subject: message.subject,
@@ -718,7 +718,7 @@ async function retryLastReply(supabase: ServiceClient, message: ContactMessage):
 
   try {
     const template = adminReplyEmail({
-      contactEmail: (await getSiteConfig()).email,
+      org: await getOrgIdentity(),
       name: message.name,
       subject: failedReply.subject.replace(/^re:\s*/i, "") || message.subject,
       replyBody: failedReply.reply_body,

@@ -1,4 +1,9 @@
-import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
 import type { EventFields } from "@/lib/posts/event-status";
 
@@ -15,12 +20,6 @@ function postCanonical(slug: string, locale: string): string {
   return localeAlternates(`/posts/${slug}`, locale).canonical;
 }
 
-const libraryProvider = {
-  "@type": "EducationalOrganization",
-  name: "Phnom Penh Teacher Education College",
-  url: SITE_URL,
-};
-
 /**
  * CollectionPage + ItemList for the clean (unfiltered) News & Events listing.
  * Only emitted when the URL equals the page's canonical (no filter/search/sort),
@@ -34,6 +33,7 @@ export function postsCollectionJsonLd({
   name,
   description,
   items,
+  org: orgArg,
 }: {
   locale: string;
   page: number;
@@ -42,7 +42,10 @@ export function postsCollectionJsonLd({
   name: string;
   description: string;
   items: { slug: string; title: string }[];
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = postsListingUrl(locale, page);
   const offset = (Math.max(1, page) - 1) * pageSize;
 
@@ -55,8 +58,8 @@ export function postsCollectionJsonLd({
     url,
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
-    provider: libraryProvider,
-    publisher: { "@type": "Organization", name: PTEC_LIBRARY_NAME, url: SITE_URL },
+    provider: libraryNode(org),
+    publisher: { "@type": "Organization", name: org.siteName, url: org.url },
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: total,
@@ -93,14 +96,18 @@ export function postEventJsonLd({
   description,
   url,
   image,
+  org: orgArg,
 }: {
   event: EventFields;
   title: string;
   description?: string | null;
   url: string;
   image?: string | null;
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> | null {
   if (!event.startAt) return null;
+  const org = resolveOrgIdentity(orgArg);
 
   const schema: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -111,7 +118,7 @@ export function postEventJsonLd({
     eventStatus: event.statusOverride
       ? EVENT_STATUS_SCHEMA[event.statusOverride]
       : "https://schema.org/EventScheduled",
-    organizer: libraryProvider,
+    organizer: organizationNode(org),
     isAccessibleForFree: true,
   };
   if (event.endAt) schema.endDate = event.endAt;

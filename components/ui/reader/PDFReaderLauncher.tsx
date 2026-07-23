@@ -17,6 +17,8 @@ type PDFReaderLauncherProps = {
   allowDownload?: boolean;
   isLoggedIn?: boolean;
   fullReaderHref?: string;
+  /** Published support address for the broken-file report link. */
+  reportEmail?: string | null;
 };
 
 export default function PDFReaderLauncher({
@@ -29,6 +31,7 @@ export default function PDFReaderLauncher({
   allowDownload = true,
   isLoggedIn = false,
   fullReaderHref,
+  reportEmail,
 }: PDFReaderLauncherProps) {
   const t = useTranslations("reader");
   const bookT = useTranslations("bookDetail");
@@ -86,6 +89,7 @@ export default function PDFReaderLauncher({
           initialMaxProgressPct={initialMaxProgressPct}
           allowDownload={allowDownload}
           isLoggedIn={isLoggedIn}
+          reportEmail={reportEmail}
         />
       </div>
     );

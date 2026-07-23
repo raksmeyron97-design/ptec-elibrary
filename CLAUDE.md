@@ -105,7 +105,8 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 ### System Settings (global site configuration)
 
 - `/admin/system-settings` manages organization names, contacts, address, opening hours, social/map links, and SEO defaults with a draft → publish → version-history/rollback workflow (tables `site_settings` + `site_setting_versions`, migration `0098`; service-role-only RLS). Full docs: `docs/SYSTEM-SETTINGS.md`.
-- **Read config via `getSiteConfig()`** (`lib/system-settings/config.ts`, cached under the `site-config` tag) in server code; pass values to client components as props. `lib/ptec.ts` is now only the documented fallback + seed source — never add new imports of it to public UI.
+- **Read config via `getSiteConfig()`** (`lib/system-settings/config.ts`, cached under the `site-config` tag) in server code; pass values to client components as props. `lib/ptec.ts` is now only the documented fallback + seed source — it is imported by `lib/system-settings/defaults.ts` and nothing else, and `lib/settings-consistency.test.ts` enforces that.
+- **Synchronous builders take an explicit identity.** `lib/seo/*`, `lib/exports/works.ts`, `lib/theses/citation.ts` and `lib/email/contact-templates.ts` can't await the config, so they accept an `OrgIdentity` (`lib/system-settings/org-identity.ts`) resolved with `await getOrgIdentity()` by the calling server component. The old `PTEC_NAME`/`PTEC_LIBRARY_NAME` constants in `lib/seo/site.ts` are gone: they were a second source of truth that publishing never reached. A page that calls one of these builders without resolving `getOrgIdentity()` fails `lib/settings-consistency.test.ts`.
 - Publishing calls `revalidateSiteConfig()` (tag + both locale layout trees). Saving a draft never touches the public cache.
 - Permission resource: `settings` (admin/super_admin write). Every settings server action re-checks `requirePermission("settings", "write")`.
 

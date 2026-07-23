@@ -321,7 +321,13 @@ export default async function Footer() {
 
         <div className="mt-9 border-t border-white/10 pt-5">
           <div className="flex flex-col gap-3 text-[12px] text-blue-100/68 md:flex-row md:items-center md:justify-between">
-            <p>{t("copyright", { year: new Date().getFullYear() })}</p>
+            <p>
+              {t("copyright", {
+                year: new Date().getFullYear(),
+                library: locale === "km" ? cfg.libraryName.km : cfg.libraryName.en,
+                institution: locale === "km" ? cfg.name.km : cfg.name.en,
+              })}
+            </p>
             <nav aria-label={t("legal")} className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {legalLinks.map((link) => (
                 <Link

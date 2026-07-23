@@ -26,6 +26,7 @@ import { TAGS } from "@/lib/cache/revalidate";
 import { DEFAULT_SECTION_DOCS } from "./defaults";
 import { buildSiteConfig } from "./map";
 import { validateSectionDoc } from "./schemas";
+import { orgIdentityFrom, type OrgIdentity } from "./org-identity";
 import { SETTING_SECTIONS, type SectionDocMap, type SiteConfig } from "./types";
 
 /** Uncached read + merge — exported for the health probe and tests. */
@@ -70,4 +71,17 @@ const getCachedSiteConfig = unstable_cache(
 /** Cached public site configuration. Safe in prerendered pages. */
 export async function getSiteConfig(): Promise<SiteConfig> {
   return getCachedSiteConfig();
+}
+
+/**
+ * The published organization identity, for the synchronous SEO / JSON-LD /
+ * export / email builders (see ./org-identity.ts for why they take it as an
+ * argument rather than importing a constant).
+ *
+ * Call this once in a server component / route handler and thread the result
+ * down — it shares getSiteConfig()'s cache, so extra calls in one render are
+ * cheap, but one resolved value per render keeps every surface consistent.
+ */
+export async function getOrgIdentity(): Promise<OrgIdentity> {
+  return orgIdentityFrom(await getSiteConfig());
 }

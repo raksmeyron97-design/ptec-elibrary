@@ -26,12 +26,16 @@ export default function ReviewPublishStep({
   ogImage, onOgImageChange,
   onPreview,
   disabled,
+  institution,
 }: {
   thesis: Omit<MetadataQualityInput, "program" | "cohort" | "academicYear"> & {
     program: string; cohort: string; academicYear: string; doi: string;
   };
   siteUrl: string;
   slug: string;
+  /** Published institution name — server-resolved, used by the citation preview. */
+  institution: string;
+
   status: ThesisStatus;
   onStatusChange: (v: ThesisStatus) => void;
   scheduledAt: string;
@@ -108,6 +112,7 @@ export default function ReviewPublishStep({
           publishedAt=""
           doi={thesis.doi}
           program={thesis.program}
+          institution={institution}
         />
       </div>
 

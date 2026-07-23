@@ -19,8 +19,11 @@ export default function HeroSearch({
   authors,
   advisors,
   keywords,
+  institution,
 }: {
   totalCount: number;
+  /** Published institution name (server-resolved). */
+  institution: string;
   quickChips: { label: string; value: string }[];
   currentQ: string;
   currentProgram: string;
@@ -58,7 +61,7 @@ export default function HeroSearch({
           Find Theses &amp; Research
         </h1>
         <p className="mx-auto mt-2.5 max-w-lg text-[14.5px] leading-relaxed text-text-muted sm:text-[15.5px]">
-          Search student theses from the Phnom Penh Teacher Education College by title, author,
+          Search student theses from {institution} by title, author,
           advisor, program, or keyword.
         </p>
 

@@ -29,6 +29,9 @@ export async function generateMetadata({
       template: cfg.seo.titleTemplate,
     },
     description,
+    // Identity fields — all published, none compiled in (see app/root-metadata.ts).
+    applicationName: cfg.libraryName.en,
+    openGraph: { ...rootMetadata.openGraph, siteName: cfg.seo.siteName },
     // Environment gate AND admin kill switch — either can force noindex,
     // neither can force indexing of a non-production deployment.
     robots: defaultRobots({ indexingEnabled: cfg.seo.indexingEnabled }),

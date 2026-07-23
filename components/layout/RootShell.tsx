@@ -71,8 +71,7 @@ function buildSiteGraph(cfg: SiteConfig) {
         telephone: cfg.phone,
         email: cfg.email,
         sameAs: cfg.sameAs,
-        description:
-          "Phnom Penh Teacher Education College (PTEC) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.",
+        description: `${cfg.name.en} (${cfg.name.short}) is a public teacher training institution in Cambodia providing free digital teaching resources and research materials.`,
         address,
       },
       {
@@ -83,8 +82,9 @@ function buildSiteGraph(cfg: SiteConfig) {
         image: `${SITE_URL}/logo.png`,
         telephone: cfg.phone,
         email: cfg.email,
-        description:
-          "Free digital library for Phnom Penh Teacher Education College — teaching resources, textbooks, and research reports in Khmer and English.",
+        // The published site description — same text search engines see in
+        // the meta description, so the two can never disagree.
+        description: cfg.seo.siteDescription.en,
         inLanguage: ["km", "en"],
         isAccessibleForFree: true,
         openingHours: cfg.hours.openingHoursSpec,

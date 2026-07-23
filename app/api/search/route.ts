@@ -16,6 +16,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logAppEvent } from "@/lib/analytics/events";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -317,7 +318,8 @@ async function generateAnswer(q: string, titles: string[], passages: AIPassage[]
           .join(", ")}.`
       : "";
 
-  const prompt = `You are the PTEC Library AI assistant for Phnom Penh Teacher Education College.
+  const org = await getOrgIdentity();
+  const prompt = `You are the ${org.siteName} AI assistant for ${org.institutionName}.
 A user searched for: "${q}"
 ${bookList}
 ${passageList}

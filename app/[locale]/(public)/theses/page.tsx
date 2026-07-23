@@ -23,6 +23,7 @@ import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata
 import JsonLd from "@/components/seo/JsonLd";
 import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
 import { getYear } from "@/lib/theses/report-fields";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function generateMetadata({
   const { locale } = await routeParams;
   const t = await getTranslations({ locale, namespace: "theses" });
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/theses",
     locale,
     title: t("seoTitle"),
@@ -243,6 +245,7 @@ export default async function ThesesPage({
   const isCleanListing = !hasFilters && !params.sort && !params.view && !params.size;
   const collectionSchema = isCleanListing
     ? thesesCollectionJsonLd({
+        org: await getOrgIdentity(),
         locale,
         page,
         pageSize,
@@ -268,6 +271,7 @@ export default async function ThesesPage({
         <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8 space-y-6">
           {/* ── HERO SEARCH ─────────────────────────────────────────────── */}
           <HeroSearch
+            institution={(await getOrgIdentity()).institutionName}
             totalCount={baseReports.length}
             quickChips={quickChips}
             currentQ={params.q ?? ""}

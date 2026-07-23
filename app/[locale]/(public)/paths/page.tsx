@@ -11,6 +11,7 @@ import {
   pathLocalizedDescription,
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 // This page takes no searchParams and reads no cookies — it was force-dynamic
 // for no reason, paying a function invocation per visit to render identical
@@ -26,10 +27,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "paths" });
-  return buildPathsListingMetadata(locale, {
-    title: t("seoTitle"),
-    description: t("seoDescription"),
-  });
+  return buildPathsListingMetadata(
+    locale,
+    { title: t("seoTitle"), description: t("seoDescription") },
+    await getOrgIdentity(),
+  );
 }
 
 export default async function LearningPathsPage() {
@@ -51,6 +53,7 @@ export default async function LearningPathsPage() {
   }));
 
   const collectionSchema = pathsCollectionJsonLd({
+    org: await getOrgIdentity(),
     locale,
     name: t("collectionName"),
     description: t("collectionDescription"),

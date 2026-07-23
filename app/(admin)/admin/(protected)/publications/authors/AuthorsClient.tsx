@@ -297,7 +297,7 @@ export default function AuthorsClient({
                 value={affiliationForm.name}
                 onChange={(e) => setAffiliationForm({ ...affiliationForm, name: e.target.value })}
                 className={INPUT_CLASS}
-                placeholder="e.g. Phnom Penh Teacher Education College"
+                placeholder="e.g. the author's university or institute"
               />
             </div>
             <div>

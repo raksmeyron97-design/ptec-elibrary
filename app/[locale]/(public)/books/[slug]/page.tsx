@@ -50,6 +50,7 @@ import { breadcrumbSchema } from "@/lib/seo/schema";
 
 import { SITE_URL } from "@/lib/seo/site";
 import { bookScholarMeta } from "@/lib/seo/citation";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 
 
 type BookDetailPageProps = {
@@ -113,7 +114,7 @@ export async function generateMetadata({
   };
 
   return {
-    ...buildBookMetadata(seoInput, locale),
+    ...buildBookMetadata(seoInput, locale, await getOrgIdentity()),
     other: {
       // Google Scholar citation_* meta tags — see lib/seo/citation.ts.
       // citation_publisher / dc.publisher only when the record names a real
@@ -235,6 +236,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     },
     locale,
     avgRating > 0 ? { ratingValue: avgRating.toFixed(1), reviewCount } : null,
+    await getOrgIdentity(),
   );
   const bookBreadcrumbSchema = breadcrumbSchema([
     { name: t("home"), path: `${localePrefix}/home` },
@@ -595,6 +597,7 @@ async function ReaderSection({
       initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
       allowDownload={true}
       isLoggedIn={!!user}
+      reportEmail={(await getSiteConfig()).email}
       fullReaderHref={`/books/${book.slug}/read`}
     />
   );

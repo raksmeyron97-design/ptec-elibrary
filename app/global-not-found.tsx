@@ -1,9 +1,11 @@
 import RootShell from "@/components/layout/RootShell";
 import NotFoundContent from "@/components/layout/NotFoundContent";
 import { routing } from "@/i18n/routing";
-import { rootMetadata, rootViewport } from "@/app/root-metadata";
+import { identityMetadata, rootViewport } from "@/app/root-metadata";
 
-export const metadata = { ...rootMetadata, title: "Page not found · PTEC Library" };
+export async function generateMetadata() {
+  return identityMetadata(routing.defaultLocale as "en" | "km", "Page not found");
+}
 export const viewport = rootViewport;
 
 /**

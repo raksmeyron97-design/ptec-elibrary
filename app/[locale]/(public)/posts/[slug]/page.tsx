@@ -26,6 +26,7 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { postEventJsonLd } from "@/lib/seo/posts-seo";
 import type { EventFields } from "@/lib/posts/event-status";
 import { getTranslations } from "next-intl/server";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 const categoryBadgeStyles: Record<string, string> = {
   Research:     "bg-blue-50 text-blue-700 border border-blue-200",
@@ -156,7 +157,8 @@ export default async function PostDetailPage({
   else if (rawRole === "librarian") khmerRole = "បណ្ណារក្ស";
   else if (rawRole === "staff") khmerRole = "បុគ្គលិក";
   
-  const authorTitle = `${khmerRole}របស់បណ្ណាល័យ វ.គ.ភ. — Phnom Penh Teacher Education College`;
+  const org = await getOrgIdentity();
+  const authorTitle = `${khmerRole}របស់${org.libraryNameKm} — ${org.institutionName}`;
 
   // Fetch user's like/save state for this post
   let initialLiked = false;
@@ -228,7 +230,7 @@ export default async function PostDetailPage({
     author: { "@type": "Person", name: author },
     publisher: {
       "@type": "EducationalOrganization",
-      name: "Phnom Penh Teacher Education College",
+      name: org.institutionName,
       url: SITE_URL,
     },
   };
@@ -243,6 +245,7 @@ export default async function PostDetailPage({
   // stays a schema.org/Article. Only one primary node is emitted.
   const eventSchema = eventFields
     ? postEventJsonLd({
+        org: await getOrgIdentity(),
         event: eventFields,
         title: post.title,
         description: post.excerpt,

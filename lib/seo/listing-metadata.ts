@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 
 /**
  * Metadata for paginated listing pages (/books, /theses, /posts, …).
@@ -26,6 +29,7 @@ export function buildListingMetadata({
   imageAlt,
   pageLabel = "Page",
   outOfRange = false,
+  org: orgArg,
 }: {
   /** Route path starting with "/", e.g. "/books". */
   path: string;
@@ -47,11 +51,15 @@ export function buildListingMetadata({
   pageLabel?: string;
   /** True when the requested page is past the last page of results. */
   outOfRange?: boolean;
+  /** Resolved published identity — `await getOrgIdentity()`. Drives the
+   *  Open Graph site name and the "| <library>" title suffix. */
+  org?: OrgIdentity;
 }): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const pathWithQuery = page > 1 ? `${path}?page=${page}` : path;
   const alternates = localeAlternates(pathWithQuery, locale);
   const pagedTitle = page > 1 ? `${title} — ${pageLabel} ${page}` : title;
-  const images = image ? [{ url: image, alt: imageAlt ?? PTEC_LIBRARY_NAME }] : undefined;
+  const images = image ? [{ url: image, alt: imageAlt ?? org.siteName }] : undefined;
 
   return {
     title: pagedTitle,
@@ -59,18 +67,18 @@ export function buildListingMetadata({
     alternates,
     robots: hasFilters || outOfRange ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: `${pagedTitle} | PTEC Library`,
+      title: `${pagedTitle} | ${org.libraryName}`,
       description,
       url: alternates.canonical,
       type: ogType,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
       images,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${pagedTitle} | PTEC Library`,
+      title: `${pagedTitle} | ${org.libraryName}`,
       description,
       images: image ? [image] : undefined,
     },

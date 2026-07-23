@@ -1,29 +1,15 @@
 // lib/library-info.ts
-// Single source of truth for library facts used by the AI assistant.
-// Content is kept in step with the public About pages under app/(public)/about/*.
-// Contact details come from lib/ptec.ts — never restate them here.
-
-import { PTEC } from "@/lib/ptec";
+// EDITORIAL library facts used by the AI assistant (mission, rules, history,
+// collection, services…), kept in step with the public About pages under
+// app/[locale]/(public)/about/*.
+//
+// Deliberately contains NO organization identity, contact details, address or
+// opening hours. Those are published settings and are read at request time by
+// app/api/ask/route.ts via getSiteConfig() — restating them here is exactly how
+// the assistant ended up quoting a phone number and a schedule that the admin
+// panel had already replaced.
 
 export const LIBRARY_INFO = {
-  name: {
-    en: "PTEC Library (Phnom Penh Teacher Education College)",
-    km: "បណ្ណាល័យ វ.គ.ភ (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ)",
-  },
-  location: {
-    en: PTEC.address.en,
-    km: PTEC.address.km,
-  },
-  phone: PTEC.phone,
-  email: PTEC.email,
-  website: PTEC.links.website,
-
-  // ── Hours (mirrors app/(public)/about/timings) ──────────────────────────────
-  hours: {
-    en: "Monday–Friday: 7:00 AM – 5:00 PM. Saturday: 8:00 AM – 4:00 PM. Sunday & public holidays: Closed. During exam periods hours extend to 7:00 PM. The online e-Library is available 24/7.",
-    km: "ច័ន្ទ–សុក្រ: ៧:០០ ព្រឹក – ៥:០០ ល្ងាច។ ថ្ងៃសៅរ៍: ៨:០០ ព្រឹក – ៤:០០ រសៀល។ ថ្ងៃអាទិត្យ និងថ្ងៃបុណ្យ: បិទ។ រដូវប្រឡងបើករហូតដល់ម៉ោង ៧:០០ យប់។ បណ្ណាល័យអនឡាញអាចប្រើប្រាស់បាន ២៤ម៉ោង។",
-  },
-
   // ── About / identity (mirrors about, our-journey) ───────────────────────────
   about: {
     en: "The PTEC Library belongs to the Department of Educational Research and Library — one of the 7 departments of Phnom Penh Teacher Education College — under the Faculty of Educational Research. It is the central support for educational research and library services for staff and student-teachers. Its publishing arm, PTEC Library Press, has published over 30 instructor titles and 4 educational research bulletins as of 2025, and continues to expand digital distribution.",

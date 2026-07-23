@@ -1,7 +1,9 @@
 import RootShell from "@/components/layout/RootShell";
-import { rootMetadata, rootViewport } from "@/app/root-metadata";
+import { identityMetadata, rootViewport } from "@/app/root-metadata";
 
-export const metadata = rootMetadata;
+export async function generateMetadata() {
+  return identityMetadata();
+}
 export const viewport = rootViewport;
 
 // Root layout for the PWA offline fallback. This page is precached by the

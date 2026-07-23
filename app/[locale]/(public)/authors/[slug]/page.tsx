@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
-import { PTEC_LIBRARY_NAME, SITE_URL } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { slugify } from "@/lib/books";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -116,7 +117,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "profile",
       url: canonical,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: (await getOrgIdentity()).siteName,
     },
     twitter: { card: "summary", title, description },
   };

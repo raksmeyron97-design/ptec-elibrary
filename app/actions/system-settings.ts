@@ -24,7 +24,15 @@ import { DEFAULT_SECTION_DOCS } from "@/lib/system-settings/defaults";
 import type { FieldError } from "@/lib/system-settings/types";
 
 export type SettingsActionResult =
-  | { ok: true; publishedVersion?: number }
+  | {
+      ok: true;
+      publishedVersion?: number;
+      /** Set when the write succeeded but the public caches could NOT be
+       *  purged. The UI must surface this instead of a clean success toast:
+       *  the new version IS live in the database, yet visitors keep seeing the
+       *  previous values until the ISR window lapses. */
+      cacheWarning?: string;
+    }
   | { ok: false; error: string; fieldErrors?: FieldError[] };
 
 const MIGRATION_HINT =
@@ -41,6 +49,47 @@ function failure(e: unknown): SettingsActionResult {
 /** Table-missing errors (migration 0098 pending) get a precise message. */
 function isMissingTable(error: { code?: string } | null): boolean {
   return error?.code === "PGRST205";
+}
+
+/**
+ * Purge the public caches after a successful publish/rollback. Never throws:
+ * the database write has already committed, so turning a cache-purge failure
+ * into a thrown action would report "something went wrong" for a change that
+ * actually went live. Instead it returns a warning the UI shows verbatim.
+ */
+function invalidatePublicCaches(): string | undefined {
+  try {
+    revalidateSiteConfig();
+    return undefined;
+  } catch (e) {
+    console.error("[system-settings] cache invalidation failed after publish:", e);
+    return (
+      "The new version is saved and live in the database, but the public page " +
+      "cache could not be refreshed. Visitors may keep seeing the previous " +
+      "values for up to an hour. Re-publish, or redeploy, to force a refresh."
+    );
+  }
+}
+
+/**
+ * Record a publish/rollback that was REFUSED. Successful publishes are already
+ * audited; a refusal is the more interesting security event (a stale editor
+ * overwriting a colleague, an invalid document, a version that no longer
+ * validates) and used to leave no trace at all. Failures here are swallowed —
+ * an audit-log outage must never turn a clean refusal into a 500.
+ */
+async function auditFailedAttempt(
+  userId: string,
+  action: "settings.publish_failed" | "settings.rollback_failed",
+  section: string,
+  reason: string,
+  extra: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    await logAdminAction(userId, action, "site_settings", section, { reason, ...extra });
+  } catch (e) {
+    console.error("[system-settings] failed-attempt audit write failed:", e);
+  }
 }
 
 // ── Save draft ───────────────────────────────────────────────────────────────
@@ -143,9 +192,19 @@ export async function publishSettingsSection(
       if (isMissingTable(readError)) return { ok: false, error: MIGRATION_HINT };
       throw new Error(readError.message);
     }
-    if (!row) return { ok: false, error: "This section has not been initialized yet." };
-    if (!row.draft) return { ok: false, error: "There is no draft to publish." };
+    if (!row) {
+      await auditFailedAttempt(userId, "settings.publish_failed", section, "section_not_initialized");
+      return { ok: false, error: "This section has not been initialized yet." };
+    }
+    if (!row.draft) {
+      await auditFailedAttempt(userId, "settings.publish_failed", section, "no_draft");
+      return { ok: false, error: "There is no draft to publish." };
+    }
     if (row.published_version !== options.expectedVersion) {
+      await auditFailedAttempt(userId, "settings.publish_failed", section, "version_conflict", {
+        expectedVersion: options.expectedVersion,
+        actualVersion: row.published_version,
+      });
       return {
         ok: false,
         error: "Someone else published this section while you were editing. Reload and review before publishing.",
@@ -155,6 +214,9 @@ export async function publishSettingsSection(
     // Never trust the stored draft blindly — re-validate at publish time.
     const parsed = validateSectionDoc(section, row.draft);
     if (!parsed.ok) {
+      await auditFailedAttempt(userId, "settings.publish_failed", section, "validation_failed", {
+        fields: parsed.errors.map((e) => e.path),
+      });
       return { ok: false, error: "The draft has validation problems.", fieldErrors: parsed.errors };
     }
 
@@ -186,6 +248,9 @@ export async function publishSettingsSection(
       .select("published_version");
     if (updateError) throw new Error(updateError.message);
     if (!updated?.length) {
+      await auditFailedAttempt(userId, "settings.publish_failed", section, "version_conflict_on_write", {
+        expectedVersion: options.expectedVersion,
+      });
       return {
         ok: false,
         error: "Someone else published this section while you were editing. Reload and review before publishing.",
@@ -213,8 +278,8 @@ export async function publishSettingsSection(
       changedFields,
       comment,
     });
-    revalidateSiteConfig();
-    return { ok: true, publishedVersion: newVersion };
+    const cacheWarning = invalidatePublicCaches();
+    return { ok: true, publishedVersion: newVersion, cacheWarning };
   } catch (e) {
     return failure(e);
   }
@@ -252,8 +317,14 @@ export async function rollbackSettingsSection(
       throw new Error(readError.message);
     }
     if (targetError) throw new Error(targetError.message);
-    if (!row) return { ok: false, error: "This section has not been initialized yet." };
-    if (!target) return { ok: false, error: `Version ${toVersion} was not found.` };
+    if (!row) {
+      await auditFailedAttempt(userId, "settings.rollback_failed", section, "section_not_initialized");
+      return { ok: false, error: "This section has not been initialized yet." };
+    }
+    if (!target) {
+      await auditFailedAttempt(userId, "settings.rollback_failed", section, "version_not_found", { toVersion });
+      return { ok: false, error: `Version ${toVersion} was not found.` };
+    }
     if (toVersion === row.published_version) {
       return { ok: false, error: `Version ${toVersion} is already the published version.` };
     }
@@ -261,6 +332,10 @@ export async function rollbackSettingsSection(
     // Historical snapshots must still satisfy today's schema to go live.
     const parsed = validateSectionDoc(section, target.snapshot);
     if (!parsed.ok) {
+      await auditFailedAttempt(userId, "settings.rollback_failed", section, "snapshot_no_longer_valid", {
+        toVersion,
+        fields: parsed.errors.map((e) => e.path),
+      });
       return {
         ok: false,
         error: "That version no longer matches the current settings format and cannot be restored.",
@@ -285,6 +360,7 @@ export async function rollbackSettingsSection(
       .select("published_version");
     if (updateError) throw new Error(updateError.message);
     if (!updated?.length) {
+      await auditFailedAttempt(userId, "settings.rollback_failed", section, "version_conflict_on_write", { toVersion });
       return { ok: false, error: "The section changed while rolling back. Reload and try again." };
     }
 
@@ -307,8 +383,8 @@ export async function rollbackSettingsSection(
       restoredFrom: toVersion,
       changedFields,
     });
-    revalidateSiteConfig();
-    return { ok: true, publishedVersion: newVersion };
+    const cacheWarning = invalidatePublicCaches();
+    return { ok: true, publishedVersion: newVersion, cacheWarning };
   } catch (e) {
     return failure(e);
   }
