@@ -45,11 +45,19 @@ const SEARCH_TYPE_LABEL: Record<string, string> = {
   physical_catalog: "Physical catalog",
 };
 
+// Built once at module scope — constructing an Intl formatter is expensive
+// and this renders a few dozen figures per pass.
+const NUMBER_FORMAT = new Intl.NumberFormat("en");
+
 function fmt(n: number) {
-  return new Intl.NumberFormat("en").format(n);
+  return NUMBER_FORMAT.format(n);
 }
 
 export default function ResourceCountAudit({ initial }: Props) {
+  // Seeded from the server render, then replaced by "Recalculate and verify".
+  // The page keys this component on `initial.reconciliation.checkedAt`, so a
+  // fresh server fetch remounts it — this state cannot go stale behind a
+  // newer prop.
   const [data, setData] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

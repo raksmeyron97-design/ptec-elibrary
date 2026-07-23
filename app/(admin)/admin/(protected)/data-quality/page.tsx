@@ -194,7 +194,13 @@ export default async function DataQualityPage() {
           vs the search index. Lives here rather than on the Overview because
           it is a data-integrity check, not a KPI. */}
       <div className="mb-8">
-        <ResourceCountAudit initial={resourceStats} />
+        {/* Keyed on the reconciliation timestamp: the panel seeds client state
+            from this prop, so a fresh server fetch must remount it rather than
+            leave the previous result on screen. */}
+        <ResourceCountAudit
+          key={resourceStats.reconciliation.checkedAt}
+          initial={resourceStats}
+        />
       </div>
 
       <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
