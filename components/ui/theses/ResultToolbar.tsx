@@ -27,7 +27,7 @@ function viewBtnClass(active: boolean): string {
 }
 
 export default function ResultToolbar({
-  total,
+  countLabel,
   query,
   params,
   isGrid,
@@ -38,7 +38,12 @@ export default function ResultToolbar({
   summaryLabel,
   basePath = "/theses",
 }: {
-  total: number;
+  /** Pre-resolved, translated count text from the server page — e.g.
+   *  "12 theses" or "3 of 12 theses". Built once by the page via
+   *  lib/listing-count.ts so the toolbar cannot state a different rule, and
+   *  passed in as a string because this toolbar used to hard-code the English
+   *  "thesis"/"theses" suffix and never rendered Khmer at all. */
+  countLabel: string;
   query?: string;
   params: Record<string, string | undefined>;
   isGrid: boolean;
@@ -52,10 +57,9 @@ export default function ResultToolbar({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-divider bg-bg-surface p-3.5 sm:flex-row sm:items-center sm:justify-between">
       {/* Result count */}
-      <p className="text-[13px] text-text-muted">
-        <span className="font-semibold text-text-body tabular-nums">{total.toLocaleString()}</span>{" "}
-        thesis{total === 1 ? "" : "es"}
-        {query && <> for &ldquo;{query}&rdquo;</>}
+      <p aria-live="polite" className="text-[13px] text-text-muted">
+        <span className="font-semibold text-text-body tabular-nums">{countLabel}</span>
+        {query && <> &mdash; &ldquo;{query}&rdquo;</>}
       </p>
 
       <div className="flex flex-wrap items-center gap-2">

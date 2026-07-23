@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/public";
+import { getCollectionStats, type PublicCollectionStats } from "@/lib/collection-stats";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
@@ -61,37 +62,22 @@ function detail(parts: Array<string | number | null | undefined>) {
   return parts.map(clean).filter(Boolean).join("; ");
 }
 
-async function countPublished(
-  table: "books" | "catalog_books" | "research_reports" | "publications" | "learning_paths",
-  column: "is_published" | "is_active",
-) {
-  const supabase = createPublicClient();
-  const { count } = await supabase
-    .from(table)
-    .select("id", { count: "exact", head: true })
-    .eq(column, true);
-  return count ?? 0;
-}
-
 const getLlmsSnapshot = unstable_cache(
   async () => {
     const supabase = createPublicClient();
 
+    // Counts come from the shared service, not from a local countPublished()
+    // helper (which is what this file used to carry — a fourth copy of the
+    // same predicate). `stats` is null when the aggregate is unreadable; the
+    // "Collection at a glance" block is then omitted rather than published
+    // with zeroes that an LLM would quote back as fact.
     const [
-      bookCount,
-      catalogCount,
-      thesisCount,
-      publicationCount,
-      pathCount,
+      stats,
       { data: books },
       { data: catalogs },
       { data: theses },
     ] = await Promise.all([
-      countPublished("books", "is_published"),
-      countPublished("catalog_books", "is_active"),
-      countPublished("research_reports", "is_published"),
-      countPublished("publications", "is_published"),
-      countPublished("learning_paths", "is_published"),
+      getCollectionStats(),
       supabase
         .from("books")
         .select("title, slug, language, department, authors(name), categories(name), departments(name)")
@@ -113,13 +99,7 @@ const getLlmsSnapshot = unstable_cache(
     ]);
 
     return {
-      counts: {
-        books: bookCount,
-        catalogs: catalogCount,
-        theses: thesisCount,
-        publications: publicationCount,
-        paths: pathCount,
-      },
+      stats,
       books: (books ?? []) as BookRow[],
       catalogs: (catalogs ?? []) as CatalogRow[],
       theses: (theses ?? []) as ThesisRow[],
@@ -128,6 +108,29 @@ const getLlmsSnapshot = unstable_cache(
   ["llms-txt-snapshot"],
   { revalidate: 3600, tags: ["books", "catalog_books", "research_reports"] },
 );
+
+/** The collection snapshot block. Every figure is the shared counting rule
+ *  (lib/collection-stats.ts) and each line says exactly what it counts, so a
+ *  model quoting this file cannot conflate "digital resources" with "books"
+ *  or fold the physical catalog into either. Omitted wholesale when the
+ *  aggregate is unavailable — a stated zero would be worse than silence. */
+function collectionSnapshot(stats: PublicCollectionStats | null) {
+  if (!stats) return "";
+  return `## Current Public Collection Snapshot
+
+Counting rule: "digital resources" is the sum of published e-books, theses and
+academic publications. Physical catalog records and learning paths are listed
+separately and are NOT part of that total.
+
+- Total published digital resources: ${stats.totalDigitalResources}
+- Published digital books (e-books): ${stats.books}
+- Published theses and research reports: ${stats.theses}
+- Published academic publications: ${stats.publications}
+- Active physical catalog records: ${stats.physicalCatalogs}
+- Published teacher learning paths: ${stats.learningPaths}
+
+`;
+}
 
 function resourceList(title: string, lines: string[]) {
   if (lines.length === 0) {
@@ -197,14 +200,7 @@ The ${org.siteName} preserves, organizes, and shares teaching and research mater
 - Academic publications and journal articles: ${SITE_URL}/publications - scholarly journal articles and publications, each with a bibliographic landing page, references, and citation metadata.
 - Teacher learning paths: ${SITE_URL}/paths - curated, ordered reading paths (books, theses, and resources) built around real teacher-training topics.
 
-## Current Public Collection Snapshot
-
-- Published digital books: ${snapshot.counts.books}
-- Active catalog records: ${snapshot.counts.catalogs}
-- Published theses and research reports: ${snapshot.counts.theses}
-- Published academic publications: ${snapshot.counts.publications}
-- Published teacher learning paths: ${snapshot.counts.paths}
-
+${collectionSnapshot(snapshot.stats)}
 ## Bilingual Access
 
 The library is fully bilingual (English and Khmer). Every public section has an

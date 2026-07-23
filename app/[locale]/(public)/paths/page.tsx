@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { GraduationCap, Layers, ChevronRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
+import { getCollectionStats } from "@/lib/collection-stats";
 import JsonLd from "@/components/seo/JsonLd";
 import {
   buildPathsListingMetadata,
@@ -35,11 +36,18 @@ export async function generateMetadata({
 }
 
 export default async function LearningPathsPage() {
-  const [paths, locale, t] = await Promise.all([
+  const [paths, locale, t, stats] = await Promise.all([
     getPublishedPaths(),
     getLocale(),
     getTranslations("paths"),
+    getCollectionStats(),
   ]);
+
+  // Canonical published-path total. Falls back to the fetched length only if
+  // the stats service is unreadable — the two use the same `is_published`
+  // predicate, so they agree; the service is preferred so this page cannot
+  // start disagreeing with the homepage if the listing query ever gains a cap.
+  const pathTotal = stats?.learningPaths ?? paths.length;
 
   // Adapt summaries to the SEO input shape (modules aren't needed on the listing).
   const seoPaths: LearningPathSeoInput[] = paths.map((p) => ({
@@ -73,6 +81,14 @@ export default async function LearningPathsPage() {
             {t("h1")}
           </h1>
           <p className="mt-2 max-w-[65ch] text-[15px] text-text-muted">{t("intro")}</p>
+          {/* Collection size from the canonical service — the same figure the
+              homepage and /llms.txt report for learning paths. This listing
+              has no filters, so there is no filtered/global split to show. */}
+          {paths.length > 0 && (
+            <p className="mt-3 text-[13px] text-text-muted tabular-nums">
+              {t("pathCount", { count: pathTotal })}
+            </p>
+          )}
         </div>
 
         {paths.length === 0 ? (

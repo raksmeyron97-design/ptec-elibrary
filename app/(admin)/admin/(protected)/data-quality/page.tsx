@@ -14,7 +14,13 @@ import {
   Sparkles,
   Wrench,
 } from "lucide-react";
-import { getMetadataGaps, getDataQualitySummary, getBrokenFiles } from "@/app/actions/data-quality";
+import {
+  getMetadataGaps,
+  getDataQualitySummary,
+  getBrokenFiles,
+  getResourceStatsReconciliation,
+} from "@/app/actions/data-quality";
+import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
 import { PageHeader } from "@/components/admin/kit";
 
 export const dynamic = "force-dynamic";
@@ -62,11 +68,12 @@ function MetricCard({
 }
 
 export default async function DataQualityPage() {
-  const [t, summary, gaps, brokenFiles] = await Promise.all([
+  const [t, summary, gaps, brokenFiles, resourceStats] = await Promise.all([
     getTranslations("adminDataQuality"),
     getDataQualitySummary(),
     getMetadataGaps(),
     getBrokenFiles(),
+    getResourceStatsReconciliation(),
   ]);
 
   const totalRecords = summary.totalBooks + summary.totalTheses;
@@ -182,6 +189,13 @@ export default async function DataQualityPage() {
         <MetricCard icon={<Wrench className="h-4 w-4" />} label={t("metrics.metadataQueue")} value={summary.metadataIssueCount} detail={t("metrics.needingEdits")} />
         <MetricCard icon={<LinkIcon className="h-4 w-4" />} label={t("metrics.brokenLinks")} value={summary.brokenFileCount} detail={t("metrics.lastSweep", { time: lastSweep })} />
       </section>
+
+      {/* Resource-count reconciliation: canonical public totals vs the cache
+          vs the search index. Lives here rather than on the Overview because
+          it is a data-integrity check, not a KPI. */}
+      <div className="mb-8">
+        <ResourceCountAudit initial={resourceStats} />
+      </div>
 
       <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
         <section aria-labelledby="metadata-gaps-title" className="rounded-2xl border border-divider bg-bg-surface shadow-sm">

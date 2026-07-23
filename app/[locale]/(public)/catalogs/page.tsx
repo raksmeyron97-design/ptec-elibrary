@@ -14,6 +14,8 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { getSiteConfig, getOrgIdentity } from "@/lib/system-settings/config";
+import { getCollectionStats } from "@/lib/collection-stats";
+import { chooseCountLabel } from "@/lib/listing-count";
 
 export const revalidate = 3600;
 
@@ -158,10 +160,11 @@ export default async function CatalogsPage({
   const params = await searchParams;
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/catalogs" : "/catalogs";
-  const [{ books, total, page }, categories, cfg] = await Promise.all([
+  const [{ books, total, page }, categories, cfg, stats] = await Promise.all([
     fetchCatalogBooks(params),
     fetchCategories(),
     getSiteConfig(),
+    getCollectionStats(),
   ]);
 
   const pageSize   = resolvePageSize(params.size);
@@ -172,6 +175,18 @@ export default async function CatalogsPage({
   // header collapses to the title and the empty state carries the visit info.
   // As soon as the first record is added this reverts to the normal layout.
   const catalogEmpty = total === 0 && !hasFilters;
+
+  // Physical catalog records are counted separately from digital resources
+  // and are never folded into that total (lib/collection-stats.ts). The
+  // denominator here is therefore stats.physicalCatalogs, never the digital
+  // figure — mixing the two is the exact confusion this work removes.
+  const countChoice = chooseCountLabel(total, stats?.physicalCatalogs ?? null, hasFilters);
+  const countLabel =
+    countChoice.kind === "none"
+      ? null
+      : countChoice.kind === "filtered"
+        ? t("booksCountFiltered", { count: countChoice.count, total: countChoice.total })
+        : t(countChoice.count === 1 ? "booksCount" : "booksCountPlural", { count: countChoice.count });
 
   return (
     <ClientNavWrapper>
@@ -191,9 +206,9 @@ export default async function CatalogsPage({
             </div>
             {/* "0 books" with no context reads as broken — the empty state
                 below explains the situation instead. */}
-            {!catalogEmpty && (
+            {!catalogEmpty && countLabel && (
               <p className="text-sm text-text-muted">
-                {t(total === 1 ? 'booksCount' : 'booksCountPlural', { count: total })}
+                {countLabel}
                 {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
               </p>
             )}

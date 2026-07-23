@@ -167,7 +167,6 @@
     "featuredCollections": "Featured Collections",
     "allDepartments": "All departments",
     "ctaHeading": "Begin Your Learning Journey Today",
-    "ctaBody": "{count} educational resources — textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
     "ctaBrowse": "Browse all resources",
     "ctaPhysical": "Physical Library",
     "heroTitle": "Expand your knowledge with PTEC",
@@ -292,8 +291,6 @@
     "faqQ6": "How do I submit my thesis or research?",
     "faqA6": "Theses are added to the repository by library staff. Contact the library team and they will guide you through submitting your work.",
     "ctaEyebrow": "Free for educators",
-    "ctaStatResources": "Digital resources",
-    "ctaStatFree": "Free",
     "ctaStatOpenAccess": "Open access",
     "ctaStatBilingual": "Bilingual",
     "goalsEyebrow": "Start with your goal",
@@ -346,7 +343,11 @@
     "libraryNowDirections": "Get directions",
     "libraryNowContact": "Contact librarian",
     "libraryNowCatalogCta": "Browse physical catalog",
-    "ctaBodyNoCount": "Textbooks, research papers, and teaching guides — available free to every educator in Cambodia."
+    "ctaBodyNoCount": "Textbooks, research papers, and teaching guides — available free to every educator in Cambodia.",
+    "statDigitalResources": "Digital resources",
+    "statEbooks": "E-books",
+    "statTheses": "Theses",
+    "statPublications": "Publications"
   },
   "books": {
     "title": "Books",
@@ -381,7 +382,8 @@
     "allCategories": "All categories",
     "allOption": "All",
     "clearAll": "Clear all",
-    "done": "Done"
+    "done": "Done",
+    "resourcesFiltered": "{count} of {total} e-books"
   },
   "bookDetail": {
     "read": "Read",
@@ -564,7 +566,8 @@
       "langOther": "Other",
       "status": "Status"
     },
-    "emptyMatchQuery": "We couldn't find any books matching “{query}”."
+    "emptyMatchQuery": "We couldn't find any books matching “{query}”.",
+    "booksCountFiltered": "{count} of {total} catalog records"
   },
   "posts": {
     "eyebrow": "PTEC Library",
@@ -797,7 +800,8 @@
     "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
     "collectionName": "Academic Publications — PTEC Digital Library",
     "collectionDescription": "Academic journal articles and scholarly publications in the PTEC Digital Library.",
-    "pageLabel": "Page"
+    "pageLabel": "Page",
+    "resultCountFiltered": "{count} of {total} publications"
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",
@@ -1221,7 +1225,10 @@
     "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, advisor, and keyword.",
     "collectionName": "Student Theses — PTEC Digital Library",
     "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
-    "pageLabel": "Page"
+    "pageLabel": "Page",
+    "resultCountFiltered": "{count} of {total} theses",
+    "resultCount": "{count, plural, one {# thesis} other {# theses}}",
+    "noResults": "No theses found"
   },
   "adminDashboard": {
     "header": {
@@ -2103,7 +2110,8 @@
     "typeThesis": "Thesis",
     "typePhysical": "Physical Copy",
     "typeEbook": "E-Book",
-    "minutes": "{count} min"
+    "minutes": "{count} min",
+    "pathCount": "{count, plural, one {# learning path} other {# learning paths}}"
   },
   "downloadProfile": {
     "title": "Download Access Profile",

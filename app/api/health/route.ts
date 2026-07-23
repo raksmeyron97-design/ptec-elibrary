@@ -79,6 +79,7 @@ async function reconcileCollectionStats(): Promise<StatsReconciliation> {
     "physicalCatalogs",
     "learningPaths",
     "totalDigitalResources",
+    "searchableResources",
   ] as const;
 
   const drift: StatsReconciliation["drift"] = {};
