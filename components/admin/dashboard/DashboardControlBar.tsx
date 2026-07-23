@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ExportMenu from "@/components/admin/ExportMenu";
+import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import {
   activeFilterCount,
   serializeDashboardFilters,
@@ -132,9 +133,11 @@ export default function DashboardControlBar({
   const views = DASHBOARD_VIEWS.filter((v) => v !== "system" || showSystem);
 
   const quietBtn =
-    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2.5 text-[12.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+  // h-11 matches the SearchableSelect trigger used for Department, so the
+  // three filter controls sit on one baseline.
   const selectClass =
-    "h-10 w-full min-w-[150px] cursor-pointer rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] font-medium text-text-body focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "h-11 w-full min-w-[150px] cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-[13px] font-medium text-text-body focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   /** Removable chips for every non-default audience filter. */
   const chips: { key: string; label: string; clear: DashboardFilters }[] = [];
@@ -155,7 +158,9 @@ export default function DashboardControlBar({
 
   return (
     <div className="dash-controlbar">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-1.5">
+      {/* One row from xl up: the tab rail shrinks and scrolls rather than
+          pushing the period/filter controls onto a second line. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 py-1.5 xl:flex-nowrap">
         {/* ── View tabs ── */}
         <nav aria-label={tTabs("ariaLabel")} className="-mx-1 min-w-0 max-w-full overflow-x-auto px-1">
           <ul className="dash-tabrail flex min-w-max">
@@ -179,7 +184,7 @@ export default function DashboardControlBar({
         </nav>
 
         {/* ── Period + filters + utilities ── */}
-        <div className="ms-auto flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <div className="ms-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 xl:flex-nowrap xl:shrink-0">
           <div className="dash-seg" role="group" aria-label={t("rangeLabel")}>
             {RANGE_PRESETS.map((r) => (
               <button
@@ -356,22 +361,24 @@ export default function DashboardControlBar({
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
-                {t("department")}
-                <select
+              {/* Departments are a long, bilingual list, so this one gets the
+                  searchable widget rather than a native <select>. Not wrapped
+                  in a <label>: the trigger is a button, named via ariaLabel. */}
+              <div className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+                <span>{t("department")}</span>
+                <SearchableSelect
+                  name="dept"
                   value={filters.dept ?? ""}
+                  onChange={(v) => apply({ ...filters, dept: v || null })}
                   disabled={isPending}
-                  onChange={(e) => apply({ ...filters, dept: e.target.value || null })}
-                  className={selectClass}
-                >
-                  <option value="">{t("allDepartments")}</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  ariaLabel={t("department")}
+                  placeholder={t("allDepartments")}
+                  options={[
+                    { value: "", label: t("allDepartments") },
+                    ...departments.map((d) => ({ value: d, label: d })),
+                  ]}
+                />
+              </div>
               <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
                 {t("language")}
                 <select
