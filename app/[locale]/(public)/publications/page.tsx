@@ -20,6 +20,8 @@ import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from "next-intl/server";
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { getCollectionStats } from "@/lib/collection-stats";
+import { chooseCountLabel } from "@/lib/listing-count";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +107,7 @@ export default async function PublicationsPage({
 
   // Fetch every published article once, then facet/filter in-page —
   // same approach as the theses listing (dataset is institutional-scale).
-  const { data } = await getPublications({});
+  const [{ data }, stats] = await Promise.all([getPublications({}), getCollectionStats()]);
   const all = data ?? [];
 
   const publications = all.filter((pub) => {
@@ -144,6 +146,19 @@ export default async function PublicationsPage({
 
   const hasFilters = !!(params.q || params.keyword || params.type || params.journal || params.year || params.language);
 
+  // `total` is the filtered count. The denominator is the canonical published
+  // total from lib/collection-stats.ts — the same figure the homepage shows
+  // for "Publications" — so "3 of 41" reconciles across surfaces. `all.length`
+  // is the full fetched set and agrees with it by construction, but the
+  // canonical service is what the page states.
+  const countChoice = chooseCountLabel(total, stats?.publications ?? null, hasFilters);
+  const countLabel =
+    countChoice.kind === "none"
+      ? t("noResults")
+      : countChoice.kind === "filtered"
+        ? t("resultCountFiltered", { count: countChoice.count, total: countChoice.total })
+        : t("resultCount", { count: countChoice.count });
+
   // Locale-aware CollectionPage + ItemList for the clean (indexable) listing.
   const isCleanListing = !hasFilters && !params.size;
   const collectionSchema = isCleanListing
@@ -174,7 +189,10 @@ export default async function PublicationsPage({
           {/* ── Hero: search-first header (Scholar-style) ── */}
           <PublicationsHero
             stats={{
-              publications: all.length,
+              // Canonical published total (lib/collection-stats.ts), not the
+              // length of the fetched array — the hero states a collection
+              // size, so it must be the same number the homepage states.
+              publications: stats?.publications ?? all.length,
               journals: journals.length,
               years: years.length,
               downloads: totalDownloads,
@@ -250,7 +268,7 @@ export default async function PublicationsPage({
 
             {/* Result count */}
             <p className="text-[13px] text-text-muted">
-              {total > 0 ? t("resultCount", { count: total }) : t("noResults")}
+              {countLabel}
               {params.q && <> {t("resultsFor", { q: params.q })}</>}
             </p>
 

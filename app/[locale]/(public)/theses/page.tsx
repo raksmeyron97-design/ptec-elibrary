@@ -24,6 +24,8 @@ import JsonLd from "@/components/seo/JsonLd";
 import { thesesCollectionJsonLd } from "@/lib/seo/thesis-seo";
 import { getYear } from "@/lib/theses/report-fields";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { getCollectionStats } from "@/lib/collection-stats";
+import { chooseCountLabel } from "@/lib/listing-count";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +120,7 @@ export default async function ThesesPage({
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/theses" : "/theses";
 
-  const [reportsRes, cohortRes, yearRes, programsRes, facultiesRes] = await Promise.all([
+  const [reportsRes, cohortRes, yearRes, programsRes, facultiesRes, stats] = await Promise.all([
     getTheses({
       program: params.program,
       faculty: params.faculty,
@@ -131,6 +133,7 @@ export default async function ThesesPage({
     getThesisAcademicYears(),
     getThesisPrograms(),
     getThesisFaculties(),
+    getCollectionStats(),
   ]);
 
   // One code → localized-name lookup for every card (the cards used to fetch
@@ -239,6 +242,22 @@ export default async function ThesesPage({
     params.keyword
   );
 
+  // `total` is the count AFTER the active filters. The denominator is the
+  // canonical published-thesis total from lib/collection-stats.ts — the same
+  // figure the homepage shows for "Theses" — so a filtered view still tells
+  // the reader how big the collection is. Never `pagedReports.length`.
+  // Repository size for the hero eyebrow: always the canonical published
+  // total, never the filtered set.
+  const collectionLabel = tTheses("resultCount", { count: stats?.theses ?? baseReports.length });
+
+  const countChoice = chooseCountLabel(total, stats?.theses ?? null, hasFilters);
+  const countLabel =
+    countChoice.kind === "none"
+      ? tTheses("noResults")
+      : countChoice.kind === "filtered"
+        ? tTheses("resultCountFiltered", { count: countChoice.count, total: countChoice.total })
+        : tTheses("resultCount", { count: countChoice.count });
+
   // Locale-aware CollectionPage + ItemList — schema URL matches the page's
   // canonical URL for this locale, item URLs are locale-correct, and positions
   // are absolute across pagination. Only for the clean (indexable) listing.
@@ -272,7 +291,7 @@ export default async function ThesesPage({
           {/* ── HERO SEARCH ─────────────────────────────────────────────── */}
           <HeroSearch
             institution={(await getOrgIdentity()).institutionName}
-            totalCount={baseReports.length}
+            collectionLabel={collectionLabel}
             quickChips={quickChips}
             currentQ={params.q ?? ""}
             currentProgram={params.program ?? ""}
@@ -315,7 +334,7 @@ export default async function ThesesPage({
             {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
             <div className="flex-1 min-w-0 space-y-4">
               <ResultToolbar
-                total={total}
+                countLabel={countLabel}
                 query={params.q}
                 params={params as Record<string, string | undefined>}
                 isGrid={isGrid}

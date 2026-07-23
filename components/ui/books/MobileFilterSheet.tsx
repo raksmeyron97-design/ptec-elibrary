@@ -22,6 +22,7 @@ type SortOption = { value: string; label: string };
 export default function MobileFilterSheet({
   basePath,
   total,
+  countLabel,
   dept,
   language,
   format,
@@ -32,7 +33,12 @@ export default function MobileFilterSheet({
   sortOptions,
 }: {
   basePath: string;
+  /** Exact DB count for the active filters — used for the empty check only. */
   total: number;
+  /** Pre-resolved count text from the server page, so the mobile toolbar and
+   *  the desktop header state the same thing. Building it here instead would
+   *  be a second place the "N of M" rule could drift. */
+  countLabel: string;
   dept?: string;
   language?: string;
   format?: string;
@@ -102,9 +108,7 @@ export default function MobileFilterSheet({
       {/* ── Result toolbar ── */}
       <div className="flex items-center justify-between gap-2">
         <p aria-live="polite" className="min-w-0 flex-1 truncate text-[13px] text-text-muted">
-          {total === 0
-            ? t("noResults")
-            : t(total === 1 ? "resources" : "resourcesPlural", { count: total })}
+          {countLabel}
         </p>
         <SortSelect
           value={sort || "newest"}
@@ -175,9 +179,7 @@ export default function MobileFilterSheet({
             {/* Live count inside the sheet too, so users hear/see the effect
                 of each tap without closing it. */}
             <p aria-live="polite" className="pt-3 text-[12.5px] text-text-muted">
-              {total === 0
-                ? t("noResults")
-                : t(total === 1 ? "resources" : "resourcesPlural", { count: total })}
+              {countLabel}
             </p>
 
             <FilterGroup label={t("categoryLabel")}>

@@ -4,7 +4,7 @@ import SearchBar from "@/components/ui/search/SearchBar";
 import AdvancedSearchModal, { type FacetOption } from "@/components/ui/theses/AdvancedSearchModal";
 
 export default function HeroSearch({
-  totalCount,
+  collectionLabel,
   quickChips,
   currentQ,
   currentProgram,
@@ -21,7 +21,13 @@ export default function HeroSearch({
   keywords,
   institution,
 }: {
-  totalCount: number;
+  /** Pre-resolved, translated collection-size text (e.g. "12 theses") built
+   *  by the page from lib/collection-stats.ts. This eyebrow states how big
+   *  the REPOSITORY is, so it must not move when a filter is applied — it
+   *  used to be `baseReports.length`, the server-filtered set, which made
+   *  the same page advertise a different repository size per filter. The
+   *  "theses" suffix was also hard-coded English and never rendered Khmer. */
+  collectionLabel: string;
   /** Published institution name (server-resolved). */
   institution: string;
   quickChips: { label: string; value: string }[];
@@ -55,7 +61,7 @@ export default function HeroSearch({
 
       <div className="fade-rise-in relative mx-auto max-w-2xl text-center">
         <p className="mb-2 text-[12px] font-bold uppercase tracking-[0.2em] text-brand">
-          PTEC Digital Repository · {totalCount.toLocaleString()} theses
+          PTEC Digital Repository · {collectionLabel}
         </p>
         <h1 className="font-khmer-serif text-[28px] font-bold leading-tight text-text-heading sm:text-[36px]">
           Find Theses &amp; Research

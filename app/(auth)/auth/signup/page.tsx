@@ -1,16 +1,19 @@
 // app/(auth)/auth/signup/page.tsx
 import { Suspense } from "react";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getCollectionStats } from "@/lib/collection-stats";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import SignupContent from "./SignupContent";
 
 export const revalidate = 60;
 
 // ── Server-side stats fetch ──────────────────────────────────────────────────
+// Resource figure from lib/collection-stats.ts — see the note in
+// app/(auth)/auth/login/page.tsx; this screen ran the same duplicate count.
 async function getSignupStats() {
   const supabase = createServiceClient();
-  const [booksRes, downloadsRes, viewsRes, usersRes] = await Promise.all([
-    supabase.from("books").select("id", { count: "exact", head: true }).eq("is_published", true),
+  const [stats, downloadsRes, viewsRes, usersRes] = await Promise.all([
+    getCollectionStats(),
     supabase.from("books").select("download_count").eq("is_published", true),
     supabase.from("books").select("view_count").eq("is_published", true),
     supabase.from("profiles").select("id", { count: "exact", head: true }),
@@ -18,17 +21,19 @@ async function getSignupStats() {
   const totalDownloads = (downloadsRes.data ?? []).reduce((s, b) => s + (b.download_count ?? 0), 0);
   const totalViews     = (viewsRes.data    ?? []).reduce((s, b) => s + (b.view_count     ?? 0), 0);
   return {
-    totalBooks:     booksRes.count     ?? 0,
+    totalBooks:     stats?.books ?? null,
     totalDownloads,
     totalViews,
     totalUsers:     usersRes.count     ?? 0,
   };
 }
 
-function formatStat(n: number): string {
+function formatStat(n: number | null): string | null {
+  // null = the figure could not be read; render nothing rather than "0".
+  if (n === null || n <= 0) return null;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M+`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K+`;
-  return n > 0 ? `${n}+` : "0";
+  return `${n}+`;
 }
 
 // ── Page (server) ────────────────────────────────────────────────────────────

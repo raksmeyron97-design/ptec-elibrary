@@ -7,6 +7,13 @@
 import { requireLibrarian } from "@/lib/auth/requireAdmin";
 import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
+import {
+  getAdminResourceStats,
+  reconcilePublicResourceStats,
+  type AdminTypeStats,
+  type ResourceStatsReconciliation,
+} from "@/lib/admin/resource-stats";
+import { revalidateCollectionStats } from "@/lib/cache/revalidate";
 
 export type ContentType = "book" | "research";
 
@@ -208,4 +215,42 @@ export async function getBrokenFiles(): Promise<BrokenFile[]> {
     editUrl: r.record_type === "book" ? `/admin/edit/${r.record_id}` : `/admin/theses/edit/${r.record_id}`,
     checkedAt: r.checked_at,
   }));
+}
+
+// ── Resource-count reconciliation ────────────────────────────────────────────
+//
+// Answers "are the numbers on the public site actually true?" by recomputing
+// the canonical figures and diffing them against what the cache is serving
+// and against the search index. It recalculates from canonical rows — there
+// is no stored counter, and this action can never set one to an arbitrary
+// value.
+//
+// Gated by requireLibrarian(), the same gate as the rest of this file: the
+// output is counts and status breakdowns, which is librarian-level
+// information, and it is never exposed on a public route.
+
+export async function getResourceStatsReconciliation(): Promise<{
+  reconciliation: ResourceStatsReconciliation;
+  byType: AdminTypeStats[];
+}> {
+  await requireLibrarian();
+  const [reconciliation, byType] = await Promise.all([
+    reconcilePublicResourceStats(),
+    getAdminResourceStats(),
+  ]);
+  return { reconciliation, byType };
+}
+
+/**
+ * "Recalculate and verify". Drops the public stats cache so the next render
+ * recounts from the database, then re-runs the comparison and reports what
+ * changed. It writes no counts.
+ */
+export async function recalculateResourceStats(): Promise<{
+  reconciliation: ResourceStatsReconciliation;
+  byType: AdminTypeStats[];
+}> {
+  await requireLibrarian();
+  revalidateCollectionStats();
+  return getResourceStatsReconciliation();
 }

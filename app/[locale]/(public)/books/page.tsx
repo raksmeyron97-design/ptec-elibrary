@@ -22,6 +22,8 @@ import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata
 import { booksCollectionJsonLd, FALLBACK_OG_IMAGE } from "@/lib/seo/book-seo";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { getCollectionStats } from "@/lib/collection-stats";
+import { chooseCountLabel } from "@/lib/listing-count";
 
 // The route renders per-request (it reads searchParams), but every Supabase
 // read is served from unstable_cache in lib/books-data.ts (tag: "books"),
@@ -109,11 +111,12 @@ export default async function BooksPage({
   const requestedPage = Math.max(1, Number(params.page) || 1);
   const pageSize = resolvePageSize(params.size);
 
-  const [{ books, total }, departments, languages, formats] = await Promise.all([
+  const [{ books, total }, departments, languages, formats, stats] = await Promise.all([
     getBooksPage(listParams, requestedPage, pageSize),
     getDepartmentsCached(),
     getLanguagesCached(),
     getFormatsCached(),
+    getCollectionStats(),
   ]);
 
   const hasFilters = !!(
@@ -123,6 +126,19 @@ export default async function BooksPage({
     params.format
   );
   const categoryPills = ["All", ...departments];
+
+  // `total` is the exact DB count for the ACTIVE filters — never books.length,
+  // which is only the current page. `stats.books` is the canonical published
+  // e-book total (identical predicate to the listing query, so the unfiltered
+  // listing and the homepage "E-books" figure are the same number by
+  // construction). With filters on, both are shown: "24 of 116 e-books".
+  const countChoice = chooseCountLabel(total, stats?.books ?? null, hasFilters);
+  const countLabel =
+    countChoice.kind === "none"
+      ? t("noResults")
+      : countChoice.kind === "filtered"
+        ? t("resourcesFiltered", { count: countChoice.count, total: countChoice.total })
+        : t(countChoice.count === 1 ? "resources" : "resourcesPlural", { count: countChoice.count });
 
   // Structured data only for the clean, indexable listing (no filter/search/
   // sort params): the schema URL must equal the page's canonical URL, and
@@ -168,9 +184,7 @@ export default async function BooksPage({
               {/* Hidden on mobile — the MobileFilterSheet toolbar owns the
                   count there (and announces updates via aria-live). */}
               <p className="hidden shrink-0 text-sm text-text-muted md:block">
-                {total > 0
-                  ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
-                  : t('noResults')}
+                {countLabel}
                 {params.q && <> {t('resultsFor')} &ldquo;{params.q}&rdquo;</>}
               </p>
               <BookRequestForm />
@@ -189,6 +203,7 @@ export default async function BooksPage({
           <MobileFilterSheet
             basePath={basePath}
             total={total}
+            countLabel={countLabel}
             dept={params.dept}
             language={params.language}
             format={params.format}
@@ -319,11 +334,7 @@ export default async function BooksPage({
         ) : (
           <>
             {/* Card titles are h3s; this keeps the h1 → h2 → h3 outline intact */}
-            <h2 className="sr-only">
-              {total > 0
-                ? t(total === 1 ? 'resources' : 'resourcesPlural', { count: total })
-                : t('title')}
-            </h2>
+            <h2 className="sr-only">{total > 0 ? countLabel : t('title')}</h2>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
               {books.map((book, i) => (
                 <BookCard key={book.slug} book={book} priority={i < 6} />

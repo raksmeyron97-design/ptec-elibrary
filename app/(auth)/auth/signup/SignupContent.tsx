@@ -69,10 +69,10 @@ const PROGRAMS = [
 // ── Props ────────────────────────────────────────────────────────────────────
 type Props = {
   stats: {
-    books: string;
-    downloads: string;
-    views: string;
-    users: string;
+    books: string | null;
+    downloads: string | null;
+    views: string | null;
+    users: string | null;
   };
   /** Allowlisted published organization values (server-resolved). This is a
    *  client component, so it cannot read settings itself. */
@@ -305,14 +305,16 @@ export default function SignupContent({ stats, site }: Props) {
               </div>
             </div>
 
-            {/* Stats — 4 columns, server-fetched */}
-            <div className="grid grid-cols-4 gap-3 border-t border-white/10 pt-6">
+            {/* Stats — server-fetched; a figure that could not be read (or
+                that sits below the credibility floor) arrives as null and is
+                simply not rendered, never as a placeholder "0". */}
+            <div className="flex flex-wrap gap-x-8 gap-y-3 border-t border-white/10 pt-6 empty:hidden empty:border-0 empty:pt-0">
               {[
                 { num: stats.books,     label: t('statResources') },
                 { num: stats.views,     label: t('statViews')     },
                 { num: stats.downloads, label: t('statDownloads') },
                 { num: stats.users,     label: t('statEducators') },
-              ].map(({ num, label }) => (
+              ].filter(({ num }) => num).map(({ num, label }) => (
                 <div key={label}>
                   <div className="text-xl font-bold text-white drop-shadow leading-none">
                     {num}
