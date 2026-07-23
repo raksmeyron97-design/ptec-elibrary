@@ -10,7 +10,7 @@ import { getMessages } from "next-intl/server";
 // unstyled, with images at their intrinsic size. Do not remove.
 import "@/app/globals.css";
 
-import { angkor, inter, hanuman, crimsonPro } from "@/app/fonts";
+import { angkor, inter, hanuman, crimsonPro, koulen } from "@/app/fonts";
 import JsonLd from "@/components/seo/JsonLd";
 import SearchModal from "@/components/ui/search/SearchModalLazy";
 import NavigationProgress from "@/components/ui/NavigationProgress";
@@ -127,7 +127,7 @@ export default async function RootShell({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${angkor.variable} ${inter.variable} ${hanuman.variable} ${crimsonPro.variable}`}
+      className={`${angkor.variable} ${inter.variable} ${hanuman.variable} ${crimsonPro.variable} ${koulen.variable}`}
     >
       <head>
         {/* Client-side data (covers, suggestions, auth refresh) hits these
