@@ -108,7 +108,10 @@ export default function HeaderMenu({
           id={menuId}
           role="menu"
           aria-label={label}
-          className="absolute end-0 top-10 z-30 min-w-48 rounded-xl border border-divider bg-bg-surface p-1 shadow-lg"
+          // Popover layer, not the sticky layer: the control bar is a later
+          // sibling on --dash-z-sticky, so an equal z-index let it paint over
+          // this menu.
+          className="absolute end-0 top-10 z-[var(--dash-z-popover)] min-w-48 rounded-xl border border-divider bg-bg-surface p-1 shadow-lg"
         >
           {items.map((item) => {
             const ItemIcon = item.iconKey ? ICONS[item.iconKey] : undefined;

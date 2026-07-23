@@ -219,7 +219,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   position: relative;
   cursor: pointer;
   border-radius: 8px;
-  padding: 5px 11px;
+  padding: 5px 9px;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
@@ -253,9 +253,11 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   border-radius: 9px;
-  padding: 7px 13px;
+  /* Tight enough that the five English tabs and the whole control cluster
+     share one row at the 1400px content width. */
+  padding: 7px 10px;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -274,7 +276,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-tab[aria-current="page"]::after {   /* gold indicator */
   content: "";
   position: absolute;
-  inset-inline: 12px;
+  inset-inline: 9px;
   bottom: 3px;
   height: 2px;
   border-radius: 2px;
