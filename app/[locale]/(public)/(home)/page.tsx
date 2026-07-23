@@ -180,14 +180,30 @@ export default async function HomePage() {
                 </span>
               </div>
 
-              {/* Headline */}
+              {/* Headline — the only element on the site that uses Koulen.
+                  `font-bold` deliberately lives on the English branch rather
+                  than the shared base: Koulen ships a single 400 weight, and a
+                  `font-bold` it cannot satisfy makes the browser synthesise one
+                  by smearing the outline, which blurs the thin connecting
+                  strokes of ក ត ភ on an already-heavy display face.
+                  Khmer also gets its own leading (1.3, well clear of the ~1.25
+                  floor where the stacked vowel signs and the subscript ជើង of
+                  "បណ្ណាល័យឌីជីថល" start to clip) and no negative tracking, which
+                  would collide those subscripts with the next base glyph.
+                  The slightly larger clamp compensates for Koulen being more
+                  condensed than Hanuman at the same pixel size. */}
               <h1
-                className={`mt-3 font-bold text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
+                className={`mt-3 text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
                   locale === "km"
-                    ? "font-khmer-serif leading-[1.4] tracking-normal"
-                    : "font-serif leading-[1.06] tracking-[-0.025em]"
+                    ? "font-khmer-display font-normal leading-[1.3] tracking-normal"
+                    : "font-serif font-bold leading-[1.06] tracking-[-0.025em]"
                 }`}
-                style={{ fontSize: "clamp(32px, 4.6vw, 62px)" }}
+                style={{
+                  fontSize:
+                    locale === "km"
+                      ? "clamp(34px, 4.9vw, 66px)"
+                      : "clamp(32px, 4.6vw, 62px)",
+                }}
               >
                 {t("headline")}
               </h1>

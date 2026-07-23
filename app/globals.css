@@ -183,6 +183,18 @@
   --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
   --font-serif: var(--font-var-serif), "Crimson Pro", Georgia, serif;
   --font-khmer-serif: "Hanuman", var(--font-var-hanuman), serif;
+  /* Khmer DISPLAY face — hero headline only.
+     Crimson Pro is listed FIRST on purpose. next/font ships a @font-face per
+     subset the family offers (the `subsets` option gates preloading, not
+     emission), so Koulen carries a Latin face too — leading with it would put
+     an acronym like "PTEC" inside a Khmer headline on Koulen's all-caps Latin
+     instead of the brand serif. Crimson Pro has no Khmer coverage, so the
+     Khmer run still falls straight through to Koulen; the unicode-ranges are
+     disjoint and each script lands on its intended face.
+     Hanuman is the Khmer fallback if Koulen fails to load. Do not widen this
+     to body/UI text: Koulen has one weight and no lowercase rhythm — it is a
+     poster face. */
+  --font-khmer-display: var(--font-var-serif), var(--font-var-koulen), "Hanuman", var(--font-var-hanuman), Georgia, serif;
   --font-title: var(--font-var-angkor);
   --font-body: "Hanuman", var(--font-var-hanuman);
   
