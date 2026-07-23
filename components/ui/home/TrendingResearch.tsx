@@ -4,6 +4,7 @@
 // usage numbers beside each row are the social proof (IEEE "most popular").
 import { Link } from "@/i18n/navigation";
 import { getTrendingThesesCached } from "@/lib/home-data";
+import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { getTranslations, getLocale } from "next-intl/server";
 
 const formatCount = (n: number) =>
@@ -84,31 +85,22 @@ export default async function TrendingResearch() {
                 </div>
 
                 {/* Usage stats */}
-                <div className="hidden shrink-0 items-center gap-4 sm:flex">
-                  <span
-                    className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-muted tabular-nums"
-                    aria-label={t("trendingResearchViews", { count: views })}
-                  >
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    {formatCount(views)}
-                  </span>
-                  <span
-                    className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-muted tabular-nums"
-                    aria-label={t("trendingResearchDownloads", { count: downloads })}
-                  >
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-                    </svg>
-                    {formatCount(downloads)}
-                  </span>
-                </div>
+                <ResourceMetrics
+                  views={views}
+                  downloads={downloads}
+                  size="md"
+                  className="hidden shrink-0 font-semibold sm:flex"
+                />
 
                 {/* Compact mobile stat */}
-                <span className="shrink-0 text-[12px] font-semibold text-text-muted tabular-nums sm:hidden" aria-label={t("trendingResearchViews", { count: views })}>
-                  {formatCount(views)} {t("trendingResearchReads")}
+                <span
+                  className="shrink-0 text-[12px] font-semibold text-text-muted tabular-nums sm:hidden"
+                  title={t("trendingResearchViews", { count: views })}
+                >
+                  <span aria-hidden="true">
+                    {formatCount(views)} {t("trendingResearchReads")}
+                  </span>
+                  <span className="sr-only">{t("trendingResearchViews", { count: views })}</span>
                 </span>
               </li>
             );

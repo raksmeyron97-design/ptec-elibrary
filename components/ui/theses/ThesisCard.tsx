@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Eye, Download, ArrowRight, GraduationCap } from "lucide-react";
+import { Download, ArrowRight, GraduationCap } from "lucide-react";
+import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { Badge } from "@/components/ui/core/Badge";
 import { getKeywords, getYear, getDepartment, getLanguageLabel } from "@/lib/theses/report-fields";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
@@ -20,12 +21,6 @@ export default async function ThesisCard({
   facultyLabel?: string | null;
 }) {
   const t = await getTranslations("theses");
-  const formatCount = (n: number) =>
-    n >= 1_000_000
-      ? `${(n / 1_000_000).toFixed(1)}M`
-      : n >= 1_000
-        ? `${(n / 1_000).toFixed(1)}K`
-        : String(n || 0);
 
   const downloads = report.download_count || 0;
   const views = report.view_count || 0;
@@ -148,18 +143,7 @@ export default async function ThesisCard({
           {/* ── Footer ── */}
           <div className="mt-auto pt-4">
             {/* Metrics row */}
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                <Eye className="h-3 w-3" />
-                {formatCount(views)}
-              </span>
-              {downloads > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
-                  <Download className="h-3 w-3" />
-                  {formatCount(downloads)}
-                </span>
-              )}
-            </div>
+            <ResourceMetrics views={views} downloads={downloads} size="xs" />
 
             {/* Actions row — real controls, pointer events re-enabled */}
             <div className="pointer-events-auto mt-2.5 flex items-center gap-1.5">
