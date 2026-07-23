@@ -1,8 +1,12 @@
-import { PTEC } from "@/lib/ptec";
-import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 
-// The footer contact email prefers the PUBLISHED system settings (callers
-// pass it via `contactEmail`); PTEC.email is the documented code fallback.
+// Brand name and footer contact address come from the PUBLISHED system
+// settings: callers resolve `await getOrgIdentity()` and pass it as `org`.
+// Nothing about the institution is compiled into these templates.
 import { CONTACT_CATEGORY_LABELS, type ContactCategory } from "@/lib/contact/validate";
 
 /**
@@ -33,13 +37,14 @@ export function categoryLabel(category: string): string {
 const BRAND_NAVY = "#1E3A8A";
 const BRAND_GOLD = "#DDB022";
 
-function layout(opts: { preheader: string; bodyHtml: string; contactEmail?: string }): string {
+function layout(opts: { preheader: string; bodyHtml: string; org?: OrgIdentity }): string {
+  const org = resolveOrgIdentity(opts.org);
   return `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(PTEC_LIBRARY_NAME)}</title>
+    <title>${escapeHtml(org.siteName)}</title>
   </head>
   <body style="margin:0;padding:0;background:#F4F5F7;font-family:Arial,Helvetica,sans-serif;">
     <span style="display:none;font-size:1px;color:#F4F5F7;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
@@ -51,7 +56,7 @@ function layout(opts: { preheader: string; bodyHtml: string; contactEmail?: stri
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
             <tr>
               <td style="background:linear-gradient(135deg,${BRAND_NAVY} 0%,#122251 100%);padding:28px 32px;">
-                <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">${escapeHtml(PTEC_LIBRARY_NAME)}</p>
+                <p style="margin:0;color:#ffffff;font-size:18px;font-weight:bold;">${escapeHtml(org.siteName)}</p>
                 <p style="margin:4px 0 0;color:${BRAND_GOLD};font-size:12px;letter-spacing:.08em;text-transform:uppercase;">Contact Notification</p>
               </td>
             </tr>
@@ -63,9 +68,9 @@ function layout(opts: { preheader: string; bodyHtml: string; contactEmail?: stri
             <tr>
               <td style="padding:20px 32px;background:#F9FAFB;border-top:1px solid #E5E7EB;">
                 <p style="margin:0;color:#6B7280;font-size:12px;">
-                  ${escapeHtml(PTEC_LIBRARY_NAME)} ·
+                  ${escapeHtml(org.siteName)} ·
                   <a href="${SITE_URL}" style="color:${BRAND_NAVY};text-decoration:none;">${SITE_URL.replace(/^https?:\/\//, "")}</a>
-                  · ${escapeHtml(opts.contactEmail ?? PTEC.email)}
+                  · ${escapeHtml(org.contactEmail)}
                 </p>
               </td>
             </tr>
@@ -85,8 +90,9 @@ function fieldRow(label: string, value: string): string {
 }
 
 export interface AdminNotificationInput {
-  /** Published support email for the footer (falls back to lib/ptec.ts). */
-  contactEmail?: string;
+  /** Published organization identity — `await getOrgIdentity()`. Supplies
+   *  the email brand name and the footer contact address. */
+  org?: OrgIdentity;
   name: string;
   email: string;
   phone?: string | null;
@@ -135,12 +141,13 @@ export function adminNotificationEmail(input: AdminNotificationInput): {
     .filter((line): line is string => line !== null)
     .join("\n");
 
-  return { subject, html: layout({ preheader: input.subject, bodyHtml, contactEmail: input.contactEmail }), text };
+  return { subject, html: layout({ preheader: input.subject, bodyHtml, org: input.org }), text };
 }
 
 export interface UserConfirmationInput {
-  /** Published support email for the footer (falls back to lib/ptec.ts). */
-  contactEmail?: string;
+  /** Published organization identity — `await getOrgIdentity()`. Supplies
+   *  the email brand name and the footer contact address. */
+  org?: OrgIdentity;
   name: string;
   subject: string;
   category: string;
@@ -152,12 +159,13 @@ export function userConfirmationEmail(input: UserConfirmationInput): {
   html: string;
   text: string;
 } {
+  const org = resolveOrgIdentity(input.org);
   const subject = `We received your message: ${input.subject}`;
 
   const bodyHtml = `
     <p style="margin:0 0 12px;">Hi ${escapeHtml(input.name)},</p>
     <p style="margin:0 0 16px;">
-      Thank you for contacting the ${escapeHtml(PTEC_LIBRARY_NAME)}. We've received your message
+      Thank you for contacting the ${escapeHtml(org.siteName)}. We've received your message
       and a member of our team will get back to you as soon as possible.
     </p>
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:16px;">
@@ -172,7 +180,7 @@ export function userConfirmationEmail(input: UserConfirmationInput): {
   const text = [
     `Hi ${input.name},`,
     "",
-    `Thank you for contacting the ${PTEC_LIBRARY_NAME}. We've received your message and a member of our team will get back to you as soon as possible.`,
+    `Thank you for contacting the ${org.siteName}. We've received your message and a member of our team will get back to you as soon as possible.`,
     "",
     `Category: ${categoryLabel(input.category)}`,
     `Subject: ${input.subject}`,
@@ -180,12 +188,13 @@ export function userConfirmationEmail(input: UserConfirmationInput): {
     input.message,
   ].join("\n");
 
-  return { subject, html: layout({ preheader: subject, bodyHtml, contactEmail: input.contactEmail }), text };
+  return { subject, html: layout({ preheader: subject, bodyHtml, org: input.org }), text };
 }
 
 export interface AdminReplyInput {
-  /** Published support email for the footer (falls back to lib/ptec.ts). */
-  contactEmail?: string;
+  /** Published organization identity — `await getOrgIdentity()`. Supplies
+   *  the email brand name and the footer contact address. */
+  org?: OrgIdentity;
   name: string;
   subject: string;
   replyBody: string;
@@ -219,5 +228,5 @@ export function adminReplyEmail(input: AdminReplyInput): {
     input.originalMessage,
   ].join("\n");
 
-  return { subject, html: layout({ preheader: input.replyBody.slice(0, 120), bodyHtml, contactEmail: input.contactEmail }), text };
+  return { subject, html: layout({ preheader: input.replyBody.slice(0, 120), bodyHtml, org: input.org }), text };
 }

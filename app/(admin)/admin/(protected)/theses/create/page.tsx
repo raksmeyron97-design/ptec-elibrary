@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import ThesisForm from "@/components/admin/theses/form/ThesisForm";
 import Link from "next/link";
 import { ArrowLeft, Settings2 } from "lucide-react";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function CreateThesisPage() {
   const t = await getTranslations("adminThesisForm");
@@ -27,7 +28,7 @@ export default async function CreateThesisPage() {
         </Link>
       </div>
 
-      <ThesisForm />
+      <ThesisForm institution={(await getOrgIdentity()).institutionName} />
     </div>
   );
 }

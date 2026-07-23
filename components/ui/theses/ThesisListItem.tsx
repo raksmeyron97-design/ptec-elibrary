@@ -17,6 +17,7 @@ import {
   getLanguageLabel,
   getCoAdvisor,
 } from "@/lib/theses/report-fields";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function ThesisListItem({
   report,
@@ -27,7 +28,7 @@ export default async function ThesisListItem({
   programLabel?: string | null;
   facultyLabel?: string | null;
 }) {
-  const t = await getTranslations("theses");
+  const [t, org] = await Promise.all([getTranslations("theses"), getOrgIdentity()]);
   const keywords = getKeywords(report).slice(0, 4);
   const doi = getDoi(report);
   // Type · Program · Cohort · Year · Department — every part optional.
@@ -155,7 +156,12 @@ export default async function ThesisListItem({
           )}
 
           <div className="ml-auto flex items-center gap-2">
-            <CiteThis report={report} reportId={report.slug ?? report.id} compact />
+            <CiteThis
+              report={report}
+              reportId={report.slug ?? report.id}
+              institution={org.institutionName}
+              compact
+            />
             <ShareButton
               url={`${SITE_URL}${thesisHref(report)}`}
               title={report.title}

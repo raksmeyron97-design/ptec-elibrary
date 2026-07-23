@@ -21,6 +21,7 @@ import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
 import { booksCollectionJsonLd, FALLBACK_OG_IMAGE } from "@/lib/seo/book-seo";
 import JsonLd from "@/components/seo/JsonLd";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 // The route renders per-request (it reads searchParams), but every Supabase
 // read is served from unstable_cache in lib/books-data.ts (tag: "books"),
@@ -68,6 +69,7 @@ export async function generateMetadata({
   }
 
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/books",
     locale,
     title: t("seoTitle"),
@@ -135,6 +137,7 @@ export default async function BooksPage({
   );
   const collectionSchema = isCleanListing
     ? booksCollectionJsonLd({
+        org: await getOrgIdentity(),
         locale,
         page: requestedPage,
         pageSize,

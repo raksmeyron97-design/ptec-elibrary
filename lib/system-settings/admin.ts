@@ -10,6 +10,7 @@ import "server-only";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { DEFAULT_SECTION_DOCS } from "./defaults";
+import { validateSectionDoc } from "./schemas";
 import {
   SETTING_SECTIONS,
   type SectionDocMap,
@@ -41,6 +42,63 @@ type VersionRow = {
   published_at: string;
   published_by: string | null;
 };
+
+/**
+ * Bring a STORED document up to the current shape before it reaches the forms.
+ *
+ * Stored JSONB is whatever the schema looked like on the day it was written.
+ * The `seo` document seeded by migration 0098, for example, has no
+ * `verification` and no `indexingEnabled` — those fields were added later. The
+ * workspace used to cast the raw row straight to the TypeScript type, so the
+ * SEO form read `doc.verification.google` on an object with no `verification`
+ * key and the whole page crashed with "Cannot read properties of undefined".
+ *
+ * The public site never had this problem: getSiteConfig() goes through
+ * validateSectionDoc() + the mapper, which fill missing optional fields in.
+ * This does the same for the admin read model, so the forms always receive a
+ * complete document and every future added field is handled the same way.
+ *
+ * When a document cannot be validated at all (genuine corruption, or a draft
+ * an older build wrote), the raw values are merged OVER the defaults — two
+ * levels deep, because the nested groups (`verification`, `address`,
+ * `siteDescription`, `name`) are exactly where partial documents bite. That
+ * keeps the editor's work visible and fixable instead of silently discarding
+ * it; the form's own validation then flags whatever is still wrong.
+ */
+function hydrateSectionDoc<S extends SettingSection>(
+  section: S,
+  stored: unknown,
+): SectionDocMap[S] {
+  const fallback = DEFAULT_SECTION_DOCS[section];
+  if (stored === null || stored === undefined) return fallback;
+
+  const parsed = validateSectionDoc(section, stored);
+  if (parsed.ok) return parsed.value as SectionDocMap[S];
+
+  console.error(
+    `[system-settings] stored "${section}" document does not validate — ` +
+      "merging it over the defaults so the form still renders",
+    parsed.errors.slice(0, 3),
+  );
+  return mergeOverDefaults(fallback, stored) as SectionDocMap[S];
+}
+
+/** Two-level merge of an untrusted document over a known-complete default. */
+function mergeOverDefaults(fallback: unknown, stored: unknown): unknown {
+  if (!isPlainObject(fallback) || !isPlainObject(stored)) return fallback;
+  const out: Record<string, unknown> = { ...fallback };
+  for (const [key, value] of Object.entries(stored)) {
+    if (value === undefined) continue;
+    const base = fallback[key];
+    out[key] =
+      isPlainObject(base) && isPlainObject(value) ? { ...base, ...value } : value;
+  }
+  return out;
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
 function defaultSectionState<S extends SettingSection>(section: S): SectionState<S> {
   return {
@@ -92,11 +150,12 @@ export async function getSettingsWorkspace(canWrite: boolean): Promise<SettingsW
       if (!(SETTING_SECTIONS as readonly string[]).includes(section)) continue;
       sections[section] = {
         section,
-        draft: (row.draft as SectionDocMap[typeof section] | null) ?? null,
+        // `draft` stays null when there is no pending draft — hydrating it
+        // would invent one and light up the "unsaved changes" state.
+        draft: row.draft == null ? null : hydrateSectionDoc(section, row.draft),
         draftSavedAt: row.draft_saved_at,
         draftSavedBy: row.draft_saved_by,
-        published: (row.published as SectionDocMap[typeof section]) ??
-          DEFAULT_SECTION_DOCS[section],
+        published: hydrateSectionDoc(section, row.published),
         publishedVersion: row.published_version,
         publishedAt: row.published_at,
         publishedBy: row.published_by,

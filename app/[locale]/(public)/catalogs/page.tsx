@@ -13,7 +13,7 @@ import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
 import { getTranslations } from 'next-intl/server';
 import { buildListingMetadata, parsePageParam } from "@/lib/seo/listing-metadata";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { getSiteConfig, getOrgIdentity } from "@/lib/system-settings/config";
 
 export const revalidate = 3600;
 
@@ -37,6 +37,7 @@ export async function generateMetadata({
   const params = await searchParams;
   const { locale } = await routeParams;
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/catalogs",
     locale,
     title: "Books In Library",

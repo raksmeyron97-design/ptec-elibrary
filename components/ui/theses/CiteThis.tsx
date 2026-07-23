@@ -24,18 +24,21 @@ export default function CiteThis({
   report,
   reportId,
   compact = false,
+  institution,
 }: {
   report: ResearchReport;
   reportId: string;
   /** compact = a small button that expands inline (used in list rows) */
   compact?: boolean;
+  /** Published institution name, threaded from the server (never compiled in). */
+  institution: string;
 }) {
   const t = useTranslations("cite");
   const [open, setOpen] = useState(!compact);
   const [format, setFormat] = useState<CiteFormat>("apa");
   const [copied, setCopied] = useState(false);
 
-  const text = buildCitation(format, report, reportId);
+  const text = buildCitation(format, report, reportId, institution);
 
   const copy = async () => {
     try {

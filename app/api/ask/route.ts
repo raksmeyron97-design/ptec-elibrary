@@ -5,7 +5,8 @@
 import { GoogleGenAI, Content, FunctionDeclaration } from "@google/genai";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { LIBRARY_INFO, LibraryInfoTopic } from "@/lib/library-info";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { generateEmbedding } from "@/lib/gemini-embeddings";
@@ -76,7 +77,8 @@ function getAI() {
 }
 
 // ── System instruction ────────────────────────────────────────────────────────
-const SYSTEM_INSTRUCTION = `You are the PTEC Library assistant for Phnom Penh Teacher Education College (វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ).
+const systemInstructionFor = (org: OrgIdentity) =>
+  `You are the ${org.siteName} assistant for ${org.institutionName} (${org.institutionNameKm}).
 
 SCOPE — you MAY help with:
 • Finding and recommending e-books from the PTEC digital catalog (use search_books or get_related_books).
@@ -628,7 +630,7 @@ export async function POST(req: Request) {
   try {
     const ai = getAI();
     const geminiConfig = {
-      systemInstruction: SYSTEM_INSTRUCTION,
+      systemInstruction: systemInstructionFor(await getOrgIdentity()),
       tools: [{ functionDeclarations: toolDeclarations }],
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       // Minimize thinking tokens for flash model to reduce cost

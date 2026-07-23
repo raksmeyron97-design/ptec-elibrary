@@ -57,7 +57,7 @@ export function OrganizationForm({ doc, onChange, errors, disabled }: FormProps<
           pathBase="name"
           disabled={disabled}
           maxLength={160}
-          usedIn="JSON-LD organization data · OAI-PMH publisher · About pages"
+          usedIn="JSON-LD publisher (books · theses · publications · paths · posts) · Google Scholar citation tags · OAI-PMH dc:publisher · Exported citations (APA/MLA/Chicago/IEEE/BibTeX/RIS) · llms.txt · Footer copyright · Home hero · Sign-in screens"
         />
         <TextField
           id="org-short"
@@ -81,7 +81,7 @@ export function OrganizationForm({ doc, onChange, errors, disabled }: FormProps<
           pathBase="libraryName"
           disabled={disabled}
           maxLength={160}
-          usedIn="Footer brand block · JSON-LD library data"
+          usedIn="Footer brand block + copyright · Browser application name · Listing Open Graph titles · Team page JSON-LD"
         />
       </FieldGroup>
     </div>
@@ -113,7 +113,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           disabled={disabled}
           maxLength={32}
           placeholder="012 345 678"
-          usedIn="Header top bar · Footer · Contact page · Posts footer · JSON-LD"
+          usedIn="Header top bar · Footer · Site-wide JSON-LD (Organization + Library)"
         />
         {phonePreview && (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
@@ -132,7 +132,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           disabled={disabled}
           maxLength={32}
           helper="May be the same as the primary phone."
-          usedIn="Library team page"
+          usedIn="Contact page · Library team page"
         />
       </FieldGroup>
       <FieldGroup title="Email">
@@ -146,7 +146,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           required
           disabled={disabled}
           maxLength={254}
-          usedIn="Header · Footer · Contact page · Email templates · Report-broken-file links"
+          usedIn="Header · Footer · Contact page · Contact email templates · PDF reader “report broken file” link · OAI-PMH adminEmail · Site-wide JSON-LD"
         />
         <TextField
           id="contact-email-intl"
@@ -157,6 +157,8 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           error={errorFor(errors, "emailInternational")}
           disabled={disabled}
           maxLength={254}
+          helper="Stored for reference. No public page renders this address today — it is kept so the record stays complete."
+          usedIn="Not currently rendered on the public site"
         />
       </FieldGroup>
       <FieldGroup title="Address">
@@ -170,7 +172,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           disabled={disabled}
           maxLength={300}
           textarea
-          usedIn="Footer · Contact page · Catalogs page · Posts footer"
+          usedIn="Footer · Contact page (+ its meta description) · Catalogs page · AI assistant answers"
         />
         <div className="grid gap-3 md:grid-cols-2">
           <TextField
@@ -565,7 +567,7 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
           required
           disabled={disabled}
           maxLength={70}
-          usedIn="Structured data (WebSite / Library) · Email branding"
+          usedIn="JSON-LD WebSite + Library nodes · Open Graph site name (all pages) · OAI-PMH repositoryName · Email branding · Export institution field · llms.txt"
         />
       </FieldGroup>
       <FieldGroup title="Description">

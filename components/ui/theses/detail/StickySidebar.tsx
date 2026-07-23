@@ -13,12 +13,15 @@ export default function StickySidebar({
   fileHref,
   shareUrl,
   thesisPath,
+  institution,
 }: {
   report: any;
   reportId: string;
   fileHref: string;
   shareUrl: string;
   thesisPath: string;
+  /** Published institution name, threaded from the server (never compiled in). */
+  institution: string;
 }) {
   return (
     <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
@@ -69,7 +72,7 @@ export default function StickySidebar({
 
       {/* Cite this */}
       <div id="cite-panel" className="scroll-mt-4">
-        <CiteThis report={report} reportId={report.slug ?? reportId} />
+        <CiteThis report={report} reportId={report.slug ?? reportId} institution={institution} />
       </div>
 
       <BackToTopButton />

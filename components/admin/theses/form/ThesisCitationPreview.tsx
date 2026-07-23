@@ -23,6 +23,7 @@ export default function ThesisCitationPreview({
   publishedAt,
   doi,
   program,
+  institution,
 }: {
   title: string;
   authorNames: string;
@@ -31,6 +32,8 @@ export default function ThesisCitationPreview({
   publishedAt: string;
   doi: string;
   program: string;
+  /** Published institution name — server-resolved, used by the citation preview. */
+  institution: string;
 }) {
   const t = useTranslations("adminThesisForm.citation");
   const [format, setFormat] = useState<CiteFormat>("apa");
@@ -49,6 +52,7 @@ export default function ThesisCitationPreview({
       abstract: "",
     },
     "preview",
+    institution,
   );
 
   async function copy() {

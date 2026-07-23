@@ -374,7 +374,7 @@ export default function AuthorshipEditor({
                 value={newAffiliation.name}
                 onChange={(e) => setNewAffiliation({ ...newAffiliation, name: e.target.value })}
                 className={INPUT_CLASS}
-                placeholder="e.g. Phnom Penh Teacher Education College"
+                placeholder="e.g. the author's university or institute"
               />
             </div>
             <div>

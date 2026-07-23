@@ -201,10 +201,16 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
           comment: publishComment,
         });
         if (result.ok) {
-          setNotice({
-            kind: "success",
-            text: `Published version ${result.publishedVersion}. Public pages update within moments.`,
-          });
+          // A cache-purge failure means the version IS live but visitors still
+          // see the old values — never dress that up as a clean success.
+          setNotice(
+            result.cacheWarning
+              ? { kind: "error", text: `Published version ${result.publishedVersion}. ${result.cacheWarning}` }
+              : {
+                  kind: "success",
+                  text: `Published version ${result.publishedVersion}. Public pages update within moments.`,
+                },
+          );
           setPublishConfirm(null);
           setPublishComment("");
           router.refresh();
@@ -227,10 +233,17 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
         const result = await rollbackSettingsSection(section, version);
         if (result.ok) {
           setDocs((prev) => ({ ...prev, [section]: prev[section] }));
-          setNotice({
-            kind: "success",
-            text: `Restored ${sectionLabel(section)} v${version} as new version ${result.publishedVersion}.`,
-          });
+          setNotice(
+            result.cacheWarning
+              ? {
+                  kind: "error",
+                  text: `Restored ${sectionLabel(section)} v${version} as new version ${result.publishedVersion}. ${result.cacheWarning}`,
+                }
+              : {
+                  kind: "success",
+                  text: `Restored ${sectionLabel(section)} v${version} as new version ${result.publishedVersion}.`,
+                },
+          );
           router.refresh();
         } else {
           setNotice({ kind: "error", text: result.error });

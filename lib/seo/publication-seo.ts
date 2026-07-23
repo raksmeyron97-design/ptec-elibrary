@@ -14,7 +14,12 @@
 //     open access.
 
 import type { Metadata } from "next";
-import { SITE_URL, PTEC_NAME, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
+import {
+  resolveOrgIdentity,
+  type OrgIdentity,
+} from "@/lib/system-settings/org-identity";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { normalizeDoi, doiUrl, normalizeIssn, normalizeLicense } from "@/lib/seo/identifiers";
 import { languageCode } from "@/lib/seo/book-seo";
@@ -130,7 +135,12 @@ export function publicationMetaDescription(pub: PublicationSeoInput, locale: str
 
 // ── Detail metadata (generateMetadata) ───────────────────────────────────────
 
-export function buildPublicationMetadata(pub: PublicationSeoInput, locale: string): Metadata {
+export function buildPublicationMetadata(
+  pub: PublicationSeoInput,
+  locale: string,
+  orgArg?: OrgIdentity,
+): Metadata {
+  const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates(`/publications/${pub.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const title = locale === "km" && pub.titleKm ? clean(pub.titleKm) : pub.title;
@@ -154,7 +164,7 @@ export function buildPublicationMetadata(pub: PublicationSeoInput, locale: strin
       description,
       type: "article",
       url: canonicalUrl,
-      siteName: PTEC_LIBRARY_NAME,
+      siteName: org.siteName,
       locale: locale === "km" ? "km_KH" : "en_US",
       alternateLocale: locale === "km" ? "en_US" : "km_KH",
       authors: authors.length > 0 ? authors : undefined,
@@ -184,14 +194,6 @@ function compact(schema: Record<string, unknown>): Record<string, unknown> {
   );
 }
 
-const ptecOrganization = { "@type": "EducationalOrganization", name: PTEC_NAME, url: SITE_URL };
-const libraryProvider = {
-  "@type": "Library",
-  name: PTEC_LIBRARY_NAME,
-  url: SITE_URL,
-  parentOrganization: ptecOrganization,
-};
-
 export type PublicationAggregateRating = { ratingValue: number | string; reviewCount: number } | null;
 
 /**
@@ -204,7 +206,9 @@ export function publicationJsonLd(
   pub: PublicationSeoInput,
   locale: string,
   aggregateRating: PublicationAggregateRating = null,
+  orgArg?: OrgIdentity,
 ): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = publicationCanonicalUrl(pub.slug, locale);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])].filter(Boolean);
@@ -229,8 +233,8 @@ export function publicationJsonLd(
     // Third-party journal article → its real publisher; PTEC is only the provider.
     publisher: clean(pub.publisher)
       ? { "@type": "Organization", name: clean(pub.publisher) }
-      : ptecOrganization,
-    provider: libraryProvider,
+      : organizationNode(org),
+    provider: libraryNode(org),
     inLanguage: languageCode(pub.language) ?? (pub.language || undefined),
     abstract: clean(pub.abstractText) || undefined,
     description: clean(pub.abstractText) || publicationFallbackDescription(pub, locale),
@@ -291,6 +295,7 @@ export function publicationsCollectionJsonLd({
   name,
   description,
   publications,
+  org: orgArg,
 }: {
   locale: string;
   page?: number;
@@ -299,7 +304,10 @@ export function publicationsCollectionJsonLd({
   name: string;
   description: string;
   publications: CollectionPublicationItem[];
+  /** Resolved published identity — `await getOrgIdentity()`. */
+  org?: OrgIdentity;
 }): Record<string, unknown> {
+  const org = resolveOrgIdentity(orgArg);
   const url = publicationsCollectionUrl(locale, page);
   const offset = (Math.max(1, page) - 1) * pageSize;
 
@@ -312,7 +320,7 @@ export function publicationsCollectionJsonLd({
     url,
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
-    provider: libraryProvider,
+    provider: libraryNode(org),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: total,

@@ -17,8 +17,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
-import { SITE_URL, PTEC_LIBRARY_NAME } from "@/lib/seo/site";
-import { getSiteConfig } from "@/lib/system-settings/config";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import {
   OAI_METADATA_PREFIX,
   OAI_PAGE_SIZE,
@@ -171,14 +171,15 @@ function parseDateRange(filters: ListFilters): { from?: Date; until?: Date } {
 // ── Verb handlers ────────────────────────────────────────────────────────
 
 async function handleIdentify(): Promise<string> {
-  const [earliest, cfg] = await Promise.all([
+  const [earliest, cfg, org] = await Promise.all([
     computeEarliestDatestamp(),
     getSiteConfig(),
+    getOrgIdentity(),
   ]);
   const domain = oaiDomain();
   return (
     "<Identify>" +
-    `<repositoryName>${escapeXml(PTEC_LIBRARY_NAME)}</repositoryName>` +
+    `<repositoryName>${escapeXml(org.siteName)}</repositoryName>` +
     `<baseURL>${escapeXml(BASE_URL)}</baseURL>` +
     "<protocolVersion>2.0</protocolVersion>" +
     `<adminEmail>${escapeXml(cfg.email)}</adminEmail>` +
@@ -229,7 +230,7 @@ function handleListSets(args: Record<string, string>): string {
 }
 
 async function handleGetRecord(args: Record<string, string>): Promise<string> {
-  const publisherName = (await getSiteConfig()).name.en;
+  const publisherName = (await getOrgIdentity()).institutionName;
   requireOaiDc(args.metadataPrefix);
   const parsed = parseOaiIdentifier(args.identifier);
   if (!parsed) throw new OaiError("idDoesNotExist", `Unknown or illegal identifier: ${args.identifier}`);
@@ -239,7 +240,7 @@ async function handleGetRecord(args: Record<string, string>): Promise<string> {
 }
 
 async function handleList(verb: "ListIdentifiers" | "ListRecords", args: Record<string, string>): Promise<string> {
-  const publisherName = (await getSiteConfig()).name.en;
+  const publisherName = (await getOrgIdentity()).institutionName;
   const filters = resolveListFilters(verb, args);
   const range = parseDateRange(filters);
 

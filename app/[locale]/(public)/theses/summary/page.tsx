@@ -36,6 +36,7 @@ import {
   resolveSummarySort,
   type SummaryEntry,
 } from "@/lib/theses/summary";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 type SP = {
   q?: string;
@@ -58,11 +59,12 @@ export async function generateMetadata({
   const params = await searchParams;
   const { locale } = await routeParams;
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/theses/summary",
     locale,
     title: "Student Theses Summary Index",
     description:
-      "Browse student theses from Phnom Penh Teacher Education College by academic year, cohort, author, advisor, program, and research topic.",
+      `Browse student theses from ${(await getOrgIdentity()).institutionName} by academic year, cohort, author, advisor, program, and research topic.`,
     page: parsePageParam(params.page),
     hasFilters: !!(
       params.q ||
@@ -112,12 +114,15 @@ function SummaryRow({
   department,
   published,
   t,
+  institution,
 }: {
   entry: SummaryEntry;
   program: string | null;
   department: string | null;
   published: string | null;
   t: Awaited<ReturnType<typeof getTranslations>>;
+  /** Published institution name, resolved once by the page. */
+  institution: string;
 }) {
   const report = entry.report as any;
   const doi = getDoi(report);
@@ -201,7 +206,12 @@ function SummaryRow({
           </span>
 
           <div className="ml-auto flex items-center gap-1.5">
-            <CiteThis report={report} reportId={report.slug ?? report.id} compact />
+            <CiteThis
+              report={report}
+              reportId={report.slug ?? report.id}
+              institution={institution}
+              compact
+            />
             <BookmarkButton id={report.id} contentType="thesis" className="h-8 w-8" />
             <ShareButton
               url={`${SITE_URL}${href}`}
@@ -237,11 +247,12 @@ export default async function ThesesSummaryPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  const [tNav, t, locale, params] = await Promise.all([
+  const [tNav, t, locale, params, org] = await Promise.all([
     getTranslations("nav"),
     getTranslations("thesisSummary"),
     getLocale(),
     searchParams,
+    getOrgIdentity(),
   ]);
 
   const [reportsRes, programsRes, facultiesRes] = await Promise.all([
@@ -320,9 +331,9 @@ export default async function ThesesSummaryPage({
     "@type": "CollectionPage",
     name: "Student Theses Summary Index",
     description:
-      "Index of student theses from Phnom Penh Teacher Education College by academic year, cohort, author, advisor, and program.",
+      `Index of student theses from ${org.institutionName} by academic year, cohort, author, advisor, and program.`,
     url: `${SITE_URL}/theses/summary`,
-    isPartOf: { "@type": "WebSite", name: "PTEC Digital Library", url: SITE_URL },
+    isPartOf: { "@type": "WebSite", name: org.siteName, url: SITE_URL },
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: paged.total,
@@ -452,6 +463,7 @@ export default async function ThesesSummaryPage({
                                     <SummaryRow
                                       key={(entry.report as any).id}
                                       entry={entry}
+                                      institution={org.institutionName}
                                       program={toLabel((entry.report as any).program)}
                                       department={toDeptLabel(entry.report)}
                                       published={

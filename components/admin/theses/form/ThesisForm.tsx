@@ -74,7 +74,14 @@ function toDateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
 }
 
-export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
+export default function ThesisForm({
+  initial,
+  institution,
+}: {
+  initial?: ThesisInitial;
+  /** Published institution name, resolved by the admin page (server side). */
+  institution: string;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
 
@@ -559,6 +566,7 @@ export default function ThesisForm({ initial }: { initial?: ThesisInitial }) {
                 coverUrl: effectiveCoverUrl, fileUrl: effectiveFileUrl, license: license || null, doi,
               }}
               siteUrl={SITE_URL}
+              institution={institution}
               slug={slug}
               status={status} onStatusChange={setStatus}
               scheduledAt={scheduledAt} onScheduledAtChange={setScheduledAt}

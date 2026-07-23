@@ -11,6 +11,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { logAppEvent } from "@/lib/analytics/events";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -199,6 +200,7 @@ ${passageBlock}
   const aiStarted = Date.now();
   try {
     const google = createGoogleGenerativeAI({ apiKey });
+    const chatOrg = await getOrgIdentity();
     const result = streamText({
       onFinish: () => {
         logAppEvent({
@@ -220,7 +222,7 @@ ${passageBlock}
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       // Same as /api/search: don't let thinking tokens eat the output cap.
       providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
-      system: `You are a helpful, polite, and knowledgeable library assistant for the PTEC E-Library (Phnom Penh Teacher Education College).
+      system: `You are a helpful, polite, and knowledgeable library assistant for ${chatOrg.siteName} (${chatOrg.institutionName}).
 You MUST ONLY recommend books or research materials that actually exist in the library context provided below.
 If no results are found in the context, tell the user politely that you couldn't find any related materials in the library.
 If results are found, summarize them nicely with their title, author, and description.

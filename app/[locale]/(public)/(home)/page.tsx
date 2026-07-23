@@ -176,7 +176,7 @@ export default async function HomePage() {
               <div className="inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/[0.09] px-3 py-1.5 backdrop-blur-sm">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-gold-400" aria-hidden />
                 <span className={`text-[11px] font-bold text-gold-400 ${latinEyebrow}`}>
-                  {t("tagline")}
+                  {t("tagline", { institution: locale === "km" ? siteConfig.name.km : siteConfig.name.en })}
                 </span>
               </div>
 

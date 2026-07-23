@@ -28,6 +28,7 @@ import CategoryFilters from "@/components/ui/posts/CategoryFilters";
 import PostsMobileFilters from "@/components/ui/posts/PostsMobileFilters";
 import PostsEmptyState from "@/components/ui/posts/PostsEmptyState";
 import { CloseIcon } from "@/components/ui/posts/icons";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 type SearchParams = {
   q?: string;
@@ -65,6 +66,7 @@ export async function generateMetadata({
   }
 
   return buildListingMetadata({
+    org: await getOrgIdentity(),
     path: "/posts",
     locale,
     title: t("title"),
@@ -133,6 +135,7 @@ export default async function PostsPage({
   const showSchema = cleanView && items.length > 0 && requestedPage <= totalPages;
   const collectionSchema = showSchema
     ? postsCollectionJsonLd({
+        org: await getOrgIdentity(),
         locale,
         page: requestedPage,
         pageSize,

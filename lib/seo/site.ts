@@ -58,5 +58,9 @@ export function absoluteUrl(path = "/"): string {
   return path.startsWith("/") ? `${SITE_URL}${path}` : `${SITE_URL}/${path}`;
 }
 
-export const PTEC_NAME = 'Phnom Penh Teacher Education College';
-export const PTEC_LIBRARY_NAME = 'PTEC Digital Library';
+// NOTE: the institution / library names used to live here as two exported
+// constants. They were a second source of truth that publishing in
+// /admin/system-settings could not reach (and had already drifted apart from
+// each other). They now come from the published settings — resolve them with
+// `await getOrgIdentity()` from lib/system-settings/config.ts and pass the
+// result into the builder you are calling. See lib/system-settings/org-identity.ts.

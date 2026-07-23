@@ -74,9 +74,16 @@ type Props = {
     views: string;
     users: string;
   };
+  /** Allowlisted published organization values (server-resolved). This is a
+   *  client component, so it cannot read settings itself. */
+  site: {
+    institution: string;
+    website: string;
+    websiteLabel: string;
+  };
 };
 
-export default function SignupContent({ stats }: Props) {
+export default function SignupContent({ stats, site }: Props) {
   const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -321,15 +328,18 @@ export default function SignupContent({ stats }: Props) {
           {/* BOTTOM: Copyright + PTEC link */}
           <div className="flex items-center justify-between">
             <p className="text-[11px] text-white/35">
-              {t('copyright', { year: new Date().getFullYear() })}
+              {t('copyright', {
+                year: new Date().getFullYear(),
+                institution: site.institution,
+              })}
             </p>
             <a
-              href="https://www.ptec.edu.kh"
+              href={site.website}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 text-[11px] text-white/40 hover:text-white/70 transition"
             >
-              ptec.edu.kh
+              {site.websiteLabel}
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-2.5 w-2.5">
                 <path d="M2 10L10 2M10 2H5M10 2v5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>

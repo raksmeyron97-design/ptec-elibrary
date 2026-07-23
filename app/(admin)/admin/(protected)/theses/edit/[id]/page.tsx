@@ -9,6 +9,7 @@ import { getThesisRank } from "@/lib/theses/download-permission";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -96,7 +97,7 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         updatedByName={updatedByName}
       />
 
-      <ThesisForm initial={initial} />
+      <ThesisForm initial={initial} institution={(await getOrgIdentity()).institutionName} />
     </div>
   );
 }

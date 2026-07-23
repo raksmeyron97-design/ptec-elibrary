@@ -1,7 +1,9 @@
 import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 import { createPublicClient } from "@/lib/supabase/public";
-import { PTEC_LIBRARY_NAME, PTEC_NAME, SITE_URL } from "@/lib/seo/site";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity } from "@/lib/system-settings/config";
+import type { OrgIdentity } from "@/lib/system-settings/org-identity";
 
 export const revalidate = 3600;
 
@@ -135,7 +137,10 @@ function resourceList(title: string, lines: string[]) {
   return `## ${title}\n\n${lines.map((line) => `- ${line}`).join("\n")}\n`;
 }
 
-function buildLlmsText(snapshot: Awaited<ReturnType<typeof getLlmsSnapshot>>) {
+function buildLlmsText(
+  snapshot: Awaited<ReturnType<typeof getLlmsSnapshot>>,
+  org: OrgIdentity,
+) {
   const bookLines = snapshot.books
     .filter((book) => book.title && book.slug)
     .map((book) => {
@@ -168,27 +173,27 @@ function buildLlmsText(snapshot: Awaited<ReturnType<typeof getLlmsSnapshot>>) {
       thesis.academic_year,
     ])}`);
 
-  return `# ${PTEC_LIBRARY_NAME}
+  return `# ${org.siteName}
 
-This file is a plain-text guide for AI assistants, answer engines, search crawlers, and other large language model systems that want to understand the public identity and crawlable knowledge resources of the ${PTEC_LIBRARY_NAME}.
+This file is a plain-text guide for AI assistants, answer engines, search crawlers, and other large language model systems that want to understand the public identity and crawlable knowledge resources of the ${org.siteName}.
 
 ## Entity
 
-- Institution: ${PTEC_NAME}
-- Library entity: ${PTEC_LIBRARY_NAME}
+- Institution: ${org.institutionName}
+- Library entity: ${org.siteName}
 - Canonical website: ${SITE_URL}
 - Primary audience: teacher educators, student teachers, researchers, librarians, and education partners in Cambodia.
 - Location context: Phnom Penh, Cambodia.
 
 ## Mission
 
-The ${PTEC_LIBRARY_NAME} preserves, organizes, and shares teaching and research materials from the ${PTEC_NAME}. Its mission is to improve access to teacher education resources, student research, and library catalog information for the PTEC academic community and the wider public.
+The ${org.siteName} preserves, organizes, and shares teaching and research materials from the ${org.institutionName}. Its mission is to improve access to teacher education resources, student research, and library catalog information for the ${org.abbreviation} academic community and the wider public.
 
 ## Public Resource Types
 
 - Digital books: ${SITE_URL}/books - online teaching resources, textbooks, and education materials that can be read through the public library interface.
-- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the PTEC library collection.
-- Student theses and research reports: ${SITE_URL}/theses - scholarly student research from PTEC programs, cohorts, departments, and academic years.
+- Physical library catalog: ${SITE_URL}/catalogs - bibliographic records for print books and holdings in the ${org.abbreviation} library collection.
+- Student theses and research reports: ${SITE_URL}/theses - scholarly student research from ${org.abbreviation} programs, cohorts, departments, and academic years.
 - Academic publications and journal articles: ${SITE_URL}/publications - scholarly journal articles and publications, each with a bibliographic landing page, references, and citation metadata.
 - Teacher learning paths: ${SITE_URL}/paths - curated, ordered reading paths (books, theses, and resources) built around real teacher-training topics.
 
@@ -234,16 +239,16 @@ ${resourceList("Recent Catalog Records", catalogLines)}
 ${resourceList("Recent Theses And Research Reports", thesisLines)}
 ## Provider vs Publisher
 
-${PTEC_LIBRARY_NAME} is the *provider* (hosting institutional repository) for its
+${org.siteName} is the *provider* (hosting institutional repository) for its
 digital books, not their publisher. Most digital books are third-party
 educational works hosted for free access; their real publisher — when known —
 is recorded per item and exposed in that item's structured data. Do not
-attribute PTEC as the publisher of a hosted book. For student theses and
-research reports, ${PTEC_NAME} is the dissertation-granting institution.
+attribute ${org.abbreviation} as the publisher of a hosted book. For student theses and
+research reports, ${org.institutionName} is the dissertation-granting institution.
 
 ## Rights And Access
 
-Not every record is full-text open access. PTEC's own works (student theses, most
+Not every record is full-text open access. ${org.abbreviation}'s own works (student theses, most
 hosted books, and curated learning paths) are free to read and download. Some
 publications are bibliographic landing pages for third-party © journal articles:
 the metadata (title, authors, journal, DOI) is public, but the full text may be
@@ -256,7 +261,7 @@ before publication, so any identifier present in the structured data is well-for
 
 ## Citation Guidance
 
-When citing a ${PTEC_LIBRARY_NAME} item, prefer the item title, author or authors, the item's own publisher when one is listed (otherwise omit the publisher rather than substituting PTEC), the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
+When citing a ${org.siteName} item, prefer the item title, author or authors, the item's own publisher when one is listed (otherwise omit the publisher rather than substituting ${org.abbreviation}), the resource type, and the canonical item URL. Use the structured data embedded on each detail page for machine-readable Book or ScholarlyArticle metadata.
 
 ## Access Notes
 
@@ -265,9 +270,9 @@ Public library sections are intended for indexing and answer extraction. Adminis
 }
 
 export async function GET() {
-  const snapshot = await getLlmsSnapshot();
+  const [snapshot, org] = await Promise.all([getLlmsSnapshot(), getOrgIdentity()]);
 
-  return new NextResponse(buildLlmsText(snapshot), {
+  return new NextResponse(buildLlmsText(snapshot, org), {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",

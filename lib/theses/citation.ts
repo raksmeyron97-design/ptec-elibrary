@@ -15,12 +15,13 @@ import {
 } from "@/lib/citations";
 
 /**
- * ── EDIT ME ───────────────────────────────────────────────────────────────
- * The "publisher / institution" used in every citation. Change these to your
- * university / repository name once and all citation formats update.
+ * Repository base URL for citation links. The institution NAME is no longer
+ * here: it is a published setting, passed in as `institution` by the caller
+ * (`(await getOrgIdentity()).institutionName`). A constant here meant every
+ * exported APA/MLA/BibTeX citation kept naming the old institution after the
+ * admin panel had already been updated.
  */
 export const REPOSITORY = {
-  name: "Phnom Penh Teacher Education College", // e.g. "Royal University of Phnom Penh — Research Repository"
   // Falls back to the runtime origin when NEXT_PUBLIC_SITE_URL is unset.
   baseUrl: "https://library.ptec.edu.kh",
 };
@@ -46,7 +47,7 @@ function safeAuthors(report: ResearchReport): string {
 /** Normalise a thesis row into the neutral CitationWork shape. The APA/BibTeX
  *  "type" comes from the real thesis_type column ("Thesis", "Research Report",
  *  "Capstone Project", …) instead of a hardcoded label. */
-export function thesisToCitationWork(report: ResearchReport, reportId: string): CitationWork {
+export function thesisToCitationWork(report: ResearchReport, reportId: string, institution: string): CitationWork {
   const authors = safeAuthors(report)
     .split(",")
     .map((s: string) => s.trim())
@@ -56,7 +57,7 @@ export function thesisToCitationWork(report: ResearchReport, reportId: string): 
     title: (report.title || "").toString().trim(),
     authors,
     year: getYear(report),
-    publisher: REPOSITORY.name,
+    publisher: institution,
     department: getDepartment(report),
     number: report.cohort ? `Cohort ${report.cohort}` : null,
     noteType: getThesisTypeLabel(report),
@@ -67,53 +68,59 @@ export function thesisToCitationWork(report: ResearchReport, reportId: string): 
   };
 }
 
-export function toAPA(report: ResearchReport, reportId: string): string {
-  return apa(thesisToCitationWork(report, reportId));
+export function toAPA(report: ResearchReport, reportId: string, institution: string): string {
+  return apa(thesisToCitationWork(report, reportId, institution));
 }
 
-export function toMLA(report: ResearchReport, reportId: string): string {
+export function toMLA(report: ResearchReport, reportId: string, institution: string): string {
   const authors = safeAuthors(report);
   const year = getYear(report) || "n.d.";
   const title = (report.title || "").toString().trim();
   const link = doiOrUrl(report, reportId);
-  return `${authors}. "${title}." ${REPOSITORY.name}, ${year}, ${link}.`;
+  return `${authors}. "${title}." ${institution}, ${year}, ${link}.`;
 }
 
-export function toChicago(report: ResearchReport, reportId: string): string {
+export function toChicago(report: ResearchReport, reportId: string, institution: string): string {
   const authors = safeAuthors(report);
   const year = getYear(report) || "n.d.";
   const title = (report.title || "").toString().trim();
   const link = doiOrUrl(report, reportId);
-  return `${authors}. ${year}. "${title}." ${REPOSITORY.name}. ${link}.`;
+  return `${authors}. ${year}. "${title}." ${institution}. ${link}.`;
 }
 
-export function toIEEE(report: ResearchReport, reportId: string): string {
+export function toIEEE(report: ResearchReport, reportId: string, institution: string): string {
   const authors = safeAuthors(report);
   const year = getYear(report) || "n.d.";
   const title = (report.title || "").toString().trim();
   const link = doiOrUrl(report, reportId);
-  return `${authors}, "${title}," ${REPOSITORY.name}, ${year}. [Online]. Available: ${link}`;
+  return `${authors}, "${title}," ${institution}, ${year}. [Online]. Available: ${link}`;
 }
 
-export function toBibTeX(report: ResearchReport, reportId: string): string {
-  return bibtex(thesisToCitationWork(report, reportId));
+export function toBibTeX(report: ResearchReport, reportId: string, institution: string): string {
+  return bibtex(thesisToCitationWork(report, reportId, institution));
 }
 
-export function toRIS(report: ResearchReport, reportId: string): string {
-  return ris(thesisToCitationWork(report, reportId));
+export function toRIS(report: ResearchReport, reportId: string, institution: string): string {
+  return ris(thesisToCitationWork(report, reportId, institution));
 }
 
-export function buildCitation(format: CiteFormat, report: ResearchReport, reportId: string): string {
-  if (format === "mla") return toMLA(report, reportId);
-  if (format === "chicago") return toChicago(report, reportId);
-  if (format === "ieee") return toIEEE(report, reportId);
-  if (format === "bibtex") return toBibTeX(report, reportId);
-  if (format === "ris") return toRIS(report, reportId);
-  return toAPA(report, reportId);
+export function buildCitation(
+  format: CiteFormat,
+  report: ResearchReport,
+  reportId: string,
+  /** Published institution name — `(await getOrgIdentity()).institutionName`. */
+  institution: string,
+): string {
+  if (format === "mla") return toMLA(report, reportId, institution);
+  if (format === "chicago") return toChicago(report, reportId, institution);
+  if (format === "ieee") return toIEEE(report, reportId, institution);
+  if (format === "bibtex") return toBibTeX(report, reportId, institution);
+  if (format === "ris") return toRIS(report, reportId, institution);
+  return toAPA(report, reportId, institution);
 }
 
 /** Filename + mime for downloading a citation file. */
 export function citationFile(format: CiteFormat, report: ResearchReport): { name: string; mime: string } {
-  // The URL plays no part in the filename, so the id can be blank here.
-  return citationFileName(format, thesisToCitationWork(report, report.slug ?? report.id ?? ""));
+  // Neither the URL nor the institution plays a part in the filename.
+  return citationFileName(format, thesisToCitationWork(report, report.slug ?? report.id ?? "", ""));
 }

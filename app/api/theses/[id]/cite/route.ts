@@ -10,6 +10,7 @@ import {
   citationFile,
   type CiteFormat,
 } from "@/lib/theses/citation";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 const FORMATS: CiteFormat[] = ["apa", "mla", "chicago", "ieee", "bibtex", "ris"];
 
@@ -56,7 +57,12 @@ export async function GET(
   }
 
   const reportId = data.slug ?? data.id;
-  const text = buildCitation(format, data, reportId);
+  const text = buildCitation(
+    format,
+    data,
+    reportId,
+    (await getOrgIdentity()).institutionName,
+  );
   const { name, mime } = citationFile(format, data);
 
   return new NextResponse(text, {

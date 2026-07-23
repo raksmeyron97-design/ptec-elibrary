@@ -25,7 +25,7 @@ import {
   normalizePublicationReferences,
 } from "@/lib/publications/citations";
 import type { ScholarlyWork, ScholarlyWorkType } from "@/lib/exports/scholarly";
-import { PTEC_LIBRARY_NAME } from "@/lib/seo/site";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const EXPORT_TYPES: Record<string, ScholarlyWorkType> = {
   books: "book",
@@ -33,7 +33,10 @@ export const EXPORT_TYPES: Record<string, ScholarlyWorkType> = {
   publications: "publication",
 };
 
-const INSTITUTION = PTEC_LIBRARY_NAME;
+// Row mappers are pure and synchronous, so they leave `institution` null; the
+// fetchers below stamp the PUBLISHED institution name onto every work. Keeping
+// it out of the mappers is what stops a compiled-in name from leaking into
+// BibTeX/RIS/CSV/Dublin-Core exports.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Row = Record<string, any>;
@@ -67,7 +70,7 @@ function mapBook(row: Row): ScholarlyWork {
     title: row.title,
     creators: author ? [author] : [],
     contributors: [],
-    institution: INSTITUTION,
+    institution: null,
     department: row.departments?.name ?? null,
     program: null,
     date: dateFrom(row.published_at),
@@ -109,7 +112,7 @@ function mapThesis(row: Row): ScholarlyWork {
     title: row.title,
     creators: splitNames(row.author_names),
     contributors: splitNames(row.advisor_name),
-    institution: INSTITUTION,
+    institution: null,
     department: row.departments?.name ?? null,
     program: row.program ?? null,
     date: dateFrom(row.published_at),
@@ -155,7 +158,7 @@ function mapPublication(row: Row): ScholarlyWork {
     title: row.title,
     creators: publicationCreators(row),
     contributors: [],
-    institution: INSTITUTION,
+    institution: null,
     department: null,
     program: null,
     date: dateFrom(row.publication_date ?? row.published_at),
@@ -209,9 +212,10 @@ export async function fetchExportWorks(
     .range(from, from + pageSize - 1);
   if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
 
-  const { data, error, count } = await query;
+  const [{ data, error, count }, org] = await Promise.all([query, getOrgIdentity()]);
   if (error) throw new Error(`[export] ${spec.table} query failed: ${error.message}`);
-  return { works: (data ?? []).map(spec.map), total: count ?? 0 };
+  const works = (data ?? []).map(spec.map).map((w) => ({ ...w, institution: org.siteName }));
+  return { works, total: count ?? 0 };
 }
 
 /** Single verified work by slug; null when absent, unpublished, or unverified. */
@@ -225,7 +229,7 @@ export async function fetchExportWork(
   let query = db.from(spec.table).select(spec.select).eq("slug", slug).eq("is_published", true);
   if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
 
-  const { data, error } = await query.maybeSingle();
+  const [{ data, error }, org] = await Promise.all([query.maybeSingle(), getOrgIdentity()]);
   if (error) throw new Error(`[export] ${spec.table} lookup failed: ${error.message}`);
-  return data ? spec.map(data) : null;
+  return data ? { ...spec.map(data), institution: org.siteName } : null;
 }

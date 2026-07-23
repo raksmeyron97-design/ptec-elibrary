@@ -20,6 +20,7 @@ import {
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
 import type { StepResourceType } from "@/app/actions/learning-paths";
+import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slug = decodeSlugParam(rawSlug);
   const path = await getPathBySlug(slug);
   if (!path) return {};
-  return buildPathMetadata(toPathSeoInput(path), locale);
+  return buildPathMetadata(toPathSeoInput(path), locale, await getOrgIdentity());
 }
 
 const RESOURCE_ICON: Record<StepResourceType, typeof BookOpen> = {
@@ -84,7 +85,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
 
   // Truthful Course JSON-LD (localized, real durations only) — see
   // lib/seo/learning-path-seo.ts.
-  const courseSchema = pathCourseJsonLd(seoInput, locale);
+  const courseSchema = pathCourseJsonLd(seoInput, locale, await getOrgIdentity());
 
   return (
     <div className="min-h-screen bg-bg-body">

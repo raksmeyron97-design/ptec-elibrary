@@ -30,7 +30,6 @@ import Icon from "@/components/ui/core/Icon";
 import { useTranslations, useLocale } from "next-intl";
 import { saveReadingProgress } from "@/app/actions/reading-progress";
 import { incrementDownloadCount } from "@/app/actions/download";
-import { PTEC } from "@/lib/ptec";
 import {
   getBookAnnotations,
   addAnnotation,
@@ -98,6 +97,11 @@ type PDFViewerProps = {
   /** Set false to hide the download button for protected books. Default true. */
   allowDownload?: boolean;
   isLoggedIn?: boolean;
+  /** Published support address for the "report a broken file" mailto — comes
+   *  from the server parent (`(await getSiteConfig()).email`). This is a
+   *  client component, so it cannot read settings itself; without the prop the
+   *  report link is hidden rather than pointing at a compiled-in address. */
+  reportEmail?: string | null;
 };
 
 type PanelTab = "pages" | "outline" | "bookmarks" | "search" | "annotations" | null;
@@ -397,6 +401,7 @@ export default function PDFViewer({
   initialMaxProgressPct = 0,
   allowDownload = true,
   isLoggedIn = false,
+  reportEmail,
 }: PDFViewerProps) {
   /* ── i18n (strings follow the site locale via next-intl) ──────── */
   const t = useTranslations("reader");
@@ -1798,11 +1803,13 @@ export default function PDFViewer({
           : loadErrorKind === "network"
             ? t("networkError")
             : t("loadErrorDetailed");
-  const reportBrokenHref = `mailto:${PTEC.email}?subject=${encodeURIComponent(
-    `Broken PDF: ${title}`,
-  )}&body=${encodeURIComponent(
-    `Please check this PDF file.\n\nTitle: ${title}\nResource ID: ${bookId}\nFile: ${safePdfPath(pdfUrl) ?? "unknown"}\nPage: ${currentPage}`,
-  )}`;
+  const reportBrokenHref = reportEmail
+    ? `mailto:${reportEmail}?subject=${encodeURIComponent(
+        `Broken PDF: ${title}`,
+      )}&body=${encodeURIComponent(
+        `Please check this PDF file.\n\nTitle: ${title}\nResource ID: ${bookId}\nFile: ${safePdfPath(pdfUrl) ?? "unknown"}\nPage: ${currentPage}`,
+      )}`
+    : null;
 
   const panelTabs: { id: Exclude<PanelTab, null>; label: string; icon: React.ReactNode }[] = [
     { id: "pages", label: t("pagesTab"), icon: <LayoutGrid className="h-4 w-4" aria-hidden /> },
@@ -2949,13 +2956,15 @@ export default function PDFViewer({
                     >
                       {t("retry")}
                     </button>
-                    <a
-                      href={reportBrokenHref}
-                      onClick={() => reportReaderEvent("broken_file_report")}
-                      className="rounded-md border border-divider bg-bg-surface px-4 py-1.5 text-xs font-semibold text-text-heading hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-                    >
-                      {t("reportBrokenFile")}
-                    </a>
+                    {reportBrokenHref && (
+                      <a
+                        href={reportBrokenHref}
+                        onClick={() => reportReaderEvent("broken_file_report")}
+                        className="rounded-md border border-divider bg-bg-surface px-4 py-1.5 text-xs font-semibold text-text-heading hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                      >
+                        {t("reportBrokenFile")}
+                      </a>
+                    )}
                   </div>
                 </div>
               }

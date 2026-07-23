@@ -5,7 +5,6 @@
 // from the server-only fetch layer in lib/oai/records.ts).
 
 import { SITE_URL } from "@/lib/seo/site";
-import { PTEC } from "@/lib/ptec";
 
 export const OAI_METADATA_PREFIX = "oai_dc";
 export const OAI_PAGE_SIZE = 50;
@@ -206,9 +205,11 @@ export function decodeResumptionToken(token: string): ResumptionState | null {
 
 // ── Dublin Core (oai_dc) metadata ────────────────────────────────────────
 
-/** `publisherName` should come from the published system settings
- *  (getSiteConfig().name.en); PTEC.name.en is the documented code fallback. */
-export function buildDcMetadata(record: OaiRecord, publisherName: string = PTEC.name.en): string {
+/** `publisherName` MUST come from the published system settings — resolve it
+ *  with `(await getOrgIdentity()).institutionName` in the route. It is a
+ *  required argument on purpose: a default here would be a second source of
+ *  truth that publishing could never reach. */
+export function buildDcMetadata(record: OaiRecord, publisherName: string): string {
   const parts: string[] = [];
   parts.push(
     '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" ' +
@@ -239,7 +240,7 @@ export function buildHeader(record: OaiRecord): string {
   );
 }
 
-export function buildRecordXml(record: OaiRecord, publisherName?: string): string {
+export function buildRecordXml(record: OaiRecord, publisherName: string): string {
   return `<record>${buildHeader(record)}<metadata>${buildDcMetadata(record, publisherName)}</metadata></record>`;
 }
 

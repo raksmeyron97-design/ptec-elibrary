@@ -278,3 +278,56 @@ describe("diffPaths", () => {
     expect(diffPaths(a, b)).toEqual(["closures.0"]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regression: documents stored BEFORE a field was added must not crash the
+// admin forms.
+//
+// Migration 0098 seeds the `seo` section without `verification` or
+// `indexingEnabled` (both were added to the schema later). The admin workspace
+// used to cast that raw JSONB straight to the TypeScript type, so the SEO form
+// read `doc.verification.google` on an object with no `verification` key and
+// took the whole page down with "Cannot read properties of undefined (reading
+// 'google')". Every stored document must come back complete.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("legacy stored documents are hydrated to the current shape", () => {
+  /** Verbatim `seo` document from the 0098 seed block. */
+  const SEEDED_SEO_V1 = {
+    siteTitle: "PTEC Digital Teaching Library",
+    titleTemplate: "%s · PTEC Library",
+    siteName: "PTEC Digital Library",
+    siteDescription: {
+      en: "Access free teaching resources, books, and educational materials from the Phnom Penh Teacher Education College (PTEC).",
+      km: "",
+    },
+  };
+
+  it("the 0098 seed really is missing the later fields (guards the fixture)", () => {
+    expect(SEEDED_SEO_V1).not.toHaveProperty("verification");
+    expect(SEEDED_SEO_V1).not.toHaveProperty("indexingEnabled");
+  });
+
+  it("validation fills the missing fields instead of rejecting the document", () => {
+    const parsed = validateSectionDoc("seo", SEEDED_SEO_V1);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    // These are the exact reads that crashed the SEO form.
+    expect(parsed.value.verification.google).toBe("");
+    expect(parsed.value.verification.bing).toBe("");
+    expect(parsed.value.indexingEnabled).toBe(true);
+  });
+
+  it("preserves configured values while filling only what is absent", () => {
+    const parsed = validateSectionDoc("seo", {
+      ...SEEDED_SEO_V1,
+      verification: { google: "abc123" },
+      indexingEnabled: false,
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.verification.google).toBe("abc123");
+    expect(parsed.value.verification.bing).toBe("");
+    expect(parsed.value.indexingEnabled).toBe(false);
+  });
+});

@@ -280,7 +280,7 @@ describe('bibtex (generic)', () => {
   it('maps theses to @techreport with institution/type/number/address', () => {
     const entry = parseBibTeXEntry(bibtex(thesisWork));
     expect(entry.type).toBe('techreport');
-    expect(entry.fields.institution).toBe('Phnom Penh Teacher Education College');
+    expect(entry.fields.institution).toBe(thesisWork.publisher);
     expect(entry.fields.type).toBe('Thesis');
     expect(entry.fields.number).toBe('Cohort 12');
     expect(entry.fields.address).toBe('Primary Education');
@@ -472,23 +472,27 @@ describe('thesisToCitationWork', () => {
     published_at: '2023-06-01',
   };
 
+  // The institution is a published setting supplied by the caller, not a
+  // constant inside the citation module.
+  const INSTITUTION = 'Phnom Penh Teacher Education College';
+
   it('derives type, year, and cohort from real fields', () => {
-    const work = thesisToCitationWork(report, report.slug);
+    const work = thesisToCitationWork(report, report.slug, INSTITUTION);
     expect(work.noteType).toBe('Research Report');
     expect(work.year).toBe('2023');
     expect(work.number).toBe('Cohort 12');
     expect(work.authors).toEqual(['Sok San', 'Chan Dara']);
-    expect(buildThesisCitation('apa', report, report.slug)).toBe(
+    expect(buildThesisCitation('apa', report, report.slug, INSTITUTION)).toBe(
       'Sok San, Chan Dara (2023). Reading Impact Study [Research Report]. ' +
-      'Phnom Penh Teacher Education College. https://library.ptec.edu.kh/theses/reading-impact-study',
+      `${INSTITUTION}. https://library.ptec.edu.kh/theses/reading-impact-study`,
     );
   });
 
   it('produces parseable BibTeX and valid RIS for a sparse report', () => {
-    const entry = parseBibTeXEntry(buildThesisCitation('bibtex', {}, 'unknown'));
+    const entry = parseBibTeXEntry(buildThesisCitation('bibtex', {}, 'unknown', INSTITUTION));
     expect(entry.type).toBe('techreport');
-    expect(entry.fields.institution).toBe('Phnom Penh Teacher Education College');
-    const lines = buildThesisCitation('ris', {}, 'unknown').split('\n');
+    expect(entry.fields.institution).toBe(INSTITUTION);
+    const lines = buildThesisCitation('ris', {}, 'unknown', INSTITUTION).split('\n');
     expect(lines[0]).toBe('TY  - THES');
     expect(lines[lines.length - 1]).toBe('ER  - ');
   });

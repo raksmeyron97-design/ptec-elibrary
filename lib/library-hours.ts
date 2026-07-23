@@ -1,15 +1,20 @@
 // lib/library-hours.ts
 //
 // Pure, timezone-correct "is the physical library open right now?" logic for
-// the homepage "Library Now" bridge. The single source of truth for opening
-// hours is PTEC.hours.openingHoursSpec in lib/ptec.ts (schema.org syntax, e.g.
-// "Mo-Fr 07:00-17:00"). This module parses that spec and answers open/closed
-// questions relative to Cambodia local time — NEVER the viewer's device
-// timezone. Cambodia (Asia/Phnom_Penh) is UTC+7 year-round with no DST.
+// the homepage "Library Now" bridge.
 //
+// The opening-hours spec (schema.org syntax, e.g. "Mo-Fr 07:00-17:00") is a
+// REQUIRED argument on every entry point here. It comes from the published
+// system settings — `(await getSiteConfig()).hours.openingHoursSpec` — and is
+// threaded down from the server component. These functions used to default to
+// the compiled-in PTEC constant, which meant a forgotten argument silently
+// rendered last year's schedule instead of failing; the default is gone on
+// purpose.
+//
+// Everything is evaluated in Cambodia local time — NEVER the viewer's device
+// timezone. Cambodia (Asia/Phnom_Penh) is UTC+7 year-round with no DST.
 // getLibraryStatus() is a pure function of `now`, so it is unit-tested against
 // fixed instants. Label formatting lives here too so the UI stays declarative.
-import { PTEC } from "@/lib/ptec";
 
 export const LIBRARY_TIMEZONE = "Asia/Phnom_Penh";
 
@@ -99,7 +104,7 @@ export type LibraryStatus = {
  */
 export function getLibraryStatus(
   now: Date,
-  spec: readonly string[] = PTEC.hours.openingHoursSpec,
+  spec: readonly string[],
   tz: string = LIBRARY_TIMEZONE,
 ): LibraryStatus {
   const sched = parseOpeningHours(spec);
@@ -148,11 +153,11 @@ const EN_DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
  * Compact one-line hours label derived from the openingHoursSpec SSOT —
  * e.g. km: "ច-សុ 7:00–17:00 · ស 8:00–16:00", en: "Mon-Fri 7:00–17:00 ·
  * Sat 8:00–16:00". Use this instead of hand-writing hour strings so a
- * schedule change in lib/ptec.ts propagates everywhere.
+ * schedule change published in /admin/system-settings propagates everywhere.
  */
 export function compactHoursLabel(
   locale: "en" | "km",
-  spec: readonly string[] = PTEC.hours.openingHoursSpec,
+  spec: readonly string[],
 ): string {
   const sched = parseOpeningHours(spec);
   const names = locale === "km" ? KM_DAY_SHORT : EN_DAY_SHORT;

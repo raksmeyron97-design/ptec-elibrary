@@ -46,6 +46,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
 import { Pencil } from "lucide-react";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 
 /** Adapt a Publication row into the typed, browser-safe SEO input. */
 function toPublicationSeoInput(pub: import("@/lib/publications").Publication): PublicationSeoInput {
@@ -100,7 +101,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Typed, localized metadata (validated identifiers, Khmer-aware). Google
   // Scholar citation_* tags are merged in via `other`.
-  const base = buildPublicationMetadata(toPublicationSeoInput(pub), locale);
+  const base = buildPublicationMetadata(
+    toPublicationSeoInput(pub),
+    locale,
+    await getOrgIdentity(),
+  );
   return { ...base, other: publicationScholarMeta(pub) };
 }
 
@@ -200,6 +205,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     ratingStats.count > 0
       ? { ratingValue: ratingStats.average, reviewCount: ratingStats.count }
       : null,
+    await getOrgIdentity(),
   );
 
   const faqSchema =
@@ -338,6 +344,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 fileHref={fileHref}
                 publicationId={pub.id}
                 hasFile={!!pub.pdf_url}
+                reportEmail={(await getSiteConfig()).email}
               />
             </section>
 
