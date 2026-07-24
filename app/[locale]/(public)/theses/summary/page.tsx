@@ -20,6 +20,7 @@ import SummaryToolbar from "@/components/ui/theses/SummaryToolbar";
 import EmptyState from "@/components/ui/theses/EmptyState";
 import ErrorState from "@/components/ui/theses/ErrorState";
 import CiteThis from "@/components/ui/theses/CiteThis";
+import ThesisCardDownload from "@/components/ui/theses/ThesisCardDownload";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import {
@@ -219,14 +220,13 @@ function SummaryRow({
               className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-divider bg-bg-surface text-text-muted transition-colors hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             />
             {report.file_url && (
-              <a
-                href={`/api/theses/${report.id}/file?download=1`}
-                aria-label={t("downloadPdf")}
-                title={t("downloadPdf")}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-divider bg-bg-surface text-text-muted transition-colors hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-              >
-                <Download aria-hidden className="h-4 w-4" />
-              </a>
+              <ThesisCardDownload
+                reportId={report.id}
+                thesisPath={href}
+                label={t("downloadPdf")}
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-divider bg-bg-surface text-text-muted transition-colors hover:border-brand/40 hover:text-brand active:scale-90 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                iconClassName="h-4 w-4"
+              />
             )}
             <Link
               href={href}

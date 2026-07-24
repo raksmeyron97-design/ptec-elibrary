@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Download, ArrowRight, GraduationCap, Languages, FileX2 } from "lucide-react";
+import { ArrowRight, GraduationCap, Languages, FileX2 } from "lucide-react";
 import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
+import ThesisCardDownload from "@/components/ui/theses/ThesisCardDownload";
 import CiteThis from "@/components/ui/theses/CiteThis";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
 import ShareButton from "@/components/ui/books/ShareButton";
@@ -168,14 +169,13 @@ export default async function ThesisListItem({
               className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
             />
             {hasFile && (
-              <a
-                href={`/api/theses/${report.id}/file?download=1`}
-                aria-label={t("downloadPdf")}
-                title={t("downloadPdf")}
-                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-              >
-                <Download className="h-4 w-4" />
-              </a>
+              <ThesisCardDownload
+                reportId={report.id}
+                thesisPath={thesisHref(report)}
+                label={t("downloadPdf")}
+                className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                iconClassName="h-4 w-4"
+              />
             )}
             <Link
               href={thesisHref(report)}

@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { Download, ArrowRight, GraduationCap } from "lucide-react";
+import { ArrowRight, GraduationCap } from "lucide-react";
+import ThesisCardDownload from "@/components/ui/theses/ThesisCardDownload";
 import ResourceMetrics from "@/components/ui/core/ResourceMetrics";
 import { Badge } from "@/components/ui/core/Badge";
 import { getKeywords, getYear, getDepartment, getLanguageLabel } from "@/lib/theses/report-fields";
@@ -153,14 +154,13 @@ export default async function ThesisCard({
               </span>
 
               {hasFile && (
-                <a
-                  href={`/api/theses/${report.id}/file?download=1`}
-                  aria-label={t("downloadPdf")}
-                  title={t("downloadPdf")}
-                  className="relative z-10 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </a>
+                <ThesisCardDownload
+                  reportId={report.id}
+                  thesisPath={thesisHref(report)}
+                  label={t("downloadPdf")}
+                  className="relative z-10 inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border border-divider bg-bg-surface text-text-muted transition-colors duration-150 hover:border-brand/40 hover:text-brand active:scale-90 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                  iconClassName="h-3.5 w-3.5"
+                />
               )}
 
               <span className="relative z-10 shrink-0">
