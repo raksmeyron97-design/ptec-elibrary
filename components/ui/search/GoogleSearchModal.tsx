@@ -15,6 +15,7 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   research: "school",
   publication: "file-check",
   catalog: "library",
+  learning_path: "map-pin",
   post: "bookmark",
 };
 
@@ -25,6 +26,7 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   research: "Thesis",
   publication: "Publication",
   catalog: "Physical book",
+  learning_path: "Learning path",
   post: "News",
 };
 

@@ -22,6 +22,7 @@ const TYPE_ICON: Record<Suggestion["type"], IconName> = {
   research: "school",
   publication: "file-check",
   catalog: "library",
+  learning_path: "map-pin",
   post: "bookmark",
 };
 
@@ -32,6 +33,7 @@ const TYPE_LABEL: Record<Suggestion["type"], string> = {
   research: "Thesis",
   publication: "Publication",
   catalog: "Physical book",
+  learning_path: "Learning path",
   post: "News",
 };
 
@@ -42,6 +44,7 @@ const TYPE_LABEL_PLURAL: Record<Suggestion["type"], string> = {
   research: "Theses",
   publication: "Publications",
   catalog: "Physical books",
+  learning_path: "Learning paths",
   post: "News",
 };
 
@@ -52,6 +55,7 @@ const TYPE_COLOR: Record<Suggestion["type"], string> = {
   research: "text-accent-text",
   publication: "text-info",
   catalog: "text-warning",
+  learning_path: "text-danger",
   post: "text-brand",
 };
 
@@ -62,6 +66,7 @@ const TYPE_BG: Record<Suggestion["type"], string> = {
   research: "bg-accent/10",
   publication: "bg-info/10",
   catalog: "bg-warning/10",
+  learning_path: "bg-danger/10",
   post: "bg-brand/8",
 };
 
