@@ -1,24 +1,21 @@
 import type { Metadata } from "next";
-import { Link } from "@/i18n/navigation";
-import { GraduationCap, Layers, ChevronRight } from "lucide-react";
+import { Suspense } from "react";
+import { GraduationCap, Layers, Clock, ArrowRight } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
-import { getPublishedPaths } from "@/app/actions/learning-paths";
+import { getPublishedPaths, getFeaturedPath, getPathBySlug } from "@/app/actions/learning-paths";
 import { getCollectionStats } from "@/lib/collection-stats";
 import JsonLd from "@/components/seo/JsonLd";
+import PathsExplorer from "./_components/PathsExplorer";
 import {
   buildPathsListingMetadata,
   pathsCollectionJsonLd,
-  pathLocalizedTitle,
-  pathLocalizedDescription,
   type LearningPathSeoInput,
 } from "@/lib/seo/learning-path-seo";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 
-// This page takes no searchParams and reads no cookies — it was force-dynamic
-// for no reason, paying a function invocation per visit to render identical
-// markup. Learning paths change rarely; getPublishedPaths() is tagged "paths"
-// and invalidated by the admin mutations, so an hour of staleness is a ceiling,
-// not a delay.
+// ISR: this page renders no per-visit/per-user data (learner progress is fetched
+// client-side inside PathsExplorer, so the shell stays cacheable). getPublished-
+// Paths is invalidated by the admin mutations via the "paths" tag.
 export const revalidate = 3600;
 
 export async function generateMetadata({
@@ -36,20 +33,22 @@ export async function generateMetadata({
 }
 
 export default async function LearningPathsPage() {
-  const [paths, locale, t, stats] = await Promise.all([
+  const [paths, featuredSummary, locale, t, stats] = await Promise.all([
     getPublishedPaths(),
+    getFeaturedPath(),
     getLocale(),
     getTranslations("paths"),
     getCollectionStats(),
   ]);
 
-  // Canonical published-path total. Falls back to the fetched length only if
-  // the stats service is unreadable — the two use the same `is_published`
-  // predicate, so they agree; the service is preferred so this page cannot
-  // start disagreeing with the homepage if the listing query ever gains a cap.
-  const pathTotal = stats?.learningPaths ?? paths.length;
+  // Featured path needs its outcomes + curriculum shape for the hero card.
+  const featured = featuredSummary ? await getPathBySlug(featuredSummary.slug) : null;
 
-  // Adapt summaries to the SEO input shape (modules aren't needed on the listing).
+  const pathTotal = stats?.learningPaths ?? paths.length;
+  const totalResources = paths.reduce((sum, p) => sum + p.stepCount, 0);
+  const totalMinutes = paths.reduce((sum, p) => sum + (p.durationMinutes ?? 0), 0);
+  const totalHours = Math.round(totalMinutes / 60);
+
   const seoPaths: LearningPathSeoInput[] = paths.map((p) => ({
     slug: p.slug,
     title: p.title,
@@ -71,66 +70,78 @@ export default async function LearningPathsPage() {
   return (
     <div className="min-h-screen bg-bg-body">
       {paths.length > 0 && <JsonLd data={collectionSchema} />}
-      <div className="mx-auto max-w-[1100px] px-4 py-8 md:px-10 md:py-12">
-        <div className="mb-8">
+      <div className="mx-auto max-w-[1180px] px-4 py-8 md:px-8 md:py-10">
+        {/* ── Compact hero ── */}
+        <header className="mb-8">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
-            <GraduationCap className="h-3.5 w-3.5" />
+            <GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />
             {t("eyebrow")}
           </span>
-          <h1 className="mt-3 font-khmer-serif text-[clamp(24px,4vw,36px)] font-bold leading-[1.2] text-text-heading">
+          <h1 className="mt-3 font-khmer-serif text-[clamp(24px,4vw,38px)] font-bold leading-[1.15] text-text-heading">
             {t("h1")}
           </h1>
-          <p className="mt-2 max-w-[65ch] text-[15px] text-text-muted">{t("intro")}</p>
-          {/* Collection size from the canonical service — the same figure the
-              homepage and /llms.txt report for learning paths. This listing
-              has no filters, so there is no filtered/global split to show. */}
+          <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-text-muted">{t("intro")}</p>
+
           {paths.length > 0 && (
-            <p className="mt-3 text-[13px] text-text-muted tabular-nums">
-              {t("pathCount", { count: pathTotal })}
-            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-semibold text-text-muted">
+              <span className="inline-flex items-center gap-1.5 tabular-nums">
+                <GraduationCap className="h-4 w-4 text-brand" aria-hidden="true" />
+                {t("pathCount", { count: pathTotal })}
+              </span>
+              {totalResources > 0 && (
+                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                  <Layers className="h-4 w-4 text-brand" aria-hidden="true" />
+                  {t("resourceCount", { count: totalResources })}
+                </span>
+              )}
+              {totalHours > 0 && (
+                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                  <Clock className="h-4 w-4 text-brand" aria-hidden="true" />
+                  {t("hoursCount", { count: totalHours })}
+                </span>
+              )}
+            </div>
           )}
-        </div>
+
+          {paths.length > 0 && (
+            <div className="mt-5">
+              <a
+                href="#paths-catalogue"
+                className="inline-flex items-center gap-2 rounded-xl border border-brand/25 bg-brand/8 px-4 py-2.5 text-[14px] font-bold text-brand transition hover:bg-brand/12"
+              >
+                {t("explore")}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+          )}
+        </header>
 
         {paths.length === 0 ? (
           <div className="rounded-2xl border border-divider bg-bg-surface py-16 text-center">
-            <GraduationCap className="mx-auto mb-3 h-10 w-10 text-text-muted/40" />
-            <p className="text-[14px] font-semibold text-text-muted">{t("emptyTitle")}</p>
+            <GraduationCap className="mx-auto mb-3 h-10 w-10 text-text-muted/40" aria-hidden="true" />
+            <p className="text-[14px] font-semibold text-text-heading">{t("emptyTitle")}</p>
             <p className="mt-1 text-[12.5px] text-text-muted">{t("emptyHint")}</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {paths.map((p, i) => {
-              const title = pathLocalizedTitle(seoPaths[i], locale);
-              const description = pathLocalizedDescription(seoPaths[i], locale);
-              return (
-                <Link
-                  key={p.id}
-                  href={`/paths/${p.slug}`}
-                  className="group flex flex-col rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition-all hover:border-brand/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      {p.audience && (
-                        <span className="mb-1.5 inline-block rounded-full bg-paper px-2.5 py-0.5 text-[11px] font-semibold text-text-muted">
-                          {p.audience}
-                        </span>
-                      )}
-                      <h2 className="text-[17px] font-bold leading-snug text-text-heading">{title}</h2>
-                    </div>
-                    <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-text-muted/50 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
-                  </div>
-                  {description && (
-                    <p className="mt-2 line-clamp-2 text-[13.5px] text-text-muted">{description}</p>
-                  )}
-                  <div className="mt-4 flex items-center gap-1.5 text-[12px] font-semibold text-text-muted">
-                    <Layers className="h-3.5 w-3.5" />
-                    {t("steps", { count: p.stepCount })}
-                  </div>
-                </Link>
-              );
-            })}
+          <div id="paths-catalogue" className="scroll-mt-6">
+            <Suspense fallback={<CatalogueSkeleton />}>
+              <PathsExplorer paths={paths} featured={featured} />
+            </Suspense>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CatalogueSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="mb-5 h-11 w-full animate-pulse rounded-xl bg-bg-surface" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-[320px] animate-pulse rounded-2xl border border-divider bg-bg-surface" />
+        ))}
       </div>
     </div>
   );
