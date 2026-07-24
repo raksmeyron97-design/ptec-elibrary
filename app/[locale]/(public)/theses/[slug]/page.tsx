@@ -22,6 +22,7 @@ import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getPublicResourceAuthors } from "@/lib/resources/public-contributors";
 import {
   getKeywords,
   getReferences,
@@ -80,17 +81,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // columns above — until that migration is applied, this query errors
   // harmlessly and every field below just falls back to the pre-existing
   // title/abstract/cover-derived defaults instead of 404ing the whole page.
-  const { data: seoRow } = await supabase
-    .from('research_reports')
-    .select('seo_title, seo_description, og_image')
-    .eq('id', report.id)
-    .maybeSingle();
+  // Both reads depend only on report.id and not on each other, so run them
+  // together. Canonical authors feed the citation_* meta tags + JSON-LD,
+  // consistent with the visible page; defensive fallback to the legacy string
+  // pre-migration.
+  const [{ data: seoRow }, canonicalMetaAuthors] = await Promise.all([
+    supabase
+      .from('research_reports')
+      .select('seo_title, seo_description, og_image')
+      .eq('id', report.id)
+      .maybeSingle(),
+    getPublicResourceAuthors("thesis", report.id),
+  ]);
+  const reportForMeta =
+    canonicalMetaAuthors.length > 0
+      ? { ...report, author_names: canonicalMetaAuthors.join(", ") }
+      : report;
 
   const seoInput: ThesisSeoInput = {
     slug: report.slug,
     title: report.title,
     abstract: report.abstract,
-    authors: splitAuthors(report.author_names),
+    authors: splitAuthors(reportForMeta.author_names),
     coverUrl: report.cover_url,
     // published_at is the academic publication date; the website deposit time
     // (created_at) is NOT used as datePublished. verified_at/updated_at is the
@@ -120,7 +132,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ...base,
     // Google Scholar citation_* meta tags — see lib/seo/citation.ts
     other: {
-      ...thesisScholarMeta(report, org),
+      ...thesisScholarMeta(reportForMeta, org),
       'dc.publisher': org.institutionName,
       'dc.type': 'ScholarlyArticle',
     },
@@ -147,6 +159,18 @@ export default async function ThesisDetailPage({ params }: PageProps) {
 
   const id: string = report.id;
   const canonicalSlug: string = report.slug ?? report.id;
+
+  // Canonical author credits (migrations 0104–0109). DEFENSIVE read-switch:
+  // structured contributors replace the free-text `author_names` on the display
+  // surfaces and JSON-LD when present, falling back to the legacy string when
+  // absent (pre-migration) or empty. `report` itself is left untouched because
+  // AuthorCard matches sibling theses by the exact legacy `author_names` string;
+  // only `displayReport` carries the canonical form.
+  const canonicalAuthors = await getPublicResourceAuthors("thesis", id);
+  const displayReport =
+    canonicalAuthors.length > 0
+      ? { ...report, author_names: canonicalAuthors.join(", ") }
+      : report;
 
   // Admin-only edit link — best-effort, non-blocking
   let isAdmin = false;
@@ -248,7 +272,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       slug: canonicalSlug,
       title: report.title,
       abstract: report.abstract,
-      authors: splitAuthors(report.author_names),
+      authors: splitAuthors(displayReport.author_names),
       coverUrl: report.cover_url,
       datePublished: report.published_at,
       dateModified: report.verified_at ?? report.updated_at ?? null,
@@ -301,16 +325,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
         </div>
 
         {/* ── Hero ── */}
-        <PublicationHero report={report} reportId={id} fileHref={fileHref} shareUrl={shareUrl} thesisPath={thesisPath} rank={isTopTen ? thesisRank : null} />
+        <PublicationHero report={displayReport} reportId={id} fileHref={fileHref} shareUrl={shareUrl} thesisPath={thesisPath} rank={isTopTen ? thesisRank : null} />
 
         {/* ── Body: tabs + sidebar ── */}
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="min-w-0 space-y-5">
-            <PublicationMetadata report={report} />
+            <PublicationMetadata report={displayReport} />
             <ThesisTabs tabs={tabs} defaultTab="abstract" />
           </div>
           <StickySidebar
-            report={report}
+            report={displayReport}
             reportId={id}
             fileHref={fileHref}
             shareUrl={shareUrl}

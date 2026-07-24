@@ -13,6 +13,10 @@ import {
   type AdminTypeStats,
   type ResourceStatsReconciliation,
 } from "@/lib/admin/resource-stats";
+import {
+  reconcileCanonicalBackfill,
+  type CanonicalBackfillReconciliation,
+} from "@/lib/admin/canonical-backfill";
 import { revalidateCollectionStats } from "@/lib/cache/revalidate";
 
 export type ContentType = "book" | "research";
@@ -253,4 +257,15 @@ export async function recalculateResourceStats(): Promise<{
   await requireLibrarian();
   revalidateCollectionStats();
   return getResourceStatsReconciliation();
+}
+
+// Canonical-model backfill reconciliation (migrations 0104–0109). Reports, per
+// domain, the legacy source count vs the canonical count the backfill produced
+// (see lib/admin/canonical-backfill.ts and docs/CANONICAL-RESOURCES.md). Same
+// librarian gate as the rest of this file. Degrades gracefully to an empty
+// result before the migrations are applied (the view does not exist yet), which
+// the panel renders as an "apply migration" hint rather than an error.
+export async function getCanonicalBackfillReconciliation(): Promise<CanonicalBackfillReconciliation> {
+  await requireLibrarian();
+  return reconcileCanonicalBackfill();
 }
