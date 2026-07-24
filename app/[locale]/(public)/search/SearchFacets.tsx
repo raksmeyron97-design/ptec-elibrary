@@ -11,11 +11,12 @@ import type { FacetCount, FacetDimension, SearchFacetCounts } from "@/lib/search
 
 const COLLAPSED_LIMIT = 6;
 
-const TYPE_VALUE_LABEL_KEY: Record<string, "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabPosts"> = {
+const TYPE_VALUE_LABEL_KEY: Record<string, "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabLearningPaths" | "tabPosts"> = {
   book: "tabBooks",
   research: "tabTheses",
   publication: "tabPublications",
   catalog: "tabCatalog",
+  learning_path: "tabLearningPaths",
   post: "tabPosts",
 };
 

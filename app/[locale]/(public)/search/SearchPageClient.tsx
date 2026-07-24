@@ -27,23 +27,25 @@ import {
 } from "@/lib/recent-searches";
 import "@/app/gcse.css";
 
-const SUGGESTION_TYPE_ICON: Record<Suggestion["type"], "library" | "account" | "bookmark" | "school" | "file-check"> = {
+const SUGGESTION_TYPE_ICON: Record<Suggestion["type"], "library" | "account" | "bookmark" | "school" | "file-check" | "map-pin"> = {
   book: "library",
   author: "account",
   category: "bookmark",
   research: "school",
   publication: "file-check",
   catalog: "library",
+  learning_path: "map-pin",
   post: "bookmark",
 };
 
-const SUGGESTION_TYPE_LABEL_KEY: Record<Suggestion["type"], "suggestBooks" | "suggestAuthors" | "suggestCategories" | "suggestTheses" | "suggestPublications" | "suggestCatalog" | "suggestNews"> = {
+const SUGGESTION_TYPE_LABEL_KEY: Record<Suggestion["type"], "suggestBooks" | "suggestAuthors" | "suggestCategories" | "suggestTheses" | "suggestPublications" | "suggestCatalog" | "suggestLearningPaths" | "suggestNews"> = {
   book: "suggestBooks",
   author: "suggestAuthors",
   category: "suggestCategories",
   research: "suggestTheses",
   publication: "suggestPublications",
   catalog: "suggestCatalog",
+  learning_path: "suggestLearningPaths",
   post: "suggestNews",
 };
 
@@ -76,21 +78,23 @@ const SUGGESTIONS = [
 
 type ActiveType = "all" | SearchResultType;
 
-const TAB_IDS: ActiveType[] = ["all", "book", "research", "publication", "catalog", "post"];
-const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabPosts"> = {
+const TAB_IDS: ActiveType[] = ["all", "book", "research", "publication", "catalog", "learning_path", "post"];
+const TAB_LABEL_KEY: Record<ActiveType, "tabAll" | "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabLearningPaths" | "tabPosts"> = {
   all:      "tabAll",
   book:     "tabBooks",
   research: "tabTheses",
   publication: "tabPublications",
   catalog:  "tabCatalog",
+  learning_path: "tabLearningPaths",
   post:     "tabPosts",
 };
 
-const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgePublication" | "badgeCatalog" | "badgePost"; className: string }> = {
+const TYPE_BADGE: Record<SearchResultType, { labelKey: "badgeBook" | "badgeThesis" | "badgePublication" | "badgeCatalog" | "badgeLearningPath" | "badgePost"; className: string }> = {
   book:     { labelKey: "badgeBook",   className: "bg-blue-500/15 text-blue-700 border-blue-500/25 dark:bg-blue-400/10 dark:text-blue-300 dark:border-blue-400/25" },
   research: { labelKey: "badgeThesis", className: "bg-green-600/15 text-green-800 border-green-600/25 dark:bg-green-400/10 dark:text-green-300 dark:border-green-400/25" },
   publication: { labelKey: "badgePublication", className: "bg-cyan-600/15 text-cyan-800 border-cyan-500/25 dark:bg-cyan-400/10 dark:text-cyan-300 dark:border-cyan-400/25" },
   catalog:  { labelKey: "badgeCatalog", className: "bg-amber-500/15 text-amber-800 border-amber-500/25 dark:bg-amber-400/10 dark:text-amber-300 dark:border-amber-400/25" },
+  learning_path: { labelKey: "badgeLearningPath", className: "bg-rose-500/15 text-rose-700 border-rose-500/25 dark:bg-rose-400/10 dark:text-rose-300 dark:border-rose-400/25" },
   post:     { labelKey: "badgePost",   className: "bg-purple-500/15 text-purple-800 border-purple-500/25 dark:bg-purple-400/10 dark:text-purple-300 dark:border-purple-400/25" },
 };
 
@@ -99,6 +103,7 @@ const COVER_PLACEHOLDER_COLORS: Record<SearchResultType, string> = {
   research: "bg-green-700",
   publication: "bg-cyan-700",
   catalog: "bg-amber-600",
+  learning_path: "bg-rose-600",
   post: "bg-purple-600",
 };
 
@@ -263,6 +268,15 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
                 · {t("downloadsCount", { count: result.downloadCount })}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Learning-path metadata: modules · steps · estimated duration */}
+        {result.type === "learning_path" && (result.pathSteps || result.pathModules || result.pathDurationMin) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
+            {result.pathModules ? <span>{t("pathModules", { count: result.pathModules })}</span> : null}
+            {result.pathSteps ? <span>· {t("pathSteps", { count: result.pathSteps })}</span> : null}
+            {result.pathDurationMin ? <span>· {t("pathDuration", { minutes: result.pathDurationMin })}</span> : null}
           </div>
         )}
 
@@ -801,7 +815,7 @@ export default function SearchPageClient({ departments, languages, categories }:
                             <span className="block truncate text-sm font-medium" style={{ color: "var(--ptec-text-heading)" }}>
                               {highlightMatch(s.label, input)}
                             </span>
-                            {(s.type === "book" || s.type === "research" || s.type === "publication" || s.type === "catalog" || s.type === "post") && s.sub && (
+                            {(s.type === "book" || s.type === "research" || s.type === "publication" || s.type === "catalog" || s.type === "learning_path" || s.type === "post") && s.sub && (
                               <span className="mt-0.5 block truncate text-xs" style={{ color: "var(--ptec-text-muted)" }}>
                                 {s.sub}
                               </span>
@@ -1135,15 +1149,16 @@ export default function SearchPageClient({ departments, languages, categories }:
           {activeType === "all" ? (
             // Grouped "All" view
             <div className="space-y-8">
-              {(["book", "research", "publication", "catalog", "post"] as SearchResultType[]).map((type) => {
+              {(["book", "research", "publication", "catalog", "learning_path", "post"] as SearchResultType[]).map((type) => {
                 const group = byType(type);
                 if (group.length === 0) return null;
                 const totalForType = counts?.[type] ?? group.length;
-                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupPublications" | "groupCatalog" | "groupPosts"> = {
+                const groupLabelKey: Record<SearchResultType, "groupBooks" | "groupTheses" | "groupPublications" | "groupCatalog" | "groupLearningPaths" | "groupPosts"> = {
                   book:     "groupBooks",
                   research: "groupTheses",
                   publication: "groupPublications",
                   catalog:  "groupCatalog",
+                  learning_path: "groupLearningPaths",
                   post:     "groupPosts",
                 };
                 return (

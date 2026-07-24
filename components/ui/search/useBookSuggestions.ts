@@ -81,6 +81,11 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
       setOpen(false);
       if (onClose) onClose();
       router.push(`/catalogs/${s.slug}`);
+    } else if (s.type === "learning_path") {
+      pushRecentSearch(s.label);
+      setOpen(false);
+      if (onClose) onClose();
+      router.push(`/paths/${s.slug}`);
     } else if (s.type === "post") {
       pushRecentSearch(s.label);
       setOpen(false);
@@ -97,7 +102,7 @@ export function useBookSuggestions({ initialQuery = "", onClose, basePath = "/bo
     return acc;
   }, {});
 
-  const groupOrder: Suggestion["type"][] = ["book", "research", "publication", "catalog", "post", "author", "category"];
+  const groupOrder: Suggestion["type"][] = ["book", "research", "publication", "catalog", "learning_path", "post", "author", "category"];
 
   return {
     query,

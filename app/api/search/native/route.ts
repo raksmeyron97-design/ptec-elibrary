@@ -26,6 +26,12 @@ import {
   isLikelyBot,
   normalizeSearchTerm,
 } from "@/lib/search/analytics";
+import {
+  pathBodyText,
+  pathDurationMinutes,
+  pathModuleCount,
+  pathStepCount,
+} from "@/lib/search/learning-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +44,7 @@ const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 const CACHE_TTL_MS = 45_000;
 const CACHE_MAX = 80;
 
-export type SearchResultType = "book" | "research" | "publication" | "catalog" | "post";
+export type SearchResultType = "book" | "research" | "publication" | "catalog" | "learning_path" | "post";
 export type ActiveSearchType = "all" | SearchResultType;
 export type SearchSort = "relevance" | "newest" | "oldest" | "title" | "views" | "downloads" | "rating";
 
@@ -66,6 +72,10 @@ export type SearchResult = {
   availability?: string | null;
   score?: number;
   matchedFields?: string[];
+  /** Learning-path variant only: total steps, module count, and estimated minutes. */
+  pathSteps?: number;
+  pathModules?: number;
+  pathDurationMin?: number | null;
   actions?: {
     view?: string;
     read?: string;
@@ -417,7 +427,7 @@ function compareBySort(a: SearchResult, b: SearchResult, sort: SearchSort): numb
 }
 
 function countsOf(results: SearchResult[]): SearchCounts {
-  const counts: SearchCounts = { book: 0, research: 0, publication: 0, catalog: 0, post: 0, total: results.length };
+  const counts: SearchCounts = { book: 0, research: 0, publication: 0, catalog: 0, learning_path: 0, post: 0, total: results.length };
   for (const r of results) counts[r.type] += 1;
   return counts;
 }
@@ -838,11 +848,116 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
   return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
 }
 
+/** Path ids whose module/step text matches the query, so a path found only by
+ *  a step title still enters the candidate pool (title/description match on the
+ *  path row itself is handled by the main or-filter). */
+async function matchingPathIdsFromSteps(db: DB, q: string): Promise<string[]> {
+  if (q.length < 2) return [];
+  try {
+    const { data, error } = await db
+      .from("learning_path_steps")
+      .select("resource_title, instruction, learning_path_modules!inner(path_id, learning_paths!inner(is_published))")
+      .eq("learning_path_modules.learning_paths.is_published", true)
+      .or(`resource_title.ilike.%${q}%,instruction.ilike.%${q}%`)
+      .limit(120);
+    if (error) return [];
+    return [
+      ...new Set(
+        (data ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((r: any) => r.learning_path_modules?.path_id as string | undefined)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+  // Learning paths have no format/print/pdf artifact — a format filter for any
+  // other type excludes them entirely (mirrors posts/catalog self-exclusion).
+  if (filters.format && normalize(filters.format) !== "path") {
+    return { data: [], count: 0, allCandidates: [] };
+  }
+
+  const q = sanitize(rawQ);
+  const tokens = tokenize(q);
+  const stepPathIds = await matchingPathIdsFromSteps(db, q);
+
+  let query: any = db
+    .from("learning_paths")
+    .select(
+      "id, slug, title, title_km, description, description_km, audience, cover_url, created_at, updated_at, learning_path_modules(title, title_km, learning_path_steps(resource_title, instruction, instruction_km, est_minutes))",
+      { count: "exact" },
+    )
+    .eq("is_published", true);
+
+  const orParts = [
+    orFilter(["title", "title_km", "description", "description_km", "audience"], tokens),
+    stepPathIds.length ? `id.in.(${stepPathIds.join(",")})` : "",
+  ].filter(Boolean);
+  if (orParts.length) query = query.or(orParts.join(","));
+
+  const { data, count, error } = await query.order("position", { ascending: true }).limit(limit);
+  if (error) {
+    console.error("[native-search/learning_paths]", error.message);
+    return { data: [], count: 0, allCandidates: [] };
+  }
+
+  const candidates: Candidate[] = (data ?? []).map((p: any) => {
+    const modules = p.learning_path_modules ?? [];
+    const steps = pathStepCount(modules);
+    const moduleCount = pathModuleCount(modules);
+    const durationMin = pathDurationMinutes(modules);
+    const year = yearOf(p.created_at) ?? yearOf(p.updated_at);
+    const title = [p.title, p.title_km].filter(Boolean).join(" ");
+    const description = [p.description, p.description_km].filter(Boolean).join(" ");
+    const subject = p.audience ?? "Learning Path";
+    const stepText = pathBodyText(modules);
+    return {
+      id: p.id,
+      ref: p.slug,
+      type: "learning_path" as const,
+      title: p.title,
+      author: "PTEC Library",
+      coverUrl: coverUrlOf(p.cover_url),
+      url: `/paths/${p.slug}`,
+      year,
+      language: null,
+      category: subject,
+      subject,
+      views: 0,
+      downloadCount: 0,
+      excerpt: makeExcerpt(p.description ?? p.description_km),
+      keywords: [],
+      format: "Path",
+      availability: steps > 0 ? "Guided path" : "Learning Path",
+      pathSteps: steps,
+      pathModules: moduleCount,
+      pathDurationMin: durationMin,
+      actions: { view: `/paths/${p.slug}` },
+      searchableText: [title, description, subject, stepText].filter(Boolean).join(" "),
+      titleText: title,
+      authorText: "PTEC Library",
+      subjectText: subject,
+      keywordText: "",
+      bodyText: [description, stepText].filter(Boolean).join(" "),
+      dateValue: year ?? 0,
+      popularityValue: steps,
+    };
+  }).filter((row: Candidate) => filterCommon(row, filters));
+
+  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+}
+
 const FUZZY_URL: Record<SearchResultType, (ref: string) => string> = {
   book: (ref) => `/books/${ref}`,
   research: (ref) => `/theses/${ref}`,
   publication: (ref) => `/publications/${ref}`,
   catalog: (ref) => `/catalogs/${ref}`,
+  learning_path: (ref) => `/paths/${ref}`,
   post: (ref) => `/posts/${ref}`,
 };
 
@@ -1014,7 +1129,7 @@ function parseSort(value: string | null): SearchSort {
 }
 
 function parseType(value: string | null): ActiveSearchType {
-  return value === "book" || value === "research" || value === "publication" || value === "catalog" || value === "post"
+  return value === "book" || value === "research" || value === "publication" || value === "catalog" || value === "learning_path" || value === "post"
     ? value
     : "all";
 }
@@ -1101,6 +1216,7 @@ export async function GET(req: Request) {
       research: (qx: string = q) => searchResearch(db, qx, filters, candidateLimit, pageHitIds, sort),
       publication: (qx: string = q) => searchPublications(db, qx, filters, candidateLimit, pageHitIds, sort),
       catalog: (qx: string = q) => searchCatalog(db, qx, filters, candidateLimit, pageHitIds, sort),
+      learning_path: (qx: string = q) => searchLearningPaths(db, qx, filters, candidateLimit, pageHitIds, sort),
       post: (qx: string = q) => searchPosts(db, qx, filters, candidateLimit, pageHitIds, sort),
     } satisfies Record<SearchResultType, (qx?: string) => Promise<PerTypeSearch>>;
 
@@ -1109,11 +1225,12 @@ export async function GET(req: Request) {
     if (type === "all") {
       // Semantic passages ride along with the type searches (no added latency);
       // they don't feed pageHitIds scoring — only the rendered hit list.
-      const [books, research, publications, catalog, posts, semantic] = await Promise.all([
+      const [books, research, publications, catalog, learningPaths, posts, semantic] = await Promise.all([
         run.book(),
         run.research(),
         run.publication(),
         run.catalog(),
+        run.learning_path(),
         run.post(),
         semanticPassages(db, q),
       ]);
@@ -1124,6 +1241,7 @@ export async function GET(req: Request) {
         research,
         publication: publications,
         catalog,
+        learning_path: learningPaths,
         post: posts,
       };
       const typeIds = Object.keys(byType) as SearchResultType[];
@@ -1153,6 +1271,7 @@ export async function GET(req: Request) {
         research: typeCountOf("research"),
         publication: typeCountOf("publication"),
         catalog: typeCountOf("catalog"),
+        learning_path: typeCountOf("learning_path"),
         post: typeCountOf("post"),
         total: activeTypes.reduce((sum, t) => sum + typeCountOf(t), 0),
       };
@@ -1167,10 +1286,10 @@ export async function GET(req: Request) {
         // untouched. Logged with the recovered count — the term is no longer
         // "missing content", which keeps the acquisition report clean.
         for (const alt of await synonymAlternatives(db, q)) {
-          const [b2, r2, p2, c2, s2] = await Promise.all([
-            run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.post(alt),
+          const [b2, r2, p2, c2, l2, s2] = await Promise.all([
+            run.book(alt), run.research(alt), run.publication(alt), run.catalog(alt), run.learning_path(alt), run.post(alt),
           ]);
-          const altResults = [b2, r2, p2, c2, s2].flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
+          const altResults = [b2, r2, p2, c2, l2, s2].flatMap((t) => t.allCandidates.slice(0, PAGE_SIZE_ALL));
           if (altResults.length > 0) {
             response = {
               results: altResults,
@@ -1260,6 +1379,7 @@ export async function GET(req: Request) {
         research: type === "research" ? effectiveCount : 0,
         publication: type === "publication" ? effectiveCount : 0,
         catalog: type === "catalog" ? effectiveCount : 0,
+        learning_path: type === "learning_path" ? effectiveCount : 0,
         post: type === "post" ? effectiveCount : 0,
         total: effectiveCount,
       };

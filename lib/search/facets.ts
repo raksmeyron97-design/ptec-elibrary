@@ -36,7 +36,7 @@ export const FACET_PARAM_KEYS: Record<FacetDimension, string> = {
 
 const MAX_SELECTED_PER_DIMENSION = 8;
 const MAX_LISTED: Record<FacetDimension, number> = {
-  types: 5,
+  types: 7,
   subjects: 20,
   langs: 10,
   years: 15,

@@ -35,6 +35,7 @@ export type Suggestion =
   | { type: "research"; id: string; slug?: string | null; label: string; sub: string; coverUrl?: string | null }
   | { type: "publication"; slug: string; label: string; sub: string; coverUrl?: string | null }
   | { type: "catalog"; slug: string; label: string; sub: string; coverUrl?: string | null }
+  | { type: "learning_path"; slug: string; label: string; sub: string; coverUrl?: string | null }
   | { type: "post"; slug: string; label: string; sub: string; coverUrl?: string | null };
 
 export async function GET(req: NextRequest) {
@@ -154,7 +155,25 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // ── 7. Matching news/posts (up to 2) ────────────────────────────────────────
+  // ── 7. Matching learning paths in English or Khmer (up to 2) ────────────────
+  const { data: paths } = await supabase
+    .from("learning_paths")
+    .select("slug, title, title_km, audience")
+    .eq("is_published", true)
+    .or(`title.ilike.%${q}%,title_km.ilike.%${q}%,description.ilike.%${q}%,audience.ilike.%${q}%`)
+    .limit(2);
+
+  for (const p of paths ?? []) {
+    results.push({
+      type: "learning_path",
+      slug: p.slug,
+      label: p.title_km && p.title_km.includes(q) ? p.title_km : p.title,
+      sub: (p.audience as string | null) ?? "Learning Path",
+      coverUrl: null,
+    });
+  }
+
+  // ── 8. Matching news/posts (up to 2) ────────────────────────────────────────
   const { data: posts } = await supabase
     .from("posts")
     .select("slug, title, category, cover_url")

@@ -75,6 +75,7 @@ function urlFor(source: string, ref: string): string {
   if (source === "research") return `/theses/${ref}`;
   if (source === "catalog") return `/catalogs/${ref}`;
   if (source === "publication") return `/publications/${ref}`;
+  if (source === "learning_path") return `/paths/${ref}`;
   return `/books/${ref}`;
 }
 
@@ -193,7 +194,7 @@ async function keywordSearch(
   if (!q) return [];
   const tokens = tokenize(q);
 
-  const [{ data: books }, { data: research }, { data: catalog }, { data: publications }] = await Promise.all([
+  const [{ data: books }, { data: research }, { data: catalog }, { data: publications }, { data: paths }] = await Promise.all([
     db
       .from("books")
       .select("slug, title, cover_url, authors(name), categories(name)")
@@ -220,6 +221,13 @@ async function keywordSearch(
       .eq("is_published", true)
       .or(orFilter(["title", "abstract"], tokens))
       .order("view_count", { ascending: false })
+      .limit(MAX_BOOKS),
+    db
+      .from("learning_paths")
+      .select("slug, title, title_km, cover_url, audience")
+      .eq("is_published", true)
+      .or(orFilter(["title", "title_km", "description", "description_km", "audience"], tokens))
+      .order("position", { ascending: true })
       .limit(MAX_BOOKS),
   ]);
 
@@ -259,6 +267,15 @@ async function keywordSearch(
       category: (p as any).journal_name ?? "Publication",
       coverUrl: coverUrlOf((p as any).cover_url ?? null),
       url: `/publications/${(p as any).slug}`,
+    });
+  for (const p of paths ?? [])
+    out.push({
+      slug: (p as any).slug,
+      title: (p as any).title,
+      author: (p as any).audience ?? "PTEC Library",
+      category: "Learning Path",
+      coverUrl: coverUrlOf((p as any).cover_url ?? null),
+      url: `/paths/${(p as any).slug}`,
     });
   return out;
 }
