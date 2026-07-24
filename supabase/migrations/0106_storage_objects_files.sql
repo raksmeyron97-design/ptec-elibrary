@@ -171,7 +171,10 @@ FROM (
          row_number() OVER (
            PARTITION BY bf.book_id,
              CASE lower(coalesce(bf.format::text, '')) WHEN 'epub' THEN 'epub' ELSE 'primary_pdf' END
-           ORDER BY bf.created_at, bf.id
+           -- Order by id only: book_files has no created_at on the hosted DB
+           -- (baseline/drift mismatch). id is the PK, so this is deterministic;
+           -- which PDF becomes primary among several is arbitrary but stable.
+           ORDER BY bf.id
          ) AS pdf_rank
   FROM public.book_files bf
   WHERE coalesce(btrim(bf.file_url), '') <> ''
