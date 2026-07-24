@@ -150,6 +150,12 @@ END $$;
 -- ── 5. Backfill A — book_files (PDF/EPUB/…) ──────────────────────────────────
 -- is_primary is true for the FIRST non-EPUB (PDF) file of each book only, so a
 -- book with several PDF rows never violates the one-primary-per-role index.
+--
+-- book_files.format is `text` in the squashed baseline but was drifted to the
+-- enum public.file_format('pdf','epub') on the hosted DB (dashboard change, no
+-- migration). coalesce(bf.format, '') would then coerce the '' literal to the
+-- enum and fail (22P02). Casting bf.format::text first works for BOTH shapes —
+-- text stays text, enum widens to its label — so this migration is drift-safe.
 INSERT INTO public.resource_files
   (resource_type, resource_id, storage_object_id, file_role, file_format,
    is_primary, sequence, legacy_book_file_id)
@@ -160,11 +166,11 @@ SELECT 'book', ranked.book_id,
        ranked.file_role = 'primary_pdf' AND ranked.pdf_rank = 1,   -- exactly one primary PDF per book
        0, ranked.id
 FROM (
-  SELECT bf.id, bf.book_id, bf.file_url, bf.file_size_kb, bf.format,
-         CASE lower(coalesce(bf.format, '')) WHEN 'epub' THEN 'epub' ELSE 'primary_pdf' END AS file_role,
+  SELECT bf.id, bf.book_id, bf.file_url, bf.file_size_kb, bf.format::text AS format,
+         CASE lower(coalesce(bf.format::text, '')) WHEN 'epub' THEN 'epub' ELSE 'primary_pdf' END AS file_role,
          row_number() OVER (
            PARTITION BY bf.book_id,
-             CASE lower(coalesce(bf.format, '')) WHEN 'epub' THEN 'epub' ELSE 'primary_pdf' END
+             CASE lower(coalesce(bf.format::text, '')) WHEN 'epub' THEN 'epub' ELSE 'primary_pdf' END
            ORDER BY bf.created_at, bf.id
          ) AS pdf_rank
   FROM public.book_files bf
