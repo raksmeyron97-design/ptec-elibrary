@@ -3379,6 +3379,18 @@
       "today": "today",
       "yesterday": "yesterday",
       "daysAgo": "{count} days ago"
+    },
+    "backfill": {
+      "title": "Canonical backfill integrity",
+      "subtitle": "Legacy vs canonical counts per domain (migrations 0104–0109). Any gap is a row the backfill missed.",
+      "healthy": "Fully reconciled",
+      "drift": "{count} with drift",
+      "unavailable": "Apply the canonical-resource migrations (0104–0109) to enable this check.",
+      "colDomain": "Domain",
+      "colLegacy": "Legacy",
+      "colCanonical": "Canonical",
+      "colGap": "Gap",
+      "footnote": "Gap = legacy source rows minus canonical rows produced. It must be 0 for every domain."
     }
   },
   "adminSearchInsights": {

@@ -19,8 +19,10 @@ import {
   getDataQualitySummary,
   getBrokenFiles,
   getResourceStatsReconciliation,
+  getCanonicalBackfillReconciliation,
 } from "@/app/actions/data-quality";
 import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
+import CanonicalBackfillAudit from "@/components/admin/CanonicalBackfillAudit";
 import { PageHeader } from "@/components/admin/kit";
 
 export const dynamic = "force-dynamic";
@@ -68,12 +70,13 @@ function MetricCard({
 }
 
 export default async function DataQualityPage() {
-  const [t, summary, gaps, brokenFiles, resourceStats] = await Promise.all([
+  const [t, summary, gaps, brokenFiles, resourceStats, backfill] = await Promise.all([
     getTranslations("adminDataQuality"),
     getDataQualitySummary(),
     getMetadataGaps(),
     getBrokenFiles(),
     getResourceStatsReconciliation(),
+    getCanonicalBackfillReconciliation(),
   ]);
 
   const totalRecords = summary.totalBooks + summary.totalTheses;
@@ -201,6 +204,13 @@ export default async function DataQualityPage() {
           key={resourceStats.reconciliation.checkedAt}
           initial={resourceStats}
         />
+      </div>
+
+      {/* Canonical-model backfill integrity (migrations 0104–0109): legacy vs
+          canonical counts per domain. A data-integrity check, like the count
+          reconciliation above — not a KPI. */}
+      <div className="mb-8">
+        <CanonicalBackfillAudit data={backfill} />
       </div>
 
       <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">

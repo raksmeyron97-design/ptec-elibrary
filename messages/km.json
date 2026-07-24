@@ -3384,6 +3384,18 @@
       "today": "ថ្ងៃនេះ",
       "yesterday": "ម្សិលមិញ",
       "daysAgo": "{count} ថ្ងៃមុន"
+    },
+    "backfill": {
+      "title": "ភាពត្រឹមត្រូវនៃការផ្ទេរទិន្នន័យ Canonical",
+      "subtitle": "ការប្រៀបធៀបចំនួនចាស់ និង canonical តាមផ្នែក (migrations 0104–0109)។ គម្លាតណាមួយ គឺជាជួរដែលការផ្ទេរខកខាន។",
+      "healthy": "ផ្ទៀងផ្ទាត់ពេញលេញ",
+      "drift": "{count} មានគម្លាត",
+      "unavailable": "សូមអនុវត្ត migrations ធនធាន canonical (0104–0109) ដើម្បីបើកការត្រួតពិនិត្យនេះ។",
+      "colDomain": "ផ្នែក",
+      "colLegacy": "ចាស់",
+      "colCanonical": "Canonical",
+      "colGap": "គម្លាត",
+      "footnote": "គម្លាត = ជួរប្រភពចាស់ ដក ជួរ canonical ដែលបានបង្កើត។ វាត្រូវតែស្មើ 0 សម្រាប់គ្រប់ផ្នែក។"
     }
   },
   "adminSearchInsights": {

@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/core/Badge";
 import { VerifiedBadge, LicenseBadge } from "@/components/ui/trust/TrustBadges";
 import PhysicalCopiesList from "@/components/ui/books/PhysicalCopiesList";
 import { type Book, mapRowToBook } from "@/lib/books";
+import { getPublicResourceAuthors } from "@/lib/resources/public-contributors";
 import { decodeSlugParam } from "@/lib/slug";
 
 import { createServiceClient } from "@/lib/supabase/server";
@@ -216,8 +217,14 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
   // Locale-correct canonical + breadcrumb URLs (Khmer under /km) so the
   // structured data matches the visible breadcrumbs and the page's canonical.
   const localePrefix = locale === "km" ? "/km" : "";
-  const bookAuthors =
+  // Prefer canonical contributor credits; fall back to the legacy single author
+  // when they are absent (pre-migration) or empty. Output is byte-identical to
+  // before until a book actually gains multiple contributors.
+  const legacyAuthors =
     book.author && book.author !== "Unknown" ? [book.author] : [];
+  const canonicalAuthors = book.dbId ? await getPublicResourceAuthors("book", book.dbId) : [];
+  const bookAuthors = canonicalAuthors.length > 0 ? canonicalAuthors : legacyAuthors;
+  const authorLabel = bookAuthors.length > 0 ? bookAuthors.join(", ") : book.author;
   const bookSchema = bookJsonLd(
     {
       slug,
@@ -314,7 +321,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             <h1 className="font-khmer-serif mt-3 sm:mt-5 text-[clamp(24px,4vw,38px)] font-bold leading-[1.2] text-text-heading break-words">
               {book.title}
             </h1>
-            <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">{t("byAuthor", { author: book.author })}</p>
+            <p className="mt-1.5 sm:mt-2 text-[15px] sm:text-[17px] font-medium text-text-muted">{t("byAuthor", { author: authorLabel })}</p>
             {/* A rating row only exists once someone has actually rated the
                 book — "★★★★★ 0.0" is noise, not information. */}
             {reviewCount > 0 && (

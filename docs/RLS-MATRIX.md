@@ -147,6 +147,32 @@ same policies through `is_*()` helpers; test them on staging by setting the
 probe user's `profiles.role` and re-running — never mutate roles on
 production for testing.
 
+### Canonical resource tables (migrations 0104–0109)
+
+Additive consolidation layer (see `docs/CANONICAL-RESOURCES.md`). Authority
+tables are public-read/admin-write like `authors`; polymorphic link tables are
+public **only when the linked resource is published** (an inlined
+`EXISTS(... AND is_published)` per `resource_type`, mirroring
+`publication_authorships`); admins (`is_admin()`) see all.
+
+| Table | anon SELECT | auth SELECT | write |
+|---|---|---|---|
+| organizations | ✅ | ✅ | super_admin |
+| contributors | ✅ | ✅ | admin |
+| resource_contributors | pub (of linked resource) | pub (+all if admin) | admin |
+| storage_objects | pub-visibility metadata only | same (+all if admin) | admin |
+| resource_files | pub (of linked resource) | pub (+all if admin) | admin |
+| subjects | ✅ (status=active) | ✅ | admin |
+| resource_subjects | pub (of linked resource) | pub (+all if admin) | admin |
+| resource_keywords | pub (of linked resource) | pub (+all if admin) | admin |
+| resource_references | pub (of linked resource) | pub (+all if admin) | admin |
+| resource_relations | pub (of source resource) | pub (+all if admin) | admin |
+| `canonical_backfill_health` (view) | svc | svc | — |
+
+`organization_id` was added to books/research_reports/publications/
+catalog_books/learning_paths/posts; their existing single-tenant policies are
+**unchanged** (org-scoping is deferred until a second tenant exists).
+
 ## Maintenance rule
 
 Every migration that `CREATE TABLE`s in `public` MUST either
