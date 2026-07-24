@@ -52,10 +52,13 @@ export async function GET(request: NextRequest) {
   const db = createServiceClient();
   const now = new Date().toISOString();
 
-  const [posts, theses, books] = await Promise.all([
+  const [posts, theses, books, paths] = await Promise.all([
     db.from("posts").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
     db.from("research_reports").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
     db.from("books").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
+    // Learning paths (0111): the sync_learning_path_status trigger cascades
+    // is_published/published_at. 42703 means 0111 isn't applied yet.
+    db.from("learning_paths").update({ status: "published" }).eq("status", "scheduled").lte("scheduled_at", now).select("id, slug"),
   ]);
 
   if (posts.error) console.error("[/api/cron/publish-scheduled] posts update failed:", posts.error.message);
@@ -63,6 +66,14 @@ export async function GET(request: NextRequest) {
   // 42703 just means 0086 isn't applied yet — books have no scheduled_at.
   if (books.error && books.error.code !== "42703") {
     console.error("[/api/cron/publish-scheduled] books update failed:", books.error.message);
+  }
+  if (paths.error && paths.error.code !== "42703") {
+    console.error("[/api/cron/publish-scheduled] paths update failed:", paths.error.message);
+  }
+  // Refresh the public learning-paths cache so newly-published paths appear.
+  if ((paths.data ?? []).length > 0) {
+    const { revalidateLearningPath } = await import("@/lib/cache/revalidate");
+    for (const p of paths.data ?? []) revalidateLearningPath(p.slug);
   }
   if (posts.error && theses.error) {
     return NextResponse.json({ error: "Publish sweep failed" }, { status: 500 });
@@ -80,10 +91,11 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    published: (posts.data ?? []).length + (theses.data ?? []).length + (books.data ?? []).length,
+    published: (posts.data ?? []).length + (theses.data ?? []).length + (books.data ?? []).length + (paths.data ?? []).length,
     postSlugs: (posts.data ?? []).map((p) => p.slug),
     thesisSlugs: (theses.data ?? []).map((t) => t.slug),
     bookSlugs: (books.data ?? []).map((b) => b.slug),
+    pathSlugs: (paths.data ?? []).map((p) => p.slug),
     announcements: announcements
       ? {
           published: announcements.publishedScheduled.length,
