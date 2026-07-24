@@ -164,7 +164,10 @@ test.describe('Search — Learning Paths', () => {
     await expect(pathCard).toContainText('Learning Path');
     await expect(pathCard).toContainText('3 modules');
     await expect(pathCard).toContainText('6 steps');
-    await expect(pathCard.getByRole('link', { name: 'Foundation of Mathematics' }))
+    // Every result card exposes two links to the same target — the image/
+    // wrapper link (aria-label) and the title-text link — so scope by role and
+    // take the first; both carry the same href.
+    await expect(pathCard.getByRole('link', { name: 'Foundation of Mathematics' }).first())
       .toHaveAttribute('href', /\/paths\/foundation-of-mathematics$/);
   });
 
