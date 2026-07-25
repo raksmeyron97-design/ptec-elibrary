@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
-import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
-import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { breadcrumbSchema } from "@/lib/seo/schema";
+import JsonLd from "@/components/seo/JsonLd";
+import { PRIVACY_SECTIONS } from "@/lib/privacy/policy";
+import PrivacyHero from "./PrivacyHero";
+import PrivacySummaryCards from "./PrivacySummaryCards";
+import PrivacyTableOfContents from "./PrivacyTableOfContents";
+import PrivacySection from "./PrivacySection";
+import PrivacyDataTable from "./PrivacyDataTable";
+import PrivacyProcessorList from "./PrivacyProcessorList";
+import PrivacyRightsCard from "./PrivacyRightsCard";
+import PolicyVersionHistory from "./PolicyVersionHistory";
 
 export async function generateMetadata({
   params,
@@ -10,73 +19,80 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "privacy.meta" });
   const alternates = localeAlternates("/privacy", locale);
   return {
-    title: "Privacy Policy",
-    description:
-      "What personal data the PTEC e-Library collects, how it is stored and protected, and how you can delete your account and data.",
+    title: t("title"),
+    description: t("description"),
     alternates,
     openGraph: {
-      title: "Privacy Policy | PTEC Library",
-      description:
-        "What personal data the PTEC e-Library collects, how it is protected, and how to delete your account.",
+      title: t("ogTitle"),
+      description: t("ogDescription"),
       url: alternates.canonical,
       type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: t("ogTitle"),
+      description: t("ogDescription"),
     },
   };
 }
 
-export default async function PrivacyPage() {
+export default async function PrivacyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const km = locale === "km";
   const t = await getTranslations("privacy");
 
-  const sections: { heading: string; paragraphs: string[] }[] = [
-    { heading: t("collectTitle"), paragraphs: [t("collectAccount"), t("collectActivity"), t("collectContact"), t("collectTechnical")] },
-    { heading: t("notTitle"), paragraphs: [t("notBody")] },
-    { heading: t("storageTitle"), paragraphs: [t("storageBody")] },
-    { heading: t("visibilityTitle"), paragraphs: [t("visibilityPrivate"), t("visibilityPublic")] },
-    { heading: t("retentionTitle"), paragraphs: [t("retentionBody")] },
-  ];
+  // TOC items — labels from the section headings, ids stable across locales.
+  const tocItems = PRIVACY_SECTIONS.map((s) => ({
+    id: s.id,
+    label: t(`sections.${s.id}.title`),
+  }));
+
+  const breadcrumb = breadcrumbSchema([
+    { name: t("breadcrumb.home"), path: "/" },
+    { name: t("breadcrumb.current") },
+  ]);
 
   return (
-    <section className="bg-paper px-6 py-10 md:px-12">
-      <div className="mx-auto max-w-[900px] rounded-lg border border-divider bg-bg-surface p-8 shadow-sm">
-        <h1 className="text-3xl font-bold text-text-heading">{t("title")}</h1>
-        <p className="mt-2 text-sm text-text-muted">{t("updated")}</p>
-        <p className="mt-4 leading-8 text-text-body">{t("intro")}</p>
+    <div className="bg-paper">
+      <JsonLd data={breadcrumb} />
+      <PrivacyHero km={km} />
 
-        {sections.map(({ heading, paragraphs }) => (
-          <div key={heading} className="mt-8">
-            <h2 className="text-xl font-semibold text-text-heading">{heading}</h2>
-            {paragraphs.map((p) => (
-              <p key={p} className="mt-3 leading-8 text-text-body">
-                {p}
-              </p>
-            ))}
+      <div className="mx-auto max-w-[1200px] px-4 pb-16 sm:px-6 md:px-8">
+        <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-10">
+          {/* Table of contents (sticky on desktop, disclosure on mobile) */}
+          <div className="pt-8 lg:pt-10">
+            <PrivacyTableOfContents
+              items={tocItems}
+              title={t("toc.title")}
+              mobileLabel={t("toc.mobileLabel")}
+              km={km}
+            />
           </div>
-        ))}
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold text-text-heading">{t("choicesTitle")}</h2>
-          <p className="mt-3 leading-8 text-text-body">
-            {t("choicesBody")}{" "}
-            <Link href="/dashboard/settings" className="text-brand underline underline-offset-4 hover:opacity-80">
-              {t("choicesSettingsLink")}
-            </Link>
-            .
-          </p>
-        </div>
+          {/* Main policy content */}
+          <div className="min-w-0 pt-2 lg:pt-10">
+            <PrivacySummaryCards km={km} />
 
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold text-text-heading">{t("contactTitle")}</h2>
-          <p className="mt-3 leading-8 text-text-body">
-            {t("contactBody")}{" "}
-            <Link href="/contact" className="text-brand underline underline-offset-4 hover:opacity-80">
-              {t("contactLink")}
-            </Link>
-            .
-          </p>
+            <div className="mt-12 max-w-[820px] space-y-12">
+              {PRIVACY_SECTIONS.map((section) => (
+                <PrivacySection key={section.id} id={section.id} km={km}>
+                  {section.special === "table" && <PrivacyDataTable km={km} />}
+                  {section.special === "processors" && <PrivacyProcessorList km={km} />}
+                  {section.special === "rights" && <PrivacyRightsCard km={km} />}
+                  {section.special === "versions" && <PolicyVersionHistory km={km} />}
+                </PrivacySection>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

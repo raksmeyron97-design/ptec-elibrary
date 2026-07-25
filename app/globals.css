@@ -564,3 +564,66 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Print — Privacy Policy (and any long-form content page)
+
+   Goal: a clean, complete, black-on-white document. Hide the site chrome
+   (navbar, announcement banner, footer, floating chat/bottom-nav) and print
+   only the routed <main>. Selectors target the public layout shell's direct
+   children so no shared component needs a print-specific class.
+   ────────────────────────────────────────────────────────────────── */
+@media print {
+  /* Show only the page content: drop every direct child of the public shell
+     that isn't the routed main region. */
+  body .flex.min-h-screen.flex-col > *:not(main) {
+    display: none !important;
+  }
+
+  /* The dark hero prints as plain black-on-white text (backgrounds are
+     stripped by the browser in print anyway; make the text legible). */
+  #privacy-hero,
+  #privacy-hero * {
+    color: #000 !important;
+    text-shadow: none !important;
+  }
+  #privacy-hero {
+    border-bottom: 1px solid #000;
+    background: #fff !important;
+  }
+
+  /* Always print the semantic table, never the mobile card duplication. */
+  .privacy-table-desktop {
+    display: block !important;
+  }
+  .privacy-table-mobile {
+    display: none !important;
+  }
+  .privacy-table-desktop table {
+    font-size: 10px;
+  }
+
+  /* Keep headings with the content that follows, and avoid splitting cards,
+     rows, and list items across pages where possible. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid-page;
+  }
+  section,
+  li,
+  tr,
+  thead {
+    break-inside: avoid;
+  }
+
+  /* Neutralise decorative surfaces so text stays readable on white paper. */
+  .bg-brand\/10,
+  .bg-bg-app\/60,
+  .bg-bg-app\/40,
+  .bg-accent\/15,
+  .bg-info\/10,
+  .bg-success\/10 {
+    background: transparent !important;
+  }
+}

@@ -1194,29 +1194,354 @@
     }
   },
   "privacy": {
-    "title": "Privacy Policy",
-    "updated": "Last updated: July 2026",
-    "intro": "The PTEC e-Library is a free digital library operated by the Phnom Penh Teacher Education College. We collect only the personal data needed to run the library, we never sell it, and you can delete your account and data at any time. This page explains exactly what we store and why.",
-    "collectTitle": "What we collect",
-    "collectAccount": "Account information: your email address, display name, and an optional profile photo. If you sign in with Google, we receive your name, email, and Google profile photo.",
-    "collectActivity": "Library activity: books you save, reading lists, reading progress, personal notes and highlights, and reviews you write. This is what makes features like “continue reading” work.",
-    "collectContact": "Contact form messages: the name, email, and message you send us are forwarded to library staff so we can reply, and are not used for anything else.",
-    "collectTechnical": "Technical records: download logs and search queries, used to keep the service secure and to improve the catalog (for example, finding searches that return no results).",
-    "notTitle": "What we do not do",
-    "notBody": "We do not sell or share your personal data with advertisers, we do not show ads, and we do not track you across other websites. We do not collect any personal data beyond what is listed above.",
-    "storageTitle": "Where your data is stored",
-    "storageBody": "Account and activity data are stored in our database (Supabase/PostgreSQL); book files are stored on the library’s file storage. All connections use HTTPS encryption, and access to private data is restricted by server-side permission checks.",
-    "visibilityTitle": "Who can see your data",
-    "visibilityPrivate": "Private to you: personal notes, highlights, reading progress, saved books, and reading lists are visible only to your account. Library staff cannot browse them.",
-    "visibilityPublic": "Public: book reviews you post are shown on the book page together with your display name and profile photo.",
-    "retentionTitle": "How long we keep it",
-    "retentionBody": "Your data is kept while your account exists. When you delete your account, your profile, notes, reading progress, saved lists, and reviews are permanently removed. Contact-form messages are kept only as long as needed to respond.",
-    "choicesTitle": "Your choices",
-    "choicesBody": "You can edit your name and photo, change your password, or permanently delete your account and all associated data from",
-    "choicesSettingsLink": "your account settings",
-    "contactTitle": "Questions",
-    "contactBody": "If you have any question about your data, or want a copy of it, please reach us through the",
-    "contactLink": "contact page"
+    "meta": {
+      "title": "Privacy Policy",
+      "description": "Learn how PTEC Library collects, uses, stores and protects personal information, and how you can manage your privacy or delete your account.",
+      "ogTitle": "Privacy Policy | PTEC Library",
+      "ogDescription": "What personal data the PTEC e-Library collects, how it is protected, and how to manage or delete your account."
+    },
+    "breadcrumb": {
+      "home": "Home",
+      "current": "Privacy Policy"
+    },
+    "hero": {
+      "eyebrow": "Privacy & Data Protection",
+      "title": "Privacy Policy",
+      "description": "The PTEC e-Library is a free digital library run by the Phnom Penh Teacher Education College. We collect only the data needed to run the library, we never sell it, and you can delete your account at any time.",
+      "lastUpdatedLabel": "Last updated",
+      "versionLabel": "Version",
+      "languageNote": "Available in English and Khmer."
+    },
+    "actions": {
+      "manage": "Manage my privacy",
+      "contact": "Contact the library",
+      "print": "Print this policy"
+    },
+    "summary": {
+      "title": "The short version",
+      "collect": {
+        "title": "What we collect",
+        "body": "Your account details, the library activity that powers your features, and technical logs needed to run the service securely."
+      },
+      "notDo": {
+        "title": "What we never do",
+        "body": "We do not sell your data, show ads, or track you across other websites. Your notes and reading activity stay private."
+      },
+      "controls": {
+        "title": "Your controls",
+        "body": "Edit your profile, export a copy of your data, or permanently delete your account and its data — any time, from your settings."
+      },
+      "contact": {
+        "title": "Ask us anything",
+        "body": "Questions or a data request? Reach the library through the contact page and we will respond within 30 days."
+      }
+    },
+    "toc": {
+      "title": "On this page",
+      "mobileLabel": "On this page"
+    },
+    "sections": {
+      "overview": {
+        "title": "Overview",
+        "body": [
+          "This policy explains what personal information the PTEC e-Library collects, why we collect it, where it is stored, who can see it, and the choices you have. It describes how the service actually works today — not a generic template.",
+          "It applies to the public library website and its progressive web app. It does not cover other websites we link to, such as the main PTEC website or Google."
+        ]
+      },
+      "operator": {
+        "title": "Who operates the service",
+        "body": [
+          "The e-Library is operated by the Phnom Penh Teacher Education College (PTEC). The library director owns this policy and the web team maintains the service.",
+          "For any privacy question or data request, use the contact page. We aim to respond within 30 days."
+        ]
+      },
+      "collect": {
+        "title": "Information we collect",
+        "body": [
+          "We collect three kinds of information: the account details you provide, the library activity that makes features work, and technical records that keep the service secure. The table below lists each category with its purpose, source, and how long we keep it."
+        ]
+      },
+      "use": {
+        "title": "How we use information",
+        "body": [
+          "We use your information only to run the library and improve it. Specifically:"
+        ],
+        "items": [
+          "To create and secure your account and sign you in.",
+          "To power features such as saved books, reading lists, reading progress, notes, and highlights.",
+          "To publish the reviews you choose to post, shown with your display name and photo.",
+          "To reply to messages you send through the contact form.",
+          "To keep download and search counts, find searches that return no results, and improve the catalog.",
+          "To protect the service against abuse, spam, and unauthorised access."
+        ],
+        "note": "We do not use your information for advertising, profiling for marketing, or automated decisions that affect you."
+      },
+      "cookies": {
+        "title": "Cookies and device storage",
+        "body": [
+          "We keep the number of cookies to a minimum and use no advertising or cross-site tracking cookies. What we store falls into these groups:"
+        ],
+        "items": [
+          "A sign-in cookie that keeps you logged in (only after you log in).",
+          "A small preference for your chosen language.",
+          "Settings saved in your browser, such as light or dark theme and reading preferences.",
+          "Offline storage used by the app: when you save a book to read offline, the file and some pages are cached on your device so you can open them without a connection."
+        ],
+        "note": "You can clear this data at any time from your browser settings. Aggregate, cookieless analytics (Vercel Analytics) count page visits without identifying you or following you across sites."
+      },
+      "sharing": {
+        "title": "When information is shared",
+        "body": [
+          "We do not sell or rent your personal data, and we do not share it with advertisers. We share information only in these limited situations:"
+        ],
+        "items": [
+          "With the service providers listed below, who process data on our behalf under their own security terms.",
+          "Publicly, only for the reviews you choose to post — shown with your display name and photo.",
+          "When required by law, or to protect the safety, rights, or security of users, the public, or the library."
+        ]
+      },
+      "processors": {
+        "title": "Third-party service providers",
+        "body": [
+          "We rely on a small set of trusted providers to run the service. They process data only to provide their service to us, not for their own purposes."
+        ]
+      },
+      "visibility": {
+        "title": "Public and private information",
+        "body": [
+          "Most of what the library stores about you is private. The only content shown publicly is what you deliberately post: book reviews and post comments, displayed with your name and photo.",
+          "Your notes, highlights, reading progress, saved books, and reading lists are private to your account. They are not shown in the admin panel and are not visible to library staff during normal operations.",
+          "The web team's technical steward can access the database to operate and repair the service, under access controls, audit logging, and quarterly access reviews. This access exists to run the service, not to browse your activity."
+        ]
+      },
+      "security": {
+        "title": "Data storage and security",
+        "body": [
+          "We protect your data with three separate measures — it is important not to confuse them:"
+        ],
+        "items": [
+          "In transit: every connection between your device and the service uses HTTPS/TLS encryption, so data cannot be read as it travels.",
+          "At rest: account and activity data are held in our managed database (Supabase/PostgreSQL); files are held on the library's file storage. These are protected by the providers' storage safeguards and by our access controls.",
+          "Access control: who can read what is enforced on the server by database row-level security and permission checks — not merely hidden in the interface."
+        ],
+        "note": "No online service can promise perfect security, but we limit what we collect, restrict who can reach it, and log privileged access."
+      },
+      "retention": {
+        "title": "Data retention",
+        "body": [
+          "We keep information only as long as it is needed. In practice:"
+        ],
+        "items": [
+          "Account and library activity: kept while your account exists.",
+          "Contact messages: kept up to 2 years after your enquiry is resolved, then deleted.",
+          "Raw download and view logs: kept up to 1 year, then reduced to anonymous counts.",
+          "Search queries: kept up to 365 days; they are linked to a rotating anonymous session code, never to your account or a raw IP address.",
+          "Security and rate-limit records: kept short-term to prevent abuse.",
+          "Admin action logs: kept at least 2 years as an accountability record."
+        ]
+      },
+      "children": {
+        "title": "Children and student information",
+        "body": [
+          "The library serves teacher trainees, educators, researchers, and the public. It is an educational service and is not directed at young children.",
+          "Where the library holds information about students — such as an optional institution or student ID entered to request a thesis download — it is provided by the account holder and used only to authorise that access."
+        ]
+      },
+      "rights": {
+        "title": "Your privacy rights",
+        "body": [
+          "You are in control of your account data. From your account settings you can review and edit your profile, export a copy of your library data, and permanently delete your account. You can also contact the library about any privacy matter."
+        ]
+      },
+      "deletion": {
+        "title": "Account deletion and data export",
+        "body": [
+          "You can export a copy of your library data (reading progress, saved books, notes, and highlights) at any time from your dashboard.",
+          "You can permanently delete your account from your settings. Deleting your account removes your profile, notes, highlights, reading progress, saved lists, saved books, reviews, and notification subscriptions. A few records are kept for the reasons below:"
+        ],
+        "items": [
+          "Contact-form threads are kept under our retention rule but detached from your account.",
+          "If you performed staff or admin actions, the audit record of those actions is kept as an accountability record.",
+          "Deletion propagates to backups as older backups rotate out, within about six months."
+        ],
+        "note": "Accounts with staff or admin roles cannot self-delete here; ask a super admin to remove the account."
+      },
+      "changes": {
+        "title": "Policy changes",
+        "body": [
+          "When we change what we collect, keep, or share, we update this page and its version below in the same change. Significant changes will be noted here. The date and version at the top always reflect the current policy."
+        ]
+      },
+      "contact": {
+        "title": "Contact and complaints",
+        "body": [
+          "If you have a question about your data, want a copy of it, or want to make a correction or complaint, contact the library through the contact page. We aim to respond within 30 days.",
+          "If you are not satisfied with our response, you may escalate your complaint to the library director through the same channel."
+        ]
+      }
+    },
+    "table": {
+      "caption": "What the PTEC e-Library collects, why, and how long it is kept",
+      "columns": {
+        "category": "Data",
+        "examples": "Examples",
+        "purpose": "Purpose",
+        "source": "Source",
+        "retention": "Retention",
+        "access": "Who can access it",
+        "sharing": "Shared with"
+      },
+      "rows": {
+        "account": {
+          "category": "Account & sign-in",
+          "examples": "Email, display name, profile photo",
+          "purpose": "Run your account and sign you in",
+          "source": "You, or Google sign-in",
+          "retention": "Life of account",
+          "access": "You; technical steward",
+          "sharing": "Supabase, Google"
+        },
+        "downloadProfile": {
+          "category": "Download access profile",
+          "examples": "Institution, role, phone, purpose",
+          "purpose": "Authorise thesis downloads",
+          "source": "You (optional)",
+          "retention": "Life of account",
+          "access": "You; librarians (aggregate)",
+          "sharing": "Not shared"
+        },
+        "activity": {
+          "category": "Library activity (private)",
+          "examples": "Saved books, lists, progress, notes, highlights",
+          "purpose": "Power your reading features",
+          "source": "You",
+          "retention": "Life of account",
+          "access": "You only",
+          "sharing": "Not shared"
+        },
+        "reviews": {
+          "category": "Reviews & comments (public)",
+          "examples": "Rating, review or comment text",
+          "purpose": "Shown publicly on the site",
+          "source": "You",
+          "retention": "Until you delete it",
+          "access": "Everyone",
+          "sharing": "Not shared"
+        },
+        "contact": {
+          "category": "Contact messages",
+          "examples": "Name, email, message, IP address",
+          "purpose": "Reply to your enquiry",
+          "source": "You",
+          "retention": "Up to 2 years after resolution",
+          "access": "Library staff",
+          "sharing": "Gmail (reply delivery)"
+        },
+        "logs": {
+          "category": "Download & view logs",
+          "examples": "Item opened, timestamp",
+          "purpose": "Security and catalog statistics",
+          "source": "Automatic",
+          "retention": "1 year, then anonymous counts",
+          "access": "Technical steward",
+          "sharing": "Not shared"
+        },
+        "search": {
+          "category": "Search queries",
+          "examples": "Search terms, anonymous session code",
+          "purpose": "Improve the catalog and answers",
+          "source": "Automatic",
+          "retention": "Up to 365 days",
+          "access": "Technical steward",
+          "sharing": "Google (AI answer)"
+        },
+        "push": {
+          "category": "Push notifications",
+          "examples": "Browser notification token",
+          "purpose": "Send new-book or post alerts",
+          "source": "You (opt-in)",
+          "retention": "Until you unsubscribe",
+          "access": "Technical steward",
+          "sharing": "Browser push service"
+        },
+        "security": {
+          "category": "Security & rate limiting",
+          "examples": "IP address, timestamps",
+          "purpose": "Prevent abuse and spam",
+          "source": "Automatic",
+          "retention": "Short-term",
+          "access": "Technical steward",
+          "sharing": "Cloudflare (CAPTCHA)"
+        },
+        "device": {
+          "category": "Device storage",
+          "examples": "Theme, language, offline book cache",
+          "purpose": "Preferences and offline reading",
+          "source": "Your browser",
+          "retention": "Until you clear it",
+          "access": "You (on your device)",
+          "sharing": "Not shared"
+        }
+      }
+    },
+    "processorList": {
+      "supabase": {
+        "name": "Supabase",
+        "role": "Database and sign-in (accounts, library data)"
+      },
+      "vercel": {
+        "name": "Vercel",
+        "role": "Website hosting, cookieless aggregate analytics, avatar storage"
+      },
+      "storage": {
+        "name": "Zima Storage",
+        "role": "Storage of book, thesis, and publication files"
+      },
+      "google": {
+        "name": "Google",
+        "role": "Optional Google sign-in and AI-assisted search (server-side)"
+      },
+      "email": {
+        "name": "Gmail / SMTP",
+        "role": "Delivery of sign-in and contact-reply emails"
+      },
+      "turnstile": {
+        "name": "Cloudflare Turnstile",
+        "role": "Spam protection on contact and sign-in forms"
+      }
+    },
+    "rights": {
+      "title": "Manage your privacy",
+      "intro": "Everything you need to review, export, or remove your data is in one place.",
+      "loggedOutNote": "You'll need to be signed in to use these controls.",
+      "edit": {
+        "title": "Edit your profile",
+        "body": "Update your name, photo, and account details, or change your password.",
+        "cta": "Open account settings"
+      },
+      "export": {
+        "title": "Export your data",
+        "body": "Download a copy of your reading progress, saved books, notes, and highlights.",
+        "cta": "Export from your dashboard"
+      },
+      "delete": {
+        "title": "Delete your account",
+        "body": "Permanently remove your account and its data. This cannot be undone.",
+        "cta": "Delete in account settings"
+      },
+      "ask": {
+        "title": "Ask about your data",
+        "body": "Request a copy, a correction, or raise a privacy concern with the library.",
+        "cta": "Contact the library"
+      }
+    },
+    "versions": {
+      "title": "Version history",
+      "versionLabel": "Version",
+      "effectiveLabel": "Effective",
+      "v2_0": "Expanded and clarified: disclosed the optional download access profile, push notifications, IP and rate-limiting data, cookieless analytics, and AI processing of search terms. Separated data in transit, at rest, and access control. Added category-based retention, deletion exceptions, and a complaints channel.",
+      "v1_0": "First published privacy policy covering account data, library activity, storage, visibility, and retention."
+    }
   },
   "theses": {
     "growingNote": "This repository is growing — more academic works will be added soon.",
