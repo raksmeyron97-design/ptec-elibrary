@@ -56,6 +56,36 @@ function isActionable(fixAvailable) {
   return fixAvailable.isSemVerMajor !== true;
 }
 
+/**
+ * npm sometimes reports `fixAvailable: true` on an advisory whose real remedy
+ * is actually gated behind a semver-major change deeper in the tree — e.g.
+ * `gaxios → rimraf → glob → minimatch`, where `minimatch`/`glob` can only be
+ * fixed by a semver-major `exceljs` downgrade. `npm audit fix` then changes
+ * nothing for these, so treating them as blocking wedges CI on an unfixable
+ * advisory (verified: `npm audit fix` leaves gaxios/googleapis-common/rimraf/
+ * zip-stream in place while their `via` chains bottom out at a semver-major
+ * `minimatch`).
+ *
+ * An advisory is only *truly* actionable when it AND every advisory reachable
+ * through its `via` chain has a non-semver-major fix. This stays allowlist-free
+ * and self-correcting: the moment upstream publishes a real fix, the deep node
+ * stops being semver-major and the whole chain fails CI again.
+ */
+function makeTrulyActionable(vulnerabilities) {
+  const byName = new Map(vulnerabilities.map((v) => [v.name, v]));
+  return function trulyActionable(vuln, seen = new Set()) {
+    if (seen.has(vuln.name)) return true; // cycle guard — don't let a loop force `false`
+    seen.add(vuln.name);
+    if (!isActionable(vuln.fixAvailable)) return false;
+    for (const via of vuln.via ?? []) {
+      if (typeof via !== "string") continue; // object `via` = the advisory itself, not a dep edge
+      const dep = byName.get(via);
+      if (dep && !trulyActionable(dep, seen)) return false;
+    }
+    return true;
+  };
+}
+
 function describeFix(fixAvailable) {
   if (fixAvailable === true) return "run `npm audit fix`";
   if (!fixAvailable || typeof fixAvailable !== "object") return "no fix published";
@@ -66,12 +96,14 @@ function describeFix(fixAvailable) {
 const report = JSON.parse(runAudit());
 const vulnerabilities = Object.values(report.vulnerabilities ?? {});
 
+const trulyActionable = makeTrulyActionable(vulnerabilities);
+
 const blocking = [];
 const advisory = [];
 
 for (const vuln of vulnerabilities) {
   if (!BLOCKING_SEVERITIES.has(vuln.severity)) continue;
-  (isActionable(vuln.fixAvailable) ? blocking : advisory).push(vuln);
+  (trulyActionable(vuln) ? blocking : advisory).push(vuln);
 }
 
 const line = (vuln) => {
