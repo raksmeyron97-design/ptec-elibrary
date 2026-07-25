@@ -438,7 +438,7 @@ export default function LoginContent({ stats, site }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded text-text-muted hover:text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded text-text-muted hover:text-text-body focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
                   aria-label={showPw ? "Hide password" : "Show password"}
                 >
                   {showPw ? <EyeOffIcon /> : <EyeIcon />}

@@ -65,7 +65,7 @@ export default async function AuthorCard({
             {initials(authorNames)}
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="text-[16px] font-bold text-text-heading">{authorNames}</h3>
+            <h2 className="text-[16px] font-bold text-text-heading">{authorNames}</h2>
             <p className="mt-0.5 text-[13px] text-text-muted">
               {[...departments].join(" · ") || "PTEC"} · {otherWorks.length + 1} publication
               {otherWorks.length + 1 === 1 ? "" : "s"} in this repository

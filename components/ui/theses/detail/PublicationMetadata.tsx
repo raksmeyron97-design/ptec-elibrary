@@ -58,9 +58,9 @@ export default async function PublicationMetadata({ report }: { report: Research
 
   return (
     <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm sm:p-5">
-      <h3 className="mb-1 text-[13px] font-bold uppercase tracking-wider text-text-heading">
+      <h2 className="mb-1 text-[13px] font-bold uppercase tracking-wider text-text-heading">
         Publication Details
-      </h3>
+      </h2>
       <dl className="divide-y divide-divider/60">
         {report.author_names && <Row icon={<User className="h-4 w-4" />} label="Author(s)" value={report.author_names} />}
         {report.advisor_name && <Row icon={<UserCheck className="h-4 w-4" />} label="Advisor" value={report.advisor_name} />}
