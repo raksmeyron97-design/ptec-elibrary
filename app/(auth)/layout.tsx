@@ -28,7 +28,13 @@ export default async function AuthRootLayout({
   return (
     <RootShell locale={locale}>
       <IntlProvider locale={locale} messages={messages}>
-        {children}
+        {/* RootShell renders a "Skip to content" link targeting #main-content;
+            auth pages need that focusable landmark too (the public layout has
+            its own). tabIndex=-1 makes it programmatically focusable so the
+            skip link actually moves focus (axe: skip-link). */}
+        <main id="main-content" tabIndex={-1} className="outline-none">
+          {children}
+        </main>
       </IntlProvider>
     </RootShell>
   );
