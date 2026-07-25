@@ -3684,6 +3684,32 @@
       "colCanonical": "Canonical",
       "colGap": "Gap",
       "footnote": "Gap = legacy source rows minus canonical rows produced. It must be 0 for every domain."
+    },
+    "seo": {
+      "title": "SEO health",
+      "subtitle": "Checked {resources} published resources ({scholarly} scholarly).",
+      "high": "{count} high",
+      "medium": "{count} medium",
+      "healthyTitle": "SEO metadata looks healthy",
+      "healthyBody": "No duplicate titles, missing social images, or Scholar gaps in published resources.",
+      "showing": "Showing {shown} of {total} issues",
+      "edit": "Edit",
+      "editAria": "Edit {title}",
+      "issue": {
+        "duplicateTitle": "Duplicate title (not unique)",
+        "missingSocialImage": "No social image — Open Graph falls back to the site logo",
+        "scholarMissingAuthor": "Scholar: missing author",
+        "scholarMissingDate": "Scholar: missing publication date",
+        "scholarMissingAbstract": "Scholar: missing abstract"
+      },
+      "type": {
+        "book": "E-book",
+        "research": "Thesis",
+        "publication": "Publication",
+        "learningPath": "Learning path",
+        "catalog": "Catalog",
+        "post": "Post"
+      }
     }
   },
   "adminSearchInsights": {

@@ -20,9 +20,11 @@ import {
   getBrokenFiles,
   getResourceStatsReconciliation,
   getCanonicalBackfillReconciliation,
+  getSeoHealth,
 } from "@/app/actions/data-quality";
 import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
 import CanonicalBackfillAudit from "@/components/admin/CanonicalBackfillAudit";
+import SeoHealthAudit from "@/components/admin/SeoHealthAudit";
 import { PageHeader } from "@/components/admin/kit";
 
 export const dynamic = "force-dynamic";
@@ -70,13 +72,14 @@ function MetricCard({
 }
 
 export default async function DataQualityPage() {
-  const [t, summary, gaps, brokenFiles, resourceStats, backfill] = await Promise.all([
+  const [t, summary, gaps, brokenFiles, resourceStats, backfill, seoHealth] = await Promise.all([
     getTranslations("adminDataQuality"),
     getDataQualitySummary(),
     getMetadataGaps(),
     getBrokenFiles(),
     getResourceStatsReconciliation(),
     getCanonicalBackfillReconciliation(),
+    getSeoHealth(),
   ]);
 
   const totalRecords = summary.totalBooks + summary.totalTheses;
@@ -211,6 +214,12 @@ export default async function DataQualityPage() {
           reconciliation above — not a KPI. */}
       <div className="mb-8">
         <CanonicalBackfillAudit data={backfill} />
+      </div>
+
+      {/* SEO health (§25): non-unique titles, missing social images, and the
+          Scholar-critical metadata gaps on theses/publications. Read-only. */}
+      <div className="mb-8">
+        <SeoHealthAudit data={seoHealth} />
       </div>
 
       <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
