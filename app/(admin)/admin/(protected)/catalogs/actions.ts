@@ -83,6 +83,15 @@ function parseBookForm(formData: FormData): ParsedBook {
   const description = cleanLongText(formData.get("description"), "description");
   if (!description.ok) fieldErrors.description = description.error;
 
+  // SEO overrides (migration 0112): validated like any other text; blank → null
+  // so the catalog detail page auto-generates its title/description/cover.
+  const seoTitle = cleanText(formData.get("seo_title"), "seo_title");
+  if (!seoTitle.ok) fieldErrors.seo_title = seoTitle.error;
+  const seoDescription = cleanLongText(formData.get("seo_description"), "seo_description");
+  if (!seoDescription.ok) fieldErrors.seo_description = seoDescription.error;
+  const ogImage = cleanText(formData.get("og_image"), "og_image");
+  if (!ogImage.ok) fieldErrors.og_image = ogImage.error;
+
   if (Object.keys(fieldErrors).length > 0) {
     return { ok: false, error: Object.values(fieldErrors)[0], fieldErrors };
   }
@@ -102,6 +111,9 @@ function parseBookForm(formData: FormData): ParsedBook {
       shelf_location: val("shelf_location"),
       accession_number: val("accession_number"),
       description: (description as { ok: true; value: string | null }).value,
+      seo_title: (seoTitle as { ok: true; value: string | null }).value,
+      seo_description: (seoDescription as { ok: true; value: string | null }).value,
+      og_image: (ogImage as { ok: true; value: string | null }).value,
     },
   };
 }

@@ -9,6 +9,8 @@ import { addCatalogBook } from "../actions";
 import CopiesPanel from "../CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
+import { SITE_URL } from "@/lib/seo/site";
 
 interface BookData {
   id: string;
@@ -251,6 +253,20 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
             {t("keywordsHint")}
           </p>
         </div>
+
+        <SeoOverrideFields
+          routePrefix="/catalogs"
+          siteUrl={SITE_URL}
+          disabled={loading}
+          labels={{
+            heading: t("seoHeading"),
+            hint: t("seoHint"),
+            seoTitle: t("seoTitle"),
+            seoDescription: t("seoDescription"),
+            ogImage: t("seoOgImage"),
+            searchPreview: t("seoSearchPreview"),
+          }}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-3 pt-2">

@@ -117,23 +117,28 @@ export function bookMetaDescription(book: BookSeoInput, locale: string): string 
 export function buildBookMetadata(
   book: BookSeoInput,
   locale: string,
+  overrides?: { seoTitle?: string | null; seoDescription?: string | null; ogImage?: string | null },
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
-  const description = bookMetaDescription(book, locale);
+  // Admin overrides win; blank/whitespace overrides fall back to auto-generated
+  // values so an empty field never blanks the tag.
+  const title = clean(overrides?.seoTitle) || book.title;
+  const description = clean(overrides?.seoDescription) || bookMetaDescription(book, locale);
   const authors = (book.authors ?? []).map(clean).filter(Boolean);
   const alternates = localeAlternates(`/books/${book.slug}`, locale);
   const canonicalUrl = alternates.canonical;
   const tags = (book.tags ?? []).filter(Boolean);
   const section = clean(book.department) || clean(book.category) || "Books";
-  const image = book.coverUrl || FALLBACK_OG_IMAGE;
+  const ogImage = clean(overrides?.ogImage) || book.coverUrl;
+  const image = ogImage || FALLBACK_OG_IMAGE;
   const imageAlt =
-    book.coverUrl
-      ? (locale === "km" ? `ក្របសៀវភៅ៖ ${book.title}` : `Book cover: ${book.title}`)
+    ogImage
+      ? (locale === "km" ? `ក្របសៀវភៅ៖ ${title}` : `Book cover: ${title}`)
       : org.siteName;
 
   return {
-    title: book.title,
+    title,
     description,
     keywords: tags.length > 0 ? tags : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,
@@ -143,7 +148,7 @@ export function buildBookMetadata(
     category: section,
     alternates,
     openGraph: {
-      title: book.title,
+      title,
       description,
       type: "article",
       url: canonicalUrl,
@@ -155,14 +160,14 @@ export function buildBookMetadata(
       section,
       tags: tags.length > 0 ? tags : undefined,
       images: [
-        book.coverUrl
-          ? { url: book.coverUrl, width: 800, height: 1200, alt: imageAlt }
+        ogImage
+          ? { url: ogImage, width: 800, height: 1200, alt: imageAlt }
           : { url: FALLBACK_OG_IMAGE, width: 1200, height: 630, alt: imageAlt },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: book.title,
+      title,
       description,
       images: [image],
     },

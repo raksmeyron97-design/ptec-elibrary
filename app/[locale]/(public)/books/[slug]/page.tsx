@@ -73,7 +73,7 @@ const getBookMeta = unstable_cache(
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("books")
-      .select("id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, authors(name), categories(name), departments(name)")
+      .select("id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, seo_title, seo_description, og_image, authors(name), categories(name), departments(name)")
       .eq("slug", slug)
       .eq("is_published", true)
       .maybeSingle();
@@ -115,7 +115,16 @@ export async function generateMetadata({
   };
 
   return {
-    ...buildBookMetadata(seoInput, locale, await getOrgIdentity()),
+    ...buildBookMetadata(
+      seoInput,
+      locale,
+      {
+        seoTitle: (book as { seo_title?: string | null }).seo_title,
+        seoDescription: (book as { seo_description?: string | null }).seo_description,
+        ogImage: (book as { og_image?: string | null }).og_image,
+      },
+      await getOrgIdentity(),
+    ),
     other: {
       // Google Scholar citation_* meta tags — see lib/seo/citation.ts.
       // citation_publisher / dc.publisher only when the record names a real

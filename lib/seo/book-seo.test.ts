@@ -126,6 +126,30 @@ describe("buildBookMetadata", () => {
     expect(m.alternates.canonical).toContain("/km/books/");
     expect(m.openGraph.locale).toBe("km_KH");
   });
+
+  it("applies admin SEO overrides to title, description, and OG image", () => {
+    const m = buildBookMetadata(complete, "en", {
+      seoTitle: "Custom Title | PTEC",
+      seoDescription: "Hand-written meta description.",
+      ogImage: "https://cdn.example.com/custom-og.png",
+    }) as any;
+    expect(m.title).toBe("Custom Title | PTEC");
+    expect(m.description).toBe("Hand-written meta description.");
+    expect(m.openGraph.title).toBe("Custom Title | PTEC");
+    expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/custom-og.png");
+    expect(m.twitter.images[0]).toBe("https://cdn.example.com/custom-og.png");
+  });
+
+  it("falls back to auto-generated values when overrides are blank/whitespace", () => {
+    const m = buildBookMetadata(complete, "en", {
+      seoTitle: "   ",
+      seoDescription: "",
+      ogImage: null,
+    }) as any;
+    expect(m.title).toBe("Methods in Educational Research");
+    expect(m.description).toBeTruthy();
+    expect(m.openGraph.images[0].url).toBe("https://cdn.example.com/cover.webp");
+  });
 });
 
 describe("bookJsonLd", () => {

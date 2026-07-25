@@ -18,6 +18,8 @@ import CopiesPanel from "../../CopiesPanel";
 import { ConfirmDialog } from "@/components/admin/kit";
 import TagInput from "@/components/ui/core/TagInput";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
+import { SITE_URL } from "@/lib/seo/site";
 import { useTranslations } from "next-intl";
 import type { CoverSource } from "@/lib/catalog-cover-shared";
 
@@ -327,6 +329,27 @@ export default function EditBookWizard({
               disabled={loading}
             />
           </div>
+
+          <SeoOverrideFields
+            routePrefix="/catalogs"
+            slug={book.slug}
+            siteUrl={SITE_URL}
+            defaultSeoTitle={book.seo_title}
+            defaultSeoDescription={book.seo_description}
+            defaultOgImage={book.og_image}
+            fallbackTitle={book.author ? `${book.title} by ${book.author}` : book.title}
+            fallbackDescription={book.description ?? ""}
+            fallbackImage={book.cover_url}
+            disabled={loading}
+            labels={{
+              heading: t("seoHeading"),
+              hint: t("seoHint"),
+              seoTitle: t("seoTitle"),
+              seoDescription: t("seoDescription"),
+              ogImage: t("seoOgImage"),
+              searchPreview: t("seoSearchPreview"),
+            }}
+          />
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link href="/admin/catalogs" className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body transition hover:bg-paper">

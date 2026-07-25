@@ -112,7 +112,7 @@ describe("published identity propagates to the SEO builders", () => {
   });
 
   it("book Open Graph siteName and JSON-LD provider follow the settings", () => {
-    const meta = buildBookMetadata(book, "en", org);
+    const meta = buildBookMetadata(book, "en", undefined, org);
     expect(meta.openGraph?.siteName).toBe("KTA Digital Library");
 
     const jsonLd = bookJsonLd(book, "en", null, org) as {

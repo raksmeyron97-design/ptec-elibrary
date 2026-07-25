@@ -138,20 +138,26 @@ export function publicationMetaDescription(pub: PublicationSeoInput, locale: str
 export function buildPublicationMetadata(
   pub: PublicationSeoInput,
   locale: string,
+  overrides?: { seoTitle?: string | null; seoDescription?: string | null; ogImage?: string | null },
   orgArg?: OrgIdentity,
 ): Metadata {
   const org = resolveOrgIdentity(orgArg);
   const alternates = localeAlternates(`/publications/${pub.slug}`, locale);
   const canonicalUrl = alternates.canonical;
-  const title = locale === "km" && pub.titleKm ? clean(pub.titleKm) : pub.title;
-  const description = publicationMetaDescription(pub, locale);
+  // Admin override wins; otherwise the localized article title. A blank
+  // override falls back so an empty field never blanks the tag.
+  const autoTitle = locale === "km" && pub.titleKm ? clean(pub.titleKm) : pub.title;
+  const title = clean(overrides?.seoTitle) || autoTitle;
+  const description = clean(overrides?.seoDescription) || publicationMetaDescription(pub, locale);
   const authors = (pub.authors ?? []).map(clean).filter(Boolean);
   const keywords = [...new Set([...(pub.keywords ?? []), ...(pub.subjects ?? [])])].filter(Boolean);
-  const image = pub.coverUrl || FALLBACK_OG_IMAGE;
+  const image = clean(overrides?.ogImage) || pub.coverUrl || FALLBACK_OG_IMAGE;
   const imageAlt = locale === "km" ? `គម្របអត្ថបទ៖ ${title}` : `Article cover: ${title}`;
 
   return {
-    title: truncateTitleTag(title),
+    // The override is already the admin's final choice — only the auto title
+    // gets length-clamped for the <title> tag.
+    title: clean(overrides?.seoTitle) || truncateTitleTag(autoTitle),
     description,
     keywords: keywords.length > 0 ? keywords : undefined,
     authors: authors.length > 0 ? authors.map((name) => ({ name })) : undefined,

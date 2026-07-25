@@ -19,6 +19,7 @@ export default async function EditBookPage({
     .select(`
       id, title, slug, description, language, published_at,
       department, isbn, publisher, pages, cover_url, tags, license,
+      seo_title, seo_description, og_image,
       authors(name),
       categories(name),
       departments(name),
@@ -61,6 +62,9 @@ export default async function EditBookPage({
     tags:       Array.isArray(book.tags) ? (book.tags as string[]) : [],
     coverUrl: (book.cover_url as string | null) ?? null,
     license:  (book.license as string | null) ?? "",
+    seoTitle:       (book.seo_title as string | null) ?? "",
+    seoDescription: (book.seo_description as string | null) ?? "",
+    ogImage:        (book.og_image as string | null) ?? "",
     fileUrl:     (primaryFile?.file_url as string | null) ?? null,
     fileSizeKb:  (primaryFile?.file_size_kb as number | null) ?? null,
     fileFormat:  (primaryFile?.format as string | null) ?? null,

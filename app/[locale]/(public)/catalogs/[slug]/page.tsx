@@ -102,12 +102,20 @@ export async function generateMetadata({
   if (!record) return { title: "Book not found", robots: { index: false } };
   const { book } = record;
 
-  const title = book.author ? `${book.title} by ${book.author}` : book.title;
-  const desc = book.description
-    ? book.description.length > 157
-      ? book.description.slice(0, 157) + "..."
-      : book.description
-    : `Find ${book.title}${book.author ? ` by ${book.author}` : ""} at PTEC Library. View publication details, ISBN, call number, shelf location and current availability of physical copies.`;
+  // Admin SEO overrides (migration 0112) win; blank/whitespace falls back to the
+  // auto-generated title/description so an empty field never blanks the tag.
+  const seoTitle = book.seo_title?.trim();
+  const seoDescription = book.seo_description?.trim();
+  const ogImage = book.og_image?.trim() || book.cover_url;
+
+  const title = seoTitle || (book.author ? `${book.title} by ${book.author}` : book.title);
+  const desc =
+    seoDescription ||
+    (book.description
+      ? book.description.length > 157
+        ? book.description.slice(0, 157) + "..."
+        : book.description
+      : `Find ${book.title}${book.author ? ` by ${book.author}` : ""} at PTEC Library. View publication details, ISBN, call number, shelf location and current availability of physical copies.`);
 
   const alternates = localeAlternates(`/catalogs/${slug}`, locale);
   const canonicalUrl = alternates.canonical;
@@ -121,15 +129,13 @@ export async function generateMetadata({
       description: desc,
       type: "book",
       url: canonicalUrl,
-      images: book.cover_url
-        ? [{ url: book.cover_url, alt: book.title }]
-        : [],
+      images: ogImage ? [{ url: ogImage, alt: book.title }] : [],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description: desc,
-      images: book.cover_url ? [book.cover_url] : undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
   };
 }
