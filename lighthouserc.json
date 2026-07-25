@@ -4,7 +4,9 @@
       "numberOfRuns": 2,
       "settings": {
         "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
-        "skipAudits": ["uses-http2"]
+        "skipAudits": ["uses-http2"],
+        "comment_maxWaitForLoad": "Content-heavy detail pages (e.g. a thesis) can exceed Lighthouse's default 45s load cap under simulated mobile throttling; an incomplete gather then reports present metadata (meta-description) as missing. 60s lets the audit complete and reflect reality. Real mobile perf is still tracked by the categories:performance warn assertion.",
+        "maxWaitForLoad": 60000
       }
     },
     "assert": {

@@ -45,8 +45,12 @@ export default async function PublicationMetadata({ report }: { report: Research
   const coAdvisor = getCoAdvisor(report);
   const defendedOn = getDefenseDate(report);
   const submittedOn = getSubmittedDate(report);
-  const { data: programs } = await getThesisPrograms();
-  const { data: faculties } = await getThesisFaculties();
+  // Independent lookups — run them together so the metadata block doesn't add
+  // two serial round-trips to the thesis detail page's server render.
+  const [{ data: programs }, { data: faculties }] = await Promise.all([
+    getThesisPrograms(),
+    getThesisFaculties(),
+  ]);
   const program = programs?.find((p) => p.code === report.program);
   const faculty = faculties?.find((f) => f.program_code === report.program && f.code === report.faculty);
 
