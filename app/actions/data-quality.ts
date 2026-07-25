@@ -18,6 +18,11 @@ import {
   type CanonicalBackfillReconciliation,
 } from "@/lib/admin/canonical-backfill";
 import { revalidateCollectionStats } from "@/lib/cache/revalidate";
+import {
+  buildSeoHealth,
+  type SeoHealthResult,
+  type SeoResourceInput,
+} from "@/lib/seo/health";
 
 export type ContentType = "book" | "research";
 
@@ -268,4 +273,124 @@ export async function recalculateResourceStats(): Promise<{
 export async function getCanonicalBackfillReconciliation(): Promise<CanonicalBackfillReconciliation> {
   await requireLibrarian();
   return reconcileCanonicalBackfill();
+}
+
+// ── SEO health (§25) ─────────────────────────────────────────────────────────
+// SEO-specific checks over PUBLISHED, publicly-indexable resources: non-unique
+// titles, missing social image (OG falls back to the site logo), and — for
+// theses & publications — the metadata that Google Scholar's citation_* tags
+// require (author, publication date, visible abstract). Complements the
+// metadata-gaps section above, which scores general bibliographic completeness.
+
+/** Cap the returned list; counts stay exact so the header is honest. */
+const SEO_HEALTH_DISPLAY_CAP = 60;
+
+function nonEmpty(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** A four-digit year hides inside academic_year strings like "2023–2024". */
+function hasYear(value: unknown): boolean {
+  return typeof value === "string" && /\b(19|20)\d{2}\b/.test(value);
+}
+
+export async function getSeoHealth(): Promise<SeoHealthResult> {
+  const { supabase } = await requireLibrarian();
+
+  const [
+    { data: books },
+    { data: theses },
+    { data: publications },
+    { data: paths },
+    { data: catalog },
+    { data: posts },
+  ] = await Promise.all([
+    supabase.from("books").select("id, title, cover_url, og_image").eq("is_published", true).limit(10_000),
+    supabase
+      .from("research_reports")
+      .select("id, title, cover_url, og_image, abstract, author_names, published_at, academic_year")
+      .eq("is_published", true)
+      .limit(10_000),
+    supabase
+      .from("publications_with_stats")
+      .select("id, title, cover_url, og_image, abstract, author_names, publication_date, published_at")
+      .eq("is_published", true)
+      .limit(10_000),
+    supabase.from("learning_paths").select("id, title, cover_url, og_image_url").eq("is_published", true).limit(10_000),
+    supabase.from("catalog_books").select("id, title, cover_url, og_image").eq("is_active", true).limit(10_000),
+    supabase
+      .from("posts")
+      .select("id, title, cover_url, og_image")
+      .eq("is_published", true)
+      .eq("visibility", "public")
+      .limit(10_000),
+  ]);
+
+  const resources: SeoResourceInput[] = [];
+
+  for (const b of books ?? [])
+    resources.push({
+      type: "book",
+      id: b.id,
+      title: b.title,
+      editUrl: `/admin/edit/${b.id}`,
+      hasSocialImage: nonEmpty(b.og_image) || nonEmpty(b.cover_url),
+    });
+
+  for (const r of theses ?? [])
+    resources.push({
+      type: "research",
+      id: r.id,
+      title: r.title,
+      editUrl: `/admin/theses/edit/${r.id}`,
+      hasSocialImage: nonEmpty(r.og_image) || nonEmpty(r.cover_url),
+      scholarly: true,
+      hasAuthor: nonEmpty(r.author_names),
+      hasDate: nonEmpty(r.published_at) || hasYear(r.academic_year),
+      hasAbstract: nonEmpty(r.abstract),
+    });
+
+  for (const p of publications ?? [])
+    resources.push({
+      type: "publication",
+      id: p.id,
+      title: p.title,
+      editUrl: `/admin/publications/edit/${p.id}`,
+      hasSocialImage: nonEmpty(p.og_image) || nonEmpty(p.cover_url),
+      scholarly: true,
+      hasAuthor: nonEmpty(p.author_names),
+      hasDate: nonEmpty(p.publication_date) || nonEmpty(p.published_at),
+      hasAbstract: nonEmpty(p.abstract),
+    });
+
+  for (const p of paths ?? [])
+    resources.push({
+      type: "learning_path",
+      id: p.id,
+      title: p.title,
+      editUrl: `/admin/paths/edit/${p.id}`,
+      // Learning paths carry og_image_url (migration 0111), not og_image.
+      hasSocialImage: nonEmpty(p.og_image_url) || nonEmpty(p.cover_url),
+    });
+
+  for (const c of catalog ?? [])
+    resources.push({
+      type: "catalog",
+      id: c.id,
+      title: c.title,
+      editUrl: `/admin/catalogs/edit/${c.id}`,
+      hasSocialImage: nonEmpty(c.og_image) || nonEmpty(c.cover_url),
+    });
+
+  for (const p of posts ?? [])
+    resources.push({
+      type: "post",
+      id: p.id,
+      title: p.title,
+      editUrl: `/admin/posts/edit/${p.id}`,
+      hasSocialImage: nonEmpty(p.og_image) || nonEmpty(p.cover_url),
+    });
+
+  const result = buildSeoHealth(resources);
+  return { ...result, findings: result.findings.slice(0, SEO_HEALTH_DISPLAY_CAP) };
 }

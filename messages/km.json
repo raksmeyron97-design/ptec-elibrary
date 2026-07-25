@@ -3689,6 +3689,32 @@
       "colCanonical": "Canonical",
       "colGap": "គម្លាត",
       "footnote": "គម្លាត = ជួរប្រភពចាស់ ដក ជួរ canonical ដែលបានបង្កើត។ វាត្រូវតែស្មើ 0 សម្រាប់គ្រប់ផ្នែក។"
+    },
+    "seo": {
+      "title": "សុខភាព SEO",
+      "subtitle": "បានពិនិត្យធនធានដែលបានផ្សាយ {resources} ({scholarly} ជាការស្រាវជ្រាវ)។",
+      "high": "{count} ខ្ពស់",
+      "medium": "{count} មធ្យម",
+      "healthyTitle": "ទិន្នន័យ SEO មើលទៅល្អ",
+      "healthyBody": "គ្មានចំណងជើងស្ទួន គ្មានរូបភាពសង្គមខ្វះ ឬចន្លោះ Scholar ក្នុងធនធានដែលបានផ្សាយ។",
+      "showing": "កំពុងបង្ហាញ {shown} ក្នុងចំណោម {total} បញ្ហា",
+      "edit": "កែសម្រួល",
+      "editAria": "កែសម្រួល {title}",
+      "issue": {
+        "duplicateTitle": "ចំណងជើងស្ទួន (មិនមានតែមួយ)",
+        "missingSocialImage": "គ្មានរូបភាពសង្គម — Open Graph ត្រឡប់ទៅរូបសញ្ញាគេហទំព័រ",
+        "scholarMissingAuthor": "Scholar៖ ខ្វះអ្នកនិពន្ធ",
+        "scholarMissingDate": "Scholar៖ ខ្វះកាលបរិច្ឆេទផ្សាយ",
+        "scholarMissingAbstract": "Scholar៖ ខ្វះអរូបី"
+      },
+      "type": {
+        "book": "សៀវភៅអេឡិចត្រូនិក",
+        "research": "សារណា",
+        "publication": "អត្ថបទសិក្សា",
+        "learningPath": "ផ្លូវសិក្សា",
+        "catalog": "សៀវភៅរូបវន្ត",
+        "post": "ប្រកាស"
+      }
     }
   },
   "adminSearchInsights": {
