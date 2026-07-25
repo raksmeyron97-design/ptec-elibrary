@@ -12,16 +12,21 @@ import {
 } from "@/lib/theses/report-fields";
 import { getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
 
+// dt/dd must be DIRECT children of a <div> that is itself a direct child of the
+// <dl> (axe: definition-list / dlitem). A CSS grid keeps the icon | (label over
+// value) layout without nesting the dt/dd inside a second wrapper div. The icon
+// is decorative — aria-hidden so it isn't announced alongside the label.
 function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-2.5">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 text-brand">
+    <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-0.5 py-2.5">
+      <span
+        aria-hidden="true"
+        className="row-span-2 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 text-brand"
+      >
         {icon}
       </span>
-      <div className="min-w-0">
-        <dt className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</dt>
-        <dd className="mt-0.5 text-[13.5px] font-medium text-text-heading break-words">{value}</dd>
-      </div>
+      <dt className="col-start-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</dt>
+      <dd className="col-start-2 text-[13.5px] font-medium text-text-heading break-words">{value}</dd>
     </div>
   );
 }

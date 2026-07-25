@@ -38,7 +38,7 @@ export default async function PublicLayout({
         <div className="flex min-h-screen flex-col overflow-x-clip pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0">
           <Navbar />
           {banners.length > 0 && <AnnouncementBanner announcements={banners} />}
-          <main id="main-content" className="flex-grow">{children}</main>
+          <main id="main-content" tabIndex={-1} className="flex-grow outline-none">{children}</main>
           <Footer />
           <AskWidget />
         </div>
