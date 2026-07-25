@@ -35,7 +35,11 @@ export default function BookmarkButton({
         setSaved(toggleThesisBookmark(reportId));
       }}
       aria-pressed={saved}
-      aria-label={saved ? "Remove from saved theses" : "Save thesis"}
+      // With a visible label the text IS the accessible name — a second,
+      // hardcoded-English aria-label would override it and mismatch the
+      // (localized) visible text (axe label-content-name-mismatch). Only the
+      // icon-only variant needs an aria-label.
+      aria-label={label ? undefined : saved ? "Remove from saved theses" : "Save thesis"}
       title={saved ? "Saved" : "Save"}
       className={`inline-flex cursor-pointer items-center justify-center rounded-full border transition-all duration-150 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
         saved

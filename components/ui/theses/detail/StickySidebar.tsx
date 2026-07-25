@@ -47,7 +47,7 @@ export default function StickySidebar({
 
       {/* Quick actions */}
       <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-        <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">Quick Actions</h3>
+        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wider text-text-heading">Quick Actions</h2>
         <ActionButtons
           id={reportId}
           contentType="thesis"
