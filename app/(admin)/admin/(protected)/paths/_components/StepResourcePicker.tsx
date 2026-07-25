@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { searchStepResources } from "@/app/actions/learning-paths";
 import type { StepResourceType } from "@/app/actions/learning-paths";
 import { INPUT_CLASS } from "../../theses/_components/form-styles";
 
-type ResourceHit = { id: string; title: string; coverUrl: string | null };
+export type ResourceHit = { id: string; title: string; coverUrl: string | null; published: boolean };
 
 export default function StepResourcePicker({
   type,
@@ -17,6 +18,7 @@ export default function StepResourcePicker({
   onPick: (hit: ResourceHit) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations("adminPaths");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResourceHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -39,7 +41,7 @@ export default function StepResourcePicker({
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" aria-hidden="true" />
         <input
           type="text"
           value={query}
@@ -47,7 +49,8 @@ export default function StepResourcePicker({
           onChange={(e) => runSearch(e.target.value)}
           onFocus={() => query && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder={`Search ${type === "book" ? "books" : type === "research" ? "theses" : "the physical catalog"}…`}
+          placeholder={t(`builder.searchPlaceholder.${type}`)}
+          aria-label={t(`builder.searchPlaceholder.${type}`)}
           className={`${INPUT_CLASS} pl-9`}
         />
       </div>
@@ -55,10 +58,10 @@ export default function StepResourcePicker({
         <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-divider bg-bg-surface shadow-lg">
           {searching ? (
             <div className="flex items-center gap-2 px-3 py-2.5 text-sm text-text-muted">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> {t("builder.searching")}
             </div>
           ) : results.length === 0 ? (
-            <div className="px-3 py-2.5 text-sm text-text-muted">No matches.</div>
+            <div className="px-3 py-2.5 text-sm text-text-muted">{t("builder.noMatches")}</div>
           ) : (
             results.map((r) => (
               <button
@@ -66,9 +69,14 @@ export default function StepResourcePicker({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { onPick(r); setQuery(""); setResults([]); setOpen(false); }}
-                className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-paper transition-colors cursor-pointer"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-paper"
               >
                 <span className="truncate font-medium text-text-heading">{r.title}</span>
+                {!r.published && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-700">
+                    <AlertTriangle className="h-3 w-3" aria-hidden="true" /> {t("builder.unpublishedTag")}
+                  </span>
+                )}
               </button>
             ))
           )}
