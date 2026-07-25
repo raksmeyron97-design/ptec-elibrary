@@ -5094,7 +5094,13 @@
       "keywordsHint": "Press Enter or , to add a tag",
       "cancel": "Cancel",
       "saving": "Saving…",
-      "saveAndAddCopies": "Save book & add copies"
+      "saveAndAddCopies": "Save book & add copies",
+      "seoHeading": "Search engine optimization",
+      "seoHint": "Optional. Leave blank to auto-generate from the record's title, author and cover.",
+      "seoTitle": "SEO title",
+      "seoDescription": "Meta description",
+      "seoOgImage": "Social image URL (Open Graph)",
+      "seoSearchPreview": "Search result preview"
     },
     "edit": {
       "title": "Edit Book",

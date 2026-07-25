@@ -18,6 +18,8 @@ import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import BookSeoPanel from "@/components/admin/ebooks/BookSeoPanel";
+import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
+import { SITE_URL } from "@/lib/seo/site";
 import { ImagePlus, UploadCloud, Save, BookOpen, AlertCircle, X, FileText, Info, Download } from "lucide-react";
 
 type Initial = {
@@ -36,6 +38,9 @@ type Initial = {
   coverUrl: string | null;
   tags: string[];
   license?: string;
+  seoTitle: string;
+  seoDescription: string;
+  ogImage: string;
   fileUrl: string | null;
   fileSizeKb: number | null;
   fileFormat: string | null;
@@ -657,6 +662,20 @@ export default function EditForm({
       <BookSeoPanel
         slug={initial.slug}
         fields={{ ...seoState, coverPresent: preview !== null }}
+      />
+
+      {/* ── SEO overrides (optional; blank = auto-generate) ── */}
+      <SeoOverrideFields
+        routePrefix="/books"
+        slug={initial.slug}
+        siteUrl={SITE_URL}
+        defaultSeoTitle={initial.seoTitle}
+        defaultSeoDescription={initial.seoDescription}
+        defaultOgImage={initial.ogImage}
+        fallbackTitle={seoState.title}
+        fallbackDescription={seoState.summary}
+        fallbackImage={preview}
+        disabled={saving}
       />
 
       {/* Error */}

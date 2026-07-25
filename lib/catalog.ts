@@ -33,6 +33,10 @@ export type CatalogBook = {
   created_at:       string;
   updated_at:       string;
   keywords:         string[];
+  /** Admin SEO overrides (migration 0112). Null → auto-generated metadata. */
+  seo_title:        string | null;
+  seo_description:  string | null;
+  og_image:         string | null;
 };
 
 export type CopiesLogEntry = {

@@ -100,6 +100,10 @@ export interface Publication {
   language: string;
   cover_url: string | null;
   pdf_url: string | null;
+  /** Admin SEO overrides (migration 0112). Null → auto-generated metadata. */
+  seo_title: string | null;
+  seo_description: string | null;
+  og_image: string | null;
   references: PublicationReference[];
   is_published: boolean;
   published_at: string | null;
@@ -202,6 +206,9 @@ export function mapRowToPublication(row: any): Publication {
     language: row.language ?? "en",
     cover_url: row.cover_url ?? null,
     pdf_url: row.pdf_url ?? null,
+    seo_title: row.seo_title ?? null,
+    seo_description: row.seo_description ?? null,
+    og_image: row.og_image ?? null,
     references,
     is_published: row.is_published ?? false,
     published_at: row.published_at ?? null,

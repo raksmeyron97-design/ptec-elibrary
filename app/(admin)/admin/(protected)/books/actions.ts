@@ -349,6 +349,11 @@ export async function updateBook(bookId: string, formData: FormData) {
   const year  = validatedYear(formData.get("year"));
   const pages = Number(formData.get("pages")) || 1;
 
+  // SEO overrides (migration 0112): blank → null so the builder auto-generates.
+  const seoTitle       = formData.get("seo_title")?.toString().trim() || null;
+  const seoDescription = formData.get("seo_description")?.toString().trim() || null;
+  const ogImage        = formData.get("og_image")?.toString().trim() || null;
+
   // coverUrl handling:
   //   "__remove__" → set cover_url to null
   //   "https://…"  → set new cover URL
@@ -448,6 +453,9 @@ export async function updateBook(bookId: string, formData: FormData) {
       publisher,
       pages,
       tags: parseTags(formData, "tags"),
+      seo_title: seoTitle,
+      seo_description: seoDescription,
+      og_image: ogImage,
       ...(license ? { license } : {}),
       ...coverUpdate, // only included if cover changed/removed
     })

@@ -104,6 +104,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const base = buildPublicationMetadata(
     toPublicationSeoInput(pub),
     locale,
+    { seoTitle: pub.seo_title, seoDescription: pub.seo_description, ogImage: pub.og_image },
     await getOrgIdentity(),
   );
   return { ...base, other: publicationScholarMeta(pub) };
