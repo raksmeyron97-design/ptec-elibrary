@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { verifySignup } from "@/app/actions/auth";
 import { createAdminNotification } from "@/lib/admin-notifications";
+import { safeReturnTo } from "@/lib/security/return-to";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 // The PKCE `code` path runs on every OAuth sign-in, so guard the "new user"
@@ -13,20 +14,20 @@ function isFreshSignup(createdAt?: string): boolean {
   return ageMs >= 0 && ageMs < 5 * 60 * 1000;
 }
 
-function safeCallbackUrl(raw: string | null): string {
-  if (!raw) return "/dashboard";
-  // Allow only relative paths; reject protocol-relative (//), absolute, or backslash variants
-  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/dashboard";
-  return raw;
-}
-
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
 
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
-  const next = safeCallbackUrl(searchParams.get("callbackUrl") ?? searchParams.get("next"));
+  // Open-redirect guard: reuse the shared, unit-tested helper rather than a
+  // second, weaker local copy. It rejects protocol-relative, backslash, scheme,
+  // control-character and over-long targets; only same-origin internal paths
+  // survive. Default landing is the dashboard for a completed sign-in.
+  const next = safeReturnTo(
+    searchParams.get("callbackUrl") ?? searchParams.get("next"),
+    "/dashboard",
+  );
 
   const supabase = await createClient();
 

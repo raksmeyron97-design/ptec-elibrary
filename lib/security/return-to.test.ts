@@ -31,6 +31,35 @@ describe("safeReturnTo — open-redirect guard", () => {
     expect(safeReturnTo("https://evil.com", "/home")).toBe("/home");
   });
 
+  // The OAuth callback (app/(auth)/auth/callback/route.ts) reuses safeReturnTo
+  // with a "/dashboard" fallback for the post-sign-in destination. These lock
+  // in that a hostile callbackUrl can never redirect a freshly-authenticated
+  // user off-site, while legitimate internal destinations still pass through.
+  describe("as used by the OAuth callback (fallback /dashboard)", () => {
+    it("keeps safe internal destinations", () => {
+      expect(safeReturnTo("/dashboard/settings?section=x", "/dashboard")).toBe(
+        "/dashboard/settings?section=x",
+      );
+      expect(safeReturnTo("/km/theses/foo", "/dashboard")).toBe("/km/theses/foo");
+    });
+
+    it("falls back to /dashboard for open-redirect and injection attempts", () => {
+      for (const bad of [
+        "https://evil.com",
+        "//evil.com",
+        "/\\evil.com",
+        "http:evil.com",
+        "javascript:alert(1)",
+        "/legit\r\nSet-Cookie: x=1",
+        null,
+        undefined,
+        "",
+      ]) {
+        expect(safeReturnTo(bad, "/dashboard")).toBe("/dashboard");
+      }
+    });
+  });
+
   it("builds a settings deep link carrying a validated returnTo", () => {
     const link = downloadProfileSettingsPath("/theses/foo", "en");
     expect(link).toContain("/dashboard/settings");
