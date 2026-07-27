@@ -3,6 +3,68 @@
   background: linear-gradient(160deg, #1E3A8A 0%, #162d70 60%, #0F2160 100%);
 }
 
+/* ── Sidebar nav rows — dark surface, white-opacity palette ───────────────
+   These drive hover/active state from CSS (:hover, [aria-current], .is-active)
+   instead of per-element JS onMouseEnter/onMouseLeave handlers. The sidebar is
+   navy, so Tailwind's light-mode semantic tokens don't apply here; the exact
+   rgba values below match the palette the component used inline before. Icon
+   colour is set on a shared `.asb-ico` descendant. */
+.asb-top,
+.asb-child,
+.asb-group,
+.asb-fly,
+.asb-foot {
+  transition: background-color .2s ease, color .2s ease;
+}
+
+/* Top-level link (Dashboard, Inbox, Storage) */
+.asb-top { color: rgba(255,255,255,.65); }
+.asb-top:hover { background: rgba(255,255,255,.08); color: rgba(255,255,255,.90); }
+.asb-top[aria-current="page"] {
+  color: #fff;
+  background: rgba(255,255,255,.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.asb-top .asb-ico { color: rgba(255,255,255,.55); }
+.asb-top[aria-current="page"] .asb-ico { color: var(--ptec-accent); }
+
+/* Child link inside an expanded group */
+.asb-child { color: rgba(255,255,255,.60); }
+.asb-child:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.88); }
+.asb-child[aria-current="page"] { color: #fff; background: rgba(255,255,255,.12); }
+.asb-child .asb-ico { color: rgba(255,255,255,.42); }
+.asb-child[aria-current="page"] .asb-ico { color: var(--ptec-accent); }
+
+/* Group parent button — expanded accordion header (.is-active = holds current page) */
+.asb-group { color: rgba(255,255,255,.70); }
+.asb-group:hover { background: rgba(255,255,255,.07); }
+.asb-group.is-active { color: rgba(255,255,255,.95); }
+.asb-group .asb-ico { color: rgba(255,255,255,.55); }
+.asb-group.is-active .asb-ico { color: var(--ptec-accent); }
+
+/* Group icon trigger — collapsed rail */
+.asb-grouptrigger { transition: background-color .2s ease; }
+.asb-grouptrigger.is-active { background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.asb-grouptrigger .asb-ico { color: rgba(255,255,255,.55); }
+.asb-grouptrigger.is-active .asb-ico { color: var(--ptec-accent); }
+
+/* Flyout submenu link — collapsed rail popover */
+.asb-fly { color: rgba(255,255,255,.65); }
+.asb-fly:hover { background: rgba(255,255,255,.08); }
+.asb-fly[aria-current="page"] { color: #fff; background: rgba(255,255,255,.12); }
+.asb-fly .asb-ico { color: rgba(255,255,255,.45); }
+.asb-fly[aria-current="page"] .asb-ico { color: var(--ptec-accent); }
+
+/* Footer utility rows (collapse toggle, view site, sign out) */
+.asb-foot { color: rgba(255,255,255,.55); }
+.asb-foot--dim { color: rgba(255,255,255,.50); }
+.asb-foot:hover { background: rgba(255,255,255,.08); color: #fff; }
+.asb-foot--danger:hover { background: rgba(239,68,68,.14); color: #FCA5A5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .asb-top, .asb-child, .asb-group, .asb-fly, .asb-foot, .asb-grouptrigger { transition: none; }
+}
+
 /* ── Admin metric badge gradients ──────────────────────────────── */
 .metric-badge-books   { background: linear-gradient(135deg, var(--ptec-metric-books-from), var(--ptec-metric-books-to)); }
 .metric-badge-dl      { background: linear-gradient(135deg, var(--ptec-metric-dl-from), var(--ptec-metric-dl-to)); }
@@ -294,6 +356,10 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   background: color-mix(in srgb, var(--dash-blue) 11%, #fff);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 12%, transparent);
 }
+/* Explicit alias for the default royal-blue tile, so `.dash-ico--brand`
+   (used across the Pulse, activity and system panels) is a defined variant
+   like every other tint rather than relying on the base rule. */
+.dash-ico--brand { color: var(--dash-blue); background: color-mix(in srgb, var(--dash-blue) 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 12%, transparent); }
 .dash-ico--sm { width: 30px; height: 30px; }
 .dash-ico--md { width: 38px; height: 38px; }
 .dash-ico--lg { width: 44px; height: 44px; }

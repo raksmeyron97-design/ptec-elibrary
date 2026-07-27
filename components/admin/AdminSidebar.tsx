@@ -234,21 +234,10 @@ function TopLevelLink({
         aria-current={active ? "page" : undefined}
         aria-label={collapsed ? link.name : undefined}
         title={collapsed ? undefined : link.name}
-        className="relative flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+        className="asb-top relative flex items-center gap-3 rounded-xl text-sm font-medium cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
         style={{
           padding: collapsed ? "10px" : "10px 12px",
           justifyContent: collapsed ? "center" : undefined,
-          color: active ? "#FFFFFF" : "rgba(255,255,255,0.65)",
-          background: active ? "rgba(255,255,255,0.14)" : undefined,
-          boxShadow: active ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : undefined,
-        }}
-        onMouseEnter={e => {
-          if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)";
-          if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.90)";
-        }}
-        onMouseLeave={e => {
-          if (!active) (e.currentTarget as HTMLElement).style.background = "";
-          if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)";
         }}
       >
         {/* Gold active indicator bar */}
@@ -259,12 +248,8 @@ function TopLevelLink({
           />
         )}
         <Icon
-          className="shrink-0 transition-transform duration-200 group-hover/nav-item:scale-110"
-          style={{
-            width: "18px",
-            height: "18px",
-            color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
-          }}
+          className="asb-ico shrink-0 transition-transform duration-200 group-hover/nav-item:scale-110"
+          style={{ width: "18px", height: "18px" }}
         />
         {!collapsed && <span className="flex-1 truncate">{link.name}</span>}
         {!collapsed && link.badge && <CountPill badge={link.badge} />}
@@ -304,20 +289,8 @@ function ChildLink({
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       title={link.name}
-      className="relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-      style={{
-        padding: "7px 10px",
-        color: active ? "#FFFFFF" : "rgba(255,255,255,0.60)",
-        background: active ? "rgba(255,255,255,0.12)" : undefined,
-      }}
-      onMouseEnter={e => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)";
-        if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.88)";
-      }}
-      onMouseLeave={e => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = "";
-        if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.60)";
-      }}
+      className="asb-child relative flex items-center gap-2.5 rounded-lg text-[13px] font-medium leading-5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+      style={{ padding: "7px 10px" }}
     >
       {/* Gold tick on the guide line for the active child */}
       <span
@@ -325,12 +298,8 @@ function ChildLink({
         style={{ background: active ? "var(--ptec-accent)" : "transparent" }}
       />
       <Icon
-        className="shrink-0"
-        style={{
-          width: "15px",
-          height: "15px",
-          color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.42)",
-        }}
+        className="asb-ico shrink-0"
+        style={{ width: "15px", height: "15px" }}
       />
       <span className="flex-1 truncate">{link.name}</span>
       {link.badge && <CountPill badge={link.badge} />}
@@ -378,12 +347,8 @@ function NavGroup({
           aria-haspopup="menu"
           aria-expanded={flyoutOpen}
           onClick={flyoutOpen ? hideFly : showFly}
-          className="relative flex w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-          style={{
-            padding: "10px",
-            background: childActive ? "rgba(255,255,255,0.14)" : undefined,
-            boxShadow: childActive ? "inset 0 0 0 1px rgba(255,255,255,0.08)" : undefined,
-          }}
+          className={`asb-grouptrigger relative flex w-full items-center justify-center rounded-xl cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${childActive ? "is-active" : ""}`}
+          style={{ padding: "10px" }}
         >
           {childActive && (
             <span
@@ -391,14 +356,7 @@ function NavGroup({
               style={{ background: "var(--ptec-accent)" }}
             />
           )}
-          <Icon
-            className="shrink-0"
-            style={{
-              width: "18px",
-              height: "18px",
-              color: childActive ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
-            }}
-          />
+          <Icon className="asb-ico shrink-0" style={{ width: "18px", height: "18px" }} />
           {groupBadge && <CountDot severity={groupBadge.severity} />}
         </button>
 
@@ -432,26 +390,9 @@ function NavGroup({
                     aria-current={active ? "page" : undefined}
                     title={child.name}
                     onClick={() => { hideFly(); onNavigate(); }}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-5 transition-all duration-150 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-                    style={{
-                      color: active ? "#FFFFFF" : "rgba(255,255,255,0.65)",
-                      background: active ? "rgba(255,255,255,0.12)" : undefined,
-                    }}
-                    onMouseEnter={e => {
-                      if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)";
-                    }}
-                    onMouseLeave={e => {
-                      if (!active) (e.currentTarget as HTMLElement).style.background = "";
-                    }}
+                    className="asb-fly flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium leading-5 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
                   >
-                    <ChildIcon
-                      className="shrink-0"
-                      style={{
-                        width: "15px",
-                        height: "15px",
-                        color: active ? "var(--ptec-accent)" : "rgba(255,255,255,0.45)",
-                      }}
-                    />
+                    <ChildIcon className="asb-ico shrink-0" style={{ width: "15px", height: "15px" }} />
                     <span className="flex-1 truncate">{child.name}</span>
                     {child.badge && <CountPill badge={child.badge} />}
                   </Link>
@@ -472,26 +413,10 @@ function NavGroup({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="w-full flex items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
-        style={{
-          padding: "10px 12px",
-          color: childActive ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.70)",
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.07)";
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.background = "";
-        }}
+        className={`asb-group w-full flex items-center gap-3 rounded-xl text-sm font-semibold cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent ${childActive ? "is-active" : ""}`}
+        style={{ padding: "10px 12px" }}
       >
-        <Icon
-          className="shrink-0"
-          style={{
-            width: "18px",
-            height: "18px",
-            color: childActive ? "var(--ptec-accent)" : "rgba(255,255,255,0.55)",
-          }}
-        />
+        <Icon className="asb-ico shrink-0" style={{ width: "18px", height: "18px" }} />
         <span className="flex-1 text-left truncate leading-5" title={group.name}>{group.name}</span>
         {/* When closed, a count pill surfaces waiting work inside; fall back to
             a plain active dot only when the current page lives in the group. */}
@@ -845,19 +770,10 @@ export default function AdminSidebar({
           <button
             type="button"
             onClick={toggleCollapsed}
-            className="hidden lg:flex w-full items-center gap-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+            className="asb-foot asb-foot--dim hidden lg:flex w-full items-center gap-2.5 rounded-xl cursor-pointer"
             style={{
-              color: "rgba(255,255,255,0.50)",
               padding: collapsed ? "9px" : "9px 12px",
               justifyContent: collapsed ? "center" : undefined,
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)";
-              (e.currentTarget as HTMLElement).style.color = "#fff";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "";
-              (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.50)";
             }}
             aria-label={collapsed ? tNav("expandSidebar") : tNav("collapseSidebar")}
           >
@@ -891,19 +807,10 @@ export default function AdminSidebar({
             }
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+            className="asb-foot flex items-center gap-2.5 rounded-xl cursor-pointer"
             style={{
-              color: "rgba(255,255,255,0.55)",
               padding: collapsed ? "9px" : "9px 12px",
               justifyContent: collapsed ? "center" : undefined,
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)";
-              (e.currentTarget as HTMLElement).style.color = "#fff";
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "";
-              (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)";
             }}
           >
             <ExternalLink className="w-4 h-4 shrink-0" />
@@ -914,19 +821,10 @@ export default function AdminSidebar({
           <form action="/admin/auth/signout" method="POST">
             <button
               type="submit"
-              className="flex w-full items-center gap-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+              className="asb-foot asb-foot--danger flex w-full items-center gap-2.5 rounded-xl cursor-pointer"
               style={{
-                color: "rgba(255,255,255,0.55)",
                 padding: collapsed ? "9px" : "9px 12px",
                 justifyContent: collapsed ? "center" : undefined,
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.14)";
-                (e.currentTarget as HTMLElement).style.color = "#FCA5A5";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "";
-                (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)";
               }}
             >
               <LogOut className="w-4 h-4 shrink-0" />
@@ -1102,14 +1000,7 @@ export default function AdminSidebar({
                     <form action="/admin/auth/signout" method="POST">
                       <button
                         type="submit"
-                        className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200"
-                        style={{ color: "#EF4444" }}
-                        onMouseEnter={e => {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.06)";
-                        }}
-                        onMouseLeave={e => {
-                          (e.currentTarget as HTMLElement).style.background = "";
-                        }}
+                        className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-colors text-[#EF4444] hover:bg-[rgba(239,68,68,0.06)]"
                       >
                         <LogOut style={{ width: "15px", height: "15px" }} />
                         <span>{tNav("signOut")}</span>

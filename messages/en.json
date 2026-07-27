@@ -2236,7 +2236,11 @@
     },
     "overview": {
       "collectionLink": "Collection health & content performance",
-      "collectionLinkHint": "Inventory totals, metadata gaps and the full performance table live in the Content view."
+      "collectionLinkHint": "Inventory totals, metadata gaps and the full performance table live in the Content view.",
+      "zoneNowLabel": "Right now",
+      "zoneNowHint": "System health and anything waiting on you",
+      "zoneTrendsLabel": "Trends & performance",
+      "zoneTrendsHint": "How readers are finding and using the library"
     },
     "discovery": {
       "title": "Engagement pathways",
