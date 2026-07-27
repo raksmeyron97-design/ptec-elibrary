@@ -232,6 +232,19 @@ html:lang("en") body {
   border-radius: 2px;
 }
 
+/* ── Search "shells" ────────────────────────────────────────────────
+   A `focus-within` container (e.g. components/admin/users/UserToolbar)
+   owns the visible focus indicator, so its inner input must NOT also
+   paint the fallback outline above — that produced a blue rectangle
+   hugging the input, offset inside the rounded shell (a double border).
+   Both rules are unlayered, so this wins on real specificity (0,2,1 >
+   the :where() fallback's 0,1,0) with no !important — the container's
+   border + ring remain the accessible, forced-colors-safe indicator. */
+.focus-shell input:focus,
+.focus-shell input:focus-visible {
+  outline: none;
+}
+
 .khmer {
   font-family: var(--font-body);
   line-height: 1.8;
