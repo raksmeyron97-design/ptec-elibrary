@@ -35,11 +35,20 @@ export default function LibraryNow({
   const t = useTranslations("home");
   const locale = useLocale();
   const [now, setNow] = useState<Date | null>(null);
+  // Eagerly-computed "render moment" — runs on the server render AND on the
+  // client's first render (unlike `now` above, which stays null until after
+  // mount). Used ONLY to resolve which weekday's schedule to show; the
+  // schedule text for a given weekday is constant all day (it only changes
+  // if an admin edits the published hours, which busts this page's cache via
+  // revalidateSiteConfig()), so it's safe to render immediately instead of a
+  // permanent loading skeleton — unlike the live isOpen/closesAt status below,
+  // which genuinely can go stale under ISR caching and must wait for mount.
+  const [scheduleNow] = useState(() => new Date());
 
   useEffect(() => {
     // Defer the first set out of the effect body (avoids a synchronous
     // setState-in-effect) — same pattern as AskLibraryHero. `now` stays null
-    // through SSR + first paint, so the live status is client-only and never
+    // through SSR + first paint, so the LIVE status is client-only and never
     // hydration-mismatches a cached HTML shell.
     const first = setTimeout(() => setNow(new Date()), 0);
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -50,12 +59,16 @@ export default function LibraryNow({
   }, []);
 
   // A special closure (public holiday, temporary closure) overrides the
-  // weekly schedule for the whole Cambodia-local day.
-  const closure = now ? activeClosure(now, closures) : null;
+  // weekly schedule for the whole Cambodia-local day. Resolved from
+  // `scheduleNow` (always available) so a published closure shows up
+  // immediately rather than behind a loading skeleton — closures are
+  // pre-scheduled by an admin for a whole calendar day, so they carry none of
+  // the intraday staleness risk the live open/closed dot has.
+  const closure = activeClosure(scheduleNow, closures);
   const status = now && !closure ? getLibraryStatus(now, openingHoursSpec) : null;
   const sched = parseOpeningHours(openingHoursSpec);
-  const zoned = now ? zonedNow(now) : null;
-  const todayRanges = zoned && !closure ? sched[zoned.weekday] : [];
+  const zoned = zonedNow(scheduleNow);
+  const todayRanges = !closure ? sched[zoned.weekday] : [];
   const closureReason = closure
     ? (locale === "km" ? closure.reason.km : closure.reason.en) || t("libraryNowClosed")
     : null;
@@ -160,14 +173,13 @@ export default function LibraryNow({
                 <dt className="sr-only">{t("libraryNowTodayLabel")}</dt>
                 <dd className="text-text-body">
                   <span className="font-semibold">{t("libraryNowTodayLabel")}:</span>{" "}
-                  {now ? (
-                    <>
-                      {todayLabel}
-                      {statusLine && <span className="text-text-muted"> · {statusLine}</span>}
-                    </>
-                  ) : (
-                    <span className="inline-block h-3 w-32 animate-pulse rounded bg-divider align-middle" aria-hidden />
-                  )}
+                  {/* Schedule text (todayLabel) is available from first render —
+                      see scheduleNow above. Only the live "closes at"/"opens at"
+                      addendum waits for client mount, and simply isn't appended
+                      until then (no skeleton needed: todayLabel alone is a
+                      complete, correct sentence). */}
+                  {todayLabel}
+                  {statusLine && <span className="text-text-muted"> · {statusLine}</span>}
                 </dd>
               </div>
             </dl>
