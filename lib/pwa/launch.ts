@@ -12,9 +12,35 @@
 // #060B1A, so every cold launch went white → near-black. Change PWA_INK and all
 // four move together.
 
-/** PTEC ink. `.hero-ink` in app/globals.css — the navbar and hero paint this in
- *  BOTH light and dark themes, which is what makes a single launch colour
- *  correct regardless of the user's theme. */
+/**
+ * The startup background, light theme — `--ptec-parchment` from
+ * app/globals.css. It is what the Android splash paints and what the PTEC
+ * startup screen paints, so the two are the same surface.
+ *
+ * Parchment, not a green: PTEC's palette is navy + gold + parchment and has no
+ * green token. Inventing one to match a reference screenshot would put a colour
+ * on the launch surface that appears nowhere else in the product.
+ */
+export const PWA_SPLASH = "#FAF8F2";
+
+/** The same surface for readers on a dark theme — `--ptec-bg-app` dark. The
+ *  startup screen switches on the `.dark` class that THEME_INIT_SCRIPT sets
+ *  before first paint, so a dark-mode reader never gets a bright flash. */
+export const PWA_SPLASH_DARK = "#0E1220";
+
+/**
+ * The status bar colour, for the manifest and the `theme-color` meta.
+ *
+ * Deliberately NOT the splash background: THEME_INIT_SCRIPT re-points the meta
+ * tag to this exact value once the stored theme is known, so matching it here
+ * means the status bar is one colour from the platform splash all the way
+ * through the app. Setting it to the splash background instead produced a
+ * parchment-to-navy status bar shift a moment after launch.
+ */
+export const PWA_THEME_COLOR = "#172554";
+
+/** PTEC ink — `.hero-ink`. Still the colour the homepage hero paints, and what
+ *  the maskable icons and iOS launch images are plated with. */
 export const PWA_INK = "#060B1A";
 
 /**

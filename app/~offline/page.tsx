@@ -18,7 +18,7 @@ export default function OfflinePage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-6 py-12 text-center">
       <div className="mx-auto flex max-w-md flex-col items-center">
         <Image
-          src="/pwa/splash/boot-emblem.webp"
+          src="/pwa/boot-emblem.webp"
           alt=""
           width={72}
           height={72}

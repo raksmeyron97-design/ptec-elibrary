@@ -177,6 +177,7 @@ export default async function RootShell({
         <PTECBootScreen
           libraryName={siteConfig.libraryName.en}
           organizationName={siteConfig.name.en}
+          organizationNameKm={siteConfig.name.km}
         />
         <IntlProvider locale={locale} messages={messages}>
           <JsonLd data={buildSiteGraph(siteConfig)} />

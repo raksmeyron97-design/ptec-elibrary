@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { IOS_LAUNCH_IMAGES, PWA_INK, iosLaunchLinks } from "./launch";
+import { IOS_LAUNCH_IMAGES, PWA_INK, PWA_SPLASH, PWA_SPLASH_DARK, PWA_THEME_COLOR, iosLaunchLinks } from "./launch";
 
 const ROOT = path.join(import.meta.dirname, "../..");
 const read = (p: string) => readFileSync(path.join(ROOT, p), "utf8");
@@ -43,15 +43,37 @@ describe("PWA launch surface", () => {
     }
   });
 
-  it("uses the same ink for the manifest, the viewport and the boot screen", () => {
-    // The whole point of the launch colour is that four systems agree on it.
-    // A literal that drifts from PWA_INK reintroduces the white-splash flash.
+  it("paints the platform splash and the startup screen the same colour", () => {
+    // The Android splash background and the PTEC startup screen are the same
+    // surface; if the two literals drift the launch flashes between them.
+    expect(PWA_SPLASH).toBe("#FAF8F2"); // --ptec-parchment
+    const css = read("app/globals.css");
+    expect(css).toContain(`--ptec-parchment: ${PWA_SPLASH}`);
+    expect(css).toContain(`--ptec-bg-app: ${PWA_SPLASH_DARK}`);
+
+    const boot = read("components/pwa/PTECBootScreen.tsx");
+    expect(read("app/manifest.ts")).toContain("background_color: PWA_SPLASH");
+    expect(boot).toContain("background:${PWA_SPLASH}");
+    // ...and the dark reader gets the app's own dark surface, not a bright flash.
+    expect(boot).toContain("background:${PWA_SPLASH_DARK}");
+  });
+
+  it("keeps the status bar one colour from splash to app", () => {
+    // theme_color is deliberately NOT the splash background: THEME_INIT_SCRIPT
+    // re-points the meta tag to this value once the theme is known, so they
+    // have to agree or the status bar shifts a moment after launch.
+    expect(PWA_THEME_COLOR).toBe("#172554");
+    expect(read("lib/csp.ts")).toContain(PWA_THEME_COLOR);
+    expect(read("app/manifest.ts")).toContain("theme_color: PWA_THEME_COLOR");
+    expect(read("app/root-metadata.ts")).toContain("themeColor: PWA_THEME_COLOR");
+  });
+
+  it("still plates the icons and iOS launch images with PTEC ink", () => {
+    // Those are opaque assets the OS composites; they stay ink regardless of
+    // the splash background.
     expect(PWA_INK).toBe("#060B1A");
     expect(read("app/globals.css")).toContain(`background-color: ${PWA_INK}`);
-    expect(read("app/manifest.ts")).toContain("background_color: PWA_INK");
-    expect(read("app/manifest.ts")).toContain("theme_color: PWA_INK");
-    expect(read("app/root-metadata.ts")).toContain("themeColor: PWA_INK");
-    expect(read("components/pwa/PTECBootScreen.tsx")).toContain("background:${PWA_INK}");
+    expect(read("scripts/generate-pwa-assets.mjs")).toContain("INK_RGB");
   });
 
   it("keeps the boot screen dismissable without JavaScript", () => {
