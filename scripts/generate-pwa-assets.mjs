@@ -113,6 +113,117 @@ async function inkPlate(canvas, logoPx, { colours } = {}) {
     .toBuffer();
 }
 
+/**
+ * What each generated file must be true of, independent of how it was encoded.
+ *
+ * `--check` asserts THESE, not a hash of the bytes. An earlier version compared
+ * sha256 and broke the Vercel build: sharp links a different libvips on the
+ * Linux runner than on a developer's macOS, so it emits byte-different PNGs for
+ * a pixel-identical image and every asset looked permanently stale. The
+ * properties below are the ones that actually break the launch if they drift —
+ * a wrong size, a transparent icon iOS will composite onto black, or an emblem
+ * that spills outside Android's mask.
+ */
+function expectedAssets() {
+  const specs = new Map();
+
+  for (const size of [192, 512]) {
+    specs.set(path.join(ICON_DIR, `icon-maskable-${size}.png`), {
+      width: size,
+      height: size,
+      opaque: true,
+      // Android guarantees only the central 80%-diameter circle survives the
+      // mask. This is the check that would have caught the original bug.
+      maxContentRatio: MASKABLE_LOGO_RATIO + 0.05,
+    });
+  }
+  specs.set(path.join(ICON_DIR, "apple-touch-icon.png"), {
+    width: 180,
+    height: 180,
+    opaque: true,
+  });
+  specs.set(path.join(SPLASH_DIR, "boot-emblem.webp"), { width: 224, height: 224 });
+
+  for (const device of IOS_DEVICES) {
+    for (const orientation of LANDSCAPE_TOO(device.name)
+      ? ["portrait", "landscape"]
+      : ["portrait"]) {
+      specs.set(path.join(SPLASH_DIR, `${device.name}-${orientation}.png`), {
+        // iOS matches the startup image to the device by pixel size; a wrong
+        // dimension here means that device silently gets a blank launch.
+        width: (orientation === "portrait" ? device.width : device.height) * device.ratio,
+        height: (orientation === "portrait" ? device.height : device.width) * device.ratio,
+        opaque: true,
+      });
+    }
+  }
+
+  return specs;
+}
+
+/** Fraction of the canvas edge spanned by non-background content. */
+async function contentRatio(file) {
+  const { data, info } = await sharp(file)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  let minX = w, maxX = -1, minY = h, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4;
+      const isInk =
+        Math.abs(data[o] - INK_RGB.r) +
+          Math.abs(data[o + 1] - INK_RGB.g) +
+          Math.abs(data[o + 2] - INK_RGB.b) <
+          24 && data[o + 3] > 128;
+      if (isInk || data[o + 3] < 16) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (maxX < 0) return 0;
+  return Math.max((maxX - minX + 1) / w, (maxY - minY + 1) / h);
+}
+
+async function checkAssets() {
+  const problems = [];
+
+  for (const [file, spec] of expectedAssets()) {
+    const rel = path.relative(ROOT, file);
+    let meta;
+    try {
+      meta = await sharp(file).metadata();
+    } catch {
+      problems.push(`${rel} — missing or unreadable`);
+      continue;
+    }
+    if (meta.width !== spec.width || meta.height !== spec.height) {
+      problems.push(
+        `${rel} — is ${meta.width}x${meta.height}, expected ${spec.width}x${spec.height}`,
+      );
+    }
+    if (spec.opaque && meta.hasAlpha) {
+      // iOS drops the alpha channel and composites onto black; Android shows
+      // the launcher plate through it.
+      problems.push(`${rel} — has an alpha channel, must be opaque`);
+    }
+    if (spec.maxContentRatio) {
+      const ratio = await contentRatio(file);
+      if (ratio > spec.maxContentRatio) {
+        problems.push(
+          `${rel} — emblem spans ${(ratio * 100).toFixed(1)}% of the canvas, ` +
+            `over the ${(spec.maxContentRatio * 100).toFixed(0)}% mask safe zone`,
+        );
+      }
+    }
+  }
+
+  return problems;
+}
+
 async function buildAssets() {
   const out = new Map();
 
@@ -177,27 +288,31 @@ async function main() {
   const check = process.argv.includes("--check");
   await fs.mkdir(SPLASH_DIR, { recursive: true });
 
+  // Verification never re-encodes: it inspects what is committed. Regenerating
+  // to compare would just reproduce the cross-platform byte drift that made
+  // this check unusable in CI.
+  if (check) {
+    const problems = await checkAssets();
+    if (problems.length) {
+      console.error(
+        `✗ PWA launch assets are wrong:\n  ${problems.join("\n  ")}\n` +
+          `  Run: npm run pwa:assets`,
+      );
+      process.exit(1);
+    }
+    console.log(`✓ PWA launch assets valid (${expectedAssets().size} files)`);
+    return;
+  }
+
   const assets = await buildAssets();
-  const stale = [];
 
   for (const [file, buf] of assets) {
     const existing = await fs.readFile(file).catch(() => null);
     if (existing && digest(existing) === digest(buf)) continue;
-    if (check) {
-      stale.push(path.relative(ROOT, file));
-      continue;
-    }
     await fs.writeFile(file, buf);
     console.log(`  wrote ${path.relative(ROOT, file)} (${(buf.length / 1024).toFixed(1)} KB)`);
   }
 
-  if (check && stale.length) {
-    console.error(
-      `✗ PWA assets are stale or missing:\n  ${stale.join("\n  ")}\n` +
-        `  Run: node scripts/generate-pwa-assets.mjs`,
-    );
-    process.exit(1);
-  }
   console.log(
     check
       ? `✓ PWA launch assets up to date (${assets.size} files)`
