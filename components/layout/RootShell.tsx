@@ -17,6 +17,12 @@ import NavigationProgress from "@/components/ui/NavigationProgress";
 import PushNotificationOnboarding from "@/components/ui/notifications/PushNotificationOnboarding";
 import IntlProvider from "@/components/providers/IntlProvider";
 import { pickMessages, ROOT_NAMESPACES } from "@/i18n/pick-messages";
+import PTECBootScreen, {
+  PTECBootStyles,
+  PTECShellReadyMarker,
+} from "@/components/pwa/PTECBootScreen";
+import UpdateAvailable from "@/components/pwa/UpdateAvailable";
+import { iosLaunchLinks } from "@/lib/pwa/launch";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
 import { SITE_URL } from "@/lib/seo/site";
 import { getSiteConfig } from "@/lib/system-settings/config";
@@ -151,11 +157,24 @@ export default async function RootShell({
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
+        {/* iOS gives an installed PWA no generated splash screen. Without a
+            startup image whose media query matches the device exactly, iPhone
+            shows a blank (black in dark mode) screen for the WHOLE cold launch
+            — the worst of the reported startup symptoms, and pure config.
+            Android ignores these and uses the manifest instead. */}
+        {iosLaunchLinks().map(({ href, media }) => (
+          <link key={href} rel="apple-touch-startup-image" href={href} media={media} />
+        ))}
+        <PTECBootStyles />
       </head>
       <body
         suppressHydrationWarning
         className="bg-bg-app font-sans text-text-body antialiased"
       >
+        {/* FIRST child of <body> on purpose — the parser must reach it before
+            anything else. See components/pwa/PTECBootScreen.tsx for why this is
+            markup + one CSS rule rather than a stateful component. */}
+        <PTECBootScreen />
         <IntlProvider locale={locale} messages={messages}>
           <JsonLd data={buildSiteGraph(siteConfig)} />
           <Suspense fallback={null}>
@@ -168,6 +187,12 @@ export default async function RootShell({
             Skip to content
           </a>
           {children}
+          {/* Dismisses <PTECBootScreen/>. Sits after {children} and outside any
+              Suspense boundary, so during a streamed response the parser
+              reaches it only once the shell above it exists — and once it is in
+              the DOM it never leaves. */}
+          <PTECShellReadyMarker />
+          <UpdateAvailable />
           <PushNotificationOnboarding />
           <Analytics />
           <SpeedInsights />

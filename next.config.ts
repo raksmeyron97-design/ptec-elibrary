@@ -10,6 +10,14 @@ const withSerwist = withSerwistInit({
   swSrc: "app/sw.ts",
   swDest: "public/sw.js",
   disable: process.env.NODE_ENV === "development",
+  // NOTE — anything added to public/ is precached, and there is NO way to opt
+  // out of that here. @serwist/next hands public/ files to InjectManifest as
+  // `additionalPrecacheEntries`, and @serwist/build appends those to the
+  // manifest AFTER every user manifestTransform has run
+  // (additionalPrecacheEntriesTransform is always last), so neither `exclude`
+  // nor a manifestTransform can drop them — both were tried against the iOS
+  // launch images and both were no-ops. Size the asset instead; see
+  // SPLASH_LOGO_MAX_PX in scripts/generate-pwa-assets.mjs.
 });
 
 // CSP is set per-request in proxy.ts (includes a per-request nonce).

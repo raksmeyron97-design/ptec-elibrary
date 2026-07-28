@@ -15,6 +15,7 @@ import {
   isCacheableResponse,
   isObsoleteCache,
   isPrivateRequest,
+  shouldPrecache,
 } from "@/lib/sw-policy";
 
 declare global {
@@ -50,6 +51,14 @@ const guard = {
 const tolerateStorageFailure = {
   handlerDidError: async () => undefined,
 };
+
+/** The injected manifest, minus the families lib/sw-policy.ts refuses to
+ *  install. Filtering here is the only hook that exists — @serwist/next globs
+ *  all of public/ into the precache and offers no way to opt a file out. See
+ *  shouldPrecache() for what is dropped and why. */
+const precacheEntries = (self.__SW_MANIFEST ?? []).filter((entry) =>
+  shouldPrecache(typeof entry === "string" ? entry : entry.url),
+);
 
 const runtimeCaching: RuntimeCaching[] = [
   // ── 1. Book files (PDF/EPUB/…): READ from cache, NEVER write. ─────────────
@@ -100,11 +109,23 @@ const runtimeCaching: RuntimeCaching[] = [
   // Private paths were already taken by rule 1, so this only ever sees public
   // pages. NetworkFirst keeps content fresh and gives the offline shell a
   // fallback.
+  //
+  // The timeout is the launch budget for an installed app on a bad connection:
+  // it is how long the user stares at the platform splash before the worker
+  // gives up and serves the last good copy of the page. Five seconds was long
+  // enough to read as "broken". Three still clears a normal slow-4G document
+  // (measured ~1.2 s for the 84 KB gzipped homepage) with headroom, while
+  // capping the worst case a user can actually feel.
+  //
+  // `navigationPreload: true` below is what keeps this from being a dead wait:
+  // the browser starts the network request while the worker is still booting,
+  // and serwist's StrategyHandler consumes event.preloadResponse for navigate
+  // requests instead of issuing a second fetch.
   {
     matcher: ({ request }) => request.mode === "navigate",
     handler: new NetworkFirst({
       cacheName: CACHES.pages,
-      networkTimeoutSeconds: 5,
+      networkTimeoutSeconds: 3,
       plugins: [
         guard,
         new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true }),
@@ -181,8 +202,20 @@ const runtimeCaching: RuntimeCaching[] = [
 ];
 
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  precacheEntries,
+  // ── skipWaiting is OFF on purpose. ───────────────────────────────────────
+  // With it on, a deploy activated the new worker under open pages the moment
+  // it installed. Those pages are still running the OLD build, and their lazy
+  // route chunks are hashed per build — so the next navigation inside a page
+  // someone had open could ask for a chunk the new deployment no longer has.
+  // Reading a PDF, filling a form or editing in the admin panel are exactly
+  // when that is least acceptable.
+  //
+  // Now the new worker installs and WAITS. components/pwa/UpdateAvailable.tsx
+  // notices it and offers an Update button; only that button (or closing every
+  // tab) hands over, via the SKIP_WAITING message handled below. Nothing
+  // reloads under the user.
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching,
@@ -225,6 +258,14 @@ self.addEventListener("activate", (event) => {
 // The page posts this after the session is torn down. Derived caches can hold a
 // page rendered for the previous account, so they go. Downloaded books are left
 // alone: they are user-chosen content, and lib/offline.ts owns their lifecycle.
+// ── User-approved update. ───────────────────────────────────────────────────
+// The only way a waiting worker ever takes over, since skipWaiting is off. The
+// page posts this from the Update button and reloads on `controllerchange`.
+self.addEventListener("message", (event) => {
+  if ((event.data as { type?: string } | null)?.type !== "SKIP_WAITING") return;
+  self.skipWaiting();
+});
+
 self.addEventListener("message", (event) => {
   if ((event.data as { type?: string } | null)?.type !== "CLEAR_PRIVATE_CACHES") return;
   event.waitUntil(

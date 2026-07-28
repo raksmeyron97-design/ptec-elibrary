@@ -31,6 +31,21 @@ import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkele
 
 export const revalidate = 60;
 
+// Hero `sizes`, deliberately UNDER-declared on phones.
+//
+// The honest layout answer is "100vw" — the photo is a full-bleed background.
+// But `sizes` is multiplied by devicePixelRatio when the browser resolves the
+// srcset, so 100vw asked a 3x phone for ~1100 px and it picked the 1440w AVIF:
+// 100 KB, fetched at high priority, contending for bandwidth with the 41 KB
+// render-blocking stylesheet that gates first paint. It was the single biggest
+// item on the launch critical path.
+//
+// 320px caps every phone at the 960w variant (52 KB) — 320x3 = 960 exactly, and
+// 320x2.625 = 840 rounds up to the same file. The image is decorative
+// (aria-hidden, alt="") and sits under two ink gradients at 95%/85%/60% opacity,
+// so the difference is not visible; the 48 KB is.
+const HERO_SIZES = "(max-width: 767px) 320px, 100vw";
+
 export async function generateMetadata({
   params,
 }: {
@@ -63,12 +78,15 @@ export async function generateMetadata({
 export default async function HomePage() {
   // LCP: preload the hero photo (AVIF branch — ~95% of browsers; the rest
   // simply fetch it via <picture> without the head start).
+  // MUST stay byte-identical to the <source sizes> below, or the browser
+  // resolves a different candidate than the one it preloaded and downloads the
+  // hero twice.
   preload("/hero/ptec-library-960.avif", {
     as: "image",
     type: "image/avif",
     imageSrcSet:
       "/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w",
-    imageSizes: "100vw",
+    imageSizes: HERO_SIZES,
     fetchPriority: "high",
   });
 
@@ -112,12 +130,12 @@ export default async function HomePage() {
               <source
                 type="image/avif"
                 srcSet="/hero/ptec-library-640.avif 640w, /hero/ptec-library-960.avif 960w, /hero/ptec-library-1440.avif 1440w"
-                sizes="100vw"
+                sizes={HERO_SIZES}
               />
               <source
                 type="image/webp"
                 srcSet="/hero/ptec-library-640.webp 640w, /hero/ptec-library-960.webp 960w, /hero/ptec-library-1440.webp 1440w"
-                sizes="100vw"
+                sizes={HERO_SIZES}
               />
               <img
                 src="/hero/ptec-library-960.jpg"

@@ -68,6 +68,40 @@ export function isObsoleteCache(name: string): boolean {
   return true;
 }
 
+/**
+ * Should this precache entry be installed?
+ *
+ * @serwist/next globs ALL of public/ into the precache, so every file dropped
+ * in there is downloaded by every visitor on first load whether or not it is
+ * ever used. That silently grew the install to 11 MB. The plugin offers no way
+ * to exclude a public file — `exclude` only sees webpack assets, and
+ * @serwist/build appends public entries AFTER every manifestTransform — so the
+ * filtering happens here instead, on `self.__SW_MANIFEST` inside the worker.
+ *
+ * Only two families are dropped, both for reasons specific to them:
+ *
+ *   • /pdf/cmaps/** (169 files, 1.6 MB) — CJK character maps. This library's
+ *     collection is Khmer and English; a reader who opens a PDF that needs one
+ *     gets it from the network, and runtime rule 5 in app/sw.ts (CacheFirst on
+ *     /pdf/*.bcmap) keeps it from then on. Precaching all 169 up front to serve
+ *     approximately none of them is the worst trade in the manifest.
+ *
+ *   • /pwa/splash/** — iOS launch images. iOS reads an
+ *     apple-touch-startup-image while showing the splash, BEFORE the page and
+ *     therefore the worker are running, so the worker can never serve one.
+ *     Precaching them is pure waste.
+ *
+ * DELIBERATELY STILL PRECACHED: /pdf/pdf.worker.min.mjs (nothing renders
+ * without it) and /pdf/standard_fonts/** (PDFs that embed no fonts render with
+ * the wrong glyphs without these, and offline reading is a shipped feature —
+ * 800 KB is the price of it working).
+ */
+export function shouldPrecache(url: string): boolean {
+  if (url.startsWith("/pdf/cmaps/")) return false;
+  if (url.startsWith("/pwa/splash/")) return false;
+  return true;
+}
+
 /** Route families that must never touch Cache Storage: they are session-scoped,
  *  their responses differ per user, and several carry Set-Cookie. */
 const PRIVATE_PATH_RE =
