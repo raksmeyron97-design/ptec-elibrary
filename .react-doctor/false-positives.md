@@ -86,3 +86,13 @@
 - `react-doctor/supabase-rls-policy-risk` - Supabase architectural change deferred.
 - `react-doctor/supabase-client-owned-authz-field` - Supabase architectural change deferred.
 - `react-doctor/button-has-type` - Edge cases with spread props deferred.
+- `react-doctor/effect-needs-cleanup` (`components/pwa/UpdateAvailable.tsx` only) —
+  the rule looks for a matching `removeEventListener` in the cleanup and does not
+  recognise `AbortController`. All three listeners in that effect are registered
+  with `{ signal }` and the cleanup is `() => controller.abort()`, which
+  unregisters every one of them. This is stricter than manual removal here, not
+  looser: two of the listeners are attached inside an async
+  `getRegistration().then()` callback, so a hand-rolled cleanup array would miss
+  them entirely when an unmount lands before the promise resolves — which is the
+  leak the rule is actually trying to prevent. Do not "fix" this by going back to
+  removeEventListener.

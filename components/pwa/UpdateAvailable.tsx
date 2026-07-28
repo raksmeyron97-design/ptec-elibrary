@@ -26,36 +26,44 @@ export default function UpdateAvailable() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    let cancelled = false;
-    const cleanups: (() => void)[] = [];
+    // One signal unregisters everything, including the listeners attached
+    // inside the async getRegistration() callback and the nested statechange
+    // listener below. Hand-rolled cleanup arrays cannot cover those: they are
+    // populated after an await, so an unmount that lands in between leaves a
+    // listener holding this component's setState.
+    const controller = new AbortController();
+    const { signal } = controller;
 
     // A worker is only an *update* if this page is already controlled by an
     // older one. On a first-ever visit the very first worker also reaches
     // "installed", and prompting someone to update a page they just opened is
     // nonsense.
     const offerIfUpdate = (sw: ServiceWorker | null) => {
-      if (!cancelled && sw && navigator.serviceWorker.controller) setWaiting(sw);
+      if (!signal.aborted && sw && navigator.serviceWorker.controller) setWaiting(sw);
     };
 
     navigator.serviceWorker
       .getRegistration()
       .then((registration) => {
-        if (cancelled || !registration) return;
+        if (signal.aborted || !registration) return;
 
         offerIfUpdate(registration.waiting);
 
-        const onUpdateFound = () => {
-          const installing = registration.installing;
-          if (!installing) return;
-          const onStateChange = () => {
-            if (installing.state === "installed") offerIfUpdate(registration.waiting);
-          };
-          installing.addEventListener("statechange", onStateChange);
-          cleanups.push(() => installing.removeEventListener("statechange", onStateChange));
-        };
-
-        registration.addEventListener("updatefound", onUpdateFound);
-        cleanups.push(() => registration.removeEventListener("updatefound", onUpdateFound));
+        registration.addEventListener(
+          "updatefound",
+          () => {
+            const installing = registration.installing;
+            if (!installing) return;
+            installing.addEventListener(
+              "statechange",
+              () => {
+                if (installing.state === "installed") offerIfUpdate(registration.waiting);
+              },
+              { signal },
+            );
+          },
+          { signal },
+        );
       })
       .catch(() => {
         // No worker, or storage disabled. There is simply nothing to offer.
@@ -66,20 +74,17 @@ export default function UpdateAvailable() {
     // button reliable: it waits for the handover to actually happen instead of
     // guessing at a delay, and it also covers the case where another tab
     // accepted the update first.
-    const onControllerChange = () => {
-      if (reloading.current) return;
-      reloading.current = true;
-      window.location.reload();
-    };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-    cleanups.push(() =>
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange),
+    navigator.serviceWorker.addEventListener(
+      "controllerchange",
+      () => {
+        if (reloading.current) return;
+        reloading.current = true;
+        window.location.reload();
+      },
+      { signal },
     );
 
-    return () => {
-      cancelled = true;
-      for (const off of cleanups) off();
-    };
+    return () => controller.abort();
   }, []);
 
   const applyUpdate = useCallback(() => {
