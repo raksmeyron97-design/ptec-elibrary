@@ -10,6 +10,9 @@ import {
   isCacheableResponse,
   isObsoleteCache,
   isPrivateRequest,
+  manifestRevision,
+  OFFLINE_FALLBACK_URL,
+  shouldPrecache,
 } from "./sw-policy";
 
 const priv = (pathname: string, opts: Partial<{ sameOrigin: boolean; auth: boolean }> = {}) =>
@@ -230,6 +233,79 @@ describe("service worker caching policy", () => {
       for (const t of ["profiles", "saved_books", "reading_progress", "notifications", "push_subscriptions", "download_logs", "book_notes"]) {
         expect(PUBLIC_REST_RE.test(`/rest/v1/${t}?select=*`), t).toBe(false);
       }
+    });
+  });
+
+  // ── The offline fallback: two independent ways it silently did nothing ────
+  describe("the offline shell can actually be served", () => {
+    const sw = fs.readFileSync(path.join(__dirname, "..", "app/sw.ts"), "utf8");
+
+    it("precaches /~offline explicitly", () => {
+      // Serwist's `fallbacks` option only NAMES the fallback URL; nothing adds
+      // it to the precache, and @serwist/next only globs public/ (this page
+      // lives under app/). Verified against a real install: the precache held
+      // the route's JS chunks but not the page, caches.match("/~offline")
+      // missed, and every offline navigation showed the browser's network
+      // error instead of the branded screen.
+      expect(sw).toContain("url: OFFLINE_FALLBACK_URL");
+      expect(sw).toContain("manifestRevision(buildManifest)");
+      expect(shouldPrecache(OFFLINE_FALLBACK_URL)).toBe(true);
+    });
+
+    it("gives the offline entry a revision that moves with the build", () => {
+      // `revision: null` would pin the shell forever.
+      const a = manifestRevision([{ url: "/a", revision: "1" }]);
+      const b = manifestRevision([{ url: "/a", revision: "2" }]);
+      expect(a).not.toBe(b);
+      expect(manifestRevision([{ url: "/a", revision: "1" }])).toBe(a);
+      expect(a).toMatch(/^[0-9a-z]+$/);
+    });
+
+    it("keeps handlerDidError off the navigation strategy", () => {
+      // Serwist attaches its fallback plugin ONLY to strategies with no
+      // handlerDidError plugin:
+      //   if (handler instanceof Strategy &&
+      //       !handler.plugins.some((p) => "handlerDidError" in p)) ...
+      // So adding `tolerateStorageFailure` to the navigation rule disables the
+      // offline fallback entirely — which is exactly what had happened.
+      // Slice from the navigate matcher to the start of the next numbered
+      // rule, so this only ever inspects rule 3's own plugin list.
+      const start = sw.indexOf('request.mode === "navigate"');
+      const end = sw.indexOf("// ── 4.", start);
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      // Comments in that block explain the trap by name, so match on code only.
+      const code = sw
+        .slice(start, end)
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/^\s*\/\/.*$/gm, "");
+      expect(code).not.toContain("tolerateStorageFailure");
+    });
+  });
+
+  // ── Install weight ────────────────────────────────────────────────────────
+  describe("precache excludes what the page never asks for", () => {
+    it.each([
+      "/pdf/cmaps/78-EUC-H.bcmap",
+      "/pwa/splash/iphone-430x932-portrait.png",
+      "/og-default.png",
+      "/logo.png",
+      "/ptec-library.jpg",
+      "/favicon/web-app-manifest-512x512.png",
+    ])("drops %s", (url) => {
+      expect(shouldPrecache(url)).toBe(false);
+    });
+
+    it.each([
+      // app/sw.ts uses this as the default push notification icon, so it has to
+      // be servable offline.
+      "/favicon/web-app-manifest-192x192.png",
+      "/pdf/pdf.worker.min.mjs",
+      "/pdf/standard_fonts/FoxitSans.pfb",
+      "/logo.webp",
+      "/_next/static/chunks/main-abc123.js",
+    ])("keeps %s", (url) => {
+      expect(shouldPrecache(url)).toBe(true);
     });
   });
 });
