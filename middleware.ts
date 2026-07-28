@@ -3,6 +3,7 @@ import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { gateBookSlug } from "@/lib/book-slug-gate";
+import { gateResourceSlug, RESOURCE_GATES } from "@/lib/resource-slug-gate";
 import {
   buildNonceCsp,
   buildPublicCsp,
@@ -35,6 +36,11 @@ const NOT_FOUND_PATH = "/_ptec/not-found";
 // (research_reports ids are uuids — there were never numeric thesis ids.)
 const LEGACY_THESIS_RE =
   /^\/theses\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+// A bare UUID as a detail slug is a legacy id (handled by LEGACY_THESIS_RE
+// above); the published-slug gate must never treat it as a content slug.
+const UUID_SLUG_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function middleware(request: NextRequest) {
   // Correlation id for log lines: reuse the edge/CDN id when present
@@ -363,6 +369,40 @@ export async function middleware(request: NextRequest) {
       }
       // ok / null → fall through to the page unchanged.
     }
+  }
+
+  // ── Thesis / publication / catalog detail slugs: real 404s ──
+  // Same soft-404 problem as books (the loading boundary streams a 200 shell
+  // before the page can notFound()), but these types have no retired-slug
+  // redirect map, so the gate only decides ok vs not-found. Legacy
+  // /theses/<uuid> URLs are already resolved above, so the theses branch here
+  // only ever sees non-UUID slugs. FAILS OPEN if Supabase is unreachable.
+  for (const [segment, cfg] of [
+    ["theses", RESOURCE_GATES.theses],
+    ["publications", RESOURCE_GATES.publications],
+    ["catalogs", RESOURCE_GATES.catalogs],
+  ] as const) {
+    const match = pathWithoutLocale.match(
+      new RegExp(`^/${segment}/([^/]+)$`),
+    );
+    if (!match) continue;
+    let slug: string | null = null;
+    try {
+      slug = decodeURIComponent(match[1]);
+    } catch {
+      slug = null; // malformed escape — let the route 404 it
+    }
+    // A UUID here is a legacy thesis id already handled above; never gate it.
+    if (!slug || UUID_SLUG_RE.test(slug)) break;
+    const verdict = await gateResourceSlug(cfg, slug, {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+      anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+    });
+    if (verdict?.kind === "not-found") {
+      const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
+      return applySecurity(res);
+    }
+    break; // ok / null → fall through to the page unchanged.
   }
 
   // Signal the resolved locale to i18n/request.ts (mirrors x-nonce above).
