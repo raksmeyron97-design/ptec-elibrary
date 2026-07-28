@@ -1,4 +1,4 @@
-import { PWA_INK } from "@/lib/pwa/launch";
+import { PWA_SPLASH, PWA_SPLASH_DARK } from "@/lib/pwa/launch";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The PTEC startup screen.
@@ -28,21 +28,20 @@ import { PWA_INK } from "@/lib/pwa/launch";
 // therefore uncovers itself at exactly the right moment, driven by nothing but
 // the HTML arriving. No script, no state, no timer, no CSP hash.
 //
-// WHY THERE IS NO EMBLEM HERE. There was, and it was measured out. Every byte
-// on this screen is paid for at first paint, because FCP is gated by a 41 KB
-// render-blocking stylesheet already contending with a 100 KB hero preload:
+// HOW THE EMBLEM IS DELIVERED IS LOAD-BEARING. Three ways were measured on a
+// throttled Pixel 7 (slow-4G + 4x CPU, median of five cold loads):
 //
-//   <img fetchpriority="high">, 17 KB → FCP 2.37 s (stole stylesheet bandwidth)
-//   inlined as a 224px data URI       → FCP 2.21 s (no request, fatter document)
-//   inlined as a 128px data URI       → FCP 2.18 s
-//   typography only                   → FCP 1.94 s, equal to having no boot screen
+//   <img fetchpriority="high">  → FCP 2.37 s — preempted the stylesheet
+//   inlined as a 144px data URI → FCP 2.21 s — +21 KB gzipped on the document,
+//                                 because React serialises the head into the
+//                                 RSC flight payload too, so base64 costs DOUBLE
+//   plain <img>, no priority hint → FCP 1.98 s — what ships
 //
-// (throttled Pixel 7, slow-4G + 4x CPU, median of five cold loads.) The RSC
-// flight payload serialises this markup a second time, so anything added here
-// costs roughly double. Repeating the emblem would also be redundant: the
-// platform splash renders it at full resolution in the frame immediately
-// before this one, so the startup sequence reads as one continuous screen that
-// gains a wordmark rather than as two logo screens in a row.
+// Default priority is the whole trick: an in-viewport image is fetched AFTER
+// the render-blocking CSS instead of against it, so the wordmark paints exactly
+// when it did without an emblem and the emblem lands a beat later. Every launch
+// after the first serves it from the precache, so it is instant. Do not add
+// fetchpriority, and do not inline it "to save a request".
 //
 // SAFETY. The whole thing is inside `@supports selector(body:has(*))`, so a
 // browser that cannot evaluate the hiding rule never renders the overlay in the
@@ -67,34 +66,82 @@ const BOOT_STYLES = `
    screen. In the installed PWA that pre-parse canvas comes from the manifest
    background_color (ink, app/manifest.ts); in a browser tab it is hidden by
    paint holding. */
-#ptec-boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;
-align-items:center;justify-content:center;gap:1.25rem;
-padding:calc(2rem + env(safe-area-inset-top)) 1.5rem calc(2rem + env(safe-area-inset-bottom));
-background:${PWA_INK};color:#EEF2FB;text-align:center;
-font-family:var(--font-var-serif),Georgia,"Times New Roman",serif;
+/* 100dvh, not 100vh: on mobile the visual viewport shrinks when browser chrome
+   appears, and 100vh would leave the bottom row of this screen underneath it.
+   inset:0 handles the installed app; dvh handles the browser tab. */
+#ptec-boot{position:fixed;inset:0;z-index:9999;min-height:100dvh;
+display:grid;grid-template-rows:1fr auto;justify-items:center;
+padding:calc(2.5rem + env(safe-area-inset-top)) 1.5rem calc(2.5rem + env(safe-area-inset-bottom));
+background:${PWA_SPLASH};color:#0B1530;text-align:center;
 animation:ptec-boot-failsafe 1ms linear 8s forwards}
-#ptec-boot-name{font-size:1.75rem;line-height:1.2;font-weight:600;letter-spacing:-.01em;margin:0;
-animation:ptec-boot-breathe 2.4s ease-in-out infinite}
-#ptec-boot-org{font-size:.8125rem;line-height:1.4;color:#A9B6D4;margin:0;max-width:22rem;
+
+/* A whisper of the brand navy at the top and gold at the foot. Two very low
+   alpha radials rather than a gradient across the whole surface, so there is
+   no banding on 6-bit phone panels. */
+#ptec-boot::before{content:"";position:absolute;inset:0;pointer-events:none;
+background:radial-gradient(120% 55% at 50% 0%,rgba(30,58,138,.05),transparent 70%),
+radial-gradient(90% 45% at 50% 100%,rgba(221,176,34,.06),transparent 70%)}
+
+/* Brand block: centred in the space above the indicator. */
+#ptec-boot-brand{position:relative;align-self:center;display:flex;flex-direction:column;
+align-items:center;gap:1.125rem;max-width:22rem}
+/* Sized in CSS as well as via width/height so the box is reserved before the
+   file lands — the emblem fades into a space that already exists, so nothing
+   below it moves. */
+#ptec-boot-emblem{width:116px;height:116px;object-fit:contain;
+animation:ptec-boot-breathe 3.2s ease-in-out infinite}
+@media (min-height:700px){#ptec-boot-emblem{width:132px;height:132px}}
+@media (max-width:340px){#ptec-boot-emblem{width:96px;height:96px}}
+
+#ptec-boot-km{margin:0;font-size:.9375rem;line-height:1.9;font-weight:700;color:#1E3A8A;
+font-family:var(--font-var-hanuman),system-ui,sans-serif}
+#ptec-boot-name{margin:.125rem 0 0;font-size:1.5rem;line-height:1.15;font-weight:700;
+letter-spacing:.06em;text-transform:uppercase;color:#0B1530;
+font-family:var(--font-var-serif),Georgia,"Times New Roman",serif}
+#ptec-boot-rule{width:2.25rem;height:2px;border-radius:2px;background:#DDB022;margin:.875rem auto .75rem}
+#ptec-boot-org{margin:0;font-size:.8125rem;line-height:1.5;color:#59677E;
 font-family:var(--font-var-sans),system-ui,sans-serif}
-#ptec-boot-rule{width:2.5rem;height:2px;border-radius:2px;background:#DDB022;opacity:.85}
-#ptec-boot-status{display:flex;flex-direction:column;align-items:center;gap:.375rem;
-font-size:.8125rem;color:#A9B6D4;font-family:var(--font-var-sans),system-ui,sans-serif}
+
+/* Indicator + label sit low, as a quiet footer rather than the subject. */
+#ptec-boot-status{position:relative;display:flex;flex-direction:column;align-items:center;
+gap:.625rem;font-size:.75rem;color:#59677E;
+font-family:var(--font-var-sans),system-ui,sans-serif}
 #ptec-boot-status .km{font-family:var(--font-var-hanuman),system-ui,sans-serif;line-height:1.8}
-#ptec-boot-dots{display:flex;gap:.3125rem}
-#ptec-boot-dots i{width:6px;height:6px;border-radius:50%;background:#DDB022;
-animation:ptec-boot-dot 1.2s ease-in-out infinite}
-#ptec-boot-dots i:nth-child(2){animation-delay:.16s}
-#ptec-boot-dots i:nth-child(3){animation-delay:.32s}
-@keyframes ptec-boot-breathe{0%,100%{opacity:.82;transform:scale(1)}50%{opacity:1;transform:scale(1.035)}}
-@keyframes ptec-boot-dot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+#ptec-boot-dots{display:flex;gap:.375rem}
+#ptec-boot-dots i{width:6px;height:6px;border-radius:50%;background:#1E3A8A;opacity:.25;
+animation:ptec-boot-dot 1.3s ease-in-out infinite}
+#ptec-boot-dots i:nth-child(2){animation-delay:.18s}
+#ptec-boot-dots i:nth-child(3){animation-delay:.36s}
+
+/* Dark readers get the same composition on the app's own dark surface, so the
+   startup screen never flashes bright at someone who chose dark. The class is
+   already on <html> — THEME_INIT_SCRIPT sets it before first paint. */
+.dark #ptec-boot{background:${PWA_SPLASH_DARK};color:#EEF2FB}
+.dark #ptec-boot::before{background:
+radial-gradient(120% 55% at 50% 0%,rgba(138,164,228,.07),transparent 70%),
+radial-gradient(90% 45% at 50% 100%,rgba(244,222,138,.05),transparent 70%)}
+.dark #ptec-boot-km{color:#B3C5EF}
+.dark #ptec-boot-name{color:#EEF2FB}
+.dark #ptec-boot-org,.dark #ptec-boot-status{color:#A9B6D4}
+.dark #ptec-boot-rule{background:#F4DE8A}
+.dark #ptec-boot-dots i{background:#8AA4E4}
+
+@keyframes ptec-boot-breathe{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:1;transform:scale(1.025)}}
+@keyframes ptec-boot-dot{0%,100%{opacity:.22;transform:translateY(0)}50%{opacity:.95;transform:translateY(-3px)}}
 @keyframes ptec-boot-failsafe{to{opacity:0;visibility:hidden}}
+
+/* The hand-off. Scale is on the brand block, not the full-screen overlay: a
+   transform on a fixed element that size forces a large layer repaint. */
 body:has([data-ptec-shell-ready]) #ptec-boot{
-opacity:0;visibility:hidden;transition:opacity .2s ease,visibility 0s linear .2s}
+opacity:0;visibility:hidden;transition:opacity .22s ease,visibility 0s linear .22s}
+body:has([data-ptec-shell-ready]) #ptec-boot-brand{
+transform:scale(.99);transition:transform .22s ease}
+
 @media (prefers-reduced-motion:reduce){
-#ptec-boot-name,#ptec-boot-dots i{animation:none}
-#ptec-boot-dots i{opacity:.7}
-body:has([data-ptec-shell-ready]) #ptec-boot{transition:none}}
+#ptec-boot-emblem,#ptec-boot-dots i{animation:none}
+#ptec-boot-dots i{opacity:.55}
+body:has([data-ptec-shell-ready]) #ptec-boot{transition:none}
+body:has([data-ptec-shell-ready]) #ptec-boot-brand{transform:none;transition:none}}
 }
 `;
 
@@ -122,17 +169,37 @@ export function PTECBootStyles() {
 export default function PTECBootScreen({
   libraryName,
   organizationName,
+  organizationNameKm,
 }: {
   libraryName: string;
   organizationName: string;
+  organizationNameKm: string;
 }) {
   return (
-    <div id="ptec-boot" role="status" aria-live="polite">
-      <div>
-        <p id="ptec-boot-name">{libraryName}</p>
-        <p id="ptec-boot-org">{organizationName}</p>
+    // aria-busy rather than aria-live: this text never changes, so announcing it
+    // as a live region would make a screen reader re-read the whole screen on
+    // any surrounding mutation. role="status" alone conveys "loading".
+    <div id="ptec-boot" role="status" aria-busy="true">
+      <div id="ptec-boot-brand">
+        {/* Decorative: the institution is named in text directly below, so an
+            alt here would make a screen reader say it twice.
+            A plain <img>, deliberately — see the note at the top of this file
+            about why fetchpriority and data URIs both cost FCP. width/height
+            reserve the box so nothing shifts when it lands. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- next/image
+            needs JS to resolve a srcset; this must be parser-discoverable and
+            must not be upgraded to a priority fetch. */}
+        <img id="ptec-boot-emblem" src="/pwa/boot-emblem.webp" alt="" width={132} height={132} decoding="async" />
+        <div>
+          <p id="ptec-boot-km" lang="km">
+            {organizationNameKm}
+          </p>
+          <p id="ptec-boot-name">{libraryName}</p>
+          <div id="ptec-boot-rule" />
+          <p id="ptec-boot-org">{organizationName}</p>
+        </div>
       </div>
-      <div id="ptec-boot-rule" />
+
       <div id="ptec-boot-status">
         <div id="ptec-boot-dots" aria-hidden="true">
           <i />

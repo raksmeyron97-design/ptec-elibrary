@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getSiteConfig } from "@/lib/system-settings/config";
-import { PWA_INK } from "@/lib/pwa/launch";
+import { PWA_SPLASH, PWA_THEME_COLOR } from "@/lib/pwa/launch";
 
 // The web app manifest, served at /manifest.webmanifest.
 //
@@ -9,12 +9,17 @@ import { PWA_INK } from "@/lib/pwa/launch";
 // rest of the site renders (see lib/system-settings/config.ts). getSiteConfig()
 // is unstable_cache'd with no cookies/headers, so this route still prerenders.
 //
-// LAUNCH COLOURS ARE NOT A FREE CHOICE. `background_color` is what Android
-// paints behind the splash icon, and it must equal the first colour the app
-// itself paints or the launch reads as a flash of the wrong app. That colour is
-// PTEC ink (`.hero-ink`, #060B1A) — the navbar and hero are ink in BOTH light
-// and dark themes, so one value is correct either way. The manifest previously
-// said #ffffff, which is why every launch went white splash → near-black app.
+// LAUNCH COLOURS ARE NOT A FREE CHOICE.
+//
+// `background_color` is what Android paints behind the splash icon, and it must
+// equal what the PTEC startup screen paints or the launch flashes between two
+// colours. Both are PWA_SPLASH (parchment) — see lib/pwa/launch.ts.
+//
+// `theme_color` is deliberately a DIFFERENT value: it drives the status bar,
+// and THEME_INIT_SCRIPT re-points the theme-color meta to PWA_THEME_COLOR once
+// the stored theme is known. Matching it here keeps the status bar one colour
+// from the platform splash through to the app; setting it to the splash
+// background instead produced a visible parchment-to-navy shift after launch.
 export const dynamic = "force-static";
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
@@ -38,8 +43,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     display: "standalone",
     orientation: "portrait-primary",
 
-    background_color: PWA_INK,
-    theme_color: PWA_INK,
+    background_color: PWA_SPLASH,
+    theme_color: PWA_THEME_COLOR,
 
     lang: "en",
     dir: "ltr",

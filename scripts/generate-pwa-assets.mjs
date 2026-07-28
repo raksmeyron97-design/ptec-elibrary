@@ -62,6 +62,11 @@ const SPLASH_LOGO_RATIO = 0.34;
  * 384 px still renders crisply — on the largest target (iPad Pro, 2048x2732)
  * the emblem occupies 384 of 2048 px, close to the 0.34 ratio anyway.
  */
+/** The startup screen renders the emblem at 132 CSS px at most, so 192 covers
+ *  1x/1.5x crisply and is acceptably soft at 3x — for 12 KB instead of the
+ *  23 KB a 288px version costs. It is precached, so this is paid once. */
+const BOOT_EMBLEM_PX = 192;
+
 const SPLASH_LOGO_MAX_PX = 384;
 const SPLASH_PALETTE_COLOURS = 64;
 
@@ -142,7 +147,7 @@ function expectedAssets() {
     height: 180,
     opaque: true,
   });
-  specs.set(path.join(SPLASH_DIR, "boot-emblem.webp"), { width: 224, height: 224 });
+  specs.set(path.join(ROOT, "public/pwa/boot-emblem.webp"), { width: BOOT_EMBLEM_PX, height: BOOT_EMBLEM_PX });
 
   for (const device of IOS_DEVICES) {
     for (const orientation of LANDSCAPE_TOO(device.name)
@@ -244,17 +249,31 @@ async function buildAssets() {
     await inkPlate({ width: 180, height: 180 }, Math.round(180 * 0.78)),
   );
 
-  // ── Emblem for the offline fallback page. ─────────────────────────────────
-  // Keeps its alpha: it is rendered on the page background, not on a plate.
+  // ── The startup screen's emblem. ──────────────────────────────────────────
   //
-  // The boot screen (components/pwa/PTECBootScreen.tsx) deliberately does NOT
-  // use this — putting an emblem on the launch critical path cost ~240 ms of
-  // FCP however it was delivered. See that file for the measurements.
+  // A LINKED FILE, and the path matters. Three deliveries were measured on a
+  // throttled Pixel 7 (slow-4G + 4x CPU, median of five cold loads):
+  //
+  //   <img fetchpriority="high">  → FCP 2.37 s — preempted the stylesheet
+  //   inlined as a 144px data URI → FCP 2.21 s — +21 KB gzipped on the document,
+  //                                 because the RSC flight payload serialises
+  //                                 the head a second time, so base64 costs
+  //                                 DOUBLE
+  //   plain <img>, no priority hint → FCP 1.98 s — the size shipped
+  //
+  // Default priority is the whole trick: an in-viewport image is fetched after
+  // the render-blocking CSS rather than against it, so the wordmark paints at
+  // the same moment it always did and the emblem lands a beat later. On every
+  // launch after the first it is already in the precache, so it is instant.
+  //
+  // It lives at /pwa/ rather than /pwa/splash/ ON PURPOSE: lib/sw-policy.ts
+  // drops the whole splash directory from the precache (iOS reads those before
+  // the worker exists), and this one file must stay precached.
   out.set(
-    path.join(SPLASH_DIR, "boot-emblem.webp"),
+    path.join(ROOT, "public/pwa/boot-emblem.webp"),
     await sharp(SOURCE_EMBLEM)
-      .resize(224, 224, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .webp({ quality: 82, effort: 6 })
+      .resize(BOOT_EMBLEM_PX, BOOT_EMBLEM_PX, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .webp({ quality: 72, effort: 6 })
       .toBuffer(),
   );
 

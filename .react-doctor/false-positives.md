@@ -96,3 +96,12 @@
   them entirely when an unmount lands before the promise resolves — which is the
   leak the rule is actually trying to prevent. Do not "fix" this by going back to
   removeEventListener.
+- `react-doctor/nextjs-no-img-element` (`components/pwa/PTECBootScreen.tsx` only) —
+  this one is not the generic deferral above, it is deliberate and measured. The
+  startup emblem must be a plain parser-discoverable `<img>` at DEFAULT fetch
+  priority. `next/image` needs JS to resolve a srcset (this element has to paint
+  before hydration) and raises the fetch priority, and a high-priority image
+  preempts the render-blocking stylesheet that gates FCP — measured at 2.37 s
+  against 2.02 s for the plain tag on a throttled Pixel 7. Inlining it as a data
+  URI is worse again (+21 KB gzipped, because React serialises the head into the
+  RSC flight payload as well). Do not migrate this to next/image.

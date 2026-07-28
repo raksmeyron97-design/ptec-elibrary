@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { defaultRobots } from "@/lib/seo/indexing";
 import { getSiteConfig } from "@/lib/system-settings/config";
-import { PWA_INK } from "@/lib/pwa/launch";
+import { PWA_THEME_COLOR } from "@/lib/pwa/launch";
 
 // Shared by every root layout (see components/layout/RootShell.tsx for why
 // there is more than one). Page-level generateMetadata still overrides these.
@@ -91,12 +91,11 @@ export async function identityMetadata(
 }
 
 export const rootViewport: Viewport = {
-  // Matches the manifest theme_color / background_color (lib/pwa/launch.ts) so
-  // the Android splash, the status bar and the app's first painted pixel are
-  // one colour. THEME_INIT_SCRIPT re-points this meta tag per theme once the
-  // stored preference is known; this is only the pre-script value, and it must
-  // be the launch colour rather than a lighter navy that reads as a flash.
-  themeColor: PWA_INK,
+  // Matches the manifest theme_color AND the value THEME_INIT_SCRIPT sets for
+  // the light theme, so the status bar never changes colour between the
+  // platform splash, the startup screen and the app. The splash BACKGROUND is a
+  // separate value (PWA_SPLASH) — see lib/pwa/launch.ts.
+  themeColor: PWA_THEME_COLOR,
   // Edge-to-edge on notched phones (esp. the installed PWA). Every fixed
   // surface must pad with env(safe-area-inset-*): navbar top, mobile drawer,
   // MobileBottomNav (already does).
