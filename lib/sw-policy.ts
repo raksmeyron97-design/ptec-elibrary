@@ -23,6 +23,44 @@
 // NetworkOnly. Never reintroduce a catch-all cache.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The offline shell (app/~offline/page.tsx).
+ *
+ * MUST be precached explicitly. Serwist's `fallbacks` option only *names* this
+ * URL as the document fallback — it does not add it to the precache — and
+ * @serwist/next does not either, because it lives under app/ rather than
+ * public/. Verified against a real install: the precache held the route's JS
+ * chunks (/_next/static/chunks/app/~offline/*) but not the page, so
+ * `caches.match("/~offline")` missed and every offline navigation to an
+ * uncached route died with the browser's own network error instead of the
+ * branded offline screen.
+ *
+ * It also has to bypass the locale rewrite in middleware.ts — it sits outside
+ * the [locale] segment — or the install fetch 404s and takes the whole service
+ * worker registration down with it.
+ */
+export const OFFLINE_FALLBACK_URL = "/~offline";
+
+/**
+ * A revision string for entries we add ourselves, derived from the injected
+ * build manifest.
+ *
+ * `revision: null` would mark the offline shell immutable and it would never
+ * update again; hashing the manifest means it changes exactly when the build
+ * does. FNV-1a, run once at worker startup over ~370 short strings.
+ */
+export function manifestRevision(entries: readonly (string | { url: string; revision?: string | null })[]): string {
+  let hash = 0x811c9dc5;
+  for (const entry of entries) {
+    const text = typeof entry === "string" ? entry : `${entry.url}${entry.revision ?? ""}`;
+    for (let i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+    }
+  }
+  return (hash >>> 0).toString(36);
+}
+
 /** Caches this worker owns. Anything else found at activate() is obsolete and
  *  gets deleted — that is how the ~240 MB is reclaimed from existing users. */
 export const CACHES = {
@@ -91,14 +129,41 @@ export function isObsoleteCache(name: string): boolean {
  *     therefore the worker are running, so the worker can never serve one.
  *     Precaching them is pure waste.
  *
+ *   • Files the page never requests. Measured from a real install: the
+ *     precache held ~1.5 MB of images no runtime code fetches. Open Graph
+ *     images are read by social crawlers off an absolute URL; the schema.org
+ *     logo is a JSON-LD string, not an <img>; ptec-library*.jpg are the SOURCE
+ *     images scripts/optimize-hero.mjs derives /hero/* from; logo_footer.png
+ *     and og-default.jpg have no references at all. None of them can reach the
+ *     worker, so precaching them only costs install bandwidth.
+ *
  * DELIBERATELY STILL PRECACHED: /pdf/pdf.worker.min.mjs (nothing renders
  * without it) and /pdf/standard_fonts/** (PDFs that embed no fonts render with
  * the wrong glyphs without these, and offline reading is a shipped feature —
- * 800 KB is the price of it working).
+ * 800 KB is the price of it working). Also /favicon/web-app-manifest-192x192.png,
+ * which app/sw.ts uses as the DEFAULT push notification icon and therefore has
+ * to be able to serve while offline — do not "tidy" it away with the 512.
  */
+const NEVER_PRECACHED = [
+  "/pdf/cmaps/",
+  "/pwa/splash/",
+] as const;
+
+/** Exact paths in public/ that no runtime request ever asks the worker for. */
+const UNREACHABLE_FROM_THE_PAGE = new Set([
+  "/og-default.png", // Open Graph — fetched by crawlers off an absolute URL
+  "/og-default.jpg", // no references at all
+  "/logo.png", // JSON-LD "logo"/"image" string in RootShell, never an <img>
+  "/logo_footer.png", // no references (the .webp is what the footer renders)
+  "/ptec-library.jpg", // hero SOURCE image for scripts/optimize-hero.mjs
+  "/ptec-library-opt.jpg", // ditto
+  "/favicon/web-app-manifest-512x512.png", // read by the OS at install, over HTTP
+  "/googlee89036a09f36e87d.html", // Search Console verification file
+]);
+
 export function shouldPrecache(url: string): boolean {
-  if (url.startsWith("/pdf/cmaps/")) return false;
-  if (url.startsWith("/pwa/splash/")) return false;
+  if (NEVER_PRECACHED.some((prefix) => url.startsWith(prefix))) return false;
+  if (UNREACHABLE_FROM_THE_PAGE.has(url)) return false;
   return true;
 }
 

@@ -59,6 +59,14 @@ import { PWA_INK } from "@/lib/pwa/launch";
 const BOOT_STYLES = `
 #ptec-boot{display:none}
 @supports selector(body:has(*)){
+/* NOTE — do not add an html background rule here to "fix" the white frame a
+   screencast shows at ~20ms. It was tried and measured: that frame is painted
+   at navigation commit, BEFORE the parser reaches this stylesheet, so no CSS
+   in the document can reach it. First paint then waits on the render-blocking
+   stylesheet, so there is never a frame where this rule would be the thing on
+   screen. In the installed PWA that pre-parse canvas comes from the manifest
+   background_color (ink, app/manifest.ts); in a browser tab it is hidden by
+   paint holding. */
 #ptec-boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;
 align-items:center;justify-content:center;gap:1.25rem;
 padding:calc(2rem + env(safe-area-inset-top)) 1.5rem calc(2rem + env(safe-area-inset-bottom));

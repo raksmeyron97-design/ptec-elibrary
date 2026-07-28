@@ -15,6 +15,8 @@ import {
   isCacheableResponse,
   isObsoleteCache,
   isPrivateRequest,
+  manifestRevision,
+  OFFLINE_FALLBACK_URL,
   shouldPrecache,
 } from "@/lib/sw-policy";
 
@@ -56,9 +58,17 @@ const tolerateStorageFailure = {
  *  install. Filtering here is the only hook that exists — @serwist/next globs
  *  all of public/ into the precache and offers no way to opt a file out. See
  *  shouldPrecache() for what is dropped and why. */
-const precacheEntries = (self.__SW_MANIFEST ?? []).filter((entry) =>
+const buildManifest = (self.__SW_MANIFEST ?? []).filter((entry) =>
   shouldPrecache(typeof entry === "string" ? entry : entry.url),
 );
+
+/** ...plus the offline shell, which nothing else adds. `fallbacks` below only
+ *  NAMES it; without this entry the fallback resolves to nothing and an
+ *  offline navigation shows the browser's network error. */
+const precacheEntries: (PrecacheEntry | string)[] = [
+  ...buildManifest,
+  { url: OFFLINE_FALLBACK_URL, revision: manifestRevision(buildManifest) },
+];
 
 const runtimeCaching: RuntimeCaching[] = [
   // ── 1. Book files (PDF/EPUB/…): READ from cache, NEVER write. ─────────────
@@ -128,8 +138,27 @@ const runtimeCaching: RuntimeCaching[] = [
       networkTimeoutSeconds: 3,
       plugins: [
         guard,
-        new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true }),
-        tolerateStorageFailure,
+        // 16, not 32. Only prerendered pages ever land here — every dynamic
+        // public route (/books, /theses, /publications, /posts) answers with
+        // `private, no-cache, no-store`, which `guard` refuses — and a measured
+        // page is 300-600 KB of HTML+RSC payload. At 32 entries against the
+        // 2 MB per-entry cap the ceiling was 64 MB, and ~14 MB realistically,
+        // on a derived cache holding content the network can always re-supply.
+        // 16 still covers a session's worth of static pages for offline.
+        new ExpirationPlugin({ maxEntries: 16, maxAgeSeconds: 24 * 60 * 60, purgeOnQuotaError: true }),
+        // NO `tolerateStorageFailure` HERE, and that is load-bearing. Serwist
+        // attaches its offline fallback plugin only to strategies that have no
+        // plugin defining handlerDidError:
+        //
+        //   if (handler instanceof Strategy &&
+        //       !handler.plugins.some((p) => "handlerDidError" in p))
+        //     handler.plugins.push(fallbackPlugin);
+        //
+        // `tolerateStorageFailure` is exactly such a plugin, so listing it here
+        // silently disabled `fallbacks` for navigations — verified offline:
+        // every uncached route died with the browser's network error instead of
+        // /~offline. The fallback plugin subsumes what it was doing anyway: any
+        // handler error now resolves to the offline shell rather than throwing.
       ],
     }),
   },
@@ -222,7 +251,7 @@ const serwist = new Serwist({
   fallbacks: {
     entries: [
       {
-        url: "/~offline",
+        url: OFFLINE_FALLBACK_URL,
         matcher({ request }) {
           return request.destination === "document";
         },

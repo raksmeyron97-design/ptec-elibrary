@@ -95,11 +95,13 @@ describe("PWA launch surface", () => {
     expect(ui).toContain("navigator.serviceWorker.controller"); // no prompt on first install
   });
 
-  it("keeps the iOS launch images out of the precache", () => {
+  it("keeps the iOS launch images out of the precache", async () => {
     // @serwist/next precaches all of public/, and iOS reads a startup image
     // before the worker is running, so precaching them is pure install weight.
-    const policy = read("lib/sw-policy.ts");
-    expect(policy).toContain('url.startsWith("/pwa/splash/")');
+    const { shouldPrecache } = await import("@/lib/sw-policy");
+    for (const { href } of iosLaunchLinks()) {
+      expect(shouldPrecache(href), href).toBe(false);
+    }
     expect(read("app/sw.ts")).toContain("shouldPrecache");
   });
 
