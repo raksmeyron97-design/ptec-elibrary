@@ -191,14 +191,17 @@ export default async function ExecutivePulse({
       <h2 id="pulse-heading" className="sr-only">
         {t("sectionLabel", { range: rangeLabel })}
       </h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {health ? (
-          <HealthCard pulse={health} />
-        ) : (
-          <div className="dash-card flex items-center justify-center p-4 text-[12px] text-text-muted">
-            {tHealth("unavailable")}
-          </div>
-        )}
+      {/* Status verdict first, full width — answered before the numbers. */}
+      {health ? (
+        <HealthCard pulse={health} />
+      ) : (
+        <div className="dash-card flex items-center gap-2 p-3.5 text-[12px] text-text-muted">
+          {tHealth("unavailable")}
+        </div>
+      )}
+
+      {/* The four engagement measures, as one cohesive group. */}
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {METRICS.map((m) => (
           <MetricCard
             key={m}
