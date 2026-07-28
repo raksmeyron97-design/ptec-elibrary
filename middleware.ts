@@ -263,8 +263,19 @@ export async function middleware(request: NextRequest) {
   // /pdf/* contains extensionless files (LICENSE, LICENSE_FOXIT, …) that the
   // dot check below misses; they're precached by the service worker, and a
   // locale rewrite turns them into 404s that fail the whole SW install.
+  //
+  // /~offline is in the same category. It is a real page, but it lives at
+  // app/~offline/ — OUTSIDE the [locale] segment, because the service worker
+  // serves it with no way to know the reader's locale. Sending it through the
+  // default-locale rewrite below asked the router for /en/~offline, which does
+  // not exist, so the PWA's document fallback answered 404: going offline got
+  // the browser's own error page instead of the branded offline screen.
   const lastSegment = pathname.slice(pathname.lastIndexOf("/") + 1);
-  if (lastSegment.includes(".") || pathname.startsWith("/pdf/")) {
+  if (
+    lastSegment.includes(".") ||
+    pathname.startsWith("/pdf/") ||
+    pathname === "/~offline"
+  ) {
     return applySecurity(NextResponse.next({ request: { headers: request.headers } }));
   }
 
