@@ -174,7 +174,10 @@ export default async function RootShell({
         {/* FIRST child of <body> on purpose — the parser must reach it before
             anything else. See components/pwa/PTECBootScreen.tsx for why this is
             markup + one CSS rule rather than a stateful component. */}
-        <PTECBootScreen />
+        <PTECBootScreen
+          libraryName={siteConfig.libraryName.en}
+          organizationName={siteConfig.name.en}
+        />
         <IntlProvider locale={locale} messages={messages}>
           <JsonLd data={buildSiteGraph(siteConfig)} />
           <Suspense fallback={null}>

@@ -74,9 +74,9 @@ describe("PWA launch surface", () => {
 
     // RootShell has to render both halves, in the right order.
     const shell = read("components/layout/RootShell.tsx");
-    expect(shell.indexOf("<PTECBootScreen />")).toBeGreaterThan(-1);
+    expect(shell.indexOf("<PTECBootScreen")).toBeGreaterThan(-1);
     expect(shell.indexOf("<PTECShellReadyMarker />")).toBeGreaterThan(
-      shell.indexOf("<PTECBootScreen />"),
+      shell.indexOf("<PTECBootScreen"),
     );
   });
 

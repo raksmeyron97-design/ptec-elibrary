@@ -104,13 +104,25 @@ export function PTECBootStyles() {
  * (RootShell has it), but showing both lines means the startup frame is
  * identical for every visitor and never waits on a message bundle. It also
  * matches how the library signs itself everywhere else.
+ *
+ * The two names are PROPS, not literals. They are the published organization
+ * identity (lib/system-settings), which RootShell has already resolved for the
+ * JSON-LD graph — hardcoding them here would make the startup screen a second
+ * source of truth that publishing a new library name never reaches.
+ * lib/settings-consistency.test.ts enforces that.
  */
-export default function PTECBootScreen() {
+export default function PTECBootScreen({
+  libraryName,
+  organizationName,
+}: {
+  libraryName: string;
+  organizationName: string;
+}) {
   return (
     <div id="ptec-boot" role="status" aria-live="polite">
       <div>
-        <p id="ptec-boot-name">PTEC Library</p>
-        <p id="ptec-boot-org">Phnom Penh Teacher Education College</p>
+        <p id="ptec-boot-name">{libraryName}</p>
+        <p id="ptec-boot-org">{organizationName}</p>
       </div>
       <div id="ptec-boot-rule" />
       <div id="ptec-boot-status">
