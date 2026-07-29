@@ -76,7 +76,7 @@ export default function TagInput({
     <div className="w-full relative">
       {label && <label className="mb-1.5 block text-sm font-semibold text-text-body">{label}</label>}
       <div
-        className={`flex flex-wrap gap-1.5 min-h-[44px] rounded-xl border border-divider bg-bg-surface p-2 transition focus-within:border-brand focus-within:ring-2 focus-within:ring-focus-ring/15 ${
+        className={`focus-shell flex flex-wrap gap-1.5 min-h-[44px] rounded-xl border border-divider bg-bg-surface p-2 hover:border-border-strong ${
           disabled ? "opacity-60 pointer-events-none" : ""
         }`}
         onClick={() => inputRef.current?.focus()}

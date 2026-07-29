@@ -311,7 +311,8 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
                 onKeyDown={(e) => handleKeyDown(e, index)}
                 onClick={() => setTab(id)}
                 className={`
-                  relative flex items-center gap-2.5 px-5 py-3 text-sm font-semibold transition-all outline-none border-b-2
+                  relative flex items-center gap-2.5 px-5 py-3 text-sm font-semibold transition-all border-b-2
+                  focus-visible:outline-2 focus-visible:outline-focus-ring focus-visible:outline-offset-[-4px]
                   ${
                     active
                       ? "border-indigo-500 text-indigo-600 bg-white"
@@ -370,7 +371,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
                       {(user.full_name || user.email).charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                     <Camera className="w-5 h-5 text-white" />
                   </div>
                 </div>

@@ -97,7 +97,7 @@ export default function AddUserDialog({
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="name@example.com"
-              className="h-11 w-full rounded-xl border border-divider bg-bg-surface px-3.5 text-sm text-text-body outline-none focus:border-brand"
+              className="focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-3.5 text-sm text-text-body"
             />
           </label>
         ) : (
@@ -109,7 +109,7 @@ export default function AddUserDialog({
               required
               rows={5}
               placeholder={t("bulkPlaceholder")}
-              className="w-full rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 text-sm text-text-body outline-none focus:border-brand"
+              className="focus-field w-full rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 text-sm text-text-body"
             />
             <span className="mt-1 block text-[11px] text-text-muted">{t("bulkHint")}</span>
           </label>
@@ -120,7 +120,7 @@ export default function AddUserDialog({
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as AppRole)}
-            className="h-11 w-full rounded-xl border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none focus:border-brand"
+            className="focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-3 text-sm text-text-body"
           >
             {ALL_ROLES.map((r) => {
               const disabled = (r === "admin" || r === "super_admin") && !canAssignAdmin;

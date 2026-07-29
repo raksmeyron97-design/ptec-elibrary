@@ -131,7 +131,7 @@ export default function FilesStep({
                       onChange={(e) => onSupplementaryDescriptionChange(i, e.target.value)}
                       disabled={disabled}
                       placeholder={t("optionalDescription")}
-                      className="mt-1 h-7 w-full rounded border border-divider bg-transparent px-2 text-xs outline-none focus:border-brand"
+                      className="focus-field mt-1 h-7 w-full rounded border border-divider bg-transparent px-2 text-xs"
                     />
                   </div>
                   <button type="button" onClick={() => onRemoveNewSupplementary(i)} disabled={disabled} aria-label={t("remove", { name: item.file.name })} className="text-text-muted hover:text-red-500 disabled:opacity-40">

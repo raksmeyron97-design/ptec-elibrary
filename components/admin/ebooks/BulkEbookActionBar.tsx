@@ -85,7 +85,7 @@ export default function BulkEbookActionBar({
                 id="bulk-dept-value"
                 value={deptValue}
                 onChange={(e) => setDeptValue(e.target.value)}
-                className="h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body outline-none focus:border-brand"
+                className="focus-field h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body"
               >
                 <option value="">{t("choose")}</option>
                 {departments.map((d) => (
@@ -124,7 +124,7 @@ export default function BulkEbookActionBar({
                 value={tagValue}
                 onChange={(e) => setTagValue(e.target.value)}
                 placeholder={t("tagPlaceholder")}
-                className="h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body outline-none focus:border-brand"
+                className="focus-field h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body"
               />
               <button
                 type="button"

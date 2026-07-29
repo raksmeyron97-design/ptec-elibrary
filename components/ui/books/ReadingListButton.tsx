@@ -139,7 +139,7 @@ export default function ReadingListButton({ bookId, isLoggedIn, initialListIds =
                   onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setCreating(false); }}
                   placeholder="List name…"
                   maxLength={80}
-                  className="flex-1 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] text-text-body focus:border-brand focus:outline-none"
+                  className="focus-field flex-1 rounded-lg border border-divider bg-paper px-2.5 py-1.5 text-[12.5px] text-text-body"
                 />
                 <button
                   type="button"

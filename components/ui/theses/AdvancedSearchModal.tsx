@@ -24,10 +24,9 @@ interface Props {
   keywords: FacetOption[];
 }
 
-const fieldFocusClass =
-  "focus:outline-none focus:ring-2 focus:ring-focus-ring/30 focus:border-brand";
-
-const selectClass = `h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors appearance-none cursor-pointer ${fieldFocusClass}`;
+// Shared single-control focus state — see `focus-field` in app/globals.css.
+const fieldClass = "focus-field h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body";
+const selectClass = `${fieldClass} appearance-none cursor-pointer`;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -177,7 +176,7 @@ export default function AdvancedSearchModal({
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search title, author, advisor..."
-                  className={`h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors ${fieldFocusClass}`}
+                  className={fieldClass}
                 />
               </Field>
 

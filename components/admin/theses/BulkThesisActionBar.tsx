@@ -84,7 +84,7 @@ export default function BulkThesisActionBar({
                 value={cohortValue}
                 onChange={(e) => setCohortValue(e.target.value)}
                 placeholder="e.g. 4"
-                className="h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body outline-none focus:border-brand"
+                className="focus-field h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body"
               />
               <button
                 type="button"
@@ -118,7 +118,7 @@ export default function BulkThesisActionBar({
                 value={yearValue}
                 onChange={(e) => setYearValue(e.target.value)}
                 placeholder="e.g. 2023-2024"
-                className="h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body outline-none focus:border-brand"
+                className="focus-field h-9 w-full rounded-lg border border-divider bg-bg-surface px-2.5 text-sm text-text-body"
               />
               <button
                 type="button"

@@ -24,15 +24,34 @@
 
 /**
  * The only inline script this app authors. Runs before paint to apply the
- * stored theme (FOUC prevention). Rendered verbatim via dangerouslySetInnerHTML
- * from app/layout.tsx — its sha256 is allowlisted in the nonce policy, so
+ * stored theme (FOUC prevention) and to start tracking input modality for the
+ * focus system. Rendered verbatim via dangerouslySetInnerHTML from
+ * app/layout.tsx — its sha256 is allowlisted in the nonce policy, so
  * EDITING THIS STRING CHANGES THE HASH AUTOMATICALLY (it is hashed at runtime,
  * never hardcoded). Keep it dependency-free and synchronous.
+ *
+ * Why modality lives here: `:focus-visible` alone cannot separate a click from
+ * a Tab on a TEXT FIELD — the spec has browsers always match it there, because
+ * a clicked field still takes keyboard input. So a mouse click and a Tab press
+ * rendered the identical focus treatment. `data-focus-modality` lets the soft
+ * halo be reserved for keyboard focus while a click gets only the border shift
+ * (see the focus system in app/globals.css). It fails SAFE: with the attribute
+ * absent — JS off, or before the first interaction — the halo is shown.
  */
 export const THEME_INIT_SCRIPT = `
 (() => {
   try {
     const root = document.documentElement;
+
+    const setModality = (m) => root.setAttribute("data-focus-modality", m);
+    addEventListener("pointerdown", () => setModality("pointer"), true);
+    addEventListener("keydown", (e) => {
+      // Only navigation/activation keys imply keyboard traversal. Typing into
+      // an already-clicked field must not promote it to the keyboard state.
+      if (e.key === "Tab" || e.key === "Escape" || e.key.startsWith("Arrow")) {
+        setModality("keyboard");
+      }
+    }, true);
     const path = window.location.pathname;
     const isAdmin = path === "/admin" || path.startsWith("/admin/");
     const storedTheme = localStorage.getItem("ptec.theme");

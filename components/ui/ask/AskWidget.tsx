@@ -544,7 +544,10 @@ export default function AskWidget() {
                     {t("slowDown")}
                   </p>
                 )}
-                <div className={`flex items-center gap-2 rounded-xl border px-3 pr-1.5 py-1 transition-all duration-200 focus-within:border-gold-400/50 focus-within:bg-white/[0.06] focus-within:ring-2 focus-within:ring-gold-400/15 ${inputDisabled ? "border-white/5 bg-white/[0.02]" : "border-white/10 bg-white/[0.04]"}`}>
+                {/* Inverted surface: the shell keeps the shared keyboard-only
+                    behaviour but re-points the focus tokens at gold, because the
+                    brand blue has no contrast against this navy panel. */}
+                <div className={`focus-shell [--focus-border-color:var(--color-gold-400)] [--focus-border-color-soft:rgba(255,255,255,0.28)] [--focus-ring-color:rgba(228,187,48,0.22)] flex items-center gap-2 rounded-xl border px-3 pr-1.5 py-1 ${inputDisabled ? "border-white/5 bg-white/[0.02]" : "border-white/10 bg-white/[0.04]"}`}>
                   <input
                     ref={inputRef}
                     type="text"

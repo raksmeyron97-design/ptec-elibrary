@@ -186,17 +186,21 @@ export default function SearchBar({
             }}
             onFocus={() => setOpen(true)}
             onKeyDown={handleKeyDown}
+            // `focus-field` (app/globals.css) owns the whole focus response:
+            // a quiet border shift on click, brand border + one soft halo on
+            // Tab. It replaces `outline-none` + `focus:ring-2` here, which
+            // stacked a mouse-triggered ring under the global outline this
+            // input's `outline-none` was never able to suppress.
             className="
               peer h-13 w-full rounded-2xl
-              border border-divider
+              focus-field border border-divider
               bg-bg-surface
               py-3 pl-4 pr-12
               sm:pl-12 sm:pr-10
               text-[16px] text-text-heading placeholder:text-text-muted caret-brand
               sm:text-sm
-              outline-none shadow-sm
-              transition-all duration-200
-              focus:border-brand focus:shadow-md focus:ring-2 focus:ring-focus-ring/30
+              shadow-sm
+              hover:border-border-strong
               [&::-webkit-search-cancel-button]:hidden
               [&::-webkit-search-decoration]:hidden
               [&::-webkit-search-results-button]:hidden

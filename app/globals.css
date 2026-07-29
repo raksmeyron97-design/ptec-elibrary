@@ -24,6 +24,11 @@
   --ptec-accent-line: #DDB022;
   --ptec-focus-ring: #3A5FC4;
   --ptec-divider: #E5E7EB;
+  /* Halo tint is pre-flattened against the light app background rather than
+     expressed as an alpha: a translucent box-shadow over a book cover or a
+     tinted hero picks up whatever is underneath and stops reading as one
+     consistent indicator. See the focus-token block below. */
+  --ptec-focus-halo: rgba(58, 95, 196, .16);
   --ptec-reader-control-border: #8A94A5;
   --ptec-success: #15803D;
   --ptec-warning: #806211;
@@ -116,6 +121,7 @@
   --ptec-accent-line: #F4DE8A;
   --ptec-focus-ring: #8AA4E4;
   --ptec-divider: #2B3347;
+  --ptec-focus-halo: rgba(138, 164, 228, .22);
   --ptec-reader-control-border: #64748B;
   --ptec-success: #5EE9B5;
   --ptec-warning: #F4DE8A;
@@ -232,27 +238,216 @@ html:lang("en") body {
   font-family: var(--font-var-sans), "Inter", "Noto Sans Khmer", "Kantumruy Pro", system-ui, sans-serif;
 }
 
-/* ── Keyboard focus visibility (WCAG 2.4.7) ─────────────────────────
-   Zero-specificity fallback: any interactive element gets a visible
-   focus ring unless a component supplies its own (a `focus-visible:*`
-   utility or an `outline-none` class both out-rank :where()). */
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--ptec-focus-ring);
-  outline-offset: 2px;
-  border-radius: 2px;
+/* ══ FOCUS SYSTEM ═══════════════════════════════════════════════════
+   One indicator per component, keyboard-weighted, brand-coloured.
+
+   Every value below is a token so no component ever hard-codes a focus
+   width, colour or duration. `--focus-color` resolves to the existing
+   PTEC ring token (blue-500 light / blue-300 dark) — deliberately not a
+   new blue. Pinned by lib/focus-system.test.ts. */
+:root {
+  --focus-color: var(--ptec-focus-ring);
+  --focus-ring-color: var(--ptec-focus-halo);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-border-color: var(--ptec-focus-ring);
+  /* Mouse/pointer state on grouped fields: a border tint only, never a halo. */
+  --focus-border-color-soft: var(--ptec-border-strong);
+  --focus-transition-duration: 150ms;
+  /* The soft halo grouped fields paint outside their own 1px border. Uses
+     box-shadow (not outline) so it inherits the shell's border-radius. */
+  --focus-ring-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
 }
 
-/* ── Search "shells" ────────────────────────────────────────────────
-   A `focus-within` container (e.g. components/admin/users/UserToolbar)
-   owns the visible focus indicator, so its inner input must NOT also
-   paint the fallback outline above — that produced a blue rectangle
-   hugging the input, offset inside the rounded shell (a double border).
-   Both rules are unlayered, so this wins on real specificity (0,2,1 >
-   the :where() fallback's 0,1,0) with no !important — the container's
-   border + ring remain the accessible, forced-colors-safe indicator. */
-.focus-shell input:focus,
-.focus-shell input:focus-visible {
+/* ── Keyboard focus visibility (WCAG 2.4.7 / 2.4.11) ────────────────
+   Zero-specificity fallback: any interactive element gets a visible
+   focus ring unless a component supplies its own.
+
+   This lives in `@layer base` ON PURPOSE. It used to be unlayered, and
+   an unlayered normal declaration beats *everything* in Tailwind v4's
+   `@layer utilities` — so `focus-visible:outline-none` and `outline-none`
+   were silently inert app-wide, and every component that painted its own
+   `focus-visible:ring-2` ALSO got this 2px outline at 2px offset. That is
+   where the double blue border came from: two indicators on one control,
+   and on grouped fields (search shells) one on the wrapper and one hugging
+   the inner input. Inside `@layer base` the utilities layer wins, which is
+   the documented Tailwind contract and what every call site already assumed.
+
+   Consequence to respect: `outline-none` now genuinely removes this. Any
+   element carrying it must supply its own indicator or be a non-visible
+   focus target (a dialog panel, a skip-link landmark). */
+@layer base {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* Tailwind's `ring-offset-*` gap defaults to opaque #fff, which punches a
+     white notch through every dark-mode focus ring. Point the default at the
+     app background instead; `ring-offset-<color>` utilities still win. */
+  * {
+    --tw-ring-offset-color: var(--color-bg-app);
+  }
+}
+
+/* ── Grouped fields: `.focus-shell` ─────────────────────────────────
+   For a control made of several elements inside one visual boundary — a
+   search shell, a tag input, a segmented field. The WRAPPER owns the
+   whole focus response; nothing inside it paints its own.
+
+   `:has(… :focus-visible)` rather than `focus-within` so a mouse click
+   gets only a quiet border shift while Tab gets the full brand border +
+   halo. Nested buttons (clear, submit) are excluded from the trigger and
+   keep their own compact ring — that stays exactly one indicator either
+   way.
+
+   ── Layering, which is load-bearing here ──
+   The focus STATE rules are unlayered. They have to be: a shell already
+   carries `border-divider` and `shadow-sm`, and those are utilities. In
+   Tailwind v4 `@layer utilities` outranks every earlier layer, so the same
+   rules written inside `@layer components` computed to the resting border
+   and the resting shadow — the shell looked identical focused and unfocused
+   (verified in the browser before this was moved out). Unlayered normal
+   declarations beat all layers, so the shell reliably owns its focus state.
+
+   The cosmetic TRANSITION and the token modifiers stay in `@layer
+   components` on purpose: a call site may legitimately want its own
+   `transition-*` or its own `--focus-ring-shadow`, and utilities should win
+   there. Token overrides like `[--focus-border-color:…]` are unaffected by
+   any of this — a custom property declared on the element always beats the
+   one inherited from `:root`, whatever layer each sits in. */
+@layer components {
+  .focus-shell,
+  .focus-field {
+    transition:
+      border-color var(--focus-transition-duration) ease,
+      box-shadow var(--focus-transition-duration) ease;
+  }
+
+  /* ── Halo shape modifiers ─────────────────────────────────────────
+     Both retarget `--focus-ring-shadow` only, so they compose with either
+     `.focus-shell` or `.focus-field`. They exist for one reason: an outset
+     halo is clipped by an ancestor `overflow-hidden`, which reads as a
+     broken rectangle rather than a focus ring. */
+
+  /* Flush inside a clipped panel (command palette, dialog header): a crisp
+     2px brand underline drawn inside the clip. */
+  .focus-underline {
+    --focus-ring-shadow: inset 0 -2px 0 0 var(--focus-border-color);
+  }
+
+  /* Already inside a decorative outer frame (a gradient ring, a card tile):
+     the indicator sits just inside the element's own edge, never on top of
+     that frame. */
+  .focus-inset {
+    --focus-ring-shadow: inset 0 0 0 var(--focus-ring-width) var(--focus-border-color);
+  }
+}
+
+/* Pointer focus: a quiet border shift, no halo. */
+.focus-shell:has(:is(input, textarea, select, [contenteditable]):focus) {
+  border-color: var(--focus-border-color-soft);
+}
+
+/* Keyboard focus: brand border + one soft halo.
+
+   The halo is gated on `data-focus-modality` (set by THEME_INIT_SCRIPT in
+   lib/csp.ts) because `:focus-visible` cannot tell a click from a Tab on a
+   text field — the spec has browsers always match it there. Without the gate a
+   mouse click painted the exact same indicator as keyboard traversal. The
+   selector is `:not([… = "pointer"])`, so the halo is the DEFAULT: absent
+   attribute (JS off, or before the first interaction) still shows it. */
+.focus-shell:has(:is(input, textarea, select, [contenteditable]):focus-visible) {
+  border-color: var(--focus-border-color);
+}
+
+:root:not([data-focus-modality="pointer"])
+  .focus-shell:has(:is(input, textarea, select, [contenteditable]):focus-visible) {
+  box-shadow: var(--focus-ring-shadow);
+}
+
+/* The inner control stays semantically focusable and keeps its caret;
+   it simply never draws a second boundary inside the first. */
+.focus-shell :is(input, textarea, select, [contenteditable]):focus,
+.focus-shell :is(input, textarea, select, [contenteditable]):focus-visible {
   outline: none;
+}
+
+/* Standalone fields: `.focus-field` is the single-control counterpart to
+   `.focus-shell` — same two states, applied to the control itself. */
+.focus-field:focus {
+  outline: none;
+  border-color: var(--focus-border-color-soft);
+}
+
+.focus-field:focus-visible {
+  outline: none;
+  border-color: var(--focus-border-color);
+}
+
+:root:not([data-focus-modality="pointer"]) .focus-field:focus-visible {
+  box-shadow: var(--focus-ring-shadow);
+}
+
+/* ── Pointer focus on legacy `focus:ring-*` fields ──────────────────
+   ~150 form fields across the admin panel and public forms predate this
+   system and paint their ring on plain `:focus`, which fires on click as
+   well as Tab. `:focus-visible` cannot separate the two on a text field —
+   the spec has browsers always match it there — so those fields threw a
+   full ring at every mouse click.
+
+   One rule instead of ~150 edits: under pointer modality, neutralise the
+   Tailwind ring variables on form controls. Their `focus:border-*` change
+   survives, which is the intended click affordance; the ring returns intact
+   the moment the user reaches for Tab. Nothing here touches buttons — a
+   button already does not match `:focus-visible` on click. */
+:root[data-focus-modality="pointer"] :is(input, textarea, select):focus {
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+/* Error + keyboard focus must both stay legible: the field keeps its red
+   border and gains a matching halo, so red and blue never compete for the
+   same 1px. */
+.focus-field[aria-invalid="true"]:focus-visible,
+.focus-shell:has([aria-invalid="true"]:focus-visible) {
+  border-color: var(--ptec-danger);
+  box-shadow: 0 0 0 var(--focus-ring-width) color-mix(in srgb, var(--ptec-danger) 18%, transparent);
+}
+
+/* ── Reduced motion: focus must appear instantly ────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .focus-shell,
+  .focus-field {
+    transition: none;
+  }
+}
+
+/* ── Windows High Contrast / forced colours ─────────────────────────
+   Halos are box-shadows, and forced-colors mode drops box-shadow — a
+   grouped field would lose its only indicator. Restore a real system
+   outline there and suppress the (now invisible) halo so the two can
+   never both render. */
+@media (forced-colors: active) {
+  :root {
+    --focus-ring-shadow: none;
+  }
+
+  .focus-shell:has(:is(input, textarea, select, [contenteditable]):focus-visible),
+  .focus-field:focus-visible {
+    outline: var(--focus-ring-width) solid CanvasText;
+    outline-offset: 1px;
+    box-shadow: none;
+  }
+
+  .focus-shell :is(input, textarea, select, [contenteditable]):focus-visible {
+    outline: none;
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: var(--focus-ring-width) solid CanvasText;
+    outline-offset: var(--focus-ring-offset);
+  }
 }
 
 .khmer {

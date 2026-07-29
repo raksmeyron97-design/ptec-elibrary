@@ -75,7 +75,10 @@ export default function PostsSearch({
   return (
     <form role="search" onSubmit={onSubmit} className="w-full">
       <label htmlFor={inputId} className="sr-only">{label}</label>
-      <div className="flex items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 shadow-sm transition-shadow focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-focus-ring/20">
+      {/* `focus-shell` (app/globals.css) owns the whole focus response: a quiet
+          border shift on click, brand border + soft halo on Tab, and no second
+          indicator on the input inside it. */}
+      <div className="focus-shell flex items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3.5 py-2.5 shadow-sm hover:border-border-strong">
         <SearchIcon className="shrink-0 text-text-muted" />
         <input
           id={inputId}

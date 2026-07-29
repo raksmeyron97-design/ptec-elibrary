@@ -50,7 +50,7 @@ function ListCard({ list, onDelete, onUpdate }: {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
             maxLength={80}
-            className="w-full rounded-lg border border-divider bg-paper px-3 py-2 text-[13.5px] font-semibold text-text-body focus:border-brand focus:outline-none"
+            className="focus-field w-full rounded-lg border border-divider bg-paper px-3 py-2 text-[13.5px] font-semibold text-text-body"
           />
           <label className="flex items-center gap-2 text-[12.5px] text-text-muted cursor-pointer">
             <input type="checkbox" checked={pub} onChange={(e) => setPub(e.target.checked)} className="accent-brand" />
@@ -78,7 +78,7 @@ function ListCard({ list, onDelete, onUpdate }: {
                 <p className="mt-0.5 text-[12px] text-text-muted line-clamp-2">{list.description}</p>
               )}
             </Link>
-            <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
               <button onClick={() => setEditing(true)}
                 className="rounded-lg p-1.5 text-text-muted hover:bg-paper hover:text-brand transition-colors">
                 <Pencil className="h-3.5 w-3.5" />

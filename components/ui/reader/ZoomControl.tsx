@@ -103,7 +103,7 @@ const ZoomControl = memo(function ZoomControl({
     fitMode === "width" ? t("fitWidth") : fitMode === "page" ? t("fitPage") : t("customZoom");
 
   const row =
-    "flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-xs text-slate-200 transition hover:bg-white/10 focus-visible:outline-none focus-visible:bg-white/10";
+    "flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-xs text-slate-200 transition hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring";
 
   return (
     <div className="relative flex items-center gap-0.5 rounded-md bg-bg-surface/10 px-1 py-1">

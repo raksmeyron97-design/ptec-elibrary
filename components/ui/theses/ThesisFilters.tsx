@@ -40,7 +40,7 @@ export default function ThesisFilters({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {/* Department */}
-      <div className="relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-colors focus-within:border-brand/50">
+      <div className="focus-shell relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm hover:border-border-strong">
         <span className="shrink-0 pl-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
           Dept
         </span>
@@ -61,7 +61,7 @@ export default function ThesisFilters({
       </div>
 
       {/* Cohort */}
-      <div className="relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-colors focus-within:border-brand/50">
+      <div className="focus-shell relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm hover:border-border-strong">
         <span className="shrink-0 pl-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
           Cohort
         </span>
@@ -82,7 +82,7 @@ export default function ThesisFilters({
       </div>
 
       {/* Year */}
-      <div className="relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm transition-colors focus-within:border-brand/50">
+      <div className="focus-shell relative flex items-center overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm hover:border-border-strong">
         <span className="shrink-0 pl-3 text-[11px] font-bold uppercase tracking-wider text-text-muted">
           Year
         </span>

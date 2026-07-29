@@ -443,7 +443,7 @@ function SectionRow({
                   value={moveTarget}
                   onChange={(e) => setMoveTarget(e.target.value)}
                   disabled={isPending}
-                  className="h-9 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none focus:border-brand"
+                  className="focus-field h-9 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body"
                   aria-label="Move members to another section"
                 >
                   <option value="">Move members to…</option>

@@ -48,11 +48,11 @@ type Draft = {
   rating: string;
 };
 
-const fieldFocusClass =
-  "focus:outline-none focus:ring-2 focus:ring-focus-ring/30 focus:border-brand";
-
-const inputClass = `h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors ${fieldFocusClass}`;
-const selectClass = `h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors appearance-none cursor-pointer ${fieldFocusClass}`;
+// `focus-field` (app/globals.css) is the shared single-control focus state:
+// a quiet border shift on click, brand border + soft halo on Tab. It replaces
+// the per-file focus utilities so these fields cannot drift from the tokens.
+const inputClass = "focus-field h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body";
+const selectClass = `${inputClass} appearance-none cursor-pointer`;
 const EMPTY_DRAFT: Draft = {
   q: "",
   author: "",

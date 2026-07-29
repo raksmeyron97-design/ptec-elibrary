@@ -330,7 +330,7 @@ const ManuscriptEditor = forwardRef<ManuscriptEditorHandle, ManuscriptEditorProp
 
     return (
       <div
-        className={`relative rounded-lg border bg-bg-surface transition-colors focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand/15 ${
+        className={`focus-shell relative rounded-lg border bg-bg-surface ${
           invalid ? "border-danger" : "border-divider"
         }`}
       >

@@ -129,7 +129,9 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
         <div className="relative rounded-2xl bg-gradient-to-r from-gold-400 via-blue-400/40 to-cyan-300 p-[2px]">
 
           {/* Inner bar */}
-          <div className="relative flex items-center gap-2 rounded-[14px] bg-[#121C3A] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+          {/* Inset variant + cyan tokens: the hero's own gradient ring already
+              occupies the outer edge, and brand blue is invisible on this navy. */}
+          <div className="focus-shell focus-inset [--focus-border-color:var(--color-cyan-300,#67E8F9)] relative flex items-center gap-2 rounded-[14px] bg-[#121C3A] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
 
             {/* Search icon */}
             <span className="relative z-10 shrink-0 text-cyan-300">

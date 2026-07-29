@@ -340,7 +340,7 @@ export default function PublicationsClient({
             defaultValue={filters.q}
             onBlur={(e) => e.target.value !== filters.q && updateFilter({ q: e.target.value })}
             onKeyDown={(e) => e.key === "Enter" && updateFilter({ q: e.currentTarget.value })}
-            className="h-9 w-full rounded-lg border border-divider bg-transparent pl-9 pr-10 text-sm text-text-body outline-none transition focus:border-brand"
+            className="focus-field h-9 w-full rounded-lg border border-divider bg-transparent pl-9 pr-10 text-sm text-text-body"
           />
           <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-divider bg-paper px-1.5 py-0.5 text-[10px] font-medium text-text-muted sm:block">
             /
@@ -373,7 +373,7 @@ export default function PublicationsClient({
           value={filters.type}
           onChange={(e) => updateFilter({ type: e.target.value })}
           aria-label="Filter by article type"
-          className="h-9 cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-xs font-medium text-text-body outline-none transition focus:border-brand"
+          className="focus-field h-9 cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-xs font-medium text-text-body"
         >
           <option value="">All types</option>
           {Object.entries(TYPE_LABELS).map(([value, label]) => (

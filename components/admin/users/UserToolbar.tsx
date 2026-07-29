@@ -50,9 +50,10 @@ export default function UserToolbar({
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
       {/* Unified search shell: the container (not the inner input) owns the
           border / background / shadow and the entire focus + hover response.
-          `focus-shell` (app/globals.css) suppresses the input's own fallback
-          outline so focus reads as one component, never a double border. */}
-      <div className="focus-shell group flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-2.5 shadow-sm transition-[color,background-color,border-color,box-shadow] duration-150 hover:border-text-muted/40 focus-within:border-brand focus-within:shadow-md focus-within:ring-2 focus-within:ring-focus-ring/25 motion-reduce:transition-none">
+          `focus-shell` (app/globals.css) supplies the focus states and
+          suppresses the input's own indicator, so focus reads as one
+          component and never as a double border. */}
+      <div className="focus-shell group flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-2.5 shadow-sm hover:border-border-strong">
         <Search
           className="h-4 w-4 shrink-0 text-text-muted transition-colors duration-150 group-focus-within:text-brand motion-reduce:transition-none"
           aria-hidden="true"

@@ -26,7 +26,7 @@ export default function EbookToolbar({ totalItems }: { totalItems: number }) {
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="flex flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm">
+      <div className="focus-shell flex flex-1 items-center gap-3 rounded-xl border border-divider bg-bg-surface px-4 py-3 shadow-sm hover:border-border-strong">
         <Search className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
         <label htmlFor="ebook-search" className="sr-only">
           {t("searchLabel")}

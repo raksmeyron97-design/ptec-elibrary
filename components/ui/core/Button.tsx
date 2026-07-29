@@ -5,9 +5,13 @@ type ButtonSize = 'sm' | 'md' | 'lg';
 
 // Single source of truth for button styling. Links that must look like
 // buttons should use buttonClasses() so the two can never drift apart.
+// Focus is deliberately NOT declared here. The base-layer rule in
+// app/globals.css already paints the shared 2px `--focus-color` outline at
+// `--focus-ring-offset`, and an outline follows the button's own radius and
+// survives forced-colors mode — which a `ring` does not. Re-adding a ring here
+// would put two indicators on one button, which is what this file used to do.
 const baseStyles =
   'inline-flex items-center justify-center gap-2 font-semibold cursor-pointer transition-all duration-150 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 ' +
   'disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]';
 
 const variants: Record<ButtonVariant, string> = {

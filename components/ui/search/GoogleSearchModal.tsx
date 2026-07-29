@@ -292,7 +292,7 @@ export default function SearchModal({ defaultOpen = false }: { defaultOpen?: boo
           />
 
           {/* ── Search input row ──────────────────────────────────────── */}
-          <form onSubmit={handleSubmit} className="relative flex items-center px-4 pt-3.5 pb-3">
+          <form onSubmit={handleSubmit} className="focus-shell focus-underline relative flex items-center px-4 pt-3.5 pb-3">
             {/* Search icon or spinner */}
             <div className="absolute left-[28px] flex items-center pointer-events-none">
               {suggestLoading ? (

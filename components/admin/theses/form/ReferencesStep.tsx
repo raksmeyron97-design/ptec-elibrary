@@ -72,7 +72,7 @@ export default function ReferencesStep({
       <div className="space-y-2">
         {references.map((ref, i) => (
           <div key={i} className="flex items-start gap-2 group">
-            <div className="mt-1.5 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="mt-1.5 flex flex-col opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none">
               <button type="button" disabled={disabled || i === 0} onClick={() => moveRef(i, -1)} aria-label={t("moveUp")} className="text-text-muted/50 hover:text-brand disabled:opacity-20">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
@@ -110,7 +110,7 @@ export default function ReferencesStep({
             disabled={disabled}
             rows={4}
             placeholder={t("pastePlaceholder")}
-            className="w-full resize-none rounded border border-divider p-2 text-sm outline-none bg-transparent"
+            className="focus-field w-full resize-none rounded border border-divider p-2 text-sm bg-transparent"
           />
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => { setPasteBlob(""); setShowPasteArea(false); }} className="text-xs px-3 py-1.5 text-text-muted hover:bg-divider rounded transition">
