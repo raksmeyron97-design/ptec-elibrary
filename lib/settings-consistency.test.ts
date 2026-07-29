@@ -84,22 +84,24 @@ describe("no second source of truth for the organization name", () => {
     // Allowed, and why:
     //  • lib/ptec.ts + defaults.ts  — the seed / emergency fallback itself
     //  • *.test.ts                  — fixtures asserting concrete output
-    //  • about pages + library-info — long-form EDITORIAL prose (history,
-    //    mission, departmental structure). These are page content, not
-    //    configuration; they are authored per page and are outside the
-    //    settings schema. They are listed explicitly so the list stays a
-    //    conscious decision rather than a silent hole.
+    //  • editorial prose            — long-form page content (history,
+    //    mission, departmental structure) that NAMES the institution as part
+    //    of a sentence. This is content, not configuration: it is authored
+    //    editorially and sits outside the settings schema. Listed explicitly
+    //    so the list stays a conscious decision rather than a silent hole.
+    //
+    // The five redesigned About pages are deliberately NOT here any more.
+    // Their prose moved into lib/about/content.ts (one typed source for the
+    // whole About section), so the page files no longer name the institution
+    // at all — and if one starts to again, that should trip this test and be
+    // re-argued, not pass silently on a stale entry.
     const allowed = [
       "lib/ptec.ts",
       "lib/system-settings/defaults.ts",
       "lib/library-info.ts",
-      "app/[locale]/(public)/about/collection/page.tsx",
+      "lib/about/content.ts",
       "app/[locale]/(public)/about/committee/page.tsx",
-      "app/[locale]/(public)/about/our-journey/page.tsx",
       "app/[locale]/(public)/about/page.tsx",
-      "app/[locale]/(public)/about/rules/page.tsx",
-      "app/[locale]/(public)/about/team/page.tsx",
-      "app/[locale]/(public)/about/timings/page.tsx",
       SELF,
     ];
     const offenders = grepSource(PTEC.name.en).filter(

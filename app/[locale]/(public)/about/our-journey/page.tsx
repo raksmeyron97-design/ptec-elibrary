@@ -1,6 +1,45 @@
 import type { Metadata } from "next";
-import { SITE_URL } from "@/lib/seo/site";
+import Image from "next/image";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  Archive,
+  BookMarked,
+  BookOpenCheck,
+  Globe2,
+  Newspaper,
+  ScanLine,
+  Sparkles,
+  Target,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity } from "@/lib/system-settings/config";
+import { toAboutLocale, formatDate, formatNumber, localized } from "@/lib/about/format";
+import {
+  ABOUT_CONTENT_REVIEWED_AT,
+  DEPARTMENT_CONTEXT,
+  FOUNDING_STORY,
+  FOUNDING_YEAR,
+  FUTURE_GOAL,
+  JOURNEY_ACHIEVEMENTS,
+  JOURNEY_MILESTONES,
+  ROADMAP_ITEMS,
+} from "@/lib/about/content";
+import AboutPageShell from "@/components/about/AboutPageShell";
+import JourneyTimeline from "@/components/about/JourneyTimeline";
+import {
+  AboutSection,
+  ContentLastUpdated,
+  EmptyContentState,
+  InformationCard,
+  NoticePanel,
+} from "@/components/about/primitives";
+
+// Institutional history changes rarely; the copy is compiled in. ISR keeps the
+// page on the CDN while still picking up a settings change (org identity) on
+// the next revalidation.
+export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
@@ -8,233 +47,272 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "about.journey" });
+  const org = await getOrgIdentity();
   const alternates = localeAlternates("/about/our-journey", locale);
+  // The document <title> gets the brand from the site's titleTemplate
+  // ("%s · PTEC Library"), so `title` must NOT repeat it. An Open Graph title
+  // travels alone into a social card, so that one is branded explicitly.
+  const title = t("metaTitle");
+  const description = t("metaDescription");
+  const socialTitle = `${title} · ${org.siteName}`;
+
   return {
-    title: "ដំណើររបស់យើង — PTEC e-Library",
-    description:
-      "The journey of the PTEC Library — from founding in 2017 to becoming a growing center of knowledge and research.",
+    title,
+    description,
     alternates,
     openGraph: {
-      title: "Our Journey — PTEC Library",
+      title: socialTitle,
+      description,
       url: alternates.canonical,
       type: "website",
+      siteName: org.siteName,
+      locale: locale === "km" ? "km_KH" : "en_US",
+      images: [{ url: `${SITE_URL}/og-default.png` }],
     },
+    twitter: { card: "summary_large_image", title: socialTitle, description },
   };
 }
 
-// Seed data — add more entries here as history expands
-const TIMELINE: { year: string; km: string; en: string }[] = [
-  {
-    year: "2017",
-    km: "បង្កើតបណ្ណាល័យ",
-    en: "The PTEC Library was established as part of the Department of Educational Research and Library, one of 7 departments at Phnom Penh Teacher Education College.",
-  },
-  {
-    year: "2025",
-    km: "PTEC Library Press បោះពុម្ពលើស ៣០ ចំណងជើង",
-    en: "PTEC Library Press has published over 30 instructor titles, 4 educational research bulletins, and expanded its digital distribution significantly.",
-  },
-];
+const ACHIEVEMENT_ICONS: Record<string, LucideIcon> = {
+  book: BookOpenCheck,
+  press: BookMarked,
+  bulletin: Newspaper,
+  globe: Globe2,
+};
 
-function SectionHeading({ km, en }: { km: string; en: string }) {
+const ROADMAP_ICONS: Record<string, LucideIcon> = {
+  globe: Globe2,
+  scan: ScanLine,
+  books: BookMarked,
+  archive: Archive,
+};
+
+export default async function OurJourneyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale: rawLocale } = await params;
+  setRequestLocale(rawLocale);
+  const locale = toAboutLocale(rawLocale);
+
+  const t = await getTranslations("about");
+  const tj = await getTranslations("about.journey");
+
+  const foundingStory = localized(FOUNDING_STORY, locale);
+  const context = localized(DEPARTMENT_CONTEXT, locale);
+  const goal = localized(FUTURE_GOAL, locale);
+  const reviewedDate = formatDate(ABOUT_CONTENT_REVIEWED_AT, locale);
+
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className="h-8 w-1.5 shrink-0 rounded-full"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#3A5FC4 100%)" }}
-        aria-hidden="true"
-      />
-      <div>
-        <h2 className="font-kh text-xl font-bold text-text-heading leading-snug" lang="km">
-          {km}
-        </h2>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#2A47A6" }}>
-          {en}
-        </p>
-      </div>
-    </div>
-  );
-}
+    <AboutPageShell
+      page="ourJourney"
+      locale={locale}
+      hero={{
+        category: tj("category"),
+        title: tj("title"),
+        secondaryTitle: locale === "km" ? "Our Journey" : "ដំណើររបស់យើង",
+        secondaryLang: locale === "km" ? "en" : "km",
+        intro: tj("intro"),
+        badge: (
+          <span className="inline-flex items-center gap-2 rounded-full border border-gold-400/40 bg-gold-500/10 px-3 py-1.5 text-sm font-semibold text-gold-200">
+            <Sparkles className="h-4 w-4" aria-hidden="true" />
+            {tj("established", { year: FOUNDING_YEAR })}
+          </span>
+        ),
+        image: {
+          src: "/hero/ptec-library-960.jpg",
+          alt: tj("founding.imageAlt"),
+          priority: true,
+        },
+      }}
+    >
+      {/* ── Founding story ───────────────────────────────────────────────
+          Two columns on desktop, image FIRST on mobile (source order is
+          image → text, and the desktop grid reorders visually only). */}
+      <AboutSection id="founding" title={tj("founding.heading")}>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-divider bg-paper">
+            <Image
+              src="/hero/ptec-library-640.webp"
+              alt={tj("founding.imageAlt")}
+              fill
+              loading="lazy"
+              sizes="(min-width: 1024px) 22rem, 100vw"
+              className="object-cover"
+            />
+          </div>
 
-export default function OurJourneyPage() {
-  return (
-    <div className="min-h-screen bg-paper">
-      {/* ── Hero ──────────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto max-w-4xl px-6 py-18 md:py-24 text-center">
-          <p
-            className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]"
-            style={{ color: "#DDB022" }}
-          >
-            ដំណើររបស់យើង · Our Journey
-          </p>
-          <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight">
-            Our Journey
-            <span className="font-kh ml-3 text-2xl md:text-4xl text-white/75" lang="km">
-              ដំណើររបស់បណ្ណាល័យ
-            </span>
-          </h1>
-          <p className="mt-4 text-base text-white/70 max-w-xl mx-auto">
-            From a founding vision in 2017 to a growing center of knowledge, research,
-            and digital learning for educators across Cambodia.
-          </p>
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-4xl px-4 md:px-8 pb-20 space-y-16 mt-14">
-
-        {/* Founding story */}
-        <section aria-labelledby="founding-heading">
-          <SectionHeading km="ប្រវត្តិនៃការបង្កើត" en="Founding Story" />
-          <div className="mt-6 rounded-2xl border border-divider bg-bg-surface p-6 md:p-8 space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold text-white"
-              style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}>
-              <span aria-hidden="true">🏛</span> 2017
-            </div>
-            <p className="font-kh text-text-body leading-[1.9] text-[15px]" lang="km">
-              ដើម្បីឱ្យសមស្របទៅតាមលក្ខខណ្ឌកំណត់នៃស្តង់ដាសាលាគរុកោសល្យគំរូ
-              ដេប៉ាតឺម៉ង់បានបង្កើតឱ្យមានការបោះពុម្ពផ្សាយនិងគាំទ្រលើជំនាញរៀបចំឯកសារ
-              ការបោះពុម្ពព្រឹត្តិបត្រស្រាវជ្រាវអប់រំ ដែលមានឈ្មោះថា «PTEC Library Press»។
+          <div className="min-w-0">
+            <p className="inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-sm font-semibold text-brand">
+              {tj("founding.yearBadge", { year: FOUNDING_YEAR })}
             </p>
-          </div>
-        </section>
-
-        {/* Key achievements */}
-        <section aria-labelledby="achievements-heading">
-          <SectionHeading km="សមិទ្ធិផលសំខាន់ៗ" en="Key Achievements" />
-          <div className="mt-6 grid sm:grid-cols-2 gap-4">
-            {[
-              {
-                km: "ការបោះពុម្ពសៀវភៅសិក្សាគោលតាមមុខវិជ្ជារបស់គ្រូឧទ្ទេស",
-                en: "Publication of subject-based instructional textbooks by college instructors",
-              },
-              {
-                km: "ការបោះពុម្ពព្រឹត្តិបត្រស្រាវជ្រាវអប់រំបានចំនួន ៦ ភាគ",
-                en: "Publication of 6 volumes of the educational research bulletin",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="flex gap-4 rounded-2xl border border-divider bg-bg-surface p-5"
+            {foundingStory && (
+              <p
+                lang={foundingStory.lang}
+                className="about-copy about-measure mt-4 text-[15px] text-text-body"
               >
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white text-sm font-bold"
-                  style={{ background: "linear-gradient(135deg,#DDB022,#BE9412)" }}
-                  aria-hidden="true"
+                {foundingStory.text}
+              </p>
+            )}
+            {context && (
+              <div className="mt-6 border-l-2 border-divider pl-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  {tj("founding.context")}
+                </p>
+                <p
+                  lang={context.lang}
+                  className="about-copy about-measure mt-2 text-sm text-text-body"
                 >
-                  {i + 1}
-                </div>
-                <div>
-                  <p className="font-kh font-semibold text-text-heading text-sm leading-snug" lang="km">
-                    {item.km}
-                  </p>
-                  <p className="mt-1 text-xs text-text-muted leading-relaxed">{item.en}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Timeline */}
-        <section aria-labelledby="timeline-heading">
-          <SectionHeading km="បន្ទាត់ពេលវេលា" en="Timeline" />
-          <p className="mt-2 ml-5 text-xs text-text-muted">
-            More milestones will be added as the library&apos;s history grows.
-          </p>
-
-          <ol className="mt-8 relative ml-4 border-l-2 border-divider space-y-10">
-            {TIMELINE.map((entry, idx) => (
-              <li key={entry.year} className="relative pl-8">
-                {/* Dot */}
-                <div
-                  className="absolute -left-[11px] top-0.5 h-5 w-5 rounded-full border-2 border-bg-surface flex items-center justify-center"
-                  style={{
-                    background:
-                      idx === 0
-                        ? "linear-gradient(135deg,#1E3A8A,#2A47A6)"
-                        : "linear-gradient(135deg,#DDB022,#BE9412)",
-                  }}
-                  aria-hidden="true"
-                />
-
-                <div className="rounded-2xl border border-divider bg-bg-surface p-5">
-                  <span
-                    className="inline-block rounded-full px-3 py-0.5 text-xs font-bold text-white mb-3"
-                    style={{
-                      background:
-                        idx === 0
-                          ? "linear-gradient(135deg,#1E3A8A,#2A47A6)"
-                          : "linear-gradient(135deg,#DDB022,#BE9412)",
-                    }}
-                  >
-                    {entry.year}
-                  </span>
-                  <p className="font-kh font-bold text-text-heading text-base leading-snug" lang="km">
-                    {entry.km}
-                  </p>
-                  <p className="mt-2 text-sm text-text-muted leading-relaxed">{entry.en}</p>
-                </div>
-              </li>
-            ))}
-
-            {/* Placeholder for future entries */}
-            <li className="relative pl-8">
-              <div
-                className="absolute -left-[11px] top-0.5 h-5 w-5 rounded-full border-2 border-dashed border-divider bg-paper"
-                aria-hidden="true"
-              />
-              <div className="rounded-2xl border-2 border-dashed border-divider p-5 text-center">
-                <p className="text-sm text-text-muted italic">
-                  More milestones coming soon · <span className="font-kh" lang="km">ព្រឹត្តិការណ៍បន្ថែមទៀត</span>
+                  {context.text}
                 </p>
               </div>
-            </li>
-          </ol>
-        </section>
-
-        {/* Future goals */}
-        <section aria-labelledby="future-heading">
-          <SectionHeading km="គោលដៅអនាគត" en="Future Goals" />
-          <div
-            className="mt-6 rounded-2xl p-6 md:p-8 text-white relative overflow-hidden"
-            style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
-          >
-            <div
-              className="absolute inset-0 opacity-[0.07]"
-              style={{
-                backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-                backgroundSize: "20px 20px",
-              }}
-              aria-hidden="true"
-            />
-            <p className="relative font-kh text-white/95 leading-[1.9] text-[15px]" lang="km">
-              ជាបណ្ណាល័យអនឡាញពេញលេញ
-            </p>
-            <p className="relative mt-2 text-sm text-white/65 italic">
-              To become a fully online library — accessible to every student and educator, anytime and anywhere.
-            </p>
+            )}
           </div>
-        </section>
-
-        {/* Decorative divider */}
-        <div className="flex items-center justify-center gap-3" aria-hidden="true">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-blue-700/40" />
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#DDB022" }} />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-blue-700/40" />
         </div>
+      </AboutSection>
 
-      </div>
-    </div>
+      {/* ── Achievements ─────────────────────────────────────────────────
+          A card shows a number ONLY when content.ts marks the figure
+          verified. The research-bulletin card deliberately has none: the
+          source states four titles in §1.4 and six volumes in §2.4. */}
+      <AboutSection
+        id="achievements"
+        title={tj("achievements.heading")}
+        description={tj("achievements.intro")}
+      >
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {JOURNEY_ACHIEVEMENTS.map((achievement) => {
+            const Icon = ACHIEVEMENT_ICONS[achievement.icon] ?? BookMarked;
+            const title = localized(achievement.title, locale);
+            const description = localized(achievement.description, locale);
+            const showsFigure = achievement.count?.confidence === "verified";
+            const figure = showsFigure ? formatNumber(achievement.count!.value, locale) : null;
+
+            return (
+              <li key={achievement.id}>
+                <InformationCard className="flex h-full gap-4">
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10"
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-5 w-5 text-brand" />
+                  </span>
+                  <div className="min-w-0">
+                    {figure && (
+                      <p className="text-2xl font-semibold tabular-nums tracking-tight text-text-heading">
+                        {achievement.isMinimum && (
+                          <span className="mr-1.5 align-middle text-sm font-medium text-text-muted">
+                            {tj("achievements.minimumPrefix")}
+                          </span>
+                        )}
+                        {figure}
+                        <span className="ml-1.5 align-middle text-sm font-medium text-text-muted">
+                          {tj("achievements.titlesUnit")}
+                        </span>
+                      </p>
+                    )}
+                    {title && (
+                      <h3
+                        lang={title.lang}
+                        className={`about-wrap font-semibold text-text-heading ${figure ? "mt-1 text-sm" : "text-base"}`}
+                      >
+                        {title.text}
+                      </h3>
+                    )}
+                    {description && (
+                      <p
+                        lang={description.lang}
+                        className="about-copy mt-1.5 text-sm text-text-muted"
+                      >
+                        {description.text}
+                      </p>
+                    )}
+                    {/* Honest, quiet marker where a figure exists in the
+                        source but is self-contradictory. */}
+                    {!figure && achievement.id === "research-bulletin" && (
+                      <p className="mt-2 text-xs font-medium text-text-muted">
+                        {tj("achievements.noFigure")}
+                      </p>
+                    )}
+                  </div>
+                </InformationCard>
+              </li>
+            );
+          })}
+        </ul>
+      </AboutSection>
+
+      {/* ── Timeline ─────────────────────────────────────────────────── */}
+      <AboutSection id="timeline" title={tj("timeline.heading")} description={tj("timeline.intro")}>
+        <JourneyTimeline
+          milestones={JOURNEY_MILESTONES}
+          locale={locale}
+          yearLabel={tj("timeline.yearLabel")}
+          moreComingTitle={tj("timeline.moreComing")}
+          moreComingBody={tj("timeline.moreComingBody")}
+        />
+      </AboutSection>
+
+      {/* ── Growth ───────────────────────────────────────────────────────
+          Section §2.5 of the source form was submitted blank. It is kept
+          visible with an honest empty state rather than dropped, so the
+          gap is legible to the library when it reviews this page. */}
+      <AboutSection id="growth" title={tj("growth.heading")}>
+        <EmptyContentState title={tj("growth.pending")} body={tj("growth.pendingBody")} />
+      </AboutSection>
+
+      {/* ── Roadmap ──────────────────────────────────────────────────── */}
+      <AboutSection id="roadmap" title={tj("roadmap.heading")}>
+        <NoticePanel tone="info" label={tj("roadmap.label")} className="mb-6">
+          <p className="font-medium text-text-heading">{tj("roadmap.goalLabel")}</p>
+          {goal && (
+            <p lang={goal.lang} className="about-wrap mt-1 text-base font-semibold text-text-heading">
+              “{goal.text}”
+            </p>
+          )}
+          <p className="mt-2 text-xs">{tj("roadmap.note")}</p>
+        </NoticePanel>
+
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {ROADMAP_ITEMS.map((item) => {
+            const Icon = ROADMAP_ICONS[item.icon] ?? Target;
+            const title = localized(item.title, locale);
+            const description = localized(item.description, locale);
+            return (
+              <li key={item.id}>
+                <InformationCard className="flex h-full gap-4">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper"
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-4.5 w-4.5 text-text-muted" />
+                  </span>
+                  <div className="min-w-0">
+                    {title && (
+                      <h3 lang={title.lang} className="about-wrap text-sm font-semibold text-text-heading">
+                        {title.text}
+                      </h3>
+                    )}
+                    {description && (
+                      <p lang={description.lang} className="about-copy mt-1 text-sm text-text-muted">
+                        {description.text}
+                      </p>
+                    )}
+                  </div>
+                </InformationCard>
+              </li>
+            );
+          })}
+        </ul>
+      </AboutSection>
+
+      <ContentLastUpdated
+        reviewedLabel={reviewedDate ? t("meta.reviewed", { date: reviewedDate }) : null}
+        note={t("meta.sourceNote")}
+        className="border-t border-divider pt-6"
+      />
+    </AboutPageShell>
   );
 }
