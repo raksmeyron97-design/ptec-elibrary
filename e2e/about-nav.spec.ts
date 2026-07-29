@@ -52,7 +52,17 @@ test.describe("About navigation", () => {
     await expect(trigger).toBeVisible();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
 
-    const teamLink = page.getByRole("link", { name: /^Library Team$/i });
+    // Scope to the panel this trigger controls, the way the desktop test
+    // scopes to the About navigation region. A page-wide locator was unique
+    // only by accident: /about/team also renders the About section's own
+    // sticky sub-navigation, which correctly marks the same current page —
+    // two navigation landmarks each flagging their own current link is valid
+    // ARIA, so the test has to say WHICH one it means.
+    const panelId = await trigger.getAttribute("aria-controls");
+    expect(panelId).toBeTruthy();
+    const aboutPanel = page.locator(`[id="${panelId}"]`);
+
+    const teamLink = aboutPanel.getByRole("link", { name: /^Library Team$/i });
     await expect(teamLink).toHaveAttribute("href", /\/about\/team$/);
     await expect(teamLink).toHaveAttribute("aria-current", "page");
 
