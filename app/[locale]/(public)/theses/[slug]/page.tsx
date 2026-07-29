@@ -62,9 +62,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     createClient(),
     getOrgIdentity(),
   ]);
+  // seo_title/seo_description/og_image (migration 0076) are selected HERE, in
+  // the row we are already fetching, rather than in a follow-up query keyed on
+  // report.id. That second round-trip was pure latency — same table, same row —
+  // and it is what pushed this route's metadata past the shell: Next streams
+  // metadata that resolves after the shell has flushed, emitting the tags into
+  // <body> instead of <head>. Lighthouse reads `head meta`, saw no description,
+  // and scored SEO 0.92 against a 0.95 gate. A meta description in <body> is
+  // also invalid HTML that head-only crawlers ignore, so this was a real SEO
+  // bug and not just a failing audit.
   const { data: report } = await supabase
     .from('research_reports')
-    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, updated_at, keywords, doi, is_published, program, faculty, subject, language, department_id, verified_at, departments(name)')
+    .select('id, slug, title, abstract, author_names, cover_url, file_url, published_at, created_at, updated_at, keywords, doi, is_published, program, faculty, subject, language, department_id, verified_at, seo_title, seo_description, og_image, departments(name)')
     .eq('slug', slug)
     .eq('is_published', true)
     .maybeSingle();
@@ -77,22 +86,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Thesis not found' };
   }
 
-  // SEO overrides (migration 0076) fetched separately from the required
-  // columns above — until that migration is applied, this query errors
-  // harmlessly and every field below just falls back to the pre-existing
-  // title/abstract/cover-derived defaults instead of 404ing the whole page.
-  // Both reads depend only on report.id and not on each other, so run them
-  // together. Canonical authors feed the citation_* meta tags + JSON-LD,
-  // consistent with the visible page; defensive fallback to the legacy string
-  // pre-migration.
-  const [{ data: seoRow }, canonicalMetaAuthors] = await Promise.all([
-    supabase
-      .from('research_reports')
-      .select('seo_title, seo_description, og_image')
-      .eq('id', report.id)
-      .maybeSingle(),
-    getPublicResourceAuthors("thesis", report.id),
-  ]);
+  // Canonical authors feed the citation_* meta tags + JSON-LD, consistent with
+  // the visible page; defensive fallback to the legacy string.
+  const canonicalMetaAuthors = await getPublicResourceAuthors("thesis", report.id);
+  const seoRow = report;
   const reportForMeta =
     canonicalMetaAuthors.length > 0
       ? { ...report, author_names: canonicalMetaAuthors.join(", ") }

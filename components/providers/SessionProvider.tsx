@@ -49,6 +49,19 @@ function loadSession(): Promise<SessionUser | null> {
   return inflight;
 }
 
+/**
+ * The same deduped identity, for client code that is NOT inside the provider.
+ *
+ * `useSession()` is the right API inside the public tree, but the provider only
+ * wraps `app/[locale]/(public)` — components mounted in RootShell (which is
+ * shared with the admin and auth trees) would read the default context and see
+ * `loading: true` forever. This hands them the shared promise instead, so they
+ * cost no extra request: the navbar's `/api/me` call is the same one.
+ */
+export function getSessionUser(): Promise<SessionUser | null> {
+  return loadSession();
+}
+
 /** Drop the cached identity — call after sign-in/sign-out so the navbar
  *  re-reads it instead of serving a stale avatar. */
 export function invalidateSession() {

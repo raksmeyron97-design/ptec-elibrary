@@ -7,6 +7,7 @@ import {
   validateSerializedSubscription,
 } from "@/lib/push-utils";
 import { derivePushStatusKind, type PushStatusKind } from "@/lib/push-status";
+import { getSessionUser } from "@/components/providers/SessionProvider";
 
 export const PUSH_ONBOARDING_KEYS = {
   seen: "pwa_notification_onboarding_seen",
@@ -241,7 +242,30 @@ export async function sendTestNotification(endpoint: string | null, signal?: Abo
   }
 }
 
+const UNAUTHENTICATED_STATUS: StatusApiResponse = {
+  ok: false,
+  endpointSubscribed: false,
+  activeSubscriptions: 0,
+  error: "Authentication required.",
+  code: PUSH_ERROR_CODES.UNAUTHORIZED,
+};
+
 async function getServerStatus(endpoint: string | null, signal?: AbortSignal): Promise<StatusApiResponse> {
+  // Don't ask a route that requires auth about an anonymous visitor.
+  //
+  // <PushNotificationOnboarding> is mounted in RootShell, so this ran on EVERY
+  // page for EVERY visitor. Signed out, it 401'd — the client handled that
+  // fine, but the browser still logged "Failed to load resource: 401", which
+  // is a real console error on every page of the site (Lighthouse's
+  // errors-in-console audit scored 0 on all nine audited URLs because of it).
+  //
+  // getSessionUser() is the same deduped /api/me promise the navbar already
+  // awaits, so this costs no extra request — and for signed-out readers it now
+  // saves one, on every page load. The endpoint keeps its 401; we simply stop
+  // asking a question we already know the answer to.
+  const user = await getSessionUser().catch(() => null);
+  if (!user) return UNAUTHENTICATED_STATUS;
+
   const params = endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : "";
   const res = await fetch(`/api/push/status${params}`, { signal });
   const data = await res.json().catch(() => ({} as StatusApiResponse));
