@@ -4,7 +4,8 @@
       "numberOfRuns": 2,
       "settings": {
         "chromeFlags": "--no-sandbox --disable-dev-shm-usage",
-        "skipAudits": ["uses-http2"],
+        "comment_skipAudits": "charset is skipped for a TOOLING reason, not a site one. It requires Lighthouse's MainDocumentContent gatherer, which calls Network.getResponseBody; on this site's 300-630 KB HTML documents Chrome evicts the body from its network buffer and the call fails with a protocol error. The audit then errors, which makes the WHOLE best-practices category score NaN and fails the error-level categories:best-practices assertion. It has flapped between 0 and 6 URLs per run since well before anyone looked at it. Every page does declare <meta charSet=\"utf-8\"> (Next emits it) — verified against production — so skipping the audit loses no real signal, while keeping the rest of best-practices gated. Revisit if the documents ever get materially smaller.",
+        "skipAudits": ["uses-http2", "charset"],
         "comment_maxWaitForLoad": "Content-heavy detail pages (e.g. a thesis) can exceed Lighthouse's default 45s load cap under simulated mobile throttling; an incomplete gather then reports present metadata (meta-description) as missing. 60s lets the audit complete and reflect reality. Real mobile perf is still tracked by the categories:performance warn assertion.",
         "maxWaitForLoad": 60000
       }
