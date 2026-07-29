@@ -213,13 +213,20 @@ export default async function LibraryCollectionPage({
             </div>
           </InformationCard>
 
-          <InformationCard className="flex h-full flex-col">
+          {/* Brand-tinted, matching the e-Library card on /about/timings.
+              "Digital = brand tint, physical = plain surface" is now one
+              consistent language across both pages; it used to be gold here
+              and green there, so the same distinction was drawn with three
+              different colours depending on which page you landed on.
+              The distinction still does not rest on colour — the icon, the
+              heading and the supporting copy all say which is which. */}
+          <InformationCard className="flex h-full flex-col border-surface-brand-line bg-surface-brand-soft">
             <div className="flex items-center gap-3">
               <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-500/15"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10"
                 aria-hidden="true"
               >
-                <BookOpen className="h-5 w-5 text-gold-700 dark:text-gold-200" />
+                <BookOpen className="h-5 w-5 text-brand" />
               </span>
               <h3 className="about-wrap text-base font-semibold text-text-heading">
                 {tc("digital.heading")}

@@ -23,17 +23,17 @@ type Variant = "primary" | "secondary" | "onDark";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-brand text-brand-contrast hover:bg-brand-hover focus-visible:outline-focus-ring",
+    "bg-brand text-brand-contrast hover:bg-brand-hover",
   secondary:
-    "border border-divider bg-bg-surface text-text-body shadow-sm hover:border-brand/40 hover:text-brand focus-visible:outline-focus-ring",
+    "border border-divider bg-bg-surface text-text-body shadow-sm hover:border-brand/40 hover:text-brand",
   onDark:
-    "border border-white/25 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 focus-visible:outline-white",
+    "border border-white/25 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20 [--focus-color:#fff]",
 };
 
 // min-h-11 = the 44px minimum touch target (WCAG 2.5.8), applied to every
 // action regardless of how short its label renders in either language.
 const BASE =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors";
 
 /** An internal link. `href` is locale-agnostic ("/theses"), never "/km/...". */
 export function AboutLinkAction({
@@ -179,7 +179,7 @@ export function OfficialContactCard({
                   {row.href ? (
                     <a
                       href={row.href}
-                      className="rounded font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                      className="rounded font-medium text-brand hover:underline"
                     >
                       {row.value}
                     </a>

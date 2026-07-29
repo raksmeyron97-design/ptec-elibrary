@@ -66,7 +66,7 @@ export default function PrintPageAction({
       onClick={handlePrint}
       title={hint}
       data-about-print="hide"
-      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 py-2.5 text-sm font-medium text-text-body shadow-sm transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 py-2.5 text-sm font-medium text-text-body shadow-sm transition-colors hover:border-brand/40 hover:text-brand"
     >
       <Printer className="h-4 w-4" aria-hidden="true" />
       {label}

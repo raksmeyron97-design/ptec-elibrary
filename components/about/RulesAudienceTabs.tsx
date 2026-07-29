@@ -115,8 +115,7 @@ export default function RulesAudienceTabs({
               onKeyDown={onKeyDown}
               className={[
                 "inline-flex min-h-11 shrink-0 items-center rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-                selected
+                                selected
                   ? "border-brand bg-brand text-brand-contrast shadow-sm"
                   : "border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:text-brand",
               ].join(" ")}
@@ -142,7 +141,7 @@ export default function RulesAudienceTabs({
             // tabIndex 0 so a keyboard user can scroll the panel after
             // tabbing out of the tablist, per the APG.
             tabIndex={0}
-            className="mt-5 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:p-6"
+            className="mt-5 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm sm:p-6"
           >
             {/* Print-only heading: on paper the tabs are gone, so each
                 panel needs to say who it is for. */}
@@ -223,7 +222,7 @@ export default function RulesAudienceTabs({
                         <a
                           href={`#rule-${category.id}`}
                           lang={title.lang}
-                          className="rounded font-semibold text-text-heading underline decoration-divider underline-offset-4 hover:decoration-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                          className="rounded font-semibold text-text-heading underline decoration-divider underline-offset-4 hover:decoration-brand"
                         >
                           {title.text}
                         </a>

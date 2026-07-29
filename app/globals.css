@@ -35,6 +35,51 @@
   --ptec-danger: #B91C1C;
   --ptec-info: #2A47A6;
 
+  /* ── Status SURFACES ───────────────────────────────────────────────
+     The four tokens above are text-on-page colours only. Every callout,
+     badge and notice in the app therefore hand-wrote its own tinted
+     surface — `bg-green-50 border-green-300 text-green-900` plus a second
+     `dark:` triplet — which is why the same "warning" reads slightly
+     differently on almost every screen.
+
+     Each status now carries three tokens, following the `-line` / `-text`
+     suffixes the accent tokens already established:
+
+       -soft   tinted surface
+       -line   border on that surface
+       -text   text ON that surface (NOT the same as the text-on-page
+               colour above: it is tuned for contrast against -soft)
+
+     `info` deliberately uses the PTEC blue ramp (blue-50/200/900) rather
+     than a generic informational blue — informational callouts should read
+     as part of the brand, not as a second blue competing with it.
+
+     Every pair is >= 8.7:1 in light and >= 10.7:1 in dark, verified by
+     lib/status-tokens.test.ts. Adjusting one means re-running that test. */
+  --ptec-success-soft: #F0FDF4;
+  --ptec-success-line: #86EFAC;
+  --ptec-success-text: #14532D;
+
+  --ptec-warning-soft: #FFFBEB;
+  --ptec-warning-line: #FCD34D;
+  --ptec-warning-text: #78350F;
+
+  --ptec-danger-soft: #FEF2F2;
+  --ptec-danger-line: #FCA5A5;
+  --ptec-danger-text: #7F1D1D;
+
+  --ptec-info-soft: #EEF2FB;
+  --ptec-info-line: #B3C5EF;
+  --ptec-info-text: #122251;
+
+  /* Brand-tinted surface for a card the page wants to lead with (the
+     highlighted statistic, the e-Library card). One value, because four
+     hand-picked opacities — brand/[0.03], /[0.04], /[0.05], /[0.06] — is
+     four surfaces the eye reads as "slightly different" rather than "the
+     same kind of thing". Paired with --ptec-surface-brand-line. */
+  --ptec-surface-brand-soft: #F5F7FD;
+  --ptec-surface-brand-line: #D4DEF4;
+
   /* ── Admin forms palette ───────────────────────────────────────── */
   --ptec-navy-700: #27499f;
   --ptec-navy-950: #152258;
@@ -127,6 +172,29 @@
   --ptec-warning: #F4DE8A;
   --ptec-danger: #FF6568;
   --ptec-info: #8AA4E4;
+
+  /* Status surfaces, dark. Translucent tints of each status hue rather than
+     flat colours: they sit on both --ptec-bg-surface (#161C2B) and
+     --ptec-paper (#1C2334), and a flat value tuned for one visibly banded
+     against the other. Alpha keeps the tint proportional on both. */
+  --ptec-success-soft: rgba(94, 233, 181, .10);
+  --ptec-success-line: rgba(94, 233, 181, .32);
+  --ptec-success-text: #C7F9E5;
+
+  --ptec-warning-soft: rgba(244, 222, 138, .10);
+  --ptec-warning-line: rgba(244, 222, 138, .32);
+  --ptec-warning-text: #FAEFC4;
+
+  --ptec-danger-soft: rgba(255, 101, 104, .12);
+  --ptec-danger-line: rgba(255, 101, 104, .34);
+  --ptec-danger-text: #FFD9DA;
+
+  --ptec-info-soft: rgba(138, 164, 228, .12);
+  --ptec-info-line: rgba(138, 164, 228, .34);
+  --ptec-info-text: #D9E2F7;
+
+  --ptec-surface-brand-soft: rgba(138, 164, 228, .08);
+  --ptec-surface-brand-line: rgba(138, 164, 228, .28);
 }
 
 @theme inline {
@@ -184,6 +252,30 @@
   --color-warning: var(--ptec-warning);
   --color-danger: var(--ptec-danger);
   --color-info: var(--ptec-info);
+
+  /* Status surfaces → bg-success-soft / border-success-line /
+     text-success-text, and the same for warning, danger, info. Each token
+     already resolves per theme, so a call site needs NO `dark:` variant —
+     that is the whole point of adding them. */
+  --color-success-soft: var(--ptec-success-soft);
+  --color-success-line: var(--ptec-success-line);
+  --color-success-text: var(--ptec-success-text);
+
+  --color-warning-soft: var(--ptec-warning-soft);
+  --color-warning-line: var(--ptec-warning-line);
+  --color-warning-text: var(--ptec-warning-text);
+
+  --color-danger-soft: var(--ptec-danger-soft);
+  --color-danger-line: var(--ptec-danger-line);
+  --color-danger-text: var(--ptec-danger-text);
+
+  --color-info-soft: var(--ptec-info-soft);
+  --color-info-line: var(--ptec-info-line);
+  --color-info-text: var(--ptec-info-text);
+
+  /* bg-surface-brand-soft / border-surface-brand-line */
+  --color-surface-brand-soft: var(--ptec-surface-brand-soft);
+  --color-surface-brand-line: var(--ptec-surface-brand-line);
 
   /* Fonts */
   --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
