@@ -30,16 +30,39 @@ export type ResourceGateConfig = {
   table: string;
   /** Boolean column that must be true for a public row, e.g. "is_published". */
   publishedColumn: string;
+  /**
+   * Path segments under this resource that are REAL STATIC ROUTES, not slugs.
+   *
+   * The gate matches `/<segment>/<anything>`, so a sibling page like
+   * app/[locale]/(public)/theses/summary/page.tsx looks exactly like a thesis
+   * slug to it — it was looked up against published slugs, found nothing, and
+   * 404'd a page that exists. The sitemap advertises /theses/summary, so search
+   * engines were being pointed at a 404.
+   *
+   * Anything added as a static child of a gated segment MUST be listed here.
+   * lib/resource-slug-gate.test.ts reads the route directory and fails if one
+   * is missing, so this cannot drift.
+   */
+  reserved?: readonly string[];
 };
 
 export const RESOURCE_GATES = {
-  theses: { table: "research_reports", publishedColumn: "is_published" },
+  theses: {
+    table: "research_reports",
+    publishedColumn: "is_published",
+    reserved: ["summary"],
+  },
   publications: { table: "publications", publishedColumn: "is_published" },
   catalogs: { table: "catalog_books", publishedColumn: "is_active" },
 } as const satisfies Record<string, ResourceGateConfig>;
 
 /** Pure resolution against a snapshot — unit-tested. */
-export function resolveSlugGate(slug: string, liveSlugs: Set<string>): SlugGateResult {
+export function resolveSlugGate(
+  slug: string,
+  liveSlugs: Set<string>,
+  reserved: readonly string[] = [],
+): SlugGateResult {
+  if (reserved.includes(slug)) return { kind: "ok" };
   return liveSlugs.has(slug) ? { kind: "ok" } : { kind: "not-found" };
 }
 
@@ -134,10 +157,13 @@ export async function gateResourceSlug(
   slug: string,
   env: SlugGateEnv,
 ): Promise<SlugGateResult | null> {
+  // Reserved segments are real routes, not slugs — answer before spending a
+  // network call on a lookup that can only ever miss.
+  if (cfg.reserved?.includes(slug)) return { kind: "ok" };
   if (!env.supabaseUrl || !env.anonKey) return null;
   const snap = await getSnapshot(cfg, env);
   if (!snap) return null;
-  const verdict = resolveSlugGate(slug, snap.slugs);
+  const verdict = resolveSlugGate(slug, snap.slugs, cfg.reserved);
   if (verdict.kind !== "not-found") return verdict;
   return confirmSlug(cfg, slug, env);
 }

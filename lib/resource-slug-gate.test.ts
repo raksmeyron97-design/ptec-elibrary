@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { resolveSlugGate, RESOURCE_GATES } from "@/lib/resource-slug-gate";
 
 describe("resolveSlugGate — pure published-slug existence", () => {
@@ -21,7 +23,9 @@ describe("resolveSlugGate — pure published-slug existence", () => {
 
 describe("RESOURCE_GATES config maps each type to its real table + public column", () => {
   it("theses gate reads research_reports.is_published", () => {
-    expect(RESOURCE_GATES.theses).toEqual({
+    // Asserts the lookup target only. `reserved` is covered by its own tests
+    // below, so adding a static child route here does not fail this one.
+    expect(RESOURCE_GATES.theses).toMatchObject({
       table: "research_reports",
       publishedColumn: "is_published",
     });
@@ -39,5 +43,41 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
       table: "catalog_books",
       publishedColumn: "is_active",
     });
+  });
+
+  // ── Static sibling routes must not be gated as slugs ──────────────────────
+  describe("reserved segments", () => {
+    const PUBLIC_DIR = path.join(__dirname, "..", "app/[locale]/(public)");
+
+    it("treats a reserved segment as a real route without a lookup", () => {
+      // /theses/summary is app/[locale]/(public)/theses/summary/page.tsx, but
+      // the gate matches /theses/<anything>, looked it up against published
+      // thesis slugs, found nothing and 404'd a page that exists — while the
+      // sitemap advertised it.
+      expect(resolveSlugGate("summary", new Set<string>(), ["summary"])).toEqual({ kind: "ok" });
+      // ...and an unknown slug is still a 404.
+      expect(resolveSlugGate("not-a-thesis", new Set<string>(), ["summary"])).toEqual({
+        kind: "not-found",
+      });
+    });
+
+    it.each(Object.entries(RESOURCE_GATES))(
+      "%s lists every static child route it has",
+      (segment, cfg) => {
+        const dir = path.join(PUBLIC_DIR, segment);
+        if (!fs.existsSync(dir)) return;
+        const staticChildren = fs
+          .readdirSync(dir, { withFileTypes: true })
+          .filter(
+            (e) =>
+              e.isDirectory() &&
+              !e.name.startsWith("[") &&
+              fs.existsSync(path.join(dir, e.name, "page.tsx")),
+          )
+          .map((e) => e.name);
+        // Anything here that the gate does not know about is a live 404.
+        expect([...staticChildren].sort()).toEqual([...(cfg.reserved ?? [])].sort());
+      },
+    );
   });
 });
