@@ -38,6 +38,11 @@ jobs:
             type=raw,value=latest
             type=sha
 
+      # `npm run build` prerenders the public pages, which query Supabase — with
+      # no URL the export dies on /en ("supabaseUrl is required"). The Dockerfile
+      # already declares a matching ARG for each of these; passing them is what
+      # was missing. All are NEXT_PUBLIC_*, i.e. values the browser already
+      # receives, so baking them into the image exposes nothing new.
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -45,3 +50,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_ROOT_DOMAIN=${{ secrets.NEXT_PUBLIC_ROOT_DOMAIN }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_R2_PUBLIC_URL=${{ secrets.NEXT_PUBLIC_R2_PUBLIC_URL }}
+            NEXT_PUBLIC_R2_COVERS_URL=${{ secrets.NEXT_PUBLIC_R2_COVERS_URL }}
