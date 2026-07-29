@@ -34,10 +34,10 @@ import {
 
 // ── Small helpers ──────────────────────────────────────────────────────────────
 
+// `focus-field` (app/globals.css) owns the focus state for standalone controls.
 const inputCls =
-  "w-full rounded-lg border border-divider bg-bg-surface px-2.5 py-1.5 text-xs " +
-  "text-text-heading placeholder:text-text-muted outline-none transition " +
-  "focus:border-brand/60 focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:text-text-muted";
+  "focus-field w-full rounded-lg border border-divider bg-bg-surface px-2.5 py-1.5 text-xs " +
+  "text-text-heading placeholder:text-text-muted disabled:bg-paper disabled:text-text-muted";
 
 const labelCls = "block text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1";
 

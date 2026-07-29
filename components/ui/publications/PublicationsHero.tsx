@@ -110,7 +110,7 @@ export default function PublicationsHero({
           {Object.entries(preservedParams).map(([key, value]) =>
             value ? <input key={key} type="hidden" name={key} value={value} /> : null,
           )}
-          <div className="group relative flex h-13 items-center rounded-full border border-divider bg-bg-body shadow-sm transition focus-within:border-brand focus-within:shadow-md focus-within:ring-2 focus-within:ring-focus-ring/30">
+          <div className="focus-shell group relative flex h-13 items-center rounded-full border border-divider bg-bg-body shadow-sm hover:border-border-strong">
             <Search className="pointer-events-none ml-4 h-5 w-5 shrink-0 text-text-muted" />
             <input
               type="search"

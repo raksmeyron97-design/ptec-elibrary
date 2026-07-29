@@ -111,7 +111,7 @@ export default function ExportMyLibrary() {
                 type="button"
                 role="menuitem"
                 onClick={() => handle(opt.key)}
-                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2 text-[12.5px] text-text-body transition hover:bg-paper hover:text-brand focus-visible:bg-paper focus-visible:text-brand focus-visible:outline-none text-left"
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2 text-[12.5px] text-text-body transition hover:bg-paper hover:text-brand focus-visible:bg-paper focus-visible:text-brand focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring text-left"
               >
                 <Download className="h-3.5 w-3.5 text-text-muted flex-none" aria-hidden="true" />
                 {t(opt.labelKey)}

@@ -195,7 +195,7 @@ export default function CommandPalette() {
       >
         <form
           onSubmit={handleSubmit}
-          className="relative flex items-center border-b border-divider px-4"
+          className="focus-shell focus-underline relative flex items-center border-b border-divider px-4"
         >
           <Icon name="search" className="text-xl text-text-muted shrink-0" />
           <input

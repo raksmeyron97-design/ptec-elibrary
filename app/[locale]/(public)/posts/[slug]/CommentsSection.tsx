@@ -254,7 +254,6 @@ function CommentForm({
   const [body, setBody] = useState(initialBody ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [isFocused, setIsFocused] = useState(false);
   const charLeft = 2000 - body.length;
 
   function handleSubmit(e: React.FormEvent) {
@@ -276,8 +275,13 @@ function CommentForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <div className={`relative rounded-xl border bg-paper transition-all duration-200
-                       ${isFocused ? "border-[#DDB022] ring-2 ring-[#DDB022]/15 shadow-sm" : "border-divider"}`}>
+      {/* The box is the field boundary; `focus-shell` (app/globals.css) gives it
+          the shared focus state and keeps the textarea from drawing a second
+          one. Replaces an `isFocused` flag whose setter was never called, so
+          the gold ring it described could never actually render. */}
+      <div className="focus-shell relative rounded-xl border border-divider bg-paper
+                      [--focus-border-color:var(--ptec-accent)]
+                      [--focus-ring-color:rgba(221,176,34,0.18)]">
         <AutoTextarea
           value={body}
           onChange={setBody}

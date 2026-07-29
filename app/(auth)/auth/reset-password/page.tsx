@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder={t('newPasswordPlaceholder')}
-              className="h-11 w-full rounded-xl border border-divider bg-bg-body px-3 text-sm outline-none transition focus:border-brand"
+              className="focus-field h-11 w-full rounded-xl border border-divider bg-bg-body px-3 text-sm"
             />
           </div>
           <Button type="submit" className="w-full h-11 rounded-xl" disabled={loading}>

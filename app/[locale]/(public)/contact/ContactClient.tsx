@@ -384,7 +384,9 @@ export default function ContactClient({ site }: { site: PublicContactSite }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="contact-phone" className="block text-xs font-semibold text-text-muted mb-1.5 uppercase tracking-wide">
-                    Phone <span className="normal-case font-normal text-text-muted/70">(optional)</span>
+                    {/* Full-strength muted, not /70: at 12px the faded variant
+                        measured 3.02:1 on white (axe, WCAG 1.4.3 needs 4.5:1). */}
+                    Phone <span className="normal-case font-normal text-text-muted">(optional)</span>
                   </label>
                   <input
                     id="contact-phone"

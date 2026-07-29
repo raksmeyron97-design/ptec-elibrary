@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder={t('emailPlaceholder')}
-              className="h-11 w-full rounded-xl border border-divider bg-bg-body px-3 text-sm outline-none transition focus:border-brand"
+              className="focus-field h-11 w-full rounded-xl border border-divider bg-bg-body px-3 text-sm"
             />
           </div>
           <Turnstile

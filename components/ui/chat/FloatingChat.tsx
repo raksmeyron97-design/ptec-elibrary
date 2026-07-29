@@ -133,7 +133,7 @@ export default function FloatingChat() {
 
           {/* Input Area */}
           <form onSubmit={onSubmit} className="p-3 bg-bg-app border-t border-border">
-            <div className="flex gap-2 items-center bg-bg-muted rounded-full p-1 pl-4">
+            <div className="focus-shell flex gap-2 items-center bg-bg-muted rounded-full p-1 pl-4">
               <input
                 className="flex-1 bg-transparent border-none outline-none text-sm text-text-body placeholder:text-text-muted"
                 value={input || ""}

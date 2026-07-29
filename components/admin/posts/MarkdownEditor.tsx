@@ -310,9 +310,9 @@ export default function MarkdownEditor({
         isFullscreen
           ? "fixed inset-0 z-[200] rounded-none border-0"
           : "rounded-xl border",
-        !disabled && !isFullscreen
-          ? "focus-within:border-brand focus-within:shadow-md focus-within:ring-2 focus-within:ring-brand/10"
-          : "",
+        // The editor chrome is the field boundary; `focus-shell` keeps the
+        // textarea inside it from painting a second one.
+        !disabled && !isFullscreen ? "focus-shell" : "",
         disabled ? "opacity-60 pointer-events-none" : "",
       ].join(" ")}
     >

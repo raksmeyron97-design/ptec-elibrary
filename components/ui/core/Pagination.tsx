@@ -91,7 +91,7 @@ const ChevronRightIcon = () => (
 
 // ── Shared control styles ─────────────────────────────────────────────────
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-page";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app";
 
 const interactive =
   `border border-divider bg-bg-surface text-text-body transition-all duration-150 hover:border-brand hover:bg-brand/5 hover:text-brand active:scale-[0.96] ${focusRing}`;

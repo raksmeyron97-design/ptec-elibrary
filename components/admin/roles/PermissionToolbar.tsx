@@ -44,7 +44,7 @@ export default function PermissionToolbar({
     <div className="rounded-xl border border-divider bg-bg-surface p-2.5 shadow-sm">
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center">
         {/* Search */}
-        <div className="flex flex-1 items-center gap-2 rounded-lg border border-divider bg-paper px-3">
+        <div className="focus-shell flex flex-1 items-center gap-2 rounded-lg border border-divider bg-paper px-3 hover:border-border-strong">
           <Search className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
           <label htmlFor="perm-search" className="sr-only">{t("searchLabel")}</label>
           <input

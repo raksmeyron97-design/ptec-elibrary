@@ -134,7 +134,7 @@ export default function PostCoverUploader({
                       title={item.isHero ? t("heroCover") : t("setHero")}
                       aria-label={item.isHero ? t("isHeroN", { n: idx + 1 }) : t("setHeroN", { n: idx + 1 })}
                       aria-pressed={item.isHero}
-                      className={`absolute right-1 top-1 rounded-full p-1 transition ${item.isHero ? "bg-amber-400 text-white" : "bg-black/50 text-white opacity-0 group-hover:opacity-100"}`}
+                      className={`absolute right-1 top-1 rounded-full p-1 transition ${item.isHero ? "bg-amber-400 text-white" : "bg-black/50 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`}
                     >
                       <Star className="h-3.5 w-3.5" fill={item.isHero ? "currentColor" : "none"} />
                     </button>
@@ -146,7 +146,7 @@ export default function PostCoverUploader({
                     onClick={() => (item.kind === "existing" ? toggleRemoveExisting(idx) : removeNew(idx))}
                     title={removed ? t("undoRemove") : t("remove")}
                     aria-label={removed ? t("undoRemoveN", { n: idx + 1 }) : t("removeN", { n: idx + 1 })}
-                    className="absolute bottom-1 right-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition group-hover:opacity-100 disabled:cursor-not-allowed"
+                    className="absolute bottom-1 right-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition group-hover:opacity-100 focus-visible:opacity-100 disabled:cursor-not-allowed"
                   >
                     {removed ? <Undo2 className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                   </button>
@@ -165,7 +165,9 @@ export default function PostCoverUploader({
                     placeholder={t("altPlaceholder")}
                     aria-label={t("altLabelN", { n: idx + 1 })}
                     disabled={disabled}
-                    className="w-full border-t border-divider bg-bg-surface px-2 py-1.5 text-[11px] outline-none placeholder:text-text-muted/70 disabled:opacity-60"
+                    // `focus-inset` because the tile clips overflow — an outset halo would be
+                    // sliced off on three sides and read as a broken rectangle.
+                    className="focus-field focus-inset w-full border-t border-divider bg-bg-surface px-2 py-1.5 text-[11px] placeholder:text-text-muted/70 disabled:opacity-60"
                   />
                 )}
               </div>

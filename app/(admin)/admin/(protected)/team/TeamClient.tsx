@@ -234,7 +234,7 @@ export default function TeamClient({
         <select
           value={sectionFilter}
           onChange={(e) => setSectionFilter(e.target.value)}
-          className="h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none transition focus:border-brand"
+          className="focus-field h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body"
           aria-label="Filter by section"
         >
           <option value="all">All sections</option>
@@ -247,7 +247,7 @@ export default function TeamClient({
         <select
           value={gapFilter}
           onChange={(e) => setGapFilter(e.target.value as GapFilter)}
-          className="h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none transition focus:border-brand"
+          className="focus-field h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body"
           aria-label="Filter by content completeness"
         >
           {GAP_OPTIONS.map((o) => (
@@ -258,7 +258,7 @@ export default function TeamClient({
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body outline-none transition focus:border-brand"
+          className="focus-field h-10 cursor-pointer rounded-lg border border-divider bg-bg-surface px-3 text-sm text-text-body"
           aria-label="Sort members"
         >
           {SORT_OPTIONS.map((o) => (
@@ -330,7 +330,7 @@ export default function TeamClient({
               <select
                 value={bulkMoveTarget}
                 onChange={(e) => setBulkMoveTarget(e.target.value)}
-                className="h-8 cursor-pointer rounded-lg border border-divider bg-bg-surface px-2 text-xs text-text-body outline-none focus:border-brand"
+                className="focus-field h-8 cursor-pointer rounded-lg border border-divider bg-bg-surface px-2 text-xs text-text-body"
                 aria-label="Move selected members to section"
               >
                 <option value="">Move to section…</option>

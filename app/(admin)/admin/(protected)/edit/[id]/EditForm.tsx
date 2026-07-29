@@ -48,14 +48,16 @@ type Initial = {
 
 type Phase = "idle" | "uploading-pdf" | "uploading-cover" | "saving";
 
+// `focus-field` (app/globals.css) supplies the shared keyboard-weighted
+// focus state. It replaces a hardcoded #4f46e5 indigo that was neither a
+// PTEC token nor the colour any other form in the panel focused with.
 const INPUT_CLASS =
-  "h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
-  "focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:bg-paper disabled:opacity-60 " +
-  "placeholder:text-text-muted/60 text-text-body";
+  "focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm " +
+  "disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body";
 
 const SELECT_CLASS =
-  "h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm outline-none transition-all " +
-  "focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:opacity-60 text-text-body";
+  "focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm " +
+  "disabled:opacity-60 text-text-body";
 
 function activatePickerFromKeyboard(
   e: React.KeyboardEvent<HTMLDivElement>,
@@ -646,7 +648,7 @@ export default function EditForm({
               rows={4}
               defaultValue={initial.summary}
               disabled={saving}
-              className="w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm outline-none transition-all focus:border-[#4f46e5] focus:ring-2 focus:ring-[#4f46e5]/10 disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body"
+              className="focus-field w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body"
             />
           </label>
 

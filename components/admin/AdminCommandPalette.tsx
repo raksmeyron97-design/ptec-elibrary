@@ -183,7 +183,7 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
         style={{ maxHeight: "min(70vh, 560px)" }}
       >
         {/* Search input */}
-        <div className="flex items-center gap-2.5 border-b border-divider px-4">
+        <div className="focus-shell focus-underline flex items-center gap-2.5 border-b border-divider px-4">
           <Search className="h-[18px] w-[18px] shrink-0 text-text-muted" aria-hidden="true" />
           <input
             ref={inputRef}

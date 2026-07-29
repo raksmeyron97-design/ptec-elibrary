@@ -1196,7 +1196,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                 {existingSiFiles.length + newSiFiles.length > 0 && (
                   <ul className="mb-3 space-y-2">
                     {existingSiFiles.map((f, i) => (
-                      <li key={f.id} className="flex items-center gap-3 rounded-lg border border-divider bg-paper/40 px-3 py-2">
+                      <li key={f.id} className="focus-shell flex items-center gap-3 rounded-lg border border-divider bg-paper/40 px-3 py-2">
                         <FileText className="h-4 w-4 shrink-0 text-text-muted" />
                         <input
                           value={f.label}
@@ -1223,7 +1223,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                       </li>
                     ))}
                     {newSiFiles.map((f, i) => (
-                      <li key={`new-${i}`} className="flex items-center gap-3 rounded-lg border border-success/40 bg-success/5 px-3 py-2">
+                      <li key={`new-${i}`} className="focus-shell flex items-center gap-3 rounded-lg border border-success/40 bg-success/5 px-3 py-2">
                         <FileText className="h-4 w-4 shrink-0 text-success" />
                         <input
                           value={f.label}
