@@ -40,6 +40,30 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Metadata goes in <head>, for everyone — i.e. streaming metadata off.
+  //
+  // Next 16 resolves generateMetadata WITHOUT blocking the shell and emits the
+  // tags later in the stream, inside <body>, relying on React to hoist them
+  // client-side. `htmlLimitedBots` is the UA allowlist that gets the blocking
+  // behaviour instead; widening it to everything opts the whole site out.
+  //
+  // WHY. The hoist does not always happen. Measured on /theses/research: the
+  // <meta name="description"> AND the <title> stay in <body> permanently, in a
+  // real browser, long after hydration — while /books hoists fine. A meta
+  // description in <body> is invalid HTML that head-only consumers ignore, so
+  // this was a live SEO defect, not just the failing Lighthouse audit
+  // (categories:seo 0.92 against a 0.95 error-level gate) that surfaced it.
+  //
+  // COST, measured locally (warm, median of 10; this machine's link to Supabase
+  // is far slower than Vercel sin1's, so production pays less):
+  //
+  //   /theses/research   TTFB 42ms -> 146ms   meta BODY -> head
+  //   /books             TTFB 43ms ->  35ms   meta head -> head (unchanged)
+  //
+  // Only routes whose generateMetadata does uncached DB work pay anything; the
+  // rest are unaffected. For a library whose discovery depends on search, head
+  // metadata is worth ~100ms of TTFB on detail pages.
+  htmlLimitedBots: /.*/,
   // Self-contained server bundle for the ZimaOS Docker image (Dockerfile
   // copies .next/standalone). Harmless elsewhere: `next start` and Vercel
   // deployments ignore it.
