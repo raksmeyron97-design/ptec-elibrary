@@ -33,6 +33,7 @@ export const ROOT_NAMESPACES = ["pushNotifications", "home"] as const;
 /** app/[locale]/(public): every namespace used by a client component
  *  reachable from public pages (incl. shared components/ui/*). */
 export const PUBLIC_NAMESPACES = [
+  "about",
   "abstractReader",
   "announcementBanner",
   "ask",

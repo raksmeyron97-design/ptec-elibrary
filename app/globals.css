@@ -183,6 +183,16 @@
   --font-sans: var(--font-var-sans), "Hanuman", var(--font-var-hanuman), Arial, Helvetica, sans-serif;
   --font-serif: var(--font-var-serif), "Crimson Pro", Georgia, serif;
   --font-khmer-serif: "Hanuman", var(--font-var-hanuman), serif;
+  /* Khmer RUNNING TEXT, as the `font-kh` utility.
+     This token exists because ~95 call sites across the app already write
+     `className="font-kh"` on Khmer strings — and until it was added, Tailwind
+     generated NO rule for that class, so every one of them was inert. Khmer
+     inside an English page therefore rendered on Inter's fallback chain
+     instead of Hanuman. Naming the token `--font-kh` makes the existing class
+     real rather than rewriting 95 call sites.
+     Hanuman first (the site's Khmer body face), then the Noto/Kantumruy
+     system fallbacks the `html:lang(km)` body rule already trusts. */
+  --font-kh: "Hanuman", var(--font-var-hanuman), "Noto Sans Khmer", "Kantumruy Pro", system-ui, sans-serif;
   /* Khmer DISPLAY face — hero headline only.
      Crimson Pro is listed FIRST on purpose. next/font ships a @font-face per
      subset the family offers (the `subsets` option gates preloading, not
@@ -638,5 +648,105 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   .bg-info\/10,
   .bg-success\/10 {
     background: transparent !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   About pages — shared reading and print behaviour
+   (components/about/*, app/[locale]/(public)/about/*)
+   ────────────────────────────────────────────────────────────────── */
+
+/* Khmer running text needs more leading than Latin at the same size —
+   the script stacks diacritics above AND below the baseline, so 1.5 makes
+   consecutive lines collide. 1.85 is the comfortable end of the range the
+   PTEC editorial guide asks for; Latin in the same block keeps 1.7. */
+.about-copy {
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.about-copy:lang(km),
+.about-copy [lang="km"],
+[lang="km"] .about-copy {
+  line-height: 1.85;
+}
+
+/* The comfortable measure for long policy text. Sections that are visual
+   (stat grids, tables, timelines) opt out by not using this class. */
+.about-measure {
+  max-width: 76ch;
+}
+
+/* Long Khmer compound words have few break opportunities, so a narrow card
+   or button can be overflowed by a single "word". Khmer has no hyphenation
+   rules to fall back on, hence anywhere rather than break-word. */
+.about-wrap {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-reveal {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media print {
+  /* Navigation and page-level actions are meaningless on paper. */
+  [data-about-print="hide"] {
+    display: none !important;
+  }
+
+  /* Print the policy in full: a collapsed <details> would otherwise drop the
+     entire rule text from the printed document. Browsers hide that content
+     two different ways depending on version — older builds via `display:none`
+     on the non-summary children, newer ones via `content-visibility` on the
+     `::details-content` pseudo-element — so both are unset here. The rules
+     also carry `open` in the markup as a third line of defence, and
+     <PrintPageAction> opens every <details> before calling print(). */
+  .about-page details > *:not(summary) {
+    display: revert !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .about-page details::details-content {
+    content-visibility: visible !important;
+    block-size: auto !important;
+  }
+
+  .about-page {
+    color: #000 !important;
+  }
+  .about-page a[href^="/"]::after,
+  .about-page a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 10px;
+    color: #444;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   About pages — printing the hidden audience tab panels
+
+   This lives in `@layer base` rather than alongside the rest of the About
+   print rules, and that is load-bearing. Tailwind's preflight declares
+
+       [hidden]:where(:not([hidden="until-found"])) { display: none !important }
+
+   inside `@layer base`. For **important** declarations the cascade REVERSES
+   layer order: a layered `!important` beats an unlayered `!important` no
+   matter how specific the unlayered selector is. The same override written
+   in the plain @media print block below therefore lost to preflight, and
+   three of the four audience panels silently vanished from printed copies
+   of the library's regulations.
+
+   Declaring it in the SAME layer puts the two back on equal footing, where
+   specificity decides — and (0,3,0) beats (0,1,0).
+   ────────────────────────────────────────────────────────────────── */
+@layer base {
+  @media print {
+    .about-page [role="tabpanel"][hidden] {
+      display: block !important;
+    }
   }
 }

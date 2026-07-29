@@ -5858,5 +5858,343 @@
   "announcementBanner": {
     "regionLabel": "Site announcements",
     "dismiss": "Dismiss this announcement"
+  },
+  "about": {
+    "eyebrow": "About the library",
+    "subnav": {
+      "label": "About the library",
+      "sectionLabel": "About section"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "home": "Home",
+      "about": "About"
+    },
+    "nav": {
+      "ourJourney": "How the library began in 2017 and where it is heading.",
+      "rules": "Membership, borrowing periods, penalties and conduct.",
+      "timings": "Opening hours, exam-period hours and closures.",
+      "collection": "What the library holds, by subject and language.",
+      "team": "The people who run library services day to day."
+    },
+    "pager": {
+      "label": "About pages",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "related": {
+      "heading": "More about the library",
+      "intro": "Other pages in this section."
+    },
+    "meta": {
+      "reviewed": "Information last reviewed {date}",
+      "sourceNote": "Figures are supplied by the library and updated when it reviews this page.",
+      "policyVersion": "Policy version {version}",
+      "print": "Print this page",
+      "printHint": "Opens your browser's print dialog"
+    },
+    "empty": {
+      "generic": "This information is being updated.",
+      "contactPrompt": "For assistance, contact the library desk."
+    },
+    "actions": {
+      "contactLibrary": "Contact the library",
+      "callLibrary": "Call the library",
+      "getDirections": "Get directions",
+      "browseELibrary": "Browse the e-Library",
+      "viewRules": "View library rules",
+      "viewTimings": "View opening hours",
+      "browseCatalogue": "Browse the catalogue",
+      "askLibrarian": "Ask a librarian"
+    },
+    "journey": {
+      "title": "Our Journey",
+      "metaTitle": "Our Journey",
+      "metaDescription": "How the PTEC Library grew from its founding in 2017 into the college's centre for teaching resources, research support and digital access.",
+      "category": "History and milestones",
+      "intro": "The library has grown alongside the college since 2017 — from a departmental service into the centre for teaching resources, research support and digital access at PTEC.",
+      "established": "Established in {year}",
+      "founding": {
+        "heading": "How the library began",
+        "yearBadge": "Founded {year}",
+        "context": "Institutional context",
+        "imageAlt": "The PTEC Library reading room"
+      },
+      "achievements": {
+        "heading": "What the library has achieved",
+        "intro": "Milestones the library reports in its own records.",
+        "minimumPrefix": "More than",
+        "titlesUnit": "titles",
+        "noFigure": "Figure awaiting confirmation"
+      },
+      "timeline": {
+        "heading": "Timeline",
+        "intro": "Dated events the library has confirmed so far.",
+        "yearLabel": "Year",
+        "moreComing": "More milestones will be added",
+        "moreComingBody": "The library is still compiling its full institutional history. This timeline shows only events it has confirmed."
+      },
+      "growth": {
+        "heading": "Growth and development",
+        "pending": "The library has not yet supplied growth figures for this section.",
+        "pendingBody": "Rather than estimate, this page leaves the section open until the library provides the data."
+      },
+      "roadmap": {
+        "heading": "Where the library is heading",
+        "label": "Strategic direction",
+        "note": "These are stated goals, not completed work.",
+        "goalLabel": "The library's stated goal"
+      }
+    },
+    "rules": {
+      "title": "Library Rules",
+      "metaTitle": "Library Rules",
+      "metaDescription": "Membership conditions, borrowing periods, penalties, conduct and online terms for the PTEC Library at Phnom Penh Teacher Education College.",
+      "category": "Policy and regulations",
+      "intro": "What you can borrow, for how long, and what the library expects of everyone using it.",
+      "quick": {
+        "heading": "Borrowing at a glance",
+        "maxItems": "Items at a time",
+        "maxItemsValue": "{count} books",
+        "khmerBooks": "Books in Khmer",
+        "englishBooks": "Books in English",
+        "allBooks": "All books",
+        "days": "{count} days",
+        "forStudents": "Student teachers",
+        "forStaff": "Instructors and staff"
+      },
+      "audience": {
+        "heading": "Rules that apply to you",
+        "intro": "Choose who you are to see the rules that apply.",
+        "label": "Choose an audience",
+        "students": "Students",
+        "staff": "Lecturers and staff",
+        "visitors": "Visitors",
+        "online": "Online users",
+        "noBorrowing": "No borrowing privileges",
+        "noBorrowingBody": "This group can use the library and its digital resources, but does not borrow items.",
+        "onlineBody": "The e-Library is open to everyone, at any hour, with no borrowing limits.",
+        "empty": "No specific rules are recorded for this group."
+      },
+      "categories": {
+        "heading": "The rules in full",
+        "intro": "Each section expands to the full wording supplied by the library.",
+        "expandAll": "Expand all",
+        "collapseAll": "Collapse all"
+      },
+      "conduct": {
+        "heading": "In the library",
+        "intro": "What the library asks of everyone in its reading areas.",
+        "do": "Please do",
+        "dont": "Not permitted"
+      },
+      "penalties": {
+        "heading": "Penalties",
+        "intro": "What happens when items come back late, damaged or not at all.",
+        "trigger": "Situation",
+        "consequence": "Consequence",
+        "noticeLabel": "Policy notice",
+        "prohibitedLabel": "Serious breach"
+      },
+      "official": {
+        "heading": "About this policy",
+        "body": "This page reproduces the library's own regulations. Where the wording is legally or institutionally significant it has not been rewritten.",
+        "questions": "Questions about a rule?",
+        "questionsBody": "The library desk can explain how a rule applies to your situation."
+      },
+      "online": {
+        "heading": "E-Library online terms"
+      }
+    },
+    "timings": {
+      "title": "Library Timings",
+      "metaTitle": "Opening Hours",
+      "metaDescription": "When the PTEC physical library is open, exam-period hours, and public holiday closures. The e-Library is available online at any hour.",
+      "category": "Visiting the library",
+      "intro": "When you can visit the physical library in Toul Kork — and what stays available online when it is closed.",
+      "status": {
+        "heading": "Right now",
+        "open": "Open now",
+        "closed": "Closed now",
+        "closesToday": "Closes today at {time}",
+        "opensToday": "Opens today at {time}",
+        "opensOn": "Opens {day} at {time}",
+        "unavailable": "Opening hours unavailable",
+        "unavailableBody": "The schedule could not be loaded. Please contact the library to confirm before visiting.",
+        "closedException": "Closed today",
+        "timezoneNote": "All times are Phnom Penh time (UTC+7).",
+        "liveLabel": "Current library status"
+      },
+      "physical": {
+        "heading": "Physical library",
+        "body": "Reading rooms, borrowing and the printed collection, on campus in Toul Kork.",
+        "todayLabel": "Today"
+      },
+      "digital": {
+        "heading": "E-Library",
+        "alwaysOpen": "Available 24/7",
+        "body": "Books, theses and publications you can read online at any hour, from anywhere."
+      },
+      "weekly": {
+        "heading": "Weekly schedule",
+        "caption": "Standard opening hours for the physical library, in Phnom Penh time",
+        "day": "Day",
+        "hours": "Hours",
+        "closed": "Closed",
+        "today": "Today",
+        "todayLabel": "Today's hours",
+        "alwaysOpen": "24/7",
+        "unavailable": "The weekly schedule is unavailable."
+      },
+      "exceptions": {
+        "heading": "Holidays and closures",
+        "intro": "Dates when the physical library is closed or keeps different hours.",
+        "none": "No closures are currently scheduled.",
+        "noneBody": "Public holidays are announced here when the library publishes them.",
+        "dateRange": "{from} to {to}"
+      },
+      "visit": {
+        "heading": "Plan your visit",
+        "addressLabel": "Address"
+      },
+      "availability": {
+        "heading": "Physical and digital access"
+      }
+    },
+    "collection": {
+      "title": "Library Collection",
+      "metaTitle": "Library Collection",
+      "metaDescription": "The PTEC Library collection: physical holdings by Dewey class, the languages represented, special research collections, and what is available digitally.",
+      "category": "What the library holds",
+      "intro": "What sits on the shelves in Toul Kork, how it is organised, and what you can read online.",
+      "stats": {
+        "heading": "The collection in numbers",
+        "titles": "Titles",
+        "titlesHint": "Distinct works held",
+        "copies": "Physical copies",
+        "copiesHint": "Individual volumes on the shelves",
+        "languages": "Languages",
+        "languagesHint": "Languages represented in the collection",
+        "specialCollections": "Special collections",
+        "specialCollectionsHint": "Research groupings held separately",
+        "measurementNote": "Titles and copies count different things: one title may be held as many copies.",
+        "asOf": "Figures supplied by the library, {date}",
+        "noteLabel": "About these figures"
+      },
+      "physical": {
+        "heading": "Physical collection",
+        "body": "Held at the library in Toul Kork and borrowed with a membership card.",
+        "nonTextbook": "General collection",
+        "textbook": "School textbooks (grades 1–12)",
+        "totalCopies": "Total copies"
+      },
+      "digital": {
+        "heading": "Digital collection",
+        "body": "Available through this e-Library, at any hour, with nothing to return.",
+        "books": "E-books",
+        "theses": "Theses",
+        "publications": "Publications",
+        "total": "Digital resources",
+        "unavailable": "Digital resource counts are temporarily unavailable.",
+        "liveNote": "Counted live from the e-Library catalogue."
+      },
+      "ddc": {
+        "heading": "Browse by subject",
+        "intro": "The printed collection is classified with the Dewey Decimal Classification. Select a subject to see what it covers.",
+        "selectLabel": "Select a subject class",
+        "titlesCount": "{count} titles",
+        "shareOfCollection": "{percent}% of titles",
+        "tableHeading": "All subject classes",
+        "tableCaption": "Dewey classes held by the library, with the number of titles in each",
+        "colCode": "Class",
+        "colCategory": "Subject",
+        "colTitles": "Titles",
+        "colShare": "Share",
+        "total": "Total",
+        "localGrouping": "Local grouping",
+        "localGroupingHint": "Shelved outside the Dewey sequence.",
+        "codeConflict": "Code recorded twice",
+        "codeConflictHint": "The library's records list this Dewey code for two different subjects; both are shown as supplied.",
+        "showTable": "Show as a table",
+        "hideTable": "Hide the table",
+        "chartLabel": "Titles per subject class"
+      },
+      "languages": {
+        "heading": "Languages",
+        "intro": "Languages represented across the printed collection.",
+        "noFilterNote": "The catalogue does not yet support filtering by language."
+      },
+      "special": {
+        "heading": "Special collections",
+        "intro": "Research material the library keeps as distinct collections.",
+        "browse": "Browse",
+        "notOnline": "Available at the library desk"
+      },
+      "classification": {
+        "heading": "How the collection is organised",
+        "body": "Printed items are classified with the Dewey Decimal Classification (000–900). School textbooks are shelved separately as a local grouping."
+      },
+      "holdings": {
+        "heading": "Physical and digital holdings"
+      }
+    },
+    "team": {
+      "title": "Library Team",
+      "metaTitle": "Library Team",
+      "metaDescription": "The people behind the PTEC Library — supporting teaching, research, the physical collection and digital access for the PTEC community.",
+      "category": "The people behind the library",
+      "intro": "Supporting teaching, research, the physical collection and digital access for the PTEC community.",
+      "heroHeading": "Meet the people behind PTEC Library",
+      "mission": {
+        "heading": "What the team does",
+        "body": "The library team manages the collection, keeps the e-Library running, supports research, and helps students and teachers find what they need."
+      },
+      "metrics": {
+        "heading": "The team at a glance",
+        "members": "Team members",
+        "serviceAreas": "Service areas",
+        "languages": "Service languages",
+        "daysOpen": "Days open each week"
+      },
+      "directory": {
+        "heading": "Team directory",
+        "filterLabel": "Filter by service area",
+        "all": "All",
+        "other": "Other",
+        "memberCount": "{count, plural, one {# member} other {# members}}",
+        "viewProfile": "View profile",
+        "profileOf": "Profile of {name}",
+        "close": "Close",
+        "emptyArea": "No team members in this service area yet.",
+        "keyContacts": "Key contacts",
+        "keyContactsBody": "Main staff responsible for library services",
+        "otherMembers": "Other members",
+        "noPhoto": "No portrait available"
+      },
+      "profile": {
+        "position": "Position",
+        "department": "Service area",
+        "education": "Education",
+        "experience": "Experience",
+        "responsibilities": "Responsibilities",
+        "languages": "Languages",
+        "workingHours": "Working hours",
+        "biography": "About",
+        "contact": "Contact",
+        "noContact": "Contact this member through the library desk."
+      },
+      "empty": {
+        "heading": "Team information is being updated",
+        "body": "Profiles for the library team are not published yet. For assistance, contact the official library desk."
+      },
+      "contact": {
+        "heading": "Need help from the library team?",
+        "body": "Our staff can help you find books and theses, access digital resources, and support your research.",
+        "officialOnly": "These are the library's official channels. Personal staff contact details are not published.",
+        "deskLabel": "Library desk",
+        "emailLabel": "Email",
+        "hoursLabel": "Hours"
+      }
+    }
   }
 }

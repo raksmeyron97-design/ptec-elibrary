@@ -1,6 +1,48 @@
 import type { Metadata } from "next";
-import { SITE_URL } from "@/lib/seo/site";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  Ban,
+  BookMarked,
+  ChevronDown,
+  CircleAlert,
+  CreditCard,
+  Gavel,
+  Globe2,
+  Heart,
+  Info,
+  MessageCircleQuestion,
+  Repeat2,
+  Smartphone,
+  Sparkles,
+  Trash2,
+  Utensils,
+  Volume2,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import { toAboutLocale, formatDate, localized } from "@/lib/about/format";
+import {
+  ABOUT_CONTENT_REVIEWED_AT,
+  BORROWING_ALLOWANCES,
+  CONDUCT_RULES,
+  PENALTIES,
+  RULES_POLICY_VERSION,
+  RULE_CATEGORIES,
+} from "@/lib/about/content";
+import AboutPageShell from "@/components/about/AboutPageShell";
+import RulesAudienceTabs from "@/components/about/RulesAudienceTabs";
+import PrintPageAction from "@/components/about/PrintPageAction";
+import { AboutLinkAction, AboutExternalAction } from "@/components/about/actions";
+import {
+  AboutSection,
+  ContentLastUpdated,
+  InformationCard,
+  NoticePanel,
+} from "@/components/about/primitives";
+
+export const revalidate = 3600;
 
 export async function generateMetadata({
   params,
@@ -8,294 +50,364 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "about.rules" });
+  const org = await getOrgIdentity();
   const alternates = localeAlternates("/about/rules", locale);
+  // The document <title> gets the brand from the site's titleTemplate
+  // ("%s · PTEC Library"), so `title` must NOT repeat it. An Open Graph title
+  // travels alone into a social card, so that one is branded explicitly.
+  const title = t("metaTitle");
+  const description = t("metaDescription");
+  const socialTitle = `${title} · ${org.siteName}`;
+
   return {
-    title: "បទបញ្ជាបណ្ណាល័យ — PTEC e-Library",
-    description:
-      "Library rules and regulations at Phnom Penh Teacher Education College — membership, borrowing, conduct, and online access.",
+    title,
+    description,
     alternates,
     openGraph: {
-      title: "Library Rules — PTEC Library",
+      title: socialTitle,
+      description,
       url: alternates.canonical,
       type: "website",
+      siteName: org.siteName,
+      locale: locale === "km" ? "km_KH" : "en_US",
+      images: [{ url: `${SITE_URL}/og-default.png` }],
     },
+    twitter: { card: "summary_large_image", title: socialTitle, description },
   };
 }
 
-function SectionHeading({
-  km,
-  en,
-  id,
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
+  info: Info,
+  card: CreditCard,
+  swap: Repeat2,
+  alert: CircleAlert,
+  gavel: Gavel,
+  heart: Heart,
+  globe: Globe2,
+};
+
+const CONDUCT_ICONS: Record<string, LucideIcon> = {
+  phone: Smartphone,
+  quiet: Volume2,
+  "no-smoking": Ban,
+  "no-food": Utensils,
+  "no-litter": Trash2,
+  "book-care": BookMarked,
+  card: CreditCard,
+};
+
+export default async function LibraryRulesPage({
+  params,
 }: {
-  km: string;
-  en: string;
-  id?: string;
+  params: Promise<{ locale: string }>;
 }) {
-  return (
-    <div className="flex items-start gap-3" id={id}>
-      <div
-        className="mt-1 h-7 w-1.5 shrink-0 rounded-full"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#3A5FC4 100%)" }}
-        aria-hidden="true"
-      />
-      <div>
-        <h2 className="font-kh text-lg font-bold text-text-heading leading-snug" lang="km">
-          {km}
-        </h2>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#2A47A6" }}>
-          {en}
-        </p>
-      </div>
-    </div>
-  );
-}
+  const { locale: rawLocale } = await params;
+  setRequestLocale(rawLocale);
+  const locale = toAboutLocale(rawLocale);
 
-function RuleCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-4 rounded-2xl border border-divider bg-bg-surface p-5 md:p-6">
-      {children}
-    </div>
-  );
-}
+  const t = await getTranslations("about");
+  const tr = await getTranslations("about.rules");
+  const cfg = await getSiteConfig();
 
-const CONDUCT_RULES: { km: string; en: string }[] = [
-  { km: "ត្រូវបិទសម្លេងទូរស័ព្ទ និងរក្សាភាពស្ងៀមស្ងាត់", en: "Switch phones to silent and maintain quiet" },
-  { km: "ហាមជក់បារី ពិសារអាហារ ភេសជ្ជៈ នៅក្នុងបណ្ណាល័យ", en: "No smoking, eating, or drinking inside the library" },
-  { km: "ហាមចោលក្រដាស ឬសម្រាមផ្សេងៗ នៅក្នុងបណ្ណាល័យ និងបរិវេណបណ្ណាល័យ", en: "No littering inside the library or on library premises" },
-  { km: "ហាមខាកស្ដោះនៅក្នុងបណ្ណាល័យ", en: "No spitting inside the library" },
-];
+  const reviewedDate = formatDate(ABOUT_CONTENT_REVIEWED_AT, locale);
+  const students = BORROWING_ALLOWANCES.find((a) => a.audience === "students");
+  const staff = BORROWING_ALLOWANCES.find((a) => a.audience === "staff");
 
-export default function LibraryRulesPage() {
   return (
-    <div className="min-h-screen bg-paper">
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#122251 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto max-w-3xl px-6 py-16 md:py-22 text-center">
-          <p
-            className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]"
-            style={{ color: "#DDB022" }}
+    <AboutPageShell
+      page="rules"
+      locale={locale}
+      hero={{
+        category: tr("category"),
+        title: tr("title"),
+        secondaryTitle: locale === "km" ? "Library Rules" : "បទបញ្ជាបណ្ណាល័យ",
+        secondaryLang: locale === "km" ? "en" : "km",
+        intro: tr("intro"),
+        action: (
+          <AboutExternalAction
+            href={cfg.phoneLibraryTel}
+            icon={MessageCircleQuestion}
+            variant="onDark"
           >
-            បទបញ្ជា · Regulations
+            {t("actions.askLibrarian")}
+          </AboutExternalAction>
+        ),
+      }}
+      footer={
+        <section
+          aria-labelledby="rules-official-heading"
+          className="mt-14 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm sm:p-6"
+        >
+          <h2 id="rules-official-heading" className="text-lg font-semibold text-text-heading">
+            {tr("official.heading")}
+          </h2>
+          <p className="about-copy about-measure mt-2 text-sm text-text-body">
+            {tr("official.body")}
           </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            Library Rules
-            <span className="font-kh ml-3 text-2xl md:text-3xl text-white/75" lang="km">
-              បទបញ្ជាបណ្ណាល័យ
-            </span>
-          </h1>
-          <p className="mt-4 text-sm text-white/65 max-w-sm mx-auto">
-            Guidelines for members, borrowers, and visitors of the PTEC Library.
-          </p>
-        </div>
-      </section>
 
-      <div className="mx-auto max-w-3xl px-4 md:px-8 pb-20 mt-12 space-y-10">
+          <ContentLastUpdated
+            reviewedLabel={reviewedDate ? t("meta.reviewed", { date: reviewedDate }) : null}
+            versionLabel={t("meta.policyVersion", { version: RULES_POLICY_VERSION })}
+            className="mt-5"
+          />
 
-        {/* General rules */}
-        <section aria-labelledby="general-rules">
-          <SectionHeading km="បទបញ្ជាទូទៅ" en="General Rules" id="general-rules" />
-          <RuleCard>
-            <p className="font-kh text-text-body leading-[1.9] text-[15px]" lang="km">
-              គរុសិស្ស គរុនិស្សិត គ្រូឧទ្ទេស និងបុគ្គលិកទាំងអស់ នៃវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ
-              ដែលមានបំណងចង់ប្រើប្រាស់ ឬខ្ចីសៀវភៅពីបណ្ណាល័យ ត្រូវសាកសួរព័ត៌មានពីបណ្ណារក្ស។
-            </p>
-          </RuleCard>
-        </section>
-
-        {/* Membership */}
-        <section aria-labelledby="membership-rules">
-          <SectionHeading km="លក្ខខណ្ឌក្លាយជាសមាជិក" en="Membership" id="membership-rules" />
-          <RuleCard>
-            <p className="font-kh text-text-body leading-[1.9] text-[15px]" lang="km">
-              បុគ្គលិក លោកគ្រូ អ្នកគ្រូ គរុនិស្សិត ត្រូវមានប័ណ្ណសមាជិកបណ្ណាល័យ ឬកាត
-              ដើម្បីចុះឈ្មោះបញ្ចូលក្នុងប្រព័ន្ធ PMB របស់បណ្ណាល័យ។
-              មិនត្រូវផ្ដល់ប័ណ្ណនេះទៅឲ្យអ្នកដទៃប្រើប្រាស់ឡើយ។
-            </p>
-          </RuleCard>
-        </section>
-
-        {/* Borrowing */}
-        <section aria-labelledby="borrowing-rules">
-          <SectionHeading km="ច្បាប់ខ្ចី និងសងសៀវភៅ" en="Borrowing Rules" id="borrowing-rules" />
-          <RuleCard>
-            <p className="font-kh text-text-body text-[14px] mb-4" lang="km">
-              កាតអាចខ្ចីសៀវភៅយកទៅប្រើប្រាស់បានតាមការកំណត់ដូចខាងក្រោម៖
-            </p>
-            <div className="space-y-4">
-              {/* Student category */}
-              <div className="rounded-xl border border-divider bg-paper p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold shrink-0"
-                    style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-                    aria-hidden="true"
-                  >
-                    ១
-                  </div>
-                  <p className="font-kh font-bold text-text-heading text-sm" lang="km">
-                    គរុសិស្ស / គរុនិស្សិត — ខ្ចីម្ដងបាន ៥ ក្បាល
-                  </p>
-                </div>
-                <ul className="space-y-2 ml-9" role="list">
-                  <li className="flex items-start gap-2 text-[13px]">
-                    <span
-                      className="mt-0.5 h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: "#1E3A8A" }}
-                      aria-hidden="true"
-                    />
-                    <span>
-                      <span className="font-kh text-text-body" lang="km">សៀវភៅជាភាសាខ្មែរ</span>
-                      <span className="text-text-muted ml-1">· Khmer books:</span>
-                      <span className="font-kh ml-1 font-semibold text-text-heading" lang="km">
-                        ១៤ ថ្ងៃ (អាចខ្ចីបន្តបានតាមតម្រូវការ)
-                      </span>
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2 text-[13px]">
-                    <span
-                      className="mt-0.5 h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: "#1E3A8A" }}
-                      aria-hidden="true"
-                    />
-                    <span>
-                      <span className="font-kh text-text-body" lang="km">សៀវភៅជាភាសាអង់គ្លេស</span>
-                      <span className="text-text-muted ml-1">· English books:</span>
-                      <span className="font-kh ml-1 font-semibold text-text-heading" lang="km">
-                        ៧ ថ្ងៃ (អាចខ្ចីបន្តបានមួយដង)
-                      </span>
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Staff/instructor category */}
-              <div className="rounded-xl border border-divider bg-paper p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white text-xs font-bold shrink-0"
-                    style={{ background: "linear-gradient(135deg,#DDB022,#BE9412)" }}
-                    aria-hidden="true"
-                  >
-                    ២
-                  </div>
-                  <p className="font-kh font-bold text-text-heading text-sm" lang="km">
-                    គ្រូឧទ្ទេស និងបុគ្គលិក — ខ្ចីម្ដងបាន ៥ ក្បាល
-                  </p>
-                </div>
-                <p className="font-kh text-text-muted text-[13px] ml-9" lang="km">
-                  រយៈពេល ៣០ ថ្ងៃ ចាប់ពីថ្ងៃខ្ចី ដោយមិនគិតថ្ងៃឈប់សម្រាក និងថ្ងៃបុណ្យជាតិ
-                </p>
-              </div>
-            </div>
-          </RuleCard>
-        </section>
-
-        {/* Penalties */}
-        <section aria-labelledby="penalty-rules">
-          <SectionHeading km="ការផាកពិន័យ" en="Penalties" id="penalty-rules" />
-          <RuleCard>
-            <div className="space-y-3">
-              {[
-                "អ្នកខ្ចីត្រូវថែរក្សាសៀវភៅឲ្យបានល្អដូចសភាពដើម។",
-                "ករណីខូចខាត ឬបាត់បង់ ត្រូវសងតម្លៃស្មើទ្វេរដងនៃតម្លៃសៀវភៅ ឬទិញសៀវភៅថ្មីសងមកវិញ។",
-                "កម្រងឯកសារច្បាប់ វចនានុក្រម ទស្សនាវដ្ដី និងសៀវភៅប្រភេទខ្លះ មិនអនុញ្ញាតឲ្យខ្ចីយកចេញក្រៅឡើយ។",
-                "បណ្ណារក្សមានសិទ្ធិឆែកឆេរអ្នកចេញចូលក្នុងបណ្ណាល័យ។",
-                "អ្នកបន្លំ លួចលាក់ ហែកសន្លឹកសៀវភៅរបស់បណ្ណាល័យ ត្រូវទទួលទណ្ឌកម្មពីវិទ្យាស្ថានតាមប្រការ៨ នៃបទបញ្ជានេះ។",
-                "អ្នកខ្ចីដែលពុំបានសងវិញតាមកាលកំណត់ ត្រូវបង់ប្រាក់ពិន័យតាមការកំណត់របស់បណ្ណាល័យ។",
-                "ករណីមិនគោរពបទបញ្ជា អ្នកគ្រប់គ្រងបណ្ណាល័យមានសិទ្ធិផ្អាកការឲ្យខ្ចីសៀវភៅពី ១ ឆមាស ទៅ ១ ឆ្នាំសិក្សា។",
-              ].map((rule, idx) => (
-                <div key={idx} className="flex items-start gap-3 text-[14px]">
-                  <span
-                    className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white text-[10px] font-bold"
-                    style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-                    aria-hidden="true"
-                  >
-                    {idx + 1}
-                  </span>
-                  <p className="font-kh text-text-body leading-[1.8]" lang="km">
-                    {rule}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </RuleCard>
-        </section>
-
-        {/* Conduct */}
-        <section aria-labelledby="conduct-rules">
-          <SectionHeading km="បទបញ្ជាសុជីវធម៌" en="Code of Conduct" id="conduct-rules" />
-          <RuleCard>
-            <ul className="space-y-3" role="list">
-              {CONDUCT_RULES.map((rule, idx) => (
-                <li key={idx} className="flex items-start gap-3">
-                  <span
-                    className="mt-0.5 h-5 w-5 shrink-0 flex items-center justify-center rounded-full"
-                    style={{ backgroundColor: "#EEF2FB" }}
-                    aria-hidden="true"
-                  >
-                    <svg className="w-3 h-3" style={{ color: "#1E3A8A" }} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </span>
-                  <span>
-                    <span className="font-kh text-text-body text-[14px] leading-[1.8]" lang="km">
-                      {rule.km}
-                    </span>
-                    <span className="ml-2 text-xs text-text-muted">· {rule.en}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </RuleCard>
-        </section>
-
-        {/* E-Library online access */}
-        <section aria-labelledby="elibrary-rules">
-          <SectionHeading km="លក្ខខណ្ឌប្រើ E-Library Online" en="E-Library Online Access" id="elibrary-rules" />
-          <div
-            className="mt-4 rounded-2xl p-5 flex items-center gap-4 text-white"
-            style={{ background: "linear-gradient(135deg,#1E3A8A,#2A47A6)" }}
-          >
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15"
-              aria-hidden="true"
-            >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="2" y1="12" x2="22" y2="12"/>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-            </div>
-            <div>
-              <p className="font-kh text-white text-[14px] leading-[1.8]" lang="km">
-                ចូលទៅកាន់វេបសាយ៖ <strong>www.ptec.edu.kh</strong> (Library)
-              </p>
-              <p className="text-white/65 text-xs mt-0.5">
-                Visit www.ptec.edu.kh and navigate to the Library section for online access.
-              </p>
+          <div className="mt-6 border-t border-divider pt-5">
+            <p className="text-sm font-medium text-text-heading">{tr("official.questions")}</p>
+            <p className="about-copy mt-1 text-sm text-text-muted">{tr("official.questionsBody")}</p>
+            <div className="mt-4 flex flex-wrap gap-3" data-about-print="hide">
+              <AboutExternalAction
+                href={cfg.phoneLibraryTel}
+                icon={MessageCircleQuestion}
+                variant="primary"
+              >
+                {t("actions.callLibrary")}
+              </AboutExternalAction>
+              <AboutLinkAction href="/contact">{t("actions.contactLibrary")}</AboutLinkAction>
+              {/* No "download the PDF" action: the library has not supplied an
+                  official policy document, and linking a generated file would
+                  present it as the authoritative text. Print instead. */}
+              <PrintPageAction label={t("meta.print")} hint={t("meta.printHint")} />
             </div>
           </div>
         </section>
+      }
+    >
+      {/* ── Quick reference ──────────────────────────────────────────────
+          Directly below the hero: the three questions people actually
+          arrive with, answered before any prose. */}
+      <AboutSection id="quick-reference" title={tr("quick.heading")}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <InformationCard className="flex h-full flex-col border-brand/25 bg-brand/[0.03]">
+            <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+              {tr("quick.maxItems")}
+            </p>
+            <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-text-heading">
+              {tr("quick.maxItemsValue", { count: students?.maxItems ?? 5 })}
+            </p>
+          </InformationCard>
 
-        {/* Decorative divider */}
-        <div className="flex items-center justify-center gap-3 mt-6" aria-hidden="true">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-blue-700/40" />
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#DDB022" }} />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-blue-700/40" />
+          <InformationCard className="flex h-full flex-col">
+            <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+              {tr("quick.forStudents")}
+            </p>
+            <dl className="mt-2 space-y-1.5">
+              {students?.loanDays.map((loan) => (
+                <div key={loan.key} className="flex items-baseline justify-between gap-3">
+                  <dt className="about-wrap text-sm text-text-body">
+                    {loan.key === "khmer" ? tr("quick.khmerBooks") : tr("quick.englishBooks")}
+                  </dt>
+                  <dd className="shrink-0 text-base font-semibold tabular-nums text-text-heading">
+                    {tr("quick.days", { count: loan.days })}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </InformationCard>
+
+          <InformationCard className="flex h-full flex-col">
+            <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+              {tr("quick.forStaff")}
+            </p>
+            <dl className="mt-2 space-y-1.5">
+              {staff?.loanDays.map((loan) => (
+                <div key={loan.key} className="flex items-baseline justify-between gap-3">
+                  <dt className="about-wrap text-sm text-text-body">{tr("quick.allBooks")}</dt>
+                  <dd className="shrink-0 text-base font-semibold tabular-nums text-text-heading">
+                    {tr("quick.days", { count: loan.days })}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </InformationCard>
         </div>
+      </AboutSection>
 
-      </div>
-    </div>
+      {/* ── Audience selector ──────────────────────────────────────────── */}
+      <AboutSection id="audience" title={tr("audience.heading")} description={tr("audience.intro")}>
+        <RulesAudienceTabs
+          categories={RULE_CATEGORIES}
+          allowances={BORROWING_ALLOWANCES}
+          locale={locale}
+        />
+      </AboutSection>
+
+      {/* ── Full rule text ───────────────────────────────────────────────
+          Native <details>/<summary>: keyboard-operable, findable by the
+          browser's own find-in-page, and zero JavaScript. `open` by default
+          so the authoritative text is server-rendered, indexable and
+          present in a printed copy even if scripting never runs. */}
+      <AboutSection
+        id="categories"
+        title={tr("categories.heading")}
+        description={tr("categories.intro")}
+      >
+        <div className="space-y-3">
+          {RULE_CATEGORIES.map((category) => {
+            const Icon = CATEGORY_ICONS[category.icon] ?? Info;
+            const title = localized(category.title, locale);
+            const summary = localized(category.summary, locale);
+            if (!title) return null;
+
+            return (
+              <details
+                key={category.id}
+                id={`rule-${category.id}`}
+                open
+                className="group scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm"
+              >
+                <summary className="flex cursor-pointer list-none items-start gap-3 p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10"
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-4.5 w-4.5 text-brand" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      lang={title.lang}
+                      className="about-wrap block font-semibold text-text-heading"
+                    >
+                      {title.text}
+                    </span>
+                    {/* The summary states the actual point of the section —
+                        never a bare "Read more". */}
+                    {summary && (
+                      <span
+                        lang={summary.lang}
+                        className="about-copy about-wrap mt-1 block text-sm text-text-muted"
+                      >
+                        {summary.text}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown
+                    className="mt-1 h-4 w-4 shrink-0 text-text-muted transition-transform group-open:rotate-180 motion-reduce:transition-none"
+                    aria-hidden="true"
+                  />
+                </summary>
+
+                <div className="border-t border-divider px-5 pb-5 pt-4">
+                  <ul className="space-y-3">
+                    {category.clauses.map((clause) => {
+                      const text = localized(clause, locale);
+                      if (!text) return null;
+                      return (
+                        // Keyed by the Khmer original, which is the clause's
+                        // stable identity — an array index would shift every
+                        // following clause if one were ever inserted.
+                        <li key={clause.km || clause.en} className="flex gap-3">
+                          <span
+                            className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand/50"
+                            aria-hidden="true"
+                          />
+                          <p
+                            lang={text.lang}
+                            className="about-copy about-measure text-[15px] text-text-body"
+                          >
+                            {text.text}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      </AboutSection>
+
+      {/* ── Conduct grid ─────────────────────────────────────────────────
+          Icons support the text; every tile states its rule in words, and
+          "do" vs "not permitted" is a visible label, not a colour. */}
+      <AboutSection id="conduct" title={tr("conduct.heading")} description={tr("conduct.intro")}>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {CONDUCT_RULES.map((rule) => {
+            const Icon = CONDUCT_ICONS[rule.icon] ?? Info;
+            const text = localized(rule.text, locale);
+            if (!text) return null;
+            return (
+              <li
+                key={rule.id}
+                className="flex items-start gap-3 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm"
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                    rule.kind === "dont" ? "bg-amber-100 dark:bg-amber-500/15" : "bg-paper"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <Icon
+                    className={`h-4.5 w-4.5 ${
+                      rule.kind === "dont"
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-text-muted"
+                    }`}
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                    {rule.kind === "dont" ? tr("conduct.dont") : tr("conduct.do")}
+                  </span>
+                  <span
+                    lang={text.lang}
+                    className="about-copy about-wrap mt-0.5 block text-sm font-medium text-text-heading"
+                  >
+                    {text.text}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </AboutSection>
+
+      {/* ── Penalties ────────────────────────────────────────────────────
+          Amber for ordinary policy consequences; red ONLY for deliberate
+          destruction, theft and card misuse. Each row carries its severity
+          as a text label so the distinction survives greyscale printing. */}
+      <AboutSection
+        id="penalties"
+        title={tr("penalties.heading")}
+        description={tr("penalties.intro")}
+      >
+        <ul className="space-y-3">
+          {PENALTIES.map((penalty) => {
+            const trigger = localized(penalty.trigger, locale);
+            const consequence = localized(penalty.consequence, locale);
+            if (!trigger || !consequence) return null;
+            const prohibited = penalty.tone === "prohibited";
+            return (
+              <li key={penalty.id}>
+                <NoticePanel
+                  tone={prohibited ? "prohibited" : "caution"}
+                  label={prohibited ? tr("penalties.prohibitedLabel") : tr("penalties.noticeLabel")}
+                >
+                  <p lang={trigger.lang} className="about-wrap font-semibold text-text-heading">
+                    {trigger.text}
+                  </p>
+                  <p lang={consequence.lang} className="about-wrap mt-1">
+                    {consequence.text}
+                  </p>
+                </NoticePanel>
+              </li>
+            );
+          })}
+        </ul>
+      </AboutSection>
+
+      {/* ── Online terms ─────────────────────────────────────────────── */}
+      <AboutSection id="online" title={tr("online.heading")}>
+        <NoticePanel tone="positive" label={tr("audience.online")}>
+          <p>{tr("audience.onlineBody")}</p>
+          <div className="mt-4 flex flex-wrap gap-3" data-about-print="hide">
+            <AboutLinkAction href="/books" icon={Sparkles} variant="secondary">
+              {t("actions.browseELibrary")}
+            </AboutLinkAction>
+          </div>
+        </NoticePanel>
+      </AboutSection>
+    </AboutPageShell>
   );
 }

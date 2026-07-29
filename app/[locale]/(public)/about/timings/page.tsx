@@ -1,9 +1,31 @@
 import type { Metadata } from "next";
-import { SITE_URL } from "@/lib/seo/site";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { BookOpen, Building2, CalendarOff, Globe2, MapPin, Phone, Scale } from "lucide-react";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { getSiteConfig } from "@/lib/system-settings/config";
-import { dayName, upcomingClosures } from "@/lib/system-settings/hours";
-import { parseOpeningHours, type DayRange } from "@/lib/library-hours";
+import { SITE_URL } from "@/lib/seo/site";
+import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
+import { upcomingClosures } from "@/lib/system-settings/hours";
+import { formatTimeLabel } from "@/lib/library-hours";
+import { toAboutLocale, formatClock, formatDate, localized } from "@/lib/about/format";
+import { resolveLibraryStatus } from "@/lib/about/status";
+import { cambodiaWeekday, minutesToHHMM, todayIntervals } from "@/lib/about/schedule";
+import { ABOUT_CONTENT_REVIEWED_AT, SPECIAL_SCHEDULE_ROWS } from "@/lib/about/content";
+import AboutPageShell from "@/components/about/AboutPageShell";
+import LibraryOpenStatus from "@/components/about/LibraryOpenStatus";
+import WeeklyHoursTable from "@/components/about/WeeklyHoursTable";
+import { AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
+import {
+  AboutSection,
+  ContentLastUpdated,
+  EmptyContentState,
+  InformationCard,
+  NoticePanel,
+} from "@/components/about/primitives";
+
+// Short window: the server-rendered status is only a first paint (the client
+// refreshes it every minute), but a stale-by-an-hour cache would still show a
+// visibly wrong badge to a visitor with JavaScript disabled.
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
@@ -11,285 +33,298 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "about.timings" });
+  const org = await getOrgIdentity();
   const alternates = localeAlternates("/about/timings", locale);
+  // The document <title> gets the brand from the site's titleTemplate
+  // ("%s · PTEC Library"), so `title` must NOT repeat it. An Open Graph title
+  // travels alone into a social card, so that one is branded explicitly.
+  const title = t("metaTitle");
+  const description = t("metaDescription");
+  const socialTitle = `${title} · ${org.siteName}`;
+
   return {
-    title: "ម៉ោងបម្រើសេវាកម្ម — PTEC e-Library",
-    description:
-      "Library opening hours at Phnom Penh Teacher Education College. The online e-Library is available 24/7.",
+    title,
+    description,
     alternates,
     openGraph: {
-      title: "Library Timings — PTEC Library",
+      title: socialTitle,
+      description,
       url: alternates.canonical,
       type: "website",
+      siteName: org.siteName,
+      locale: locale === "km" ? "km_KH" : "en_US",
+      images: [{ url: `${SITE_URL}/og-default.png` }],
     },
+    twitter: { card: "summary_large_image", title: socialTitle, description },
   };
 }
 
-type ScheduleRow = {
-  day_km: string;
-  day_en: string;
-  hours: string;
-  hours_en?: string;
-  closed: boolean;
-  highlight: boolean;
-  online?: boolean;
-};
+export default async function LibraryTimingsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale: rawLocale } = await params;
+  setRequestLocale(rawLocale);
+  const locale = toAboutLocale(rawLocale);
 
-const fmtRange = (r: DayRange) => {
-  const f = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
-  return `${f(r.open)} – ${f(r.close)}`;
-};
-
-/**
- * Weekly rows derived from the PUBLISHED opening-hours settings — consecutive
- * days sharing identical windows collapse into one row ("Mon – Fri"), closed
- * days into a single "Closed" row. Editorial rows (holidays, exam period,
- * online 24/7) stay static below.
- */
-function buildWeeklyRows(spec: readonly string[]): ScheduleRow[] {
-  const sched = parseOpeningHours(spec);
-  const order = [1, 2, 3, 4, 5, 6, 0];
-  const key = (d: number) => sched[d].map(fmtRange).join(", ");
-  const rows: ScheduleRow[] = [];
-  const closedDays: number[] = [];
-
-  let i = 0;
-  while (i < order.length) {
-    const day = order[i];
-    if (sched[day].length === 0) {
-      closedDays.push(day);
-      i++;
-      continue;
-    }
-    let j = i;
-    while (j + 1 < order.length && key(order[j + 1]) === key(day)) j++;
-    // English ranges use short names ("Mon – Fri"), single days the full name
-    // ("Saturday") — matches the page's original copy.
-    const enShort = (d: number) => dayName("en", d).slice(0, 3);
-    rows.push({
-      day_km:
-        i === j
-          ? `ថ្ងៃ${dayName("km", day)}`
-          : `${dayName("km", day)} – ${dayName("km", order[j])}`,
-      day_en: i === j ? dayName("en", day) : `${enShort(day)} – ${enShort(order[j])}`,
-      hours: key(day),
-      closed: false,
-      highlight: false,
-    });
-    i = j + 1;
-  }
-
-  if (closedDays.length > 0) {
-    rows.push({
-      day_km: closedDays.map((d) => `ថ្ងៃ${dayName("km", d)}`).join(" "),
-      day_en: closedDays.map((d) => dayName("en", d)).join(", "),
-      hours: "បិទ",
-      hours_en: "Closed",
-      closed: true,
-      highlight: false,
-    });
-  }
-  return rows;
-}
-
-const STATIC_ROWS: ScheduleRow[] = [
-  {
-    day_km: "ថ្ងៃបុណ្យ / ឈប់សម្រាក",
-    day_en: "Holidays",
-    hours: "បិទ",
-    hours_en: "Closed",
-    closed: true,
-    highlight: false,
-  },
-  {
-    day_km: "រដូវប្រឡង",
-    day_en: "Exam Period",
-    hours: "7:00 – 19:00",
-    closed: false,
-    highlight: true,
-  },
-  {
-    day_km: "បណ្ណាល័យអេឡិចត្រូនិក",
-    day_en: "E-Library Online",
-    hours: "២៤ម៉ោង",
-    hours_en: "24/7",
-    closed: false,
-    highlight: true,
-    online: true,
-  },
-];
-
-export default async function LibraryTimingsPage() {
+  const t = await getTranslations("about");
+  const tt = await getTranslations("about.timings");
   const cfg = await getSiteConfig();
-  const SCHEDULE = [...buildWeeklyRows(cfg.hours.openingHoursSpec), ...STATIC_ROWS];
-  const closures = upcomingClosures(new Date(), cfg.hours.closures);
+
+  const now = new Date();
+  const spec = cfg.hours.openingHoursSpec;
+  const closures = cfg.hours.closures;
+  const status = resolveLibraryStatus(now, spec, closures);
+  const todayWeekday = cambodiaWeekday(now);
+  const today = todayIntervals(spec, now);
+  const upcoming = upcomingClosures(now, [...closures]);
+  const reviewedDate = formatDate(ABOUT_CONTENT_REVIEWED_AT, locale);
+
+  const todayLabel =
+    today.length > 0
+      ? today
+          .map((r) => {
+            const from = formatClock(minutesToHHMM(r.open), locale);
+            const to = formatClock(minutesToHHMM(r.close), locale);
+            return from && to ? `${from} – ${to}` : null;
+          })
+          .filter(Boolean)
+          .join(" · ")
+      : tt("weekly.closed");
+
+  // Address is a plain string in settings; only offer directions when the
+  // library has actually published a maps URL.
+  const mapUrl = cfg.links.mapPlace?.trim() || null;
+  const address = locale === "km" ? cfg.address.km : cfg.address.en;
+
   return (
-    <div className="min-h-screen bg-paper">
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#1E3A8A 0%,#2A47A6 100%)" }}
-      >
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage: "radial-gradient(circle,white 1px,transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-          aria-hidden="true"
+    <AboutPageShell
+      page="timings"
+      locale={locale}
+      hero={{
+        category: tt("category"),
+        title: tt("title"),
+        secondaryTitle: locale === "km" ? "Library Timings" : "ម៉ោងបម្រើសេវាកម្ម",
+        secondaryLang: locale === "km" ? "en" : "km",
+        intro: tt("intro"),
+        action: (
+          <>
+            <AboutExternalAction href={mapUrl} icon={MapPin} variant="onDark" newTab>
+              {t("actions.getDirections")}
+            </AboutExternalAction>
+            <AboutExternalAction href={cfg.phoneLibraryTel} icon={Phone} variant="onDark">
+              {t("actions.callLibrary")}
+            </AboutExternalAction>
+          </>
+        ),
+      }}
+    >
+      {/* ── Live status ──────────────────────────────────────────────── */}
+      <AboutSection id="status" title={tt("status.heading")}>
+        <LibraryOpenStatus
+          initialStatus={status}
+          spec={[...spec]}
+          closures={[...closures]}
+          locale={locale}
         />
-        <div className="relative mx-auto max-w-3xl px-6 py-16 md:py-22 text-center">
-          <p
-            className="mb-3 text-sm font-semibold uppercase tracking-[0.2em]"
-            style={{ color: "#DDB022" }}
-          >
-            ម៉ោងបម្រើសេវាកម្ម · Library Hours
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            Library Timings
-            <span className="font-kh ml-3 text-2xl md:text-3xl text-white/75" lang="km">
-              ម៉ោងបម្រើ
-            </span>
-          </h1>
-          <p className="mt-4 text-sm text-white/65 max-w-sm mx-auto">
-            Physical library opening hours — the online e-Library is always open.
-          </p>
-        </div>
-      </section>
+      </AboutSection>
 
-      <div className="mx-auto max-w-2xl px-4 md:px-8 pb-20 mt-12">
+      {/* ── Physical vs digital ──────────────────────────────────────────
+          Two visually distinct cards, because "the library is closed" and
+          "you can't read anything" are different statements and conflating
+          them is the single most common misreading of this page. */}
+      <AboutSection id="availability" title={tt("availability.heading")}>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <InformationCard className="flex h-full flex-col">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10"
+                aria-hidden="true"
+              >
+                <Building2 className="h-5 w-5 text-brand" />
+              </span>
+              <h3 className="about-wrap text-base font-semibold text-text-heading">
+                {tt("physical.heading")}
+              </h3>
+            </div>
+            <p className="about-copy mt-3 text-sm text-text-body">{tt("physical.body")}</p>
 
-        {/* 24/7 callout */}
-        <div
-          className="mb-8 flex items-center gap-4 rounded-2xl p-5 text-white relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg,#DDB022 0%,#BE9412 100%)" }}
-        >
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/20"
-            aria-hidden="true"
-          >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <div>
-            <p className="font-bold text-white text-base">E-Library Online — 24 / 7</p>
-            <p className="font-kh text-white/80 text-sm mt-0.5" lang="km">
-              បណ្ណាល័យអនឡាញអាចប្រើប្រាស់បាន ២៤ ម៉ោង ៧ ថ្ងៃ ក្នុងមួយសប្តាហ៍
+            <dl className="mt-4 rounded-xl border border-divider bg-paper p-4">
+              <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                {tt("physical.todayLabel")}
+              </dt>
+              <dd className="mt-1 text-lg font-semibold tabular-nums text-text-heading">
+                {todayLabel}
+              </dd>
+            </dl>
+
+            <div className="mt-auto flex flex-wrap gap-3 pt-5" data-about-print="hide">
+              <AboutExternalAction href={mapUrl} icon={MapPin} newTab>
+                {t("actions.getDirections")}
+              </AboutExternalAction>
+              <AboutLinkAction href="/about/rules" icon={Scale}>
+                {t("actions.viewRules")}
+              </AboutLinkAction>
+            </div>
+          </InformationCard>
+
+          <InformationCard className="flex h-full flex-col border-green-300/60 bg-green-50/50 dark:border-green-500/25 dark:bg-green-500/[0.06]">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-600/10"
+                aria-hidden="true"
+              >
+                <Globe2 className="h-5 w-5 text-green-700 dark:text-green-300" />
+              </span>
+              <h3 className="about-wrap text-base font-semibold text-text-heading">
+                {tt("digital.heading")}
+              </h3>
+            </div>
+            <p className="about-copy mt-3 text-sm text-text-body">{tt("digital.body")}</p>
+
+            <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-3 py-2 text-sm font-semibold text-green-900 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-100">
+              <span className="h-2 w-2 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />
+              {tt("digital.alwaysOpen")}
             </p>
-          </div>
-        </div>
 
-        {/* Schedule table */}
-        <div className="rounded-2xl border border-divider bg-bg-surface overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-divider">
-            <h2 className="text-base font-bold text-text-heading">
-              ម៉ោងបម្រើ <span className="font-kh" lang="km">· </span>Opening Hours
-            </h2>
-          </div>
-          <table className="w-full" role="table">
-            <thead>
-              <tr className="bg-paper">
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted"
-                >
-                  ថ្ងៃ · Day
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-text-muted"
-                >
-                  ម៉ោង · Hours
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-divider">
-              {SCHEDULE.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className={
-                    row.online
-                      ? "bg-gold-50 dark:bg-gold-800/10"
-                      : row.highlight
-                      ? "bg-blue-50 dark:bg-blue-900/20"
-                      : ""
-                  }
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      {row.online && (
-                        <span
-                          className="h-2 w-2 rounded-full bg-green-500 shrink-0"
-                          title="Always available"
-                          aria-label="Always online"
-                        />
-                      )}
-                      <span>
-                        <span className="font-kh font-semibold text-text-heading text-sm" lang="km">
-                          {row.day_km}
-                        </span>
-                        <span className="ml-2 text-xs text-text-muted">{row.day_en}</span>
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {row.closed ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
-                        <span className="font-kh" lang="km">{row.hours}</span>
-                        {row.hours_en && <span className="opacity-70">· {row.hours_en}</span>}
-                      </span>
-                    ) : row.online ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-bold"
-                        style={{ background: "#FDF8E7", color: "#806211" }}>
-                        <span className="font-kh" lang="km">{row.hours}</span>
-                        {row.hours_en && <span>· {row.hours_en}</span>}
-                      </span>
-                    ) : (
-                      <span
-                        className="text-sm font-semibold text-text-heading"
-                      >
-                        {row.hours}
-                      </span>
+            <div className="mt-auto flex flex-wrap gap-3 pt-5" data-about-print="hide">
+              <AboutLinkAction href="/books" icon={BookOpen} variant="primary">
+                {t("actions.browseELibrary")}
+              </AboutLinkAction>
+            </div>
+          </InformationCard>
+        </div>
+      </AboutSection>
+
+      {/* ── Weekly schedule ──────────────────────────────────────────── */}
+      <AboutSection id="weekly" title={tt("weekly.heading")}>
+        <WeeklyHoursTable
+          spec={spec}
+          specialRows={SPECIAL_SCHEDULE_ROWS}
+          locale={locale}
+          todayWeekday={todayWeekday}
+          labels={{
+            caption: tt("weekly.caption"),
+            day: tt("weekly.day"),
+            hours: tt("weekly.hours"),
+            closed: tt("weekly.closed"),
+            today: tt("weekly.today"),
+            alwaysOpen: tt("weekly.alwaysOpen"),
+            unavailable: tt("weekly.unavailable"),
+          }}
+        />
+        {/* No timezone note repeated here — the status card above already
+            states it, and saying it twice on one screen reads as noise. */}
+      </AboutSection>
+
+      {/* ── Holidays and closures ────────────────────────────────────────
+          Dated exceptions are kept entirely separate from the weekly grid:
+          they come from a different field, they expire, and merging them
+          into the table would make a one-off closure look permanent. */}
+      <AboutSection
+        id="closures"
+        title={tt("exceptions.heading")}
+        description={tt("exceptions.intro")}
+      >
+        {upcoming.length === 0 ? (
+          <EmptyContentState title={tt("exceptions.none")} body={tt("exceptions.noneBody")} />
+        ) : (
+          <ul className="space-y-3">
+            {upcoming.map((closure) => {
+              const reason = localized(closure.reason, locale);
+              const from = formatDate(closure.from, locale);
+              const to = formatDate(closure.to, locale);
+              return (
+                <li key={`${closure.from}-${closure.to}`}>
+                  <NoticePanel tone="caution" label={tt("exceptions.heading")}>
+                    <p className="font-semibold text-text-heading">
+                      {from && to && from !== to
+                        ? tt("exceptions.dateRange", { from, to })
+                        : (from ?? closure.from)}
+                    </p>
+                    {reason && (
+                      <p lang={reason.lang} className="about-wrap mt-1">
+                        {reason.text}
+                      </p>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Upcoming special closures from the published settings */}
-        {closures.length > 0 && (
-          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/10">
-            <h2 className="text-sm font-bold text-text-heading">
-              ការបិទពិសេស <span className="font-kh" lang="km">· </span>Upcoming closures
-            </h2>
-            <ul className="mt-3 space-y-2">
-              {closures.map((c, i) => (
-                <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
-                  <span className="font-semibold tabular-nums text-text-heading">
-                    {c.from}
-                    {c.to !== c.from && ` → ${c.to}`}
-                  </span>
-                  <span className="text-text-body">{c.reason.en}</span>
-                  {c.reason.km && (
-                    <span lang="km" className="font-kh text-text-muted">{c.reason.km}</span>
-                  )}
+                  </NoticePanel>
                 </li>
-              ))}
-            </ul>
-          </div>
+              );
+            })}
+          </ul>
         )}
+      </AboutSection>
 
-        {/* Decorative divider */}
-        <div className="flex items-center justify-center gap-3 mt-14" aria-hidden="true">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-blue-700/40" />
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: "#DDB022" }} />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-blue-700/40" />
-        </div>
-      </div>
-    </div>
+      {/* ── Plan your visit ──────────────────────────────────────────── */}
+      <AboutSection id="visit" title={tt("visit.heading")}>
+        <InformationCard>
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <div className="flex gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <div className="min-w-0">
+                <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                  {tt("visit.addressLabel")}
+                </dt>
+                <dd className="about-wrap mt-0.5 text-sm text-text-heading">{address}</dd>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Phone className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <div className="min-w-0">
+                <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                  {t("actions.callLibrary")}
+                </dt>
+                <dd className="about-wrap mt-0.5 text-sm">
+                  <a
+                    href={cfg.phoneLibraryTel}
+                    className="rounded font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  >
+                    {cfg.phoneLibrary}
+                  </a>
+                </dd>
+              </div>
+            </div>
+          </dl>
+
+          <div className="mt-6 flex flex-wrap gap-3" data-about-print="hide">
+            <AboutExternalAction href={mapUrl} icon={MapPin} variant="primary" newTab>
+              {t("actions.getDirections")}
+            </AboutExternalAction>
+            <AboutLinkAction href="/contact" icon={Phone}>
+              {t("actions.contactLibrary")}
+            </AboutLinkAction>
+            <AboutLinkAction href="/about/rules" icon={Scale}>
+              {t("actions.viewRules")}
+            </AboutLinkAction>
+            <AboutLinkAction href="/books" icon={BookOpen}>
+              {t("actions.browseELibrary")}
+            </AboutLinkAction>
+          </div>
+        </InformationCard>
+
+        {/* The next scheduled closure, surfaced where someone planning a
+            visit will actually see it. */}
+        {upcoming.length > 0 && (
+          <p className="mt-4 flex items-center gap-2 text-sm text-text-muted">
+            <CalendarOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {tt("exceptions.heading")}:{" "}
+            <a
+              href="#closures"
+              className="rounded font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            >
+              {formatDate(upcoming[0].from, locale) ?? upcoming[0].from}
+            </a>
+          </p>
+        )}
+      </AboutSection>
+
+      <ContentLastUpdated
+        reviewedLabel={reviewedDate ? t("meta.reviewed", { date: reviewedDate }) : null}
+        note={t("meta.sourceNote")}
+        className="border-t border-divider pt-6"
+      />
+    </AboutPageShell>
   );
 }
