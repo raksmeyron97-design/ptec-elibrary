@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { resolveSlugGate, RESOURCE_GATES } from "@/lib/resource-slug-gate";
+import { resolveSlugGate, RESOURCE_GATES, type ResourceGateConfig } from "@/lib/resource-slug-gate";
 
 describe("resolveSlugGate — pure published-slug existence", () => {
   const live = new Set(["thesis-one", "thesis-two"]);
@@ -61,7 +61,11 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
       });
     });
 
-    it.each(Object.entries(RESOURCE_GATES))(
+    // `as const satisfies` keeps the literal types, so only the theses entry
+    // has `reserved` — widen to the declared config type to read it uniformly.
+    const gates = Object.entries(RESOURCE_GATES) as [string, ResourceGateConfig][];
+
+    it.each(gates)(
       "%s lists every static child route it has",
       (segment, cfg) => {
         const dir = path.join(PUBLIC_DIR, segment);
