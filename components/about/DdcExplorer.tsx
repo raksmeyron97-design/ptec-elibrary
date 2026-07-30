@@ -84,9 +84,8 @@ export default function DdcExplorer({
                 onClick={() => select(category.id)}
                 className={[
                   "group flex w-full min-h-11 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-                  isSelected
-                    ? "border-brand bg-brand/[0.06] ring-1 ring-brand"
+                                    isSelected
+                    ? "border-brand bg-surface-brand-soft ring-1 ring-brand"
                     : "border-transparent hover:border-divider hover:bg-paper",
                 ].join(" ")}
               >
@@ -139,7 +138,7 @@ export default function DdcExplorer({
           further down the page. */}
       <div aria-live="polite" className="mt-4">
         {selected && selectedTitle && (
-          <div className="rounded-2xl border border-brand/30 bg-brand/[0.04] p-5">
+          <div className="rounded-2xl border border-brand/30 bg-surface-brand-soft p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand">
               {t("colCode")} {selected.code}
             </p>

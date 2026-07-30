@@ -170,13 +170,19 @@ export default async function LibraryTimingsPage({
             </div>
           </InformationCard>
 
-          <InformationCard className="flex h-full flex-col border-green-300/60 bg-green-50/50 dark:border-green-500/25 dark:bg-green-500/[0.06]">
+          {/* The e-Library card is BRAND-tinted, not green. Green is spent
+              on one thing on this page — the live "Open now" state of the
+              physical building. "Available 24/7" is a permanent property of a
+              service, not a live status, and giving it the same green made
+              two unrelated things look like the same signal. The brand tint
+              also says "this is ours" about the service the site itself is. */}
+          <InformationCard className="flex h-full flex-col border-surface-brand-line bg-surface-brand-soft">
             <div className="flex items-center gap-3">
               <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-600/10"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10"
                 aria-hidden="true"
               >
-                <Globe2 className="h-5 w-5 text-green-700 dark:text-green-300" />
+                <Globe2 className="h-5 w-5 text-brand" />
               </span>
               <h3 className="about-wrap text-base font-semibold text-text-heading">
                 {tt("digital.heading")}
@@ -184,8 +190,8 @@ export default async function LibraryTimingsPage({
             </div>
             <p className="about-copy mt-3 text-sm text-text-body">{tt("digital.body")}</p>
 
-            <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-3 py-2 text-sm font-semibold text-green-900 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-100">
-              <span className="h-2 w-2 rounded-full bg-green-600 dark:bg-green-400" aria-hidden="true" />
+            <p className="mt-4 inline-flex w-fit items-center gap-2 rounded-xl border border-brand/30 bg-brand/10 px-3 py-2 text-sm font-semibold text-brand">
+              <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
               {tt("digital.alwaysOpen")}
             </p>
 
@@ -279,7 +285,7 @@ export default async function LibraryTimingsPage({
                 <dd className="about-wrap mt-0.5 text-sm">
                   <a
                     href={cfg.phoneLibraryTel}
-                    className="rounded font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                    className="rounded font-medium text-brand hover:underline"
                   >
                     {cfg.phoneLibrary}
                   </a>
@@ -312,7 +318,7 @@ export default async function LibraryTimingsPage({
             {tt("exceptions.heading")}:{" "}
             <a
               href="#closures"
-              className="rounded font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+              className="rounded font-medium text-brand hover:underline"
             >
               {formatDate(upcoming[0].from, locale) ?? upcoming[0].from}
             </a>

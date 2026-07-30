@@ -45,15 +45,25 @@ import {
 import type { AboutLocale } from "@/lib/about/format";
 import { localized } from "@/lib/about/format";
 
+// Status token families, no `dark:` variants — the tokens resolve per theme.
+//
+// Colour assignment is deliberate and narrow:
+//   open    green, the ONLY green on the page (an available state)
+//   closed  NEUTRAL, never red. A library that is shut at 8pm on a Tuesday is
+//           operating normally; painting that red makes a correct schedule
+//           look like an error and desensitises the reader to real warnings.
+//   notice  amber, for a holiday or unscheduled closure — an exception worth
+//           noticing, still not a fault.
+//   unknown neutral, for "we could not load the schedule".
 const TONE_STYLES: Record<
   ReturnType<typeof statusTone>,
   { wrapper: string; dot: string; icon: LucideIcon; text: string }
 > = {
   open: {
-    wrapper: "border-green-300 bg-green-50 dark:border-green-500/30 dark:bg-green-500/10",
-    dot: "bg-green-600 dark:bg-green-400",
+    wrapper: "border-success-line bg-success-soft",
+    dot: "bg-success",
     icon: DoorOpen,
-    text: "text-green-900 dark:text-green-100",
+    text: "text-success-text",
   },
   closed: {
     wrapper: "border-divider bg-paper",
@@ -62,10 +72,10 @@ const TONE_STYLES: Record<
     text: "text-text-heading",
   },
   notice: {
-    wrapper: "border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10",
-    dot: "bg-amber-600 dark:bg-amber-400",
+    wrapper: "border-warning-line bg-warning-soft",
+    dot: "bg-warning",
     icon: Info,
-    text: "text-amber-900 dark:text-amber-100",
+    text: "text-warning-text",
   },
   unknown: {
     wrapper: "border-divider bg-paper",

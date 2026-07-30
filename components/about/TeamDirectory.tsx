@@ -162,7 +162,7 @@ export default function TeamDirectory({
       {filter === "all" && featured.length > 0 && (
         <section aria-labelledby="team-featured-heading" className="mb-12">
           <div className="mb-5 flex items-center gap-2.5">
-            <Star className="h-4 w-4 fill-current text-gold-600" aria-hidden="true" />
+            <Star className="h-4 w-4 fill-current text-accent-text" aria-hidden="true" />
             <div>
               <h3 id="team-featured-heading" className="text-base font-semibold text-text-heading">
                 {t("directory.keyContacts")}
@@ -231,8 +231,7 @@ function FilterChip({
       onClick={onClick}
       className={[
         "inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring",
-        active
+                active
           ? "border-brand bg-brand text-brand-contrast"
           : "border-divider bg-bg-surface text-text-body hover:border-brand/40 hover:text-brand",
       ].join(" ")}
@@ -289,7 +288,7 @@ function MemberGrid({
                   // whole panel is hidden from assistive tech and the reason
                   // is stated in text for sighted users.
                   <div
-                    className="flex h-full w-full flex-col items-center justify-center gap-2 bg-brand/[0.06]"
+                    className="flex h-full w-full flex-col items-center justify-center gap-2 bg-surface-brand-soft"
                     aria-hidden="true"
                   >
                     <span className="flex h-16 w-16 items-center justify-center rounded-full bg-bg-surface text-2xl font-semibold text-brand shadow-sm">
@@ -302,7 +301,7 @@ function MemberGrid({
                   </div>
                 )}
                 {member.is_featured && (
-                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-bg-surface/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-700 shadow-sm backdrop-blur">
+                  <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-bg-surface/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-text shadow-sm backdrop-blur">
                     <Star className="h-3 w-3 fill-current" aria-hidden="true" />
                     {t("directory.keyContacts")}
                   </span>
@@ -336,7 +335,7 @@ function MemberGrid({
                 <button
                   type="button"
                   onClick={(event) => onOpen(member, event.currentTarget)}
-                  className="mt-auto inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-divider px-4 py-2.5 pt-2.5 text-sm font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                  className="mt-auto inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-divider px-4 py-2.5 pt-2.5 text-sm font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand"
                 >
                   {/* The accessible name says WHOSE profile — "View profile"
                       repeated across a grid is meaningless out of context. */}
@@ -465,7 +464,7 @@ function ProfilePanel({
             data-close-button
             onClick={onClose}
             aria-label={t("directory.close")}
-            className="shrink-0 rounded-xl border border-divider p-2 text-text-muted transition-colors hover:border-brand/40 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+            className="shrink-0 rounded-xl border border-divider p-2 text-text-muted transition-colors hover:border-brand/40 hover:text-brand"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -570,7 +569,7 @@ function ProfilePanel({
                   <li>
                     <a
                       href={`mailto:${member.email}`}
-                      className="flex min-h-11 items-center gap-3 rounded text-sm text-text-body transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                      className="flex min-h-11 items-center gap-3 rounded text-sm text-text-body transition-colors hover:text-brand"
                     >
                       <Mail className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
                       <span className="break-all">{member.email}</span>
@@ -581,7 +580,7 @@ function ProfilePanel({
                   <li>
                     <a
                       href={`tel:${member.phone.replace(/\s/g, "")}`}
-                      className="flex min-h-11 items-center gap-3 rounded text-sm text-text-body transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                      className="flex min-h-11 items-center gap-3 rounded text-sm text-text-body transition-colors hover:text-brand"
                     >
                       <Phone className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
                       <span>{member.phone}</span>

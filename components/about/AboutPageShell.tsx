@@ -50,7 +50,7 @@ async function AboutBreadcrumbs({ currentLabel }: { currentLabel: string }) {
             // Size, Minimum). Breadcrumb text alone renders ~18px tall, which
             // fails it; the padding grows the hit area without changing the
             // type size or the row's visual weight.
-            className="inline-flex min-h-6 items-center rounded px-0.5 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex min-h-6 items-center rounded px-0.5 transition-colors hover:text-white [--focus-color:#fff]"
           >
             {t("breadcrumb.home")}
           </Link>
@@ -65,7 +65,7 @@ async function AboutBreadcrumbs({ currentLabel }: { currentLabel: string }) {
             // Size, Minimum). Breadcrumb text alone renders ~18px tall, which
             // fails it; the padding grows the hit area without changing the
             // type size or the row's visual weight.
-            className="inline-flex min-h-6 items-center rounded px-0.5 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex min-h-6 items-center rounded px-0.5 transition-colors hover:text-white [--focus-color:#fff]"
           >
             {t("breadcrumb.about")}
           </Link>
@@ -203,7 +203,7 @@ async function RelatedAboutPages({ current }: { current: AboutPageKey }) {
             <li key={item.key}>
               <Link
                 href={item.href}
-                className="group flex h-full flex-col rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition-colors hover:border-brand/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                className="group flex h-full flex-col rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm transition-colors hover:border-brand/40"
               >
                 <Icon className="h-5 w-5 text-text-muted transition-colors group-hover:text-brand" aria-hidden="true" />
                 <span className="about-wrap mt-3 font-semibold text-text-heading group-hover:text-brand">
@@ -237,7 +237,7 @@ async function AboutPagePagination({ current }: { current: AboutPageKey }) {
         <Link
           href={previous.href}
           rel="prev"
-          className="group flex min-h-11 items-center gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-left shadow-sm transition-colors hover:border-brand/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+          className="group flex min-h-11 items-center gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-left shadow-sm transition-colors hover:border-brand/40"
         >
           <ArrowLeft className="h-4 w-4 shrink-0 text-text-muted transition-colors group-hover:text-brand" aria-hidden="true" />
           <span className="min-w-0">
@@ -257,7 +257,7 @@ async function AboutPagePagination({ current }: { current: AboutPageKey }) {
         <Link
           href={next.href}
           rel="next"
-          className="group flex min-h-11 items-center justify-end gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-right shadow-sm transition-colors hover:border-brand/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:col-start-2"
+          className="group flex min-h-11 items-center justify-end gap-3 rounded-2xl border border-divider bg-bg-surface p-4 text-right shadow-sm transition-colors hover:border-brand/40 sm:col-start-2"
         >
           <span className="min-w-0">
             <span className="block text-xs uppercase tracking-wide text-text-muted">

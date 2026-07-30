@@ -81,7 +81,7 @@ export default function AboutSubNavigation() {
                   // min-h-11 keeps the touch target at the 44px floor even
                   // though the visual bar is shorter than that on desktop.
                   "group relative inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap px-3 py-3 text-sm transition-colors",
-                  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring",
+                  "[--focus-ring-offset:-2px]",
                   active
                     ? "font-semibold text-brand"
                     : "font-medium text-text-body hover:text-brand",

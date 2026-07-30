@@ -178,7 +178,7 @@ export default async function LibraryRulesPage({
           arrive with, answered before any prose. */}
       <AboutSection id="quick-reference" title={tr("quick.heading")}>
         <div className="grid gap-4 sm:grid-cols-3">
-          <InformationCard className="flex h-full flex-col border-brand/25 bg-brand/[0.03]">
+          <InformationCard className="flex h-full flex-col border-surface-brand-line bg-surface-brand-soft">
             <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
               {tr("quick.maxItems")}
             </p>
@@ -256,7 +256,7 @@ export default async function LibraryRulesPage({
                 open
                 className="group scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm"
               >
-                <summary className="flex cursor-pointer list-none items-start gap-3 p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-start gap-3 p-5 [--focus-ring-offset:-2px] [&::-webkit-details-marker]:hidden">
                   <span
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand/10"
                     aria-hidden="true"
@@ -332,19 +332,18 @@ export default async function LibraryRulesPage({
                 key={rule.id}
                 className="flex items-start gap-3 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm"
               >
+                {/* Ordinary conduct rules are NEUTRAL. "No food or drink" is
+                    house etiquette, not a hazard — tinting seven of these
+                    amber made a page of good manners read as a page of
+                    warnings, and left nothing louder for the actual
+                    penalties further down. The do/don't distinction is
+                    carried by the visible label below, so removing the
+                    colour costs no meaning. */}
                 <span
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                    rule.kind === "dont" ? "bg-amber-100 dark:bg-amber-500/15" : "bg-paper"
-                  }`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-paper"
                   aria-hidden="true"
                 >
-                  <Icon
-                    className={`h-4.5 w-4.5 ${
-                      rule.kind === "dont"
-                        ? "text-amber-700 dark:text-amber-300"
-                        : "text-text-muted"
-                    }`}
-                  />
+                  <Icon className="h-4.5 w-4.5 text-text-muted" />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[11px] font-semibold uppercase tracking-wide text-text-muted">

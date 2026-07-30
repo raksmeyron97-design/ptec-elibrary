@@ -151,7 +151,7 @@ export default function WeeklyHoursTable({
           {rows.map((row) => {
             const isToday = row.days.includes(todayWeekday);
             return (
-              <tr key={row.id} className={isToday ? "bg-brand/[0.05]" : undefined}>
+              <tr key={row.id} className={isToday ? "bg-surface-brand-soft" : undefined}>
                 {/* scope="row" makes the day the header for its hours cell. */}
                 <th
                   scope="row"

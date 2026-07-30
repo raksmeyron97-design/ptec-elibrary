@@ -251,7 +251,7 @@ export function StatCard({
   const hasValue = value !== null && value !== "";
   return (
     <InformationCard
-      className={`flex h-full flex-col ${emphasis ? "border-brand/25 bg-brand/[0.03]" : ""}`}
+      className={`flex h-full flex-col ${emphasis ? "border-surface-brand-line bg-surface-brand-soft" : ""}`}
     >
       {Icon && (
         <Icon
@@ -278,38 +278,42 @@ export function StatCard({
 
 export type NoticeTone = "info" | "caution" | "prohibited" | "positive" | "neutral";
 
+// Each tone maps to ONE status token family (soft / line / text). No `dark:`
+// variants: the tokens already resolve per theme, so a tone can never drift
+// between the two the way four hand-written light/dark triplets did.
 const NOTICE_STYLES: Record<
   NoticeTone,
   { icon: LucideIcon; wrapper: string; iconClass: string; labelClass: string }
 > = {
-  // Blue: neutral institutional information.
+  // PTEC blue: neutral institutional information. The `info` tokens use the
+  // brand ramp, so this reads as part of the brand rather than a second blue.
   info: {
     icon: Info,
-    wrapper: "border-blue-200 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/10",
-    iconClass: "text-blue-700 dark:text-blue-300",
-    labelClass: "text-blue-900 dark:text-blue-100",
+    wrapper: "border-info-line bg-info-soft",
+    iconClass: "text-info-text",
+    labelClass: "text-info-text",
   },
   // Amber: a policy the reader must not miss, but nothing punitive.
   caution: {
     icon: AlertTriangle,
-    wrapper: "border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10",
-    iconClass: "text-amber-700 dark:text-amber-300",
-    labelClass: "text-amber-900 dark:text-amber-100",
+    wrapper: "border-warning-line bg-warning-soft",
+    iconClass: "text-warning-text",
+    labelClass: "text-warning-text",
   },
   // Red is reserved for prohibited/destructive conduct — never for
   // "closed today" or an ordinary late fee.
   prohibited: {
     icon: Ban,
-    wrapper: "border-red-300 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10",
-    iconClass: "text-red-700 dark:text-red-300",
-    labelClass: "text-red-900 dark:text-red-100",
+    wrapper: "border-danger-line bg-danger-soft",
+    iconClass: "text-danger-text",
+    labelClass: "text-danger-text",
   },
   // Green is reserved for open/available states.
   positive: {
     icon: BadgeCheck,
-    wrapper: "border-green-300 bg-green-50 dark:border-green-500/30 dark:bg-green-500/10",
-    iconClass: "text-green-700 dark:text-green-300",
-    labelClass: "text-green-900 dark:text-green-100",
+    wrapper: "border-success-line bg-success-soft",
+    iconClass: "text-success-text",
+    labelClass: "text-success-text",
   },
   neutral: {
     icon: CircleHelp,
