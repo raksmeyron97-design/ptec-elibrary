@@ -5,6 +5,7 @@
   "scripts": {
     "postinstall": "node scripts/copy-pdf-assets.mjs",
     "dev": "next dev",
+    "dev:clean": "rm -rf .next && next dev",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",

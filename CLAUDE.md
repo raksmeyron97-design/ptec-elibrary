@@ -9,7 +9,8 @@ PTEC e-Library is a free public digital library for Phnom Penh Teacher Education
 ## Commands
 
 ```bash
-npm run dev          # Start development server
+npm run dev          # Start development server (Turbopack — Next 16's default for dev)
+npm run dev:clean    # Same, after deleting .next — use when dev renders get slow (see below)
 npm run build        # Production build (next build --webpack — NEVER switch to Turbopack: it silently skips building app/sw.ts, killing the PWA)
 npm run lint         # ESLint
 npm test             # Vitest unit tests (watch mode)
@@ -20,6 +21,32 @@ npx tsx scripts/embed-library.ts   # Backfill pgvector embeddings for AI search
 ```
 
 `postinstall` copies PDF.js assets via `scripts/copy-pdf-assets.mjs`.
+
+### When `npm run dev` renders slowly
+
+`dev` runs Turbopack and `build` runs webpack, so `.next` accumulates **two**
+independent caches (`.next/dev` and `.next/cache/webpack`). Measured on a
+16 GB machine at 3.6 GB of `.next`, warm page renders had degraded to 6–30 s;
+`rm -rf .next` brought the same routes back to 0.5–0.7 s. Next's own log tells
+you where the time goes — `application-code` is your code, `next.js` is
+framework overhead:
+
+```
+GET /about/rules 200 in 6.4s (next.js: 354ms, ..., application-code: 6.0s)
+```
+
+Two causes, both fixed, worth knowing if it recurs:
+
+1. **Stale `.next`** — the dominant factor. `npm run dev:clean`, or
+   `rm -rf .next`. Do this before concluding anything is wrong with the code.
+2. **Barrel imports** — `experimental.optimizePackageImports` in
+   `next.config.ts` lists `lucide-react`, whose barrel re-exports 3,972 icon
+   modules across 300 importing files. Without it, dev render time scaled with
+   component-tree size rather than with work done. Add any future
+   many-named-exports icon/util package to that list.
+
+API routes staying fast (~200 ms) while pages are slow is the signature of
+this problem, not of a database or network issue.
 
 Database migrations are in `supabase/migrations/` and are applied to the hosted DB by CI (`.github/workflows/migrate.yml`: dry-run on PRs, apply on merge to main — see `supabase/MIGRATIONS.md`). Never apply by hand in the dashboard SQL editor. For local Supabase: `supabase start`. The `e2e` CI job boots a fresh local stack, so every migration must apply cleanly from the squashed baseline; `node scripts/migrations/check-schema-drift.mjs` diffs hosted columns against the chain.
 
