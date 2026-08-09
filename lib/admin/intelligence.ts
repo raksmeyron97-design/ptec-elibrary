@@ -332,26 +332,42 @@ async function fetchViewRows(supabase: ServiceClient, win: Window): Promise<Even
   }));
 }
 
-async function fetchReaderOpenRows(supabase: ServiceClient, win: Window): Promise<EventRow[] | null> {
-  const res = await supabase
-    .from("reader_open_logs")
-    .select("content_type, content_id, user_id, session_hash, locale, opened_at")
-    .gte("opened_at", win.prevStart.toISOString())
-    .lte("opened_at", win.end.toISOString())
-    .order("opened_at", { ascending: true })
-    .limit(5000);
-  // Pre-0090: table missing → callers show the "collecting" state.
-  if (res.error) return null;
-  return (res.data ?? []).map((r) => ({
-    ts: r.opened_at,
-    bucketKey: win.keyOf(new Date(r.opened_at)),
-    current: rowIsCurrent(win, r.opened_at),
-    contentType: r.content_type,
-    contentId: r.content_id,
-    userId: r.user_id,
-    sessionHash: r.session_hash ?? null,
-    locale: r.locale ?? null,
-  }));
+export async function fetchReaderOpenRows(supabase: ServiceClient, win: Window): Promise<EventRow[] | null> {
+  type Row = {
+    content_type: string;
+    content_id: string;
+    user_id: string | null;
+    session_hash?: string | null;
+    locale?: string | null;
+    opened_at: string;
+  };
+  try {
+    const rows = await fetchAllRows<Row>((from, to) =>
+      supabase
+        .from("reader_open_logs")
+        .select("content_type, content_id, user_id, session_hash, locale, opened_at")
+        .gte("opened_at", win.prevStart.toISOString())
+        .lte("opened_at", win.end.toISOString())
+        .order("opened_at", { ascending: true })
+        .range(from, to) as unknown as PromiseLike<{
+          data: Row[] | null;
+          error: { message: string } | null;
+        }>,
+    );
+    return rows.map((r) => ({
+      ts: r.opened_at,
+      bucketKey: win.keyOf(new Date(r.opened_at)),
+      current: rowIsCurrent(win, r.opened_at),
+      contentType: r.content_type,
+      contentId: r.content_id,
+      userId: r.user_id,
+      sessionHash: r.session_hash ?? null,
+      locale: r.locale ?? null,
+    }));
+  } catch {
+    // Pre-0090: table/columns missing → callers show the "collecting" state.
+    return null;
+  }
 }
 
 type BookFileRel = { book_id: string | null } | { book_id: string | null }[] | null;
@@ -403,7 +419,7 @@ function makeEventFilter(
 ): (e: EventRow) => boolean {
   const wantType: ContentTypeFilter = filters.type;
   const wantDept = filters.dept;
-  const wantLang = filters.lang;
+  const wantLang = filters.contentLanguage;
   const noContentFilters = wantType === "all" && !wantDept && wantLang === "all";
   if (noContentFilters) return () => true;
   return (e) => {
@@ -419,7 +435,7 @@ function makeEventFilter(
 function metaMatchesFilters(meta: ContentMeta, filters: DashboardFilters): boolean {
   if (filters.type !== "all" && meta.type !== filters.type) return false;
   if (filters.dept && meta.department !== filters.dept) return false;
-  if (filters.lang !== "all" && meta.language !== filters.lang) return false;
+  if (filters.contentLanguage !== "all" && meta.language !== filters.contentLanguage) return false;
   return true;
 }
 
@@ -1692,7 +1708,7 @@ export async function getContentIntelligence(
   for (const c of catalog) {
     if (!c.published || !c.department) continue;
     if (filters.type !== "all" && c.type !== filters.type) continue;
-    if (filters.lang !== "all" && c.language !== filters.lang) continue;
+    if (filters.contentLanguage !== "all" && c.language !== filters.contentLanguage) continue;
     const d = deptMap.get(c.department) ?? { resources: 0, views: 0, opens: 0, downloads: 0, neverViewed: 0, complete: 0 };
     d.resources++;
     const a = aggs.get(`${c.type}:${c.id}`);

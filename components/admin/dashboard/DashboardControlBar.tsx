@@ -147,8 +147,8 @@ export default function DashboardControlBar({
   if (filters.dept) {
     chips.push({ key: "dept", label: filters.dept, clear: { ...filters, dept: null } });
   }
-  if (filters.lang !== "all") {
-    chips.push({ key: "lang", label: t(`lang.${filters.lang}`), clear: { ...filters, lang: "all" } });
+  if (filters.contentLanguage !== "all") {
+    chips.push({ key: "lang", label: t(`lang.${filters.contentLanguage}`), clear: { ...filters, contentLanguage: "all" } });
   }
 
   const rangeLabel =
@@ -287,7 +287,7 @@ export default function DashboardControlBar({
           <button
             type="button"
             disabled={isPending}
-            onClick={() => apply({ ...filters, type: "all", dept: null, lang: "all" })}
+            onClick={() => apply({ ...filters, type: "all", dept: null, contentLanguage: "all" })}
             className="cursor-pointer rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold text-text-muted underline hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {t("clearFilters")}
@@ -382,9 +382,9 @@ export default function DashboardControlBar({
               <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
                 {t("language")}
                 <select
-                  value={filters.lang}
+                  value={filters.contentLanguage}
                   disabled={isPending}
-                  onChange={(e) => apply({ ...filters, lang: e.target.value as LanguageFilter })}
+                  onChange={(e) => apply({ ...filters, contentLanguage: e.target.value as LanguageFilter })}
                   className={selectClass}
                 >
                   {LANGS.map((v) => (

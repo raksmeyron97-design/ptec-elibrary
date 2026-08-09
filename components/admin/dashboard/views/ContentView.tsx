@@ -49,7 +49,7 @@ export default async function ContentView({
   // the chip's language is already the active filter).
   const langHref = (lang: "en" | "km") => {
     const sp = new URLSearchParams(
-      serializeDashboardFilters({ ...filters, lang: filters.lang === lang ? "all" : lang }),
+      serializeDashboardFilters({ ...filters, contentLanguage: filters.contentLanguage === lang ? "all" : lang }),
     );
     if (preset !== "top") sp.set("preset", preset);
     if (q) sp.set("q", q);
@@ -256,9 +256,9 @@ export default async function ContentView({
                         <Link
                           href={langHref(row.language)}
                           aria-label={t("filterByLang", { lang: t(`langShort.${row.language}`) })}
-                          aria-current={filters.lang === row.language ? "true" : undefined}
+                          aria-current={filters.contentLanguage === row.language ? "true" : undefined}
                           className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ring-1 ring-inset transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
-                            filters.lang === row.language
+                            filters.contentLanguage === row.language
                               ? "bg-brand text-white ring-brand"
                               : "bg-slate-50 text-slate-600 ring-slate-200 hover:bg-brand/10 hover:text-brand"
                           }`}

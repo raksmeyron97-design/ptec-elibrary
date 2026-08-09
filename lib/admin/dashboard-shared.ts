@@ -37,7 +37,7 @@ export type DashboardFilters = {
   type: ContentTypeFilter;
   /** Department display name (books/theses), or null for all. */
   dept: string | null;
-  lang: LanguageFilter;
+  contentLanguage: LanguageFilter;
 };
 
 export const DEFAULT_FILTERS: DashboardFilters = {
@@ -46,7 +46,7 @@ export const DEFAULT_FILTERS: DashboardFilters = {
   compare: true,
   type: "all",
   dept: null,
-  lang: "all",
+  contentLanguage: "all",
 };
 
 function todayKey(now: Date): string {
@@ -122,7 +122,7 @@ export function parseDashboardFilters(
     compare: get("compare") !== "0",
     type,
     dept,
-    lang,
+    contentLanguage: lang,
   };
 }
 
@@ -138,7 +138,7 @@ export function serializeDashboardFilters(f: DashboardFilters): string {
   if (!f.compare) sp.set("compare", "0");
   if (f.type !== "all") sp.set("type", f.type);
   if (f.dept) sp.set("dept", f.dept);
-  if (f.lang !== "all") sp.set("lang", f.lang);
+  if (f.contentLanguage !== "all") sp.set("lang", f.contentLanguage);
   return sp.toString();
 }
 
@@ -147,7 +147,7 @@ export function activeFilterCount(f: DashboardFilters): number {
   let n = 0;
   if (f.type !== "all") n++;
   if (f.dept) n++;
-  if (f.lang !== "all") n++;
+  if (f.contentLanguage !== "all") n++;
   return n;
 }
 
@@ -171,50 +171,45 @@ export function parseMetric(raw: string | string[] | undefined): DashboardMetric
 
 // ── Chart aggregation grain ──────────────────────────────────────────────────
 
-export const CHART_GRAINS = ["day", "week", "month"] as const;
-export type ChartGrain = (typeof CHART_GRAINS)[number];
+import {
+  analyticsBucketKeyFromDay,
+  CHART_GRAINS,
+  type ChartGrain,
+} from "./analytics-time";
+
+export { CHART_GRAINS };
+export type { ChartGrain };
 
 /**
- * Which aggregation a day-bucketed series should default to, so a 90-day range
- * doesn't render 90 unreadable ticks. Hour-bucketed windows (the "today"
- * range) are never re-aggregated.
+ * Which aggregation a bucketed series should default to, so a 90-day range
+ * doesn't render unreadable ticks. Hour-bucketed windows remain hourly.
  */
 export function autoGrain(bucketCount: number, granularity: "hour" | "day"): ChartGrain {
-  if (granularity === "hour") return "day";
+  if (granularity === "hour") return "hour";
   if (bucketCount > 120) return "month";
   if (bucketCount > 45) return "week";
   return "day";
 }
 
-/** ISO-week-ish key: the Monday of the bucket's week, as YYYY-MM-DD. */
-function weekKey(ymd: string): string {
-  const d = new Date(`${ymd}T00:00:00Z`);
-  const dow = (d.getUTCDay() + 6) % 7; // Monday = 0
-  d.setUTCDate(d.getUTCDate() - dow);
-  return d.toISOString().slice(0, 10);
-}
-
 /**
- * Re-bucket a daily series to weekly/monthly totals. Values are summed, which
- * is correct for count metrics (views, opens, downloads) but NOT for distinct
- * counts — unique visitors summed across days double-counts a returning
- * visitor. Callers pass `mode: "max"` for such series so the aggregate shows
- * the busiest constituent bucket rather than an inflated total; the UI labels
- * it accordingly.
+ * Re-bucket a daily series to weekly/monthly totals. Hour and day inputs are
+ * identity transforms. Values are summed for count metrics; callers pass
+ * `mode: "max"` for visitors so the representative peak-day calculation is
+ * preserved instead of double-counting a person across constituent days.
  */
 export function aggregateSeries<T extends { date: string; value: number }>(
   points: T[],
   grain: ChartGrain,
   mode: "sum" | "max" = "sum",
 ): { date: string; value: number }[] {
-  if (grain === "day" || points.length === 0) return points.map((p) => ({ date: p.date, value: p.value }));
-  const keyOf = (ymd: string) => (grain === "week" ? weekKey(ymd) : `${ymd.slice(0, 7)}-01`);
+  if (grain === "hour" || grain === "day" || points.length === 0) {
+    return points.map((p) => ({ date: p.date, value: p.value }));
+  }
   const out: { date: string; value: number }[] = [];
   const index = new Map<string, number>();
   for (const p of points) {
-    // Hour buckets ("2026-07-22T14") have no meaningful week/month rollup.
-    const ymd = p.date.length >= 10 ? p.date.slice(0, 10) : p.date;
-    const key = keyOf(ymd);
+    const day = p.date.slice(0, 10);
+    const key = analyticsBucketKeyFromDay(day, grain) ?? day;
     const at = index.get(key);
     if (at === undefined) {
       index.set(key, out.length);
