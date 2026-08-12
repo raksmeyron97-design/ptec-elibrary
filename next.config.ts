@@ -78,15 +78,17 @@ const nextConfig: NextConfig = {
     // <html> so it can read the locale from params instead of headers()), so
     // unmatched routes need a root-layout-free 404 page: app/global-not-found.tsx.
     globalNotFound: true,
-    // Lets i18n/request.ts read the [locale] segment of app/[locale]/layout.tsx
-    // (a ROOT layout since the split) without touching headers(). next-intl's
-    // setRequestLocale() does not survive across route segments here — verified:
-    // getLocale() returned "en" on /km/home even immediately after
-    // setRequestLocale("km") in the same layout — and every other way of
-    // resolving the locale server-side is a dynamic API that would un-cache the
-    // whole public tree. Root params are params, so they are prerender-safe.
-    rootParams: true,
   },
+  // NOTE: `experimental.rootParams` was removed in Next 16.3.0 — root params are
+  // stable now and the flag is a type error. `next/root-params` itself is
+  // unchanged, and i18n/request.ts still depends on it: it reads the [locale]
+  // segment of app/[locale]/layout.tsx (a ROOT layout since the split) without
+  // touching headers(). next-intl's setRequestLocale() does not survive across
+  // route segments here — verified: getLocale() returned "en" on /km/home even
+  // immediately after setRequestLocale("km") in the same layout — and every
+  // other way of resolving the locale server-side is a dynamic API that would
+  // un-cache the whole public tree. Root params are params, so they stay
+  // prerender-safe.
   // pdfjs is loaded lazily by lib/pdf-page-index.ts for server-side text
   // extraction; keep it out of the server bundle (worker/canvas quirks).
   serverExternalPackages: ["pdfjs-dist"],
