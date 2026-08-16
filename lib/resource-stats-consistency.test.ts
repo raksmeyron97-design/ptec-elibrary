@@ -62,7 +62,7 @@ describe("counting the countable entities happens in exactly one place", () => {
         "lib/admin/dashboard.ts",
         "lib/books-data.ts", // filtered listing count — a different metric
         "lib/posts-data.ts",
-        "lib/exports/works.ts",
+        "lib/metadata-exports/works.ts",
         "app/actions/review.ts",
         "app/actions/theses.ts",
         "app/actions/data-quality.ts",

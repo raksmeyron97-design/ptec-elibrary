@@ -5,7 +5,7 @@
 //
 // Everything institutional these pages display comes from ONE typed source
 // (lib/about/content.ts), transcribed from the library's own information form
-// (docs/library_info_form.docx). Nothing here is invented: a field the form
+// (docs/assets/library_info_form.docx). Nothing here is invented: a field the form
 // left blank stays absent so the UI can render an honest empty state instead
 // of a plausible-looking placeholder.
 //

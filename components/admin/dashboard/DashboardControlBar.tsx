@@ -133,11 +133,11 @@ export default function DashboardControlBar({
   const views = DASHBOARD_VIEWS.filter((v) => v !== "system" || showSystem);
 
   const quietBtn =
-    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading ";
   // h-11 matches the SearchableSelect trigger used for Department, so the
   // three filter controls sit on one baseline.
   const selectClass =
-    "h-11 w-full min-w-[150px] cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-[13px] font-medium text-text-body focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "h-11 w-full min-w-[150px] cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-[13px] font-medium text-text-body [--focus-ring-offset:1px]";
 
   /** Removable chips for every non-default audience filter. */
   const chips: { key: string; label: string; clear: DashboardFilters }[] = [];
@@ -162,7 +162,7 @@ export default function DashboardControlBar({
           pushing the period/filter controls onto a second line. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 py-1.5 xl:flex-nowrap">
         {/* ── View tabs ── */}
-        <nav aria-label={tTabs("ariaLabel")} className="-mx-1 min-w-0 max-w-full overflow-x-auto px-1">
+        <nav aria-label={tTabs("ariaLabel")} className="dash-scroll-x -mx-1 min-w-0 max-w-full px-1">
           <ul className="dash-tabrail flex min-w-max">
             {views.map((view) => {
               const qs = serializeDashboardFilters({ ...filters, view });
@@ -275,9 +275,9 @@ export default function DashboardControlBar({
               type="button"
               disabled={isPending}
               onClick={() => apply(c.clear)}
-              className="flex h-6 cursor-pointer items-center gap-1 rounded-full border border-brand/20 bg-brand/5 ps-2 pe-1.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="flex h-6 cursor-pointer items-center gap-1 rounded-full border border-brand/20 bg-brand/5 ps-2 pe-1.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10"
             >
-              <span className="max-w-[160px] truncate" dir="auto">
+              <span className="max-w-[160px] dash-truncate" dir="auto">
                 {c.label}
               </span>
               <X className="h-3 w-3" aria-hidden="true" />
@@ -288,7 +288,7 @@ export default function DashboardControlBar({
             type="button"
             disabled={isPending}
             onClick={() => apply({ ...filters, type: "all", dept: null, contentLanguage: "all" })}
-            className="cursor-pointer rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold text-text-muted underline hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="cursor-pointer rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold text-text-muted underline hover:text-brand"
           >
             {t("clearFilters")}
           </button>
@@ -313,7 +313,7 @@ export default function DashboardControlBar({
                   value={from}
                   max={to || max}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body [--focus-ring-offset:1px]"
                 />
               </label>
               <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
@@ -324,7 +324,7 @@ export default function DashboardControlBar({
                   min={from || undefined}
                   max={max}
                   onChange={(e) => setTo(e.target.value)}
-                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body [--focus-ring-offset:1px]"
                 />
               </label>
               <button
@@ -334,7 +334,7 @@ export default function DashboardControlBar({
                   apply({ ...filters, range: "custom", from, to });
                   setPanel("none");
                 }}
-                className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[10px] bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[10px] bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Check className="h-4 w-4" aria-hidden="true" />
                 {t("apply")}
@@ -399,7 +399,7 @@ export default function DashboardControlBar({
                 <button
                   type="button"
                   onClick={() => setPanel("none")}
-                  className="cursor-pointer rounded-[10px] border border-divider px-3 py-1.5 text-[12.5px] font-semibold text-text-body transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="cursor-pointer rounded-[10px] border border-divider px-3 py-1.5 text-[12.5px] font-semibold text-text-body transition-colors hover:bg-paper"
                 >
                   {t("done")}
                 </button>

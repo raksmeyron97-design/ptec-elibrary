@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
-import { Globe, MapPin, Clock, Navigation, Phone, ArrowRight, Dot } from "lucide-react";
+import { Globe, MapPin, Clock, Navigation, Phone, ArrowRight, Dot, Library } from "lucide-react";
 import {
   getLibraryStatus,
   zonedNow,
@@ -185,7 +185,23 @@ export default function LibraryNow({
             </dl>
             <p className="mt-1 text-[12px] text-text-muted">{t("libraryNowHoursNote")}</p>
 
-            <div className="mt-auto flex flex-wrap gap-1 pt-4">
+            {/* Primary action, mirroring the digital card's CTA so the bridge
+                works in BOTH directions — the physical side previously offered
+                hours, directions and a phone number but no way to see what is
+                actually on the shelves. Accent-outlined rather than solid: a
+                visit is a bigger ask than opening a PDF, so it stays visually
+                subordinate to the digital CTA. */}
+            <div className="mt-auto pt-4">
+              <Link
+                href="/catalogs"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border-2 border-accent/40 px-5 text-[13.5px] font-bold text-accent-text transition-colors hover:border-accent hover:bg-accent/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <Library className="h-4 w-4" aria-hidden />
+                {t("libraryNowCatalogCta")}
+              </Link>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1">
               <Link href="/about/timings" className={linkClass}>
                 <Clock className="h-4 w-4" aria-hidden />
                 {t("libraryNowHoursLink")}

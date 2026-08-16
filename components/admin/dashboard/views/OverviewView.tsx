@@ -88,11 +88,17 @@ export default async function OverviewView({
 
   return (
     <MetricSelectionProvider initialMetric={metric}>
-      {/* Two tiers of rhythm: 16px inside a zone, 24px between the "act now" and
-          "explore" zones, so the decision-first ordering reads as structure. */}
-      <div className="space-y-6">
+      {/* Two tiers of rhythm: 20px inside a zone, 32px between the "act now"
+          and "explore" zones, so the decision-first ordering reads as
+          structure. The gap between tiers is what makes the two zones legible
+          as zones — keep them a full step apart on the spacing scale.
+
+          `dash-stagger` fades each zone's children up in sequence on mount;
+          it is a pure CSS animation (no client JS) and collapses to an
+          instant reveal under prefers-reduced-motion. */}
+      <div className="space-y-8">
         {/* ── Zone 1 · Right now — act on what is live or waiting ── */}
-        <div className="space-y-4">
+        <div className="dash-stagger space-y-5">
           <ZoneHeader label={t("overview.zoneNowLabel")} hint={t("overview.zoneNowHint")} />
 
           {/* 1 — Executive Pulse: health first, then the four engagement measures. */}
@@ -109,12 +115,12 @@ export default async function OverviewView({
         </div>
 
         {/* ── Zone 2 · Trends & performance — explore how the library is used ── */}
-        <div className="space-y-4">
+        <div className="dash-stagger space-y-5">
           <ZoneHeader label={t("overview.zoneTrendsLabel")} hint={t("overview.zoneTrendsHint")} />
 
           {/* 3 — Engagement trends (8 cols) + measurement pathways (4 cols). */}
-          <div className="grid items-start gap-4 xl:grid-cols-12">
-            <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-4 xl:col-span-8">
+          <div className="grid items-start gap-5 xl:grid-cols-12">
+            <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-5 xl:col-span-8">
               <h2 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
                 {t("engagement.title")}
               </h2>
@@ -133,7 +139,7 @@ export default async function OverviewView({
               />
             </section>
 
-            <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-4 xl:col-span-4">
+            <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-5 xl:col-span-4">
               <h2 id="pathways-heading" className="text-[14px] font-bold text-text-heading">
                 {t("discovery.title")}
               </h2>
@@ -152,7 +158,7 @@ export default async function OverviewView({
           </div>
 
           {/* 4 + 5 — Where the collection is short, and what is performing. */}
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             <SearchOpportunityPanel
               opportunities={data.searchOpportunities}
               rangeLabel={rangeLabel}
@@ -166,7 +172,7 @@ export default async function OverviewView({
           </div>
 
           {/* 6 — What to look at next. */}
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+          <div className="grid min-w-0 gap-5 lg:grid-cols-2 [&>*]:min-w-0">
             <AutomatedInsightsPanel insights={data.insights} emptyHint={t("insights.emptyHint")} />
             {canSeeAudit && (
               <RecentAdminActivity entries={activity} logsHref="/admin/logs" generatedAt={data.generatedAt} />

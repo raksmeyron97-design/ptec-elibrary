@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getTeamSections, getAllProfiles } from "../actions";
-import TeamForm from "../TeamForm";
+import TeamForm from "../_components/TeamForm";
 
 export default async function NewTeamMemberPage() {
   await requireAdmin();

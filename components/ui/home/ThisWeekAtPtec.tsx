@@ -99,6 +99,17 @@ export default async function ThisWeekAtPtec({
               {t("weekTitle")}
             </h2>
           </div>
+
+          {/* Section-level exit to the full news archive. The band shows one
+              post; without this the only route to the rest was the top nav.
+              Matches the view-all affordance in <TrendingResearch>. */}
+          <Link
+            href="/posts"
+            className="hidden shrink-0 items-center gap-1.5 rounded-sm text-[13.5px] font-semibold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:inline-flex"
+          >
+            {t("viewAllPosts")}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-12">
@@ -214,6 +225,15 @@ export default async function ThisWeekAtPtec({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Mobile view-all — the header link is sm:+ only, same split as
+            <TrendingResearch>. */}
+        <div className="mt-6 sm:hidden">
+          <Link href="/posts" className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand">
+            {t("viewAllPosts")}
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </Link>
         </div>
       </div>
     </section>

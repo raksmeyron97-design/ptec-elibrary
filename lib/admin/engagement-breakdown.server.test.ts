@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateEngagementBreakdown,
   fetchBoundedBreakdownRows,
+  isMissingTable,
   type BreakdownContent,
   type BreakdownEvent,
 } from "./engagement-breakdown.server";
@@ -55,6 +56,32 @@ describe("fetchBoundedBreakdownRows", () => {
       { pageSize: 2, maxPages: 2 },
     );
     expect(result).toEqual({ rows: [0, 1, 2, 3], partial: true, pages: 2 });
+  });
+});
+
+describe("isMissingTable", () => {
+  // Only the pre-0090 "no reader_open_logs table" case may degrade readerOpens
+  // to an empty, source-unavailable result. Everything else must stay an error
+  // so the drawer offers a retry instead of quietly rendering 0.
+  it.each([
+    ['relation "public.reader_open_logs" does not exist', "42P01"],
+    ["Could not find the table 'public.reader_open_logs' in the schema cache", "PGRST205"],
+  ])("recognises a missing table from %s", (message, code) => {
+    expect(isMissingTable(Object.assign(new Error(message), { code }))).toBe(true);
+  });
+
+  it.each([
+    ["canceling statement due to statement timeout", "57014"],
+    ["could not connect to server", undefined],
+    ['column "session_hash" does not exist', "42703"],
+    ["permission denied for table reader_open_logs", "42501"],
+  ])("does not treat %s as a missing table", (message, code) => {
+    expect(isMissingTable(Object.assign(new Error(message), { code }))).toBe(false);
+  });
+
+  it("ignores non-Error values", () => {
+    expect(isMissingTable("42P01")).toBe(false);
+    expect(isMissingTable(null)).toBe(false);
   });
 });
 

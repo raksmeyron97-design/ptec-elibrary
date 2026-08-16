@@ -3,14 +3,20 @@
 import { useTranslations } from "next-intl";
 import type { PermLevel } from "@/lib/types/roles";
 import { LEVEL_ORDER } from "@/lib/admin/roles-shared";
+import Badge, { type BadgeTone } from "@/components/admin/kit/Badge";
 import { LEVEL_ICON } from "./icons";
 
-// Level → static colour tokens. Every state also carries a distinct icon and
-// text label, so the control is legible without relying on colour perception.
-const PILL_STYLE: Record<PermLevel, string> = {
-  write: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  read: "bg-blue-50 text-blue-700 ring-blue-200",
-  none: "bg-slate-50 text-slate-500 ring-slate-200",
+/**
+ * Level → kit badge tone. Going through the shared `Badge` (rather than a
+ * fourth hand-written `bg-… text-… border-…` triplet) is what guarantees the
+ * brief's rule structurally: all three levels get identical padding, radius,
+ * font size and height, and only the colour differs. Every tone resolves
+ * through the `--ptec-{success,info}-{soft,line,text}` tokens.
+ */
+const TONE: Record<PermLevel, BadgeTone> = {
+  write: "success",
+  read: "info",
+  none: "neutral",
 };
 
 const SELECTED_STYLE: Record<PermLevel, string> = {
@@ -19,26 +25,42 @@ const SELECTED_STYLE: Record<PermLevel, string> = {
   none: "bg-slate-600 text-white shadow-sm",
 };
 
-/** Read-only badge shown in view mode and for the locked super_admin row. */
-export function PermPill({ level, locked }: { level: PermLevel; locked?: boolean }) {
+/**
+ * Read-only badge shown in view mode and for the locked super_admin column.
+ * `compact` drops the icon and fills its cell — the mobile card list labels
+ * columns with role initials and has no width to spare.
+ */
+export function PermPill({
+  level,
+  locked,
+  compact = false,
+}: {
+  level: PermLevel;
+  locked?: boolean;
+  compact?: boolean;
+}) {
   const t = useTranslations("adminRoles.levels");
-  const Icon = LEVEL_ICON[level];
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${PILL_STYLE[level]} ${locked ? "opacity-90" : ""}`}
+    <Badge
+      tone={TONE[level]}
+      icon={compact ? undefined : LEVEL_ICON[level]}
       title={t(`${level}Description`)}
+      className={
+        compact
+          ? "w-full justify-center"
+          : `transition-shadow group-hover/row:shadow-sm ${locked ? "opacity-90" : ""}`
+      }
     >
-      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" strokeWidth={2.5} />
-      <span>{t(`${level}Short`)}</span>
-    </span>
+      {t(`${level}Short`)}
+    </Badge>
   );
 }
 
 /**
  * Editable segmented control: None · Read · Write.
- * Rendered as a radiogroup so keyboard + screen-reader users can operate it.
- * `showLabels` reveals the text on wide screens; on tablet it degrades to
- * icon-only segments (still labelled via aria + title).
+ * A radiogroup so keyboard + screen-reader users can operate it. `showLabels`
+ * reveals the selected segment's text on wide screens; narrow contexts degrade
+ * to icon-only segments (still named via aria-label + title).
  */
 export function PermSegmented({
   value,
@@ -72,15 +94,13 @@ export function PermSegmented({
             role="radio"
             aria-checked={selected}
             aria-label={t(level)}
-            title={t(level)}
+            title={t(`${level}Description`)}
             onClick={() => onChange(level)}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
-              selected
-                ? SELECTED_STYLE[level]
-                : "text-slate-400 hover:bg-white hover:text-slate-700"
+            className={`inline-flex h-6 items-center justify-center gap-1 rounded-md px-2 text-xs font-medium transition-all ${
+              selected ? SELECTED_STYLE[level] : "text-slate-400 hover:bg-white hover:text-slate-700"
             }`}
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" strokeWidth={2.5} />
+            <Icon className="h-3 w-3 shrink-0" aria-hidden="true" strokeWidth={2.5} />
             {/* Only the selected segment shows its text label — compact, yet the
                 current level is always legible without relying on colour. */}
             {showLabels && selected && <span>{t(`${level}Short`)}</span>}

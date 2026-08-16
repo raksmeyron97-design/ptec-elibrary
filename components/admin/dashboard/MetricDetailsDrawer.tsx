@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ArrowRight, Info, X } from "lucide-react";
@@ -90,6 +91,23 @@ function DrawerTrend({ series, prevSeries }: { series: TrendPoint[]; prevSeries:
  * full report. Rendered only while open (nothing is fetched or mounted for a
  * drawer nobody asked for), with a focus trap, Escape to close and focus
  * restored to the trigger.
+ *
+ * ── Why this portals to <body> ───────────────────────────────────────────
+ * This component is mounted deep inside the Overview tree
+ * (OverviewView → ExecutivePulse), and `position: fixed` only escapes to the
+ * viewport while NO ancestor establishes a stacking context. Any ancestor that
+ * does confines the whole subtree — the drawer's z-index then competes only
+ * with its siblings inside that context, so the sticky DashboardControlBar
+ * (z-index 30) painted straight over a z-index 51 drawer.
+ *
+ * Portalling makes the drawer a child of <body>, so it can never again be
+ * captured by whatever the Overview tree grows above it. That is the durable
+ * fix; raising z-index alone is not, because a trapped subtree loses regardless
+ * of how large its numbers are.
+ *
+ * Safe for theming: `.theme-light` on the admin shell is an inert marker with
+ * no CSS rule — every token resolves from `:root` on <html> (AdminThemeEnforcer),
+ * which <body> is inside.
  */
 export default function MetricDetailsDrawer({
   metrics,
@@ -103,8 +121,21 @@ export default function MetricDetailsDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  // `document` only exists on the client, and createPortal needs a real node.
+  // `details` always starts null, so the server renders nothing here either
+  // way; this keeps the component correct if a drawer ever becomes openable
+  // from initial state (e.g. deep-linked), where portalling on the very first
+  // client render would not match the server's empty output.
+  //
+  // This trips `react-hooks/set-state-in-effect` (a warning, not an error — the
+  // same one AdminSidebar carries). That is inherent to the SSR portal idiom:
+  // replacing it with a bare `typeof document !== "undefined"` check silences
+  // the rule by reintroducing the hydration mismatch it exists to prevent.
+  const [mounted, setMounted] = useState(false);
 
   const open = details !== null;
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -139,13 +170,13 @@ export default function MetricDetailsDrawer({
     };
   }, [open, closeDetails]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const isHealth = details === "health";
   const payload = isHealth ? null : metrics[details as DashboardMetric];
   const title = isHealth ? health.title : (payload?.title ?? "");
 
-  return (
+  return createPortal(
     <div className="dash-drawer-root" role="presentation">
       {/* Scrim: click to dismiss. Keyboard users have Escape and the close button. */}
       <div className="dash-drawer-scrim" onClick={closeDetails} aria-hidden="true" />
@@ -159,14 +190,14 @@ export default function MetricDetailsDrawer({
         <div className="flex items-start justify-between gap-3 border-b border-divider px-5 py-3.5">
           <div className="min-w-0">
             <p className="dash-eyebrow">{t("detailsEyebrow")}</p>
-            <h2 className="truncate text-[16px] font-bold text-text-heading">{title}</h2>
+            <h2 className="dash-truncate-head text-[16px] font-bold text-text-heading">{title}</h2>
           </div>
           <button
             ref={closeRef}
             type="button"
             onClick={closeDetails}
             aria-label={t("closeDetails")}
-            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -189,7 +220,7 @@ export default function MetricDetailsDrawer({
                     <p className="mt-1 text-[11.5px] leading-4 text-text-muted">{c.detail}</p>
                     <Link
                       href={c.href}
-                      className="mt-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      className="mt-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-brand hover:underline"
                     >
                       {t("inspect")}
                       <ArrowRight className="h-3 w-3" aria-hidden="true" />
@@ -199,7 +230,7 @@ export default function MetricDetailsDrawer({
               </ul>
               <Link
                 href={health.reportHref}
-                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline"
               >
                 {health.reportLabel}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -259,7 +290,7 @@ export default function MetricDetailsDrawer({
                       <li key={row.key} className="flex items-baseline gap-2 text-[12px]">
                         <Link
                           href={row.href}
-                          className="min-w-0 flex-1 truncate font-medium text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          className="min-w-0 flex-1 dash-truncate font-medium text-text-body hover:text-brand hover:underline"
                           title={row.title}
                           dir="auto"
                         >
@@ -281,7 +312,7 @@ export default function MetricDetailsDrawer({
                       <li key={a.key}>
                         <Link
                           href={a.href}
-                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-text-body transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-text-body transition-colors hover:bg-paper"
                         >
                           <span
                             aria-hidden="true"
@@ -310,7 +341,7 @@ export default function MetricDetailsDrawer({
 
               <Link
                 href={payload.reportHref}
-                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline"
               >
                 {payload.reportLabel}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -319,6 +350,7 @@ export default function MetricDetailsDrawer({
           ) : null}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

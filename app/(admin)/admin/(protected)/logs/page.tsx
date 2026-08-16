@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
-import SecurityLogsClient from "./SecurityLogsClient";
+import SecurityLogsClient from "./_components/SecurityLogsClient";
 import { queryActivity, type ActivityFilters } from "@/lib/admin/activity-log";
 import {
   RESOURCE_TYPES,

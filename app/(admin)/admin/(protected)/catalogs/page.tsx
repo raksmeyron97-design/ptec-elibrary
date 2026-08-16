@@ -10,9 +10,9 @@ import {
   AVAILABILITY_TONE,
   TONE_DOT,
 } from "@/lib/catalog";
-import CatalogAdminActions from "./CatalogAdminActions";
+import CatalogAdminActions from "./_components/CatalogAdminActions";
 import CsvImportWizard from "./import/CsvImportWizard";
-import AdminCatalogToolbar from "./AdminCatalogToolbar";
+import AdminCatalogToolbar from "./_components/AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
 import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
 

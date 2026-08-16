@@ -308,7 +308,7 @@ export default function LegacyEngagementChart({
   };
 
   const menuItemClass =
-    "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand";
+    "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper [--focus-ring-offset:-2px]";
 
   return (
     <div>
@@ -351,7 +351,7 @@ export default function LegacyEngagementChart({
             aria-haspopup="menu"
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen((v) => !v)}
-            className="flex h-8 cursor-pointer items-center gap-1 rounded-[10px] px-2 text-[11.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="flex h-8 cursor-pointer items-center gap-1 rounded-[10px] px-2 text-[11.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
             {t("more")}
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
@@ -436,7 +436,7 @@ export default function LegacyEngagementChart({
               )}
             </span>
           )}
-          {grain !== "day" && activeMetric === "visitors" && (
+          {activeMetric === "visitors" && (grain === "week" || grain === "month") && (
             <span className="ms-1.5 text-text-muted">{t("visitorRollupNote")}</span>
           )}
         </p>
@@ -605,7 +605,7 @@ export default function LegacyEngagementChart({
                   type="button"
                   onClick={() => setEventBucket(null)}
                   aria-label={t("drillClose")}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-white hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-white hover:text-text-heading [--focus-ring-offset:1px]"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
@@ -614,7 +614,7 @@ export default function LegacyEngagementChart({
               {ann.titles && ann.titles.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {ann.titles.map((title) => (
-                    <li key={title} className="truncate text-[11.5px] text-text-muted" dir="auto" title={title}>
+                    <li key={title} className="dash-truncate text-[11.5px] text-text-muted" dir="auto" title={title}>
                       • {title}
                     </li>
                   ))}
@@ -632,7 +632,7 @@ export default function LegacyEngagementChart({
               <button
                 type="button"
                 onClick={() => openDrill(eventBucket)}
-                className="mt-1.5 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="mt-1.5 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline"
               >
                 {t("eventInspect")}
               </button>
@@ -659,7 +659,7 @@ export default function LegacyEngagementChart({
               type="button"
               onClick={() => setDrillBucket(null)}
               aria-label={t("drillClose")}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-surface hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-surface hover:text-text-heading [--focus-ring-offset:1px]"
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -678,7 +678,7 @@ export default function LegacyEngagementChart({
                   setDrillError(null);
                   setDrillRetry((n) => n + 1);
                 }}
-                className="mt-1 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="mt-1 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline"
               >
                 {t("retry")}
               </button>
@@ -698,7 +698,7 @@ export default function LegacyEngagementChart({
                       <li key={`${item.type}-${item.id}`} className="flex items-center gap-2 text-[12px]">
                         <Link
                           href={item.editHref}
-                          className="min-w-0 flex-1 truncate font-medium text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          className="min-w-0 flex-1 dash-truncate font-medium text-text-body hover:text-brand hover:underline"
                           title={item.title}
                           dir="auto"
                         >

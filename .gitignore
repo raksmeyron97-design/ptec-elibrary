@@ -58,6 +58,20 @@ next-env.d.ts
 # (7 of these were committed by accident; they are artifacts, not source.)
 playwright-report/
 test-results/
+
+# Audit/report output. These were tracked despite the rules above, because
+# .gitignore never applies retroactively — they had already been committed.
+# Untracked 2026-08-16 with `git rm --cached`; the files stay on disk.
+/lh-report.json
+/lint_output.txt
+/.lighthouseci/
+# react-doctor writes here, but false-positives.md is a hand-maintained record
+# of which rules we deliberately suppress and why — that one is source.
+/.react-doctor/*
+!/.react-doctor/false-positives.md
 # .gitignore
 public/sw.js
 public/sw.js.map
+# Local agent workspace — skills, briefings and handoff notes.
+# Kept on disk, out of the repo.
+/.agents/

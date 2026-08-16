@@ -5,7 +5,7 @@ import { LIBRARIAN_ROLES } from "@/lib/types/roles";
 import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../copy-actions";
 import { coverSourceFromUrl } from "@/lib/catalog-cover";
-import EditBookWizard from "./EditBookWizard";
+import EditBookWizard from "./_components/EditBookWizard";
 
 export default async function EditCatalogBookPage({
   params,

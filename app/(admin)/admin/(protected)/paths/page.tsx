@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Plus, ExternalLink, GraduationCap, CheckCircle2, FileEdit, Archive, Users, Trophy } from "lucide-react";
 import { adminGetPaths, adminGetPathStats } from "@/app/actions/learning-paths";
 import { PageHeader } from "@/components/admin/kit";
-import PathsAdminClient from "./PathsAdminClient";
+import PathsAdminClient from "./_components/PathsAdminClient";
 
 export const dynamic = "force-dynamic";
 

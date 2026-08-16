@@ -191,6 +191,7 @@
     "deptAll": "ទាំងអស់",
     "searchPlaceholder": "ស្វែងរកចំណងជើង អ្នកនិពន្ធ ISBN ឬប្រធានបទ…",
     "searchButton": "ស្វែងរក",
+    "searchScopeLabel": "ស្វែងរកក្នុង",
     "trending": "កំពុងពេញនិយម",
     "browseSectionEyebrow": "រុករក",
     "browseSectionTitle": "រុករកក្នុងបណ្ណសារ",
@@ -352,7 +353,17 @@
     "statDigitalResources": "ធនធានឌីជីថល",
     "statEbooks": "សៀវភៅឌីជីថល",
     "statTheses": "និក្ខេបបទ",
-    "statPublications": "អត្ថបទស្រាវជ្រាវ"
+    "statPublications": "អត្ថបទស្រាវជ្រាវ",
+    "trendingPillLabel": "ស្វែងរក {term} ក្នុង {scope}",
+    "trustTitle": "បណ្ណាល័យ វ.គ.ភ ដោយសង្ខេប",
+    "trustDigitalLabel": "ធនធានឌីជីថល",
+    "trustPhysicalLabel": "សៀវភៅក្នុងបណ្ណាល័យរូបវន្ត",
+    "trustSinceLabel": "បម្រើ វ.គ.ភ ចាប់តាំងពី",
+    "newArrivalsEyebrow": "ថ្មីៗសប្តាហ៍នេះ",
+    "newArrivalsTitle": "ទើបបញ្ចូលក្នុងបណ្ណាល័យ",
+    "newArrivalsBody": "សៀវភៅ សារណា និងអត្ថបទសិក្សាដែលទើបបញ្ចូលថ្មីបំផុត។",
+    "newArrivalsAdded": "បានបញ្ចូល {date}",
+    "categoriesCardLabel": "រកមើលធនធាន {subject}"
   },
   "books": {
     "title": "សៀវភៅ",
@@ -4368,7 +4379,9 @@
     "header": {
       "title": "ការគ្រប់គ្រងតួនាទី",
       "description": "កំណត់អ្វីដែលតួនាទីនីមួយៗអាចមើល និងធ្វើបាននៅទូទាំងបណ្ណាល័យ។ ចាត់តាំងតួនាទីទាំងនេះដល់បុគ្គលម្នាក់ៗពីទំព័រអ្នកប្រើប្រាស់។",
-      "lastUpdated": "សិទ្ធិបានធ្វើបច្ចុប្បន្នភាពចុងក្រោយ",
+      "breadcrumbRoot": "រដ្ឋបាល",
+      "breadcrumbCurrent": "តួនាទី",
+      "lastUpdated": "បានធ្វើបច្ចុប្បន្នភាពចុងក្រោយ",
       "by": "ដោយ",
       "defaultMatrix": "កំពុងប្រើតារាងសិទ្ធិលំនាំដើម",
       "manageUserRoles": "គ្រប់គ្រងតួនាទីអ្នកប្រើប្រាស់",
@@ -4392,7 +4405,11 @@
       "clearFocus": "សម្អាតការផ្ដោត",
       "userCount": "{count} អ្នកប្រើប្រាស់",
       "fullCount": "{count} ពេញលេញ",
-      "readCount": "{count} អាន"
+      "readCount": "{count} អាន",
+      "shareOfTotal": "{pct}% នៃសរុប",
+      "noAssignments": "គ្មានការចាត់តាំងសកម្ម",
+      "assignUsers": "ចាត់តាំងអ្នកប្រើប្រាស់",
+      "focusRole": "ផ្ដោតតារាងសិទ្ធិលើ {role}"
     },
     "toolbar": {
       "searchLabel": "ស្វែងរកមុខងារ",
@@ -4408,8 +4425,10 @@
       "reset": "កំណត់ឡើងវិញ"
     },
     "matrix": {
-      "noMatchesTitle": "គ្មានមុខងារត្រូវនឹងតម្រងទេ",
-      "noMatchesBody": "សាកល្បងសម្អាតការស្វែងរក ឬតម្រង «ភាពខុសគ្នា»។",
+      "noMatchesTitle": "គ្មានមុខងារត្រូវនឹងការស្វែងរកទេ",
+      "noMatchesBody": "សាកល្បងកែសម្រួលការស្វែងរក ឬតម្រងរបស់អ្នក។",
+      "clearSearch": "សម្អាតការស្វែងរក",
+      "diffSummary": "កំពុងបង្ហាញ {shown} ក្នុងចំណោម {total} មុខងារដែលមានសិទ្ធិខុសគ្នា",
       "caption": "សិទ្ធិតាមតួនាទី និងមុខងារ",
       "feature": "មុខងារ",
       "permFor": "សិទ្ធិ {feature} សម្រាប់ {role}",
@@ -4452,10 +4471,18 @@
       "publications": "អត្ថបទសិក្សា",
       "learning_paths": "មាគ៌ាសិក្សា",
       "announcements": "សេចក្ដីប្រកាស",
+      "announcements_push": "ការរុញសេចក្ដីប្រកាស",
       "contact": "ប្រអប់សារ",
       "users": "អ្នកប្រើប្រាស់",
       "roles": "តួនាទី",
       "settings": "ការកំណត់ប្រព័ន្ធ"
+    },
+    "initials": {
+      "reader": "អា",
+      "staff": "បុ",
+      "librarian": "បណ",
+      "admin": "គ្រ",
+      "super_admin": "គក"
     },
     "resourceDescriptions": {
       "books": "បញ្ចូល ត្រួតពិនិត្យ និងគ្រប់គ្រងសៀវភៅឌីជីថល",
@@ -4465,6 +4492,7 @@
       "publications": "អត្ថបទសិក្សារបស់ស្ថាប័ន",
       "learning_paths": "មាគ៌ាសិក្សាគ្រូបង្រៀនដែលបានរៀបចំ",
       "announcements": "បដាសេចក្ដីប្រកាសទូទាំងគេហទំព័រ",
+      "announcements_push": "ផ្ញើការជូនដំណឹងរុញអំពីសេចក្ដីប្រកាសទៅឧបករណ៍ដែលបានជាវ",
       "contact": "សារទម្រង់ទំនាក់ទំនង និងការឆ្លើយតប",
       "users": "គណនី ក្រុមការងារ និងការចាត់តាំងតួនាទី",
       "roles": "តារាងសិទ្ធិនេះផ្ទាល់",
@@ -4495,6 +4523,11 @@
   "adminEbooks": {
     "title": "គ្រប់គ្រងសៀវភៅឌីជីថល",
     "description": "ស្វែងរក កែសម្រួល បោះពុម្ពផ្សាយ និងថែទាំសៀវភៅឌីជីថលក្នុងបណ្ណាល័យ PTEC។",
+    "breadcrumb": {
+      "label": "ការនាំផ្លូវ",
+      "home": "ផ្ទាំងគ្រប់គ្រង",
+      "current": "គ្រប់គ្រងសៀវភៅឌីជីថល"
+    },
     "stats": {
       "total": "សៀវភៅសរុប",
       "archived": "{count} ក្នុងបណ្ណសារ",
@@ -4505,14 +4538,20 @@
       "missingPdfs": "ខ្វះ PDF",
       "brokenLinks": "{count} តំណខូច",
       "downloads": "ការទាញយក",
+      "views": "{count} ការមើល",
       "storage": "ទំហំផ្ទុកប្រើ",
-      "weakMetadata": "ទិន្នន័យមេតាខ្សោយ"
+      "weakMetadata": "ទិន្នន័យមេតាខ្សោយ",
+      "needsReview": "ត្រូវត្រួតពិនិត្យ",
+      "brokenFiles": "ឯកសារខូច",
+      "archivedLabel": "ក្នុងបណ្ណសារ",
+      "breakdown": "ចំណែកលម្អិតនៃសៀវភៅ"
     },
     "toolbar": {
       "searchLabel": "ស្វែងរកសៀវភៅ",
       "searchPlaceholder": "ស្វែងរកតាមចំណងជើង អ្នកនិពន្ធ ដេប៉ាតឺម៉ង់ ពាក្យគន្លឹះ…",
       "clearSearch": "សម្អាតការស្វែងរក",
       "results": "{count} លទ្ធផល",
+      "showing": "បង្ហាញ {count} សៀវភៅ",
       "upload": "បញ្ចូលសៀវភៅ"
     },
     "status": {
@@ -4622,6 +4661,7 @@
     },
     "table": {
       "caption": "បញ្ជីសៀវភៅឌីជីថល",
+      "document": "ឯកសារ",
       "selectAll": "ជ្រើសរើសសៀវភៅទាំងអស់",
       "cover": "គម្រប",
       "bookInfo": "ព័ត៌មានសៀវភៅ",
@@ -4631,6 +4671,7 @@
       "fileHealth": "សុខភាពឯកសារ",
       "metadata": "ទិន្នន័យមេតា",
       "statsCol": "ស្ថិតិ",
+      "engagement": "ការចូលរួម",
       "statusCol": "ស្ថានភាព",
       "updated": "បានធ្វើបច្ចុប្បន្នភាព",
       "actionsCol": "សកម្មភាព",
@@ -4640,6 +4681,9 @@
       "noYear": "គ្មានឆ្នាំ",
       "view": "មើល",
       "edit": "កែសម្រួល",
+      "editFor": "កែសម្រួល {title}",
+      "views": "ការមើល",
+      "downloads": "ការទាញយក",
       "viewPublic": "មើលទំព័រសាធារណៈ",
       "viewPublicFor": "មើលទំព័រសាធារណៈសម្រាប់ {title}"
     },

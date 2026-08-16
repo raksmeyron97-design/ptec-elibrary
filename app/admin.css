@@ -130,8 +130,35 @@
   --dash-gold: var(--ptec-accent);     /* #DDB022 */
   --dash-gold-ink: var(--ptec-accent-text); /* #806211 — AA gold text */
 
-  --dash-elev-1: 0 1px 2px rgba(11, 21, 48, .05), 0 1px 1px rgba(11, 21, 48, .03);
-  --dash-elev-2: 0 2px 4px rgba(11, 21, 48, .04), 0 10px 24px -12px rgba(11, 21, 48, .16);
+  /* ── Neutral surface + line scale ────────────────────────────────────
+     The admin shell had these as literal hexes inline on ~20 elements
+     (#F8FAFC, #E2E8F0, #64748B…), so a palette change meant editing JSX.
+     Brand hue stays PTEC navy/gold above; only the neutrals are restated
+     here as tokens. */
+  --dash-bg: #F8F9FB;                  /* app background — never pure white */
+  --dash-surface: #FFFFFF;
+  --dash-line: #E2E8F0;
+  --dash-line-subtle: #F1F5F9;
+
+  /* ── Text ramp — every value below is AA-checked against --dash-surface.
+     Do NOT add a lighter "tertiary text" token: #94A3B8 on white is 2.8:1
+     and fails AA for any text at any size. It is available as
+     --dash-ink-decorative and is for non-text marks (chevrons, rules) only
+     — the topbar already carries a comment recording that regression. */
+  --dash-ink-2: #475569;               /* 7.4:1 — secondary body text     */
+  --dash-ink-3: #64748B;               /* 4.8:1 — tertiary / label text   */
+  --dash-ink-decorative: #94A3B8;      /* 2.8:1 — NON-TEXT marks only     */
+
+  /* ── Radius scale ── */
+  --dash-r-sm: .5rem;
+  --dash-r-md: .75rem;
+  --dash-r-lg: 1rem;
+  --dash-r-xl: 1.25rem;
+
+  /* Elevation: layered rather than a single hard drop, so a resting card
+     reads as raised without a visible grey halo. */
+  --dash-elev-1: 0 1px 3px 0 rgba(11, 21, 48, .06), 0 1px 2px -1px rgba(11, 21, 48, .04);
+  --dash-elev-2: 0 4px 6px -1px rgba(11, 21, 48, .05), 0 2px 4px -2px rgba(11, 21, 48, .04), 0 10px 24px -14px rgba(11, 21, 48, .14);
   --dash-elev-3: 0 4px 10px -4px rgba(11, 21, 48, .08), 0 18px 40px -16px rgba(30, 58, 138, .26);
 
   /* Layer scale — one source of truth so nothing on the dashboard can be
@@ -140,7 +167,12 @@
      except for full-viewport overlays, which must cover it. */
   --dash-z-sticky: 30;   /* sticky control bar                    */
   --dash-z-popover: 44;  /* menus, definition popovers, tooltips  */
-  --dash-z-overlay: 50;  /* drawers + their scrim                 */
+  /* Drawers + their scrim. Deliberately clear of the admin SHELL, not just of
+     the dashboard: AdminSidebar paints its collapsed-rail flyouts at a bare
+     `fixed z-50`, which tied with the old value of 50 and left the winner to
+     DOM order. 100 leaves the whole shell (topbar 20, mobile scrim 30,
+     sidebar 40, flyouts 50) unambiguously below a modal surface. */
+  --dash-z-overlay: 100;
 }
 
 /* ── Sticky control bar ───────────────────────────────────────────────────
@@ -258,6 +290,31 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   color: var(--dash-gold-ink);
 }
 
+/* ── Khmer-safe single-line truncation ────────────────────────────────────
+   Use instead of Tailwind's `truncate` anywhere the text can be Khmer.
+
+   `truncate` is `overflow: hidden`, which clips VERTICALLY as well as
+   horizontally — the clip box is exactly one line-height tall. Khmer stacks
+   diacritics well above and below the base glyph (◌ិ ◌ូ ◌្រ), so at Latin
+   leading (~1.25) the marks are shaved off the top and bottom rather than the
+   string being ellipsised.
+
+   This cannot be left to `html:lang("km")`: the admin panel renders lang="en"
+   while its DATA — book, thesis and post titles, search terms — is routinely
+   Khmer, so the language selector never matches the elements that need it.
+   `.khmer` (globals.css) is opt-in and likewise never reaches these.
+
+   1.7 body / 1.4 heading mirrors the `.khmer` pair in globals.css and clears
+   the brief's 1.6 floor for running text. */
+.dash-truncate,
+.dash-truncate-head {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash-truncate { line-height: 1.7; }
+.dash-truncate-head { line-height: 1.4; }
+
 /* ── Segmented control (toolbar range + chart metric + query views) ── */
 .dash-seg {
   display: inline-flex;
@@ -299,6 +356,19 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   outline: 2px solid var(--dash-gold);
   outline-offset: 1px;
 }
+
+/* Horizontal overflow without a visible scrollbar.
+
+   `.dash-seg` already did this inline; the view-tab <nav> beside it did not,
+   so at widths where the tab row overflowed the browser painted a raw grey
+   scrollbar track directly under the tabs — next to a sibling control that
+   scrolls invisibly. Same behaviour for both now. */
+.dash-scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dash-scroll-x::-webkit-scrollbar { display: none; }
 
 /* ── View tab rail: tinted rail, blue active pill, gold 2px indicator ── */
 .dash-tabrail {
@@ -515,9 +585,46 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   background: color-mix(in srgb, var(--dash-gold) 7%, #fff);
   border: 1px solid color-mix(in srgb, var(--dash-gold) 22%, transparent);
 }
-.dash-insight--positive { border-inline-start: 3px solid #059669; }
-.dash-insight--warning  { border-inline-start: 3px solid #D97706; }
-.dash-insight--info     { border-inline-start: 3px solid var(--dash-blue); }
+/* Severity edge — the same four semantic tokens the icons use, so a rule's
+   border and its icon can never drift apart. */
+.dash-insight--positive { border-inline-start: 3px solid var(--ptec-success); }
+.dash-insight--warning  { border-inline-start: 3px solid var(--ptec-warning); }
+.dash-insight--info     { border-inline-start: 3px solid var(--ptec-info); }
+
+/* ── Activity timeline ────────────────────────────────────────────────────
+   One rail + one dot per entry, drawn entirely from the <li> so the markup
+   stays a plain <ol> (no wrapper divs, no per-item card). The rail is a
+   segment on each row rather than one line on the list, which is what lets
+   the first and last rows clip it to the dot instead of letting it dangle
+   past the ends of the list. */
+.dash-timeline > li {
+  position: relative;
+  padding-inline-start: 22px;
+}
+.dash-timeline > li::before {          /* rail segment */
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 4px;
+  width: 2px;
+  background: var(--dash-line);
+}
+.dash-timeline > li:first-child::before { inset-block-start: 10px; }
+.dash-timeline > li:last-child::before  { inset-block-end: calc(100% - 12px); }
+.dash-timeline > li::after {           /* dot, centred on the rail */
+  content: "";
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--dash-timeline-dot, var(--dash-blue));
+  /* Ring in the card colour so the dot reads as sitting on top of the rail. */
+  box-shadow: 0 0 0 2px var(--dash-surface);
+}
+/* Entries touching personal data are marked on the rail as well as inline. */
+.dash-timeline > li[data-sensitive="true"] { --dash-timeline-dot: var(--ptec-warning); }
 
 /* ── Data tables: faint navy header, quiet zebra, clear hover ────────── */
 .dash-thead th {
@@ -528,9 +635,145 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-row { transition: background .13s ease; }
 .dash-row:hover { background: color-mix(in srgb, var(--dash-blue) 4%, transparent); }
 
+/* ── Admin shell topbar ───────────────────────────────────────────────────
+   The topbar sits in a flex column above a separately-scrolling <main>, so
+   it is already permanently visible — it needs no `position: sticky` and no
+   scroll-driven backdrop-blur, because page content never passes beneath it.
+   These classes exist to get ~20 literal hexes out of the JSX, not to change
+   how it looks. */
+.dash-topbar {
+  background: var(--dash-surface);
+  border-bottom: 1px solid var(--dash-line);
+}
+/* Ghost search field — a filled well rather than a bordered box. */
+.dash-topbar-search {
+  background: var(--dash-bg);
+  border: 1px solid var(--dash-line);
+  border-radius: var(--dash-r-md);
+  color: var(--dash-ink-2);
+  transition: background .15s ease, border-color .15s ease;
+}
+.dash-topbar-search:hover {
+  background: var(--dash-line-subtle);
+  border-color: color-mix(in srgb, var(--dash-blue) 40%, var(--dash-line));
+}
+/* Icon-only topbar affordances (settings, bell, avatar trigger). */
+.dash-topbar-btn {
+  color: var(--dash-ink-3);
+  border-radius: var(--dash-r-md);
+  transition: background .15s ease, color .15s ease;
+}
+.dash-topbar-btn:hover {
+  background: var(--dash-line-subtle);
+  color: var(--dash-ink);
+}
+/* Non-text marks only — see --dash-ink-decorative. */
+.dash-topbar-chevron { color: var(--dash-ink-decorative); }
+
+/* ── Role chips ───────────────────────────────────────────────────────────
+   Replaces three hand-written rgba/hex pairs that were computed inline with
+   nested ternaries. Text colours are the AA-safe ramp, not the 500-weights
+   the inline version used. */
+.dash-rolechip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.dash-rolechip--super { background: color-mix(in srgb, #7C3AED 10%, #fff); color: #6D28D9; }
+.dash-rolechip--admin { background: color-mix(in srgb, #D97706 12%, #fff); color: #B45309; }
+.dash-rolechip--staff { background: color-mix(in srgb, #059669 11%, #fff); color: #047857; }
+
+/* ── Staggered reveal ─────────────────────────────────────────────────────
+   Opt-in per zone: the parent sets .dash-stagger, each child fades up with a
+   delay derived from its index. Capped at 8 so a long list never leaves the
+   last card invisibly late. Uses `both` so the child is hidden during the
+   delay rather than flashing at full opacity first. */
+/* Opacity only — deliberately NOT a translate/transform.
+
+   A transformed element becomes the containing block for any `position: fixed`
+   descendant. ExecutivePulse is a direct child here and it mounts
+   MetricDetailsDrawer, whose scrim is `position: fixed; inset: 0` — so a rise
+   animation would anchor a full-screen overlay to the card instead of the
+   viewport for anyone who clicked "Details" inside the animation window.
+   The brief asked for a staggered fade, and a fade has no such side effect. */
+@keyframes dash-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* `backwards`, NOT `both` — this is load-bearing, not a style preference.
+   `both` = backwards + FORWARDS, and a forwards-filling animation stays "in
+   effect" permanently once it has run. An element with an opacity animation in
+   effect gets a STACKING CONTEXT, so every zone here kept one forever, which
+   confined `position: fixed` descendants to the zone: the metric details drawer
+   (z-index 51) painted underneath the sticky control bar (z-index 30) no matter
+   how large its z-index grew. `backwards` fills only during the delay, so the
+   effect ends with the animation and the stacking context goes with it.
+   Visually identical — the `to` value is opacity 1, which is also the resting
+   value, so forwards fill was buying nothing.
+
+   (The earlier version animated `transform`, which was worse still: that
+   creates a CONTAINING BLOCK for fixed descendants, anchoring a full-screen
+   scrim to the card.) */
+.dash-stagger > * {
+  animation: dash-fade-in .3s cubic-bezier(.4, 0, .2, 1) backwards;
+}
+.dash-stagger > :nth-child(1) { animation-delay: 0ms;   }
+.dash-stagger > :nth-child(2) { animation-delay: 50ms;  }
+.dash-stagger > :nth-child(3) { animation-delay: 100ms; }
+.dash-stagger > :nth-child(4) { animation-delay: 150ms; }
+.dash-stagger > :nth-child(5) { animation-delay: 200ms; }
+.dash-stagger > :nth-child(6) { animation-delay: 250ms; }
+.dash-stagger > :nth-child(7) { animation-delay: 300ms; }
+.dash-stagger > :nth-child(n+8) { animation-delay: 350ms; }
+
 @media (prefers-reduced-motion: reduce) {
   .dash-card--interactive,
   .dash-tab,
+  .dash-topbar-btn,
+  .dash-topbar-search,
   .dash-seg-btn { transition: none; }
   .dash-card--interactive:hover { transform: none; }
+  /* Collapse the animation rather than removing it: `animation: none` would
+     also drop the `backwards` fill, and with it the guarantee that the element
+     is never painted mid-fade. Duration ~0 reaches opacity 1 immediately. */
+  .dash-stagger > * { animation-duration: .01ms; animation-delay: 0ms; }
+}
+
+/* ── Manage E-books: table + command bar ───────────────────────────────────
+   Three rules that Tailwind utilities can't express safely on their own. */
+
+/* A horizontally scrollable strip (the KPI breakdown pills) should not paint
+   a scrollbar over its own content on desktop. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Row actions reveal on hover — but ONLY where hovering is possible. As a
+   Tailwind pair (`[@media(hover:hover)]:opacity-0` + `group-hover:opacity-100`)
+   the winner depends on utility sort order, and losing that race hides the
+   edit/menu buttons outright on the 768–1024px tablet range, which has the
+   table but no hover. Expressed here, the media query is unambiguous.
+   `:focus-within` keeps them reachable by keyboard. */
+.row-actions { opacity: 1; }
+@media (hover: hover) {
+  .row-actions { opacity: 0; transition: opacity .15s ease; }
+  tr:hover .row-actions,
+  tr:focus-within .row-actions { opacity: 1; }
+}
+
+/* Popovers and the bulk-selection bar enter from their own top edge. */
+@keyframes admin-pop-in {
+  from { opacity: 0; transform: scale(.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.admin-pop {
+  transform-origin: top;
+  animation: admin-pop-in .1s cubic-bezier(.4, 0, .2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-actions { transition: none; }
+  .admin-pop { animation-duration: .01ms; }
 }

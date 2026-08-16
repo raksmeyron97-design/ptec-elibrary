@@ -49,7 +49,7 @@ export default async function HeaderStatus({
       {degraded ? (
         <Link
           href={href}
-          className={`inline-flex items-center gap-1.5 rounded-md px-1 font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
+          className={`inline-flex items-center gap-1.5 rounded-md px-1 font-semibold hover:underline [--focus-ring-offset:1px] ${
             level === "critical" ? "text-rose-700" : "text-amber-700"
           }`}
         >

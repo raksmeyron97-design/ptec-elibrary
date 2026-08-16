@@ -160,7 +160,7 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
           <div className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-end">
             <Link
               href={item.href}
-              className="flex h-9 items-center gap-1 rounded-[10px] border border-brand/25 bg-brand/5 px-2.5 text-[12px] font-semibold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="flex h-9 items-center gap-1 rounded-[10px] border border-brand/25 bg-brand/5 px-2.5 text-[12px] font-semibold text-brand transition-colors hover:bg-brand/10"
             >
               {t(`action.${item.key}`)}
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,7 +170,7 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
               type="button"
               aria-expanded={isOpen}
               onClick={() => setOpenRow(isOpen ? null : item.key)}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
             >
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -189,7 +189,7 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
                   onBlur={(e) => {
                     if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) setMenuRow(null);
                   }}
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
                 >
                   <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                   <span className="sr-only">{t("moreActions")}</span>
@@ -213,7 +213,7 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
                           if (!e.currentTarget.closest("[role=menu]")?.parentElement?.contains(e.relatedTarget as Node))
                             setMenuRow(null);
                         }}
-                        className="block rounded-lg px-2.5 py-2 text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                        className="block rounded-lg px-2.5 py-2 text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper [--focus-ring-offset:-2px]"
                       >
                         {t(`secondary.${s.key}`)}
                       </Link>
@@ -229,7 +229,7 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
   };
 
   return (
-    <section aria-labelledby="attention-heading" className="dash-card p-4">
+    <section aria-labelledby="attention-heading" className="dash-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="dash-ico dash-ico--md dash-ico--brand" aria-hidden="true">
@@ -303,9 +303,13 @@ export default function NeedsAttentionPanel({ data }: { data: ActionCenterData }
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="mt-2 cursor-pointer rounded-lg px-2 py-1 text-[12px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="mt-2 cursor-pointer rounded-lg px-2 py-1 text-[12px] font-semibold text-brand hover:underline"
             >
-              {expanded ? t("showLess") : t("viewAll", { count: hidden })}
+              {/* `filtered.length`, not `hidden`: the label reads "View all
+                  ({count})", so the number has to be the total it would show.
+                  Passing the hidden count rendered "View all (2)" under a
+                  heading that said "5 items need attention". */}
+              {expanded ? t("showLess") : t("viewAll", { count: filtered.length })}
             </button>
           )}
         </>

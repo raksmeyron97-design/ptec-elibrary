@@ -1,6 +1,6 @@
 # ទំព័រអំពីបណ្ណាល័យ — ការផ្ទៀងផ្ទាត់ខ្លឹមសារ
 
-**ឯកសារប្រភព៖** `docs/library_info_form.docx` (ទម្រង់ប្រមូលព័ត៌មានសម្រាប់គេហទំព័របណ្ណាល័យ E‑Library)
+**ឯកសារប្រភព៖** `docs/assets/library_info_form.docx` (ទម្រង់ប្រមូលព័ត៌មានសម្រាប់គេហទំព័របណ្ណាល័យ E‑Library)
 **បានចម្លង៖** 2026-07-29 → `lib/about/content.ts`
 **អនុវត្តចំពោះ៖** `/about/our-journey`, `/about/rules`, `/about/timings`, `/about/collection`, `/about/team`
 

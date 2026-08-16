@@ -32,7 +32,7 @@ export default function EbookCover({
   if (!coverUrl) {
     return (
       <div
-        className={`${className} flex shrink-0 items-center justify-center rounded border border-dashed border-divider bg-paper text-text-muted`}
+        className={`${className} flex shrink-0 items-center justify-center rounded-md border border-dashed border-divider bg-paper text-text-muted`}
         role="img"
         aria-label={t("noCover", { title })}
       >
@@ -44,7 +44,7 @@ export default function EbookCover({
   if (failed) {
     return (
       <div
-        className={`${className} flex shrink-0 items-center justify-center rounded border border-red-200 bg-red-50 text-red-500`}
+        className={`${className} flex shrink-0 items-center justify-center rounded-md border border-danger-line bg-danger-soft text-danger-text`}
         role="img"
         aria-label={t("brokenCover", { title })}
         title={t("failedToLoad")}
@@ -61,7 +61,7 @@ export default function EbookCover({
       alt={`Cover of ${title}`}
       loading="lazy"
       onError={() => setFailed(true)}
-      className={`${className} shrink-0 rounded object-cover shadow-sm`}
+      className={`${className} shrink-0 rounded-md border border-divider object-cover`}
     />
   );
 }

@@ -443,11 +443,36 @@ export function compareTrend(
   if (diff === 0) {
     return { direction: "neutral", value: "±0", label: vsLabel, previous, mode };
   }
-  const value =
-    mode === "absolute"
-      ? `${diff > 0 ? "+" : ""}${diff}`
-      : `${diff > 0 ? "+" : ""}${Math.round((diff / previous) * 100)}%`;
-  return { direction: diff > 0 ? "up" : "down", value, label: vsLabel, previous, mode };
+  if (mode === "absolute") {
+    return {
+      direction: diff > 0 ? "up" : "down",
+      value: `${diff > 0 ? "+" : ""}${diff}`,
+      label: vsLabel,
+      previous,
+      mode,
+    };
+  }
+  // Round FIRST, then derive the direction from the rounded figure.
+  //
+  // Deriving direction from `diff` instead let a change too small to survive
+  // whole-percent rounding render as a coloured arrow next to a zero: 314 → 313
+  // is -0.32%, which rounds to -0, and `${-0}` stringifies to "0" — so the card
+  // read "↘ 0%" in danger red, an arrow its own number contradicted. (The sign
+  // was lost too: the "-" comes from the number, and -0 has none.)
+  //
+  // A movement that rounds to zero is reported as no material change, which is
+  // what it is. `pct === 0` catches -0 as well, since -0 === 0.
+  const pct = Math.round((diff / previous) * 100);
+  if (pct === 0) {
+    return { direction: "neutral", value: "±0%", label: vsLabel, previous, mode };
+  }
+  return {
+    direction: pct > 0 ? "up" : "down",
+    value: `${pct > 0 ? "+" : ""}${pct}%`,
+    label: vsLabel,
+    previous,
+    mode,
+  };
 }
 
 // ── Unique-visitor deduplication ─────────────────────────────────────────────

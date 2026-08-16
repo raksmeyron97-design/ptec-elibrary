@@ -178,20 +178,6 @@ export default function EbooksListClient({
 
   return (
     <div className="space-y-4">
-      <BulkEbookActionBar
-        count={selectedIds.size}
-        busy={bulkBusy}
-        departments={departments}
-        onPublish={() => runBulkAction("publish")}
-        onUnpublish={() => runBulkAction("unpublish")}
-        onChangeDepartment={(departmentId) => runBulkAction("department", { departmentId })}
-        onAddTag={(tag) => runBulkAction("addTag", { tag })}
-        onArchive={() => setArchiveTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
-        onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
-        onExportCsv={() => exportCsv(selectedRows.length ? selectedRows : rows)}
-        onClear={() => setSelectedIds(new Set())}
-      />
-
       <EbooksTable
         rows={rows}
         selectedIds={selectedIds}
@@ -207,6 +193,22 @@ export default function EbooksListClient({
         busyId={busyId}
         onToggleSelect={toggleSelect}
         {...rowActions}
+      />
+
+      {/* After the list, so `sticky bottom` floats it over the rows instead of
+          reserving a band above them that shifts the table on first tick. */}
+      <BulkEbookActionBar
+        count={selectedIds.size}
+        busy={bulkBusy}
+        departments={departments}
+        onPublish={() => runBulkAction("publish")}
+        onUnpublish={() => runBulkAction("unpublish")}
+        onChangeDepartment={(departmentId) => runBulkAction("department", { departmentId })}
+        onAddTag={(tag) => runBulkAction("addTag", { tag })}
+        onArchive={() => setArchiveTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
+        onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
+        onExportCsv={() => exportCsv(selectedRows.length ? selectedRows : rows)}
+        onClear={() => setSelectedIds(new Set())}
       />
 
       {deleteTarget && (

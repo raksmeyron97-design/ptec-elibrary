@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createServiceClient } from "@/lib/supabase/server";
-import PublicationsClient from "./PublicationsClient";
+import PublicationsClient from "./_components/PublicationsClient";
 import Pagination from "@/components/ui/core/Pagination";
 import Link from "next/link";
 import { Plus, Users } from "lucide-react";

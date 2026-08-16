@@ -1,6 +1,6 @@
 # ការទាញចេញទិន្នន័យ (Metadata Exports — Schema & Contract)
 
-_បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្កដា ឆ្នាំ២០២៦ (ការងារទី ៤ ក្នុងផែនការ)។ កូដ: `lib/exports/scholarly.ts` (pure formatters, មាន unit-test), `lib/exports/works.ts` (ទាញយក + ត្រួតពិនិត្យ), `app/api/export/`។ ឯកសារពាក់ព័ន្ធ: `oai-pmh-registration.md` (OAI-PMH endpoint)។_
+_បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្កដា ឆ្នាំ២០២៦ (ការងារទី ៤ ក្នុងផែនការ)។ កូដ: `lib/metadata-exports/scholarly.ts` (pure formatters, មាន unit-test), `lib/metadata-exports/works.ts` (ទាញយក + ត្រួតពិនិត្យ), `app/api/export/`។ ឯកសារពាក់ព័ន្ធ: `oai-pmh-registration.md` (OAI-PMH endpoint)។_
 
 ## ចំណុចប្រទាក់ (Endpoints)
 
@@ -18,7 +18,7 @@ _បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្ក�
 |---|---|---|
 | `csl-json` | `application/vnd.citationstyles.csl+json` | សម្រាប់ Citation Style Language។ ឈ្មោះអ្នកនិពន្ធគឺ `literal` — ឈ្មោះខ្មែរគ្មានការបែងចែកនាមត្រកូល/នាមខ្លួនទេ។ |
 | `dc-json` | `application/json` | ធាតុ Dublin Core ដែលមាន `dc:` នៅខាងមុខ; ធាតុដែលស្ទួនគ្នា គឺជា arrays។ |
-| `dc-xml` | `application/xml` | Dublin Core នៅក្នុងទម្រង់ `oai_dc` (ដូចគ្នាទៅនឹងអ្វីដែល OAI ផ្តល់ឱ្យ; បានពិនិត្យតាមរយៈ `lib/exports/scholarly.test.ts`)។ |
+| `dc-xml` | `application/xml` | Dublin Core នៅក្នុងទម្រង់ `oai_dc` (ដូចគ្នាទៅនឹងអ្វីដែល OAI ផ្តល់ឱ្យ; បានពិនិត្យតាមរយៈ `lib/metadata-exports/scholarly.test.ts`)។ |
 | `bibtex` | `application/x-bibtex` | ដូចគ្នាទៅនឹងប៊ូតុង "Cite this" លើទំព័រ (LaTeX-escaped, បានធ្វើតេស្តក្នុង `lib/citations.test.ts`)។ ឯកសារមួយទាញជា `{slug}.bib`។ |
 | `ris` | `application/x-research-info-systems` | ឯកសារមួយទាញជា `{slug}.ris`។ |
 
@@ -45,7 +45,7 @@ _បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្ក�
 
 ## ការផ្ទៀងផ្ទាត់ (Validation)
 
-- `lib/exports/scholarly.test.ts` — ពិនិត្យទម្រង់ DC XML (DOMParser), ការប្រើសញ្ញា `<`, `>`, `&` ក្នុងចំណងជើង, ការប្រើអក្សរខ្មែរ, ទម្រង់ CSL, និងការតម្រៀបទំព័រ។
+- `lib/metadata-exports/scholarly.test.ts` — ពិនិត្យទម្រង់ DC XML (DOMParser), ការប្រើសញ្ញា `<`, `>`, `&` ក្នុងចំណងជើង, ការប្រើអក្សរខ្មែរ, ទម្រង់ CSL, និងការតម្រៀបទំព័រ។
 - `lib/oai/xml.test.ts` + កំណត់ត្រា XSD validation ថ្ងៃទី 2026-07-09 — សម្រាប់ OAI។
 - ការត្រួតពិនិត្យដោយដៃ: `curl -s 'http://localhost:3000/api/export/theses?format=dc-xml' | xmllint --noout -`។
 

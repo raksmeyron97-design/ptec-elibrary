@@ -4,7 +4,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import AddBookWizard from "./AddBookWizard";
+import AddBookWizard from "./_components/AddBookWizard";
 export default async function AddCatalogBookPage() {
   const auth = await createClient();
   const { data: { user } } = await auth.auth.getUser();
