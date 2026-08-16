@@ -13,14 +13,26 @@ npm run dev          # Start development server (Turbopack — Next 16's default
 npm run dev:clean    # Same, after deleting .next — use when dev renders get slow (see below)
 npm run build        # Production build (next build --webpack — NEVER switch to Turbopack: it silently skips building app/sw.ts, killing the PWA)
 npm run lint         # ESLint
+npx tsc --noEmit     # Type check (CI runs it with NODE_OPTIONS=--max-old-space-size=4096 — it OOMs at the 2 GB default)
 npm test             # Vitest unit tests (watch mode)
+npx vitest run       # Single pass — what CI runs
 npx vitest run lib/books.test.ts   # Run a single test file
 npm run test:e2e     # Playwright end-to-end tests
 npm run doctor       # react-doctor diagnostics
-npx tsx scripts/embed-library.ts   # Backfill pgvector embeddings for AI search
+npm run pwa:assets   # Regenerate iOS launch images + maskable icons (prebuild verifies with --check)
+npm run check:hero   # Verify public/hero/ variants match the source (also a prebuild + CI gate)
+npx tsx scripts/embed-library.ts       # Backfill pgvector embeddings for AI search
+npx tsx scripts/check-file-health.ts   # Out-of-band sweep of book/thesis file+cover URLs → file_health table
 ```
 
-`postinstall` copies PDF.js assets via `scripts/copy-pdf-assets.mjs`.
+`postinstall` copies PDF.js assets via `scripts/copy-pdf-assets.mjs`. `prebuild` gates the build on `check:hero` + `generate-pwa-assets --check`.
+
+**What CI enforces** (`.github/workflows/ci.yml`), in order: gitleaks secret scan → `dependency-review` (PRs) → `node scripts/audit-gate.mjs` (fails on *fixable* high/critical prod advisories, warns on framework-pinned ones — a bare `npm audit --audit-level=high` blocked every PR once) → `check:hero` → `tsc --noEmit` → `lint` → `vitest run`, plus a separate `e2e` job that boots a real local Supabase stack, applies the whole migration chain, seeds from `supabase/seed.sql`, and runs Playwright. Playwright's `webServer` starts `npm run dev` with `SEO_INDEXING=on`, because the suite asserts production-shaped SEO output.
+
+**What runs after deploy, not on PRs.** Quality audits deliberately target the live site (`https://library.ptec.edu.kh`), because CI has no real Supabase/storage env and a local `next start` would score empty error states:
+
+- `lighthouse.yml` — Lighthouse CI on push to main (after a 180 s deploy-settle sleep) + Mondays. Thresholds/budgets live in `lighthouserc.json`, split into an all-URLs matrix (a11y ≥ 0.95 and best-practices ≥ 0.9 are **errors**; perf ≥ 0.75 warns) and an SEO matrix that excludes `/auth/*` (login pages are noindex by design, so `is-crawlable`/`canonical` there are false signals). `uses-http2` and `charset` are skipped for tooling reasons documented inline in that file — don't re-enable `charset` without reading the comment. The `broken-links` linkinator crawl is weekly/manual only.
+- `uptime.yml` (every 15 min) and `check-file-health.yml` (Sundays → `file_health` table).
 
 ### When `npm run dev` renders slowly
 
@@ -54,7 +66,7 @@ Database migrations are in `supabase/migrations/` and are applied to the hosted 
 
 ### Route Groups
 
-- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). The homepage IS the locale root: `app/[locale]/(public)/(home)/page.tsx` serves `/` and `/km` (the pathless `(home)` group keeps home-specific loading/error boundaries); legacy `/home` (`/km/home`) 308-redirects to `/` (`/km`) in middleware.
+- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, authors, subjects, `paths` = learning paths, about, contact, policy, privacy, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). The homepage IS the locale root: `app/[locale]/(public)/(home)/page.tsx` serves `/` and `/km` (the pathless `(home)` group keeps home-specific loading/error boundaries); legacy `/home` (`/km/home`) 308-redirects to `/` (`/km`) in middleware.
 - `app/(auth)/` — authentication flows (login, signup, forgot/reset password)
 - `app/(admin)/admin/` — admin panel: `login`, `mfa` (enroll/verify), and `(protected)/` which holds all admin sections
 
@@ -97,6 +109,22 @@ All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`
 - `/api/recommendations` — book recommendations.
 - `lib/gemini-embeddings.ts` — shared embedding helper.
 
+### Search (the `/search` page is not `/api/search`)
+
+The public search page calls **`/api/search/native`**, not the Gemini `/api/search` route above. Native search is the one to change for ranking/coverage work:
+
+- **Coverage + ranking**: one query fans out across books, theses, publications, physical catalog, posts, and extracted PDF page text, then scores server-side so the client receives an already-ordered list. Signal weights (exact title → author/subject → keywords → abstract/body → page text, plus small views/downloads/ratings boosts) are documented in `docs/search-ranking.md`.
+- **"Found inside" page hits** come from the `book_pages` table (migration `0066`), filled by `lib/pdf-page-index.ts` — admin save actions index new uploads in the background via `after()`; `scripts/extract-pdf-text.ts` is the backfill. Scanned/image-only pages are skipped rather than indexed as garbage.
+- **Facets** (`lib/search/facets.ts`) are pure and shared by the route and the sidebar: filtering happens in memory over the candidate pool already fetched, so live per-value counts cost no extra queries. Wire format is comma-separated values in the existing param names (`?subject=Math,Science&lang=km`), which keeps old single-value links working.
+- **Fuzzy fallback fires only on zero results** — the `search_library_fuzzy` RPC (`0059`, extended to publications + learning paths in `0110`). Adding a resource type means adding it to both the RPC and the route's `FUZZY_URL` map, or its rows are fetched and then dropped.
+- **Query analytics are anonymised by construction** (`lib/search/analytics.ts`): bot filtering, plus a daily-rotated HMAC of ip+ua so a visitor's queries group within a day and cannot be correlated across days. No raw IP or durable identifier is stored. `/api/search/click` logs result clicks; `/api/search/popular` serves the suggestions.
+
+### Machine Interfaces & Scheduled Jobs
+
+- **OAI-PMH** (`/api/oai`, `lib/oai/`) exposes published, publicly-licensed items to harvesters (BASE, CORE, OpenAIRE). Read-only and anonymous; the license filter lives in `lib/oai/records.ts`. Lists paginate with a **stateless** base64url `resumptionToken` over a deterministic ordering, so no token table is needed across serverless instances. Split like the SEO helpers: pure XML builders (`lib/oai/xml.ts`, unit-tested) vs server-only fetch (`lib/oai/records.ts`). Registration notes: `docs/oai-pmh-registration.md`.
+- **Cron routes** under `app/api/cron/` are `Bearer $CRON_SECRET`-authenticated: `publish-scheduled` flips posts/theses/books from `scheduled` → `published` once `scheduled_at` passes (DB triggers `0073`/`0075`/`0086` then cascade `is_published`/`published_at`) and runs the Announcement Center sweep (`0100`); `cleanup` does retention deletes.
+- `/api/reader-events` ingests reader telemetry; `/api/admin/dashboard/*` backs the admin analytics surfaces.
+
 ### Data Layer
 
 - `lib/books.ts` / `lib/book-utils.ts` — `mapRowToBook()` normalises any Supabase row (from either the `books_with_stats` view or an embedded select) into the `Book` type. It handles both data shapes transparently.
@@ -104,6 +132,8 @@ All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`
 - **Collection counts**: `lib/collection-stats.ts` (`getCollectionStats()`) is the single source for public item counts. It reads one row from the `public_resource_statistics` view (migration `0103`), which is where the counting rule actually lives: digital resources = published books + theses + publications; the physical catalog and learning paths are separate figures, never folded in. Cached under the `collection-stats` tag — every content mutation helper in `lib/cache/revalidate.ts` must revalidate it. Listing pages show the filtered count next to the global one via `lib/listing-count.ts`. No page may run its own count query; `lib/resource-stats-consistency.test.ts` enforces that. Full picture: `docs/RESOURCE-STATISTICS.md`.
 - **Naming caveat**: "theses" were previously called "research reports". The UI, routes (`/theses`), and files use *theses*, but the DB table is still `research_reports`, the permissions resource is `research`, and the upload folder is `research/`.
 - `app/actions/` — all Server Actions, domain-scoped per file (books, theses, reviews, reading-lists, reading-progress, book-notes, book-annotations, book-requests, subscriptions, notifications, post-comments, upload, export, audit, etc.).
+- **Learning paths have two published flags, on purpose** (`0111`): the curriculum rework gave `learning_paths` a real `status` lifecycle (`draft → published → scheduled → archived`) but **kept `is_published`, mirrored from `status` by a trigger**, so every pre-existing read (`getPublishedPaths`, the RLS policies on modules/steps, `ThisWeekAtPtec`, search) kept working untouched. New code reads `status`; never write `is_published` directly, and don't "clean up" the mirror without rewriting the RLS policies that predicate on it.
+- **Per-resource SEO overrides** are now at parity across types: posts (`0073`), theses (`0076`), learning paths (`0111`), and books/publications/catalog (`0112`) each carry nullable SEO title/description/OG-image columns. The builders (`lib/seo/book-seo.ts`, `lib/seo/publication-seo.ts`, …) fall back to auto-generated values whenever an override is null/blank — a new resource type should follow that shape rather than inventing a second mechanism.
 - **Canonical resource model** (additive, migrations `0104`–`0109`): shared, normalized tables that unify concepts previously modelled per-type — `contributors`/`resource_contributors` (authors across all types), `storage_objects`/`resource_files` (files with checksum/scan/visibility), `subjects`/`resource_subjects`/`resource_keywords`, `resource_references`/`resource_relations`, all `organization_id`-scoped (`organizations`, default PTEC). Link tables are polymorphic `(resource_type, resource_id)` like `learning_path_steps`. **Legacy tables/columns (`authors`, `book_files`, `publication_files`, `author_names`, etc.) remain the app read source** — read the canonical model via `lib/resources/*` (`getResourceContributors`, `getResourceFiles`) and reconcile backfills via `lib/admin/canonical-backfill.ts` (`canonical_backfill_health`, `0109`). Full picture + removal plan: `docs/CANONICAL-RESOURCES.md`. This is NOT a `resources` supertable — that was deliberately rejected at current scale.
 
 ### Internationalisation (i18n)
@@ -142,7 +172,7 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 
 - `/admin/system-settings` manages organization names, contacts, address, opening hours, social/map links, and SEO defaults with a draft → publish → version-history/rollback workflow (tables `site_settings` + `site_setting_versions`, migration `0098`; service-role-only RLS). Full docs: `docs/SYSTEM-SETTINGS.md`.
 - **Read config via `getSiteConfig()`** (`lib/system-settings/config.ts`, cached under the `site-config` tag) in server code; pass values to client components as props. `lib/ptec.ts` is now only the documented fallback + seed source — it is imported by `lib/system-settings/defaults.ts` and nothing else, and `lib/settings-consistency.test.ts` enforces that.
-- **Synchronous builders take an explicit identity.** `lib/seo/*`, `lib/exports/works.ts`, `lib/theses/citation.ts` and `lib/email/contact-templates.ts` can't await the config, so they accept an `OrgIdentity` (`lib/system-settings/org-identity.ts`) resolved with `await getOrgIdentity()` by the calling server component. The old `PTEC_NAME`/`PTEC_LIBRARY_NAME` constants in `lib/seo/site.ts` are gone: they were a second source of truth that publishing never reached. A page that calls one of these builders without resolving `getOrgIdentity()` fails `lib/settings-consistency.test.ts`.
+- **Synchronous builders take an explicit identity.** `lib/seo/*`, `lib/metadata-exports/works.ts`, `lib/theses/citation.ts` and `lib/email/contact-templates.ts` can't await the config, so they accept an `OrgIdentity` (`lib/system-settings/org-identity.ts`) resolved with `await getOrgIdentity()` by the calling server component. The old `PTEC_NAME`/`PTEC_LIBRARY_NAME` constants in `lib/seo/site.ts` are gone: they were a second source of truth that publishing never reached. A page that calls one of these builders without resolving `getOrgIdentity()` fails `lib/settings-consistency.test.ts`.
 - Publishing calls `revalidateSiteConfig()` (tag + both locale layout trees). Saving a draft never touches the public cache.
 - Permission resource: `settings` (admin/super_admin write). Every settings server action re-checks `requirePermission("settings", "write")`.
 
@@ -157,10 +187,35 @@ Located at `/admin`, all sections under `(protected)/`, each gated by the permis
 - **Caching / revalidation**: public pages are prerendered/ISR; because English is internally rewritten to `/en/...`, **`revalidatePath("/books")` is a silent no-op** — revalidate `/en/books` and `/km/books` (or the relevant cache tag) instead.
 - **Security headers / CSP**: static headers in `next.config.ts`, the split CSP (see Middleware) in `middleware.ts` — never add a second CSP in `next.config.ts`. Staged tightening plan: `docs/SECURITY-HEADERS.md`.
 - **SEO / indexing policy**: indexing is opt-in per environment — `lib/seo/indexing.ts` (`isIndexableEnvironment()`: `VERCEL_ENV=production` or `SEO_INDEXING=on`; previews/CI/staging default noindex) ANDed with the admin switch in System Settings → SEO. Three layers (next.config build header, middleware runtime header, metadata robots); robots.txt/sitemap are env-gated and settings-gated. Base URLs go through `lib/seo/site.ts` (`SITE_URL`/`absoluteUrl()`) — never read `NEXT_PUBLIC_SITE_URL` directly. Publish gates live in `lib/publish-readiness.ts` (shared by theses actions + review queue). Full picture: `docs/SEO-ARCHITECTURE.md`.
+- **Feature flags are server-only and fail safe**: `lib/admin/analytics-flags.ts` (`resolveEngagementChartVersion()`, env `ADMIN_ENGAGEMENT_CHART_V2=on|off`) is the pattern to copy — production stays on the preserved legacy path unless explicitly enabled, development gets the new one, and an unrecognised value falls back to legacy. Both paths ship from the same props so the flag never becomes a data fork. The admin dashboard's analytics units live under `components/admin/dashboard/analytics/` (chart-math / chart-state / chart-tokens split out so they're testable without rendering the SVG).
+- **Design-system sync**: `.design-sync/config.json` maps a curated set of pure-React primitives (`components/ui/core/*`, skeletons, `BookCover`, `Avatar`, `RatingStars`) to an external design tool via a `componentSrcMap`. Committed: the config, `.design-sync/previews/*`, `.design-sync/fonts.css`, and the `.ds-sync/` converter scripts. Generated and gitignored: `ds-entry.ts` (the export barrel), `ds-bundle/`, and `.design-sync/compiled-globals.css`. Adding a primitive to the barrel means adding it to `componentSrcMap` too, and only components that bundle without server-only imports belong there.
+- **Deployment**: Vercel is primary, but the app also ships as a self-hosted Docker image (`Dockerfile` multi-stage → `.next/standalone`, non-root, `docker-compose.yml`, published by `.github/workflows/docker-publish.yml`) for ZimaOS behind a Cloudflare tunnel — see `docs/ZIMAOS-DEPLOYMENT.md`. `NEXT_PUBLIC_*` values are baked at build time, so the image takes them as build args.
 - **Deployment region**: `vercel.json` pins functions to `sin1` next to the Supabase instance (Singapore) — removing it moves functions to `iad1` and wrecks TTFB. Hero images under `public/hero/` are served immutable — rename the file when changing one.
 - **Monitoring**: `/api/health` (DB + storage probes) for uptime monitors; alerts + incident runbooks in `docs/MONITORING.md`; `x-request-id` correlation is set by middleware on every request.
 
+## Invariant Tests (they read your source, not just your functions)
+
+A dozen unit tests enforce architecture rules by scanning files. When one fails, the fix is almost always in the code it scanned — not in the test:
+
+| Test | Rule it enforces |
+|---|---|
+| `lib/cache/cache-safety.test.ts` | no `cookies()`/`headers()` in the public tree (it would kill prerendering) |
+| `lib/resource-stats-consistency.test.ts` | no page runs its own count query — all counts come from `getCollectionStats()` |
+| `lib/settings-consistency.test.ts` | `lib/ptec.ts` has exactly one importer; sync builders resolve `getOrgIdentity()` |
+| `lib/i18n-namespaces.test.ts` | every namespace in `messages/*.json` is in the right `pickMessages()` list |
+| `lib/focus-system.test.ts` | focus rules stay in the layers they must (see Focus system above) |
+| `lib/status-tokens.test.ts` | callouts use `--ptec-{success,warning,danger,info}-*` rather than hand-written colour triplets |
+| `lib/sw-policy.test.ts` | offline fallback + `shouldPrecache()` decisions |
+| `lib/csp.test.ts` | the split CSP and `THEME_INIT_SCRIPT` stay consistent |
+| `lib/resource-slug-gate.test.ts` | every public detail route is slug-gated (unknown slug → real 404, not a streamed 200) |
+| `components/admin/dashboard/markup-nesting.test.ts` | no block-level tag (e.g. `InfoTip`'s `<details>`) inside a `<p>`, and no nested interactive elements — the parser re-parents that markup, so the DOM stops matching the server render and hydration fails. Invisible to jsdom and to a production build, which is why it's a source scan |
+| `lib/about/nav.test.ts` | About nav/pager entries exist in both message files |
+| `lib/pwa/launch.test.ts` | the three PWA launch colours and the generated asset set |
+| `lib/rls.test.ts` | behavioural RLS probes (opt-in: `RLS_PROBE=1`) |
+
 ## Environment Variables
+
+`instrumentation.ts` checks these at server startup and logs one warning per missing group — warn-only by design, so a missing optional group never takes the site down.
 
 Required variables (see `.env.example`):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
@@ -169,6 +224,11 @@ Required variables (see `.env.example`):
 - `GEMINI_API_KEY` (server-side only — never `NEXT_PUBLIC_`)
 - `VIRUSTOTAL_API_KEY` (optional — hash-reputation malware check on admin uploads, `lib/virus-scan.ts`; fails open if unset)
 - `BLOB_READ_WRITE_TOKEN` (Vercel Blob — user avatars)
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (Cloudflare Turnstile CAPTCHA)
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (Cloudflare Turnstile CAPTCHA)
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (contact-form delivery)
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (web push)
+- `CRON_SECRET` (Bearer token for `/api/cron/*`)
 - `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`
 - `SMTP_USER`, `SMTP_PASS` (Gmail App Password for Supabase auth emails)
+- `ADMIN_ENGAGEMENT_CHART_V2` (optional rollout flag, `on`/`off`; default legacy in production)
+- `SEO_INDEXING=on` (opt into indexable behaviour outside Vercel production — used by the e2e suite)

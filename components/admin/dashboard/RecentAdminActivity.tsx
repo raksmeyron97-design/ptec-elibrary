@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { History, Shield } from "lucide-react";
 import type { AdminActivityEntry } from "@/lib/admin/intelligence";
+import EmptyState from "@/components/admin/kit/EmptyState";
 import { relativeFromNow } from "./formatters";
 
 /** "user_password.reset_sent" → "User password reset sent" when unmapped. */
@@ -31,33 +32,26 @@ export default async function RecentAdminActivity({
   const relative = (iso: string) => relativeFromNow(locale, iso, now);
 
   return (
-    <section aria-labelledby="activity-heading" className="dash-card flex h-full flex-col p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="dash-ico dash-ico--md dash-ico--brand" aria-hidden="true">
-            <History className="h-[18px] w-[18px]" />
-          </span>
-          <div className="min-w-0">
-            <h2 id="activity-heading" className="text-[14px] font-bold text-text-heading">
-              {t("title")}
-            </h2>
-            <p className="text-[11.5px] text-text-muted">{t("subtitle")}</p>
-          </div>
+    <section aria-labelledby="activity-heading" className="dash-card flex h-full flex-col p-5">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="dash-ico dash-ico--md dash-ico--brand" aria-hidden="true">
+          <History className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h2 id="activity-heading" className="text-[14px] font-bold text-text-heading">
+            {t("title")}
+          </h2>
+          <p className="text-[11.5px] text-text-muted">{t("subtitle")}</p>
         </div>
-        <Link
-          href={logsHref}
-          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-        >
-          {t("viewLog")}
-        </Link>
       </div>
 
+      {/* Empty: the shared kit surface (dashed frame + icon well) rather than a
+          bare line of muted text. No new message key — `empty` is already a
+          whole friendly sentence, so it serves as the title. */}
       {entries.length === 0 ? (
-        <p className="mt-3 flex flex-1 items-center justify-center rounded-xl bg-paper/60 px-3 py-8 text-center text-[12px] text-text-muted">
-          {t("empty")}
-        </p>
+        <EmptyState className="mt-4 flex-1" icon={<History className="h-6 w-6" />} title={t("empty")} />
       ) : (
-        <ol className="mt-3 flex-1 space-y-1">
+        <ol className="dash-timeline mt-4 flex-1 space-y-1">
           {entries.map((e, i) => {
             const label = e.labelKey ? t(`action.${e.labelKey}`) : humanise(e.action);
             const body = (
@@ -72,7 +66,7 @@ export default async function RecentAdminActivity({
                     )}
                     {e.sensitive && (
                       <>
-                        <Shield className="ms-1 inline h-3 w-3 align-[-1px] text-amber-600" aria-hidden="true" />
+                        <Shield className="ms-1 inline h-3 w-3 align-[-1px] text-[var(--ptec-warning)]" aria-hidden="true" />
                         <span className="sr-only">{t("sensitive")}</span>
                       </>
                     )}
@@ -85,11 +79,13 @@ export default async function RecentAdminActivity({
             );
 
             return (
-              <li key={`${e.action}-${e.createdAt}-${i}`}>
+              <li key={`${e.action}-${e.createdAt}-${i}`} data-sensitive={e.sensitive ? "true" : undefined}>
                 {e.href ? (
                   <Link
                     href={e.href}
-                    className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+                    // Inset offset so the ring hugs the row instead of
+                    // overlapping the timeline rail to its left.
+                    className="flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors [--focus-ring-offset:-2px] hover:bg-paper"
                   >
                     {body}
                   </Link>
@@ -101,6 +97,16 @@ export default async function RecentAdminActivity({
           })}
         </ol>
       )}
+
+      {/* Route to the full audit trail. Sits at the foot of the list rather
+          than beside the heading: it is the action you take after reading
+          the entries, not before. */}
+      <Link
+        href={logsHref}
+        className="mt-3 block rounded-lg py-1 text-center text-[12px] font-semibold text-brand hover:underline"
+      >
+        {t("viewLog")}
+      </Link>
     </section>
   );
 }

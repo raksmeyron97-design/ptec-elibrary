@@ -20,7 +20,23 @@ import {
 } from "@/lib/admin/ebooks-shared";
 import { METADATA_TIER_LABELS, type MetadataQualityTier } from "@/lib/admin/ebook-quality";
 
-const compactSelectWrapper = "w-[172px] shrink-0 [&_button]:h-10";
+/**
+ * SearchableSelect styled down to a command-bar control: 40px tall, square
+ * corners, and — when a filter is applied — a brand-tinted trigger plus a
+ * dot, so an active filter is visible without reading the value.
+ */
+const compactSelect = "relative w-[168px] shrink-0 [&_button]:h-10 [&_button]:rounded-lg [&_button]:px-3 [&_button]:text-[13.5px]";
+const compactSelectActive =
+  "[&_button]:border-surface-brand-line [&_button]:bg-surface-brand-soft [&_button>span]:font-medium [&_button>span]:text-brand";
+
+function ActiveDot() {
+  return (
+    <span
+      className="pointer-events-none absolute -right-1 -top-1 z-10 h-2 w-2 rounded-full bg-brand ring-2 ring-bg-surface"
+      aria-hidden="true"
+    />
+  );
+}
 
 export type EbookFiltersValue = {
   status: string;
@@ -34,6 +50,22 @@ export type EbookFiltersValue = {
   sort: string;
 };
 
+type FiltersProps = {
+  value: EbookFiltersValue;
+  departments: EbookOption[];
+  categories: EbookOption[];
+  languages: EbookOption[];
+  years: EbookOption[];
+  hasActiveFilters: boolean;
+};
+
+const isSet = (v: string) => Boolean(v) && v !== "all";
+
+/**
+ * Filter controls only — a fragment, so EbookToolbar can lay them out on the
+ * same line as the search box. The removable chips are a separate export
+ * because they belong on the command bar's second line.
+ */
 export default function EbookFilters({
   value,
   departments,
@@ -41,109 +73,115 @@ export default function EbookFilters({
   languages,
   years,
   hasActiveFilters,
-}: {
-  value: EbookFiltersValue;
-  departments: EbookOption[];
-  categories: EbookOption[];
-  languages: EbookOption[];
-  years: EbookOption[];
-  hasActiveFilters: boolean;
-}) {
+}: FiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("adminEbooks.filters");
   const tStatus = useTranslations("adminEbooks.status");
   const tSort = useTranslations("adminEbooks.sort");
-  const tFile = useTranslations("adminEbooks.fileStatus");
-  const tCover = useTranslations("adminEbooks.coverStatus");
-  const tQuality = useTranslations("adminEbooks.quality");
   const [moreOpen, setMoreOpen] = useState(false);
 
   const setParam = (key: string, v: string) => {
     router.push(withUpdatedParams(searchParams, { [key]: v === "all" || v === "" ? null : v }));
   };
 
+  return (
+    <>
+      <div className={`${compactSelect} ${isSet(value.status) ? compactSelectActive : ""}`}>
+        {isSet(value.status) && <ActiveDot />}
+        <SearchableSelect
+          name="status-filter"
+          ariaLabel={t("byStatus")}
+          chevron="down"
+          value={value.status || "all"}
+          onChange={(v) => setParam("status", v)}
+          options={[{ value: "all", label: t("allStatuses") }, ...EBOOK_STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]}
+        />
+      </div>
+
+      <div className={`${compactSelect} ${isSet(value.dept) ? compactSelectActive : ""}`}>
+        {isSet(value.dept) && <ActiveDot />}
+        <SearchableSelect
+          name="department-filter"
+          ariaLabel={t("byDepartment")}
+          chevron="down"
+          value={value.dept || "all"}
+          onChange={(v) => setParam("dept", v)}
+          options={[{ value: "all", label: t("allDepartments") }, ...departments]}
+        />
+      </div>
+
+      <div className={compactSelect}>
+        <SearchableSelect
+          name="sort-filter"
+          ariaLabel={t("sortEbooks")}
+          chevron="down"
+          value={value.sort || "newest"}
+          onChange={(v) => setParam("sort", v)}
+          options={EBOOK_SORT_OPTIONS.map((s) => ({ value: s, label: tSort(s) }))}
+        />
+      </div>
+
+      <MoreFiltersButton
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        value={value}
+        categories={categories}
+        languages={languages}
+        years={years}
+      />
+
+      {hasActiveFilters && (
+        <button
+          type="button"
+          onClick={() => router.push(EBOOKS_BASE_PATH)}
+          className="h-10 rounded-lg px-2 text-[13px] font-medium text-text-muted transition-colors duration-150 hover:text-brand"
+        >
+          {t("clearFilters")}
+        </button>
+      )}
+    </>
+  );
+}
+
+/** Active filters as removable chips — the command bar's second line. */
+export function EbookFilterChips({ value, departments, categories }: Pick<FiltersProps, "value" | "departments" | "categories">) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const t = useTranslations("adminEbooks.filters");
+  const tStatus = useTranslations("adminEbooks.status");
+  const tFile = useTranslations("adminEbooks.fileStatus");
+  const tCover = useTranslations("adminEbooks.coverStatus");
+  const tQuality = useTranslations("adminEbooks.quality");
+
   const optionLabel = (options: EbookOption[], v: string) => options.find((o) => o.value === v)?.label ?? v;
 
   const chips: { key: string; label: string }[] = [];
-  if (value.status && value.status !== "all") chips.push({ key: "status", label: t("statusChip", { label: EBOOK_STATUS_LABELS[value.status as keyof typeof EBOOK_STATUS_LABELS] ? tStatus(value.status) : value.status }) });
-  if (value.dept && value.dept !== "all") chips.push({ key: "dept", label: t("deptChip", { label: optionLabel(departments, value.dept) }) });
-  if (value.category && value.category !== "all") chips.push({ key: "category", label: t("categoryChip", { label: optionLabel(categories, value.category) }) });
-  if (value.year && value.year !== "all") chips.push({ key: "year", label: t("yearChip", { label: value.year }) });
-  if (value.language && value.language !== "all") chips.push({ key: "language", label: t("languageChip", { label: value.language }) });
-  if (value.fileStatus && value.fileStatus !== "all") chips.push({ key: "fileStatus", label: EBOOK_FILE_STATUS_LABELS[value.fileStatus as keyof typeof EBOOK_FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
-  if (value.coverStatus && value.coverStatus !== "all") chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ? tCover(value.coverStatus) : value.coverStatus });
-  if (value.quality && value.quality !== "all") chips.push({ key: "quality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ? tQuality(value.quality) : value.quality }) });
+  if (isSet(value.status)) chips.push({ key: "status", label: t("statusChip", { label: EBOOK_STATUS_LABELS[value.status as keyof typeof EBOOK_STATUS_LABELS] ? tStatus(value.status) : value.status }) });
+  if (isSet(value.dept)) chips.push({ key: "dept", label: t("deptChip", { label: optionLabel(departments, value.dept) }) });
+  if (isSet(value.category)) chips.push({ key: "category", label: t("categoryChip", { label: optionLabel(categories, value.category) }) });
+  if (isSet(value.year)) chips.push({ key: "year", label: t("yearChip", { label: value.year }) });
+  if (isSet(value.language)) chips.push({ key: "language", label: t("languageChip", { label: value.language }) });
+  if (isSet(value.fileStatus)) chips.push({ key: "fileStatus", label: EBOOK_FILE_STATUS_LABELS[value.fileStatus as keyof typeof EBOOK_FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
+  if (isSet(value.coverStatus)) chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ? tCover(value.coverStatus) : value.coverStatus });
+  if (isSet(value.quality)) chips.push({ key: "quality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ? tQuality(value.quality) : value.quality }) });
+
+  if (chips.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className={compactSelectWrapper}>
-          <SearchableSelect
-            name="status-filter"
-            ariaLabel={t("byStatus")}
-            value={value.status || "all"}
-            onChange={(v) => setParam("status", v)}
-            options={[{ value: "all", label: t("allStatuses") }, ...EBOOK_STATUSES.map((s) => ({ value: s, label: tStatus(s) }))]}
-          />
-        </div>
-
-        <div className={compactSelectWrapper}>
-          <SearchableSelect
-            name="department-filter"
-            ariaLabel={t("byDepartment")}
-            value={value.dept || "all"}
-            onChange={(v) => setParam("dept", v)}
-            options={[{ value: "all", label: t("allDepartments") }, ...departments]}
-          />
-        </div>
-
-        <div className={compactSelectWrapper}>
-          <SearchableSelect
-            name="sort-filter"
-            ariaLabel={t("sortEbooks")}
-            value={value.sort || "newest"}
-            onChange={(v) => setParam("sort", v)}
-            options={EBOOK_SORT_OPTIONS.map((s) => ({ value: s, label: tSort(s) }))}
-          />
-        </div>
-
-        <MoreFiltersButton
-          open={moreOpen}
-          onOpenChange={setMoreOpen}
-          value={value}
-          categories={categories}
-          languages={languages}
-          years={years}
-        />
-
-        {hasActiveFilters && (
-          <button
-            type="button"
-            onClick={() => router.push(EBOOKS_BASE_PATH)}
-            className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
-          >
-            {t("clearFilters")}
-          </button>
-        )}
-      </div>
-
-      {chips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label={t("activeFilters")}>
-          {chips.map((chip) => (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={() => setParam(chip.key, "")}
-              className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/5 px-2.5 py-1 text-[12px] font-semibold text-brand transition hover:bg-brand/10"
-            >
-              {chip.label}
-              <X className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">{t("removeFilter")}</span>
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-wrap items-center gap-1.5" aria-label={t("activeFilters")}>
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          onClick={() => router.push(withUpdatedParams(searchParams, { [chip.key]: null }))}
+          className="inline-flex items-center gap-1 rounded-full border border-surface-brand-line bg-surface-brand-soft px-2.5 py-1 text-xs font-medium text-brand transition-colors duration-150 hover:border-brand/40 hover:bg-brand/10"
+        >
+          {chip.label}
+          <X className="h-3 w-3" aria-hidden="true" />
+          <span className="sr-only">{t("removeFilter")}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -228,21 +266,24 @@ function MoreFiltersButton({
 
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => onOpenChange(true)}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        className={`inline-flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-[13.5px] font-semibold transition ${
-          activeExtra
-            ? "border-brand bg-brand/5 text-brand"
-            : "border-divider bg-bg-surface text-text-body hover:bg-paper"
-        }`}
-      >
-        <SlidersHorizontal className="h-3.5 w-3.5" />
-        {t("moreFilters")}
-      </button>
+      <div className="relative shrink-0">
+        {activeExtra && <ActiveDot />}
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => onOpenChange(true)}
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          className={`inline-flex h-10 items-center gap-1.5 rounded-lg border px-3 text-[13.5px] transition-colors duration-150 ${
+            activeExtra
+              ? "border-surface-brand-line bg-surface-brand-soft font-medium text-brand"
+              : "border-divider bg-bg-surface text-text-body hover:bg-paper"
+          }`}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("moreFilters")}
+        </button>
+      </div>
 
       {open && (
         <div

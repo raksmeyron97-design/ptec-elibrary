@@ -10,7 +10,7 @@ the generic procedures; this doc is the phase-specific sequence._
 |---|---|---|
 | Metadata verification | `lib/content-status.ts`, `lib/metadata-quality.ts`, `app/actions/review.ts`, `app/actions/content-versions.ts`, upgraded `/admin/review` | **0086** — status vocabulary, provenance cols, books sync trigger, `content_versions` |
 | Search governance | `lib/search/analytics.ts`, `/api/search/native` (bot filter, session hash, synonyms, curated), `search-insights` actions + action center | **0087** — `search_term_actions`, `search_synonyms`, `search_curated_results`, `session_hash`, retention fn |
-| Metadata exports | `lib/exports/*`, `/api/export/*`, OAI verified-only gating | none (reads existing cols) |
+| Metadata exports | `lib/metadata-exports/*`, `/api/export/*`, OAI verified-only gating | none (reads existing cols) |
 | Backups & monitoring | `scripts/backup/*`, `/api/health` deep probe, cron retention wiring | **0088** — `ops_events` |
 | Docs | `OPERATIONS-AUDIT`, `BACKUP-DR`, `ALERT-CATALOG`, `RUNBOOKS`, `DATA-GOVERNANCE`, `METADATA-EXPORTS`, `TABLETOP-EXERCISES` | — |
 

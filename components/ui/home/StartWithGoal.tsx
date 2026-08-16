@@ -16,6 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { LearningPathSummary } from "@/app/actions/learning-paths";
+import { splitDuration } from "@/lib/learning-paths/format";
+import GoalPathProgress from "./GoalPathProgress";
 
 type Goal = {
   key: string; // i18n suffix: goal{Key} / goal{Key}Body
@@ -35,15 +37,39 @@ const GOALS: Goal[] = [
   { key: "Khmer", Icon: Languages, match: ["khmer"], fallback: "/books?language=Khmer" },
 ];
 
-function resolveHref(goal: Goal, paths: LearningPathSummary[]): string {
+/**
+ * Resolve a goal to its destination AND the path behind it (when there is one).
+ * The matched path is what lets the card show real shape — modules, estimated
+ * time, the learner's own progress — instead of a bare link. Goals that fall
+ * back to a search/listing route have no path, and stay exactly as they were.
+ */
+function resolveTarget(
+  goal: Goal,
+  paths: LearningPathSummary[],
+): { href: string; path: LearningPathSummary | null } {
   const hay = (p: LearningPathSummary) =>
     [p.title, p.title_km, p.audience, p.description].filter(Boolean).join(" ").toLowerCase();
   const hit = paths.find((p) => goal.match.some((kw) => hay(p).includes(kw)));
-  return hit ? `/paths/${hit.slug}` : goal.fallback;
+  return hit ? { href: `/paths/${hit.slug}`, path: hit } : { href: goal.fallback, path: null };
 }
 
 export default async function StartWithGoal({ paths }: { paths: LearningPathSummary[] }) {
-  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
+  const [t, tPaths, locale] = await Promise.all([
+    getTranslations("home"),
+    getTranslations("paths"),
+    getLocale(),
+  ]);
+
+  /** "2h 30m" / "45m" — same vocabulary the /paths cards use. */
+  const durationLabel = (minutes: number | null): string | null => {
+    const split = splitDuration(minutes);
+    if (!split) return null;
+    const { hours, minutes: mins } = split;
+    if (hours && mins) return tPaths("durationHm", { h: hours, m: mins });
+    if (hours) return tPaths("durationH", { h: hours });
+    return tPaths("durationM", { m: mins });
+  };
+
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
 
   return (
@@ -77,7 +103,8 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
         {/* ── Goal cards ── */}
         <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {GOALS.map((goal) => {
-            const href = resolveHref(goal, paths);
+            const { href, path } = resolveTarget(goal, paths);
+            const duration = path ? durationLabel(path.durationMinutes) : null;
             return (
               <li key={goal.key}>
                 <Link
@@ -103,6 +130,24 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
                     <span className="mt-1 block text-[13px] leading-relaxed text-text-muted">
                       {t(`goal${goal.key}Body`)}
                     </span>
+
+                    {/* Shape of the path behind the goal — server-rendered, so
+                        it is in the prerendered HTML for everyone. */}
+                    {path && (
+                      <span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] font-semibold text-text-muted">
+                        <span>{tPaths("modules", { count: path.moduleCount })}</span>
+                        {duration && (
+                          <>
+                            <span aria-hidden>·</span>
+                            <span>{duration}</span>
+                          </>
+                        )}
+                      </span>
+                    )}
+
+                    {/* Learner's own progress — fills in after hydration only
+                        for signed-in, enrolled users. */}
+                    {path && <GoalPathProgress slug={path.slug} />}
                   </span>
                 </Link>
               </li>

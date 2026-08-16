@@ -75,6 +75,31 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
 ];
 
+/**
+ * The category + search filter, shared by the desktop matrix, the mobile card
+ * list and the "differences" summary line so all three always agree on which
+ * features are on screen. `searchText` is supplied by the caller because the
+ * searchable string is the *translated* label and description.
+ *
+ * Note what is deliberately absent: the "differences" toggle. It is an
+ * emphasis mode (uniform rows recede, mixed rows get a marker), not a filter —
+ * hiding rows would defeat reading the permission landscape as a whole.
+ */
+export function visibleGroups(
+  category: string,
+  query: string,
+  searchText: (key: string) => string,
+): PermissionGroup[] {
+  const q = query.trim().toLowerCase();
+  return PERMISSION_GROUPS
+    .filter((g) => category === "all" || g.id === category)
+    .map((g) => ({
+      ...g,
+      resources: g.resources.filter((r) => !q || searchText(r.key).toLowerCase().includes(q)),
+    }))
+    .filter((g) => g.resources.length > 0);
+}
+
 /** Flat list of every resource key that the matrix (and server) accepts. */
 export const ALL_RESOURCE_KEYS: string[] = PERMISSION_GROUPS.flatMap((g) =>
   g.resources.map((r) => r.key),
@@ -85,13 +110,26 @@ export const RESOURCE_GROUP: Record<string, string> = Object.fromEntries(
   PERMISSION_GROUPS.flatMap((g) => g.resources.map((r) => [r.key, g.id])),
 );
 
+/**
+ * Last-resort readable name for a resource key: `announcements_push` →
+ * "Announcements Push". Used when a translation is missing so the UI degrades
+ * to English words rather than leaking `adminRoles.resources.<key>` on screen.
+ */
+export function titleizeResourceKey(key: string): string {
+  return key
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 /** Human label for a resource key (falls back to a titleized key). */
 export function resourceLabel(key: string): string {
   for (const g of PERMISSION_GROUPS) {
     const r = g.resources.find((res) => res.key === key);
     if (r) return r.label;
   }
-  return key.replace(/_/g, " ");
+  return titleizeResourceKey(key);
 }
 
 // ── Permission levels ───────────────────────────────────────────────────────

@@ -184,6 +184,19 @@ function isMissingColumn(error: unknown): boolean {
   return error instanceof Error && /column .* does not exist|session_hash|42703/i.test(error.message);
 }
 
+/**
+ * Pre-0090 deployments have no `reader_open_logs` table. That is the only
+ * failure the readerOpens fallback is meant to absorb — matching on the metric
+ * name instead would turn every transient query error into a silent "0"
+ * rather than the retryable error state the drawer already knows how to show.
+ */
+export function isMissingTable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const { code } = error as { code?: string };
+  if (code === "42P01" || code === "PGRST205") return true;
+  return /relation .* does not exist|could not find the table/i.test(error.message);
+}
+
 async function fetchMetricRows(
   supabase: ReturnType<typeof createServiceClient>,
   request: EngagementBreakdownRequest,
@@ -212,7 +225,7 @@ async function fetchMetricRows(
     return { ...result, sourceUnavailable: false };
   } catch (error) {
     if (error instanceof BreakdownTimeoutError) throw error;
-    if (request.metric === "readerOpens") {
+    if (request.metric === "readerOpens" && isMissingTable(error)) {
       return { rows: [], pages: 0, partial: true, sourceUnavailable: true };
     }
     if (isMissingColumn(error)) {

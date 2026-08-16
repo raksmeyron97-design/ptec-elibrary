@@ -73,7 +73,7 @@ export default function HealthCard({ pulse }: { pulse: HealthPulse }) {
         <button
           type="button"
           onClick={() => openDetails("health")}
-          className="flex h-8 shrink-0 cursor-pointer items-center gap-0.5 rounded-lg border border-brand/20 px-2.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+          className="flex h-8 shrink-0 cursor-pointer items-center gap-0.5 rounded-lg border border-brand/20 px-2.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/5 [--focus-ring-offset:1px]"
         >
           {t("viewChecks")}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />

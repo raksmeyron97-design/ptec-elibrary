@@ -225,6 +225,64 @@ describe("HealthCard + MetricDetailsDrawer", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("renders through a portal, outside the dashboard subtree", () => {
+    // The drawer is mounted deep inside OverviewView → ExecutivePulse. Any
+    // ancestor that establishes a stacking context confines the whole subtree,
+    // and a confined `position: fixed` drawer loses to the sticky control bar
+    // regardless of its z-index — which is exactly how the control bar came to
+    // paint over it. Escaping to <body> is what makes that impossible; if this
+    // assertion fails, the drawer is trappable again.
+    const { container } = render(
+      <Wrapper>
+        <HealthCard pulse={pulse} />
+        <MetricDetailsDrawer metrics={metricPayloads as never} health={healthPayload} />
+      </Wrapper>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /View checks/ }));
+    const dialog = screen.getByRole("dialog", { name: "System health" });
+
+    expect(container.contains(dialog)).toBe(false);
+    expect(dialog.closest(".dash-drawer-root")?.parentElement).toBe(document.body);
+  });
+
+  it("moves focus into the dialog, cycles Tab within it, and restores focus on close", () => {
+    render(
+      <Wrapper>
+        <HealthCard pulse={pulse} />
+        <MetricDetailsDrawer metrics={metricPayloads as never} health={healthPayload} />
+      </Wrapper>,
+    );
+
+    const trigger = screen.getByRole("button", { name: /View checks/ });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "System health" });
+    const close = within(dialog).getByRole("button", { name: "Close details" });
+    expect(document.activeElement).toBe(close);
+
+    const focusables = dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    expect(focusables.length).toBeGreaterThan(1);
+
+    // Tab off the end wraps to the start, Shift+Tab off the start wraps to the end.
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    first.focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("shows current, previous and change for a metric, plus its related alerts", async () => {
     render(
       <Wrapper>
@@ -313,7 +371,14 @@ describe("NeedsAttentionPanel", () => {
     );
 
     expect(screen.queryByText("2 unread contact messages")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /View all/ }));
+
+    // "View all (n)" must count what it would SHOW, not what is hidden. The
+    // fixture holds 4 items and 3 are visible, so the button read "View all
+    // (1)" beneath a heading announcing 4 — label and number disagreeing.
+    const expand = screen.getByRole("button", { name: /View all/ });
+    expect(expand).toHaveTextContent("View all (4)");
+
+    fireEvent.click(expand);
     expect(screen.getByText("2 unread contact messages")).toBeInTheDocument();
   });
 

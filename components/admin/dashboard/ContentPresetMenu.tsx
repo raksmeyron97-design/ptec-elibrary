@@ -32,7 +32,7 @@ export default function ContentPresetMenu({
           const next = options.find((o) => o.value === e.target.value);
           if (next) startTransition(() => router.push(next.href, { scroll: false }));
         }}
-        className={`h-8 cursor-pointer rounded-lg border px-2 text-[12px] font-semibold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand ${
+        className={`h-8 cursor-pointer rounded-lg border px-2 text-[12px] font-semibold [--focus-ring-offset:1px] ${
           active
             ? "border-brand/40 bg-brand/5 text-brand"
             : "border-divider bg-bg-surface text-text-muted"

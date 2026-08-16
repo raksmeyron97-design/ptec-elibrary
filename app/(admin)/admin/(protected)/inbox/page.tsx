@@ -1,6 +1,6 @@
 import { Inbox } from "lucide-react";
 import { adminListContactMessages } from "@/app/actions/contact-messages";
-import InboxClient from "./InboxClient";
+import InboxClient from "./_components/InboxClient";
 
 export const dynamic = "force-dynamic";
 

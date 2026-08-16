@@ -29,6 +29,9 @@ type MobileMenuProps = {
     phoneTel: string;
     email: string;
     mapPlace: string;
+    /** Pre-formatted opening-hours line (compactHoursLabel), resolved on the
+     *  server from the published openingHoursSpec. */
+    hours: string;
   };
 };
 
@@ -285,6 +288,13 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
             <div className="mt-2 border-t border-divider">
               <p className={sectionLabelClass()}>{footerT("information")}</p>
               <div className="space-y-1">
+                <p className="flex min-h-11 items-center gap-3 px-4 text-sm font-medium text-text-body">
+                  <Icon name="clock" className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                  <span>
+                    <span className="sr-only">{footerT("hoursLabel")}: </span>
+                    {contact.hours}
+                  </span>
+                </p>
                 <a href={contact.phoneTel} className="flex min-h-11 items-center gap-3 rounded-lg px-4 text-sm font-medium text-text-body hover:bg-paper hover:text-brand">
                   <Icon name="phone" className="h-4 w-4 text-text-muted" aria-hidden="true" />
                   {contact.phone}

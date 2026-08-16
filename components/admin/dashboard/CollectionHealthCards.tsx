@@ -58,7 +58,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
           <li key={key}>
             <Link
               href={href}
-              className="dash-card dash-card--interactive flex items-center gap-3 px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="dash-card dash-card--interactive flex items-center gap-3 px-3 py-2.5"
             >
               <span className={`dash-ico ${tint} dash-ico--md`} aria-hidden="true">
                 <Icon className="h-[18px] w-[18px]" />
@@ -76,7 +76,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
       {health.totals.catalog === 0 ? (
         <Link
           href="/admin/catalogs"
-          className="mt-2.5 flex items-center gap-3 rounded-xl border border-dashed border-divider bg-paper px-3 py-3 transition-colors hover:border-brand/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-2.5 flex items-center gap-3 rounded-xl border border-dashed border-divider bg-paper px-3 py-3 transition-colors hover:border-brand/50"
         >
           <PlusCircle className="h-4.5 w-4.5 shrink-0 text-brand" aria-hidden="true" />
           <span className="min-w-0">
@@ -87,7 +87,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
       ) : (
         <Link
           href="/admin/catalogs"
-          className="mt-2.5 flex items-center gap-3 rounded-xl border border-divider bg-paper px-3 py-2.5 transition-colors hover:border-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-2.5 flex items-center gap-3 rounded-xl border border-divider bg-paper px-3 py-2.5 transition-colors hover:border-brand/40"
         >
           <Library className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
           <span className="text-[13px] text-text-body">
@@ -110,7 +110,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
             <li key={key}>
               <Link
                 href={href}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${cls}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors  ${cls}`}
               >
                 {critical && <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />}
                 {t(`gaps.${key}`)}

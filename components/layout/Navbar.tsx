@@ -11,6 +11,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import { getSiteConfig } from "@/lib/system-settings/config";
+import { compactHoursLabel } from "@/lib/library-hours";
 
 // ── SVG Icons (outline style) ─────────────────────────────────────────────────
 const HomeIcon = (
@@ -72,6 +73,14 @@ export default async function Navbar() {
     { label: t("posts"), href: "/posts" },
   ];
 
+  // Opening hours for the utility strip. Derived from the published
+  // openingHoursSpec, never from a hand-written string, so a schedule change in
+  // /admin/system-settings propagates here too. Deliberately the SCHEDULE and
+  // not a live open/closed badge: this strip renders inside the prerendered
+  // public shell, so a status computed at render time would be frozen at build
+  // time. The live badge stays in <LibraryNow>, which resolves it client-side.
+  const hoursLabel = compactHoursLabel(locale, cfg.hours.openingHoursSpec);
+
   // No session lookup here, deliberately. Resolving the user server-side meant
   // a cookies() read plus a Supabase Auth round-trip plus a profiles query on
   // every public page render — it blocked first byte and made the whole public
@@ -84,6 +93,14 @@ export default async function Navbar() {
         <div className="relative z-[70] hidden border-b border-white/10 bg-blue-950 text-[13px] text-gold-100 dark:bg-bg-surface dark:text-text-body xl:block">
           <div className="mx-auto flex h-9 w-full max-w-[1536px] items-center justify-between gap-6 px-6 xl:px-8">
             <div className="flex min-w-0 flex-1 items-center gap-5">
+              <span
+                className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap"
+                aria-label={`${footerT("hoursLabel")}: ${hoursLabel}`}
+              >
+                <Icon name="clock" className="text-[14px] text-accent" />
+                <span aria-hidden>{hoursLabel}</span>
+              </span>
+              <span aria-hidden className="h-3.5 w-px shrink-0 bg-white/15 dark:bg-divider" />
               <a href={cfg.phoneTel} className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300">
                 <Icon name="phone" className="text-[14px] text-accent" />
                 <span>{cfg.phoneIntl}</span>
@@ -163,6 +180,7 @@ export default async function Navbar() {
                 phoneTel: cfg.phoneTel,
                 email: cfg.email,
                 mapPlace: cfg.links.mapPlace,
+                hours: hoursLabel,
               }}
             />
           </div>

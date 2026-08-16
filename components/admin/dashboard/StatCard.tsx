@@ -95,7 +95,7 @@ export default function StatCard({
     return (
       <Link
         href={href}
-        className={`${cardClass} cursor-pointer hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand`}
+        className={`${cardClass} cursor-pointer hover:-translate-y-0.5 hover:shadow-lg `}
         style={cardStyle}
         aria-label={`${title}: ${value}. View details`}
       >

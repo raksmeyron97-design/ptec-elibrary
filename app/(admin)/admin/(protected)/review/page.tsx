@@ -3,7 +3,7 @@ import { getReviewQueue, getReviewerOptions } from "@/app/actions/review";
 import { requireLibrarian } from "@/lib/auth/requireAdmin";
 import { ADMIN_ROLES } from "@/lib/types/roles";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
-import ReviewQueueClient from "./ReviewQueueClient";
+import ReviewQueueClient from "./_components/ReviewQueueClient";
 
 export const dynamic = "force-dynamic";
 

@@ -3,17 +3,18 @@ import { useTranslations } from "next-intl";
 import { BookOpen, SearchX, Plus } from "lucide-react";
 import { EmptyState } from "@/components/admin/kit";
 
+/** Nothing has ever been uploaded — the one case that gets a primary action. */
 export function EbookEmptyState() {
   const t = useTranslations("adminEbooks.states");
   return (
     <EmptyState
-      icon={<BookOpen className="h-6 w-6" />}
+      icon={<BookOpen className="h-7 w-7" />}
       title={t("emptyTitle")}
       description={t("emptyBody")}
       action={
         <Link
           href="/admin/upload"
-          className="inline-flex h-10 items-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" aria-hidden="true" /> {t("uploadCta")}
         </Link>
@@ -22,17 +23,22 @@ export function EbookEmptyState() {
   );
 }
 
+/**
+ * Books exist, the filters just excluded them all. The way out is a text
+ * button, not a second primary — the librarian's next move is to widen the
+ * search, not to upload something.
+ */
 export function EbookNoResultsState() {
   const t = useTranslations("adminEbooks.states");
   return (
     <EmptyState
-      icon={<SearchX className="h-6 w-6" />}
+      icon={<SearchX className="h-7 w-7" />}
       title={t("noResultsTitle")}
       description={t("noResultsBody")}
       action={
         <Link
           href="/admin/manage"
-          className="inline-flex h-10 items-center gap-2 rounded-xl border border-divider bg-bg-surface px-5 text-sm font-semibold text-text-body shadow-sm transition hover:bg-paper"
+          className="inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium text-brand transition-colors duration-150 hover:bg-surface-brand-soft"
         >
           {t("clearFilters")}
         </Link>

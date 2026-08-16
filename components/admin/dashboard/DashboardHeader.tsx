@@ -94,7 +94,7 @@ export default async function DashboardHeader({
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pb-1">
       <div className="min-w-0">
-        <h1 className="truncate text-[20px] font-bold leading-tight tracking-tight text-[var(--dash-ink)] sm:text-[22px]">
+        <h1 className="dash-truncate-head text-[20px] font-bold tracking-tight text-[var(--dash-ink)] sm:text-[22px]">
           {tTabs(view)}
         </h1>
         <div
@@ -111,7 +111,7 @@ export default async function DashboardHeader({
         {can("addBook") && (
           <Link
             href="/admin/upload"
-            className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brand px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brand px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover"
           >
             <Upload className="h-4 w-4" aria-hidden="true" />
             {t("actions.addBook")}
@@ -125,7 +125,7 @@ export default async function DashboardHeader({
           href={publicSiteUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-10 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="flex h-10 items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="hidden sm:inline">{t("actions.viewSite")}</span>

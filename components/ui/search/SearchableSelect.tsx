@@ -18,6 +18,12 @@ interface SearchableSelectProps {
   placeholder?: string;
   /** Accessible name for the trigger button — needed since this is a custom widget, not a native <select> a wrapping <label> would associate automatically. */
   ariaLabel?: string;
+  /**
+   * Trigger affordance. "down" is the conventional select chevron (down when
+   * closed, up when open); "right" is the disclosure arrow this component
+   * shipped with and stays the default so existing call sites are unchanged.
+   */
+  chevron?: "right" | "down";
 }
 
 function normalize(options: string[] | SearchableSelectOption[]): SearchableSelectOption[] {
@@ -34,6 +40,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
   required = false,
   placeholder = "Select...",
   ariaLabel,
+  chevron = "right",
 }, ref) {
   const isControlled = value !== undefined;
   const normalizedOptions = normalize(options);
@@ -100,7 +107,11 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
         </span>
         <Icon
           name="chevron-right"
-          className={`text-text-muted transition-transform ${isOpen ? "rotate-90" : "rotate-0"}`}
+          className={`text-text-muted transition-transform ${
+            chevron === "down"
+              ? isOpen ? "-rotate-90" : "rotate-90"
+              : isOpen ? "rotate-90" : "rotate-0"
+          }`}
         />
       </button>
 

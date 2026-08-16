@@ -21,8 +21,8 @@ import {
   parseExportFormat,
   type ExportFormat,
   type ScholarlyWork,
-} from "@/lib/exports/scholarly";
-import { EXPORT_TYPES, fetchExportWork } from "@/lib/exports/works";
+} from "@/lib/metadata-exports/scholarly";
+import { EXPORT_TYPES, fetchExportWork } from "@/lib/metadata-exports/works";
 
 export const dynamic = "force-dynamic";
 

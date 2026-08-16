@@ -838,10 +838,7 @@ export default function AdminSidebar({
       <div className="flex-1 flex flex-col min-h-0 pt-14 lg:pt-0 overflow-hidden">
 
         {/* Desktop topbar */}
-        <header
-          className="hidden lg:flex h-16 bg-bg-surface border-b border-divider items-center shrink-0 gap-4"
-          style={{ padding: "0 28px" }}
-        >
+        <header className="dash-topbar hidden h-16 shrink-0 items-center gap-4 px-7 lg:flex">
           {/* Left: page title */}
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div
@@ -860,19 +857,16 @@ export default function AdminSidebar({
             onClick={() => paletteRef.current?.open()}
             aria-haspopup="dialog"
             aria-keyshortcuts="Meta+K Control+K"
-            className="hidden xl:flex flex-1 max-w-sm items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors hover:border-brand/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            style={{
-              background: "var(--color-bg-app, #F8FAFC)",
-              borderColor: "var(--color-divider, #E2E8F0)",
-            }}
+            className="dash-topbar-search hidden max-w-sm flex-1 items-center gap-2 px-3 py-2 text-left xl:flex"
           >
-            <Search className="w-4 h-4 shrink-0" style={{ color: "#64748B" }} />
-            {/* slate-600 — this is a real label (not a placeholder), so it must
-                clear WCAG AA 4.5:1 against the near-white field. */}
-            <span className="flex-1 text-sm" style={{ color: "#475569" }}>
+            <Search className="h-4 w-4 shrink-0 text-[var(--dash-ink-3)]" />
+            {/* This is a real label (not a placeholder), so it must clear WCAG
+                AA 4.5:1 against the near-white field — hence ink-2, not the
+                decorative ramp. */}
+            <span className="flex-1 text-sm text-[var(--dash-ink-2)]">
               {tTopbar("searchLabel")}
             </span>
-            <kbd className="hidden sm:inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500 select-none">
+            <kbd className="hidden select-none items-center rounded border border-[var(--dash-line)] bg-[var(--dash-line-subtle)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--dash-ink-3)] sm:inline-flex">
               ⌘K
             </kbd>
           </button>
@@ -889,12 +883,11 @@ export default function AdminSidebar({
             {/* Profile settings shortcut */}
             <button
               type="button"
-              className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              style={{ color: "#64748B" }}
+              className="dash-topbar-btn flex h-9 w-9 cursor-pointer items-center justify-center"
               aria-label={tTopbar("openProfileSettings")}
               onClick={() => router.push("/admin/profile")}
             >
-              <Settings style={{ width: "18px", height: "18px" }} />
+              <Settings className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
 
             {/* Divider */}
@@ -905,61 +898,50 @@ export default function AdminSidebar({
               <button
                 type="button"
                 onClick={() => setProfileOpen(prev => !prev)}
-                className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 cursor-pointer transition-all duration-200 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="dash-topbar-btn flex cursor-pointer items-center gap-2.5 px-2 py-1.5"
                 aria-label={tTopbar("openProfileMenu")}
                 aria-expanded={profileOpen}
               >
                 <Avatar url={avatarUrl} name={fullName} email={email ?? "admin"} size={32} />
                 {/* Name + role */}
-                <div className="hidden xl:flex flex-col items-start min-w-0 max-w-[140px]">
-                  <span className="text-xs font-semibold text-text-heading truncate leading-tight max-w-full">
+                <div className="hidden min-w-0 max-w-[140px] flex-col items-start xl:flex">
+                  <span className="max-w-full truncate text-xs font-semibold leading-tight text-text-heading">
                     {fullName ?? email?.split("@")[0] ?? "Admin"}
                   </span>
-                  {/* slate-500: #94A3B8 on white was 2.8:1 — below WCAG AA for
-                      this 10px label; #64748B clears 4.5:1. */}
-                  <span className="text-[10px] leading-tight truncate max-w-full" style={{ color: "#64748B" }}>
+                  {/* ink-3, not the decorative ramp: #94A3B8 on white was 2.8:1
+                      — below WCAG AA for this 10px label. #64748B clears 4.5:1. */}
+                  <span className="max-w-full truncate text-[10px] leading-tight text-[var(--dash-ink-3)]">
                     {roleLabel}
                   </span>
                 </div>
                 <ChevronDown
-                  style={{ width: "14px", height: "14px", color: "#94A3B8" }}
-                  className={`transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                  className={`dash-topbar-chevron h-3.5 w-3.5 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
               {/* Dropdown panel */}
               {profileOpen && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-64 rounded-2xl border shadow-xl z-50 overflow-hidden"
-                  style={{
-                    background: "var(--color-bg-surface, #fff)",
-                    borderColor: "var(--color-divider, #E2E8F0)",
-                    boxShadow: "0 10px 40px rgba(0,0,0,0.12)",
-                  }}
+                  className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-[var(--dash-line)] bg-[var(--dash-surface)] shadow-[var(--dash-elev-3)]"
                 >
                   {/* User info header */}
-                  <div className="flex items-center gap-3 p-4 border-b border-divider">
+                  <div className="flex items-center gap-3 border-b border-[var(--dash-line)] p-4">
                     <Avatar url={avatarUrl} name={fullName} email={email ?? "admin"} size={40} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-text-heading truncate">
+                      <div className="truncate text-sm font-semibold text-text-heading">
                         {fullName ?? email?.split("@")[0] ?? "Admin"}
                       </div>
-                      <div className="text-xs text-slate-500 truncate mt-0.5">{email}</div>
+                      <div className="mt-0.5 truncate text-xs text-[var(--dash-ink-3)]">{email}</div>
                       <div className="mt-1.5">
                         <span
-                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                          style={{
-                            background: isSuperAdmin || role === "super_admin"
-                              ? "rgba(147,51,234,0.1)"
+                          className={`dash-rolechip dash-rolechip--${
+                            isSuperAdmin || role === "super_admin"
+                              ? "super"
                               : role === "admin"
-                              ? "rgba(245,158,11,0.1)"
-                              : "rgba(16,185,129,0.1)",
-                            color: isSuperAdmin || role === "super_admin"
-                              ? "#7C3AED"
-                              : role === "admin"
-                              ? "#D97706"
-                              : "#059669",
-                          }}
+                                ? "admin"
+                                : "staff"
+                          }`}
                         >
                           {roleLabel}
                         </span>
@@ -971,11 +953,10 @@ export default function AdminSidebar({
                   <div className="p-2">
                     <Link
                       href="/admin/profile"
-                      className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200 hover:bg-slate-50"
-                      style={{ color: "#475569" }}
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-[var(--dash-ink-2)] transition-colors duration-200 hover:bg-[var(--dash-line-subtle)]"
                       onClick={() => setProfileOpen(false)}
                     >
-                      <UserCircle style={{ width: "15px", height: "15px" }} />
+                      <UserCircle className="h-[15px] w-[15px]" aria-hidden="true" />
                       <span>{tTopbar("myProfile")}</span>
                     </Link>
 
@@ -987,22 +968,23 @@ export default function AdminSidebar({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-all duration-200 hover:bg-slate-50"
-                      style={{ color: "#475569" }}
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-[var(--dash-ink-2)] transition-colors duration-200 hover:bg-[var(--dash-line-subtle)]"
                       onClick={() => setProfileOpen(false)}
                     >
-                      <ExternalLink style={{ width: "15px", height: "15px" }} />
+                      <ExternalLink className="h-[15px] w-[15px]" aria-hidden="true" />
                       <span>{tNav("viewPublicSite")}</span>
                     </a>
 
-                    <div className="my-1 mx-2 h-px bg-divider" />
+                    <div className="mx-2 my-1 h-px bg-[var(--dash-line)]" />
 
                     <form action="/admin/auth/signout" method="POST">
+                      {/* --ptec-danger, not #EF4444: the latter is 3.8:1 on
+                          white and fails AA for 14px text. */}
                       <button
                         type="submit"
-                        className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2.5 text-sm cursor-pointer transition-colors text-[#EF4444] hover:bg-[rgba(239,68,68,0.06)]"
+                        className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-[var(--ptec-danger)] transition-colors hover:bg-[var(--ptec-danger-soft)]"
                       >
-                        <LogOut style={{ width: "15px", height: "15px" }} />
+                        <LogOut className="h-[15px] w-[15px]" aria-hidden="true" />
                         <span>{tNav("signOut")}</span>
                       </button>
                     </form>
@@ -1013,9 +995,19 @@ export default function AdminSidebar({
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto" style={{ padding: "24px 28px" }}>
-          {children}
+        {/* Page content.
+
+            The padding stays on <main> itself (px-7 = 28px, py-6 = 24px) —
+            the dashboard bleeds its shell background edge-to-edge with a
+            matching `-mx-7 -my-6`, which resolves against this content box.
+            Change one and you must change the other.
+
+            The inner wrapper caps the reading measure at 1440px and centres
+            it. A plain div creates no new scroll container or containing
+            block, so `.dash-controlbar`'s `position: sticky` still resolves
+            against <main>. */}
+        <main className="flex-1 overflow-y-auto bg-[var(--dash-bg)] px-7 py-6">
+          <div className="mx-auto w-full max-w-[1440px]">{children}</div>
         </main>
       </div>
     </div>

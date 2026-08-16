@@ -1,7 +1,7 @@
 # Metadata Exports — Schema & Contract
 
-_Created 2026-07-11 (roadmap Task 4). Code: `lib/exports/scholarly.ts`
-(pure formatters, unit-tested), `lib/exports/works.ts` (fetch + gating),
+_Created 2026-07-11 (roadmap Task 4). Code: `lib/metadata-exports/scholarly.ts`
+(pure formatters, unit-tested), `lib/metadata-exports/works.ts` (fetch + gating),
 `app/api/export/`. Companion: `oai-pmh-registration.md` (OAI-PMH endpoint)._
 
 ## Endpoints
@@ -22,7 +22,7 @@ so pagination is stable across requests.
 |---|---|---|
 | `csl-json` | `application/vnd.citationstyles.csl+json` | Citation Style Language items. Author names are `literal` — Khmer names have no family/given split. |
 | `dc-json` | `application/json` | Dublin Core elements as `dc:`-prefixed keys; repeatable elements are arrays. |
-| `dc-xml` | `application/xml` | Dublin Core in the `oai_dc` container schema (same shape the OAI endpoint serves; parse-validated in `lib/exports/scholarly.test.ts`). |
+| `dc-xml` | `application/xml` | Dublin Core in the `oai_dc` container schema (same shape the OAI endpoint serves; parse-validated in `lib/metadata-exports/scholarly.test.ts`). |
 | `bibtex` | `application/x-bibtex` | Same engine as the on-page “Cite this” (LaTeX-escaped, parse-tested in `lib/citations.test.ts`). Single records download as `{slug}.bib`. |
 | `ris` | `application/x-research-info-systems` | Single records download as `{slug}.ris`. |
 
@@ -73,7 +73,7 @@ modified timestamp.
 
 ## Validation
 
-- `lib/exports/scholarly.test.ts` — DC XML well-formedness (DOMParser),
+- `lib/metadata-exports/scholarly.test.ts` — DC XML well-formedness (DOMParser),
   escaping of `<`, `>`, `&` in titles, Khmer round-trips, CSL shape, feed
   envelope paging.
 - `lib/oai/xml.test.ts` + the 2026-07-09 XSD validation record — OAI side.

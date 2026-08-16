@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { getTranslations } from "next-intl/server";
 import { getSearchAnalytics, getZeroResultReport } from "@/app/actions/search-insights";
 import { PageHeader } from "@/components/admin/kit";
-import ZeroResultActionCenter from "./ZeroResultActionCenter";
+import ZeroResultActionCenter from "./_components/ZeroResultActionCenter";
 
 export const dynamic = "force-dynamic";
 

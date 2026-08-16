@@ -13,6 +13,8 @@ import { getTranslations, getLocale } from "next-intl/server";
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
 import StartWithGoal from "@/components/ui/home/StartWithGoal";
+import TrustBar from "@/components/ui/home/TrustBar";
+import NewArrivals from "@/components/ui/home/NewArrivals";
 import ForYouShelf from "@/components/ui/home/ForYouShelf";
 import ThisWeekAtPtec from "@/components/ui/home/ThisWeekAtPtec";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
@@ -273,6 +275,13 @@ export default async function HomePage() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
+      {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
+          Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
+          on most desktops, where content-visibility would defer work the
+          browser is about to need anyway. Every figure comes from
+          getCollectionStats(); nothing here is estimated. */}
+      <TrustBar />
+
       {/* ════════ START WITH YOUR GOAL — task-first discovery, slot 2 ════════
           Wired to real learning paths (or curated routes); no data round-trip
           beyond the paths already fetched above, so it renders immediately. */}
@@ -311,6 +320,15 @@ export default async function HomePage() {
       <div className="cv-auto">
         <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
           <CategoryGrid />
+        </Suspense>
+      </div>
+
+      {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
+          Complements <ThisWeekAtPtec> above rather than repeating it: that
+          band is curated, this one is simply "what arrived most recently". */}
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+          <NewArrivals />
         </Suspense>
       </div>
 

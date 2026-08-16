@@ -2,13 +2,25 @@
 
 import { useEffect, useState, useRef } from "react";
 
-function formatStat(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
+// Mirrors formatCount() in lib/collection-stats.ts — including the
+// `km-u-nu-latn` rule, which renders Latin digits for Khmer. The rule is
+// duplicated rather than imported because that module reaches the service
+// client, which must never be pulled into a client bundle. Keep the two in
+// step: public counts are formatted one way site-wide.
+function formatStat(n: number, locale: string): string {
+  if (!Number.isFinite(n) || n < 0) return "0";
+  return new Intl.NumberFormat(locale === "km" ? "km-u-nu-latn" : locale).format(Math.floor(n));
 }
 
-export default function AnimatedStat({ targetValue }: { targetValue: number }) {
+export default function AnimatedStat({
+  targetValue,
+  locale = "en",
+  durationMs = 1200,
+}: {
+  targetValue: number;
+  locale?: string;
+  durationMs?: number;
+}) {
   // Start at the real value so server HTML (crawlers, no-JS, screen readers)
   // carries the true figure; the count-up runs from 0 only once JS + the
   // IntersectionObserver kick in.
@@ -30,7 +42,7 @@ export default function AnimatedStat({ targetValue }: { targetValue: number }) {
 
     const startAnimation = () => {
       let startTimestamp: number | null = null;
-      const duration = 2000; // 2 seconds animation
+      const duration = durationMs;
 
       const step = (timestamp: number) => {
         if (!startTimestamp) startTimestamp = timestamp;
@@ -64,7 +76,7 @@ export default function AnimatedStat({ targetValue }: { targetValue: number }) {
       if (observer) observer.disconnect();
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [targetValue]);
+  }, [targetValue, durationMs]);
 
-  return <span ref={ref}>{formatStat(value)}</span>;
+  return <span ref={ref}>{formatStat(value, locale)}</span>;
 }

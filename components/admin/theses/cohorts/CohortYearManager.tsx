@@ -13,7 +13,7 @@ import {
   type ThesisCohort,
   type ThesisAcademicYear,
 } from "@/app/actions/theses";
-import ManageCohortsClient from "@/app/(admin)/admin/(protected)/theses/manage-cohorts/ManageCohortsClient";
+import ManageCohortsClient from "@/app/(admin)/admin/(protected)/theses/manage-cohorts/_components/ManageCohortsClient";
 
 type Lookups = {
   programs: ThesisProgram[];

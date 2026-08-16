@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
-import TeamForm from "../../TeamForm";
+import TeamForm from "../../_components/TeamForm";
 import { getTeamSections, getAllProfiles } from "../../actions";
 import type { TeamMemberRow } from "../../actions";
 

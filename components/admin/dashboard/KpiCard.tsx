@@ -4,10 +4,13 @@ import type { TrendInfo } from "@/lib/admin/dashboard-shared";
 import SparkLine from "./SparkLine";
 import type { TrendPoint } from "@/lib/admin/dashboard";
 
+// Status tokens rather than palette weights: these already resolve per theme
+// and are the same green/red every other callout in the app uses, so a trend
+// arrow cannot drift away from the rest of the status language.
 const TREND_STYLE = {
-  up: { icon: TrendingUp, className: "text-emerald-700" },
-  down: { icon: TrendingDown, className: "text-rose-700" },
-  neutral: { icon: Minus, className: "text-slate-500" },
+  up: { icon: TrendingUp, className: "text-[var(--ptec-success)]" },
+  down: { icon: TrendingDown, className: "text-[var(--ptec-danger)]" },
+  neutral: { icon: Minus, className: "text-[var(--dash-ink-3)]" },
 } as const;
 
 /** Metric colour identity — drives the icon tile tint + top accent strip. */
@@ -54,17 +57,21 @@ export default function KpiCard({
   // ── Hero (emphasis) — deep navy institutional surface ──
   if (emphasis) {
     return (
-      <div className="dash-hero flex h-full min-w-0 flex-col p-4 sm:p-[18px]">
+      <div className="dash-hero flex h-full min-w-0 flex-col p-5">
         <div className="flex items-start justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
             <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-white/15 text-white ring-1 ring-inset ring-white/20">
               <IconCmp className="h-4 w-4" aria-hidden="true" />
             </span>
-            <span className="truncate text-[12.5px] font-semibold text-white/85">{title}</span>
+            <span className="dash-truncate text-[12.5px] font-semibold text-white/85">{title}</span>
           </span>
           <details className="group relative shrink-0">
             <summary
-              className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--dash-gold)] [&::-webkit-details-marker]:hidden"
+              // Gold, not the default blue: this summary sits on the deep navy
+              // hero surface where --focus-color has almost no contrast. A
+              // token override is the documented way to deviate — restating
+              // `outline-*` would pin the width against future token changes.
+              className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-white/70 transition-colors [--focus-color:var(--dash-gold)] [--focus-ring-offset:1px] hover:bg-white/15 hover:text-white [&::-webkit-details-marker]:hidden"
               aria-label={`${title}: definition`}
             >
               <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -109,17 +116,17 @@ export default function KpiCard({
 
   // ── Supporting KPI — tinted icon tile + metric-coloured top strip ──
   return (
-    <div className={`dash-card dash-kpi dash-kpi--${accent} relative flex min-w-0 flex-col p-4`}>
+    <div className={`dash-card dash-kpi dash-kpi--${accent} relative flex min-w-0 flex-col p-5`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className={`dash-ico dash-ico--${accent} dash-ico--sm`} aria-hidden="true">
             <IconCmp className="h-[15px] w-[15px]" />
           </span>
-          <span className="truncate text-[12.5px] font-semibold text-text-muted">{title}</span>
+          <span className="dash-truncate text-[12.5px] font-semibold text-text-muted">{title}</span>
         </div>
         <details className="group relative shrink-0">
           <summary
-            className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-text-muted/70 transition-colors hover:bg-paper hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
+            className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded-full text-text-muted/70 transition-colors hover:bg-paper hover:text-brand [&::-webkit-details-marker]:hidden"
             aria-label={`${title}: definition`}
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -140,7 +147,7 @@ export default function KpiCard({
 
       <div className="mt-2 min-h-[18px] text-[12px] leading-[18px]">
         {badge ? (
-          <span className="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-semibold text-sky-800">
+          <span className="inline-flex items-center rounded-md bg-info-soft px-1.5 py-0.5 text-[11px] font-semibold text-info-text">
             {badge}
           </span>
         ) : trend && trend.mode === "absolute" ? (
@@ -162,7 +169,7 @@ export default function KpiCard({
       {href && drillLabel && (
         <Link
           href={href}
-          className="mt-1.5 inline-flex w-fit items-center gap-0.5 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-1.5 inline-flex w-fit items-center gap-0.5 text-[11.5px] font-semibold text-brand hover:underline"
         >
           {drillLabel}
           <span aria-hidden="true">→</span>

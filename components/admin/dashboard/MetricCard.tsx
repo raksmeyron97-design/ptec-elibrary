@@ -19,10 +19,12 @@ import type { TrendPoint } from "@/lib/admin/dashboard";
 import SparkLine from "./SparkLine";
 import { useMetricSelection } from "./MetricSelection";
 
+// Status tokens rather than palette weights, so a trend arrow here is exactly
+// the green/red used by every other status surface in the app.
 const TREND_STYLE = {
-  up: { icon: TrendingUp, className: "text-emerald-700" },
-  down: { icon: TrendingDown, className: "text-rose-700" },
-  neutral: { icon: Minus, className: "text-slate-600" },
+  up: { icon: TrendingUp, className: "text-[var(--ptec-success)]" },
+  down: { icon: TrendingDown, className: "text-[var(--ptec-danger)]" },
+  neutral: { icon: Minus, className: "text-[var(--dash-ink-3)]" },
 } as const;
 
 const METRIC_ICON: Record<DashboardMetric, LucideIcon> = {
@@ -96,13 +98,15 @@ export default function MetricCard({
         type="button"
         aria-pressed={isSelected}
         onClick={() => selectMetric(data.metric)}
-        className="flex w-full cursor-pointer flex-col items-start gap-2.5 rounded-[15px] p-4 pb-2 text-start focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand"
+        // Inset ring: the button fills the card, so a positive offset would
+        // paint outside the card's own border.
+        className="flex w-full cursor-pointer flex-col items-start gap-2.5 rounded-[15px] p-5 pb-2 text-start [--focus-ring-offset:-2px]"
       >
         <span className="flex w-full items-center gap-2">
           <span className={`dash-ico dash-ico--${accent} dash-ico--sm`} aria-hidden="true">
             <Icon className="h-[15px] w-[15px]" />
           </span>
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-text-muted">{title}</span>
+          <span className="min-w-0 flex-1 dash-truncate text-[12.5px] font-semibold text-text-muted">{title}</span>
           {isSelected && (
             <span className="shrink-0 rounded-md bg-brand/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand">
               {t("charted")}
@@ -119,7 +123,7 @@ export default function MetricCard({
 
         <span className="min-h-[34px] w-full text-[12px] leading-[17px]">
           {data.collecting ? (
-            <span className="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-semibold text-sky-900">
+            <span className="inline-flex items-center rounded-md bg-info-soft px-1.5 py-0.5 text-[11px] font-semibold text-info-text">
               {collectingLabel}
             </span>
           ) : data.trend && data.trend.mode !== "hidden" ? (
@@ -147,7 +151,7 @@ export default function MetricCard({
         </span>
       </button>
 
-      <div className="flex items-center justify-between gap-1 border-t border-divider/60 px-2 py-1">
+      <div className="flex items-center justify-between gap-1 border-t border-divider/60 px-3 py-1">
         <details
           className="relative"
           open={defOpen}
@@ -156,7 +160,7 @@ export default function MetricCard({
           <summary
             aria-label={t("definitionOf", { metric: title })}
             aria-describedby={defOpen ? defId : undefined}
-            className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
+            className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-lg text-text-muted transition-colors [--focus-ring-offset:1px] hover:bg-paper hover:text-brand [&::-webkit-details-marker]:hidden"
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
           </summary>
@@ -172,7 +176,7 @@ export default function MetricCard({
         <button
           type="button"
           onClick={() => openDetails(data.metric)}
-          className="flex h-7 cursor-pointer items-center gap-0.5 rounded-lg px-2 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+          className="flex h-7 cursor-pointer items-center gap-0.5 rounded-lg px-2 text-[11.5px] font-semibold text-brand transition-colors [--focus-ring-offset:1px] hover:bg-brand/5"
         >
           {t("details")}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />

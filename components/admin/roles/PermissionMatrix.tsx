@@ -1,27 +1,28 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ChevronRight, Lock, Inbox } from "lucide-react";
+import { ChevronRight, Lock, SearchX } from "lucide-react";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
-import { ROLE_META } from "@/lib/types/roles";
 import {
-  PERMISSION_GROUPS,
+  visibleGroups,
   levelAt,
   rowDiffersAcrossRoles,
   isLockedRole,
   type PermMatrix,
-  type Resource,
 } from "@/lib/admin/roles-shared";
 import { GROUP_ICON } from "./icons";
 import { PermPill, PermSegmented } from "./PermControl";
+import { useResourceText } from "./useResourceText";
 
 export default function PermissionMatrix({
   allRoles,
+  roleCounts,
   draft,
   baseline,
   editMode,
   onChange,
   query,
+  onClearSearch,
   category,
   roleFilter,
   diffOnly,
@@ -29,11 +30,13 @@ export default function PermissionMatrix({
   onToggleGroup,
 }: {
   allRoles: AppRole[];
+  roleCounts: Record<AppRole, number>;
   draft: PermMatrix;
   baseline: PermMatrix;
   editMode: boolean;
   onChange: (role: AppRole, resource: string, level: PermLevel) => void;
   query: string;
+  onClearSearch: () => void;
   category: string;
   roleFilter: AppRole | "all";
   diffOnly: boolean;
@@ -43,124 +46,156 @@ export default function PermissionMatrix({
   const t = useTranslations("adminRoles.matrix");
   const tGroups = useTranslations("adminRoles.groups");
   const tGroupDesc = useTranslations("adminRoles.groupDescriptions");
-  const tRes = useTranslations("adminRoles.resources");
-  const tResDesc = useTranslations("adminRoles.resourceDescriptions");
+  const tOverview = useTranslations("adminRoles.overview");
   const tRoles = useTranslations("adminUsers.roles");
+  const res = useResourceText();
+
   const visibleRoles = roleFilter === "all" ? allRoles : [roleFilter];
-  const q = query.trim().toLowerCase();
-
-  function resourceMatches(r: Resource): boolean {
-    if (q && !`${r.label} ${r.description} ${r.key} ${tRes(r.key)} ${tResDesc(r.key)}`.toLowerCase().includes(q)) return false;
-    if (diffOnly && !rowDiffersAcrossRoles(draft, allRoles, r.key)) return false;
-    return true;
-  }
-
-  const groups = PERMISSION_GROUPS
-    .filter((g) => category === "all" || g.id === category)
-    .map((g) => ({ ...g, resources: g.resources.filter(resourceMatches) }))
-    .filter((g) => g.resources.length > 0);
-
+  const groups = visibleGroups(category, query, res.search);
   const totalMatches = groups.reduce((n, g) => n + g.resources.length, 0);
 
-  const headBg = "bg-slate-50";
+  if (totalMatches === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-divider bg-bg-surface px-6 py-16 text-center">
+        <SearchX className="h-10 w-10 text-slate-300" aria-hidden="true" />
+        <p className="mt-3 text-sm font-medium text-text-heading">{t("noMatchesTitle")}</p>
+        <p className="mt-1 text-xs text-text-muted">{t("noMatchesBody")}</p>
+        {query && (
+          <button
+            type="button"
+            onClick={onClearSearch}
+            className="mt-4 rounded text-xs font-semibold text-brand hover:underline"
+          >
+            {t("clearSearch")}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-sm">
       <div className="overflow-auto" style={{ maxHeight: "min(70vh, 760px)" }}>
-        {totalMatches === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-            <Inbox className="h-8 w-8 text-slate-300" aria-hidden="true" />
-            <p className="text-sm font-semibold text-text-heading">{t("noMatchesTitle")}</p>
-            <p className="text-xs text-text-muted">{t("noMatchesBody")}</p>
-          </div>
-        ) : (
-          <table className="w-full min-w-[680px] border-separate border-spacing-0 text-sm">
-            <caption className="sr-only">{t("caption")}</caption>
-            <thead>
-              <tr>
+        <table className="w-full border-separate border-spacing-0 text-sm">
+          <caption className="sr-only">{t("caption")}</caption>
+
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                className="sticky left-0 top-0 z-30 border-b border-divider bg-paper px-4 py-2.5 text-left"
+                style={{ minWidth: 280 }}
+              >
+                {/* The column is self-evident on screen; the name is kept for
+                    screen readers, which announce it per cell. */}
+                <span className="sr-only">{t("feature")}</span>
+              </th>
+              {visibleRoles.map((role) => (
                 <th
+                  key={role}
                   scope="col"
-                  className={`sticky left-0 top-0 z-30 border-b border-divider ${headBg} px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-text-muted`}
-                  style={{ minWidth: 220 }}
+                  className="sticky top-0 z-20 border-b border-divider bg-paper px-3 py-2.5 text-center align-bottom"
+                  style={{ minWidth: roleFilter === "all" ? 118 : 200 }}
                 >
-                  {t("feature")}
+                  <span className="flex flex-col items-center gap-0.5">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                      {isLockedRole(role) && <Lock className="h-3 w-3" aria-hidden="true" />}
+                      {tRoles(role)}
+                    </span>
+                    <span className="text-[10px] font-normal normal-case tabular-nums text-slate-400">
+                      {tOverview("userCount", { count: roleCounts[role] ?? 0 })}
+                    </span>
+                  </span>
                 </th>
-                {visibleRoles.map((role) => {
-                  const meta = ROLE_META[role];
-                  return (
-                    <th
-                      key={role}
-                      scope="col"
-                      className={`sticky top-0 z-20 border-b border-divider ${headBg} px-3 py-3 text-center`}
-                      style={{ minWidth: roleFilter === "all" ? 128 : 200 }}
+              ))}
+            </tr>
+          </thead>
+
+          {groups.map((group) => {
+            const GroupIcon = GROUP_ICON[group.iconKey];
+            const open = openGroups[group.id] !== false; // default open
+            const colSpan = visibleRoles.length + 1;
+            return (
+              <tbody key={group.id}>
+                {/* Category header */}
+                <tr>
+                  <th
+                    colSpan={colSpan}
+                    scope="colgroup"
+                    className="sticky left-0 z-10 border-y border-divider bg-slate-50/80 p-0 text-left"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onToggleGroup(group.id)}
+                      aria-expanded={open}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-100"
                     >
-                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${meta.bgColor} ${meta.color} ${meta.borderColor}`}>
-                        {isLockedRole(role) && <Lock className="h-3 w-3" aria-hidden="true" />}
-                        {tRoles(role)}
+                      <ChevronRight
+                        className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+                        aria-hidden="true"
+                      />
+                      <GroupIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-text-body">
+                        {tGroups(group.id)}
                       </span>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
+                      <span className="hidden text-xs font-normal normal-case text-slate-400 sm:inline">
+                        — {tGroupDesc(group.id)}
+                      </span>
+                      <span className="ml-auto rounded-md border border-divider bg-bg-surface px-2 py-0.5 text-xs tabular-nums text-text-muted">
+                        {group.resources.length}
+                      </span>
+                    </button>
+                  </th>
+                </tr>
 
-            {groups.map((group) => {
-              const GroupIcon = GROUP_ICON[group.iconKey];
-              const open = openGroups[group.id] !== false; // default open
-              const colSpan = visibleRoles.length + 1;
-              return (
-                <tbody key={group.id}>
-                  {/* Group header row */}
-                  <tr>
-                    <th
-                      colSpan={colSpan}
-                      scope="colgroup"
-                      className="sticky left-0 z-10 border-b border-divider bg-paper p-0 text-left"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onToggleGroup(group.id)}
-                        aria-expanded={open}
-                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
+                {open &&
+                  group.resources.map((res_) => {
+                    const differs = rowDiffersAcrossRoles(draft, allRoles, res_.key);
+                    // Differences mode is emphasis, not a filter: uniform rows
+                    // recede, mixed rows get a marker, nothing disappears.
+                    const dimmed = diffOnly && !differs;
+                    const marked = diffOnly && differs;
+                    const description = res.description(res_.key);
+                    return (
+                      <tr
+                        key={res_.key}
+                        className={`group/row h-[52px] transition-opacity ${dimmed ? "opacity-40" : ""}`}
                       >
-                        <ChevronRight className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
-                        <GroupIcon className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-                        <span className="text-xs font-bold uppercase tracking-wide text-text-heading">{tGroups(group.id)}</span>
-                        <span className="text-[11px] font-medium normal-case text-text-muted">— {tGroupDesc(group.id)}</span>
-                        <span className="ml-auto rounded-full bg-white px-2 py-0.5 text-[10px] font-bold tabular-nums text-text-muted ring-1 ring-inset ring-divider">
-                          {group.resources.length}
-                        </span>
-                      </button>
-                    </th>
-                  </tr>
-
-                  {/* Resource rows */}
-                  {open &&
-                    group.resources.map((res) => (
-                      <tr key={res.key} className="group/row">
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 border-b border-divider bg-bg-surface px-4 py-3 text-left align-middle transition-colors group-hover/row:bg-slate-50"
+                          className={`sticky left-0 z-10 border-b border-divider/60 bg-bg-surface px-4 py-2 text-left align-middle font-normal transition-colors group-hover/row:bg-slate-50/40 ${
+                            marked ? "border-l-2 border-l-amber-400" : ""
+                          }`}
                         >
-                          <div className="font-semibold text-text-heading">{tRes(res.key)}</div>
-                          <div className="mt-0.5 text-[11px] font-normal leading-snug text-text-muted">{tResDesc(res.key)}</div>
+                          <div className="text-sm font-medium text-text-heading">
+                            {res.label(res_.key)}
+                          </div>
+                          {description && (
+                            <div className="mt-0.5 hidden line-clamp-1 text-xs leading-snug text-slate-400 lg:block">
+                              {description}
+                            </div>
+                          )}
                         </th>
+
                         {visibleRoles.map((role) => {
-                          const level = levelAt(draft, role, res.key);
+                          const level = levelAt(draft, role, res_.key);
                           const locked = isLockedRole(role);
-                          const dirty = level !== levelAt(baseline, role, res.key);
+                          const dirty = level !== levelAt(baseline, role, res_.key);
                           return (
                             <td
                               key={role}
-                              className="border-b border-divider px-3 py-3 text-center align-middle transition-colors group-hover/row:bg-slate-50/60"
+                              className="border-b border-divider/60 px-3 py-2 text-center align-middle transition-colors group-hover/row:bg-slate-50/40"
                             >
                               <div className="flex justify-center">
                                 {editMode && !locked ? (
                                   <PermSegmented
                                     value={level}
                                     dirty={dirty}
-                                    onChange={(l) => onChange(role, res.key, l)}
-                                    ariaLabel={t("permFor", { feature: tRes(res.key), role: tRoles(role) })}
+                                    onChange={(l) => onChange(role, res_.key, l)}
+                                    ariaLabel={t("permFor", {
+                                      feature: res.label(res_.key),
+                                      role: tRoles(role),
+                                    })}
                                   />
                                 ) : (
                                   <PermPill level={locked ? "write" : level} locked={locked} />
@@ -170,21 +205,12 @@ export default function PermissionMatrix({
                           );
                         })}
                       </tr>
-                    ))}
-                </tbody>
-              );
-            })}
-          </table>
-        )}
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-divider bg-paper px-4 py-3 text-[11px] text-text-muted">
-        <span className="font-bold uppercase tracking-wide">{t("legend")}</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="write" /> {t("legendWrite")}</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="read" /> {t("legendRead")}</span>
-        <span className="inline-flex items-center gap-1.5"><PermPill level="none" /> {t("legendNone")}</span>
-        <span className="ml-auto inline-flex items-center gap-1.5"><Lock className="h-3 w-3" aria-hidden="true" /> {t("legendLocked")}</span>
+                    );
+                  })}
+              </tbody>
+            );
+          })}
+        </table>
       </div>
     </div>
   );

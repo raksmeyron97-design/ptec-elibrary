@@ -2,7 +2,7 @@
 // app/admin/edit/[id]/page.tsx
 import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
-import EditForm from "./EditForm";
+import EditForm from "./_components/EditForm";
 
 export default async function EditBookPage({
   params,
