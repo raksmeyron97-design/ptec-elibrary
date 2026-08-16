@@ -74,6 +74,18 @@ const nextConfig: NextConfig = {
       // body (bibliographic fields + boundaries) needs headroom beyond that.
       bodySizeLimit: "6mb",
     },
+    // Rewrite `import { X } from "lucide-react"` to the individual icon module.
+    //
+    // lucide-react's barrel re-exports 3,972 icon modules, and 300 files in
+    // this app import from it. Without this, every one of those files pulls
+    // the whole barrel into the dev module graph, which is re-evaluated per
+    // request — so dev render time scaled with component-tree size rather
+    // than with work done. Measured on this machine before/after; see the
+    // numbers in the commit message.
+    //
+    // Production builds tree-shake the barrel anyway, so this is almost
+    // entirely a DEV ergonomics fix; it does not change shipped bundles.
+    optimizePackageImports: ["lucide-react"],
     // There is no single app/layout.tsx any more (the public tree owns its own
     // <html> so it can read the locale from params instead of headers()), so
     // unmatched routes need a root-layout-free 404 page: app/global-not-found.tsx.

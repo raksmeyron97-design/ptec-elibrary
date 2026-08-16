@@ -8,6 +8,7 @@ import {
   type AdminActivityEntry,
 } from "@/lib/admin/intelligence";
 import type { DashboardFilters, DashboardMetric } from "@/lib/admin/dashboard-shared";
+import type { EngagementChartVersion } from "@/lib/admin/analytics-flags";
 import { serializeDashboardFilters } from "@/lib/admin/dashboard-shared";
 import { MetricSelectionProvider } from "../MetricSelection";
 import ExecutivePulse from "../ExecutivePulse";
@@ -62,10 +63,12 @@ export default async function OverviewView({
   filters,
   metric,
   canSeeAudit,
+  chartVersion,
 }: {
   filters: DashboardFilters;
   metric: DashboardMetric;
   canSeeAudit: boolean;
+  chartVersion: EngagementChartVersion;
 }) {
   const [t, data, actions, health, activity] = await Promise.all([
     getTranslations("adminDashboard"),
@@ -110,8 +113,8 @@ export default async function OverviewView({
           <ZoneHeader label={t("overview.zoneTrendsLabel")} hint={t("overview.zoneTrendsHint")} />
 
           {/* 3 — Engagement trends (8 cols) + measurement pathways (4 cols). */}
-          <div className="grid gap-4 lg:grid-cols-12">
-            <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-4 lg:col-span-8">
+          <div className="grid items-start gap-4 xl:grid-cols-12">
+            <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-4 xl:col-span-8">
               <h2 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
                 {t("engagement.title")}
               </h2>
@@ -119,15 +122,18 @@ export default async function OverviewView({
                 {t("engagement.subtitle", { range: rangeLabel })}
               </p>
               <EngagementChart
+                version={chartVersion}
                 series={data.engagement.series}
                 prevSeries={data.engagement.prevSeries}
                 annotations={data.engagement.annotations}
                 granularity={data.granularity}
                 compare={filters.compare}
+                filters={filters}
+                generatedAt={data.generatedAt}
               />
             </section>
 
-            <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-4 lg:col-span-4">
+            <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-4 xl:col-span-4">
               <h2 id="pathways-heading" className="text-[14px] font-bold text-text-heading">
                 {t("discovery.title")}
               </h2>

@@ -10,6 +10,7 @@ import {
   type DashboardView,
 } from "@/lib/admin/dashboard-shared";
 import { getDepartmentOptions, getHealthPulse } from "@/lib/admin/intelligence";
+import { resolveEngagementChartVersion } from "@/lib/admin/analytics-flags";
 import DashboardHeader, { type QuickActionKey } from "@/components/admin/dashboard/DashboardHeader";
 import HeaderStatus from "@/components/admin/dashboard/HeaderStatus";
 import DashboardControlBar from "@/components/admin/dashboard/DashboardControlBar";
@@ -81,6 +82,7 @@ export default async function AdminDashboardPage({
 }) {
   const sp = await searchParams;
   const filters = parseDashboardFilters(sp);
+  const engagementChartVersion = resolveEngagementChartVersion();
 
   const [{ name, role, perms }, departments] = await Promise.all([
     getPageIdentity(),
@@ -142,7 +144,12 @@ export default async function AdminDashboardPage({
       <SectionBoundary>
         {view === "overview" && (
           <Suspense key={suspenseKey} fallback={<OverviewSkeleton />}>
-            <OverviewView filters={activeFilters} metric={metric} canSeeAudit={canSystem} />
+            <OverviewView
+              filters={activeFilters}
+              metric={metric}
+              canSeeAudit={canSystem}
+              chartVersion={engagementChartVersion}
+            />
           </Suspense>
         )}
         {view === "content" && (

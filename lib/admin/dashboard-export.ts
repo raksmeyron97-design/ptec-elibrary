@@ -49,7 +49,7 @@ function filtersLabel(f: DashboardFilters): string {
   const parts: string[] = [];
   if (f.type !== "all") parts.push(`Type: ${TYPE_LABELS[f.type] ?? f.type}`);
   if (f.dept) parts.push(`Department: ${f.dept}`);
-  if (f.lang !== "all") parts.push(`Language: ${f.lang === "km" ? "Khmer" : "English"}`);
+  if (f.contentLanguage !== "all") parts.push(`Language: ${f.contentLanguage === "km" ? "Khmer" : "English"}`);
   return parts.length ? parts.join(" · ") : "None";
 }
 
