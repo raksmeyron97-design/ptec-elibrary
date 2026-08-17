@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import { getStorageSummaryAction } from "@/app/actions/storage";
-import StorageClient from "./StorageClient";
+import StorageClient from "./_components/StorageClient";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {

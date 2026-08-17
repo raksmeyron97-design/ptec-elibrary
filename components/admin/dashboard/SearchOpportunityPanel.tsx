@@ -33,7 +33,7 @@ export default async function SearchOpportunityPanel({
   const nf = numberFormat(locale);
 
   return (
-    <section aria-labelledby="opportunities-heading" className="dash-card flex h-full flex-col p-4">
+    <section aria-labelledby="opportunities-heading" className="dash-card flex h-full flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <span className="dash-ico dash-ico--md dash-ico--gold" aria-hidden="true">
@@ -48,7 +48,7 @@ export default async function SearchOpportunityPanel({
         </div>
         <Link
           href={searchHref}
-          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline"
         >
           {t("viewAll")}
         </Link>
@@ -70,7 +70,7 @@ export default async function SearchOpportunityPanel({
                   {t(`kind.${o.kind}`)}
                 </span>
                 <span
-                  className="min-w-0 flex-1 truncate text-[13px] font-semibold text-text-heading"
+                  className="min-w-0 flex-1 dash-truncate text-[13px] font-semibold text-text-heading"
                   title={o.term}
                   dir="auto"
                 >

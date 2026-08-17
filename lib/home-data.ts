@@ -313,3 +313,108 @@ export const getLatestPostCached = unstable_cache(
   ["home-latest-post"],
   { revalidate: REVALIDATE, tags: ["home-posts"] }
 );
+
+// ── Recent additions across every digital type ──────────────────────────────
+//
+// "What has the library added lately", answered across books, theses AND
+// publications rather than books alone (getRecentlyAddedCached, above, is
+// books-only and feeds the book rails).
+//
+// Three queries, not one. PostgREST cannot UNION across tables, and these
+// three have genuinely different shapes — so each is fetched at the target
+// size, merged, and re-sorted in JS. Taking `limit` from each is what makes
+// the merged top-N correct: a smaller per-table limit could miss a recent item
+// that lost its own table's cut but would have won the combined one.
+//
+// Ordering is by created_at — when the item JOINED the library — never
+// published_at, which is the work's own publication date and is NULL for
+// undated imports. Same rule as getRecentlyAddedCached.
+
+export type RecentItemType = "book" | "thesis" | "publication";
+
+export type RecentItem = {
+  id: string;
+  title: string;
+  author: string | null;
+  type: RecentItemType;
+  coverUrl: string | null;
+  addedAt: string;
+  slug: string;
+};
+
+/** Rows missing a slug can't be linked to, so they never reach the UI. */
+type RawRecent = {
+  id: string;
+  title: string | null;
+  slug: string | null;
+  cover_url?: string | null;
+  author_names?: string | null;
+  created_at: string | null;
+};
+
+function toRecentItems(rows: RawRecent[] | null, type: RecentItemType): RecentItem[] {
+  return (rows ?? [])
+    .filter((r): r is RawRecent & { slug: string; title: string; created_at: string } =>
+      Boolean(r.slug && r.title && r.created_at))
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      author: r.author_names?.trim() || null,
+      type,
+      coverUrl: r.cover_url ?? null,
+      addedAt: r.created_at,
+      slug: r.slug,
+    }));
+}
+
+export const getRecentAdditions = unstable_cache(
+  async (limit = 4): Promise<RecentItem[]> => {
+    const db = createServiceClient();
+
+    // Each query is independently fault-tolerant: publications did not exist on
+    // older deployments, so one missing table must degrade the strip, not empty
+    // it. Promise.all over settled shapes keeps that per-source.
+    const [books, theses, publications] = await Promise.all([
+      db.from("books")
+        .select("id, title, slug, cover_url, created_at, authors(name)")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      db.from("research_reports")
+        .select("id, title, slug, cover_url, author_names, created_at")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      db.from("publications")
+        .select("id, title, slug, author_names, created_at")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ]);
+
+    for (const [name, res] of [
+      ["books", books], ["theses", theses], ["publications", publications],
+    ] as const) {
+      if (res.error) console.error(`[home-data] recent additions (${name}):`, res.error.message);
+    }
+
+    // books embeds authors(name); flatten it to the shared author_names shape.
+    // PostgREST returns an embedded to-one relation as an object on some
+    // deployments and a single-element array on others, so handle both.
+    type BookRow = RawRecent & { authors?: { name: string | null } | { name: string | null }[] | null };
+    const bookRows: RawRecent[] = ((books.data ?? []) as BookRow[]).map((r) => ({
+      ...r,
+      author_names: (Array.isArray(r.authors) ? r.authors[0]?.name : r.authors?.name) ?? null,
+    }));
+
+    return [
+      ...toRecentItems(bookRows, "book"),
+      ...toRecentItems(theses.data as RawRecent[] | null, "thesis"),
+      ...toRecentItems(publications.data as RawRecent[] | null, "publication"),
+    ]
+      .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt))
+      .slice(0, limit);
+  },
+  ["home-recent-additions"],
+  { revalidate: REVALIDATE, tags: ["home-books", "home-theses", "home-publications"] }
+);

@@ -8,7 +8,7 @@ _បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្ក�
 |---|---|---|
 | ការផ្ទៀងផ្ទាត់ទិន្នន័យ | `lib/content-status.ts`, `lib/metadata-quality.ts`, `app/actions/review.ts`, `app/actions/content-versions.ts`, ដំឡើង `/admin/review` ថ្មី | **0086** — វាក្យសព្ទ status, ជួរឈរប្រវត្តិ, books sync trigger, `content_versions` |
 | អភិបាលកិច្ចការស្វែងរក | `lib/search/analytics.ts`, `/api/search/native` (តម្រង bot, session hash, សទិសន័យ, រៀបចំទុក), មុខងារ `search-insights` + action center | **0087** — `search_term_actions`, `search_synonyms`, `search_curated_results`, `session_hash`, អនុគមន៍ retention |
-| ការទាញចេញទិន្នន័យ | `lib/exports/*`, `/api/export/*`, OAI ទាមទារផ្ទៀងផ្ទាត់សិន | គ្មាន (ទាញពីជួរឈរមានស្រាប់) |
+| ការទាញចេញទិន្នន័យ | `lib/metadata-exports/*`, `/api/export/*`, OAI ទាមទារផ្ទៀងផ្ទាត់សិន | គ្មាន (ទាញពីជួរឈរមានស្រាប់) |
 | Backup និង ការតាមដាន | `scripts/backup/*`, `/api/health` ផ្នែកសុវត្ថិភាព, ដំឡើង retention កូដ cron | **0088** — `ops_events` |
 | ឯកសារ (Docs) | `OPERATIONS-AUDIT`, `BACKUP-DR`, `ALERT-CATALOG`, `RUNBOOKS`, `DATA-GOVERNANCE`, `METADATA-EXPORTS`, `TABLETOP-EXERCISES` | — |
 

@@ -54,7 +54,7 @@ export default function OpportunityList({ items: initial }: { items: Opportunity
   }
 
   const actionBtn =
-    "flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-amber-100 hover:text-amber-900 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:opacity-40";
+    "flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-amber-100 hover:text-amber-900 [--focus-ring-offset:1px] disabled:opacity-40";
 
   return (
     <>
@@ -64,7 +64,7 @@ export default function OpportunityList({ items: initial }: { items: Opportunity
             <span className="inline-flex shrink-0 items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
               {t(`opportunityKind.${o.kind}`)}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-text-body" title={o.term} dir="auto">
+            <span className="min-w-0 flex-1 dash-truncate text-[12.5px] font-medium text-text-body" title={o.term} dir="auto">
               {o.term}
             </span>
             <span className="shrink-0 text-[11px] tabular-nums text-text-muted">

@@ -20,7 +20,7 @@ implements each rule — policy and implementation must not drift apart._
 | Data | Class | Retention | Enforcement |
 |---|---|---|---|
 | Published catalog metadata | Public | Indefinite (institutional record) | — |
-| Draft/unpublished metadata | Internal | Until published or archived; archived kept indefinitely | status workflow (0086); excluded from exports/feeds (`lib/exports/works.ts`, OAI gate) |
+| Draft/unpublished metadata | Internal | Until published or archived; archived kept indefinitely | status workflow (0086); excluded from exports/feeds (`lib/metadata-exports/works.ts`, OAI gate) |
 | Content version snapshots | Internal | **400 days** | `purge_content_versions` via cron cleanup (0086) |
 | Admin audit log | Internal (accountability) | ≥ 2 years (no automatic purge) | reviewed monthly (§M3) |
 | Search query log (raw terms + session hash) | Personal-adjacent | **365 days** | `purge_search_analytics` via cron cleanup (0087) |

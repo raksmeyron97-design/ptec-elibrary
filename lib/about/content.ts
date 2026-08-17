@@ -2,7 +2,7 @@
 //
 // THE single source of truth for institutional facts shown on the five
 // About pages. Transcribed from the library's own information form
-// (docs/library_info_form.docx, sections 1–8) on 2026-07-29.
+// (docs/assets/library_info_form.docx, sections 1–8) on 2026-07-29.
 //
 // ── Rules for editing this file ──────────────────────────────────────────────
 //

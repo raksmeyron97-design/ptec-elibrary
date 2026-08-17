@@ -5,22 +5,8 @@ import { useTranslations } from "next-intl";
 import { X, ArrowRight, Loader2, Check } from "lucide-react";
 import { ROLE_META } from "@/lib/types/roles";
 import type { PermChange } from "@/lib/admin/roles-shared";
-import { LEVEL_ICON } from "./icons";
-
-function LevelTag({ level }: { level: PermChange["from"] }) {
-  const t = useTranslations("adminRoles.levels");
-  const Icon = LEVEL_ICON[level];
-  const tone =
-    level === "write" ? "text-emerald-700 bg-emerald-50 ring-emerald-200"
-    : level === "read" ? "text-blue-700 bg-blue-50 ring-blue-200"
-    : "text-slate-500 bg-slate-50 ring-slate-200";
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tone}`}>
-      <Icon className="h-3 w-3" aria-hidden="true" strokeWidth={2.5} />
-      {t(`${level}Short`)}
-    </span>
-  );
-}
+import { PermPill } from "./PermControl";
+import { useResourceText } from "./useResourceText";
 
 export default function ChangeReviewDialog({
   open,
@@ -37,7 +23,7 @@ export default function ChangeReviewDialog({
 }) {
   const t = useTranslations("adminRoles.review");
   const tRoles = useTranslations("adminUsers.roles");
-  const tRes = useTranslations("adminRoles.resources");
+  const res = useResourceText();
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -79,10 +65,10 @@ export default function ChangeReviewDialog({
               <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${ROLE_META[c.role].bgColor} ${ROLE_META[c.role].color} ${ROLE_META[c.role].borderColor}`}>
                 {tRoles(c.role)}
               </span>
-              <span className="min-w-0 flex-1 truncate font-semibold text-text-heading">{tRes(c.resource)}</span>
-              <LevelTag level={c.from} />
+              <span className="min-w-0 flex-1 truncate font-semibold text-text-heading">{res.label(c.resource)}</span>
+              <PermPill level={c.from} />
               <ArrowRight className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
-              <LevelTag level={c.to} />
+              <PermPill level={c.to} />
             </li>
           ))}
         </ul>

@@ -3,10 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { ArrowRight, Lightbulb, TrendingUp, AlertTriangle, Info } from "lucide-react";
 import type { Insight, InsightSeverity } from "@/lib/admin/insights";
 
+// Status tokens, not palette weights — same reasoning as KpiCard's TREND_STYLE:
+// the severity language has to be the one used everywhere else in the app.
 const PRIORITY: Record<InsightSeverity, { key: string; icon: typeof Info; iconColor: string; surface: string }> = {
-  positive: { key: "opportunity", icon: TrendingUp, iconColor: "text-emerald-600", surface: "dash-insight--positive" },
-  warning: { key: "warning", icon: AlertTriangle, iconColor: "text-amber-600", surface: "dash-insight--warning" },
-  info: { key: "information", icon: Info, iconColor: "text-sky-600", surface: "dash-insight--info" },
+  positive: { key: "opportunity", icon: TrendingUp, iconColor: "text-[var(--ptec-success)]", surface: "dash-insight--positive" },
+  warning: { key: "warning", icon: AlertTriangle, iconColor: "text-[var(--ptec-warning)]", surface: "dash-insight--warning" },
+  info: { key: "information", icon: Info, iconColor: "text-[var(--ptec-info)]", surface: "dash-insight--info" },
 };
 
 /**
@@ -28,7 +30,7 @@ export default async function AutomatedInsightsPanel({
   const t = await getTranslations("adminDashboard.insights");
 
   return (
-    <section aria-labelledby="insights-heading" className="dash-insight-panel flex h-full flex-col p-4">
+    <section aria-labelledby="insights-heading" className="dash-insight-panel flex h-full flex-col p-5">
       <div className="flex items-center gap-2">
         <span className="dash-ico dash-ico--gold dash-ico--md" aria-hidden="true">
           <Lightbulb className="h-[18px] w-[18px]" />
@@ -70,7 +72,7 @@ export default async function AutomatedInsightsPanel({
                   <p className="text-[11.5px] font-medium text-text-body">{t(`action.${insight.key}`)}</p>
                   <Link
                     href={insight.href}
-                    className="flex items-center gap-0.5 whitespace-nowrap text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    className="flex items-center gap-0.5 whitespace-nowrap text-[11.5px] font-semibold text-brand hover:underline"
                   >
                     {t("viewData")}
                     <ArrowRight className="h-3 w-3" aria-hidden="true" />

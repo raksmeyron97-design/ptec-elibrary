@@ -64,7 +64,7 @@ export default function ContentPerformancePanel({
   const visible = filtered.slice(0, VISIBLE);
 
   return (
-    <section aria-labelledby="content-perf-heading" className="dash-card flex h-full flex-col p-4">
+    <section aria-labelledby="content-perf-heading" className="dash-card flex h-full flex-col p-5">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div className="flex min-w-0 items-center gap-2">
           <span className="dash-ico dash-ico--md dash-ico--views" aria-hidden="true">
@@ -79,7 +79,7 @@ export default function ContentPerformancePanel({
         </div>
         <Link
           href={contentHref}
-          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline"
         >
           {t("openTable")}
         </Link>
@@ -119,7 +119,7 @@ export default function ContentPerformancePanel({
                     <p className="flex items-center gap-1.5">
                       <Link
                         href={r.editHref}
-                        className="min-w-0 truncate text-[12.5px] font-semibold text-text-heading hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        className="min-w-0 dash-truncate text-[12.5px] font-semibold text-text-heading hover:text-brand hover:underline"
                         title={r.title}
                         dir="auto"
                       >
@@ -152,7 +152,7 @@ export default function ContentPerformancePanel({
                     type="button"
                     aria-expanded={isOpen}
                     onClick={() => setOpenRow(isOpen ? null : key)}
-                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
                   >
                     <ChevronDown
                       className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -187,7 +187,7 @@ export default function ContentPerformancePanel({
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Link
                         href={r.editHref}
-                        className="flex h-8 items-center gap-1 rounded-lg border border-brand/25 bg-brand/5 px-2 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                        className="flex h-8 items-center gap-1 rounded-lg border border-brand/25 bg-brand/5 px-2 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10 [--focus-ring-offset:1px]"
                       >
                         <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
                         {t("edit")}
@@ -197,7 +197,7 @@ export default function ContentPerformancePanel({
                           href={r.publicHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                          className="flex h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted transition-colors hover:bg-paper hover:text-text-heading [--focus-ring-offset:1px]"
                         >
                           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           {t("viewPublic")}

@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { adminGetBookRequests } from "@/app/actions/book-requests";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
-import BookRequestsClient from "./BookRequestsClient";
+import BookRequestsClient from "./_components/BookRequestsClient";
 
 export const dynamic = "force-dynamic";
 

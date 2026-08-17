@@ -177,7 +177,7 @@ export default async function EngagementPathways({
             ] as const
           ).map(([key, value, previous]) => (
             <div key={key} className="min-w-0">
-              <dt className="truncate text-[10px] font-medium text-text-muted">{t(`volumes.${key}`)}</dt>
+              <dt className="dash-truncate text-[10px] font-medium text-text-muted">{t(`volumes.${key}`)}</dt>
               <dd className="text-[13px] font-bold tabular-nums text-text-heading">
                 {value === null ? t("collectingShort") : nf.format(value)}
                 {compare && previous !== null && previous > 0 && value !== null && (

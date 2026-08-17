@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/kit";
-import UploadPageClient from "./UploadPageClient";
+import UploadPageClient from "./_components/UploadPageClient";
 
 export default async function AdminUploadPage({
   searchParams,

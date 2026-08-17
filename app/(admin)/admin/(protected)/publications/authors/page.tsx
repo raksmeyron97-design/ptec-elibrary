@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import AuthorsClient from "./AuthorsClient";
+import AuthorsClient from "./_components/AuthorsClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import type { PublicationAuthor, PublicationAffiliation } from "@/lib/publications";

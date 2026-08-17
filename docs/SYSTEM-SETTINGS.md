@@ -46,7 +46,7 @@ tables directly and never return raw rows to a client.
 
 #### Synchronous builders (SEO, JSON-LD, citations, exports, email)
 
-`lib/seo/*`, `lib/exports/works.ts`, `lib/theses/citation.ts` and
+`lib/seo/*`, `lib/metadata-exports/works.ts`, `lib/theses/citation.ts` and
 `lib/email/contact-templates.ts` are pure and synchronous, so they cannot await
 `getSiteConfig()`. They take an explicit `OrgIdentity` argument instead:
 

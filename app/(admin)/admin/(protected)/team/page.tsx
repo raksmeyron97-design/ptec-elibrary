@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   UserPlus, FolderOpen, Users, Eye, EyeOff, LayoutGrid, ImageOff, Languages, ExternalLink,
 } from "lucide-react";
-import TeamClient from "./TeamClient";
+import TeamClient from "./_components/TeamClient";
 import type { TeamMemberRow, TeamSection } from "./actions";
 
 /** A member is "missing a translation" when a field is filled in one language only. */

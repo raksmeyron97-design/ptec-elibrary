@@ -73,7 +73,7 @@ export default function SearchTrendChart({
         </svg>
       </div>
       <details>
-        <summary className="cursor-pointer text-[11.5px] font-semibold text-text-muted hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+        <summary className="cursor-pointer text-[11.5px] font-semibold text-text-muted hover:text-brand">
           {t("showTable")}
         </summary>
         <div className="mt-2 max-h-48 overflow-auto rounded-xl border border-divider">

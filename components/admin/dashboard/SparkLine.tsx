@@ -20,7 +20,7 @@ export default function SparkLine({
   points,
   accent = "brand",
   width = 74,
-  height = 26,
+  height = 32,
 }: {
   points: TrendPoint[];
   accent?: KpiAccent;
@@ -49,12 +49,12 @@ export default function SparkLine({
     >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.12" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${gradId})`} stroke="none" />
-      <path d={line} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }

@@ -2,7 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
-import ManageCohortsClient from "./ManageCohortsClient";
+import ManageCohortsClient from "./_components/ManageCohortsClient";
 
 export default async function ManageCohortsPage() {
   const [programRes, facultyRes, cohortRes, yearRes] = await Promise.all([

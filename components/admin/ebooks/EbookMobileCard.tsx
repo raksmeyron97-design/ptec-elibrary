@@ -1,14 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
-import { Eye, Download, ExternalLink } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { Eye, Download, Pencil } from "lucide-react";
+import { Badge } from "@/components/admin/kit";
 import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
-import { EBOOK_STATUS_BADGE_STYLES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
+import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
 
+/**
+ * The table's under-`md` form: the same eight columns as a stacked card, with
+ * actions always visible (there is no hover to reveal them on a phone).
+ */
 export default function EbookMobileCard({
   rows,
   selectedIds,
@@ -32,15 +37,20 @@ export default function EbookMobileCard({
 }) {
   const t = useTranslations("adminEbooks.table");
   const tStatus = useTranslations("adminEbooks.status");
+  const locale = useLocale();
+  const numberLocale = locale === "km" ? "km-KH" : "en-US";
+
   return (
-    <div className="space-y-3 md:hidden">
+    <div className="space-y-2.5 md:hidden">
       {rows.map((book) => {
         const isSelected = selectedIds.has(book.id);
         const isBusy = busyId === book.id;
         return (
           <div
             key={book.id}
-            className={`rounded-xl border p-4 shadow-sm transition ${isSelected ? "border-brand/40 bg-brand/5" : "border-divider bg-bg-surface"} ${isBusy ? "opacity-50" : ""}`}
+            className={`rounded-xl border p-3.5 shadow-sm transition-colors duration-150 ${
+              isSelected ? "border-surface-brand-line bg-surface-brand-soft" : "border-divider bg-bg-surface"
+            } ${isBusy ? "opacity-50" : ""}`}
           >
             <div className="flex items-start gap-3">
               <input
@@ -48,58 +58,64 @@ export default function EbookMobileCard({
                 checked={isSelected}
                 onChange={() => onToggleSelect(book.id)}
                 aria-label={t("selectOne", { title: book.title })}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
+                className="mt-1 h-4 w-4 shrink-0 rounded-sm border-divider accent-[var(--ptec-brand)]"
               />
-              <EbookCover coverUrl={book.coverUrl} title={book.title} className="h-16 w-12 shrink-0" />
+              <EbookCover coverUrl={book.coverUrl} title={book.title} className="h-14 w-10" />
+
               <div className="min-w-0 flex-1">
-                <Link href={`/admin/edit/${book.id}`} className="font-semibold leading-[1.6] text-text-heading line-clamp-2">
+                <Link
+                  href={`/admin/edit/${book.id}`}
+                  className="line-clamp-2 text-sm font-semibold leading-6 text-text-heading"
+                >
                   {book.title}
                 </Link>
-                <p className="mt-0.5 truncate text-xs text-text-muted">{book.author ?? t("noAuthor")}</p>
-                <p className="mt-1 text-xs text-text-muted">
-                  {book.department ?? t("noDepartment")} · {book.year ?? t("noYear")}
+                <p className="truncate text-xs leading-5 text-text-muted">
+                  {(book.fileFormat ?? "PDF").toUpperCase()}
+                  {book.language ? ` · ${book.language}` : ""}
+                  {book.fileSizeKb ? ` · ${formatFileSize(book.fileSizeKb)}` : ""}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${EBOOK_STATUS_BADGE_STYLES[book.status]}`}>
+                <p className="truncate text-xs leading-5 text-text-muted">
+                  {book.author ?? t("noAuthor")} · {book.department ?? t("noDepartment")} · {book.year ?? t("noYear")}
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-1">
+                  <Badge tone={EBOOK_STATUS_TONES[book.status]}>
                     {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
-                  </span>
+                  </Badge>
+                  <EbookFileHealthBadge book={book} />
                   <EbookQualityBadge book={book} />
                 </div>
-                <div className="mt-2">
-                  <EbookFileHealthBadge book={book} />
-                </div>
-                <p className="mt-1 text-xs text-text-muted">
-                  {(book.fileFormat ?? "PDF").toUpperCase()} · {formatFileSize(book.fileSizeKb)}
-                </p>
-                <dl className="mt-2 flex items-center gap-4 text-xs text-text-muted">
-                  <div className="flex items-center gap-1"><Eye className="h-3 w-3" /> {book.viewCount.toLocaleString()}</div>
-                  <div className="flex items-center gap-1"><Download className="h-3 w-3" /> {book.downloadCount.toLocaleString()}</div>
-                </dl>
-                <div className="mt-3 flex items-center gap-2">
-                  {book.status === "published" && (
+
+                <div className="mt-2.5 flex items-center gap-3 border-t border-divider pt-2.5">
+                  <span className="inline-flex items-center gap-1.5 text-xs tabular-nums text-text-muted">
+                    <Eye className="h-3 w-3" aria-hidden="true" />
+                    {book.viewCount.toLocaleString(numberLocale)}
+                    <span className="sr-only">{t("views")}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs tabular-nums text-text-muted">
+                    <Download className="h-3 w-3" aria-hidden="true" />
+                    {book.downloadCount.toLocaleString(numberLocale)}
+                    <span className="sr-only">{t("downloads")}</span>
+                  </span>
+
+                  <div className="ml-auto flex items-center gap-0.5">
                     <Link
-                      href={`/books/${book.slug}`}
-                      target="_blank"
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-divider px-3 text-xs font-semibold text-text-body"
+                      href={`/admin/edit/${book.id}`}
+                      aria-label={t("editFor", { title: book.title })}
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-text-muted transition-colors duration-150 hover:bg-paper hover:text-brand"
                     >
-                      <ExternalLink className="h-3.5 w-3.5" /> {t("view")}
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
                     </Link>
-                  )}
-                  <Link
-                    href={`/admin/edit/${book.id}`}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-divider px-3 text-xs font-semibold text-text-body"
-                  >
-                    {t("edit")}
-                  </Link>
-                  <EbookActionsMenu
-                    book={book}
-                    busy={isBusy}
-                    onPublish={() => onPublish(book.id)}
-                    onUnpublish={() => onUnpublish(book.id)}
-                    onArchive={() => onArchive(book.id)}
-                    onRestore={() => onRestore(book.id)}
-                    onDeleteRequest={onDeleteRequest}
-                  />
+                    <EbookActionsMenu
+                      book={book}
+                      busy={isBusy}
+                      onPublish={() => onPublish(book.id)}
+                      onUnpublish={() => onUnpublish(book.id)}
+                      onArchive={() => onArchive(book.id)}
+                      onRestore={() => onRestore(book.id)}
+                      onDeleteRequest={onDeleteRequest}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

@@ -20,12 +20,21 @@ export const EBOOK_STATUS_LABELS: Record<EbookStatus, string> = {
   archived: "Archived",
 };
 
-export const EBOOK_STATUS_BADGE_STYLES: Record<EbookStatus, string> = {
-  draft: "bg-paper text-text-muted border border-divider",
-  pending_review: "bg-orange-50 text-orange-700 border border-orange-200",
-  published: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  rejected: "bg-red-50 text-red-700 border border-red-200",
-  archived: "bg-amber-50 text-amber-700 border border-amber-200",
+/**
+ * Status → Badge tone. Deliberately a tone name rather than a class triplet:
+ * the classes live in components/admin/kit/Badge.tsx so the whole admin panel
+ * changes shape or palette in one place, and every tone resolves through the
+ * status tokens (no `dark:` variant needed at any call site).
+ *
+ * `draft` and `archived` are both neutral on purpose — neither is a problem
+ * the librarian has to act on, so neither earns colour in a dense table.
+ */
+export const EBOOK_STATUS_TONES: Record<EbookStatus, "neutral" | "success" | "warning" | "danger"> = {
+  draft: "neutral",
+  pending_review: "warning",
+  published: "success",
+  rejected: "danger",
+  archived: "neutral",
 };
 
 export function normalizeEbookStatus(raw: string | null | undefined): EbookStatus {

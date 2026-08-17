@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/kit";
-import UsersClient from "./UsersClient";
+import UsersClient from "./_components/UsersClient";
 import UserStats from "@/components/admin/users/UserStats";
 import { getUsers, getUsersSummary } from "@/lib/admin/users";
 import type { AppRole } from "@/lib/types/roles";

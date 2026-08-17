@@ -3,7 +3,7 @@
 //   &page=1&pageSize=50                          (pageSize ≤ 100)
 //
 // Bulk metadata export for the academic repository (docs/METADATA-EXPORTS.md).
-// Serves only published + verified records (see lib/exports/works.ts for the
+// Serves only published + verified records (see lib/metadata-exports/works.ts for the
 // exact gating contract), is rate-limited per IP, and CDN-cached for an hour
 // — the collection changes at most a few times a day.
 
@@ -18,8 +18,8 @@ import {
   buildJsonFeed,
   buildTextFeed,
   parseExportFormat,
-} from "@/lib/exports/scholarly";
-import { EXPORT_TYPES, fetchExportWorks } from "@/lib/exports/works";
+} from "@/lib/metadata-exports/scholarly";
+import { EXPORT_TYPES, fetchExportWorks } from "@/lib/metadata-exports/works";
 
 export const dynamic = "force-dynamic";
 

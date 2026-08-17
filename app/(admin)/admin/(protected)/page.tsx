@@ -120,7 +120,7 @@ export default async function AdminDashboardPage({
 
   return (
     <div className="dash-shell -mx-7 -my-6 min-h-full px-7 pb-6 pt-4">
-      <div className="mx-auto max-w-[1400px] space-y-3 overflow-x-clip">
+      <div className="mx-auto max-w-[1400px] space-y-4 overflow-x-clip">
         <DashboardHeader
           view={view}
           name={name}

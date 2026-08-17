@@ -8,24 +8,40 @@ A free, public e-library web app for Phnom Penh Teacher Education College (PTEC)
 - TypeScript
 - Tailwind CSS v4
 - Supabase (PostgreSQL + Auth)
-- Cloudflare R2 (File Storage)
+- Zima Storage (file storage; Cloudflare R2 remains as a legacy fallback)
+- Gemini (AI search and assistant, server-side only)
 - next-intl (Khmer/English i18n)
 
 ## Prerequisites
 - Node.js 18+
-- Supabase Project (Postgres database)
-- Cloudflare R2 Bucket
+- Supabase project (Postgres database)
+- Zima Storage credentials (`ZIMA_API_URL`, `ZIMA_API_KEY`)
+- Supabase CLI, for running a local stack
 
 ## Environment Setup
 1. Copy the `.env.example` file to `.env.local`:
    ```bash
    cp .env.example .env.local
    ```
-2. Fill in all the variables in `.env.local` using your Supabase and Cloudflare credentials.
+2. Fill in the variables in `.env.local`. Every value is documented inline in
+   `.env.example` — copy the comments' guidance exactly, since several flags
+   fail closed when given an unexpected value.
 
 ## Database Migrations
-To set up a fresh Supabase project, execute the SQL migration scripts located in `supabase/migrations/` sequentially from top to bottom.
-This will set up all required tables, triggers, and Row Level Security (RLS) policies.
+
+**Never apply migrations by hand in the Supabase dashboard SQL editor.** The
+hosted database is owned by CI: `.github/workflows/migrate.yml` dry-runs the
+chain on pull requests and applies it on merge to `main`. Applying by hand puts
+the hosted schema out of step with the migration chain, which CI cannot detect.
+
+For a local database, start a stack and let the CLI apply the whole chain:
+
+```bash
+supabase start
+```
+
+Every migration must apply cleanly from the squashed baseline — the `e2e` CI job
+boots a fresh stack and replays all of them. See `supabase/MIGRATIONS.md`.
 
 ## Local Development
 Install dependencies and run the development server:
@@ -34,6 +50,21 @@ npm install
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+If dev renders become slow, clear the build caches first — `npm run dev:clean`.
+This is almost always a stale `.next` rather than a code problem.
+
+## Checks
+
+```bash
+npx tsc --noEmit   # type check
+npm run lint       # ESLint
+npx vitest run     # unit tests (single pass, what CI runs)
+npm run test:e2e   # Playwright
+```
+
+Architecture, invariants, and the reasoning behind the load-bearing decisions
+live in [CLAUDE.md](CLAUDE.md).
 
 ## Email / Gmail SMTP Setup
 
@@ -95,5 +126,14 @@ slot).
 
 ---
 
-## Deployment (Vercel)
-When deploying to Vercel, ensure you provide all the environment variables from `.env.example` in the Vercel project settings. The filesystem on Vercel is read-only at runtime, which is why Cloudflare R2 is used for all persistent file uploads.
+## Deployment
+
+Vercel is the primary target: provide every environment variable from
+`.env.example` in the project settings. The filesystem is read-only at runtime,
+which is why all persistent uploads go to Zima Storage rather than to disk.
+`vercel.json` pins functions to `sin1` to sit next to the Supabase instance —
+removing it moves them to `iad1` and wrecks TTFB.
+
+The app also ships as a self-hosted Docker image for ZimaOS; see
+[docs/ZIMAOS-DEPLOYMENT.md](docs/ZIMAOS-DEPLOYMENT.md). `NEXT_PUBLIC_*` values
+are baked at build time, so that image takes them as build args.

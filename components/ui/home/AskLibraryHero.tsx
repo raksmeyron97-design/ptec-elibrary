@@ -30,15 +30,39 @@ export function SparkleIcon({ className = "h-4 w-4" }: { className?: string }) {
 
 const PLACEHOLDER_INTERVAL = 3600;
 
+/**
+ * Scope options for the hero search.
+ *
+ * The ids are the SAME values /search reads from `?type=` (its TAB_IDS), so
+ * picking a scope here lands on the results page with that tab already active
+ * — no translation layer, and no second vocabulary to keep in sync. Labels
+ * reuse the `search.tab*` strings for the same reason: the chooser and the
+ * tab it selects can never disagree.
+ *
+ * `all` is represented by omitting the param, matching how the results page
+ * itself clears it (`if (type === "all") next.delete("type")`).
+ */
+const SCOPES = [
+  { id: "all", labelKey: "tabAll" },
+  { id: "book", labelKey: "tabBooks" },
+  { id: "research", labelKey: "tabTheses" },
+  { id: "publication", labelKey: "tabPublications" },
+  { id: "learning_path", labelKey: "tabLearningPaths" },
+] as const;
+
+type ScopeId = (typeof SCOPES)[number]["id"];
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AskLibraryHero({ trending = [], prompts = [], askLabel, hint }: Props) {
   const router = useRouter();
   const t = useTranslations("home");
+  const tSearch = useTranslations("search");
   const locale = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Input state
+  const [scope, setScope] = useState<ScopeId>("all");
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
@@ -72,7 +96,10 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
       if (
         e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey &&
         document.activeElement?.tagName !== "INPUT" &&
-        document.activeElement?.tagName !== "TEXTAREA"
+        document.activeElement?.tagName !== "TEXTAREA" &&
+        // A focused <select> uses printable keys for typeahead — stealing "/"
+        // there would break keyboard selection of the scope.
+        document.activeElement?.tagName !== "SELECT"
       ) {
         e.preventDefault();
         inputRef.current?.focus();
@@ -86,14 +113,23 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
   // Search-first: submit to the unified library search (books + theses +
   // publications + physical catalog) — no AI round-trip.
 
+  const searchHref = useCallback(
+    (term: string) => {
+      const qs = new URLSearchParams({ q: term });
+      if (scope !== "all") qs.set("type", scope);
+      return `/search?${qs.toString()}`;
+    },
+    [scope]
+  );
+
   const submit = useCallback(
     (term: string) => {
       const clean = term.trim();
       if (!clean) return;
       pushRecentSearch(clean);
-      router.push(`/search?q=${encodeURIComponent(clean)}`);
+      router.push(searchHref(clean));
     },
-    [router]
+    [router, searchHref]
   );
 
   const clearRecent = () => {
@@ -102,6 +138,11 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
   };
 
   const trendingLabel = locale === "en" ? "uppercase tracking-[0.16em]" : "tracking-normal";
+
+  // Label of the currently selected scope, for the chips' accessible names —
+  // "Search for X in Theses" is only true if it names the scope actually in
+  // effect, so it reads from `scope` rather than being hard-coded.
+  const scopeLabelKey = (SCOPES.find((s) => s.id === scope) ?? SCOPES[0]).labelKey;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -133,8 +174,50 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               occupies the outer edge, and brand blue is invisible on this navy. */}
           <div className="focus-shell focus-inset [--focus-border-color:var(--color-cyan-300,#67E8F9)] relative flex items-center gap-2 rounded-[14px] bg-[#121C3A] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
 
+            {/* Scope chooser — narrows the search to one collection.
+                Own focus-visible outline rather than the shared .focus-shell
+                ring: the shell wraps three focusable controls (select, input,
+                submit), so letting it light up would show one indicator for
+                whichever of them has focus. The submit button is handled the
+                same way. */}
+            <div className="relative z-10 shrink-0">
+              <label htmlFor="hero-search-scope" className="sr-only">
+                {t("searchScopeLabel")}
+              </label>
+              <select
+                id="hero-search-scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as ScopeId)}
+                // Explicit width, deliberately. A bare <select> sizes itself to
+                // its LONGEST option ("Learning Paths"), which ate ~40% of the
+                // bar on a 393px phone and pushed the placeholder out of it.
+                // Fixed width + ellipsis keeps the input usable; the full label
+                // is always visible once the menu is open.
+                className="h-10 w-[92px] cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-white/15 bg-white/5 py-0 pl-3 pr-7 text-[13px] font-semibold text-blue-50 outline-none transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 sm:w-[132px]"
+                style={{
+                  // Inline so the caret follows the control's own colour rather
+                  // than needing a second background utility per theme.
+                  backgroundImage:
+                    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2367E8F9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 0.5rem center",
+                  backgroundSize: "0.85rem",
+                }}
+              >
+                {SCOPES.map((s) => (
+                  // Options inherit the OS menu surface, not the navy bar, so
+                  // they need an explicit dark background to stay readable.
+                  <option key={s.id} value={s.id} className="bg-[#121C3A] text-blue-50">
+                    {tSearch(s.labelKey)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <span aria-hidden className="relative z-10 h-6 w-px shrink-0 bg-white/12" />
+
             {/* Search icon */}
-            <span className="relative z-10 shrink-0 text-cyan-300">
+            <span className="relative z-10 hidden shrink-0 text-cyan-300 sm:block">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4.3-4.3" />
@@ -154,12 +237,16 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 className="h-14 w-full bg-transparent text-[15px] text-white outline-none placeholder:text-transparent [&::-webkit-search-cancel-button]:appearance-none"
               />
               {!value && (
+                // `truncate`: the prompts rotate and are translated, so any of
+                // them can outgrow the field — Khmer runs longer than English.
+                // Without it the ghost text wrapped to five lines and spilled
+                // out of the bar on a phone.
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 flex items-center text-[15px] text-blue-300/80 transition-opacity duration-[250ms]"
+                  className="pointer-events-none absolute inset-0 flex items-center truncate text-[15px] text-blue-300/80 transition-opacity duration-[250ms]"
                   style={{ opacity: promptVisible ? 1 : 0 }}
                 >
-                  {prompts[promptIdx] ?? ""}
+                  <span className="truncate">{prompts[promptIdx] ?? ""}</span>
                 </span>
               )}
             </div>
@@ -212,7 +299,8 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                   key={`r-${term}`}
                   type="button"
                   onClick={() => submit(term)}
-                  className="inline-flex max-w-[240px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+                  aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
+                  className="inline-flex max-w-[240px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-cyan-400/50 hover:bg-white/10 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
                 >
                   <svg className="h-3 w-3 shrink-0 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M12 8v4l3 3M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8" />
@@ -240,8 +328,20 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               {trending.slice(0, 5).map((term) => (
                 <Link
                   key={`t-${term}`}
-                  href={`/search?q=${encodeURIComponent(term)}`}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+                  // Honours the chosen scope, like the input and the recent
+                  // chips — a chip that ignored it would silently widen the
+                  // search the user just narrowed.
+                  href={searchHref(term)}
+                  // Deliberately still a link, not a <button>: it navigates, so
+                  // keeping the href preserves middle-click and open-in-new-tab.
+                  // The click also fills the field first, so if the navigation
+                  // is slow the user can see what they are searching for.
+                  onClick={() => {
+                    setValue(term);
+                    pushRecentSearch(term);
+                  }}
+                  aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
                 >
                   <svg className="h-3 w-3 shrink-0 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="m3 17 6-6 4 4 8-8" />

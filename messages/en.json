@@ -186,6 +186,7 @@
     "deptAll": "All",
     "searchPlaceholder": "Search title, author, ISBN, or topic",
     "searchButton": "Search",
+    "searchScopeLabel": "Search within",
     "trending": "TRENDING",
     "browseSectionEyebrow": "Explore",
     "browseSectionTitle": "Browse the Collection",
@@ -347,7 +348,17 @@
     "statDigitalResources": "Digital resources",
     "statEbooks": "E-books",
     "statTheses": "Theses",
-    "statPublications": "Publications"
+    "statPublications": "Publications",
+    "trendingPillLabel": "Search for {term} in {scope}",
+    "trustTitle": "PTEC Library at a glance",
+    "trustDigitalLabel": "Digital resources",
+    "trustPhysicalLabel": "Books in the physical library",
+    "trustSinceLabel": "Serving PTEC since",
+    "newArrivalsEyebrow": "NEW THIS WEEK",
+    "newArrivalsTitle": "Just added to the library",
+    "newArrivalsBody": "The most recent books, theses and publications to join the collection.",
+    "newArrivalsAdded": "Added {date}",
+    "categoriesCardLabel": "Browse {subject} resources"
   },
   "books": {
     "title": "Books",
@@ -4363,7 +4374,9 @@
     "header": {
       "title": "Role Management",
       "description": "Define what each role can see and do across the library. Assign these roles to individual people from the Users page.",
-      "lastUpdated": "Permissions last updated",
+      "breadcrumbRoot": "Admin",
+      "breadcrumbCurrent": "Roles",
+      "lastUpdated": "Last updated",
       "by": "by",
       "defaultMatrix": "Using the default permission matrix",
       "manageUserRoles": "Manage user roles",
@@ -4387,7 +4400,11 @@
       "clearFocus": "Clear focus",
       "userCount": "{count, plural, one {# user} other {# users}}",
       "fullCount": "{count} full",
-      "readCount": "{count} read"
+      "readCount": "{count} read",
+      "shareOfTotal": "{pct}% of total",
+      "noAssignments": "No active assignments",
+      "assignUsers": "Assign users",
+      "focusRole": "Focus the permission matrix on {role}"
     },
     "toolbar": {
       "searchLabel": "Search features",
@@ -4403,8 +4420,10 @@
       "reset": "Reset"
     },
     "matrix": {
-      "noMatchesTitle": "No features match your filters",
-      "noMatchesBody": "Try clearing the search or the “Differences only” filter.",
+      "noMatchesTitle": "No features match your search",
+      "noMatchesBody": "Try adjusting your search or filters.",
+      "clearSearch": "Clear search",
+      "diffSummary": "Showing {shown} of {total} features with differing permissions",
       "caption": "Permissions by role and feature",
       "feature": "Feature",
       "permFor": "{feature} permission for {role}",
@@ -4447,10 +4466,18 @@
       "publications": "Publications",
       "learning_paths": "Learning Paths",
       "announcements": "Announcements",
+      "announcements_push": "Announcement Push",
       "contact": "Inbox",
       "users": "Users",
       "roles": "Roles",
       "settings": "System Settings"
+    },
+    "initials": {
+      "reader": "R",
+      "staff": "S",
+      "librarian": "L",
+      "admin": "A",
+      "super_admin": "SA"
     },
     "resourceDescriptions": {
       "books": "Upload, review, and manage digital books",
@@ -4460,6 +4487,7 @@
       "publications": "Institutional academic publications",
       "learning_paths": "Curated teacher learning journeys",
       "announcements": "Site-wide announcement banners",
+      "announcements_push": "Send announcement push notifications to subscribed devices",
       "contact": "Contact-form messages and replies",
       "users": "Accounts, team directory, and role assignment",
       "roles": "This permission matrix itself",
@@ -4490,6 +4518,11 @@
   "adminEbooks": {
     "title": "Manage E-books",
     "description": "Search, edit, publish, and maintain digital books in the PTEC Library.",
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "home": "Dashboard",
+      "current": "Manage E-books"
+    },
     "stats": {
       "total": "Total E-books",
       "archived": "{count} archived",
@@ -4500,14 +4533,20 @@
       "missingPdfs": "Missing PDFs",
       "brokenLinks": "{count} broken link(s)",
       "downloads": "Downloads",
+      "views": "{count, plural, one {# view} other {# views}}",
       "storage": "Storage Used",
-      "weakMetadata": "Weak Metadata"
+      "weakMetadata": "Weak Metadata",
+      "needsReview": "Needs review",
+      "brokenFiles": "Broken files",
+      "archivedLabel": "Archived",
+      "breakdown": "E-book breakdown"
     },
     "toolbar": {
       "searchLabel": "Search e-books",
       "searchPlaceholder": "Search e-books by title, author, department, keyword…",
       "clearSearch": "Clear search",
       "results": "{count, plural, one {# result} other {# results}}",
+      "showing": "Showing {count, plural, one {# e-book} other {# e-books}}",
       "upload": "Upload E-book"
     },
     "status": {
@@ -4617,6 +4656,7 @@
     },
     "table": {
       "caption": "E-books list",
+      "document": "Document",
       "selectAll": "Select all e-books",
       "cover": "Cover",
       "bookInfo": "Book Info",
@@ -4626,6 +4666,7 @@
       "fileHealth": "File Health",
       "metadata": "Metadata",
       "statsCol": "Stats",
+      "engagement": "Engagement",
       "statusCol": "Status",
       "updated": "Updated",
       "actionsCol": "Actions",
@@ -4635,6 +4676,9 @@
       "noYear": "No year",
       "view": "View",
       "edit": "Edit",
+      "editFor": "Edit {title}",
+      "views": "views",
+      "downloads": "downloads",
       "viewPublic": "View public page",
       "viewPublicFor": "View public page for {title}"
     },
