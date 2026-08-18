@@ -12,6 +12,7 @@ import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { compactHoursLabel } from "@/lib/library-hours";
+import { BRAND_NAME_KM_SHORT } from "@/lib/seo/site";
 
 // ── SVG Icons (outline style) ─────────────────────────────────────────────────
 const HomeIcon = (
@@ -152,7 +153,7 @@ export default async function Navbar() {
               <Seal size={48} />
             </div>
             <div className="max-[360px]:hidden flex min-w-0 flex-col whitespace-nowrap text-[#1000C0] transition-opacity group-hover:opacity-90 dark:text-brand">
-              <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">បណ្ណាល័យ វ.គ.ភ</span>
+              <span lang="km" className="font-khmer-serif font-bold text-[13px] sm:text-[15px] leading-tight truncate">{BRAND_NAME_KM_SHORT}</span>
               <span className="font-khmer-serif font-bold text-[11px] sm:text-sm tracking-wide mt-0.5 truncate">PTEC Library</span>
             </div>
           </Link>

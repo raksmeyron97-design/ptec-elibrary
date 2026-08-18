@@ -4,8 +4,36 @@ test.describe('PTEC Library Smoke Tests', () => {
   test('homepage has expected elements', async ({ page }) => {
     await page.goto('/');
 
-    // Check title contains 'PTEC'
-    await expect(page).toHaveTitle(/PTEC/);
+    // The homepage title deliberately does NOT contain the brand.
+    //
+    // Google's site-names feature renders the brand above the title on
+    // homepage results, sourced from the WebSite JSON-LD node — so the title
+    // spends all its characters on the mission line, and the "· PTEC Library"
+    // suffix every other route carries is escaped here with `title.absolute`.
+    // Asserting /PTEC/ on this title would lock in the thing that was removed.
+    //
+    // What must hold is that the brand is still declared, in the two places
+    // that feature actually reads.
+    await expect(page).toHaveTitle(/Digital Library/);
+    await expect(page).not.toHaveTitle(/· PTEC Library/);
+
+    const brand = await page.evaluate(() => {
+      const nodes = [...document.querySelectorAll('script[type="application/ld+json"]')]
+        .flatMap((s) => {
+          const parsed = JSON.parse(s.textContent ?? '{}');
+          return parsed['@graph'] ?? [parsed];
+        });
+      const site = nodes.find((n: { '@type': string }) => n['@type'] === 'WebSite');
+      return {
+        jsonLd: site?.name as string | undefined,
+        og: document
+          .querySelector('meta[property="og:site_name"]')
+          ?.getAttribute('content') ?? undefined,
+      };
+    });
+    // These two must be identical, or the site-names feature does not fire.
+    expect(brand.jsonLd).toBe('PTEC Library');
+    expect(brand.og).toBe(brand.jsonLd);
 
     // Should have a link to books/catalogue
     const browseLink = page.getByRole('link', { name: /Browse|Books/i }).first();

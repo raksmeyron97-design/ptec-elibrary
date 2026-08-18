@@ -155,10 +155,10 @@
     "new": "NEW"
   },
   "home": {
-    "seoTitle": "Free Digital Library for Teachers in Cambodia",
-    "seoDescription": "Read and download books, theses and research in Khmer and English — free, with no account needed. Run by Phnom Penh Teacher Education College.",
+    "seoTitle": "The Digital Library for the Next Generation of Teachers",
+    "seoDescription": "Free textbooks, theses and research in Khmer and English from Phnom Penh Teacher Education College. Read online or download — no account needed.",
     "tagline": "{institution}",
-    "headline": "A free public library for teaching and learning in Cambodia",
+    "headline": "បណ្ណាល័យឌីជីថល សម្រាប់គ្រូបង្រៀនជំនាន់ថ្មី",
     "description": "Textbooks, theses and teaching resources from Phnom Penh Teacher Education College — read them online or download them, in Khmer and English.",
     "browse": "Browse",
     "statResources": "Resources",
@@ -341,14 +341,15 @@
     "faqContactLink": "Ask the library",
     "ctaHeadingPublic": "Start reading — it's free",
     "ctaSignInBenefit": "Everything above works without an account. A free one adds saved books, reading progress, and alerts when new resources arrive.",
-    "ctaSignInLink": "Create a free account"
+    "ctaSignInLink": "Create a free account",
+    "seoOgTitle": "PTEC Library — The Digital Library for the Next Generation of Teachers"
   },
   "books": {
     "title": "Books",
     "h1": "Free Educational Books and Teaching Resources",
-    "seoTitle": "Free Educational Books & Teaching Resources",
-    "seoDescription": "Browse {count} free educational books and teaching resources — research methods, pedagogy, Khmer and English materials. Read online or download as PDF.",
-    "seoDescriptionEvergreen": "Browse free educational books and teaching resources — research methods, pedagogy, Khmer and English materials. Read online or download as PDF.",
+    "seoTitle": "Free E-Books & Teaching Materials in Cambodia",
+    "seoDescription": "Browse {count} free e-books and teaching materials in Khmer and English, from Cambodia's teacher-education library. Read online or download — no account needed.",
+    "seoDescriptionEvergreen": "Free e-books and teaching materials in Khmer and English, from Cambodia's teacher-education library. Read online or download — no account needed.",
     "pageLabel": "Page",
     "subtitle": "Textbooks, research papers and teaching materials, all in one place.",
     "noResults": "No resources found",
@@ -562,8 +563,8 @@
     },
     "emptyMatchQuery": "We couldn't find any books matching “{query}”.",
     "booksCountFiltered": "{count} of {total} catalog records",
-    "seoTitle": "Physical Library Catalogue",
-    "seoDescription": "Browse the physical books on the shelves at PTEC Library. Check availability, shelf location and borrowing status for each title."
+    "seoTitle": "Physical Library Catalogue, Phnom Penh",
+    "seoDescription": "Browse the physical books on the shelves at PTEC Library in Phnom Penh. Check availability, shelf location and borrowing status for each title."
   },
   "posts": {
     "eyebrow": "PTEC Library",
@@ -594,7 +595,7 @@
     "recentTitle": "Recent Posts",
     "contactTitle": "Contact",
     "nextPage": "Next",
-    "metaDescription": "News, announcements, and events from Phnom Penh Teacher Education College (PTEC) Library — updates for students, teacher trainees, lecturers, and the public.",
+    "metaDescription": "News, announcements and events from PTEC Library in Phnom Penh, Cambodia — updates for students, teacher trainees and lecturers.",
     "pageDescription": "Discover the latest announcements, events, academic updates, and library news from PTEC.",
     "pageLabel": "Page",
     "breadcrumbAria": "Breadcrumb",
@@ -792,9 +793,9 @@
     "statYears": "Years covered",
     "statDownloads": "Downloads",
     "growingNote": "This repository is growing — more academic works will be added soon.",
-    "seoTitle": "Academic Publications & Journal Articles",
-    "seoDescription": "Browse {count} academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
-    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
+    "seoTitle": "Academic Journals & Publications, Cambodia",
+    "seoDescription": "Browse {count} academic journal articles and publications from Cambodia's teacher-education library — free to read. Search by journal, year or keyword.",
+    "seoDescriptionEvergreen": "Academic journal articles and publications from Cambodia's teacher-education library — free to read. Search by journal, year or keyword.",
     "collectionName": "Academic Publications — PTEC Library",
     "collectionDescription": "Academic journal articles and scholarly publications in PTEC Library.",
     "pageLabel": "Page",
@@ -1549,9 +1550,9 @@
     "pdfUnavailable": "PDF not yet available",
     "growingTitle": "This repository is growing",
     "growingCta": "Submit your research",
-    "seoTitle": "Student Theses & Research Reports",
-    "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, and keyword.",
-    "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, advisor, and keyword.",
+    "seoTitle": "Free Student Theses & Research, Cambodia",
+    "seoDescription": "Browse {count} free student theses and research reports from Phnom Penh Teacher Education College, Cambodia. Search by program, cohort, year and author.",
+    "seoDescriptionEvergreen": "Free student theses and research reports from Phnom Penh Teacher Education College, Cambodia. Search by program, cohort, year and author.",
     "collectionName": "Student Theses — PTEC Library",
     "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
     "pageLabel": "Page",
@@ -2458,8 +2459,8 @@
     "eyebrow": "Teacher Learning Paths",
     "h1": "Learn with purpose, not just search",
     "intro": "Curated, ordered reading paths built from the library's own collection — designed around real PTEC teacher-training topics, from foundational pedagogy to classroom action research.",
-    "seoTitle": "Guided Learning Paths for Teachers",
-    "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around teacher-training topics.",
+    "seoTitle": "Free Guided Learning Paths for Teachers",
+    "seoDescription": "Free guided learning paths for teachers in Cambodia — ordered sequences of books, theses and resources built from the PTEC Library collection.",
     "collectionName": "Teacher Learning Paths — PTEC Library",
     "collectionDescription": "Curated, ordered learning paths built from PTEC Library's own collection.",
     "emptyTitle": "No learning paths published yet",
@@ -6256,6 +6257,9 @@
         "emailLabel": "Email",
         "hoursLabel": "Hours"
       }
-    }
+    },
+    "seoTitle": "About PTEC Library",
+    "seoTitleAbsolute": "About PTEC Library · Phnom Penh Teacher Education College",
+    "seoDescription": "The library of Phnom Penh Teacher Education College, Cambodia — free digital and physical collections for teaching, research and innovation."
   }
 }

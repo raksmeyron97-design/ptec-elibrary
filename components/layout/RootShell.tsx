@@ -24,7 +24,7 @@ import PTECBootScreen, {
 import UpdateAvailable from "@/components/pwa/UpdateAvailable";
 import { iosLaunchLinks } from "@/lib/pwa/launch";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
-import { SITE_URL } from "@/lib/seo/site";
+import { BRAND_ALTERNATE_NAMES, SITE_URL } from "@/lib/seo/site";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import type { SiteConfig } from "@/lib/system-settings/types";
 
@@ -98,9 +98,19 @@ function buildSiteGraph(cfg: SiteConfig) {
         parentOrganization: { "@id": `${SITE_URL}/#organization` },
       },
       {
+        // Google's site-names feature renders the brand ABOVE the title on
+        // homepage results, and it sources that from this node rather than
+        // from the <title>. It cross-checks `name` against og:site_name and
+        // will not fire if they disagree — which is why both read
+        // cfg.seo.siteName and neither is written by hand.
+        //
+        // `alternateName` is where the non-canonical forms go: the Khmer
+        // wordmark, and the retired "PTEC Digital Library" that years of
+        // existing links still use.
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         name: cfg.seo.siteName,
+        alternateName: [...BRAND_ALTERNATE_NAMES],
         url: SITE_URL,
         inLanguage: ["km", "en"],
         publisher: { "@id": `${SITE_URL}/#organization` },

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
@@ -9,16 +10,22 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "about" });
   const alternates = localeAlternates("/about", locale);
   return {
-    title: "អំពីបណ្ណាល័យ — PTEC e-Library",
-    description:
-      "The Library of Phnom Penh Teacher Education College — knowledge, research, and innovation for 21st-century teacher education.",
+    // Was the literal "អំពីបណ្ណាល័យ — PTEC e-Library", served to BOTH locales:
+    // a Khmer title on the English page, and a FIFTH spelling of the site name
+    // ("PTEC e-Library") on a site whose wordmark reads "PTEC Library".
+    //
+    // `absolute` because this page names the parent institution rather than the
+    // library, so it does not take the "· PTEC Library" suffix.
+    title: { absolute: t("seoTitleAbsolute") },
+    description: t("seoDescription"),
     alternates,
     openGraph: {
       ...(await openGraphBase(locale)),
-      title: "About — PTEC Library",
-      description: "Mission, vision, and values of the PTEC Library.",
+      title: t("seoTitle"),
+      description: t("seoDescription"),
       url: alternates.canonical,
       type: "website",
     },

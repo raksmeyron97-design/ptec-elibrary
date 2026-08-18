@@ -8,6 +8,32 @@ import { isIndexableEnvironment } from "@/lib/seo/indexing";
  */
 export const PRODUCTION_SITE_URL = "https://library.ptec.edu.kh";
 
+/**
+ * The Khmer short wordmark, exactly as the navbar prints it.
+ *
+ * The site's IDENTITY lives in published System Settings (`libraryName`,
+ * `seo.siteName`) and this is deliberately not a second copy of it: settings
+ * hold the long Khmer form ("បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ"), while
+ * this is the abbreviation that actually appears in the header lockup. It was
+ * a bare literal inside Navbar.tsx; it lives here so the wordmark and the
+ * JSON-LD `alternateName` cannot drift apart.
+ */
+export const BRAND_NAME_KM_SHORT = "បណ្ណាល័យ វ.គ.ភ";
+
+/**
+ * Other names this library is referred to by, for entity reconciliation.
+ *
+ * Google's site-names feature reads `WebSite.name` and cross-checks it against
+ * og:site_name; `alternateName` is where the forms that are NOT the canonical
+ * name belong. Two of them matter here:
+ *   • the Khmer wordmark, which is what Khmer readers and inbound Khmer links
+ *     call the site
+ *   • "PTEC Digital Library", the retired variant — years of existing links and
+ *     references use it, and listing it lets Google reconcile them with the
+ *     current name rather than treating them as a separate entity
+ */
+export const BRAND_ALTERNATE_NAMES = [BRAND_NAME_KM_SHORT, "PTEC Digital Library"] as const;
+
 function isLoopbackHost(hostname: string): boolean {
   return (
     hostname === "localhost" ||

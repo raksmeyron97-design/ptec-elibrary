@@ -93,7 +93,19 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "home" });
   return {
-    title: t("seoTitle"),
+    // `absolute` deliberately escapes cfg.seo.titleTemplate ("%s · PTEC
+    // Library"). Google's site-names feature already renders the brand ABOVE
+    // the title on homepage results, sourced from the WebSite node in
+    // RootShell — so appending it here would print it twice and spend
+    // characters the mission line needs.
+    //
+    // The division of labour, stated once: this TITLE carries the mission, for
+    // someone deciding whether to click a result they mostly reached by brand.
+    // The H1 carries ACCESS ("A free public library..."), for whoever arrives.
+    // The category-page titles carry discovery — /books outranks / for "free
+    // ebooks Cambodia" no matter what this says, because that is where the
+    // books are.
+    title: { absolute: t("seoTitle") },
     description: t("seoDescription"),
     alternates: localeAlternates("/", locale),
     // openGraphBase carries siteName, og:locale, the reciprocal
@@ -102,7 +114,9 @@ export async function generateMetadata({
     // is exactly how this page shipped with no og:site_name at all.
     openGraph: {
       ...(await openGraphBase(locale)),
-      title: t("seoTitle"),
+      // Share previews get the brand up front — there is no site-names
+      // feature on Facebook or Telegram to supply it.
+      title: t("seoOgTitle"),
       description: t("seoDescription"),
       type: "website",
     },

@@ -24,6 +24,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { getCollectionStats } from "@/lib/collection-stats";
 import { chooseCountLabel } from "@/lib/listing-count";
+import HeroTrustPoints from "@/components/ui/home/HeroTrustPoints";
 
 // The route renders per-request (it reads searchParams), but every Supabase
 // read is served from unstable_cache in lib/books-data.ts (tag: "books"),
@@ -96,6 +97,9 @@ export default async function BooksPage({
   params: Promise<{ locale: string }>;
 }) {
   const t = await getTranslations('books');
+  // The free / no-account / bilingual lines are the homepage's copy, reused
+  // verbatim rather than restated — one wording, one place to change it.
+  const tHome = await getTranslations('home');
   const params = await searchParams;
   const { locale } = await routeParams;
   const basePath = locale === "km" ? "/km/books" : "/books";
@@ -179,6 +183,16 @@ export default async function BooksPage({
             <div>
               <h1 className="font-khmer-serif text-2xl font-bold text-text-heading">{t('h1')}</h1>
               <p className="mt-0.5 text-sm text-text-muted">{t('subtitle')}</p>
+              {/* The homepage title now carries the mission, so generic
+                  discovery queries ("free ebooks Cambodia") land HERE rather
+                  than on the hero. Without these three lines a first-time
+                  visitor meets a grid that never tells them the library is free,
+                  needs no account, and is in their language. */}
+              <HeroTrustPoints
+                tone="light"
+                className="mt-3"
+                points={[tHome('trustFree'), tHome('trustNoAccount'), tHome('trustBilingual')]}
+              />
             </div>
             <div className="flex items-center gap-3">
               {/* Hidden on mobile — the MobileFilterSheet toolbar owns the
