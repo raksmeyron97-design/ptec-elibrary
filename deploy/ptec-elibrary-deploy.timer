@@ -1,0 +1,15 @@
+[Unit]
+Description=Check for a new PTEC e-Library image every 5 minutes
+Documentation=https://github.com/raksmeyron97-design/ptec-elibrary/blob/main/docs/ZIMAOS-DEPLOYMENT.md
+
+[Timer]
+# First check shortly after boot, then every 5 minutes.
+OnBootSec=2min
+OnUnitActiveSec=5min
+# Spread the load so every box does not hit GHCR on the same second.
+RandomizedDelaySec=30
+Persistent=true
+Unit=ptec-elibrary-deploy.service
+
+[Install]
+WantedBy=timers.target

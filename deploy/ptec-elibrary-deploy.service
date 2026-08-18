@@ -1,0 +1,19 @@
+[Unit]
+Description=PTEC e-Library — check GHCR and deploy a new image if there is one
+Documentation=https://github.com/raksmeyron97-design/ptec-elibrary/blob/main/docs/ZIMAOS-DEPLOYMENT.md
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment="DOCKER_CONFIG=/DATA/AppData/ptec-elibrary/.docker"
+ExecStart=/DATA/AppData/ptec-elibrary/app/deploy/deploy.sh
+# The script rolls back on its own and exits 1 to signal "a deploy failed".
+# Do not let systemd retry — the failed digest is recorded and skipped.
+SuccessExitStatus=0
+# Generous: a cold multi-hundred-MB Next.js image pull on a school connection
+# plus a 180s health wait must not be killed halfway through.
+TimeoutStartSec=900
+# Deploy output goes to the journal: journalctl -u ptec-elibrary-deploy
+StandardOutput=journal
+StandardError=journal

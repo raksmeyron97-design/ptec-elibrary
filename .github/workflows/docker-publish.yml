@@ -1,23 +1,57 @@
+# Build the production image and push it to GHCR.
+#
+# The ZimaOS box does NOT build. It polls GHCR every 5 minutes (systemd timer
+# → deploy/deploy.sh) and installs whatever this workflow published, rolling
+# back if the container fails its healthcheck. See docs/ZIMAOS-DEPLOYMENT.md.
+#
+# Mirrors raksmeyron97-design/storage → .github/workflows/release.yml. Keep the
+# two in step; a difference between them should be deliberate, not drift.
 name: Docker Publish
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Never cancel a publish mid-push: a half-uploaded manifest is worse than a
+# duplicated build, and the box may already be pulling.
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  ci:
+    # Never publish an image that has not passed the full test suite. Before
+    # this gate, docker-publish.yml ran on push:main independently of ci.yml,
+    # so a red build still shipped to the box.
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build-and-push-image:
+    name: Build and push to GHCR
+    needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Cross-building linux/arm64 for a Next.js app goes through QEMU and is
+      # slow. If the ZimaOS box is confirmed x86_64 forever, drop arm64 from
+      # `platforms:` below and delete this step.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -35,13 +69,63 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
-            type=sha
+            type=ref,event=branch
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
 
+      # A missing repository variable is silently an empty build arg, which
+      # reproduces exactly the bug this workflow was fixed for. Fail loudly.
+      - name: Verify the build args were actually set
+        if: ${{ vars.NEXT_PUBLIC_SUPABASE_URL == '' || vars.NEXT_PUBLIC_SITE_URL == '' }}
+        run: |
+          echo "::error::NEXT_PUBLIC_* repository variables are unset — the published"
+          echo "::error::image contains a broken client bundle. Set them with:"
+          echo "::error::  gh variable set NEXT_PUBLIC_SUPABASE_URL --body '<value>'"
+          exit 1
+
+      # NEXT_PUBLIC_* are inlined into the client bundle at build time, and
+      # lib/supabase/client.ts reads process.env.NEXT_PUBLIC_SUPABASE_URL! in
+      # browser code. Without these build args the published image shipped an
+      # undefined Supabase URL to every visitor — locally built images worked,
+      # which is why it went unnoticed. They are repository *variables*, not
+      # secrets: every one of them is already served to the browser.
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        id: build
+        uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_ROOT_DOMAIN=${{ vars.NEXT_PUBLIC_ROOT_DOMAIN }}
+            NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+            NEXT_PUBLIC_R2_PUBLIC_URL=${{ vars.NEXT_PUBLIC_R2_PUBLIC_URL }}
+            NEXT_PUBLIC_R2_COVERS_URL=${{ vars.NEXT_PUBLIC_R2_COVERS_URL }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo
+            echo "Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo
+            echo "Platforms: \`linux/amd64, linux/arm64\`"
+            echo
+            echo "The ZimaOS box picks this up on its next deploy-watch tick (<= 5 min)."
+          } >> "$GITHUB_STEP_SUMMARY"
