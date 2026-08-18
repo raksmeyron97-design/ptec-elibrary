@@ -15,7 +15,8 @@
     "optimize:hero": "node scripts/optimize-hero.mjs",
     "check:hero": "node scripts/optimize-hero.mjs --check",
     "prebuild": "node scripts/optimize-hero.mjs --check && node scripts/generate-pwa-assets.mjs --check",
-    "pwa:assets": "node scripts/generate-pwa-assets.mjs"
+    "pwa:assets": "node scripts/generate-pwa-assets.mjs",
+    "og:assets": "node scripts/generate-og-image.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",
