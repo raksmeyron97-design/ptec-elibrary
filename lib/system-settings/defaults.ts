@@ -65,7 +65,7 @@ export const DEFAULT_LINKS: LinksSettings = {
 // Mirrors app/root-metadata.ts. Khmer description is deliberately empty (no
 // approved Khmer copy existed at migration time); the mapper falls back to en.
 export const DEFAULT_SEO: SeoSettings = {
-  siteTitle: "PTEC Digital Teaching Library",
+  siteTitle: "PTEC Digital Library",
   titleTemplate: "%s · PTEC Library",
   // Product/site name used by JSON-LD, Open Graph and email branding.
   siteName: "PTEC Digital Library",

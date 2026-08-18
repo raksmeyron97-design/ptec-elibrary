@@ -147,7 +147,7 @@ values
     "mapEmbed": "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3908.772583842131!2d104.88470327464049!3d11.568153444093952!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x310951a618265c67%3A0x159b1d2bb350bbae!2sPhnom%20Penh%20Teacher%20Education%20College!5e0!3m2!1sen!2skh!4v1717904033000!5m2!1sen!2skh"
   }'::jsonb, 1),
   ('seo', '{
-    "siteTitle": "PTEC Digital Teaching Library",
+    "siteTitle": "PTEC Digital Library",
     "titleTemplate": "%s · PTEC Library",
     "siteName": "PTEC Digital Library",
     "siteDescription": {
