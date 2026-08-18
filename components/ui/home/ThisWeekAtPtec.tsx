@@ -121,9 +121,12 @@ export default async function ThisWeekAtPtec({
             >
               <div className="relative aspect-[16/10] w-full overflow-hidden sm:aspect-auto sm:w-[42%] lg:aspect-[16/9] lg:w-full">
                 {pick.coverUrl ? (
+                  // Decorative: the title is the <h3> two elements below, so
+                  // an alt repeating it makes the link announce the book twice.
                   <Image
                     src={pick.coverUrl}
-                    alt={`Cover of ${pick.title}`}
+                    alt=""
+                    aria-hidden
                     fill
                     sizes="(max-width:1024px) 100vw, 460px"
                     className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"

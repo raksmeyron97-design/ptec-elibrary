@@ -174,14 +174,18 @@ export default async function Footer() {
     { label: navT("posts"), href: "/posts" },
   ];
 
+  // Privacy and Policy are deliberately absent here: they are the legal bar at
+  // the bottom of this same footer, and listing them twice in one viewport was
+  // the only genuine link duplication in it. (The Explore/Help lists appearing
+  // twice in the markup is the responsive split below — `hidden md:block`
+  // columns vs `md:hidden` accordions — and only one of the two is ever in the
+  // accessibility tree or on screen.)
   const helpLinks: FooterLink[] = [
     { label: navT("about"), href: "/about" },
     ...ABOUT_NAV_ITEMS.map((item) => ({
       label: navT(item.labelKey),
       href: item.href,
     })),
-    { label: t("links.privacy"), href: "/privacy" },
-    { label: t("links.policy"), href: "/policy" },
   ];
 
   const legalLinks: FooterLink[] = [

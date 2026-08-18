@@ -1,8 +1,10 @@
 // components/ui/home/StartWithGoal.tsx
 // Task-first discovery: six teacher goals, each wired to a REAL destination.
-// When a published learning path matches the goal it links there; otherwise it
-// falls back to a curated, always-valid library route (search / listing filter)
-// — never a decorative dead end.
+//
+// The resolution rules — match on a path's NAME fields only, and let no two
+// goals claim the same path — live in lib/home/goals.ts, which is pure and
+// unit-tested. Two production mislinks came from matching librarian prose;
+// see that file's header for the full account. This component only renders.
 import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import {
@@ -17,41 +19,17 @@ import {
 } from "lucide-react";
 import type { LearningPathSummary } from "@/app/actions/learning-paths";
 import { splitDuration } from "@/lib/learning-paths/format";
+import { resolveGoals, type GoalKey } from "@/lib/home/goals";
 import GoalPathProgress from "./GoalPathProgress";
 
-type Goal = {
-  key: string; // i18n suffix: goal{Key} / goal{Key}Body
-  Icon: LucideIcon;
-  /** Lowercase keywords matched against published-path metadata. */
-  match: string[];
-  /** Curated route used when no learning path matches. */
-  fallback: string;
+const GOAL_ICONS: Record<GoalKey, LucideIcon> = {
+  Lesson: BookOpen,
+  Thesis: GraduationCap,
+  Research: FlaskConical,
+  Pisa: ClipboardCheck,
+  Teacher: Sprout,
+  Khmer: Languages,
 };
-
-const GOALS: Goal[] = [
-  { key: "Lesson", Icon: BookOpen, match: ["lesson", "teach", "pedagog", "classroom"], fallback: "/search?q=lesson%20planning" },
-  { key: "Thesis", Icon: GraduationCap, match: ["thesis", "dissertation", "research report"], fallback: "/theses" },
-  { key: "Research", Icon: FlaskConical, match: ["research method", "action research", "research skill"], fallback: "/search?q=research%20methods" },
-  { key: "Pisa", Icon: ClipboardCheck, match: ["pisa", "assessment"], fallback: "/search?q=PISA" },
-  { key: "Teacher", Icon: Sprout, match: ["professional", "development", "in-service", "continuing"], fallback: "/paths" },
-  { key: "Khmer", Icon: Languages, match: ["khmer"], fallback: "/books?language=Khmer" },
-];
-
-/**
- * Resolve a goal to its destination AND the path behind it (when there is one).
- * The matched path is what lets the card show real shape — modules, estimated
- * time, the learner's own progress — instead of a bare link. Goals that fall
- * back to a search/listing route have no path, and stay exactly as they were.
- */
-function resolveTarget(
-  goal: Goal,
-  paths: LearningPathSummary[],
-): { href: string; path: LearningPathSummary | null } {
-  const hay = (p: LearningPathSummary) =>
-    [p.title, p.title_km, p.audience, p.description].filter(Boolean).join(" ").toLowerCase();
-  const hit = paths.find((p) => goal.match.some((kw) => hay(p).includes(kw)));
-  return hit ? { href: `/paths/${hit.slug}`, path: hit } : { href: goal.fallback, path: null };
-}
 
 export default async function StartWithGoal({ paths }: { paths: LearningPathSummary[] }) {
   const [t, tPaths, locale] = await Promise.all([
@@ -71,6 +49,7 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
   };
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
+  const goals = resolveGoals(paths);
 
   return (
     <section className="border-b border-divider/60 bg-paper" aria-labelledby="goals-title">
@@ -102,11 +81,11 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
 
         {/* ── Goal cards ── */}
         <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {GOALS.map((goal) => {
-            const { href, path } = resolveTarget(goal, paths);
+          {goals.map(({ key, href, path }) => {
+            const Icon = GOAL_ICONS[key];
             const duration = path ? durationLabel(path.durationMinutes) : null;
             return (
-              <li key={goal.key}>
+              <li key={key}>
                 <Link
                   href={href}
                   className="group flex h-full min-h-[92px] items-start gap-4 rounded-2xl border border-divider bg-bg-surface p-4 transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_28px_-10px_rgba(11,21,53,0.22)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-5"
@@ -115,12 +94,12 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/8 text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast"
                     aria-hidden
                   >
-                    <goal.Icon className="h-[22px] w-[22px]" strokeWidth={1.9} />
+                    <Icon className="h-[22px] w-[22px]" strokeWidth={1.9} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       <span className="font-khmer-serif text-[15.5px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
-                        {t(`goal${goal.key}`)}
+                        {t(`goal${key}`)}
                       </span>
                       <ArrowRight
                         className="h-3.5 w-3.5 shrink-0 text-text-muted opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
@@ -128,7 +107,7 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
                       />
                     </span>
                     <span className="mt-1 block text-[13px] leading-relaxed text-text-muted">
-                      {t(`goal${goal.key}Body`)}
+                      {t(`goal${key}Body`)}
                     </span>
 
                     {/* Shape of the path behind the goal — server-rendered, so
