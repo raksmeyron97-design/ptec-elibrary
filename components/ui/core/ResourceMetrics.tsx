@@ -69,11 +69,16 @@ export default function ResourceMetrics({
 
   return (
     <div className={`flex items-center ${s.gap} ${s.text} text-text-muted ${className}`}>
-      {items.map(({ key, icon: MetricIcon, value, label }) => (
+      {items.map(({ key, icon: MetricIcon, value, label }, i) => (
         // title = pointer tooltip; sr-only span = the accessible text. An
         // aria-label on a bare <span> has no role to attach to and is dropped
         // by some screen readers, so the label is real hidden text instead.
+        //
+        // The sr-only comma is load-bearing: sighted users get the flex `gap`
+        // between metrics, but the accessibility tree sees only adjacent inline
+        // text and ran them together as "38 views4 downloads".
         <span key={key} className="inline-flex items-center gap-1 tabular-nums" title={label}>
+          {i > 0 && <span className="sr-only">, </span>}
           <MetricIcon className={`${s.icon} shrink-0`} aria-hidden="true" />
           <span aria-hidden="true">{compact(value)}</span>
           <span className="sr-only">{label}</span>
