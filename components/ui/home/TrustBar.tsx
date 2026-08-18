@@ -71,9 +71,16 @@ export default async function TrustBar() {
         {t("trustTitle")}
       </h2>
       <div className="mx-auto max-w-[1400px] px-4 py-7 sm:py-8 md:px-12">
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        {/* A plain list, not a <dl> — same call as PublicationMetricsRow.
+            A description list may only directly contain dt/dd (or a div
+            grouping exactly those), but each tile needs an icon plate beside a
+            number-and-label stack; that nesting made axe fire definition-list
+            AND dlitem (both serious) on the live homepage and cost the
+            Lighthouse a11y gate. The sr-only <dt> also duplicated the visible
+            label, so every figure was announced twice. */}
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {tiles.map(({ key, value, label, Icon, plate, animate }) => (
-            <div key={key} className="flex items-center gap-4">
+            <li key={key} className="flex items-center gap-4">
               <span
                 className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${plate}`}
                 aria-hidden
@@ -81,10 +88,7 @@ export default async function TrustBar() {
                 <Icon className="h-6 w-6" strokeWidth={1.9} />
               </span>
               <div className="min-w-0">
-                {/* dd before dt visually: the number leads, the label explains.
-                    DOM order stays dt→dd so the pairing is announced correctly. */}
-                <dt className="sr-only">{label}</dt>
-                <dd className="text-[28px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
+                <p className="text-[28px] font-bold leading-none tracking-tight text-text-heading sm:text-[32px]">
                   {/* Years are printed raw: formatCount() would group them
                       into "2,017". Only quantities get separators. */}
                   {animate ? (
@@ -92,12 +96,12 @@ export default async function TrustBar() {
                   ) : (
                     String(value)
                   )}
-                </dd>
+                </p>
                 <p className="mt-1.5 text-[13.5px] font-medium text-text-muted">{label}</p>
               </div>
-            </div>
+            </li>
           ))}
-        </dl>
+        </ul>
       </div>
     </section>
   );
