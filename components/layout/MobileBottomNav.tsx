@@ -1,6 +1,9 @@
 "use client";
 
 import { Link, usePathname } from "@/i18n/navigation";
+// Auth routes live OUTSIDE the locale scheme, so they need the plain router
+// Link — the locale-aware one above would emit /km/auth/login, which 404s.
+import NextLink from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import type { AppRole } from "@/lib/types/roles";
@@ -323,13 +326,13 @@ export default function MobileBottomNav() {
                   </button>
                 </form>
               ) : (
-                <Link
+                <NextLink
                   href="/auth/login"
                   onClick={closeSheet}
                   className="flex w-full items-center justify-center rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-brand-contrast hover:bg-brand-hover active:scale-[0.98] transition-all"
                 >
                   {t("login")}
-                </Link>
+                </NextLink>
               )}
             </div>
 

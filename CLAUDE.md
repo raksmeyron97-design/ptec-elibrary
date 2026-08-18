@@ -66,7 +66,7 @@ Database migrations are in `supabase/migrations/` and are applied to the hosted 
 
 ### Route Groups
 
-- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, authors, subjects, `paths` = learning paths, about, contact, policy, privacy, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). The homepage IS the locale root: `app/[locale]/(public)/(home)/page.tsx` serves `/` and `/km` (the pathless `(home)` group keeps home-specific loading/error boundaries); legacy `/home` (`/km/home`) 308-redirects to `/` (`/km`) in middleware.
+- `app/[locale]/(public)/` — public pages (home, books, catalogs, theses, publications, posts, authors, subjects, `paths` = learning paths, about, contact, policy, privacy, search, lists, dashboard, offline-books), locale-prefixed (English unprefixed, Khmer under `/km`; see Internationalisation below). The homepage IS the locale root: `app/[locale]/(public)/(home)/page.tsx` serves `/` and `/km` (the pathless `(home)` group keeps home-specific loading/error boundaries); legacy `/home` (`/km/home`) 308-redirects to `/` (`/km`) in middleware. The homepage is **eight sections, and no resource may appear twice on it** — every section takes its items through one exclusion set (`lib/home/exclusions.ts`) fed by one composed query layer (`lib/home/payload.ts`); sections are pure and take props, never fetch. It also has exactly one statistics surface (`HeroStatStrip`) and one card (`components/ui/home/ResourceCard.tsx`). Full picture, including what may not be added back: `docs/HOMEPAGE-IA.md`.
 - `app/(auth)/` — authentication flows (login, signup, forgot/reset password)
 - `app/(admin)/admin/` — admin panel: `login`, `mfa` (enroll/verify), and `(protected)/` which holds all admin sections
 
@@ -203,6 +203,9 @@ A dozen unit tests enforce architecture rules by scanning files. When one fails,
 | `lib/resource-stats-consistency.test.ts` | no page runs its own count query — all counts come from `getCollectionStats()` |
 | `lib/settings-consistency.test.ts` | `lib/ptec.ts` has exactly one importer; sync builders resolve `getOrgIdentity()` |
 | `lib/i18n-namespaces.test.ts` | every namespace in `messages/*.json` is in the right `pickMessages()` list |
+| `lib/i18n-parity.test.ts` | every key exists in **both** `en.json` and `km.json`, same shape, no Khmer message referencing a value English doesn't pass |
+| `lib/home/payload.test.ts` | zero duplicate resources across the whole composed homepage |
+| `lib/home/goals.test.ts` | homepage goal cards match on path NAME fields only, and no two claim the same path |
 | `lib/focus-system.test.ts` | focus rules stay in the layers they must (see Focus system above) |
 | `lib/status-tokens.test.ts` | callouts use `--ptec-{success,warning,danger,info}-*` rather than hand-written colour triplets |
 | `lib/sw-policy.test.ts` | offline fallback + `shouldPrecache()` decisions |

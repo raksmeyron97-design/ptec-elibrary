@@ -102,7 +102,7 @@ export default function LibraryNow({
   const statusKnown = status !== null || closure !== null;
 
   const linkClass =
-    "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
     <section className={surfaceClass} aria-labelledby="library-now-title">

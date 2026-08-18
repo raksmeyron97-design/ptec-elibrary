@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ReactNode } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -13,6 +13,19 @@ type Props = {
   prompts?: string[];
   askLabel: string;
   hint: string;
+  /**
+   * Rendered immediately under the command bar, above the hint line and the
+   * chips. It exists for the hero's trust points ("Free", "No account needed",
+   * "ខ្មែរ & English"), which have to sit DIRECTLY beneath the search box: placed
+   * after this component instead, the hint line, the two secondary links and up
+   * to five chips pushed them past the fold on a 360px phone — which is the
+   * viewport most of this library's readers actually use, and the one reader
+   * who most needs to be told the library is free.
+   *
+   * A slot rather than an internal concern: this component knows about search,
+   * not about what the page wants to promise.
+   */
+  belowInput?: ReactNode;
 };
 
 // ─── SparkleIcon (shared with other components) ───────────────────────────────
@@ -54,7 +67,7 @@ type ScopeId = (typeof SCOPES)[number]["id"];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function AskLibraryHero({ trending = [], prompts = [], askLabel, hint }: Props) {
+export default function AskLibraryHero({ trending = [], prompts = [], askLabel, hint, belowInput }: Props) {
   const router = useRouter();
   const t = useTranslations("home");
   const tSearch = useTranslations("search");
@@ -193,7 +206,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                 // bar on a 393px phone and pushed the placeholder out of it.
                 // Fixed width + ellipsis keeps the input usable; the full label
                 // is always visible once the menu is open.
-                className="h-10 w-[92px] cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-white/15 bg-white/5 py-0 pl-3 pr-7 text-[13px] font-semibold text-blue-50 outline-none transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 sm:w-[132px]"
+                className="h-11 w-[92px] cursor-pointer appearance-none overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-white/15 bg-white/5 py-0 pl-3 pr-7 text-[13px] font-semibold text-blue-50 outline-none transition-colors hover:border-cyan-400/50 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 sm:w-[132px]"
                 style={{
                   // Inline so the caret follows the control's own colour rather
                   // than needing a second background utility per theme.
@@ -259,7 +272,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
             {/* Search button */}
             <button
               type="submit"
-              className="relative z-10 ml-1 h-10 shrink-0 cursor-pointer rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 text-[14px] font-bold text-blue-950 transition-all hover:brightness-110 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+              className="relative z-10 ml-1 h-11 shrink-0 cursor-pointer rounded-xl bg-gradient-to-b from-gold-400 to-gold-500 px-5 text-[14px] font-bold text-blue-950 transition-all hover:brightness-110 active:translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
               style={{ boxShadow: "0 2px 0 rgba(0,0,0,0.25), 0 0 28px -6px rgba(245,158,11,0.75)" }}
             >
               {askLabel}
@@ -268,19 +281,25 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
         </div>
       </form>
 
+      {/* ── Trust points slot — see `belowInput` above ── */}
+      {belowInput}
+
       {/* ── Hint + secondary paths ── */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
         <p className="text-[12px] text-blue-300/70">{hint}</p>
         <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />
+        {/* min-h-[44px]: these are the smallest controls in the hero and the
+            most likely to be thumbed at by mistake. Growing the hit box, not
+            the type. */}
         <Link
           href="/search"
-          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+          className="inline-flex min-h-[44px] items-center text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
         >
           {t("searchAdvanced")}
         </Link>
         <Link
           href="/books"
-          className="text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
+          className="inline-flex min-h-[44px] items-center text-[12px] font-semibold text-blue-200/80 underline-offset-2 transition-colors hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40 rounded-sm"
         >
           {t("searchBrowseAll")}
         </Link>
@@ -300,7 +319,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                   type="button"
                   onClick={() => submit(term)}
                   aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
-                  className="inline-flex max-w-[240px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-cyan-400/50 hover:bg-white/10 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+                  className="inline-flex min-h-[44px] max-w-[240px] cursor-pointer items-center gap-1.5 truncate rounded-full border border-white/15 bg-white/5 px-4 py-1 text-[13px] text-blue-50 backdrop-blur-sm transition-colors hover:border-cyan-400/50 hover:bg-white/10 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
                 >
                   <svg className="h-3 w-3 shrink-0 text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M12 8v4l3 3M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8" />
@@ -312,7 +331,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
               <button
                 type="button"
                 onClick={clearRecent}
-                className="cursor-pointer text-[11px] font-semibold text-blue-300/80 underline-offset-2 hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40"
+                className="inline-flex min-h-[44px] cursor-pointer items-center text-[11px] font-semibold text-blue-300/80 underline-offset-2 hover:text-white hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-white/40"
               >
                 {t("clear")}
               </button>
@@ -341,7 +360,7 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
                     pushRecentSearch(term);
                   }}
                   aria-label={t("trendingPillLabel", { term, scope: tSearch(scopeLabelKey) })}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-3 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+                  className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/10 px-4 py-1 text-[13px] font-medium text-gold-100 backdrop-blur-sm transition-colors hover:border-gold-500/60 hover:bg-gold-500/20 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
                 >
                   <svg className="h-3 w-3 shrink-0 text-gold-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="m3 17 6-6 4 4 8-8" />

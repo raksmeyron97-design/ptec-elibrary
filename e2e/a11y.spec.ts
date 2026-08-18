@@ -32,13 +32,23 @@ async function expectNoViolations(page: import('@playwright/test').Page, name: s
 
 test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
   test('homepage', async ({ page }) => {
-    await page.goto('/home');
+    await page.goto('/');
+    // Scroll to the bottom first: the lower sections are inside .cv-auto
+    // (content-visibility: auto), and axe should scan them rendered rather
+    // than skipped.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForLoadState('networkidle').catch(() => {});
     await expectNoViolations(page, 'homepage');
   });
 
   test('search page', async ({ page }) => {
     await page.goto('/search?q=education');
-    await page.waitForLoadState('networkidle').catch(() => {});
+    // The results page keeps background requests going (click analytics, the
+    // popular-terms poll), so 'networkidle' never settles and used to eat the
+    // whole 30s test budget before axe even ran — a timeout reported as an
+    // accessibility failure. Wait for the thing actually being scanned instead.
+    await page.locator('main').waitFor({ state: 'visible' });
+    await page.waitForLoadState('domcontentloaded');
     await expectNoViolations(page, 'search');
   });
 
@@ -51,8 +61,13 @@ test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
     await page.goto('/books');
     const firstBook = page.locator('a[href^="/books/"]').first();
     if ((await firstBook.count()) === 0) test.skip(true, 'No books in this environment');
-    await firstBook.click();
-    await page.waitForLoadState('domcontentloaded');
+    // Hard navigation, not click(): a soft client-side nav resolves
+    // 'domcontentloaded' immediately — before the detail page is in the DOM and
+    // before its <title> is set — so axe scanned the previous page and reported
+    // document-title and phantom contrast failures. Same rule the PDF-reader
+    // test below already follows.
+    await page.goto(new URL((await firstBook.getAttribute('href')) ?? '', page.url()).href);
+    await page.locator('h1').first().waitFor({ state: 'visible' });
     await expectNoViolations(page, 'book-detail');
   });
 
@@ -60,8 +75,8 @@ test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
     await page.goto('/theses');
     const firstThesis = page.locator('a[href^="/theses/"]').first();
     if ((await firstThesis.count()) === 0) test.skip(true, 'No theses in this environment');
-    await firstThesis.click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto(new URL((await firstThesis.getAttribute('href')) ?? '', page.url()).href);
+    await page.locator('h1').first().waitFor({ state: 'visible' });
     await expectNoViolations(page, 'thesis-detail');
   });
 
@@ -85,7 +100,16 @@ test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
   });
 
   test('homepage — Khmer locale', async ({ page }) => {
-    await page.goto('/km/home');
+    // Not a translation of the English DOM — different fonts, different
+    // line-breaking, longer strings — so contrast and overflow can fail here
+    // and pass there.
+    await page.goto('/km');
+    // Scroll to the bottom and let layout settle before scanning: the lower
+    // sections are inside .cv-auto (content-visibility: auto) and are not laid
+    // out until near the viewport. Scanning them mid-render is what made this
+    // report phantom contrast failures under a loaded suite.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForLoadState('networkidle').catch(() => {});
     await expectNoViolations(page, 'homepage-km');
   });
 });
@@ -108,7 +132,12 @@ test.describe('Accessibility — dark theme', () => {
 
   test('search page (dark)', async ({ page }) => {
     await page.goto('/search?q=education');
-    await page.waitForLoadState('networkidle').catch(() => {});
+    // The results page keeps background requests going (click analytics, the
+    // popular-terms poll), so 'networkidle' never settles and used to eat the
+    // whole 30s test budget before axe even ran — a timeout reported as an
+    // accessibility failure. Wait for the thing actually being scanned instead.
+    await page.locator('main').waitFor({ state: 'visible' });
+    await page.waitForLoadState('domcontentloaded');
     await expectNoViolations(page, 'search-dark');
   });
 
@@ -116,8 +145,13 @@ test.describe('Accessibility — dark theme', () => {
     await page.goto('/books');
     const firstBook = page.locator('a[href^="/books/"]').first();
     if ((await firstBook.count()) === 0) test.skip(true, 'No books in this environment');
-    await firstBook.click();
-    await page.waitForLoadState('domcontentloaded');
+    // Hard navigation, not click(): a soft client-side nav resolves
+    // 'domcontentloaded' immediately — before the detail page is in the DOM and
+    // before its <title> is set — so axe scanned the previous page and reported
+    // document-title and phantom contrast failures. Same rule the PDF-reader
+    // test below already follows.
+    await page.goto(new URL((await firstBook.getAttribute('href')) ?? '', page.url()).href);
+    await page.locator('h1').first().waitFor({ state: 'visible' });
     await expectNoViolations(page, 'book-detail-dark');
   });
 });

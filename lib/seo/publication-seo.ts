@@ -121,7 +121,7 @@ export function publicationFallbackDescription(pub: PublicationSeoInput, locale:
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const journalPart = journal ? ` Published in ${journal}.` : "";
-  return `${title}${byline} — an academic article in the PTEC Digital Library.${journalPart} Read the abstract, references, and citation details.`;
+  return `${title}${byline} — an academic article in PTEC Library.${journalPart} Read the abstract, references, and citation details.`;
 }
 
 export function publicationMetaDescription(pub: PublicationSeoInput, locale: string): string {

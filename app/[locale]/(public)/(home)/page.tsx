@@ -66,6 +66,7 @@ import SignupCta from "@/components/ui/home/SignupCta";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { sectionSurface } from "@/components/ui/home/SectionHeader";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 
 export const revalidate = 60;
 
@@ -95,15 +96,15 @@ export async function generateMetadata({
     title: t("seoTitle"),
     description: t("seoDescription"),
     alternates: localeAlternates("/", locale),
+    // openGraphBase carries siteName, og:locale, the reciprocal
+    // og:locale:alternate and the default share image. Next does NOT deep-merge
+    // `openGraph` — declaring one here replaces the layout's entirely — which
+    // is exactly how this page shipped with no og:site_name at all.
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: t("seoTitle"),
       description: t("seoDescription"),
       type: "website",
-      // Reciprocal locale signals — the page exists in both, and og:locale
-      // alone would tell a share preview only about the one it fetched.
-      locale: locale === "km" ? "km_KH" : "en_US",
-      alternateLocale: locale === "km" ? "en_US" : "km_KH",
-      images: ["/og-default.png"],
     },
   };
 }
@@ -265,6 +266,14 @@ export default async function HomePage() {
                     locale === "km"
                       ? "clamp(30px, 4.4vw, 60px)"
                       : "clamp(32px, 4.6vw, 62px)",
+                  // Even the ragged last line. Khmer has no inter-word spaces,
+                  // so the browser breaks at ICU syllable boundaries wherever
+                  // they fall and the result is routinely lopsided; balancing
+                  // costs nothing and degrades to normal wrapping where
+                  // unsupported. (Where a break must NOT happen inside a word,
+                  // the Khmer copy carries U+2060 WORD JOINER — see
+                  // messages/km.json `headline`.)
+                  textWrap: "balance",
                 }}
               >
                 {t("headline")}
@@ -285,14 +294,16 @@ export default async function HomePage() {
                   prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
                   askLabel={t("searchButton")}
                   hint={t("askHint")}
+                  // Directly beneath the input, ABOVE the hint line and the
+                  // chips. Rendered after this component instead, those pushed
+                  // the three facts a stranger needs past the fold at 360px.
+                  belowInput={
+                    <HeroTrustPoints
+                      points={[t("trustFree"), t("trustNoAccount"), t("trustBilingual")]}
+                    />
+                  }
                 />
               </div>
-
-              {/* Trust points — directly under the search box, per the brief.
-                  Three non-numeric facts; the figures are the strip below. */}
-              <HeroTrustPoints
-                points={[t("trustFree"), t("trustNoAccount"), t("trustBilingual")]}
-              />
 
               {/* The page's only statistics surface. */}
               <HeroStatStrip

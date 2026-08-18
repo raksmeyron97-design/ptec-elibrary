@@ -17,7 +17,9 @@
 // is generated from the same translation strings so the schema always mirrors
 // the visible text (a Google structured-data requirement).
 import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import { ArrowRight } from "lucide-react";
+import { isLocaleScoped } from "@/lib/routing/locale-scope";
 import { getTranslations, getLocale } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 import SectionHeader, { SECTION_SHELL } from "./SectionHeader";
@@ -28,6 +30,28 @@ type FaqItem = {
   /** Optional deep link shown after the answer. */
   href?: string;
 };
+
+/**
+ * "Learn more", pointed at whichever route the answer needs.
+ *
+ * The component is chosen from the href, not hard-coded: `/auth/signup` is
+ * outside the locale scheme, and the locale-aware Link rendered it as
+ * `/km/auth/signup` — a 404 that only Khmer readers ever saw, because English
+ * is unprefixed. Deciding here means a future FAQ entry cannot reintroduce it.
+ */
+function FaqLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const className =
+    "mt-1 inline-flex min-h-[44px] items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm";
+  return isLocaleScoped(href) ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <NextLink href={href} className={className}>
+      {children}
+    </NextLink>
+  );
+}
 
 export default async function FaqSection({ surfaceClass }: { surfaceClass: string }) {
   const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
@@ -90,15 +114,12 @@ export default async function FaqSection({ surfaceClass }: { surfaceClass: strin
                   <div className="px-5 pb-4">
                     <p className="text-[13.5px] leading-relaxed text-text-body">{item.a}</p>
                     {item.href && (
-                      <Link
-                        href={item.href}
-                        className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-                      >
+                      <FaqLink href={item.href}>
                         {t("faqLearnMore")}
                         <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                           <path d="M5 12h14M13 6l6 6-6 6" />
                         </svg>
-                      </Link>
+                      </FaqLink>
                     )}
                   </div>
                 </details>

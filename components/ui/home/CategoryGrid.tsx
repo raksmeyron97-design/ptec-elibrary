@@ -120,9 +120,15 @@ export default async function CategoryGrid({
             const { Icon, plate } = themes[i];
             return (
               <li key={name}>
+                {/* No aria-label. It used to read "Browse {subject}
+                    resources", which OVERRODE the accessible name and dropped
+                    the visible item count from it — a WCAG 2.5.3 (Label in
+                    Name) failure that Lighthouse flags as
+                    label-content-name-mismatch. The link's own content already
+                    names it well ("Research, 69 items"), and the section
+                    heading supplies the "browse by subject" context. */}
                 <Link
                   href={`/books?dept=${encodeURIComponent(name)}`}
-                  aria-label={t("categoriesCardLabel", { subject: name })}
                   className="group flex min-h-[92px] items-center gap-4 rounded-xl border border-divider bg-bg-surface px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
                 >
                   <span

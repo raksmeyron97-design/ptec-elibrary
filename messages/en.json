@@ -146,7 +146,8 @@
     "switchToLight": "Switch to light theme",
     "language": "Language",
     "languageEnglish": "English",
-    "languageKhmer": "ខ្មែរ"
+    "languageKhmer": "ខ្មែរ",
+    "skipToContent": "Skip to content"
   },
   "bookCard": {
     "view": "View",
@@ -154,8 +155,8 @@
     "new": "NEW"
   },
   "home": {
-    "seoTitle": "Free Public Digital Library — Khmer & English | PTEC",
-    "seoDescription": "Read and download textbooks, theses and teaching resources for free, in Khmer and English. No account needed. From Phnom Penh Teacher Education College.",
+    "seoTitle": "Free Digital Library for Teachers in Cambodia",
+    "seoDescription": "Read and download books, theses and research in Khmer and English — free, with no account needed. Run by Phnom Penh Teacher Education College.",
     "tagline": "{institution}",
     "headline": "A free public library for teaching and learning in Cambodia",
     "description": "Textbooks, theses and teaching resources from Phnom Penh Teacher Education College — read them online or download them, in Khmer and English.",
@@ -268,7 +269,7 @@
     "faqTitle": "Frequently Asked Questions",
     "faqLearnMore": "Learn more",
     "faqQ1": "Is the library free to use?",
-    "faqA1": "Yes. The PTEC Digital Library is a free public library — reading and downloading digital resources costs nothing, and no payment is ever required.",
+    "faqA1": "Yes. PTEC Library is a free public library — reading and downloading digital resources costs nothing, and no payment is ever required.",
     "faqQ2": "Can I download books to read offline?",
     "faqA2": "Yes. Books with a PDF can be saved to your device and read without an internet connection. Your saved books are listed on the Offline books page.",
     "faqQ3": "Do I need an account?",
@@ -316,7 +317,6 @@
     "statDigitalResources": "Digital resources",
     "trendingPillLabel": "Search for {term} in {scope}",
     "newArrivalsAdded": "Added {date}",
-    "categoriesCardLabel": "Browse {subject} resources",
     "trustFree": "Free — no payment, ever",
     "trustNoAccount": "No account needed to read",
     "trustBilingual": "ខ្មែរ & English",
@@ -406,7 +406,7 @@
     "tags": "Topics",
     "physicalCopies": "Physical Copies",
     "aboutHeading": "What is this book about?",
-    "defaultSummary": "{title} is a public resource in the PTEC Digital Library collection.",
+    "defaultSummary": "{title} is a public resource in PTEC Library collection.",
     "openFullReader": "Open full-screen reader"
   },
   "physical": {
@@ -561,7 +561,9 @@
       "status": "Status"
     },
     "emptyMatchQuery": "We couldn't find any books matching “{query}”.",
-    "booksCountFiltered": "{count} of {total} catalog records"
+    "booksCountFiltered": "{count} of {total} catalog records",
+    "seoTitle": "Physical Library Catalogue",
+    "seoDescription": "Browse the physical books on the shelves at PTEC Library. Check availability, shelf location and borrowing status for each title."
   },
   "posts": {
     "eyebrow": "PTEC Library",
@@ -647,7 +649,8 @@
     "errorTitle": "Unable to load News & Events",
     "errorBody": "Something went wrong while loading this page. Please try again.",
     "errorRetry": "Try again",
-    "errorGoHome": "Go home"
+    "errorGoHome": "Go home",
+    "seoTitle": "Library News & Events"
   },
   "auth": {
     "digitalLearningHub": "Digital Learning Hub",
@@ -790,10 +793,10 @@
     "statDownloads": "Downloads",
     "growingNote": "This repository is growing — more academic works will be added soon.",
     "seoTitle": "Academic Publications & Journal Articles",
-    "seoDescription": "Browse {count} academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
-    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
-    "collectionName": "Academic Publications — PTEC Digital Library",
-    "collectionDescription": "Academic journal articles and scholarly publications in the PTEC Digital Library.",
+    "seoDescription": "Browse {count} academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
+    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
+    "collectionName": "Academic Publications — PTEC Library",
+    "collectionDescription": "Academic journal articles and scholarly publications in PTEC Library.",
     "pageLabel": "Page",
     "resultCountFiltered": "{count} of {total} publications"
   },
@@ -1549,7 +1552,7 @@
     "seoTitle": "Student Theses & Research Reports",
     "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, and keyword.",
     "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, advisor, and keyword.",
-    "collectionName": "Student Theses — PTEC Digital Library",
+    "collectionName": "Student Theses — PTEC Library",
     "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
     "pageLabel": "Page",
     "resultCountFiltered": "{count} of {total} theses",
@@ -2455,10 +2458,10 @@
     "eyebrow": "Teacher Learning Paths",
     "h1": "Learn with purpose, not just search",
     "intro": "Curated, ordered reading paths built from the library's own collection — designed around real PTEC teacher-training topics, from foundational pedagogy to classroom action research.",
-    "seoTitle": "Teacher Learning Paths",
+    "seoTitle": "Guided Learning Paths for Teachers",
     "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around teacher-training topics.",
-    "collectionName": "Teacher Learning Paths — PTEC Digital Library",
-    "collectionDescription": "Curated, ordered learning paths built from the PTEC Digital Library's own collection.",
+    "collectionName": "Teacher Learning Paths — PTEC Library",
+    "collectionDescription": "Curated, ordered learning paths built from PTEC Library's own collection.",
     "emptyTitle": "No learning paths published yet",
     "emptyHint": "Check back soon — librarians are curating these now.",
     "steps": "{count, plural, =1 {# step} other {# steps}}",

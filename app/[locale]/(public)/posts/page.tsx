@@ -69,12 +69,15 @@ export async function generateMetadata({
     org: await getOrgIdentity(),
     path: "/posts",
     locale,
-    title: t("title"),
+    // seoTitle, not title: the visible h1 is "News & Events" in the context of
+    // the site, but a search result needs the institution's noun in it —
+    // "Library News & Events".
+    title: t("seoTitle"),
     description: t("metaDescription"),
     page,
     hasFilters: filters,
     image: POSTS_FALLBACK_OG_IMAGE,
-    imageAlt: t("title"),
+    imageAlt: t("seoTitle"),
     pageLabel: t("pageLabel"),
     outOfRange,
   });

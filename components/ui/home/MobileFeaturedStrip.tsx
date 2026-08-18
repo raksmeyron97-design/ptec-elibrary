@@ -33,7 +33,7 @@ export default function MobileFeaturedStrip({ books }: Props) {
     <div className="mt-9 lg:hidden">
       <div className="mb-3 flex items-center justify-between">
         <span className={`text-[11px] font-bold text-gold-400 ${latinLabel}`}>{t("mobileFeatured")}</span>
-        <Link href="/books?sort=downloads" className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-100 hover:text-white">
+        <Link href="/books?sort=downloads" className="inline-flex min-h-[44px] items-center gap-1 text-[12px] font-semibold text-blue-100 hover:text-white">
           {t("mobileSeeAll")}
           <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14M13 6l6 6-6 6" />

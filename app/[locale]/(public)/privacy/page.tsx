@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
 import { PRIVACY_SECTIONS } from "@/lib/privacy/policy";
@@ -26,6 +27,7 @@ export async function generateMetadata({
     description: t("description"),
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: t("ogTitle"),
       description: t("ogDescription"),
       url: alternates.canonical,

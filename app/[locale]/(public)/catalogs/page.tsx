@@ -38,13 +38,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams;
   const { locale } = await routeParams;
+  const tSeo = await getTranslations({ locale, namespace: "catalogs" });
   return buildListingMetadata({
     org: await getOrgIdentity(),
     path: "/catalogs",
     locale,
-    title: "Books In Library",
-    description:
-      "Browse physical books available in the PTEC library. Check availability, shelf location, and borrow status for each title.",
+    // Was two hardcoded English strings, so the Khmer catalogue page carried
+    // an English <title> and description. Same shape as /books now.
+    title: tSeo("seoTitle"),
+    description: tSeo("seoDescription"),
     page: parsePageParam(params.page),
     hasFilters: !!(
       params.q ||

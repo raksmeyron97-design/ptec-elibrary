@@ -124,10 +124,23 @@ export default async function RootShell({
   // Passing `locale` explicitly keeps next-intl off `headers()` — see
   // i18n/request.ts. Root provider carries only what root-level client
   // components use; each root layout adds its own namespace set below it.
-  const [messages, siteConfig] = await Promise.all([
-    getMessages({ locale }).then((m) => pickMessages(m, ROOT_NAMESPACES)),
+  const [allMessages, siteConfig] = await Promise.all([
+    getMessages({ locale }),
     getSiteConfig(),
   ]);
+  const messages = pickMessages(allMessages, ROOT_NAMESPACES);
+
+  // The skip link's label, read straight off the full catalogue rather than
+  // through getTranslations(). It was hardcoded English, so a Khmer reader met
+  // an English string as the very first thing in the tab order on every page.
+  //
+  // Deliberately NOT a getTranslations("nav") call and NOT an addition to
+  // ROOT_NAMESPACES: this component is also the shell for /~offline, which is
+  // statically rendered outside the locale segment, and it must stay free of
+  // anything that could reach for a request-scoped locale. A direct read plus
+  // a literal fallback cannot.
+  const skipToContent =
+    (allMessages.nav as Record<string, string> | undefined)?.skipToContent ?? "Skip to content";
 
   return (
     <html
@@ -188,7 +201,7 @@ export default async function RootShell({
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-contrast"
           >
-            Skip to content
+            {skipToContent}
           </a>
           {children}
           {/* Dismisses <PTECBootScreen/>. Sits after {children} and outside any

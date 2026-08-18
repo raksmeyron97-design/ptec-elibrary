@@ -97,7 +97,7 @@ export function bookFallbackDescription(book: BookSeoInput, locale: string): str
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const subjectPart = subject && subject !== "General" ? ` ${subject}` : "";
   const languagePart = book.language ? ` (${clean(book.language)})` : "";
-  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Digital Library. Read online or download the PDF${languagePart}.`;
+  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in PTEC Library. Read online or download the PDF${languagePart}.`;
 }
 
 /** Meta description: the record's own description when present (enriched with

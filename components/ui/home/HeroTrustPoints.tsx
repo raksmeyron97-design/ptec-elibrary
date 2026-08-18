@@ -15,7 +15,7 @@ import { Check } from "lucide-react";
 
 export default function HeroTrustPoints({ points }: { points: readonly string[] }) {
   return (
-    <ul className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <ul data-testid="hero-trust-points" className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
       {points.map((point) => (
         <li key={point} className="flex items-center gap-2 text-[13px] font-semibold text-blue-50/90">
           <span

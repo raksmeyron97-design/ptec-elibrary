@@ -3,7 +3,9 @@
 // sequence is real information; copy names actual capabilities (offline PWA
 // reading, progress tracking) and frames the account as benefit, not gate.
 import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
+import { isLocaleScoped } from "@/lib/routing/locale-scope";
 
 const STEP_ICON_PATHS = {
   1: (
@@ -101,15 +103,24 @@ export default async function HowToUse() {
                 <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-body">
                   {step.body}
                 </p>
-                <Link
-                  href={step.href}
-                  className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-                >
-                  {step.link}
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </Link>
+                {/* Step 3 points at /auth/signup, which is outside the locale
+                    scheme — the locale-aware Link would emit /km/auth/signup
+                    and 404. Chosen from the href so a future step cannot
+                    reintroduce it. Same rule as the homepage FAQ. */}
+                {(() => {
+                  const StepLink = isLocaleScoped(step.href) ? Link : NextLink;
+                  return (
+                    <StepLink
+                      href={step.href}
+                      className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
+                    >
+                      {step.link}
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                      </svg>
+                    </StepLink>
+                  );
+                })()}
               </div>
             </li>
           ))}
