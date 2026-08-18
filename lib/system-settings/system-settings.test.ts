@@ -294,7 +294,7 @@ describe("diffPaths", () => {
 describe("legacy stored documents are hydrated to the current shape", () => {
   /** Verbatim `seo` document from the 0098 seed block. */
   const SEEDED_SEO_V1 = {
-    siteTitle: "PTEC Digital Teaching Library",
+    siteTitle: "PTEC Digital Library",
     titleTemplate: "%s · PTEC Library",
     siteName: "PTEC Digital Library",
     siteDescription: {
