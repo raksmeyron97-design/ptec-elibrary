@@ -91,10 +91,16 @@ export const getDepartmentCountsCached = unstable_cache(
       const name = (row.departments as unknown as { name: string } | null)?.name;
       if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
     }
+    // Cap is a LAYOUT bound, not an editorial one. It used to be 7, which
+    // silently dropped the library's 8th department and made the subject
+    // counts on the homepage sum to 111 against a collection of 112 books —
+    // an arithmetic gap a reader can see and nobody could explain. 12 fits the
+    // 3-column grid at four rows; past that the "All subjects" tile is the
+    // honest overflow, not a truncated list that still looks complete.
     return [...counts.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 7);
+      .slice(0, 12);
   },
   ["home-department-counts"],
   { revalidate: REVALIDATE, tags: ["home-books"] }
@@ -161,6 +167,7 @@ export type TrendingThesisRow = {
   title: string;
   author_names: string | null;
   cohort: string | null;
+  cover_url: string | null;
   view_count: number | null;
   download_count: number | null;
   score: number;
@@ -171,7 +178,7 @@ export const getTrendingThesesCached = unstable_cache(
     const db = createServiceClient();
     const { data, error } = await db
       .from("research_reports")
-      .select("id, slug, title, author_names, cohort, view_count, download_count")
+      .select("id, slug, title, author_names, cohort, cover_url, view_count, download_count")
       .eq("is_published", true)
       .order("view_count", { ascending: false, nullsFirst: false })
       .limit(30);
@@ -257,10 +264,18 @@ export const getFeaturedPublicationsCached = unstable_cache(
   { revalidate: REVALIDATE, tags: ["home-publications"] }
 );
 
-// ── Editor's-pick candidates (This Week) ───────────────────────────────────
-// Ranked by view_count so the pick differs from the hero stack (which ranks by
-// download_count). The consuming component excludes any slug already shown in
-// the hero, so the same title never appears twice above the fold.
+// ── Featured candidates ────────────────────────────────────────────────────
+// Ranked by view_count, a different signal from the hero stack's download
+// ranking. This is a CANDIDATE POOL, not a display list: lib/home/payload.ts
+// takes eight from it through the page-wide exclusion set, skipping anything
+// the hero already claimed.
+//
+// The limit is therefore sized for the worst overlap, not for the eight cards
+// shown. At 8 it was the same size as the grid, so on a collection where the
+// download and view rankings agree — which is what a small library looks like —
+// the hero could claim every candidate and the featured grid rendered six
+// cards into an eight-card layout. 24 leaves headroom that costs one query of
+// the same shape.
 export const getMostViewedBooksCached = unstable_cache(
   async (): Promise<Book[]> => {
     const db = createServiceClient();
@@ -269,7 +284,7 @@ export const getMostViewedBooksCached = unstable_cache(
       .select(BOOK_SELECT)
       .eq("is_published", true)
       .order("view_count", { ascending: false, nullsFirst: false })
-      .limit(8);
+      .limit(24);
     if (error) {
       console.error("[home-data] most viewed:", error.message);
       return [];
@@ -290,6 +305,36 @@ export type LatestPostRow = {
   published_at: string | null;
   created_at: string | null;
 };
+
+/**
+ * The newest published posts, for the homepage news column.
+ *
+ * Separate from getLatestPostCached (which returns exactly one and is kept for
+ * callers that want just the lead item) so the two share a shape but not a
+ * cache entry — a column of three and a single card have different revalidation
+ * costs and different consumers.
+ */
+export const getLatestPostsCached = unstable_cache(
+  async (limit = 3): Promise<LatestPostRow[]> => {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("posts")
+      .select("id, title, slug, excerpt, category, published_at, created_at")
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) {
+      // posts table/status column may be absent on older deployments — hide
+      // the news column rather than break the homepage.
+      console.error("[home-data] latest posts:", error.message);
+      return [];
+    }
+    return (data ?? []) as LatestPostRow[];
+  },
+  ["home-latest-posts"],
+  { revalidate: REVALIDATE, tags: ["home-posts"] }
+);
 
 export const getLatestPostCached = unstable_cache(
   async (): Promise<LatestPostRow | null> => {
@@ -385,7 +430,12 @@ export const getRecentAdditions = unstable_cache(
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit),
-      db.from("publications")
+      // publications_with_stats, NOT the base table: `author_names` is a view
+      // column (it aggregates publication_authors). Selecting it from
+      // `publications` fails with "column publications.author_names does not
+      // exist" on every render, which silently dropped publications from the
+      // recent-additions strip entirely — visible only in the build log.
+      db.from("publications_with_stats")
         .select("id, title, slug, author_names, created_at")
         .eq("is_published", true)
         .order("created_at", { ascending: false })

@@ -189,17 +189,48 @@ describe("display defects stay fixed", () => {
     // `<span aria-hidden>110+</span><span className="sr-only">115</span>` has
     // no separator in the DOM's text content — copy/paste, search snippets and
     // any CSS-less render concatenated it to "110+115".
-    const src = read("components/ui/home/SignupCta.tsx");
-    expect(src).not.toContain("formatApproximateCount");
-    expect(src).not.toMatch(/aria-hidden>\{value\}<\/span>\s*<span className="sr-only">/);
+    for (const file of [
+      "components/ui/home/SignupCta.tsx",
+      "components/ui/home/HeroStatStrip.tsx",
+    ]) {
+      const src = read(file);
+      expect(src, file).not.toContain("formatApproximateCount");
+      expect(src, file).not.toMatch(/aria-hidden>\{value\}<\/span>\s*<span className="sr-only">/);
+    }
   });
 
-  it("the homepage states the resource count under exactly one label", () => {
+  it("the homepage has exactly ONE component that renders resource counts", () => {
+    // The page used to carry two statistics blocks six sections apart — a
+    // "PTEC Library at a glance" band and a "PTEC Library in numbers" list
+    // inside the closing CTA — which labelled the same figures differently and
+    // led with counts of one ("1 theses", "1 publications"). They are now a
+    // single strip in the hero.
+    //
+    // The check is on the LABEL, not on the fetch: the counts all come from one
+    // service already (asserted above), and what a reader actually experiences
+    // as "the site disagrees with itself" is the same figure appearing twice
+    // under two different words.
+    // The label is resolved in the page and handed to <HeroStatStrip> as a
+    // prop, so the single call site is the route itself.
+    expect(grepSource('t\\("statDigitalResources"\\)')).toEqual([
+      "app/[locale]/(public)/(home)/page.tsx",
+    ]);
+    // ...and exactly one place mounts the component that renders it. (Other
+    // files name it in prose, explaining why they no longer carry figures —
+    // hence matching the import rather than the word.)
+    expect(grepSource('import HeroStatStrip from').filter((f) => f !== SELF)).toEqual([
+      "app/[locale]/(public)/(home)/page.tsx",
+    ]);
+  });
+
+  it("the closing CTA states no figure at all", () => {
     const src = read("components/ui/home/SignupCta.tsx");
-    // "N educational resources" in prose PLUS "N Digital resources" in the
-    // stat strip read as two different, disagreeing metrics.
+    // "N educational resources" in prose PLUS "N Digital resources" in a stat
+    // list read as two different, disagreeing metrics — so the CTA now makes
+    // no numeric claim, and the strip in the hero makes exactly one.
     expect(src).not.toContain('t("ctaBody"');
-    expect(src).toContain('t("statDigitalResources")');
+    expect(src).not.toContain("getCollectionStats");
+    expect(src).not.toContain("formatCount");
   });
 
   it("the retired count-bearing message keys are gone from both locales", () => {

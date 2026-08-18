@@ -14,12 +14,14 @@ import {
   ClipboardCheck,
   Sprout,
   Languages,
+  Compass,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
 import type { LearningPathSummary } from "@/app/actions/learning-paths";
 import { splitDuration } from "@/lib/learning-paths/format";
 import { resolveGoals, type GoalKey } from "@/lib/home/goals";
+import SectionHeader, { SECTION_SHELL } from "./SectionHeader";
 import GoalPathProgress from "./GoalPathProgress";
 
 const GOAL_ICONS: Record<GoalKey, LucideIcon> = {
@@ -31,7 +33,13 @@ const GOAL_ICONS: Record<GoalKey, LucideIcon> = {
   Khmer: Languages,
 };
 
-export default async function StartWithGoal({ paths }: { paths: LearningPathSummary[] }) {
+export default async function StartWithGoal({
+  paths,
+  surfaceClass,
+}: {
+  paths: LearningPathSummary[];
+  surfaceClass: string;
+}) {
   const [t, tPaths, locale] = await Promise.all([
     getTranslations("home"),
     getTranslations("paths"),
@@ -48,36 +56,27 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
     return tPaths("durationM", { m: mins });
   };
 
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
   const goals = resolveGoals(paths);
 
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="goals-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-2xl">
-            <div className="mb-2 flex items-center gap-3">
-              <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-brand to-accent" aria-hidden />
-              <span className={`text-[11px] font-bold text-brand ${latinEyebrow}`}>{t("goalsEyebrow")}</span>
-            </div>
-            <h2
-              id="goals-title"
-              className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-              style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
+    <section className={surfaceClass} aria-labelledby="goals-title">
+      <div className={SECTION_SHELL}>
+        <SectionHeader
+          id="goals-title"
+          eyebrow={t("goalsEyebrow")}
+          title={t("goalsTitle")}
+          body={t("goalsBody")}
+          locale={locale}
+          action={
+            <Link
+              href="/paths"
+              className="group hidden shrink-0 items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.06] px-4 py-2 text-[13px] font-semibold text-brand transition-all hover:border-brand hover:bg-brand hover:text-brand-contrast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:inline-flex"
             >
-              {t("goalsTitle")}
-            </h2>
-            <p className="mt-2 text-[14.5px] leading-relaxed text-text-muted">{t("goalsBody")}</p>
-          </div>
-          <Link
-            href="/paths"
-            className="group hidden shrink-0 items-center gap-1.5 rounded-full border border-brand/30 bg-brand/[0.06] px-4 py-2 text-[13px] font-semibold text-brand transition-all hover:border-brand hover:bg-brand hover:text-brand-contrast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:inline-flex"
-          >
-            {t("goalsAllPaths")}
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-          </Link>
-        </div>
+              {t("goalsAllPaths")}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden />
+            </Link>
+          }
+        />
 
         {/* ── Goal cards ── */}
         <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -132,11 +131,44 @@ export default async function StartWithGoal({ paths }: { paths: LearningPathSumm
               </li>
             );
           })}
+
+          {/* Seventh tile, deliberately not a goal. Every card above assumes
+              the reader already knows what they came for; a member of the
+              public who has never heard of PTEC does not, and the goal grid
+              gave them nothing to click. Styled as an invitation rather than a
+              peer so it does not compete with the six real tasks. */}
+          <li>
+            <Link
+              href="/books"
+              className="group flex h-full min-h-[92px] items-start gap-4 rounded-2xl border border-dashed border-brand/35 bg-brand/[0.04] p-4 transition-all hover:-translate-y-0.5 hover:border-brand hover:bg-brand/[0.08] motion-reduce:transition-none motion-reduce:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-5"
+            >
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand transition-colors group-hover:bg-brand group-hover:text-brand-contrast"
+                aria-hidden
+              >
+                <Compass className="h-[22px] w-[22px]" strokeWidth={1.9} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  <span className="font-khmer-serif text-[15.5px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+                    {t("goalBrowsing")}
+                  </span>
+                  <ArrowRight
+                    className="h-3.5 w-3.5 shrink-0 text-text-muted opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none"
+                    aria-hidden
+                  />
+                </span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-text-muted">
+                  {t("goalBrowsingBody")}
+                </span>
+              </span>
+            </Link>
+          </li>
         </ul>
 
         {/* Mobile all-paths link */}
         <div className="mt-6 sm:hidden">
-          <Link href="/paths" className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-brand">
+          <Link href="/paths" className="inline-flex min-h-[44px] items-center gap-1.5 text-[14px] font-semibold text-brand">
             {t("goalsAllPaths")}
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>

@@ -1,48 +1,33 @@
 // components/ui/home/SignupCta.tsx
-// Bottom-of-homepage signup banner.
+// Section 8 — the page's one closing call to action.
 //
-// It is shown to logged-out visitors only, but that is a *presentation* rule,
-// not a data-access one: everything in it is public marketing copy plus public
-// stats. It used to enforce the rule with a server-side supabase.auth.getUser()
-// — a cookie read that, even behind Suspense, made the whole homepage dynamic.
-// The banner is now always rendered (so it is in the prerendered HTML and
-// visible to crawlers) and hidden after hydration for signed-in users by
-// <SignedOutOnly>.
+// It is no longer a signup banner. Three conversion moments competed on this
+// page (the hero CTAs, a mid-page "sign in free" strip, and this one), and this
+// one was a sign-in wall on a library that needs no account to read. The
+// primary action is now BROWSE; signing in is offered underneath as an optional
+// benefit, and only to visitors who are not already signed in.
+//
+// It also no longer carries statistics. The list it used to show ("114 digital
+// resources / 112 e-books / 1 theses / 1 publications") was the page's second
+// stats block, six sections away from the first, labelling the same figures
+// differently and leading with counts of one. There is now exactly one
+// statistics surface on the homepage: <HeroStatStrip>.
+//
+// The banner is always rendered on the server (so it is in the prerendered HTML
+// and visible to crawlers); only the sign-in offer is hidden after hydration,
+// via <SignedOutOnly>, which costs no cookie read and keeps this page static.
 import { Link } from "@/i18n/navigation";
-import { getCollectionStats, formatCount } from "@/lib/collection-stats";
+import NextLink from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
+import SignedOutOnly from "./SignedOutOnly";
 
-export default async function SignupCta() {
-  const [t, locale, stats] = await Promise.all([
-    getTranslations("home"),
-    getLocale(),
-    getCollectionStats(),
-  ]);
+export default async function SignupCta({ surfaceClass = "" }: { surfaceClass?: string }) {
+  const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
 
   const latinEyebrow = locale === "en" ? "uppercase tracking-[0.22em]" : "tracking-normal";
 
-  // Every figure below is the shared counting rule (lib/collection-stats.ts),
-  // never a hardcoded claim. When stats can't be loaded the whole statistics
-  // block is omitted rather than rendering a stale, zero or invented total.
-  //
-  // EXACT numbers, not "110+". The rounded form used to be shown to sighted
-  // users with the exact figure beside it in an .sr-only span, which is what
-  // produced "110+115 Digital resources" wherever text content was read
-  // instead of pixels. One number, one label, one element.
-  const figures =
-    stats === null
-      ? null
-      : ([
-          // Total first, then the categories that sum to it — so the
-          // arithmetic is visible and checkable on the page itself.
-          { key: "total", value: stats.totalDigitalResources, label: t("statDigitalResources"), href: "/books" },
-          { key: "books", value: stats.books, label: t("statEbooks"), href: "/books" },
-          { key: "theses", value: stats.theses, label: t("statTheses"), href: "/theses" },
-          { key: "publications", value: stats.publications, label: t("statPublications"), href: "/publications" },
-        ] as const);
-
   return (
-    <section className="hero-ink relative overflow-hidden">
+    <section className={`hero-ink relative overflow-hidden ${surfaceClass}`} aria-labelledby="closing-cta-title">
       {/* Aurora animated gradient */}
       <div className="aurora absolute inset-0" aria-hidden />
 
@@ -97,6 +82,7 @@ export default async function SignupCta() {
 
         {/* Heading */}
         <h2
+          id="closing-cta-title"
           className={`mx-auto max-w-3xl font-bold text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.55)] ${
             locale === "km"
               ? "font-khmer-serif leading-[1.4] tracking-normal"
@@ -104,13 +90,13 @@ export default async function SignupCta() {
           }`}
           style={{ fontSize: "clamp(26px, 3.6vw, 48px)" }}
         >
-          {t("ctaHeading")}
+          {t("ctaHeadingPublic")}
         </h2>
 
-        {/* Subtitle — deliberately makes NO numeric claim. The count belongs
-            to the statistics list below, which labels it; repeating it here
-            under a second wording ("educational resources") was half of the
-            homepage's apparent inconsistency. */}
+        {/* Subtitle — deliberately makes NO numeric claim. The one figure the
+            page states lives in the hero stat strip, labelled; restating it
+            here under a second wording ("educational resources") was half of
+            the homepage's apparent inconsistency. */}
         <p className="mx-auto mt-5 max-w-xl text-[15px] leading-[1.75] text-blue-100/75 sm:text-[16px]">
           {t("ctaBodyNoCount")}
         </p>
@@ -148,48 +134,29 @@ export default async function SignupCta() {
           </Link>
         </div>
 
-        {/* ── Library statistics ──
-            Every figure comes from the shared collection-stats service. The
-            categories below the total are exactly the ones that sum to it, so
-            "digital resources" is verifiable rather than asserted. Rendered
-            as a description list: each number is the <dd> for its own <dt>,
-            which is what stops a screen reader (or a copy/paste) from running
-            two figures together. */}
-        {figures !== null && (
-          <section aria-labelledby="home-library-statistics" className="mt-10">
-            <h3 id="home-library-statistics" className="sr-only">
-              {t("statsHeading")}
-            </h3>
-            <dl className="mx-auto flex max-w-3xl flex-wrap items-start justify-center gap-x-10 gap-y-6">
-              {figures.map(({ key, value, label, href }) => (
-                // data-stat names the metric so tests (and anyone reading the
-                // DOM) can tell which figure is which without matching on
-                // translated label text.
-                <div key={key} data-stat={key} className="min-w-[92px]">
-                  <dd className="text-[26px] font-bold leading-none tabular-nums text-white">
-                    {formatCount(value, locale)}
-                  </dd>
-                  <dt className="mt-1.5 text-[12px] text-blue-200/60">
-                    <Link
-                      href={href}
-                      className="rounded transition-colors hover:text-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
-                    >
-                      {label}
-                    </Link>
-                  </dt>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
+        {/* The only place signing in is mentioned on this page, and it is
+            framed as an addition rather than a gate: everything above works
+            without an account. Hidden after hydration for users who already
+            have one — a display rule, not access control. */}
+        <SignedOutOnly>
+          <div className="mt-10 border-t border-white/12 pt-7">
+            <p className="mx-auto max-w-xl text-[13.5px] leading-relaxed text-blue-100/70">
+              {t("ctaSignInBenefit")}
+            </p>
+            {/* Auth routes are outside the locale scheme, so this is a plain
+                next/link — the localized one would prefix it with /km. */}
+            <NextLink
+              href="/auth/signup"
+              className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-xl px-4 text-[13.5px] font-bold text-gold-300 underline-offset-4 transition-colors hover:text-gold-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+            >
+              {t("ctaSignInLink")}
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </NextLink>
+          </div>
+        </SignedOutOnly>
 
-        {/* Non-numeric proof points — kept separate from the statistics list
-            so no label/number pairing can be misread across the two. */}
-        <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] text-blue-200/50">
-          <span>{t("ctaStatOpenAccess")}</span>
-          <span aria-hidden>·</span>
-          <span>{t("ctaStatBilingual")}</span>
-        </p>
       </div>
 
       {/* Bottom gold hairline */}

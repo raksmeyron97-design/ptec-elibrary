@@ -20,7 +20,12 @@ const SPEC = ["Mo-Fr 07:00-17:00", "Sa 08:00-16:00"];
 function renderLibraryNow() {
   return render(
     <NextIntlClientProvider locale="en" messages={enMessages}>
-      <LibraryNow openingHoursSpec={SPEC} mapPlaceUrl="https://maps.example/ptec" />
+      <LibraryNow
+        openingHoursSpec={SPEC}
+        mapPlaceUrl="https://maps.example/ptec"
+        physicalCatalogs={7}
+        surfaceClass="border-b border-divider/60 bg-paper"
+      />
     </NextIntlClientProvider>,
   );
 }

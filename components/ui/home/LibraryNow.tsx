@@ -26,11 +26,20 @@ export default function LibraryNow({
   openingHoursSpec,
   closures = [],
   mapPlaceUrl,
+  physicalCatalogs,
+  surfaceClass,
 }: {
   /** schema.org opening-hours spec from the published settings. */
   openingHoursSpec: string[];
   closures?: HoursClosure[];
   mapPlaceUrl: string;
+  /** Active physical catalogue records, from getCollectionStats() via the home
+   *  payload. This is where that figure belongs: it used to sit in the hero's
+   *  stats band, where a reader could see it but do nothing about it. Here it
+   *  is one line above the button that opens the catalogue. Null/0 hides the
+   *  line rather than printing "0 books on our shelves". */
+  physicalCatalogs?: number;
+  surfaceClass: string;
 }) {
   const t = useTranslations("home");
   const locale = useLocale();
@@ -96,7 +105,7 @@ export default function LibraryNow({
     "inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold text-brand transition-colors hover:bg-brand/8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="library-now-title">
+    <section className={surfaceClass} aria-labelledby="library-now-title">
       <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
         {/* ── Header ── */}
         <div className="mb-8 max-w-2xl">
@@ -166,6 +175,11 @@ export default function LibraryNow({
               )}
             </div>
             <h3 className="mt-4 font-khmer-serif text-[18px] font-bold text-text-heading">{t("libraryNowPhysical")}</h3>
+            {physicalCatalogs != null && physicalCatalogs > 0 && (
+              <p className="mt-1.5 text-[13.5px] text-text-muted">
+                {t("libraryNowShelfCount", { count: physicalCatalogs })}
+              </p>
+            )}
 
             <dl className="mt-3 space-y-1.5 text-[13.5px]">
               <div className="flex items-center gap-2">

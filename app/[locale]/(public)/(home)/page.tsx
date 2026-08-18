@@ -2,34 +2,70 @@
 // root (/ and /km). The (home) route group exists so the homepage keeps its
 // own loading/error boundaries without leaking them to sibling routes.
 // Legacy /home URLs 308-redirect here in middleware.ts.
-import { Suspense } from "react";
+//
+// ── Eight sections, in this order, and why ───────────────────────────────────
+//
+//   1. Hero          headline + scoped search + trust points + stat strip
+//   2. Start with your goal
+//   3. Featured from the collection
+//   4. Browse by subject
+//   5. Read online, or visit us
+//   6. News & new arrivals
+//   7. FAQ
+//   8. Closing CTA
+//
+// This replaced eleven bands that between them showed the same 114-item
+// collection five times over: /books/pisa-d appeared four times on one page,
+// two stats blocks six sections apart labelled the same figures differently,
+// and a tabbed "Browse the Collection" grid sat directly above a "Browse by
+// Subject" grid offering the same taxonomy.
+//
+// Nothing was dropped in the merge. The retired bands' capabilities went:
+//   • "PTEC Library at a glance" + "PTEC Library in numbers" → <HeroStatStrip>,
+//     now the page's only statistics surface (physical copies moved to §5,
+//     where a reader can act on them).
+//   • "Popular with PTEC students" + "Featured" + "Browse the Collection"'s
+//     Trending tab + "New and noteworthy"'s editor's pick → §3.
+//   • "Browse the Collection"'s Recently Added tab + "Just added" → §6.
+//   • "Browse the Collection"'s per-department tabs → §4's subject tiles, which
+//     land on the same /books?dept= filters.
+//   • "Trending Research" → §3, where the thesis holds a reserved slot. That
+//     section rendered nothing in production anyway: it hides below three
+//     theses and the library has one.
+//   • The mid-page "sign in free" strip → §8's optional sign-in offer.
+//
+// ── Two rules this file must keep ───────────────────────────────────────────
+//
+// NOTHING in this route may read cookies() or headers(). Suspense does not buy
+// an exemption: without PPR, one cookie read anywhere in the tree makes the
+// whole route render per request — which is exactly what the old
+// <SignupCta>/<ForYouShelf> auth checks did. Per-user behaviour lives in client
+// islands fed by <SessionProvider>, and this page prerenders.
+//
+// No section fetches for itself. All data comes from getHomePayload(), which
+// composes it through one exclusion set so no resource can appear twice.
 import type { Metadata } from "next";
 import { preload } from "react-dom";
-import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
-import { getPublishedPaths } from "@/app/actions/learning-paths";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, getLocale } from "next-intl/server";
+import { getHomePayload } from "@/lib/home/payload";
 // ── Feature components ───────────────────────────────────────────────────────
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
+import HeroTrustPoints from "@/components/ui/home/HeroTrustPoints";
+import HeroStatStrip from "@/components/ui/home/HeroStatStrip";
 import StartWithGoal from "@/components/ui/home/StartWithGoal";
-import TrustBar from "@/components/ui/home/TrustBar";
-import NewArrivals from "@/components/ui/home/NewArrivals";
-import ForYouShelf from "@/components/ui/home/ForYouShelf";
-import ThisWeekAtPtec from "@/components/ui/home/ThisWeekAtPtec";
-import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
-import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
+import FeaturedCollection from "@/components/ui/home/FeaturedCollection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
-import TrendingResearch from "@/components/ui/home/TrendingResearch";
+import NewsAndArrivals from "@/components/ui/home/NewsAndArrivals";
+import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
-import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
+import { sectionSurface } from "@/components/ui/home/SectionHeader";
 import { localeAlternates } from "@/lib/seo/alternates";
-
-import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 
 export const revalidate = 60;
 
@@ -63,18 +99,14 @@ export async function generateMetadata({
       title: t("seoTitle"),
       description: t("seoDescription"),
       type: "website",
+      // Reciprocal locale signals — the page exists in both, and og:locale
+      // alone would tell a share preview only about the one it fetched.
+      locale: locale === "km" ? "km_KH" : "en_US",
+      alternateLocale: locale === "km" ? "en_US" : "km_KH",
       images: ["/og-default.png"],
     },
   };
 }
-
-// ── Data fetchers ────────────────────────────────────────────────────────────
-// Public list data comes from lib/home-data.ts (unstable_cache, 5-min TTL).
-// NOTHING in this route may read cookies() or headers(). Suspense does not
-// buy an exemption: without PPR, one cookie read anywhere in the tree makes the
-// whole route render per request — which is exactly what the old
-// <SignupCta>/<ForYouShelf> auth checks did. Both are now client islands fed by
-// <SessionProvider>, and this page prerenders.
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function HomePage() {
@@ -92,16 +124,14 @@ export default async function HomePage() {
     fetchPriority: "high",
   });
 
-  const [t, locale, trendingBooks, trendingTerms, paths, siteConfig] = await Promise.all([
+  const locale = await getLocale();
+  const [t, payload, siteConfig] = await Promise.all([
     getTranslations("home"),
-    getLocale(),
-    getTrendingBooksCached(),
-    getTrendingTermsCached(),
-    getPublishedPaths(),
+    getHomePayload(locale),
     getSiteConfig(),
   ]);
 
-  const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
+  const heroBooks = payload.heroBooks.map((b) => ({
     slug: b.slug,
     title: b.title,
     author: b.author,
@@ -115,10 +145,17 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-paper">
       {/* Institutional JSON-LD (organization / library / website @graph) is
-          emitted site-wide by app/layout.tsx — do not re-declare it here. */}
+          emitted site-wide by components/layout/RootShell.tsx — do not
+          re-declare it here. §3 adds an ItemList for the featured set, which is
+          a different entity and does not conflict. */}
 
-      {/* ════════ HERO ════════ */}
-      <section className="hero-ink relative isolate z-40 text-white">
+      {/* ════════ 1. HERO ════════
+          Absorbs the two old statistics bands. Everything a stranger needs to
+          decide whether this library is for them — that it is free, needs no
+          account, and is bilingual — is inside this section, above the fold.
+          It used to be reachable only inside a collapsed FAQ nine sections
+          down. */}
+      <section className="hero-ink relative isolate z-40 text-white" aria-labelledby="hero-title">
 
         {/* Background wrapper with overflow-hidden so blurs/scales don't leak */}
         <div className="absolute inset-0 -z-30 overflow-hidden pointer-events-none">
@@ -174,16 +211,13 @@ export default async function HomePage() {
 
           {/* 4. CSS aurora overlay */}
           <div className="aurora absolute inset-0 opacity-50" aria-hidden />
-
-          {/* 4. Interactive mouse-tracking glow (client island, page stays RSC) */}
-          {/* <InteractiveAurora className="absolute inset-0" /> */}
         </div>
 
         {/* 5. Constellation canvas — client island between the background and
             the content: a drifting star network whose trending-term nodes
             light up while the search field is focused. */}
         <HeroConstellation
-          terms={trendingTerms.slice(0, 4)}
+          terms={payload.trendingTerms.slice(0, 4)}
           className="absolute inset-0 -z-10"
         />
 
@@ -211,8 +245,16 @@ export default async function HomePage() {
                   "បណ្ណាល័យឌីជីថល" start to clip) and no negative tracking, which
                   would collide those subscripts with the next base glyph.
                   The slightly larger clamp compensates for Koulen being more
-                  condensed than Hanuman at the same pixel size. */}
+                  condensed than Hanuman at the same pixel size.
+
+                  The copy itself leads with PUBLIC ACCESS. It used to read
+                  "The Digital Library for the Next Generation of Teachers",
+                  which addresses trainee teachers — the one audience that
+                  already knows about the library. The teacher-education
+                  specialism is now the subhead, where it describes the
+                  collection rather than gating it. */}
               <h1
+                id="hero-title"
                 className={`mt-3 text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.55)] ${
                   locale === "km"
                     ? "font-khmer-display font-normal leading-[1.3] tracking-normal"
@@ -221,7 +263,7 @@ export default async function HomePage() {
                 style={{
                   fontSize:
                     locale === "km"
-                      ? "clamp(34px, 4.9vw, 66px)"
+                      ? "clamp(30px, 4.4vw, 60px)"
                       : "clamp(32px, 4.6vw, 62px)",
                 }}
               >
@@ -229,27 +271,45 @@ export default async function HomePage() {
               </h1>
 
               {/* Description */}
-              <p className="mt-4 max-w-lg text-[15px] leading-[1.7] text-blue-100/90 md:text-[16px]">
+              <p
+                className="mt-4 max-w-lg text-[15px] text-blue-100/90 md:text-[16px]"
+                style={{ lineHeight: locale === "km" ? 1.9 : 1.7 }}
+              >
                 {t("description")}
               </p>
 
               {/* Ask bar */}
               <div className="relative z-50 mt-8 max-w-xl">
                 <AskLibraryHero
-                  trending={trendingTerms}
+                  trending={payload.trendingTerms}
                   prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
                   askLabel={t("searchButton")}
                   hint={t("askHint")}
                 />
               </div>
 
+              {/* Trust points — directly under the search box, per the brief.
+                  Three non-numeric facts; the figures are the strip below. */}
+              <HeroTrustPoints
+                points={[t("trustFree"), t("trustNoAccount"), t("trustBilingual")]}
+              />
+
+              {/* The page's only statistics surface. */}
+              <HeroStatStrip
+                stats={payload.stats}
+                locale={locale}
+                resourcesLabel={t("statDigitalResources")}
+                subjectsLabel={t("statSubjects")}
+                sinceLabel={t("statSinceLabel")}
+              />
+
               {/* Constellation affordance — desktop only (the canvas glow is
                   behind the left overlay and barely visible on phones) */}
-              <p className="mt-3 hidden text-[12px] text-blue-300/65 lg:block">
+              <p className="mt-4 hidden text-[12px] text-blue-300/65 lg:block">
                 {t("constellationHint")}
               </p>
 
-              {/* Mobile book strip — unchanged component */}
+              {/* Mobile book strip */}
               <div className="mt-10 lg:hidden">
                 <MobileFeaturedStrip books={heroBooks} />
               </div>
@@ -275,92 +335,70 @@ export default async function HomePage() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
-      {/* ════════ TRUST BAR — verifiable figures, directly under the hero ════
+      {/* ════════ 2. START WITH YOUR GOAL ════════
+          Task-first discovery. Every card resolves through lib/home/goals.ts,
+          which matches on a path's NAME fields and lets no two goals claim the
+          same path — the rule that fixes the two production mislinks.
           Deliberately NOT wrapped in .cv-auto: it sits in the initial viewport
           on most desktops, where content-visibility would defer work the
-          browser is about to need anyway. Every figure comes from
-          getCollectionStats(); nothing here is estimated. */}
-      <TrustBar />
-
-      {/* ════════ START WITH YOUR GOAL — task-first discovery, slot 2 ════════
-          Wired to real learning paths (or curated routes); no data round-trip
-          beyond the paths already fetched above, so it renders immediately. */}
-      <StartWithGoal paths={paths} />
+          browser is about to need anyway. */}
+      <StartWithGoal paths={payload.paths} surfaceClass={sectionSurface(0)} />
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near. */}
 
-      {/* ════════ FOR YOU ════════
-          The public "popular" shelf is server-rendered into the prerendered
-          HTML; ContinueReadingSwap replaces it after hydration for the signed-in
-          users who have reading in progress. Deciding this server-side is what
-          used to make the whole homepage dynamic. */}
-      <ContinueReadingSwap>
-        <ForYouShelf popularBooks={trendingBooks} />
-      </ContinueReadingSwap>
-
-      {/* ════════ THIS WEEK AT PTEC — one editorial band ════════
-          Editor's pick + publication + learning path + news, replacing the two
-          old repetitive "featured" sections. Editor's pick excludes the hero
-          books so nothing appears twice above the fold. */}
+      {/* ════════ 3. FEATURED ════════
+          One de-duplicated set of eight, mixed across books, the thesis and the
+          publication. <ContinueReadingSwap> replaces it after hydration for the
+          signed-in minority who have reading in progress — deciding that
+          server-side is what used to make the whole homepage dynamic. */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <ThisWeekAtPtec paths={paths} excludeSlugs={heroBooks.map((b) => b.slug)} />
-        </Suspense>
+        <ContinueReadingSwap>
+          <FeaturedCollection items={payload.featured} surfaceClass={sectionSurface(1)} />
+        </ContinueReadingSwap>
       </div>
 
-      {/* ════════ COLLECTION PREVIEW — ≤8 cards, 4-per-row ════════ */}
+      {/* ════════ 4. BROWSE BY SUBJECT ════════ */}
       <div className="cv-auto">
-        <Suspense fallback={<BrowseBooksSkeleton />}>
-          <BrowseBooksSection trendingBooks={trendingBooks} />
-        </Suspense>
+        <CategoryGrid departments={payload.subjects} surfaceClass={sectionSurface(2)} />
       </div>
 
-      {/* ════════ BROWSE BY SUBJECT ════════ */}
-      <div className="cv-auto">
-        <Suspense fallback={<div className="h-48 animate-pulse border-b border-divider/60 bg-paper" aria-hidden />}>
-          <CategoryGrid />
-        </Suspense>
-      </div>
-
-      {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
-          Complements <ThisWeekAtPtec> above rather than repeating it: that
-          band is curated, this one is simply "what arrived most recently". */}
-      <div className="cv-auto">
-        <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <NewArrivals />
-        </Suspense>
-      </div>
-
-      {/* ════════ TRENDING RESEARCH — top-5 theses by reader activity ════════ */}
-      <div className="cv-auto">
-        <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <TrendingResearch />
-        </Suspense>
-      </div>
-
-      {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}
+      {/* ════════ 5. READ ONLINE, OR VISIT US ════════
+          Live open/closed status computed in Cambodia time, plus the physical
+          collection figure — which is the one place on the page a reader can
+          act on it. */}
       <div className="cv-auto">
         <LibraryNow
           openingHoursSpec={[...siteConfig.hours.openingHoursSpec]}
           closures={siteConfig.hours.closures}
           mapPlaceUrl={siteConfig.links.mapPlace}
+          physicalCatalogs={payload.stats?.physicalCatalogs}
+          surfaceClass={sectionSurface(3)}
         />
       </div>
 
-      {/* ════════ FAQ — six real front-desk questions + FAQPage schema ════════
-          (JSON-LD inside stays in the HTML — content-visibility only skips
-          rendering work, not markup, so the FAQPage schema is still crawled) */}
+      {/* ════════ 6. NEWS & NEW ARRIVALS ════════ */}
       <div className="cv-auto">
-        <FaqSection />
+        <NewsAndArrivals
+          posts={payload.posts}
+          arrivals={payload.arrivals}
+          surfaceClass={sectionSurface(4)}
+        />
       </div>
 
-      {/* ════════ CTA BANNER — logged-out visitors only ════════
-          Public content; hidden client-side for signed-in users rather than
-          gated on a server auth read (which would make this page dynamic). */}
-      <SignedOutOnly>
-        <SignupCta />
-      </SignedOutOnly>
+      {/* ════════ 7. FAQ ════════
+          Five questions, ordered for a stranger. FAQPage JSON-LD is generated
+          from the same strings, so the schema always mirrors the visible text.
+          (content-visibility skips rendering work, not markup, so the schema is
+          still crawled.) */}
+      <div className="cv-auto">
+        <FaqSection surfaceClass={sectionSurface(5)} />
+      </div>
+
+      {/* ════════ 8. CLOSING CTA ════════
+          Browse-first, not a sign-in wall. Always rendered; only the optional
+          sign-in offer inside it is hidden for signed-in users. */}
+      <SignupCta />
     </div>
   );
 }

@@ -3,13 +3,21 @@
 // browsing is the #2 discovery path after search, so it sits directly under
 // the publications rail. Tiles land on pre-filtered results, not a menu.
 //
-// The subjects are the library's REAL departments (getDepartmentCountsCached),
-// never a hand-written list. A static list would drift from the collection and
-// send readers to empty result pages; here a subject exists on the homepage
-// exactly when it has something to show, and the count is the true one.
+// The subjects are the library's REAL departments, fetched once in
+// lib/home/payload.ts and passed in — never a hand-written list. A static list
+// would drift from the collection and send readers to empty result pages; here
+// a subject exists on the homepage exactly when it has something to show, and
+// the count is the true one.
+//
+// The list is no longer truncated to seven. It was, and that is why the visible
+// subject counts summed to 111 against a collection of 112 books: the eighth
+// department was silently dropped while the grid still looked complete. The
+// remaining gap to the 114 headline figure is the thesis and the publication,
+// which are not books and carry no department — that is the whole
+// reconciliation, and it is now arithmetic a reader can do.
 import { Link } from "@/i18n/navigation";
-import { getDepartmentCountsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
+import SectionHeader, { SECTION_SHELL } from "./SectionHeader";
 import {
   GraduationCap,
   FlaskConical,
@@ -80,33 +88,31 @@ function assignThemes(names: string[]): { Icon: LucideIcon; plate: string }[] {
   });
 }
 
-export default async function CategoryGrid() {
-  const departments = await getDepartmentCountsCached();
+export default async function CategoryGrid({
+  departments,
+  surfaceClass,
+}: {
+  departments: { name: string; count: number }[];
+  surfaceClass: string;
+}) {
+  // Empty taxonomy — render nothing rather than a heading over a lone
+  // "All subjects" tile.
   if (departments.length === 0) return null;
 
   const [t, locale] = await Promise.all([getTranslations("home"), getLocale()]);
-  const latinEyebrow = locale === "en" ? "uppercase tracking-[0.2em]" : "tracking-normal";
   const themes = assignThemes(departments.map((d) => d.name));
 
   return (
-    <section className="border-b border-divider/60 bg-paper" aria-labelledby="category-grid-title">
-      <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <div className="mb-2 flex items-center gap-3">
-            <span className="h-[3px] w-7 rounded-full bg-gradient-to-r from-accent to-brand" aria-hidden />
-            <span className={`text-[11px] font-bold text-accent-text ${latinEyebrow}`}>
-              {t("categoriesEyebrow")}
-            </span>
-          </div>
-          <h2
-            id="category-grid-title"
-            className="font-khmer-serif font-bold leading-tight tracking-tight text-text-heading"
-            style={{ fontSize: "clamp(22px, 2.4vw, 32px)" }}
-          >
-            {t("categoriesSectionTitle")}
-          </h2>
-        </div>
+    <section className={surfaceClass} aria-labelledby="category-grid-title">
+      <div className={SECTION_SHELL}>
+        <SectionHeader
+          id="category-grid-title"
+          eyebrow={t("categoriesEyebrow")}
+          title={t("categoriesSectionTitle")}
+          body={t("categoriesBody")}
+          locale={locale}
+          accent="accent"
+        />
 
         {/* ── Tiles ── */}
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

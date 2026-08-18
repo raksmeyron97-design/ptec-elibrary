@@ -1,15 +1,18 @@
-import BrowseBooksSkeleton from '@/components/ui/home/skeletons/BrowseBooksSkeleton'
-
 // Mirrors the real homepage layout so nothing jumps when it streams in:
-// dark hero-ink hero (left copy + search, right book stack), gold seam,
-// then the light section bands. The hero uses white-alpha pulse bars —
-// the themed .skeleton gradient reads wrong on the #060B1A ink.
+// dark hero-ink hero (left copy + search + trust points + stat strip, right
+// book stack), gold seam, then the light section bands. The hero uses
+// white-alpha pulse bars — the themed .skeleton gradient reads wrong on the
+// #060B1A ink.
+//
+// It covers the first three sections only. Below that the page is inside
+// .cv-auto (content-visibility), so the browser is not laying it out yet and a
+// skeleton there would be work spent on pixels nobody is looking at.
 const pulse = 'animate-pulse rounded bg-white/10'
 
 export default function HomeLoading() {
   return (
     <div className="min-h-screen bg-paper">
-      {/* ════════ HERO ════════ */}
+      {/* ════════ 1. HERO ════════ */}
       <section className="hero-ink relative text-white">
         <div className="relative mx-auto max-w-[1400px] px-4 py-14 sm:py-20 md:px-12 md:py-24 lg:py-28">
           <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
@@ -38,15 +41,20 @@ export default function HomeLoading() {
                 <div className={`${pulse} mt-3 h-3.5 w-72 max-w-full`} />
               </div>
 
-              {/* Trending chips */}
-              <div className="mt-6 flex flex-wrap gap-2.5">
-                <div className={`${pulse} h-4 w-20`} />
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`${pulse} h-9 rounded-full`}
-                    style={{ width: `${96 + (i % 3) * 28}px` }}
-                  />
+              {/* Trust points — three inline items */}
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+                {[168, 152, 108].map((w) => (
+                  <div key={w} className={`${pulse} h-[18px]`} style={{ width: `${w}px` }} />
+                ))}
+              </div>
+
+              {/* Stat strip — three figure/label pairs above a hairline */}
+              <div className="mt-6 flex flex-wrap gap-x-8 gap-y-4 border-t border-white/12 pt-5">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="min-w-[84px]">
+                    <div className={`${pulse} h-6 w-16`} />
+                    <div className={`${pulse} mt-2 h-3 w-20`} />
+                  </div>
                 ))}
               </div>
             </div>
@@ -67,42 +75,40 @@ export default function HomeLoading() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-gold-400/80 to-transparent" />
       </section>
 
-      {/* ════════ START WITH YOUR GOAL ════════ */}
+      {/* ════════ 2. START WITH YOUR GOAL — six goals + the browsing tile ═══ */}
       <section className="border-b border-divider/60 bg-paper">
-        <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-12 md:py-14">
+        <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
           <div className="skeleton h-8 w-56 rounded-full" />
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="skeleton h-32 rounded-2xl border border-divider" />
+          <div className="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="skeleton h-[92px] rounded-2xl border border-divider" />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ════════ FOR YOU SHELF ════════ */}
-      <section className="border-b border-divider bg-bg-surface">
-        <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-12 md:py-14">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="skeleton h-8 w-48 rounded-full" />
-            <div className="skeleton h-5 w-24 rounded" />
+      {/* ════════ 3. FEATURED — eight cards, 2-up on phones, 4-up desktop ═══ */}
+      <section className="border-b border-divider/60 bg-bg-surface">
+        <div className="mx-auto max-w-[1400px] px-4 py-12 sm:py-14 md:px-12 md:py-16">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="skeleton h-8 w-64 max-w-[60%] rounded-full" />
+            <div className="skeleton hidden h-9 w-36 rounded-full sm:block" />
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className={i >= 4 ? 'hidden lg:block' : i >= 3 ? 'hidden md:block' : ''}>
-                <div className="skeleton aspect-[3/4] w-full rounded-xl border border-divider" />
-                <div className="skeleton mt-3 h-4 w-[90%] rounded" />
-                <div className="skeleton mt-2 h-3 w-2/3 rounded" />
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className={i >= 4 ? 'hidden lg:block' : ''}>
+                {/* Same 3:4 box the real card reserves, so covers arriving
+                    later cannot shift the grid. */}
+                <div className="skeleton aspect-[3/4] w-full rounded-t-2xl border border-divider" />
+                <div className="rounded-b-2xl border border-t-0 border-divider p-4">
+                  <div className="skeleton h-4 w-[90%] rounded" />
+                  <div className="skeleton mt-2 h-3 w-2/3 rounded" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
-
-      {/* ════════ THIS WEEK band ════════ */}
-      <div className="h-80 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />
-
-      {/* ════════ COLLECTION PREVIEW ════════ */}
-      <BrowseBooksSkeleton />
     </div>
   )
 }
