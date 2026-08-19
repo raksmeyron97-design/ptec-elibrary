@@ -154,8 +154,8 @@
     "new": "NEW"
   },
   "home": {
-    "seoTitle": "Free Digital Library for Teacher Education",
-    "seoDescription": "Free textbooks, teaching resources, and research reports from Phnom Penh Teacher Education College — read online or download in Khmer and English.",
+    "seoTitle": "Free Digital Library for Teachers in Cambodia",
+    "seoDescription": "Read and download books, theses and research in Khmer and English — free, with no account needed. Run by Phnom Penh Teacher Education College.",
     "tagline": "{institution}",
     "headline": "The Digital Library for the Next Generation of Teachers",
     "description": "Textbooks, research papers, and teaching resources — carefully curated, open and free for every student and educator.",
@@ -358,7 +358,9 @@
     "newArrivalsTitle": "Just added to the library",
     "newArrivalsBody": "The most recent books, theses and publications to join the collection.",
     "newArrivalsAdded": "Added {date}",
-    "categoriesCardLabel": "Browse {subject} resources"
+    "categoriesCardLabel": "Browse {subject} resources",
+    "ogTitle": "PTEC Library — The Digital Library for the Next Generation of Teachers",
+    "ogDescription": "Free textbooks, theses and teaching resources in Khmer and English. No account needed."
   },
   "books": {
     "title": "Books",

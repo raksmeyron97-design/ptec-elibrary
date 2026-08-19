@@ -55,15 +55,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "home" });
+  // A search result and a social card reward opposite things, so they get
+  // different strings rather than one doing both jobs badly.
+  //
+  // `seoTitle` is scanned against nine competitors in a result list, so it
+  // leads with what people actually search for — free, digital library,
+  // teachers, Cambodia — and carries the brand for name searches.
+  //
+  // `ogTitle` is usually already endorsed (someone shared the link), so
+  // findability is no longer the job and the slogan can do its work. For a
+  // Cambodian institution the Facebook/Telegram share is the larger share of
+  // arrivals, so this is not the minor surface it looks like.
+  //
+  // twitter:* is set explicitly because Next falls back to the page <title>
+  // otherwise, which would silently undo the split on X/Twitter cards.
   return {
     title: t("seoTitle"),
     description: t("seoDescription"),
     alternates: localeAlternates("/", locale),
     openGraph: {
-      title: t("seoTitle"),
-      description: t("seoDescription"),
+      title: t("ogTitle"),
+      description: t("ogDescription"),
       type: "website",
       images: ["/og-default.png"],
+    },
+    twitter: {
+      title: t("ogTitle"),
+      description: t("ogDescription"),
     },
   };
 }
