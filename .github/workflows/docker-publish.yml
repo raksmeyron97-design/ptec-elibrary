@@ -75,17 +75,42 @@ jobs:
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # A missing repository variable is silently an empty build arg, which
-      # reproduces exactly the bug this workflow was fixed for. Fail loudly.
-      - name: Verify the build args were actually set
-        if: ${{ vars.NEXT_PUBLIC_SUPABASE_URL == '' || vars.NEXT_PUBLIC_SITE_URL == '' || secrets.SUPABASE_SERVICE_ROLE_KEY == '' }}
+      # A missing variable is silently an empty build arg, which reproduces
+      # exactly the bug this workflow was fixed for. Fail loudly, before the
+      # build spends 20 minutes producing a broken image.
+      #
+      # The check lives in the step body, not in `if:` — the `secrets` context
+      # is not allowed in an if-expression, and using it there is a workflow
+      # parse error that takes the whole file down, not just this step.
+      - name: Verify the build inputs are present
+        env:
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          ROOT_DOMAIN: ${{ vars.NEXT_PUBLIC_ROOT_DOMAIN }}
+          TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ vars.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          R2_PUBLIC_URL: ${{ vars.NEXT_PUBLIC_R2_PUBLIC_URL }}
+          R2_COVERS_URL: ${{ vars.NEXT_PUBLIC_R2_COVERS_URL }}
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "::error::Build inputs are missing. Without the NEXT_PUBLIC_* variables the"
-          echo "::error::published image ships a broken client bundle; without the service-role"
-          echo "::error::secret the build cannot prerender any public page."
-          echo "::error::  gh variable set NEXT_PUBLIC_SUPABASE_URL --body '<value>'"
-          echo "::error::  gh secret set SUPABASE_SERVICE_ROLE_KEY"
-          exit 1
+          missing=""
+          for name in SUPABASE_URL SUPABASE_ANON_KEY SITE_URL ROOT_DOMAIN \
+                      TURNSTILE_SITE_KEY VAPID_PUBLIC_KEY R2_PUBLIC_URL R2_COVERS_URL; do
+            eval "value=\${$name}"
+            [ -n "$value" ] || missing="$missing NEXT_PUBLIC_$name"
+          done
+          [ -n "$SERVICE_ROLE_KEY" ] || missing="$missing SUPABASE_SERVICE_ROLE_KEY(secret)"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing build inputs:$missing"
+            echo "::error::Without the NEXT_PUBLIC_* variables the published image ships a"
+            echo "::error::broken client bundle; without the service-role secret the build"
+            echo "::error::cannot prerender any public page."
+            echo "::error::  gh variable set NEXT_PUBLIC_SUPABASE_URL --body '<value>'"
+            echo "::error::  gh secret set SUPABASE_SERVICE_ROLE_KEY"
+            exit 1
+          fi
+          echo "All build inputs present."
 
       # NEXT_PUBLIC_* are inlined into the client bundle at build time, and
       # lib/supabase/client.ts reads process.env.NEXT_PUBLIC_SUPABASE_URL! in
