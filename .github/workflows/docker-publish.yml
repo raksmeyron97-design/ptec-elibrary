@@ -30,8 +30,15 @@ jobs:
     # this gate, docker-publish.yml ran on push:main independently of ci.yml,
     # so a red build still shipped to the box.
     uses: ./.github/workflows/ci.yml
+    # Must be the UNION of what every job in ci.yml requests, not the minimum.
+    # A called workflow cannot request more than its caller grants, so listing
+    # only `contents: read` here made the whole run fail at startup —
+    # ci.yml's secret-scan job needs `pull-requests: read` for gitleaks to list
+    # a PR's commits. The failure is a startup_failure with no job log, so it
+    # reads like a broken workflow file rather than a permissions mismatch.
     permissions:
       contents: read
+      pull-requests: read
 
   build-and-push-image:
     name: Build and push to GHCR
