@@ -135,11 +135,42 @@ sudo ./deploy/deploy.sh --force     # picks up the tunnel profile automatically
 docker compose ps                   # cloudflared Up, app healthy
 ```
 
-**Stage 4 — `library.ptec.edu.kh`.** The `ptec.edu.kh` zone is administered by
-the professor, not by this project. Send them `docs/DNS-HANDOFF.md`; they create
-the tunnel and return a token. Nothing on the box changes except the
-`TUNNEL_TOKEN` value in `.env`, followed by `sudo ./deploy/deploy.sh --force` —
-which is the whole point of doing stages 1–3 first.
+**Stage 4 — `library.ptec.edu.kh`.** Read this before planning it, because the
+obvious approach does not work here.
+
+`ptec.edu.kh` is **not** on Cloudflare. Its nameservers are
+`dns1/dns2.namecheaphosting.com`, and the zone is administered by the professor,
+not by this project. That rules out the normal Cloudflare Tunnel flow: a public
+hostname can only be mapped to a zone inside Cloudflare, a `*.cfargotunnel.com`
+CNAME is not resolvable from external DNS, and delegating just the `library`
+subdomain to Cloudflare is an Enterprise-plan feature.
+
+`library.ptec.edu.kh` is also **live on Vercel right now** (CNAME →
+`f201dfbcd9bfb9ee.vercel-dns-017.com`). Whatever replaces it is a real cutover,
+not a first configuration.
+
+The route that works, and asks the least of the professor:
+
+1. In **our** Cloudflare account — the one holding `storage-ptec.online` — give
+   the tunnel a public hostname on that zone, e.g. `library.storage-ptec.online`
+   → `http://app:3000`. This is stage 3 and needs nobody else.
+2. Add `library.ptec.edu.kh` as a **Custom Hostname** (Cloudflare for SaaS) in
+   that same account, with the stage-3 hostname as the fallback origin.
+   Cloudflare then issues the certificate for `library.ptec.edu.kh`. Confirm
+   what one custom hostname costs on the current plan before relying on it.
+3. Send the professor `docs/DNS-HANDOFF.md`. Their entire action is changing one
+   CNAME value — the same record shape that already exists for Vercel.
+4. Keep the Vercel deployment in place afterwards. Reverting the CNAME restores
+   the old site in minutes, which is the rollback for the cutover itself.
+
+The box changes in none of this. Its tunnel and `TUNNEL_TOKEN` are whatever
+stage 3 established; step 2 happens entirely at Cloudflare's edge. That is the
+point of proving stages 1–3 first.
+
+The alternative — asking the professor to move `ptec.edu.kh`'s nameservers to
+Cloudflare — makes the tunnel work natively and costs nothing, but moves
+authoritative DNS for the whole school domain, email included. It is the bigger
+ask; the CNAME is deliberately the smaller one.
 
 Finally: delete every router port-forward that previously pointed at the box
 (80/443/3000/anything). The tunnel replaces them all. If Vercel or another host
@@ -203,7 +234,8 @@ blocks anonymous traffic before it ever reaches the login form.
 
 ## 4. "Is my origin hidden?" checklist
 
-- [ ] `dig library.ptec.edu.kh` returns Cloudflare IPs (104.x / 172.6x), not the school's IP.
+- [ ] `dig library.ptec.edu.kh` returns Cloudflare IPs (104.x / 172.6x) — not the
+      school's IP, and no longer Vercel's (`*.vercel-dns-*.com`, 216.198.x / 64.29.x).
 - [ ] Old public IP: `curl -m 5 http://<old-public-ip>` times out or refuses.
 - [ ] Shodan/Censys search for the school's IP shows no HTTP/SSH/SMB banners
       (re-check a week after removing forwards — scanners lag).
