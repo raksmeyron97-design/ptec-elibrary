@@ -28,6 +28,7 @@ export const dynamic = "force-dynamic";
 type SP = {
   q?: string;
   keyword?: string;
+  subject?: string;
   type?: string;
   journal?: string;
   year?: string;
@@ -57,6 +58,7 @@ export async function generateMetadata({
     hasFilters: !!(
       params.q ||
       params.keyword ||
+      params.subject ||
       params.type ||
       params.journal ||
       params.year ||
@@ -113,6 +115,7 @@ export default async function PublicationsPage({
   const publications = all.filter((pub) => {
     if (params.q && !matchesQ(pub, params.q)) return false;
     if (params.keyword && !pub.keywords.some((k) => k.toLowerCase() === params.keyword!.toLowerCase())) return false;
+    if (params.subject && !pub.subjects.some((sub) => sub.toLowerCase() === params.subject!.toLowerCase())) return false;
     if (params.type && pub.article_type !== params.type) return false;
     if (params.journal && pub.journal_name !== params.journal) return false;
     if (params.year && citationYear(pub) !== params.year) return false;
@@ -144,7 +147,7 @@ export default async function PublicationsPage({
   const page = Math.min(Math.max(1, Number(params.page) || 1), totalPages);
   const paged = publications.slice((page - 1) * pageSize, page * pageSize);
 
-  const hasFilters = !!(params.q || params.keyword || params.type || params.journal || params.year || params.language);
+  const hasFilters = !!(params.q || params.keyword || params.subject || params.type || params.journal || params.year || params.language);
 
   // `total` is the filtered count. The denominator is the canonical published
   // total from lib/collection-stats.ts — the same figure the homepage shows

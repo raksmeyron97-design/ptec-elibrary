@@ -4,6 +4,7 @@ import { GraduationCap } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import ThesisDownloadButton from "@/components/ui/theses/ThesisDownloadButton";
 import MetricsPanel from "@/components/ui/detail/MetricsPanel";
+import { publishableCount } from "@/lib/publications/integrity";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import CiteThis from "@/components/ui/theses/CiteThis";
 
@@ -68,7 +69,12 @@ export default function StickySidebar({
       </div>
 
       {/* Metrics */}
-      <MetricsPanel views={(report.view_count || 0) + 1} downloads={report.download_count || 0} />
+      {/* Counts come from the shared derivation: stored values, zeros
+          suppressed, no optimistic +1 for the in-flight view ping. */}
+      <MetricsPanel
+        views={publishableCount(report.view_count)}
+        downloads={publishableCount(report.download_count)}
+      />
 
       {/* Cite this */}
       <div id="cite-panel" className="scroll-mt-4">
