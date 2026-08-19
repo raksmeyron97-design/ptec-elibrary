@@ -16,6 +16,7 @@ import PublicationSidebar from "@/components/ui/publications/PublicationSidebar"
 import PDFPreviewSection from "@/components/ui/publications/PDFPreviewSection";
 import ReferencesSection from "@/components/ui/publications/ReferencesSection";
 import RelatedPublications from "@/components/ui/publications/RelatedPublications";
+import ContentLanguageNotice from "@/components/ui/publications/ContentLanguageNotice";
 import MoreFromJournal from "@/components/ui/publications/MoreFromJournal";
 import MoreFromAuthor from "@/components/ui/publications/MoreFromAuthor";
 import TableOfContentsSection from "@/components/ui/publications/TableOfContentsSection";
@@ -30,7 +31,9 @@ import {
   academicTextToPlainText,
   collectCitationOccurrences,
 } from "@/lib/publications/citations";
-import KeywordList from "@/components/ui/detail/KeywordList";
+import { getRelatedPublications, getLibraryFallbackBooks } from "@/lib/publications/related";
+import { publicationMetrics } from "@/lib/publications/integrity";
+import { reviewsEnabled, aggregateRatingAllowed } from "@/lib/reviews/policy";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/SectionQuickNav";
 import Icon from "@/components/ui/core/Icon";
@@ -125,9 +128,13 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const authorships = pub.authorships ?? [];
   const affiliationIds = [...new Set(authorships.flatMap((a) => a.affiliation_ids))];
 
-  // Admin check, affiliations and rating stats are independent — run them
-  // concurrently instead of stacking three sequential DB round-trips.
-  const [isAdmin, affiliations, ratingStats] = await Promise.all([
+  // Reader reviews are disabled for publications (lib/reviews/policy.ts), so
+  // the rating query is skipped entirely rather than fetched and discarded.
+  const showReviews = reviewsEnabled("publication");
+
+  // Admin check, affiliations, rating stats and related content are all
+  // independent — run them concurrently instead of stacking round-trips.
+  const [isAdmin, affiliations, ratingStats, relatedItems, libraryBooks] = await Promise.all([
     // Admin-only edit link — best-effort, non-blocking
     (async () => {
       try {
@@ -152,7 +159,19 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         .in("id", affiliationIds);
       return (affRows ?? []) as PublicationAffiliation[];
     })(),
-    getPublicationRatingStats(pub.id),
+    showReviews
+      ? getPublicationRatingStats(pub.id)
+      : Promise.resolve({ average: 0, count: 0 }),
+    // Fetched here, not inside the rendering components: the page has to know
+    // whether the "Keep reading" region will have content BEFORE it emits a
+    // nav anchor pointing at it.
+    getRelatedPublications({
+      currentId: pub.id,
+      journalName: pub.journal_name,
+      keywords: pub.keywords,
+      firstAuthorId: (pub.authorships ?? [])[0]?.author.id ?? null,
+    }),
+    getLibraryFallbackBooks({ keywords: pub.keywords, subjects: pub.subjects }),
   ]);
 
   // Stable superscript numbering: order of first appearance in the byline
@@ -183,19 +202,49 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     pub.references,
   );
 
+  // ── What actually has content ────────────────────────────────────────────
+  //
+  // Every section below is gated on one of these booleans, and the nav is
+  // built from the SAME booleans. That is the whole fix for jump links that
+  // landed on a bare heading: a section and its anchor can no longer disagree,
+  // because neither is written twice.
+  //
+  // "Overview" is gone. It was a second name for the abstract, with the
+  // subjects and keywords tucked underneath; the abstract keeps the one
+  // heading and the taxonomy moved to the sidebar rail as filter links.
+  const has = {
+    abstract: !!(pub.abstract?.trim() || pub.abstract_km?.trim()),
+    toc: pub.table_of_contents.length > 0,
+    outcomes: pub.learning_outcomes.length > 0,
+    fulltext: !!pub.pdf_url,
+    references: pub.references.length > 0,
+    authors: authorships.length > 0,
+    reviews: showReviews,
+    faq: pub.faqs.length > 0,
+    // The region renders if EITHER block has something; RelatedPublications
+    // and SimilarBooks each return null when empty, so the page can never end
+    // on "No related publications found yet".
+    related: relatedItems.length > 0 || libraryBooks.books.length > 0,
+  };
+
   const sections: QuickNavSection[] = [
-    { id: "overview", label: t("sectionOverview") },
-    { id: "abstract", label: t("sectionAbstract") },
-    ...(pub.table_of_contents.length > 0 ? [{ id: "toc", label: t("sectionToc") }] : []),
-    ...(pub.learning_outcomes.length > 0 ? [{ id: "outcomes", label: t("sectionOutcomes") }] : []),
-    ...(pub.pdf_url ? [{ id: "fulltext", label: t("sectionFullText") }] : []),
-    { id: "references", label: t("sectionReferences") },
-    ...(authorships.length > 0 ? [{ id: "authors", label: t("sectionAuthors") }] : []),
-    { id: "reviews", label: t("sectionReviews") },
-    ...(pub.faqs.length > 0 ? [{ id: "faq", label: t("sectionFaq") }] : []),
+    ...(has.abstract ? [{ id: "abstract", label: t("sectionAbstract") }] : []),
+    ...(has.toc ? [{ id: "toc", label: t("sectionToc") }] : []),
+    ...(has.outcomes ? [{ id: "outcomes", label: t("sectionOutcomes") }] : []),
+    ...(has.fulltext ? [{ id: "fulltext", label: t("sectionFullText") }] : []),
+    ...(has.references ? [{ id: "references", label: t("sectionReferences") }] : []),
+    ...(has.authors ? [{ id: "authors", label: t("sectionAuthors") }] : []),
+    ...(has.reviews ? [{ id: "reviews", label: t("sectionReviews") }] : []),
+    ...(has.faq ? [{ id: "faq", label: t("sectionFaq") }] : []),
+    { id: "details", label: t("sectionDetails"), track: false },
     { id: "cite-panel", label: t("sectionCitation"), track: false },
-    { id: "related", label: t("sectionRelated") },
+    ...(has.related ? [{ id: "related", label: t("sectionRelated") }] : []),
   ];
+
+  // One derivation of every number on the page — masthead and rail both read
+  // this object, and the reference count comes from the array the References
+  // section itself renders.
+  const metrics = publicationMetrics(pub, year);
 
   // ── JSON-LD (ScholarlyArticle) ────────────────────────────────────────────
   // Validated identifiers, verified-license-only, locale-correct URLs, and no
@@ -203,7 +252,11 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const scholarlyArticleSchema = publicationJsonLd(
     toPublicationSeoInput(pub),
     locale,
-    ratingStats.count > 0
+    // An aggregateRating may only be emitted where the rating is actually
+    // shown. Publications have reviews disabled, so no rating goes into the
+    // structured data either — a rating that appears nowhere on the page is a
+    // structured-data mismatch.
+    aggregateRatingAllowed("publication") && ratingStats.count > 0
       ? { ratingValue: ratingStats.average, reviewCount: ratingStats.count }
       : null,
     await getOrgIdentity(),
@@ -261,7 +314,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* ── Hero ── */}
+        {/* ── Masthead ── */}
         <PublicationHero
           pub={pub}
           authorships={authorships}
@@ -272,53 +325,34 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           publishedOn={publishedOn}
           fileHref={fileHref}
           shareUrl={shareUrl}
+          metrics={metrics}
         />
 
         {/* ── Sticky section nav ── */}
-        <SectionQuickNav sections={sections} />
+        <SectionQuickNav sections={sections} label={t("sectionNavLabel")} />
 
         {/* ── Body: stacked sections + sidebar ── */}
         <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
           <div className="min-w-0 space-y-10">
-            <section id="overview" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="overview-heading">
-              <h2 id="overview-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                {t("sectionOverview")}
-              </h2>
-              {pub.subjects.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="mb-2 text-[13px] font-semibold text-text-body">{t("subjectsHeading")}</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {pub.subjects.map((subject) => (
-                      <span
-                        key={subject}
-                        className="inline-flex items-center rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[12.5px] font-medium text-brand"
-                      >
-                        {subject}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {pub.keywords.length > 0 ? (
-                <KeywordList keywords={pub.keywords} basePath="/publications" heading={t("researchAreasKeywords")} />
-              ) : pub.subjects.length === 0 ? (
-                <p className="text-[13.5px] text-text-muted">{t("noKeywordsProvided")}</p>
-              ) : null}
-            </section>
+            {/* Says plainly that the full text is not in the reader's
+                language, instead of leaving them to assume a broken page. */}
+            <ContentLanguageNotice contentLanguage={pub.language} locale={locale} />
 
-            <section id="abstract" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="abstract-heading">
-              <PublicationAbstractSection
-                abstract={pub.abstract || ""}
-                abstractKm={pub.abstract_km}
-                references={pub.references}
-                heading={t("sectionAbstract")}
-                publicationTitle={locale === "km" && pub.title_km ? pub.title_km : pub.title}
-                locale={locale}
-              />
-            </section>
+            {has.abstract && (
+              <section id="abstract" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="abstract-heading">
+                <PublicationAbstractSection
+                  abstract={pub.abstract || ""}
+                  abstractKm={pub.abstract_km}
+                  references={pub.references}
+                  heading={t("sectionAbstract")}
+                  publicationTitle={locale === "km" && pub.title_km ? pub.title_km : pub.title}
+                  locale={locale}
+                />
+              </section>
+            )}
 
-            {pub.table_of_contents.length > 0 && (
-              <section id="toc" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="toc-heading">
+            {has.toc && (
+              <section id="toc" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="toc-heading">
                 <h2 id="toc-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   {t("sectionToc")}
                 </h2>
@@ -326,8 +360,8 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               </section>
             )}
 
-            {pub.learning_outcomes.length > 0 && (
-              <section id="outcomes" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="outcomes-heading">
+            {has.outcomes && (
+              <section id="outcomes" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="outcomes-heading">
                 <h2 id="outcomes-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   {t("sectionOutcomes")}
                 </h2>
@@ -335,34 +369,39 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               </section>
             )}
 
-            <section id="fulltext" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="fulltext-heading">
-              <h2 id="fulltext-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                {t("sectionFullText")}
-              </h2>
-              <PDFPreviewSection
-                title={pub.title}
-                pdfUrl={fileHref}
-                fileHref={fileHref}
-                publicationId={pub.id}
-                hasFile={!!pub.pdf_url}
-                reportEmail={(await getSiteConfig()).email}
-              />
-            </section>
+            {/* Renders only when a file exists. When it doesn't, the masthead's
+                action buttons already say so — no empty section is needed to
+                carry that message. */}
+            {has.fulltext && (
+              <section id="fulltext" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="fulltext-heading">
+                <h2 id="fulltext-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionFullText")}
+                </h2>
+                <PDFPreviewSection
+                  title={pub.title}
+                  pdfUrl={fileHref}
+                  fileHref={fileHref}
+                  publicationId={pub.id}
+                  hasFile
+                  reportEmail={(await getSiteConfig()).email}
+                />
+              </section>
+            )}
 
-            <section id="references" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="references-heading">
-              <h2 id="references-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                {t("sectionReferences")}
-                {pub.references.length > 0 && (
+            {has.references && (
+              <section id="references" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="references-heading">
+                <h2 id="references-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionReferences")}
                   <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
                     {pub.references.length}
                   </span>
-                )}
-              </h2>
-              <ReferencesSection references={pub.references} occurrences={citationOccurrences} />
-            </section>
+                </h2>
+                <ReferencesSection references={pub.references} occurrences={citationOccurrences} />
+              </section>
+            )}
 
-            {authorships.length > 0 && (
-              <section id="authors" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="authors-heading">
+            {has.authors && (
+              <section id="authors" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="authors-heading">
                 <h2 id="authors-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   {t("sectionAuthors")}
                 </h2>
@@ -370,26 +409,28 @@ export default async function PublicationDetailPage({ params }: PageProps) {
               </section>
             )}
 
-            <section id="reviews" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="reviews-heading">
-              <h2 id="reviews-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                {t("sectionReviews")}
-                {ratingStats.count > 0 && (
-                  <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
-                    {ratingStats.average.toFixed(1)} ★ · {ratingStats.count}
-                  </span>
-                )}
-              </h2>
-              <Suspense
-                fallback={
-                  <div className="h-48 animate-pulse rounded-2xl border border-divider bg-bg-surface" />
-                }
-              >
-                <PublicationReviewsSection publicationId={pub.id} slug={slug} />
-              </Suspense>
-            </section>
+            {has.reviews && (
+              <section id="reviews" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="reviews-heading">
+                <h2 id="reviews-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                  {t("sectionReviews")}
+                  {ratingStats.count > 0 && (
+                    <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
+                      {ratingStats.average.toFixed(1)} ★ · {ratingStats.count}
+                    </span>
+                  )}
+                </h2>
+                <Suspense
+                  fallback={
+                    <div className="h-48 animate-pulse rounded-2xl border border-divider bg-bg-surface" />
+                  }
+                >
+                  <PublicationReviewsSection publicationId={pub.id} slug={slug} />
+                </Suspense>
+              </section>
+            )}
 
-            {pub.faqs.length > 0 && (
-              <section id="faq" className="scroll-mt-20 lg:scroll-mt-32" aria-labelledby="faq-heading">
+            {has.faq && (
+              <section id="faq" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="faq-heading">
                 <h2 id="faq-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
                   {t("sectionFaq")}
                 </h2>
@@ -398,26 +439,38 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Sidebar */}
-          <PublicationSidebar pub={pub} fileHref={fileHref} shareUrl={shareUrl} publishedOn={publishedOn} year={year} />
+          {/* Sidebar rail: metrics, cite, access, subjects. On mobile it
+              follows the article body in source order. */}
+          <PublicationSidebar
+            pub={pub}
+            fileHref={fileHref}
+            shareUrl={shareUrl}
+            publishedOn={publishedOn}
+            year={year}
+            metrics={metrics}
+          />
         </div>
 
-        {/* ── More from this journal ── */}
+        {/* ── More from this journal / author ── */}
         <MoreFromJournal currentId={pub.id} journalName={pub.journal_name} />
-
-        {/* ── More from this author ── */}
         {primaryAuthor && <MoreFromAuthor currentId={pub.id} author={primaryAuthor} />}
 
-        {/* ── Related publications ── */}
-        <RelatedPublications
-          currentId={pub.id}
-          journalName={pub.journal_name}
-          keywords={pub.keywords}
-          firstAuthorId={primaryAuthor?.id ?? null}
-        />
-
-        {/* ── Similar books / recommended reading from the library ── */}
-        <SimilarBooks keywords={pub.keywords} subjects={pub.subjects} />
+        {/* ── Keep reading ──────────────────────────────────────────────────
+            One region behind one anchor. Related publications lead when they
+            exist; library books follow, or stand alone under an honest
+            heading. If neither has content the whole region — and its nav
+            entry — is absent. */}
+        {has.related && (
+          <section id="related" className="mt-16 scroll-mt-24 lg:scroll-mt-36">
+            <h2 className="sr-only">{t("sectionRelated")}</h2>
+            <RelatedPublications items={relatedItems} />
+            <SimilarBooks
+              books={libraryBooks.books}
+              matchedOnTopic={libraryBooks.matchedOnTopic}
+              standalone={relatedItems.length === 0}
+            />
+          </section>
+        )}
       </div>
     </section>
   );

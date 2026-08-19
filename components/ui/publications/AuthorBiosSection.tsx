@@ -2,14 +2,24 @@ import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import type { PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
 import { orcidUrl } from "@/lib/seo/identifiers";
+import { secondaryValue } from "@/lib/publications/integrity";
 
+/**
+ * Two-letter monogram. Empty segments are filtered before taking first
+ * characters: a name with a leading/double space previously yielded an empty
+ * string, so that one author's avatar rendered blank while everyone else's
+ * showed initials. Falls back to "?" so the treatment is never inconsistent.
+ */
 function initials(name: string): string {
-  return name
+  const letters = name
     .split(/\s+/)
+    .map((w) => w.trim())
+    .filter(Boolean)
     .map((w) => w[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
+  return letters || "?";
 }
 
 /**
@@ -58,14 +68,23 @@ export default async function AuthorBiosSection({
                     </span>
                   )}
                 </h3>
-                {author.full_name_km && (
-                  <p className="font-khmer-serif text-[13px] text-text-muted">{author.full_name_km}</p>
+                {secondaryValue(author.full_name, author.full_name_km) && (
+                  <p className="font-khmer-serif text-[13px] text-text-muted">
+                    {secondaryValue(author.full_name, author.full_name_km)}
+                  </p>
                 )}
-                {authorAffiliations.length > 0 && (
+                {authorAffiliations.length > 0 ? (
                   <p className="mt-1 text-[12.5px] leading-5 text-text-muted">
                     {authorAffiliations
                       .map((a) => [a.name, a.city, a.country].filter(Boolean).join(", "))
                       .join(" · ")}
+                  </p>
+                ) : (
+                  // Stated plainly. Never substituted from a neighbouring
+                  // field — that is how a staff account name reached an
+                  // author's institutional affiliation in the first place.
+                  <p className="mt-1 text-[12.5px] italic leading-5 text-text-muted/70">
+                    {t("affiliationNotRecorded")}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3">

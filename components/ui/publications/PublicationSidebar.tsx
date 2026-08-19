@@ -1,12 +1,16 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { FileText, ShieldCheck } from "lucide-react";
+import { FileText } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import MetricsPanel from "@/components/ui/detail/MetricsPanel";
 import BackToTopButton from "@/components/ui/detail/BackToTopButton";
 import CitePublication from "@/components/ui/publications/CitePublication";
 import PublicationMetadataCard from "@/components/ui/publications/PublicationMetadataCard";
 import type { Publication } from "@/lib/publications";
+import type { PublicationMetrics } from "@/lib/publications/integrity";
+import AccessBadge from "@/components/ui/publications/AccessBadge";
+import SubjectList from "@/components/ui/detail/SubjectList";
+import KeywordList from "@/components/ui/detail/KeywordList";
 
 export default async function PublicationSidebar({
   pub,
@@ -14,12 +18,14 @@ export default async function PublicationSidebar({
   shareUrl,
   publishedOn,
   year,
+  metrics,
 }: {
   pub: Publication;
   fileHref: string;
   shareUrl: string;
   publishedOn: string | null;
   year: string | null;
+  metrics: PublicationMetrics;
 }) {
   const t = await getTranslations("publicationDetail");
   return (
@@ -42,9 +48,15 @@ export default async function PublicationSidebar({
             </div>
           )}
         </div>
-        <span className="absolute left-2.5 top-2.5 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/95 px-2 py-1 text-[9.5px] font-bold uppercase tracking-wide text-emerald-700 shadow-sm backdrop-blur-sm dark:border-emerald-800/40 dark:bg-emerald-950/80 dark:text-emerald-400">
-          <ShieldCheck className="h-3 w-3" /> {t("openAccess")}
-        </span>
+        <AccessBadge
+          license={pub.license}
+          variant="overlay"
+          labels={{
+            openAccess: t("openAccess"),
+            licensed: t("accessLicensed"),
+            rightsUnstated: t("accessRightsUnstated"),
+          }}
+        />
       </div>
 
       {/* Quick actions */}
@@ -72,10 +84,16 @@ export default async function PublicationSidebar({
       </div>
 
       {/* Metrics */}
+      {/* Same derivation object the masthead strip renders. */}
       <MetricsPanel
-        views={(pub.view_count || 0) + 1}
-        downloads={pub.download_count || 0}
-        labels={{ views: t("views"), downloads: t("downloads") }}
+        views={metrics.views}
+        downloads={metrics.downloads}
+        labels={{
+          views: t("views"),
+          downloads: t("downloads"),
+          srViews: t("srViews", { count: metrics.views ?? 0 }),
+          srDownloads: t("srDownloads", { count: metrics.downloads ?? 0 }),
+        }}
       />
 
       {/* Cite this */}
@@ -83,8 +101,29 @@ export default async function PublicationSidebar({
         <CitePublication publication={pub} />
       </div>
 
-      {/* Publication information */}
-      <PublicationMetadataCard pub={pub} publishedOn={publishedOn} year={year} />
+      {/* Publication information — the "details" nav anchor points here. */}
+      <div id="details" className="scroll-mt-24 lg:scroll-mt-36">
+        <PublicationMetadataCard pub={pub} publishedOn={publishedOn} year={year} />
+      </div>
+
+      {/* Subjects + keywords: filter links into the listing, not dead text.
+          These were previously a standalone "Research Areas & Keywords"
+          section that rendered a heading over nothing whenever the record had
+          neither. In the rail they simply disappear when empty. */}
+      {(pub.subjects.length > 0 || pub.keywords.length > 0) && (
+        <div className="space-y-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+          <SubjectList
+            subjects={pub.subjects}
+            basePath="/publications"
+            heading={t("subjectsHeading")}
+          />
+          <KeywordList
+            keywords={pub.keywords}
+            basePath="/publications"
+            heading={t("researchAreasKeywords")}
+          />
+        </div>
+      )}
 
       <BackToTopButton label={t("backToTop")} />
     </aside>

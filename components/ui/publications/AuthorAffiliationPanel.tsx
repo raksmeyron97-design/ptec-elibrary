@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import type { PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
 import { normalizeOrcid, orcidUrl } from "@/lib/seo/identifiers";
+import { secondaryValue } from "@/lib/publications/integrity";
 
 export default async function AuthorAffiliationPanel({
   orderedAffiliations,
@@ -23,7 +24,14 @@ export default async function AuthorAffiliationPanel({
             <sup className="mt-1.5 shrink-0 font-bold text-text-muted">{marker}</sup>
             <span>
               {affiliation.name}
-              {affiliation.name_km && <span className="ml-1.5 text-text-muted">({affiliation.name_km})</span>}
+              {/* Only a genuine translation is shown. Staff routinely paste the
+                  same string into both name fields, which rendered as
+                  "Ron Raksmey (Ron Raksmey)". */}
+              {secondaryValue(affiliation.name, affiliation.name_km) && (
+                <span className="ml-1.5 text-text-muted">
+                  ({secondaryValue(affiliation.name, affiliation.name_km)})
+                </span>
+              )}
               {[affiliation.city, affiliation.country].filter(Boolean).length > 0 && (
                 <span className="text-text-muted">
                   {" — "}

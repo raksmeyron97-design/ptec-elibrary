@@ -1,10 +1,11 @@
 import { getTranslations } from "next-intl/server";
-import { CalendarDays, ScrollText, Scale, ShieldCheck } from "lucide-react";
+import { CalendarDays, ScrollText, Scale } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import AuthorAffiliationPanel from "@/components/ui/publications/AuthorAffiliationPanel";
 import PublicationMetricsRow from "@/components/ui/publications/PublicationMetricsRow";
-import { citationYear } from "@/lib/citations";
+import AccessBadge from "@/components/ui/publications/AccessBadge";
 import type { Publication, PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
+import { secondaryValue, type PublicationMetrics } from "@/lib/publications/integrity";
 
 const TYPE_LABELS: Record<string, string> = {
   article: "Article",
@@ -32,6 +33,7 @@ export default async function PublicationHero({
   publishedOn,
   fileHref,
   shareUrl,
+  metrics,
 }: {
   pub: Publication;
   authorships: PublicationAuthorship[];
@@ -42,6 +44,7 @@ export default async function PublicationHero({
   publishedOn: string | null;
   fileHref: string;
   shareUrl: string;
+  metrics: PublicationMetrics;
 }) {
   const t = await getTranslations("publicationDetail");
   return (
@@ -60,9 +63,15 @@ export default async function PublicationHero({
                   </span>
                 )}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/60 dark:text-emerald-400">
-                <ShieldCheck className="h-3 w-3" /> {t("openAccess")}
-              </span>
+              {/* Derived from the record's licence — never asserted by default. */}
+              <AccessBadge
+                license={pub.license}
+                labels={{
+                  openAccess: t("openAccess"),
+                  licensed: t("accessLicensed"),
+                  rightsUnstated: t("accessRightsUnstated"),
+                }}
+              />
             </div>
             {pub.doi && (
               <a
@@ -79,9 +88,15 @@ export default async function PublicationHero({
           <h1 className="mt-3 font-khmer-serif text-[clamp(24px,4vw,36px)] font-bold leading-[1.28] text-text-heading">
             {pub.title}
           </h1>
-          {pub.title_km && pub.title_km.trim().toLowerCase() !== pub.title.trim().toLowerCase() && (
-            <p className="mt-1.5 font-khmer-serif text-[clamp(16px,2.5vw,22px)] font-semibold leading-snug text-text-muted">
-              {pub.title_km}
+          {/* A sibling, never a second <h1>: one heading per document, and
+              lang="km" makes a screen reader switch voice instead of reading
+              Khmer with an English engine. */}
+          {secondaryValue(pub.title, pub.title_km) && (
+            <p
+              lang="km"
+              className="mt-1.5 font-khmer-serif text-[clamp(16px,2.5vw,22px)] font-semibold leading-[1.9] text-text-muted"
+            >
+              {secondaryValue(pub.title, pub.title_km)}
             </p>
           )}
 
@@ -155,16 +170,18 @@ export default async function PublicationHero({
           </div>
 
           {/* Metrics strip */}
+          {/* One derivation, shared with the sidebar rail — the two blocks
+              read the same object and cannot disagree. */}
           <PublicationMetricsRow
-            views={(pub.view_count || 0) + 1}
-            downloads={pub.download_count || 0}
-            referenceCount={pub.references.length}
-            year={citationYear(pub)}
+            metrics={metrics}
             labels={{
               views: t("views"),
               downloads: t("downloads"),
               references: t("sectionReferences"),
               year: t("fieldYear"),
+              srViews: t("srViews", { count: metrics.views ?? 0 }),
+              srDownloads: t("srDownloads", { count: metrics.downloads ?? 0 }),
+              srReferences: t("srReferences", { count: metrics.referenceCount ?? 0 }),
             }}
           />
         </div>

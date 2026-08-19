@@ -16,7 +16,14 @@ export type QuickNavSection = {
  * always-mounted <section id="..."> blocks on the page (true scroll, not
  * tab panels) so highlighting the "current" section is actually meaningful.
  */
-export default function SectionQuickNav({ sections }: { sections: QuickNavSection[] }) {
+export default function SectionQuickNav({
+  sections,
+  label = "Section navigation",
+}: {
+  sections: QuickNavSection[];
+  /** Accessible name for the nav landmark. Localise it at the call site. */
+  label?: string;
+}) {
   const [activeId, setActiveId] = useState<string | null>(sections[0]?.id ?? null);
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -56,14 +63,16 @@ export default function SectionQuickNav({ sections }: { sections: QuickNavSectio
       ref={navRef}
       className="sticky top-0 z-40 -mx-4 mb-7 overflow-x-auto border-b border-divider bg-bg-body/95 px-4 py-2.5 backdrop-blur-sm sm:-mx-6 sm:px-6 md:-mx-12 md:px-12 lg:top-[72px]"
     >
-      <nav aria-label="Section navigation" className="mx-auto flex max-w-[1200px] flex-nowrap items-center gap-2">
+      <nav aria-label={label} className="mx-auto flex max-w-[1200px] flex-nowrap items-center gap-2">
         {sections.map((s) => {
           const active = s.id === activeId;
           return (
             <a
               key={s.id}
               href={`#${s.id}`}
-              aria-current={active ? "true" : undefined}
+              // "location" is the correct token for "this is where you are in
+              // the document"; "true" implies a current *page*.
+              aria-current={active ? "location" : undefined}
               onClick={(e) => {
                 e.preventDefault();
                 document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
