@@ -74,8 +74,10 @@ networks:
 
 x-casaos:
   architectures:
+    # The published image is amd64 only — see the platforms comment in
+    # .github/workflows/docker-publish.yml. Claiming arm64 here would advertise
+    # an image tag that has no arm64 manifest.
     - amd64
-    - arm64
   main: ptec-elibrary
   description:
     en_us: PTEC e-Library — free public digital library for Phnom Penh Teacher Education College

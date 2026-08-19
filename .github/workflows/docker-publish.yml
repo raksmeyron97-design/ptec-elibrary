@@ -54,12 +54,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Cross-building linux/arm64 for a Next.js app goes through QEMU and is
-      # slow. If the ZimaOS box is confirmed x86_64 forever, drop arm64 from
-      # `platforms:` below and delete this step.
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -130,7 +124,14 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          # amd64 only. The ZimaOS box is x86_64 — verified on the box itself:
+          # `uname -m` -> x86_64, lscpu -> 4-core GenuineIntel (QEMU virtual
+          # CPU). Cross-building arm64 runs the entire Next.js webpack build
+          # under QEMU emulation: measured at 40+ minutes versus ~5 for amd64,
+          # and since this workflow deliberately never cancels in progress,
+          # consecutive merges queued behind each other for hours.
+          # Add arm64 back if the library ever has to run on an ARM board.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -165,7 +166,7 @@ jobs:
             echo
             echo "Digest: \`${{ steps.build.outputs.digest }}\`"
             echo
-            echo "Platforms: \`linux/amd64, linux/arm64\`"
+            echo "Platforms: \`linux/amd64\`"
             echo
             echo "The ZimaOS box picks this up on its next deploy-watch tick (<= 5 min)."
           } >> "$GITHUB_STEP_SUMMARY"
