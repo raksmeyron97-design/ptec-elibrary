@@ -52,11 +52,37 @@ Building on the box was the previous design (`docker compose up -d --build`).
 It is gone: it compiled Next.js on a machine that also serves the site, and it
 required the box to hold the source *and* the build-time env to do it.
 
-`NEXT_PUBLIC_*` values are compiled into the client bundle, so CI passes them as
-build args from **repository variables** (not secrets — the browser receives
-every one of them). If they are unset, the published image ships an undefined
-Supabase URL to visitors; `docker-publish.yml` fails loudly rather than publish
-that.
+### What the image build needs from GitHub
+
+| Input | Where it lives | Why |
+| --- | --- | --- |
+| The eight `NEXT_PUBLIC_*` values | Repository **variables** | Compiled into the client bundle at build time. Not secrets — the browser receives every one of them, so keeping them visible makes them auditable rather than exposing anything. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Repository **secret** | Prerendering every public page goes through `app/[locale]/(public)/layout.tsx` → `getSiteConfig()` → `createServiceClient()`, which reads the service-role-only `site_settings` table (migration `0098`). |
+
+Both are load-bearing, and a missing one used to fail in a way that looked like
+success. Without the variables the image publishes fine but ships an undefined
+Supabase URL to every visitor. Without the secret the build cannot prerender any
+public route and dies with `supabaseKey is required`. `docker-publish.yml` now
+checks all nine before building and fails with a message naming what is absent.
+
+The service-role key is mounted as a **BuildKit secret**, never a build arg: it
+bypasses RLS, and `ARG` values stay recoverable from `docker history` on the
+published image. A secret mount exists only for the duration of that `RUN` and
+never reaches a layer. Verified on the built image — the key appears in zero
+files under `/app` and not in `docker history`, while the anon key (which is
+*supposed* to be inlined) appears in 70.
+
+Rotating the key means updating both Supabase and
+`gh secret set SUPABASE_SERVICE_ROLE_KEY`, then republishing — the running
+container reads it from `.env` at runtime, so the box also needs the new value.
+
+Two further build requirements are pinned in the Dockerfile rather than here,
+because they bit only inside a container: `NODE_OPTIONS=--max-old-space-size=4096`
+(the in-process type check OOMs at Node's default heap, which is sized from host
+RAM — it passed on a laptop and failed in a 7.7 GB Docker VM), and `next/font/google`
+reaching `fonts.googleapis.com` during the build, which makes the image build
+sensitive to flaky DNS. A transient `getaddrinfo` failure there is worth simply
+retrying.
 
 ## 2a. One-time box setup
 
