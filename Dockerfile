@@ -20,7 +20,15 @@ RUN mkdir -p public && npm ci
 # ── Stage 2: build ────────────────────────────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+# `next build` runs the TypeScript check in-process, and this project OOMs it at
+# Node's default heap — the same reason CI runs `tsc --noEmit` with this exact
+# flag (see .github/workflows/ci.yml and CLAUDE.md). Without it the build dies
+# with "Reached heap limit Allocation failed" partway through type checking.
+# Node sizes the default heap from the host's RAM, so whether this bites depends
+# on the machine: it passed on a laptop and failed in a 7.7 GB Docker VM. Pin it
+# rather than leave the image build dependent on where it happens to run.
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS=--max-old-space-size=4096
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Public NEXT_PUBLIC_* values are compiled into the client bundle at build
@@ -33,7 +41,19 @@ ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ARG NEXT_PUBLIC_R2_PUBLIC_URL
 ARG NEXT_PUBLIC_R2_COVERS_URL
-RUN npm run build
+
+# `next build` prerenders the public pages, and app/[locale]/(public)/layout.tsx
+# calls getSiteConfig() -> createServiceClient(), which reads the service-role-
+# only site_settings table (migration 0098). So the BUILD needs the service-role
+# key, not just the NEXT_PUBLIC_* values — without it every public route fails
+# with "supabaseKey is required" and the export aborts.
+#
+# It is mounted as a BuildKit secret, NOT passed as an ARG: that key bypasses
+# RLS entirely, and ARG values are recoverable from `docker history`. A secret
+# mount exists only for the duration of this RUN and is never written to a
+# layer. `env=` exposes it as an environment variable to the build.
+RUN --mount=type=secret,id=supabase_service_role_key,env=SUPABASE_SERVICE_ROLE_KEY \
+    npm run build
 
 # ── Stage 3: runtime ──────────────────────────────────────────────────────────
 FROM node:22-alpine AS runner

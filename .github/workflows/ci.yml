@@ -1,10 +1,13 @@
 name: CI
 
 on:
-  push:
-    branches: [ "main" ]
+  # No `push: main` trigger. Pushes to main run through docker-publish.yml,
+  # which calls this workflow first — a push trigger here would duplicate the
+  # whole suite on every merge and fight it for the concurrency slot.
   pull_request:
     branches: [ "main" ]
+  # Lets docker-publish.yml gate the image build on the full suite.
+  workflow_call:
 
 # A newer push to the same branch/PR supersedes the running CI — cancel it
 # instead of letting both bill Actions minutes (Playwright runs are the
