@@ -22,4 +22,13 @@ services:
         NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
         NEXT_PUBLIC_R2_PUBLIC_URL: ${NEXT_PUBLIC_R2_PUBLIC_URL}
         NEXT_PUBLIC_R2_COVERS_URL: ${NEXT_PUBLIC_R2_COVERS_URL}
+      # Prerendering reads the service-role-only site_settings table, so the
+      # build needs this key. It is a BuildKit secret rather than a build arg:
+      # it bypasses RLS, and ARG values survive in `docker history`.
+      secrets:
+        - supabase_service_role_key
     image: ptec-elibrary:local
+
+secrets:
+  supabase_service_role_key:
+    environment: SUPABASE_SERVICE_ROLE_KEY
