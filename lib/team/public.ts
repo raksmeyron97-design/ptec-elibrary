@@ -10,6 +10,9 @@
 
 export type PublicTeamMember = {
   id: string;
+  /** URL handle for /about/team/<slug> (migration 0114). Null on rows that
+   *  predate the migration window — the profile link is simply not offered. */
+  slug: string | null;
   name_km: string;
   name_en: string;
   position_km: string | null;
@@ -45,8 +48,16 @@ export type PublicTeamSection = {
   display_order: number;
 };
 
-/** Column list requested from the post-0070 `team_members_public` view. */
+/** Column list requested from the post-0114 `team_members_public` view. */
 export const PUBLIC_MEMBER_SELECT =
+  "id,slug,name_km,name_en,position_km,position_en,education,years_experience," +
+  "photo_url,photo_alt,short_bio_km,short_bio_en,bio_km,bio_en," +
+  "responsibilities_km,responsibilities_en,languages,working_hours," +
+  "is_featured,display_order,section_id,section_name_km,section_name_en,phone,email";
+
+/** The 0070–0113 window: `team_members_public` exists but has no `slug` yet.
+ *  Selecting the full list 42703s there, so the fetcher retries with this. */
+export const PRE_0114_MEMBER_SELECT =
   "id,name_km,name_en,position_km,position_en,education,years_experience," +
   "photo_url,photo_alt,short_bio_km,short_bio_en,bio_km,bio_en," +
   "responsibilities_km,responsibilities_en,languages,working_hours," +
@@ -83,6 +94,7 @@ export type LegacyTeamMemberRow = {
 export function fromLegacyRow(row: LegacyTeamMemberRow): PublicTeamMember {
   return {
     ...row,
+    slug: null,
     photo_alt: null,
     short_bio_km: null,
     short_bio_en: null,

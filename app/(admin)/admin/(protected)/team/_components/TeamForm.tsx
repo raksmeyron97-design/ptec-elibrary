@@ -179,6 +179,7 @@ export default function TeamForm({
   // ── Live preview model ─────────────────────────────────────────────
   const previewMember: PublicTeamMember = useMemo(() => ({
     id: initial?.id ?? "preview",
+    slug: initial?.slug ?? null,
     name_km: form.name_km,
     name_en: form.name_en,
     position_km: form.position_km || null,
@@ -202,7 +203,7 @@ export default function TeamForm({
     section_name_en: selectedSection?.name_en ?? null,
     phone: form.show_phone_publicly && form.phone ? form.phone : null,
     email: form.show_email_publicly && linkedProfile ? linkedProfile.email : null,
-  }), [form, photoPreview, selectedSection, linkedProfile, initial?.id]);
+  }), [form, photoPreview, selectedSection, linkedProfile, initial?.id, initial?.slug]);
 
   // ── Tab completeness (green check when key fields are filled) ──────
   const tabComplete: Record<TabKey, boolean> = {

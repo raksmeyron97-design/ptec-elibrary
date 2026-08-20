@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Clock, Languages, LayoutGrid, MessageCircle, Phone, Users } from "lucide-react";
-import { createServiceClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
-import {
-  PUBLIC_MEMBER_SELECT,
-  LEGACY_MEMBER_SELECT,
-  fromLegacyRow,
-  type LegacyTeamMemberRow,
-  type PublicTeamMember,
-  type PublicTeamSection,
-} from "@/lib/team/public";
+import { getPublicTeamData } from "@/lib/team/data";
 import { groupWeeklySpec } from "@/lib/about/schedule";
 import { toAboutLocale, formatDate, formatNumber } from "@/lib/about/format";
 import { ABOUT_CONTENT_REVIEWED_AT } from "@/lib/about/content";
@@ -63,71 +55,6 @@ export async function generateMetadata({
     },
     twitter: { card: "summary_large_image", title: socialTitle, description },
   };
-}
-
-/**
- * Reads published members from the privacy-enforcing `team_members_public`
- * view (migration 0070) — the view is what nulls `phone`/`email` for members
- * whose admin has not approved public display, so the page cannot leak a
- * personal contact detail even by accident.
- *
- * Until that migration is applied the view does not exist, so this falls back
- * to the legacy view with the pre-0070 column list.
- */
-async function getPublicTeamData(): Promise<{
-  members: PublicTeamMember[];
-  sections: PublicTeamSection[];
-}> {
-  const supabase = createServiceClient();
-
-  const [{ data: membersNew, error: membersError }, sectionsResult] = await Promise.all([
-    supabase
-      .from("team_members_public")
-      .select(PUBLIC_MEMBER_SELECT)
-      .order("display_order", { ascending: true })
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("team_sections")
-      .select("id,name_km,name_en,description_km,description_en,display_order,is_active")
-      .order("display_order", { ascending: true }),
-  ]);
-
-  let members: PublicTeamMember[];
-  if (membersError) {
-    // Pre-0070 fallback: view (42P01) or columns (42703) missing.
-    const { data: legacy } = await supabase
-      .from("team_members_with_email")
-      .select(LEGACY_MEMBER_SELECT)
-      .eq("is_published", true)
-      .order("display_order", { ascending: true })
-      .order("created_at", { ascending: true });
-    members = ((legacy ?? []) as unknown as LegacyTeamMemberRow[]).map(fromLegacyRow);
-  } else {
-    members = (membersNew ?? []) as unknown as PublicTeamMember[];
-  }
-
-  let sections: PublicTeamSection[];
-  if (sectionsResult.error) {
-    // Pre-0070: no is_active column yet.
-    const { data: legacySections } = await supabase
-      .from("team_sections")
-      .select("id,name_km,name_en,description_km,description_en,display_order")
-      .order("display_order", { ascending: true });
-    sections = (legacySections ?? []) as PublicTeamSection[];
-  } else {
-    sections = (sectionsResult.data ?? [])
-      .filter((s) => s.is_active !== false)
-      .map((s) => ({
-        id: s.id,
-        name_km: s.name_km,
-        name_en: s.name_en,
-        description_km: s.description_km,
-        description_en: s.description_en,
-        display_order: s.display_order,
-      }));
-  }
-
-  return { members, sections };
 }
 
 export default async function TeamPage({
@@ -304,7 +231,16 @@ export default async function TeamPage({
             }
           />
         ) : (
-          <TeamDirectory members={members} sections={sectionsWithMembers} locale={locale} />
+          <TeamDirectory
+            members={members}
+            sections={sectionsWithMembers}
+            locale={locale}
+            desk={{
+              phone: cfg.phoneLibrary,
+              tel: cfg.phoneLibraryTel,
+              hours: locale === "km" ? cfg.hours.km : cfg.hours.en,
+            }}
+          />
         )}
       </AboutSection>
 
