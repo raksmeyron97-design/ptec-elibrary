@@ -381,6 +381,9 @@ export async function middleware(request: NextRequest) {
     ["theses", RESOURCE_GATES.theses],
     ["publications", RESOURCE_GATES.publications],
     ["catalogs", RESOURCE_GATES.catalogs],
+    // Two-segment prefix — the regex below is built from the segment string,
+    // so /about/team/<slug> matches while /about/team itself does not.
+    ["about/team", RESOURCE_GATES["about/team"]],
   ] as const) {
     const match = pathWithoutLocale.match(
       new RegExp(`^/${segment}/([^/]+)$`),

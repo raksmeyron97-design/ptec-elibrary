@@ -14,6 +14,7 @@ import {
 function member(overrides: Partial<PublicTeamMember> = {}): PublicTeamMember {
   return {
     id: "m1",
+    slug: "sokha",
     name_km: "សុខា",
     name_en: "Sokha",
     position_km: null,
@@ -77,6 +78,8 @@ describe("fromLegacyRow", () => {
     expect(mapped.responsibilities_en).toEqual([]);
     expect(mapped.languages).toEqual([]);
     expect(mapped.photo_alt).toBeNull();
+    // Legacy rows predate profile slugs — no profile link is offered for them.
+    expect(mapped.slug).toBeNull();
   });
 });
 

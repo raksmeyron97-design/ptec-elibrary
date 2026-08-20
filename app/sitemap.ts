@@ -85,6 +85,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     categories,
     authors,
     publicationAuthors,
+    teamMembers,
   ] = await Promise.all([
     fetchAllRows<{ slug: string; published_at: string | null; created_at: string | null; updated_at: string | null }>(
       (from, to) =>
@@ -167,6 +168,18 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .from('publication_authors')
           .select('full_name, created_at')
           .order('full_name', { ascending: true })
+          .range(from, to),
+    ),
+    // The privacy-enforcing view already restricts this to published members
+    // in active sections. Before migration 0114 the `slug` column does not
+    // exist and this select errors — fetchAllRows then returns [], which is
+    // exactly right: no profile pages exist yet either.
+    fetchAllRows<{ slug: string | null; created_at: string | null }>(
+      (from, to) =>
+        supabase
+          .from('team_members_public')
+          .select('slug, created_at')
+          .order('created_at', { ascending: true })
           .range(from, to),
     ),
   ]);
@@ -274,6 +287,17 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
+  // Members without a slug (pre-0114 rows) have no profile page to advertise.
+  const teamUrls: MetadataRoute.Sitemap = teamMembers
+    .filter((m): m is { slug: string; created_at: string | null } => Boolean(m.slug))
+    .map((m) =>
+      entry(`/about/team/${m.slug}`, {
+        lastModified: sitemapLastmod(m.created_at),
+        changeFrequency: 'monthly',
+        priority: 0.4,
+      }),
+    );
+
   return [
     ...staticUrls,
     ...reportUrls,
@@ -284,6 +308,7 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     ...pathUrls,
     ...subjectUrls,
     ...authorUrls,
+    ...teamUrls,
   ];
 }
 
