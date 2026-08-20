@@ -1,14 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import Image from "next/image";
 import { Link } from "@/i18n/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, GraduationCap } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
-import ThesisCard from "@/components/ui/theses/ThesisCard";
 
 interface RelatedThesesProps {
   currentId: string;
   cohort?: string;
   academicYear?: string;
   department?: string;
+  /**
+   * "section" (default) is the full-width shelf of cards. "rail" is the
+   * compact list the Modernist record page puts in its right column: title,
+   * one meta line, a hairline between rows and nothing else. Both run the
+   * same relatedness query — only the presentation differs — so the two never
+   * disagree about what "related" means.
+   */
+  variant?: "section" | "rail";
+  /** Rail heading. Ignored by the section variant, which has its own header. */
+  railHeading?: string;
 }
 
 const REASON_LABEL: Record<string, string> = {
@@ -23,9 +33,13 @@ export default async function RelatedTheses({
   cohort,
   academicYear,
   department,
+  variant = "section",
+  railHeading = "Related · same faculty",
 }: RelatedThesesProps) {
   const supabase = createServiceClient();
-  const TARGET = 6;
+  // The rail shows three; the shelf shows six. Fetching only what is rendered
+  // keeps the rail from paying for three rows it will throw away.
+  const TARGET = variant === "rail" ? 3 : 6;
 
   const seen = new Set<string>([currentId]);
   const collected: any[] = [];
@@ -63,64 +77,122 @@ export default async function RelatedTheses({
   await pull("academic_year", academicYear);
   await pull(); // fill remaining slots with most-viewed theses
 
+  if (variant === "rail") {
+    if (collected.length === 0) return null;
+    return (
+      <section>
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted mb-1">{railHeading}</h2>
+        <ul className="flex flex-col">
+          {collected.map((report) => (
+            <li key={report.id}>
+              <Link
+                href={`/theses/${report.slug ?? report.id}`}
+                className="block border-t border-divider py-3 transition-colors duration-150 hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring/50"
+              >
+                <span className="block font-khmer-serif text-[14px] font-semibold leading-[1.5] text-text-heading">
+                  {report.title}
+                </span>
+                <span className="mt-1 block text-[11px] font-semibold uppercase leading-[1.4] tracking-[0.06em] text-text-muted">
+                  {[report.author_names, report.cohort && `Cohort ${report.cohort}`]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
   return (
-    <section className="mt-16">
-      {/* Section header */}
-      <div className="mb-8 flex items-end justify-between gap-4">
+    <section aria-labelledby="related-theses-heading" className="mt-14">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-[3px] w-8 rounded-full bg-gradient-to-r from-brand to-accent" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
-              Keep Reading
-            </span>
-          </div>
-          <h2 className="font-khmer-serif text-[26px] font-bold text-text-heading sm:text-[28px]">
-            Related Theses
+          <h2
+            id="related-theses-heading"
+            className="text-[22px] font-bold tracking-[-0.01em] text-text-heading sm:text-[24px]"
+          >
+            Related theses
           </h2>
-          <p className="mt-1 text-[13px] text-text-muted">
-            Other theses you may want to read
+          <p className="mt-1 text-[13.5px] text-text-muted">
+            Other research from the same cohort, faculty and year.
           </p>
         </div>
         <Link
           href="/theses"
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-[13px] font-semibold text-text-body shadow-sm transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1.5 text-[13px] font-semibold text-brand transition-colors duration-150 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
-          Browse all
-          <ArrowRight className="h-3.5 w-3.5" />
+          Browse all theses
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
         </Link>
       </div>
 
       {collected.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-divider bg-bg-surface py-14 text-center">
-          <GraduationCapIcon />
-          <p className="text-[14px] text-text-muted">No related theses found yet.</p>
+        // Not a broken-looking void: an empty related shelf is normal for a
+        // young collection, so it says so and offers the next useful move.
+        <div className="rounded-2xl border border-dashed border-divider px-5 py-8 text-center">
+          <p className="text-[14px] text-text-muted">
+            No related theses are available yet — the collection is still growing.
+          </p>
+          <Link
+            href="/theses"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg text-[13.5px] font-semibold text-brand underline decoration-brand/30 underline-offset-4 transition-colors hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          >
+            Explore all theses
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-          {collected.map((report) => {
+        // Three across, and only three: this is a suggestion strip at the foot
+        // of a record, not a second listing page. The old six-column grid of
+        // full <ThesisCard>s put six covers, six bookmark buttons and six
+        // download controls below the references.
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {collected.slice(0, 3).map((report) => {
             const reason = reasons.get(report.id);
             const label = reason ? REASON_LABEL[reason] : undefined;
             return (
-              <div key={report.id} className="relative">
-                {label && (
-                  <span className="pointer-events-none absolute left-3 top-3 z-30 rounded-full bg-brand/90 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-brand-contrast shadow-sm backdrop-blur-sm">
-                    {label}
+              <li key={report.id}>
+                <Link
+                  href={`/theses/${report.slug ?? report.id}`}
+                  className="group flex h-full gap-4 rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm transition-colors duration-150 hover:border-brand/30 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                >
+                  <span className="relative block h-[92px] w-[68px] shrink-0 overflow-hidden rounded-lg border border-divider bg-paper">
+                    {report.cover_url ? (
+                      <Image
+                        src={report.cover_url}
+                        alt=""
+                        fill
+                        loading="lazy"
+                        sizes="68px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-text-muted">
+                        <GraduationCap className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+                      </span>
+                    )}
                   </span>
-                )}
-                <ThesisCard report={report} />
-              </div>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    {label && (
+                      <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-text-muted">
+                        {label}
+                      </span>
+                    )}
+                    <span className="mt-1 line-clamp-3 font-khmer-serif text-[14.5px] font-semibold leading-[1.5] text-text-heading transition-colors group-hover:text-brand">
+                      {report.title}
+                    </span>
+                    <span className="mt-auto pt-2 truncate text-[12px] text-text-muted">
+                      {[report.author_names, report.academic_year].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                </Link>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </section>
-  );
-}
-
-function GraduationCapIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-text-muted/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
   );
 }

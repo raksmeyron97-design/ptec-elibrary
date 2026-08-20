@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { isAllowedTeamPhotoUrl } from "@/lib/team/photo";
+import { unicodeSlug } from "@/lib/slug";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -21,6 +22,10 @@ export type TeamSection = {
 
 export type TeamMemberRow = {
   id: string;
+  /** Post-0114; undefined until the migration is applied. Not admin-editable:
+   *  it is generated once on create and then kept stable so published
+   *  /about/team/<slug> URLs never break when a name is corrected. */
+  slug?: string | null;
   user_id: string | null;
   section_id: string | null;
   name_km: string;
@@ -130,6 +135,40 @@ const POST_0070_FIELDS = [
   "working_hours", "is_featured", "show_phone_publicly", "show_email_publicly",
 ] as const;
 
+/** Fields that exist only after migration 0114 — stripped FIRST on PGRST204,
+ *  so a DB that has 0070 but not 0114 keeps every 0070 field it can take. */
+const POST_0114_FIELDS = ["slug"] as const;
+
+// ── Profile slugs (migration 0114) ─────────────────────────────────────
+//
+// A slug is generated ONCE, when the member is created (or duplicated), and
+// never changes afterwards — /about/team/<slug> is a published URL, and a
+// name correction must not 404 it. There is deliberately no slug input in
+// the admin form.
+
+const SLUG_MAX = 80;
+
+function slugBase(nameEn: string, nameKm: string): string {
+  const fromNames = unicodeSlug(nameEn) || unicodeSlug(nameKm);
+  return (fromNames || `member-${crypto.randomUUID().slice(0, 8)}`).slice(0, SLUG_MAX);
+}
+
+/** Appends -2, -3… until the slug is free. Before migration 0114 the lookup
+ *  errors (no slug column) — return the base; the write path strips the slug
+ *  field anyway. */
+async function ensureUniqueSlug(base: string, excludeId?: string): Promise<string> {
+  const supabase = createServiceClient();
+  let candidate = base;
+  for (let n = 2; n < 100; n += 1) {
+    let query = supabase.from("team_members").select("id").eq("slug", candidate).limit(1);
+    if (excludeId) query = query.neq("id", excludeId);
+    const { data, error } = await query;
+    if (error || !data || data.length === 0) return candidate;
+    candidate = `${base}-${n}`;
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
 async function buildPayload(data: FormData) {
   const name_km = str(data, "name_km");
   const name_en = str(data, "name_en");
@@ -178,29 +217,46 @@ async function buildPayload(data: FormData) {
 }
 
 /**
- * Writes with the full payload; if the DB predates migration 0070
- * (PGRST204 = unknown column on write), retries with the legacy field set.
+ * Writes with the full payload; if the DB predates a migration
+ * (PGRST204 = unknown column on write), retries with progressively older
+ * field sets: first without the 0114 slug, then without the 0070 fields.
  */
 async function writeMember(
-  payload: Awaited<ReturnType<typeof buildPayload>>,
+  payload: Awaited<ReturnType<typeof buildPayload>> & { slug?: string },
   write: (body: Record<string, unknown>) => Promise<{ error: { code?: string; message: string } | null }>
 ) {
-  const { error } = await write(payload);
+  let body: Record<string, unknown> = { ...payload };
+  let { error } = await write(body);
   if (!error) return;
-  if (error.code === "PGRST204") {
-    const legacy: Record<string, unknown> = { ...payload };
-    for (const field of POST_0070_FIELDS) delete legacy[field];
-    const retry = await write(legacy);
-    if (retry.error) throw new Error(retry.error.message);
-    return;
+
+  for (const strip of [POST_0114_FIELDS, POST_0070_FIELDS] as const) {
+    if (error.code !== "PGRST204") break;
+    body = { ...body };
+    for (const field of strip) delete body[field];
+    ({ error } = await write(body));
+    if (!error) return;
   }
   throw new Error(error.message);
 }
 
-function revalidateTeam() {
+function revalidateTeam(slugs: (string | null | undefined)[] = []) {
   revalidatePath("/admin/team");
   revalidatePath("/admin/team/sections");
   revalidatePath("/about/team");
+  for (const slug of slugs) {
+    if (slug) revalidatePath(`/about/team/${slug}`);
+  }
+}
+
+/** Best-effort slug read for cache revalidation — null before 0114. */
+async function memberSlug(id: string): Promise<string | null> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("team_members")
+    .select("slug")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as { slug?: string | null } | null)?.slug ?? null;
 }
 
 function toResult(err: unknown): ActionResult {
@@ -214,8 +270,9 @@ export async function createTeamMember(data: FormData): Promise<ActionResult> {
     const { userId } = await requireAdmin();
     const supabase = createServiceClient();
     const payload = await buildPayload(data);
+    const slug = await ensureUniqueSlug(slugBase(payload.name_en, payload.name_km));
 
-    await writeMember(payload, async (body) => {
+    await writeMember({ ...payload, slug }, async (body) => {
       const { error } = await supabase.from("team_members").insert(body);
       return { error };
     });
@@ -223,7 +280,7 @@ export async function createTeamMember(data: FormData): Promise<ActionResult> {
     await logAdminAction(userId, "team_member.create", "team_members", undefined, {
       name_en: payload.name_en,
     });
-    revalidateTeam();
+    revalidateTeam([slug]);
     return { success: true };
   } catch (err) {
     return toResult(err);
@@ -236,7 +293,14 @@ export async function updateTeamMember(id: string, data: FormData): Promise<Acti
     const supabase = createServiceClient();
     const payload = await buildPayload(data);
 
-    await writeMember(payload, async (body) => {
+    // Slugs are stable once assigned — only rows that predate migration 0114's
+    // backfill (or arrived through an odd path) get one generated here.
+    const existingSlug = await memberSlug(id);
+    const slug = existingSlug
+      ? undefined
+      : await ensureUniqueSlug(slugBase(payload.name_en, payload.name_km), id);
+
+    await writeMember(slug ? { ...payload, slug } : payload, async (body) => {
       const { error } = await supabase.from("team_members").update(body).eq("id", id);
       return { error };
     });
@@ -244,7 +308,7 @@ export async function updateTeamMember(id: string, data: FormData): Promise<Acti
     await logAdminAction(userId, "team_member.update", "team_members", id, {
       name_en: payload.name_en,
     });
-    revalidateTeam();
+    revalidateTeam([existingSlug ?? slug]);
     return { success: true };
   } catch (err) {
     return toResult(err);
@@ -264,17 +328,27 @@ export async function duplicateTeamMember(id: string): Promise<ActionResult> {
     if (error || !original) throw new Error("Member not found.");
 
     const copy = { ...(original as Record<string, unknown>) };
-    // Never copy identity, timestamps, or the linked user account.
+    // Never copy identity, timestamps, or the linked user account. The slug is
+    // identity too — it is unique, so copying it would fail the insert.
     delete copy.id;
     delete copy.created_at;
     delete copy.updated_at;
     delete copy.user_id;
+    delete copy.slug;
 
-    const { error: insertError } = await supabase.from("team_members").insert({
+    const duplicate = {
       ...copy,
       name_en: `${original.name_en} (copy)`,
       is_published: false, // duplicates always start as drafts
-    });
+      slug: await ensureUniqueSlug(slugBase(`${original.name_en} copy`, original.name_km ?? "")),
+    };
+    let { error: insertError } = await supabase.from("team_members").insert(duplicate);
+    if (insertError?.code === "PGRST204") {
+      // Pre-0114: no slug column yet.
+      const legacy: Record<string, unknown> = { ...duplicate };
+      delete legacy.slug;
+      ({ error: insertError } = await supabase.from("team_members").insert(legacy));
+    }
     if (insertError) throw new Error(insertError.message);
 
     await logAdminAction(userId, "team_member.duplicate", "team_members", id);
@@ -318,7 +392,7 @@ export async function toggleTeamMemberPublished(id: string, isPublished: boolean
       "team_members",
       id
     );
-    revalidateTeam();
+    revalidateTeam([await memberSlug(id)]);
     return { success: true };
   } catch (err) {
     return toResult(err);

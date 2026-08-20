@@ -90,24 +90,33 @@ export default function ThesisAbstractReader({
     );
 
   return (
-    <article className="max-w-[70ch]">
-      {words > 0 && (
-        <header className="mb-4 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
-          <span className="inline-flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("minRead", { count: readingMinutes })}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("wordCount", { count: words })}
-          </span>
-        </header>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <h2 id="abstract-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-          {heading}
-        </h2>
+    <article>
+      {/* Heading row: the section title at display weight, the reading
+          controls flush right, a 2px rule under both. The reading stats used
+          to sit in a header line of their own above this; they are a caption
+          on the section, so they ride with the heading instead of costing a
+          row. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2
+            id="abstract-heading"
+            className="text-[20px] font-bold leading-tight tracking-[-0.01em] text-text-heading sm:text-[22px]"
+          >
+            {heading}
+          </h2>
+          {words > 0 && (
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                {t("minRead", { count: readingMinutes })}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                {t("wordCount", { count: words })}
+              </span>
+            </p>
+          )}
+        </div>
         <ReaderToolbar
           textSize={textSize}
           canDecrease={canDecrease}
@@ -122,7 +131,10 @@ export default function ThesisAbstractReader({
         />
       </div>
 
-      <div className="mt-3">
+      {/* The measure is capped here rather than on the <article>, so the
+          heading row and the keyword list still span the column while the
+          running text stays at a readable ~68 characters. */}
+      <div className="mt-5 max-w-[68ch]">
         <div
           lang={bodyLang}
           className={`abstract-reader-copy text-text-body ${bodyFont}`}
@@ -133,7 +145,7 @@ export default function ThesisAbstractReader({
       </div>
 
       {keywords.length > 0 && (
-        <section className="mt-7 border-t border-divider pt-5">
+        <section id="keywords" className="mt-8 scroll-mt-28 border-t border-divider pt-6">
           <KeywordList keywords={keywords} basePath={basePath} heading={t("keywordsHeading")} />
         </section>
       )}

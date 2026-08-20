@@ -45,6 +45,13 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     });
   });
 
+  it("team profiles gate reads the team_members_public VIEW — anon reads of the base table were closed in 0071, so gating team_members itself would 401 at the edge and permanently fail open", () => {
+    expect(RESOURCE_GATES["about/team"]).toEqual({
+      table: "team_members_public",
+      publishedColumn: "is_published",
+    });
+  });
+
   // ── Static sibling routes must not be gated as slugs ──────────────────────
   describe("reserved segments", () => {
     const PUBLIC_DIR = path.join(__dirname, "..", "app/[locale]/(public)");

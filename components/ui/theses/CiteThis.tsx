@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { Check, Copy, Download, Quote } from "lucide-react";
 import {
   buildCitation,
@@ -25,6 +25,7 @@ export default function CiteThis({
   reportId,
   compact = false,
   institution,
+  showRecordNotes = true,
 }: {
   report: ResearchReport;
   reportId: string;
@@ -32,6 +33,17 @@ export default function CiteThis({
   compact?: boolean;
   /** Published institution name, threaded from the server (never compiled in). */
   institution: string;
+  /**
+   * Whether this panel also carries the "unverified record" warning and the
+   * "report incorrect details" link.
+   *
+   * True everywhere this component stands alone — the listing rows and
+   * /theses/summary, where nothing else on screen says the record is
+   * unverified. The record detail page passes FALSE, because its
+   * <RecordStatusCard> owns both, and printing the same warning twice in one
+   * sidebar was the duplication that moved them there.
+   */
+  showRecordNotes?: boolean;
 }) {
   const t = useTranslations("cite");
   const [open, setOpen] = useState(!compact);
@@ -74,17 +86,25 @@ export default function CiteThis({
 
   const panel = (
     <>
-      {/* Format tabs */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-bg-app p-1">
+      {/* Format picker. `aria-pressed` on six buttons announced them as six
+          independent toggles; a radiogroup says what this actually is — one
+          choice out of six. Wrapping flex rather than a 3-column grid, so
+          "Chicago" and "BibTeX" size to their labels instead of forcing every
+          cell to the widest one. */}
+      <div role="radiogroup" aria-label={t("citeThesis")} className="flex flex-wrap gap-1.5">
         {FORMATS.map((f) => {
           const active = f.id === format;
           return (
-            <button key={f.id} type="button" onClick={() => setFormat(f.id)}
-              aria-pressed={active}
-              className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
+            <button
+              key={f.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setFormat(f.id)}
+              className={`cursor-pointer rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${
                 active
-                  ? "bg-brand text-brand-contrast shadow-sm"
-                  : "text-text-muted hover:bg-bg-surface hover:text-text-body"
+                  ? "bg-brand text-brand-contrast"
+                  : "bg-bg-app text-text-muted hover:text-text-heading"
               }`}
             >
               {f.label}
@@ -94,52 +114,65 @@ export default function CiteThis({
       </div>
 
       {/* Citation text */}
-      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-divider bg-bg-app px-3.5 py-3 font-mono text-[11.5px] leading-relaxed text-text-body">
+      <pre className="mt-3 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-bg-app px-3.5 py-3 font-mono text-[12px] leading-[1.7] text-text-body">
         {text}
       </pre>
 
-      {/* Records a librarian hasn't verified may carry imported/placeholder
-          metadata — warn instead of presenting the citation as authoritative. */}
-      {!report.verified_at && (
-        <p className="mt-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-[11.5px] leading-relaxed text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200">
-          {t("unverifiedNote")}
-        </p>
-      )}
-
-      {/* Actions */}
-      <div className="mt-3 flex items-center gap-2">
+      {/* Actions. The copy result is announced through a polite live region
+          as well as by the icon swap — otherwise a screen-reader user pressing
+          "Copy" gets no confirmation that anything happened. */}
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={copy}
-          className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          className="inline-flex min-h-[40px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl bg-brand px-4 text-[13px] font-bold text-brand-contrast transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
         >
-          {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+          {copied ? (
+            <Check className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Copy className="h-4 w-4" aria-hidden="true" />
+          )}
           {copied ? t("copied") : t("copy")}
         </button>
         <button
           type="button"
           onClick={download}
-          className="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:bg-brand/5 hover:text-brand active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          className="inline-flex min-h-[40px] cursor-pointer items-center justify-center gap-2 rounded-xl border border-divider px-4 text-[13px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-4 w-4" aria-hidden="true" />
           {format === "bibtex" || format === "ris" ? format.toUpperCase() : "TXT"}
         </button>
       </div>
+      <p role="status" aria-live="polite" className="sr-only">
+        {copied ? t("copied") : ""}
+      </p>
 
-      {/* Route readers who spot bad metadata to the contact form with the
-          record pre-identified (the form clamps subject to its 200-char max). */}
-      <Link
-        href={{
-          pathname: "/contact",
-          query: {
-            subject: `Incorrect record details: ${report.title ?? reportId}`.slice(0, 200),
-            category: "other",
-          },
-        }}
-        className="mt-3 inline-block text-[11.5px] font-medium text-text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-brand"
-      >
-        {t("reportMetadata")}
-      </Link>
+      {showRecordNotes && !report.verified_at && (
+        // Status SURFACE tokens, not a hand-written amber triplet plus a
+        // second `dark:` one — the pairing lib/status-tokens.test.ts exists to
+        // keep.
+        <p className="mt-3 rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-[12px] leading-[1.6] text-warning-text">
+          {t("unverifiedNote")}
+        </p>
+      )}
+
+      {showRecordNotes && (
+        // Routes readers who spot bad metadata to the contact form with the
+        // record pre-identified (the form clamps subject to its 200-char max).
+        <Link
+          href={{
+            pathname: "/contact",
+            query: {
+              subject: `Incorrect record details: ${report.title ?? reportId}`.slice(0, 200),
+              category: "other",
+            },
+          }}
+          className="mt-3 inline-block rounded-sm text-[12px] font-semibold text-text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+        >
+          {t("reportMetadata")}
+        </Link>
+      )}
+
     </>
   );
 
@@ -165,11 +198,17 @@ export default function CiteThis({
 
   // Full sidebar card.
   return (
-    <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <h3 className="mb-3 inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-        <Quote className="h-4 w-4 text-brand" /> {t("citeThesis")}
-      </h3>
+    <section
+      aria-labelledby="cite-heading"
+      className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm"
+    >
+      <h2
+        id="cite-heading"
+        className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted"
+      >
+        {t("citeThesis")}
+      </h2>
       {panel}
-    </div>
+    </section>
   );
 }

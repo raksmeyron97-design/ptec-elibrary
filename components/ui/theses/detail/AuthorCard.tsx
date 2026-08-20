@@ -18,9 +18,17 @@ function initials(name: string): string {
 export default async function AuthorCard({
   currentId,
   authorNames,
+  variant = "section",
 }: {
   currentId: string;
   authorNames: string;
+  /**
+   * "section" is the full-width author panel (avatar, interests, two-column
+   * list). "rail" is the compact list the Modernist record page puts in its
+   * right column, headed "More from <author>" — the same query, no avatar,
+   * no interest chips, one hairline per row.
+   */
+  variant?: "section" | "rail";
 }) {
   const supabase = createServiceClient();
 
@@ -49,6 +57,48 @@ export default async function AuthorCard({
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([kw]) => kw);
+
+  if (variant === "rail") {
+    // The card wrapper lives HERE, not at the call site. This component
+    // returns null when the author has no other work in the repository, and a
+    // wrapper on the outside rendered an empty bordered box in the sidebar for
+    // every single-thesis author — which is most of them.
+    return (
+      <section
+        aria-labelledby="more-from-author-heading"
+        className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm"
+      >
+        <h2
+          id="more-from-author-heading"
+          className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted"
+        >
+          More from {authorNames}
+        </h2>
+        <ul className="flex flex-col">
+          {otherWorks.slice(0, 3).map((w) => (
+            <li key={w.id}>
+              <Link
+                href={`/theses/${w.slug ?? w.id}`}
+                className="group block border-t border-divider py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+              >
+                <span className="block font-khmer-serif text-[14px] font-semibold leading-[1.5] text-text-heading transition-colors group-hover:text-brand">
+                  {w.title}
+                </span>
+                <span className="mt-1 block text-[11.5px] text-text-muted">
+                  {[
+                    w.academic_year ?? (w.published_at ? new Date(w.published_at).getFullYear() : null),
+                    typeof w.download_count === "number" ? `${w.download_count} downloads` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
 
   return (
     <section className="mt-16">

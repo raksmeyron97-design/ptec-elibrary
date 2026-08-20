@@ -54,6 +54,17 @@ export const RESOURCE_GATES = {
   },
   publications: { table: "publications", publishedColumn: "is_published" },
   catalogs: { table: "catalog_books", publishedColumn: "is_active" },
+  // Team member profiles live one level deeper than the other resources —
+  // the key is the full path prefix under (public), and middleware builds its
+  // matcher from it the same way. The lookup target is the SECURITY DEFINER
+  // view, not the base table: anon reads of team_members were closed in 0071,
+  // so a base-table query from the edge would 401 and permanently fail open.
+  // The view's is_published column is constant-true (its WHERE bakes the
+  // filter in); it exists so this gate's `=eq.true` filter has something to
+  // bind to. Before migration 0114 the view lacks slug/is_published — the
+  // fetch 400s and the gate fails open, exactly the intended deploy-window
+  // behaviour.
+  "about/team": { table: "team_members_public", publishedColumn: "is_published" },
 } as const satisfies Record<string, ResourceGateConfig>;
 
 /** Pure resolution against a snapshot — unit-tested. */

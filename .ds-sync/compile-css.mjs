@@ -26,6 +26,10 @@ const result = await postcss([tailwindPlugin]).process(css, {
   to: outputPath,
 });
 
-writeFileSync(outputPath, result.css);
+// Prepend .design-sync/fonts.css (remote Google Fonts @import + the
+// --font-var-* custom properties next/font normally sets on <html>).
+// The @import must precede every other rule, so fonts.css goes first.
+const fontsCss = readFileSync(resolve(outputDir, 'fonts.css'), 'utf8');
+writeFileSync(outputPath, fontsCss + '\n' + result.css);
 console.log(`Written to: ${outputPath}`);
 console.log(`Size: ${(result.css.length / 1024).toFixed(1)} KB`);
