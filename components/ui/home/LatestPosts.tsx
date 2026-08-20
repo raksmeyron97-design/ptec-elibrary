@@ -255,11 +255,13 @@ export default function LatestPosts({ posts }: Props) {
           </div>
         )}
 
-        {/* View all — mobile only (desktop version is in the header row) */}
+        {/* View all — mobile only (desktop version is in the header row).
+            min-h-11 because px-6 py-2.5 alone measured 42 px at 360 px, 2 px
+            under the 44 px minimum touch target. */}
         <div className="mt-10 text-center sm:hidden">
           <Link
             href="/posts"
-            className="inline-flex items-center gap-2 rounded-full border border-divider/60 bg-bg-surface px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-divider/60 bg-bg-surface px-6 py-2.5 text-sm font-semibold text-text-heading shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand/30 hover:bg-brand/5 hover:text-brand hover:shadow-md"
           >
             {t('viewAllPosts')}
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>

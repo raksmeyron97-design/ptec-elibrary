@@ -140,16 +140,20 @@ export default async function CollectionGrid() {
 
         {/* ── SVA Library — a partner catalogue, not ours ──
             Visually separated (dashed border, full width, own row) so nobody
-            reads it as a fifth PTEC collection. The "opens in a new tab" note
-            is real text rather than an icon-only cue, and is part of the
-            accessible name via aria-describedby. */}
+            reads it as a fifth PTEC collection.
+
+            The "opens in a new tab" note is real text, not an icon-only cue,
+            and it sits INSIDE the link — so it is already part of the computed
+            accessible name. It deliberately carries no aria-describedby: the
+            Chrome a11y tree showed that pointing one at this same span made it
+            both the name's tail and the description, so a screen reader
+            announced "…បើកក្នុងផ្ទាំងថ្មី" twice in a row. */}
         {sva && (
           <div className="mt-4">
             <a
               href={sva.href}
               target="_blank"
               rel="noopener noreferrer"
-              aria-describedby="collection-grid-sva-note"
               className="group flex min-h-[76px] flex-col gap-3 rounded-xl border border-dashed border-divider bg-paper px-5 py-4 transition-all duration-200 hover:border-brand/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 sm:flex-row sm:items-center sm:gap-4"
             >
               <span
@@ -168,10 +172,7 @@ export default async function CollectionGrid() {
                 </span>
               </span>
 
-              <span
-                id="collection-grid-sva-note"
-                className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-muted"
-              >
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-semibold text-text-muted">
                 <svg
                   className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
