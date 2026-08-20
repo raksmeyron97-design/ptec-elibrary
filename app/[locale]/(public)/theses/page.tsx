@@ -13,6 +13,7 @@ import ThesisSidebar from "@/components/ui/theses/ThesisSidebar";
 import HeroSearch from "@/components/ui/theses/HeroSearch";
 import ResultToolbar from "@/components/ui/theses/ResultToolbar";
 import EmptyState from "@/components/ui/theses/EmptyState";
+import AppliedFilters, { type AppliedFilter } from "@/components/ui/theses/AppliedFilters";
 import ErrorState from "@/components/ui/theses/ErrorState";
 import { ClientNavWrapper } from "@/components/ui/books/ClientNavWrapper";
 import { PAGE_SIZE_OPTIONS, resolvePageSize } from "@/lib/pagination";
@@ -258,6 +259,45 @@ export default async function ThesesPage({
         ? tTheses("resultCountFiltered", { count: countChoice.count, total: countChoice.total })
         : tTheses("resultCount", { count: countChoice.count });
 
+  // ── Applied-filter chips ──────────────────────────────────────────────
+  // Resolved server-side so a chip never shows a raw code: "Bachelor of
+  // Education (12+4)", not "bed12_4". `q` is included because a search term
+  // narrows the list exactly as a facet does, and a reader who wants to widen
+  // it should not have to find and clear the search box separately.
+  const appliedFilters: AppliedFilter[] = [
+    params.q ? { key: "q", label: "Search", value: params.q } : null,
+    params.program
+      ? {
+          key: "program",
+          label: "Program",
+          value: programNames.get(params.program) ?? params.program,
+        }
+      : null,
+    params.faculty
+      ? {
+          key: "faculty",
+          label: "Faculty",
+          value: facultyNames.get(params.faculty) ?? params.faculty,
+        }
+      : null,
+    params.cohort
+      ? {
+          key: "cohort",
+          label: "Cohort",
+          // The cohorts table carries a display label (often Khmer, e.g.
+          // "ជំនាន់ទី៣ បឋម"); the chip shows the same string the facet rail
+          // does, so the two never name the same filter differently.
+          value:
+            visibleCohorts.find((c) => String(c.number) === params.cohort)?.label ??
+            params.cohort,
+        }
+      : null,
+    params.year ? { key: "year", label: "Year", value: params.year } : null,
+    params.author ? { key: "author", label: "Author", value: params.author } : null,
+    params.advisor ? { key: "advisor", label: "Advisor", value: params.advisor } : null,
+    params.keyword ? { key: "keyword", label: "Keyword", value: params.keyword } : null,
+  ].filter((f): f is AppliedFilter => f != null);
+
   // Locale-aware CollectionPage + ItemList — schema URL matches the page's
   // canonical URL for this locale, item URLs are locale-correct, and positions
   // are absolute across pagination. Only for the clean (indexable) listing.
@@ -286,9 +326,10 @@ export default async function ThesesPage({
   return (
     <ClientNavWrapper>
       {collectionSchema && <JsonLd data={collectionSchema} />}
-      <div className="min-h-screen bg-bg-body">
-        <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10 md:py-8 space-y-6">
-          {/* ── HERO SEARCH ─────────────────────────────────────────────── */}
+      <div className="min-h-screen bg-bg-app pb-16">
+        {/* Same container as the record page: a reader moving from a result to
+            the record should not see the page's measure change under them. */}
+        <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8">
           <HeroSearch
             institution={(await getOrgIdentity()).institutionName}
             collectionLabel={collectionLabel}
@@ -308,8 +349,9 @@ export default async function ThesesPage({
             keywords={keywords}
           />
 
-          <div className="flex gap-6 items-start">
-            {/* ── LEFT SIDEBAR ─────────────────────────────────────────── */}
+          {/* Facet rail | results. The rail is a fixed 264px column so the
+              results measure stays constant as facet labels change length. */}
+          <div className="grid items-start gap-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:gap-8">
             <ThesisSidebar
               currentProgram={params.program ?? ""}
               currentFaculty={params.faculty ?? ""}
@@ -331,8 +373,19 @@ export default async function ThesesPage({
               keywords={keywords}
             />
 
-            {/* ── MAIN CONTENT ─────────────────────────────────────────── */}
-            <div className="flex-1 min-w-0 space-y-4">
+            <div className="min-w-0">
+              {/* Chips first: what the list has been narrowed to, and how to
+                  widen it, before the list itself. */}
+              {appliedFilters.length > 0 && (
+                <div className="mb-4">
+                  <AppliedFilters
+                    filters={appliedFilters}
+                    params={params as Record<string, string | undefined>}
+                    basePath={basePath}
+                  />
+                </div>
+              )}
+
               <ResultToolbar
                 countLabel={countLabel}
                 query={params.q}
@@ -341,74 +394,83 @@ export default async function ThesesPage({
                 sort={sort}
                 pageSize={pageSize}
                 pageSizeOptions={[...PAGE_SIZE_OPTIONS]}
-                hasFilters={hasFilters}
                 summaryLabel={t("summaryIndex")}
                 basePath={basePath}
               />
 
-              {/* Results */}
-              {total === 0 ? (
-                <EmptyState
-                  message={
-                    params.q
-                      ? `We couldn't find anything matching "${params.q}".`
-                      : hasFilters
-                        ? "No theses match your selected filters."
-                        : "No theses are currently available."
-                  }
-                  showReset={hasFilters}
-                />
-              ) : isGrid ? (
-                <>
-                  {/* Card titles are h3s; keep the document outline h1 → h2 → h3 */}
-                  <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
-                  <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 sm:gap-5">
-                    {pagedReports.map((report) => (
-                      <ThesisCard
-                        key={report.id}
-                        report={report}
-                        programLabel={programNames.get(report.program) ?? null}
-                        facultyLabel={facultyNames.get(report.faculty) ?? null}
-                      />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
-                  <div className="flex flex-col gap-4">
-                    {pagedReports.map((report) => (
-                      <ThesisListItem
-                        key={report.id}
-                        report={report}
-                        programLabel={programNames.get(report.program) ?? null}
-                        facultyLabel={facultyNames.get(report.faculty) ?? null}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="mt-5">
+                {total === 0 ? (
+                  <EmptyState
+                    message={
+                      params.q
+                        ? `We couldn't find anything matching "${params.q}".`
+                        : hasFilters
+                          ? "No theses match your selected filters."
+                          : "No theses are currently available."
+                    }
+                    showReset={hasFilters}
+                  />
+                ) : isGrid ? (
+                  <>
+                    {/* Card titles are h3s; keep the outline h1 → h2 → h3 */}
+                    <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 xl:grid-cols-4">
+                      {pagedReports.map((report) => (
+                        <ThesisCard
+                          key={report.id}
+                          report={report}
+                          programLabel={programNames.get(report.program) ?? null}
+                          facultyLabel={facultyNames.get(report.faculty) ?? null}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="sr-only">{tTheses("resultsHeading")}</h2>
+                    <div className="flex flex-col gap-4">
+                      {pagedReports.map((report) => (
+                        <ThesisListItem
+                          key={report.id}
+                          report={report}
+                          programLabel={programNames.get(report.program) ?? null}
+                          facultyLabel={facultyNames.get(report.faculty) ?? null}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
 
               {total > 0 && (
-                <Pagination
-                  currentPage={page}
-                  totalPages={totalPages}
-                  totalItems={total}
-                  pageSize={pageSize}
-                  searchParams={params as Record<string, string | undefined>}
-                  basePath={basePath}
-                />
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalItems={total}
+                    pageSize={pageSize}
+                    searchParams={params as Record<string, string | undefined>}
+                    basePath={basePath}
+                  />
+                </div>
               )}
 
+              {/* A young collection says so, once, at the foot of an unfiltered
+                  list — and offers the one thing a reader can do about it. Not
+                  an empty state: there ARE results above it. */}
               {total > 0 && total < 5 && !hasFilters && !params.q && (
-                <div className="rounded-xl border border-dashed border-divider bg-bg-surface px-4 py-4 text-center">
-                  <p className="text-[13.5px] font-semibold text-text-heading">
-                    {tTheses("growingTitle")}
-                  </p>
-                  <p className="mt-1 text-[13px] text-text-muted">{tTheses("growingNote")}</p>
+                <div className="mt-6 flex flex-col items-start gap-3 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-semibold text-text-heading">
+                      {tTheses("growingTitle")}
+                    </p>
+                    <p className="mt-1 max-w-[62ch] text-[13.5px] leading-[1.6] text-text-muted">
+                      {tTheses("growingNote")}
+                    </p>
+                  </div>
                   <Link
                     href="/contact"
-                    className="mt-3 inline-flex items-center rounded-full border border-brand/20 bg-brand/5 px-4 py-1.5 text-[12.5px] font-semibold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                    className="inline-flex h-[38px] shrink-0 items-center rounded-xl border border-divider px-4 text-[13px] font-semibold text-text-body transition-colors duration-150 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
                   >
                     {tTheses("growingCta")}
                   </Link>

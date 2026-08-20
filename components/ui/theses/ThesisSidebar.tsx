@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { Check, ChevronDown, X, SlidersHorizontal } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
@@ -49,7 +49,7 @@ function FilterSection({
   const [open, setOpen] = useState(defaultOpen);
   const panelId = useId();
   return (
-    <div className="py-4 border-b border-divider last:border-b-0">
+    <div className="border-b border-divider px-5 py-4 last:border-b-0 last:pb-5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -57,7 +57,7 @@ function FilterSection({
         aria-controls={panelId}
         className="flex w-full cursor-pointer items-center justify-between rounded-md group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
       >
-        <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted transition-colors group-hover:text-text-body">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted transition-colors group-hover:text-text-heading">
           {title}
         </span>
         <ChevronDown
@@ -92,11 +92,11 @@ function FilterCheckboxRow({
       onClick={onClick}
       role="checkbox"
       aria-checked={active}
-      className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors duration-150 hover:bg-bg-app active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+      className="-mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors duration-150 hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
     >
       <span
-        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border transition-all duration-150 ${
-          active ? "border-brand bg-brand" : "border-divider bg-bg-surface"
+        className={`flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors duration-150 ${
+          active ? "border-brand bg-brand" : "border-border-strong"
         }`}
       >
         <Check
@@ -148,7 +148,7 @@ function FacetList({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1 cursor-pointer rounded-sm px-1.5 text-[12px] font-semibold text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          className="mt-1.5 cursor-pointer rounded-sm text-[12.5px] font-semibold text-brand hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
         >
           {expanded ? "Show less" : `Show all ${options.length}`}
         </button>
@@ -200,11 +200,13 @@ function FilterPanel({
   const facultyOptions = faculties.filter((f) => f.program_code === currentProgram);
 
   return (
-    <div className="px-4">
+    <div>
       {/* Clear all */}
       {hasFilters && (
-        <div className="flex items-center justify-between py-3 border-b border-divider">
-          <span className="text-xs text-text-muted">Filters applied</span>
+        <div className="flex items-center justify-between border-b border-divider px-5 py-3.5">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">
+            Filters applied
+          </span>
           <button
             type="button"
             onClick={() =>
@@ -218,7 +220,7 @@ function FilterPanel({
                 keyword: undefined,
               })
             }
-            className="flex cursor-pointer items-center gap-1 rounded-sm text-xs text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+            className="flex cursor-pointer items-center gap-1 rounded-sm text-[12.5px] font-semibold text-brand hover:underline hover:underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
           >
             <X className="w-3 h-3" /> Clear all
           </button>
@@ -382,6 +384,38 @@ export default function ThesisSidebar({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  // The trigger, so focus returns to where it left when the drawer closes.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // The drawer is `aria-modal`, so it has to behave like one: Escape closes
+  // it, the page behind it does not scroll, and focus starts inside it rather
+  // than staying on a trigger that is now covered. It had none of the three —
+  // and until the z-index above was raised it also opened UNDER the navbar,
+  // which put its close button out of reach entirely.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen]);
+
+  // Returning focus is a separate effect: it must run on CLOSE, after the
+  // drawer has unmounted, not as the open effect's cleanup (which also fires
+  // when the component itself unmounts on navigation).
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !mobileOpen) triggerRef.current?.focus();
+    wasOpen.current = mobileOpen;
+  }, [mobileOpen]);
 
   const [programs, setPrograms] = useState<ThesisProgram[]>([]);
   const [faculties, setFaculties] = useState<ThesisFaculty[]>([]);
@@ -459,25 +493,35 @@ export default function ThesisSidebar({
 
   return (
     <>
-      {/* ── Desktop sidebar ─────────────────────────────────────────── */}
-      <aside className="hidden lg:block w-72 shrink-0 sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto">
-        <div className="bg-bg-surface rounded-2xl border border-divider overflow-hidden shadow-sm">
-          <FilterPanel {...panelProps} />
-        </div>
+      {/* ── Desktop rail ─────────────────────────────────────────────
+          A card in the page's surface language, matching the record page's
+          sidebar. It pins under the docked navbar and scrolls internally when
+          the facet lists are taller than the viewport — `overscroll-contain`
+          stops a scroll that reaches the rail's end from chaining into the
+          page behind it. */}
+      <aside className="sticky top-24 hidden max-h-[calc(100dvh-8rem)] self-start overflow-y-auto overscroll-contain rounded-2xl border border-divider bg-bg-surface shadow-sm lg:block">
+        <FilterPanel {...panelProps} />
       </aside>
 
       {/* ── Mobile: floating filter button ──────────────────────────── */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setMobileOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={mobileOpen}
-        className="lg:hidden fixed bottom-5 right-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-4 py-3 text-sm font-semibold text-brand-contrast shadow-xl transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+        // Bottom-LEFT, and matched to the Ask widget's own offset.
+        // <AskWidget> is fixed bottom-right at
+        // `bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] right-4`, so a
+        // filter pill in the same corner sat underneath it — the two overlapped
+        // on every phone. Same vertical offset, opposite corner: both clear the
+        // mobile bottom nav and neither covers the other.
+        className="fixed bottom-[calc(76px+env(safe-area-inset-bottom)+14px)] left-4 z-20 flex cursor-pointer items-center gap-2 rounded-full bg-brand px-5 py-3 text-sm font-bold text-brand-contrast shadow-lg transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 lg:hidden"
       >
         <SlidersHorizontal className="w-4 h-4" />
         Filters
         {activeCount > 0 && (
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold leading-none text-brand">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-contrast text-[11px] font-bold leading-none text-brand">
             {activeCount}
           </span>
         )}
@@ -487,22 +531,23 @@ export default function ThesisSidebar({
       {mobileOpen && (
         <>
           <div
-            className="modal-backdrop-in lg:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-sm"
+            className="modal-backdrop-in fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileOpen(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Filters"
-            className="drawer-slide-in lg:hidden fixed left-0 top-0 bottom-0 z-40 w-72 overflow-y-auto bg-bg-surface shadow-2xl"
+            className="drawer-slide-in fixed bottom-0 left-0 top-0 z-[101] w-[286px] overflow-y-auto border-r border-divider bg-bg-surface lg:hidden"
           >
             <div className="flex items-center justify-between px-4 py-4 border-b border-divider">
-              <h2 className="font-bold text-text-heading">Filters</h2>
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.12em] text-text-heading">Filters</h2>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Close filters"
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-divider transition-colors hover:bg-bg-app focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
               >
                 <X className="w-5 h-5 text-text-muted" />
               </button>

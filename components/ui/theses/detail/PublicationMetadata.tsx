@@ -1,99 +1,108 @@
 import type { ReactNode } from "react";
-import { User, UserCheck, GraduationCap, Building2, Layers, CalendarDays, Hash, Languages, FileCheck2 } from "lucide-react";
 import {
-  getDepartment,
   formatPublicationDate,
   getDoi,
   getLanguageLabel,
-  getCoAdvisor,
   getDefenseDate,
   getSubmittedDate,
+  getThesisTypeLabel,
   type ResearchReport,
 } from "@/lib/theses/report-fields";
-import { getThesisPrograms, getThesisFaculties } from "@/app/actions/theses";
 
-// dt/dd must be DIRECT children of a <div> that is itself a direct child of the
-// <dl> (axe: definition-list / dlitem). A CSS grid keeps the icon | (label over
-// value) layout without nesting the dt/dd inside a second wrapper div. The icon
-// is decorative — aria-hidden so it isn't announced alongside the label.
-function Row({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
+// Publication details — the CATALOGUING record.
+//
+// ── Why this no longer repeats the metadata card ──
+// It used to list author, advisor, program, faculty, department, academic
+// year, language and published date. <ThesisMetadata>, directly under the
+// hero, now lists exactly those, so the page printed the same eight facts
+// twice — once as a strip and once as a table — and a reader scrolling for
+// something new found the same thing again.
+//
+// Cohort is not here either, for the same reason: the hero byline already
+// carries "Cohort 3 · 2021–2025" at the top of the page.
+//
+// The split is by WHEN you need a field. The card up top carries what you scan
+// to decide whether this is the record you want. This section carries what you
+// consult once you have decided: the identifiers, the lifecycle dates and the
+// licence. Language and published date are repeated deliberately and are the
+// only two that are — a citation needs both, and this is the section a reader
+// is looking at when they build one.
+//
+// No card wrapper: this renders inside the content card, and a bordered box
+// inside a bordered box is exactly the nesting this redesign removes.
+//
+// Every row is conditional. A thesis deposited before migration 0076 has no
+// defence or submission date, and a row reading "Defended —" is worse than no
+// row: it is a fixation spent on nothing.
+
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-0.5 py-2.5">
-      <span
-        aria-hidden="true"
-        className="row-span-2 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand/8 text-brand"
-      >
-        {icon}
-      </span>
-      <dt className="col-start-2 text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</dt>
-      <dd className="col-start-2 text-[13.5px] font-medium text-text-heading break-words">{value}</dd>
+    // dt/dd must be DIRECT children of a <div> that is itself a direct child of
+    // the <dl> (axe: definition-list / dlitem), which is why the label/value
+    // pair is a grid rather than nested wrappers. The label column is fixed at
+    // 180px on desktop and stacks below `sm`, where 180px of label against a
+    // 320px viewport would leave nothing for the value.
+    <div className="grid grid-cols-1 gap-x-6 border-b border-divider py-3 last:border-b-0 sm:grid-cols-[180px_minmax(0,1fr)]">
+      <dt className="text-[12px] font-semibold uppercase tracking-[0.08em] text-text-muted">
+        {label}
+      </dt>
+      <dd className="mt-1 break-words text-[14px] text-text-heading sm:mt-0">{value}</dd>
     </div>
   );
 }
 
-/**
- * A conditional metadata grid — every row only renders when the underlying
- * data exists. Theses have no ISBN/page-count columns (those belong to the
- * books table); language/thesis-type/co-advisor/defense+submitted dates
- * exist since migration 0076 and render only for rows that set them —
- * legacy theses uploaded before that migration just skip these rows.
- */
-export default async function PublicationMetadata({ report }: { report: ResearchReport }) {
+export default function PublicationMetadata({ report }: { report: ResearchReport }) {
   const publishedOn = formatPublicationDate(report);
   const doi = getDoi(report);
   const language = getLanguageLabel(report);
-  const coAdvisor = getCoAdvisor(report);
   const defendedOn = getDefenseDate(report);
   const submittedOn = getSubmittedDate(report);
-  // Independent lookups — run them together so the metadata block doesn't add
-  // two serial round-trips to the thesis detail page's server render.
-  const [{ data: programs }, { data: faculties }] = await Promise.all([
-    getThesisPrograms(),
-    getThesisFaculties(),
-  ]);
-  const program = programs?.find((p) => p.code === report.program);
-  const faculty = faculties?.find((f) => f.program_code === report.program && f.code === report.faculty);
+  const typeLabel = getThesisTypeLabel(report);
+  // "unknown" / "none" are the placeholders the importer writes when a deposit
+  // arrives without a licence. Printing one as if it were a licence is worse
+  // than printing nothing: a reader deciding whether they may reuse the work
+  // reads "unknown" as a stated answer rather than as a missing field.
+  const rawLicence = (report.license ?? "").trim();
+  const licence = /^(unknown|none|n\/a|-{1,2})$/i.test(rawLicence) ? null : rawLicence || null;
 
-  // getDepartment() falls back to the resolved faculty label when there's no
-  // distinct department record — skip the row entirely rather than repeating
-  // the Faculty row's value under a different heading.
-  const department = getDepartment(report);
-  const showDepartment = department && department !== faculty?.name_en;
+  const rows: Array<{ label: string; value: ReactNode } | null> = [
+    typeLabel ? { label: "Record type", value: typeLabel } : null,
+    language ? { label: "Language", value: language } : null,
+    submittedOn ? { label: "Submitted", value: submittedOn } : null,
+    defendedOn ? { label: "Defended", value: defendedOn } : null,
+    publishedOn ? { label: "Published", value: publishedOn } : null,
+    licence ? { label: "Licence", value: licence } : null,
+    doi
+      ? {
+          label: "DOI",
+          value: (
+            <a
+              href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all rounded-sm font-mono text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+            >
+              {doi.replace(/^https?:\/\/doi\.org\//, "")}
+            </a>
+          ),
+        }
+      : null,
+  ];
+  const visible = rows.filter((r): r is { label: string; value: ReactNode } => r != null);
+
+  if (visible.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-divider px-4 py-5 text-[13.5px] text-text-muted">
+        No additional publication details have been recorded for this thesis.
+      </p>
+    );
+  }
 
   return (
-    <div className="gradient-top-border overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm sm:p-5">
-      <h2 className="mb-1 text-[13px] font-bold uppercase tracking-wider text-text-heading">
-        Publication Details
-      </h2>
-      <dl className="divide-y divide-divider/60">
-        {report.author_names && <Row icon={<User className="h-4 w-4" />} label="Author(s)" value={report.author_names} />}
-        {report.advisor_name && <Row icon={<UserCheck className="h-4 w-4" />} label="Advisor" value={report.advisor_name} />}
-        {coAdvisor && <Row icon={<UserCheck className="h-4 w-4" />} label="Co-Advisor" value={coAdvisor} />}
-        {program && <Row icon={<GraduationCap className="h-4 w-4" />} label="Program" value={program.name_en} />}
-        {faculty && <Row icon={<Layers className="h-4 w-4" />} label="Faculty" value={faculty.name_en} />}
-        {showDepartment && <Row icon={<Building2 className="h-4 w-4" />} label="Department" value={department} />}
-        {report.academic_year && <Row icon={<CalendarDays className="h-4 w-4" />} label="Academic Year" value={report.academic_year} />}
-        {language && <Row icon={<Languages className="h-4 w-4" />} label="Language" value={language} />}
-        {publishedOn && <Row icon={<CalendarDays className="h-4 w-4" />} label="Published" value={publishedOn} />}
-        {submittedOn && <Row icon={<FileCheck2 className="h-4 w-4" />} label="Submitted" value={submittedOn} />}
-        {defendedOn && <Row icon={<FileCheck2 className="h-4 w-4" />} label="Defended" value={defendedOn} />}
-        {doi && (
-          <Row
-            icon={<Hash className="h-4 w-4" />}
-            label="DOI"
-            value={
-              <a
-                href={doi.startsWith("http") ? doi : `https://doi.org/${doi}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="break-all font-mono text-brand transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-              >
-                {doi.replace(/^https?:\/\/doi\.org\//, "")}
-              </a>
-            }
-          />
-        )}
-      </dl>
-    </div>
+    <dl>
+      {visible.map((r) => (
+        <Row key={r.label} label={r.label} value={r.value} />
+      ))}
+    </dl>
   );
 }
