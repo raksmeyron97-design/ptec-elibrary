@@ -314,6 +314,85 @@ export const getLatestPostCached = unstable_cache(
   { revalidate: REVALIDATE, tags: ["home-posts"] }
 );
 
+// ── Latest posts (the homepage News & Events band) ──────────────────────────
+//
+// Four rows, not one: <LatestPosts> renders a featured card plus three
+// secondary cards. It deliberately shares the "home-posts" cache tag and the
+// SAME visibility predicate as getLatestPostCached above — `status` is the
+// source of truth for posts (migration 0073; a BEFORE trigger keeps the older
+// `is_published` flag in lock-step). If the two fetchers ever disagreed, the
+// post featured in <ThisWeekAtPtec> and the one heading the news band could
+// come from different sets, which reads as a bug on a single screen.
+export type LatestPostCardRow = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string | null;
+  coverUrl: string | null;
+  author: string;
+  createdAt: string | null;
+  views: number;
+};
+
+/** Shape PostgREST returns for the embedded profile — an object for a
+ *  to-one relationship, but typed loosely because the generated types are not
+ *  wired up for embeds here. */
+type PostAuthorEmbed = { full_name: string | null; email: string | null } | null;
+
+export const getLatestPostsCached = unstable_cache(
+  async (): Promise<LatestPostCardRow[]> => {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("posts")
+      .select(
+        `id, title, slug, category, excerpt, cover_url, created_at, published_at, views,
+         author:profiles(full_name, email)`
+      )
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(4);
+
+    if (error) {
+      // Same degradation as getLatestPostCached: the band hides itself rather
+      // than taking the homepage down with it.
+      console.error("[home-data] latest posts:", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => {
+      const r = row as unknown as {
+        id: string;
+        title: string;
+        slug: string;
+        category: string | null;
+        excerpt: string | null;
+        cover_url: string | null;
+        created_at: string | null;
+        published_at: string | null;
+        views: number | null;
+        author: PostAuthorEmbed | PostAuthorEmbed[];
+      };
+      const author = Array.isArray(r.author) ? r.author[0] : r.author;
+      return {
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        category: r.category ?? "Other",
+        excerpt: r.excerpt,
+        coverUrl: r.cover_url,
+        author: author?.full_name ?? author?.email ?? "PTEC Library",
+        // The card shows a date; published_at is the one the reader means.
+        createdAt: r.published_at ?? r.created_at,
+        views: r.views ?? 0,
+      };
+    });
+  },
+  ["home-latest-posts"],
+  { revalidate: REVALIDATE, tags: ["home-posts"] }
+);
+
 // ── Recent additions across every digital type ──────────────────────────────
 //
 // "What has the library added lately", answered across books, theses AND

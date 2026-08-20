@@ -22,6 +22,7 @@ import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
+import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection from "@/components/ui/home/FaqSection";
@@ -31,6 +32,7 @@ import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
+import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
 
 export const revalidate = 60;
 
@@ -367,6 +369,17 @@ export default async function HomePage() {
       <div className="cv-auto">
         <Suspense fallback={<div className="h-64 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <TrendingResearch />
+        </Suspense>
+      </div>
+
+      {/* ════════ NEWS & EVENTS ════════
+          <ThisWeekAtPtec> above carries a single editorial post inside a mixed
+          band; this is the actual news section — a featured post plus three
+          more, with its own "view all posts" exit to /posts. The component and
+          its skeleton already existed and were simply never mounted. */}
+      <div className="cv-auto">
+        <Suspense fallback={<LatestPostsSkeleton />}>
+          <LatestPostsSection />
         </Suspense>
       </div>
 
