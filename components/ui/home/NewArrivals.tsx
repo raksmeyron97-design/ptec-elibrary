@@ -55,7 +55,12 @@ function addedLabel(item: RecentItem, locale: string): string {
 }
 
 export default async function NewArrivals() {
-  const items = await getRecentAdditions(4);
+  // `failed` names sources whose query errored, as opposed to sources that
+  // simply had nothing to give. The strip still renders whatever succeeded —
+  // a broken publications query must not take books and theses down with it —
+  // but the two states are no longer indistinguishable to anything reading
+  // this data. See RecentAdditions in lib/home-data.ts.
+  const { items } = await getRecentAdditions(4);
   // Nothing added yet — render nothing rather than an empty shelf.
   if (items.length === 0) return null;
 

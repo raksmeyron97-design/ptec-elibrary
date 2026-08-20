@@ -428,6 +428,28 @@ export type RecentItem = {
   slug: string;
 };
 
+/**
+ * The strip's result, with failure kept SEPARATE from emptiness.
+ *
+ * Returning a bare RecentItem[] made those two states identical: a library
+ * with nothing in it and a library whose query was broken both produced [],
+ * and <NewArrivals> hid itself either way. That is exactly how the
+ * publications slice stayed dead in production — it selected a column that
+ * only exists on the publications_with_stats VIEW, PostgREST rejected the
+ * whole query, the error was logged and swallowed, and the section simply
+ * showed one fewer type forever.
+ *
+ * `failed` names the sources whose query ERRORED. An empty `failed` with an
+ * empty `items` means the library genuinely has nothing yet; a non-empty
+ * `failed` means someone should look at the logs. Callers may still render
+ * whatever succeeded — partial degradation is the intended behaviour — but
+ * they can no longer do so without the failure being representable.
+ */
+export type RecentAdditions = {
+  items: RecentItem[];
+  failed: RecentItemType[];
+};
+
 /** Rows missing a slug can't be linked to, so they never reach the UI. */
 type RawRecent = {
   id: string;
@@ -454,7 +476,7 @@ function toRecentItems(rows: RawRecent[] | null, type: RecentItemType): RecentIt
 }
 
 export const getRecentAdditions = unstable_cache(
-  async (limit = 4): Promise<RecentItem[]> => {
+  async (limit = 4): Promise<RecentAdditions> => {
     const db = createServiceClient();
 
     // Each query is independently fault-tolerant: publications did not exist on
@@ -471,17 +493,33 @@ export const getRecentAdditions = unstable_cache(
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit),
-      db.from("publications")
-        .select("id, title, slug, author_names, created_at")
+      // publications_with_stats, NOT publications. `author_names` is not a
+      // column on the base table at all — it is the aggregated byline the view
+      // computes over publication_authorships/publication_authors (migration
+      // 0114). Selecting it from the table made PostgREST reject the whole
+      // query with "column publications.author_names does not exist", which is
+      // why this slice returned nothing in production. cover_url is selected
+      // here too, so publications get a real cover like books and theses
+      // instead of always falling back to the placeholder.
+      db.from("publications_with_stats")
+        .select("id, title, slug, cover_url, author_names, created_at")
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit),
     ]);
 
-    for (const [name, res] of [
-      ["books", books], ["theses", theses], ["publications", publications],
+    // Collect failures instead of only logging them, so the caller can tell a
+    // broken source from an empty one.
+    const failed: RecentItemType[] = [];
+    for (const [name, type, res] of [
+      ["books", "book", books],
+      ["theses", "thesis", theses],
+      ["publications", "publication", publications],
     ] as const) {
-      if (res.error) console.error(`[home-data] recent additions (${name}):`, res.error.message);
+      if (res.error) {
+        console.error(`[home-data] recent additions (${name}):`, res.error.message);
+        failed.push(type);
+      }
     }
 
     // books embeds authors(name); flatten it to the shared author_names shape.
@@ -493,13 +531,15 @@ export const getRecentAdditions = unstable_cache(
       author_names: (Array.isArray(r.authors) ? r.authors[0]?.name : r.authors?.name) ?? null,
     }));
 
-    return [
+    const items = [
       ...toRecentItems(bookRows, "book"),
       ...toRecentItems(theses.data as RawRecent[] | null, "thesis"),
       ...toRecentItems(publications.data as RawRecent[] | null, "publication"),
     ]
       .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt))
       .slice(0, limit);
+
+    return { items, failed };
   },
   ["home-recent-additions"],
   { revalidate: REVALIDATE, tags: ["home-books", "home-theses", "home-publications"] }
