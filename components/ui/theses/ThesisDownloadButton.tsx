@@ -103,10 +103,24 @@ export default function ThesisDownloadButton({
     }
   }, [reportId, t]);
 
-  const fullBtn = "btn-brand-gradient inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] font-bold text-white transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2";
-  const sizeCls = compact ? "w-full px-4 py-2.5 text-[13.5px]" : "px-6 py-2.5 text-[15px]";
-  const lockedCls = `inline-flex min-h-[44px] cursor-not-allowed items-center justify-center gap-2 rounded-[14px] border border-dashed border-divider text-text-muted ${compact ? "w-full px-4 py-2.5 text-[13.5px]" : "px-6 py-2.5 text-[15px]"}`;
-  const linkCls = `inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] border border-brand/30 bg-brand/5 font-bold text-brand transition-colors hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 ${sizeCls}`;
+  // ── One shape for all five states ──
+  // Every state of this control is the OUTLINED sibling of the record page's
+  // solid "Preview PDF" button, including the one where download is allowed.
+  // That is deliberate: preview works for every visitor, download is gated
+  // behind sign-in on protected Top-10 records, and the button that always
+  // opens should be the one carrying the solid fill. The states differ by
+  // label, icon and note — never by suddenly promoting themselves to the
+  // page's strongest treatment.
+  //
+  // `w-full sm:w-auto` on the full variant: on a phone these stack, and a
+  // 44px-tall button that spans only its label is a small target next to one
+  // that spans the row.
+  const sizeCls = compact
+    ? "w-full px-4 py-2.5 text-[13.5px]"
+    : "w-full px-6 py-2.5 text-[15px] sm:w-auto";
+  const fullBtn = `inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-brand/30 bg-brand/5 font-bold text-brand transition-colors duration-150 hover:bg-brand/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50`;
+  const lockedCls = `inline-flex min-h-[44px] cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-dashed border-divider text-text-muted ${sizeCls}`;
+  const linkCls = `${fullBtn} ${sizeCls}`;
   const iconSize = compact ? "h-4 w-4" : "h-[18px] w-[18px]";
 
   if (!hasFile) {
@@ -134,7 +148,7 @@ export default function ThesisDownloadButton({
   // State E — allowed
   if (status.allowed) {
     return (
-      <div className={compact ? "" : "space-y-1"}>
+      <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
         <button
           type="button"
           onClick={startDownload}
@@ -154,7 +168,7 @@ export default function ThesisDownloadButton({
   if (status.reason === "AUTHENTICATION_REQUIRED") {
     const callback = `${locale === "km" ? "" : ""}${thesisPath}`;
     return (
-      <div className={compact ? "" : "space-y-1"}>
+      <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
         <a href={`/auth/login?callbackUrl=${encodeURIComponent(callback)}`} className={linkCls}>
           <UserPlus className={iconSize} />
           {t("state.signIn")}
@@ -168,7 +182,7 @@ export default function ThesisDownloadButton({
   if (status.reason === "PROFILE_INCOMPLETE") {
     const href = downloadProfileSettingsPath(thesisPath, locale);
     return (
-      <div className={compact ? "" : "space-y-1"}>
+      <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
         <a href={href} className={linkCls}>
           <UserPlus className={iconSize} />
           {t("state.completeProfile")}
@@ -181,7 +195,7 @@ export default function ThesisDownloadButton({
   // State C — Top 10 protected
   if (status.reason === "TOP_TEN_RESTRICTED") {
     return (
-      <div className={compact ? "" : "space-y-1"}>
+      <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
         <span className={lockedCls}>
           <Lock className={iconSize} />
           {t("state.protected")}
@@ -194,7 +208,7 @@ export default function ThesisDownloadButton({
   // State D — admin blocked
   if (status.reason === "ADMIN_BLOCKED") {
     return (
-      <div className={compact ? "" : "space-y-1"}>
+      <div className={compact ? "" : "w-full space-y-1 sm:w-auto"}>
         <span className={lockedCls}>
           <ShieldAlert className={iconSize} />
           {t("state.disabled")}
