@@ -105,3 +105,11 @@
   against 2.02 s for the plain tag on a throttled Pixel 7. Inlining it as a data
   URI is worse again (+21 KB gzipped, because React serialises the head into the
   RSC flight payload as well). Do not migrate this to next/image.
+- `react-doctor/design-no-redundant-size-axes` — house style, repo-wide. The rule
+  wants `size-6` wherever a square element writes `h-6 w-6`. Every icon, plate and
+  avatar in this codebase uses the two-axis form (`size-*` appears nowhere), and
+  the homepage carries several instances that predate the rule being run, so a
+  file that adopts `size-*` becomes the single outlier rather than the start of a
+  migration. The two are exactly equivalent in Tailwind v4 output, so this is
+  cosmetic. If it is ever worth changing, change it everywhere in one pass — do
+  not let new files diverge one at a time.

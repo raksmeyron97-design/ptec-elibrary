@@ -364,6 +364,11 @@
     "newArrivalsBody": "សៀវភៅ សារណា និងអត្ថបទសិក្សាដែលទើបបញ្ចូលថ្មីបំផុត។",
     "newArrivalsAdded": "បានបញ្ចូល {date}",
     "categoriesCardLabel": "រកមើលធនធាន {subject}",
+    "collectionsGridEyebrow": "ចាប់ផ្ដើមនៅទីនេះ",
+    "collectionsGridTitle": "រកមើលតាមបណ្ដុំ",
+    "collectionsGridItemCount": "{count, plural, other {ធនធាន #}}",
+    "collectionsGridCardLabel": "រកមើល {collection}",
+    "collectionsGridExternal": "បើកក្នុងផ្ទាំងថ្មី",
     "ogTitle": "បណ្ណាល័យ វ.គ.ភ — បណ្ណាល័យឌីជីថល សម្រាប់គ្រូជំនាន់ថ្មី",
     "ogDescription": "សៀវភៅសិក្សា និក្ខេបបទ និងធនធានបង្រៀនឥតគិតថ្លៃ ជាភាសាខ្មែរ និងអង់គ្លេស។ មិនចាំបាច់មានគណនី។"
   },

@@ -13,6 +13,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import AskLibraryHero from "@/components/ui/home/AskLibraryHero";
 import HeroConstellation from "@/components/ui/home/HeroConstellation";
 import StartWithGoal from "@/components/ui/home/StartWithGoal";
+import CollectionGrid from "@/components/ui/home/CollectionGrid";
 import TrustBar from "@/components/ui/home/TrustBar";
 import NewArrivals from "@/components/ui/home/NewArrivals";
 import ForYouShelf from "@/components/ui/home/ForYouShelf";
@@ -304,6 +305,18 @@ export default async function HomePage() {
           Wired to real learning paths (or curated routes); no data round-trip
           beyond the paths already fetched above, so it renders immediately. */}
       <StartWithGoal paths={paths} />
+
+      {/* ════════ BROWSE BY COLLECTION — the four collections as equal cards ══
+          Answers "what is actually in here?" immediately after <TrustBar>
+          quantifies it, for the reader who cannot yet name what they want and
+          so has nothing to type into the hero search. Collections and counts
+          are read from the nav config and getCollectionStats() respectively —
+          see the component header. */}
+      <div className="cv-auto">
+        <Suspense fallback={<div className="h-96 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
+          <CollectionGrid />
+        </Suspense>
+      </div>
 
       {/* Below-the-fold sections are wrapped in .cv-auto (content-visibility)
           so the browser skips their layout/paint work until scrolled near. */}
