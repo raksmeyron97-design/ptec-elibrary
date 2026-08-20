@@ -1,16 +1,13 @@
-/* PTEC e-Library brand fonts — self-hosted Khmer/Latin stack */
-/* Hanuman is the primary Khmer + Latin fallback body font */
-@font-face {
-  font-family: "Hanuman";
-  src: url("../public/Hanuman.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Hanuman";
-  src: url("../public/Hanuman.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
+/* PTEC e-Library brand fonts — Google-hosted, matching app/fonts.ts.
+   The app loads these via next/font/google at runtime (no local font files in
+   the repo), so the design-system bundle resolves them remotely and defines
+   the --font-var-* custom properties that next/font normally sets on <html>. */
+@import url("https://fonts.googleapis.com/css2?family=Angkor&family=Crimson+Pro:wght@400..700&family=Hanuman:wght@400;700&family=Inter:wght@400..700&family=Kantumruy+Pro:wght@400..700&family=Koulen&display=swap");
+
+:root {
+  --font-var-sans: "Inter";
+  --font-var-serif: "Crimson Pro";
+  --font-var-hanuman: "Hanuman";
+  --font-var-angkor: "Angkor";
+  --font-var-koulen: "Koulen";
 }
