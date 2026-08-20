@@ -340,6 +340,13 @@ export type LatestPostCardRow = {
  *  wired up for embeds here. */
 type PostAuthorEmbed = { full_name: string | null; email: string | null } | null;
 
+// The `!author_id` hint is REQUIRED, not decorative. profiles is reachable
+// from posts by more than one path (the author FK, plus the like/save junction
+// tables), so an unhinted `author:profiles(...)` embed makes PostgREST fail
+// with "more than one relationship was found" and this fetcher returns []. The
+// band then renders nothing, silently. Every other author embed in the repo
+// (lib/posts-data.ts, lib/admin/posts.ts, the post detail page) carries the
+// same hint.
 export const getLatestPostsCached = unstable_cache(
   async (): Promise<LatestPostCardRow[]> => {
     const db = createServiceClient();
@@ -347,7 +354,7 @@ export const getLatestPostsCached = unstable_cache(
       .from("posts")
       .select(
         `id, title, slug, category, excerpt, cover_url, created_at, published_at, views,
-         author:profiles(full_name, email)`
+         author:profiles!author_id(full_name, email)`
       )
       .eq("status", "published")
       .order("published_at", { ascending: false, nullsFirst: false })

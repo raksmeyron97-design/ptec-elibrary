@@ -2,7 +2,8 @@
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { formatPtecDate } from "@/lib/posts/event-status";
 
 export type LatestPost = {
   id: string;
@@ -19,18 +20,21 @@ export type LatestPost = {
 type Props = { posts: LatestPost[] };
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+// Dates go through formatPtecDate, not toLocaleDateString: it renders in the
+// library's own timezone so the server and this client component agree on the
+// day near midnight, and it follows the active locale instead of pinning every
+// date on the Khmer homepage to en-US.
+function formatDate(iso: string | null, locale: string): string {
+  return formatPtecDate(iso, locale);
 }
-function timeAgo(iso: string | null, t: any): string {
+function timeAgo(iso: string | null, t: any, locale: string): string {
   if (!iso) return "";
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   if (days === 0) return t('today');
   if (days === 1) return t('yesterday');
   if (days < 7) return t('daysAgo', { days });
   if (days < 30) return t('weeksAgo', { weeks: Math.floor(days / 7) });
-  return formatDate(iso);
+  return formatDate(iso, locale);
 }
 
 const categoryStyles: Record<string, { bg: string; text: string; dot: string }> = {
@@ -70,15 +74,25 @@ function CategoryBadge({ category, tPosts }: { category: string; tPosts: any }) 
   );
 }
 
-function MetaRow({ createdAt, t }: { createdAt: string | null; t: any }) {
+function MetaRow({ createdAt, t, locale }: { createdAt: string | null; t: any; locale: string }) {
+  const absolute = formatDate(createdAt, locale);
+  // timeAgo falls back to the absolute date once a post is over a month old,
+  // which rendered "Jul 1, 2026 • Jul 1, 2026". Only show the relative half
+  // while it is actually saying something different.
+  const relative = timeAgo(createdAt, t, locale);
+  const showRelative = relative !== "" && relative !== absolute;
   return (
     <div className="flex items-center gap-3 text-[12px] font-medium text-text-muted">
       <span className="flex items-center gap-1.5">
         <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-        {formatDate(createdAt)}
+        {absolute}
       </span>
-      <span className="text-divider">•</span>
-      <span>{timeAgo(createdAt, t)}</span>
+      {showRelative && (
+        <>
+          <span className="text-divider">•</span>
+          <span>{relative}</span>
+        </>
+      )}
     </div>
   );
 }
@@ -96,6 +110,7 @@ function AuthorChip({ author }: { author: string }) {
 
 /* ── Featured card — horizontal on desktop ────────────────────────────── */
 function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: any }) {
+  const locale = useLocale();
   return (
     <Link
       href={`/posts/${post.slug}`}
@@ -129,7 +144,7 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
 
       {/* Text panel */}
       <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-9 lg:pl-10">
-        <MetaRow createdAt={post.createdAt} t={t} />
+        <MetaRow createdAt={post.createdAt} t={t} locale={locale} />
         <h3 className="mb-3 mt-3 font-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl lg:text-[1.65rem]">
           {post.title}
         </h3>
@@ -152,6 +167,7 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
 
 /* ── Small card — stacked in 3-col grid below featured ───────────────── */
 function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
+  const locale = useLocale();
   const s = categoryStyles[post.category] ?? categoryStyles.Other;
   const translated = post.category === "Research" ? tPosts("categoryResearch")
     : post.category === "Announcement" ? tPosts("categoryAnnouncement")
@@ -184,7 +200,7 @@ function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
           {post.title}
         </h4>
         <p className="mt-auto pt-3 text-[11px] font-medium text-text-muted">
-          {formatDate(post.createdAt)}
+          {formatDate(post.createdAt, locale)}
         </p>
       </div>
     </Link>
