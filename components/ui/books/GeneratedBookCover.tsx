@@ -32,7 +32,7 @@ type GeneratedBookCoverProps = {
 
 /** Khmer text must never get uppercase/tracking treatments meant for Latin. */
 function isLatinOnly(s: string): boolean {
-  return /[A-Za-z]/.test(s) && !/[ក-៿]/.test(s);
+  return /[A-Za-z]/.test(s) && !/[\u1780-\u17FF]/.test(s);
 }
 
 /** Per-variant placement of the category motif (kept out of the title zone). */
