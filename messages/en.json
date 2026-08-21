@@ -359,6 +359,11 @@
     "newArrivalsBody": "The most recent books, theses and publications to join the collection.",
     "newArrivalsAdded": "Added {date}",
     "categoriesCardLabel": "Browse {subject} resources",
+    "collectionsGridEyebrow": "Start here",
+    "collectionsGridTitle": "Browse by Collection",
+    "collectionsGridItemCount": "{count, plural, one {# item} other {# items}}",
+    "collectionsGridCardLabel": "Browse {collection}",
+    "collectionsGridExternal": "Opens in a new tab",
     "ogTitle": "PTEC Library — The Digital Library for the Next Generation of Teachers",
     "ogDescription": "Free textbooks, theses and teaching resources in Khmer and English. No account needed."
   },

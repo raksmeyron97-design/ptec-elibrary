@@ -314,6 +314,92 @@ export const getLatestPostCached = unstable_cache(
   { revalidate: REVALIDATE, tags: ["home-posts"] }
 );
 
+// ── Latest posts (the homepage News & Events band) ──────────────────────────
+//
+// Four rows, not one: <LatestPosts> renders a featured card plus three
+// secondary cards. It deliberately shares the "home-posts" cache tag and the
+// SAME visibility predicate as getLatestPostCached above — `status` is the
+// source of truth for posts (migration 0073; a BEFORE trigger keeps the older
+// `is_published` flag in lock-step). If the two fetchers ever disagreed, the
+// post featured in <ThisWeekAtPtec> and the one heading the news band could
+// come from different sets, which reads as a bug on a single screen.
+export type LatestPostCardRow = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  excerpt: string | null;
+  coverUrl: string | null;
+  author: string;
+  createdAt: string | null;
+  views: number;
+};
+
+/** Shape PostgREST returns for the embedded profile — an object for a
+ *  to-one relationship, but typed loosely because the generated types are not
+ *  wired up for embeds here. */
+type PostAuthorEmbed = { full_name: string | null; email: string | null } | null;
+
+// The `!author_id` hint is REQUIRED, not decorative. profiles is reachable
+// from posts by more than one path (the author FK, plus the like/save junction
+// tables), so an unhinted `author:profiles(...)` embed makes PostgREST fail
+// with "more than one relationship was found" and this fetcher returns []. The
+// band then renders nothing, silently. Every other author embed in the repo
+// (lib/posts-data.ts, lib/admin/posts.ts, the post detail page) carries the
+// same hint.
+export const getLatestPostsCached = unstable_cache(
+  async (): Promise<LatestPostCardRow[]> => {
+    const db = createServiceClient();
+    const { data, error } = await db
+      .from("posts")
+      .select(
+        `id, title, slug, category, excerpt, cover_url, created_at, published_at, views,
+         author:profiles!author_id(full_name, email)`
+      )
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(4);
+
+    if (error) {
+      // Same degradation as getLatestPostCached: the band hides itself rather
+      // than taking the homepage down with it.
+      console.error("[home-data] latest posts:", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => {
+      const r = row as unknown as {
+        id: string;
+        title: string;
+        slug: string;
+        category: string | null;
+        excerpt: string | null;
+        cover_url: string | null;
+        created_at: string | null;
+        published_at: string | null;
+        views: number | null;
+        author: PostAuthorEmbed | PostAuthorEmbed[];
+      };
+      const author = Array.isArray(r.author) ? r.author[0] : r.author;
+      return {
+        id: r.id,
+        title: r.title,
+        slug: r.slug,
+        category: r.category ?? "Other",
+        excerpt: r.excerpt,
+        coverUrl: r.cover_url,
+        author: author?.full_name ?? author?.email ?? "PTEC Library",
+        // The card shows a date; published_at is the one the reader means.
+        createdAt: r.published_at ?? r.created_at,
+        views: r.views ?? 0,
+      };
+    });
+  },
+  ["home-latest-posts"],
+  { revalidate: REVALIDATE, tags: ["home-posts"] }
+);
+
 // ── Recent additions across every digital type ──────────────────────────────
 //
 // "What has the library added lately", answered across books, theses AND
@@ -342,6 +428,28 @@ export type RecentItem = {
   slug: string;
 };
 
+/**
+ * The strip's result, with failure kept SEPARATE from emptiness.
+ *
+ * Returning a bare RecentItem[] made those two states identical: a library
+ * with nothing in it and a library whose query was broken both produced [],
+ * and <NewArrivals> hid itself either way. That is exactly how the
+ * publications slice stayed dead in production — it selected a column that
+ * only exists on the publications_with_stats VIEW, PostgREST rejected the
+ * whole query, the error was logged and swallowed, and the section simply
+ * showed one fewer type forever.
+ *
+ * `failed` names the sources whose query ERRORED. An empty `failed` with an
+ * empty `items` means the library genuinely has nothing yet; a non-empty
+ * `failed` means someone should look at the logs. Callers may still render
+ * whatever succeeded — partial degradation is the intended behaviour — but
+ * they can no longer do so without the failure being representable.
+ */
+export type RecentAdditions = {
+  items: RecentItem[];
+  failed: RecentItemType[];
+};
+
 /** Rows missing a slug can't be linked to, so they never reach the UI. */
 type RawRecent = {
   id: string;
@@ -368,7 +476,7 @@ function toRecentItems(rows: RawRecent[] | null, type: RecentItemType): RecentIt
 }
 
 export const getRecentAdditions = unstable_cache(
-  async (limit = 4): Promise<RecentItem[]> => {
+  async (limit = 4): Promise<RecentAdditions> => {
     const db = createServiceClient();
 
     // Each query is independently fault-tolerant: publications did not exist on
@@ -385,17 +493,33 @@ export const getRecentAdditions = unstable_cache(
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit),
-      db.from("publications")
-        .select("id, title, slug, author_names, created_at")
+      // publications_with_stats, NOT publications. `author_names` is not a
+      // column on the base table at all — it is the aggregated byline the view
+      // computes over publication_authorships/publication_authors (migration
+      // 0114). Selecting it from the table made PostgREST reject the whole
+      // query with "column publications.author_names does not exist", which is
+      // why this slice returned nothing in production. cover_url is selected
+      // here too, so publications get a real cover like books and theses
+      // instead of always falling back to the placeholder.
+      db.from("publications_with_stats")
+        .select("id, title, slug, cover_url, author_names, created_at")
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .limit(limit),
     ]);
 
-    for (const [name, res] of [
-      ["books", books], ["theses", theses], ["publications", publications],
+    // Collect failures instead of only logging them, so the caller can tell a
+    // broken source from an empty one.
+    const failed: RecentItemType[] = [];
+    for (const [name, type, res] of [
+      ["books", "book", books],
+      ["theses", "thesis", theses],
+      ["publications", "publication", publications],
     ] as const) {
-      if (res.error) console.error(`[home-data] recent additions (${name}):`, res.error.message);
+      if (res.error) {
+        console.error(`[home-data] recent additions (${name}):`, res.error.message);
+        failed.push(type);
+      }
     }
 
     // books embeds authors(name); flatten it to the shared author_names shape.
@@ -407,13 +531,15 @@ export const getRecentAdditions = unstable_cache(
       author_names: (Array.isArray(r.authors) ? r.authors[0]?.name : r.authors?.name) ?? null,
     }));
 
-    return [
+    const items = [
       ...toRecentItems(bookRows, "book"),
       ...toRecentItems(theses.data as RawRecent[] | null, "thesis"),
       ...toRecentItems(publications.data as RawRecent[] | null, "publication"),
     ]
       .sort((a, b) => Date.parse(b.addedAt) - Date.parse(a.addedAt))
       .slice(0, limit);
+
+    return { items, failed };
   },
   ["home-recent-additions"],
   { revalidate: REVALIDATE, tags: ["home-books", "home-theses", "home-publications"] }

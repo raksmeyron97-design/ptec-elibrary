@@ -1,31 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createServiceClient } from "@/lib/supabase/server";
+// components/ui/home/LatestPostsSection.tsx
+// Server wrapper for the homepage News & Events band.
+//
+// The fetch lives in lib/home-data.ts rather than here. This component used to
+// run its own uncached service-client query against `posts` with a different
+// visibility predicate (`is_published`) from the one getLatestPostCached uses
+// (`status`), so the news band and <ThisWeekAtPtec> could in principle disagree
+// about which posts are live. One fetcher, one predicate, one cache tag.
 import LatestPosts from "./LatestPosts";
-
-async function getRecentPosts() {
-  const supabase = createServiceClient();
-  const { data } = await supabase
-    .from("posts")
-    .select(`id, title, slug, category, excerpt, cover_url, created_at, views,
-       author:profiles(full_name, email)`)
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .limit(4);
-  return (data ?? []).map((p: any) => ({
-    id: p.id as string,
-    title: p.title as string,
-    slug: p.slug as string,
-    category: (p.category ?? "Other") as string,
-    excerpt: (p.excerpt ?? null) as string | null,
-    coverUrl: (p.cover_url ?? null) as string | null,
-    author: (p.author?.full_name ?? p.author?.email ?? "PTEC Library") as string,
-    createdAt: (p.created_at ?? null) as string | null,
-    views: (p.views ?? 0) as number,
-  }));
-}
+import { getLatestPostsCached } from "@/lib/home-data";
 
 export default async function LatestPostsSection() {
-  const recentPosts = await getRecentPosts();
+  const recentPosts = await getLatestPostsCached();
 
+  // <LatestPosts> returns null on an empty list, so a library with no
+  // published posts yet simply has no news band.
   return <LatestPosts posts={recentPosts} />;
 }
