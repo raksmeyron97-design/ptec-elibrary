@@ -21,7 +21,22 @@ max_rows = 1000
 # without explicit GRANTs. Leave unset today to preserve local behaviour. The implicit default
 # flips to `false` on 2026-05-30 to match the new cloud default, and the field is removed in
 # 2026-10-30 once the always-revoked behaviour is permanent. Set to `false` to opt in early.
-# auto_expose_new_tables = false
+# Pinned TRUE to match the hosted project, which was created before the
+# 2026-05-30 flip and therefore still auto-exposes public tables to the Data
+# API roles. Leaving it implicit made a fresh local/CI stack diverge from
+# production: `supabase/setup-cli@v1` tracks `latest`, so the e2e job started
+# revoking anon reads and the whole public site rendered empty against it
+# ("permission denied for table books/research_reports/posts/..." — 253 such
+# lines in the last green run on main, unnoticed because nothing asserted on
+# data). e2e/thesis-redirect.spec.ts finally did, and the middleware slug gate
+# — documented to FAIL OPEN when Supabase errors — returned 200 instead of 404.
+#
+# This is a dated stopgap, not the fix. The field is removed on 2026-10-30 and
+# always-revoked becomes permanent, so before then the migration chain needs
+# explicit GRANTs for every relation the public site reads as anon. That is
+# also what a fresh self-hosted deploy (docs/ZIMAOS-DEPLOYMENT.md) needs today:
+# it builds the DB from this chain, not from the hosted project's history.
+auto_expose_new_tables = true
 
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
