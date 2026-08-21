@@ -39,7 +39,7 @@ push to main
   ▼
 .github/workflows/docker-publish.yml
   ├─ calls ci.yml first (typecheck, lint, unit, e2e) — a red build never ships
-  └─ builds linux/amd64 + linux/arm64, pushes ghcr.io/raksmeyron97-design/ptec-elibrary
+  └─ builds linux/amd64, pushes ghcr.io/raksmeyron97-design/ptec-elibrary
        ▼  (≤ 5 min later)
 ZimaOS: ptec-elibrary-deploy.timer → deploy/deploy.sh
   ├─ digest unchanged?  → exit, do nothing
@@ -47,6 +47,23 @@ ZimaOS: ptec-elibrary-deploy.timer → deploy/deploy.sh
   ├─ healthy   → bring up cloudflared, prune old layers, done
   └─ unhealthy → log, record the bad digest, ROLL BACK to the previous image
 ```
+
+### Why the image is amd64 only
+
+The box is x86_64 — verified on the box itself: `uname -m` returns `x86_64`
+and `lscpu` reports a 4-core GenuineIntel (QEMU virtual CPU, i.e. ZimaOS is
+running virtualised).
+
+The workflow originally built `linux/amd64,linux/arm64`. Cross-building arm64
+runs the entire Next.js webpack build under QEMU emulation, which measured at
+**40+ minutes against roughly 5 for amd64 alone** — and because this workflow
+deliberately never cancels a run in progress, three merges in a row queued
+behind each other for hours. Nothing consumed the arm64 image.
+
+Add arm64 back to `platforms:` (and restore the `setup-qemu-action` step) only
+if the library ever has to run on an ARM board. The `x-casaos.architectures`
+list in `docker-compose.yml` must be kept in step, or it advertises a manifest
+that does not exist.
 
 Building on the box was the previous design (`docker compose up -d --build`).
 It is gone: it compiled Next.js on a machine that also serves the site, and it
