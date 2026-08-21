@@ -1,5 +1,4 @@
 import { notFound, permanentRedirect } from "next/navigation";
-import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
 // Plain next/link, not the locale-aware one: /admin is outside the locale
 // scheme and the i18n Link would prefix it with /km.
