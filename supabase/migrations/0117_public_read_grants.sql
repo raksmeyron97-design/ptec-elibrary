@@ -71,3 +71,29 @@ grant select on public.posts to authenticated;
 -- so anon would read zero rows and the grant would only widen the API surface
 -- for nothing. authenticated is the role that actually needs it.
 grant select on public.profiles to authenticated;
+
+-- ── service_role: restore the platform default the flip took away ────────────
+--
+-- The grants above fix the ANONYMOUS reads, but most of the homepage never
+-- makes one: lib/home-data.ts, getPublishedPaths() and getCollectionStats() all
+-- go through createServiceClient(). service_role's privileges were never in this
+-- chain either — Supabase's platform grants them — so the same flip revoked
+-- those too. Measured: the anon grants alone moved the e2e stack from 253 to
+-- 219 denials, and every survivor was a `[home-data] ...: permission denied`
+-- line, i.e. a service-client read.
+--
+-- This is not a privilege escalation. service_role is the trusted server-only
+-- key that already bypasses RLS by design (lib/supabase/server.ts, never
+-- imported client-side); ALL is what the platform gives it, and every REVOKE in
+-- this chain deliberately targets `public, anon, authenticated` and never
+-- service_role. Writing it down just stops the chain depending on a default
+-- that is being removed.
+grant all on all tables    in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant all on all functions in schema public to service_role;
+
+-- Tables created by LATER migrations would land unprivileged again once the
+-- implicit default is gone, so fix the default and not just the backlog.
+alter default privileges in schema public grant all on tables    to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+alter default privileges in schema public grant all on functions to service_role;
