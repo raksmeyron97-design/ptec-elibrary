@@ -145,7 +145,7 @@ function FeaturedCard({ post, t, tPosts }: { post: LatestPost; t: any; tPosts: a
       {/* Text panel */}
       <div className="flex flex-1 flex-col p-6 sm:p-7 lg:p-9 lg:pl-10">
         <MetaRow createdAt={post.createdAt} t={t} locale={locale} />
-        <h3 className="mb-3 mt-3 font-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl lg:text-[1.65rem]">
+        <h3 className="mb-3 mt-3 font-khmer-serif text-xl font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-2xl lg:text-[1.65rem]">
           {post.title}
         </h3>
         {post.excerpt && (
@@ -196,7 +196,7 @@ function SmallCard({ post, tPosts }: { post: LatestPost; tPosts: any }) {
           <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
           {translated}
         </span>
-        <h4 className="line-clamp-2 font-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[16px]">
+        <h4 className="line-clamp-2 font-khmer-serif text-[15px] font-bold leading-snug text-text-heading transition-colors group-hover:text-brand sm:text-[16px]">
           {post.title}
         </h4>
         <p className="mt-auto pt-3 text-[11px] font-medium text-text-muted">
