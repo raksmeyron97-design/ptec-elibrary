@@ -66,11 +66,41 @@ grant select on public.reviews     to anon, authenticated;
 -- one could see.
 grant select on public.posts to authenticated;
 
--- profiles is the one exception to the pattern: its SELECT policies are
--- auth.uid()-scoped ("Users can view own profile") plus an is_admin() branch,
--- so anon would read zero rows and the grant would only widen the API surface
--- for nothing. authenticated is the role that actually needs it.
-grant select on public.profiles to authenticated;
+-- ── Publication and post detail children ────────────────────────────────────
+-- All content-scoped like their parents: `true` for the attribution tables,
+-- a published-parent EXISTS() for the ones that expose files or links, and
+-- is_deleted = false for comments.
+grant select on public.publication_authorships to anon, authenticated;
+grant select on public.publication_authors     to anon, authenticated;
+grant select on public.publication_affiliations to anon, authenticated;
+grant select on public.publication_files       to anon, authenticated;
+grant select on public.post_comments           to anon, authenticated;
+
+-- ── Team directory ──────────────────────────────────────────────────────────
+-- team_members_public (the view the About pages and the middleware slug gate
+-- read) is already granted by 0070/0115, but it resolves through these.
+grant select on public.team_sections to anon, authenticated;
+grant select on public.team_members  to anon, authenticated;
+
+-- profiles needs the grant even though it yields NOTHING to anon.
+--
+-- Its SELECT policies are auth.uid()-scoped plus an is_admin() branch, so I
+-- first granted this to authenticated only, reasoning that anon would read zero
+-- rows either way. That was wrong about the failure mode: the posts pages embed
+-- the author profile in the same PostgREST select, so "permission denied" fails
+-- the WHOLE query rather than just blanking the author — the e2e log showed
+-- `[getPostsPage] query failed` and `[getFeaturedPost] query failed`, i.e. no
+-- posts at all. Production returns `200 []` here; that is the behaviour to
+-- reproduce, and RLS still hands back no rows.
+grant select on public.profiles to anon, authenticated;
+
+-- ── Signed-in reader surfaces (user-scoped policies, never anon) ─────────────
+-- No anon path reads these, so CI could not have caught them: the e2e suite
+-- signs nobody in. A database built from this chain would serve the public site
+-- correctly and then break the moment someone logged in.
+grant select, insert, delete on public.post_likes       to authenticated;
+grant select, insert, delete on public.post_saves       to authenticated;
+grant select, insert, update on public.reading_progress to authenticated;
 
 -- ── service_role: restore the platform default the flip took away ────────────
 --
