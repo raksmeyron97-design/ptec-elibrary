@@ -6,6 +6,7 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { getPublicTeamData } from "@/lib/team/data";
+import type { PublicTeamMember } from "@/lib/team/public";
 import { groupWeeklySpec } from "@/lib/about/schedule";
 import { toAboutLocale, formatDate, formatNumber } from "@/lib/about/format";
 import { ABOUT_CONTENT_REVIEWED_AT } from "@/lib/about/content";
@@ -23,6 +24,11 @@ import {
 // Published team data is public and changes rarely; the admin actions call
 // revalidatePath("/about/team") on every change, so a long window is safe.
 export const revalidate = 600;
+
+/** Below this roster size the "at a glance" band is suppressed — see the
+ *  comment at its call site. Four is the point at which "Team members" and
+ *  "Service areas" start describing a team rather than a person. */
+const METRICS_MIN_MEMBERS = 4;
 
 export async function generateMetadata({
   params,
@@ -97,12 +103,16 @@ export default async function TeamPage({
   // Structured data — public, non-contact fields only. Admin-authored names
   // flow in here, so it must go through <JsonLd> (which escapes "<" and
   // neutralises a "</script>" breakout), never a raw JSON.stringify.
+  const pageUrl = `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team`;
+  const profileUrl = (slug: string) =>
+    `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team/${slug}`;
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "AboutPage",
     name: tt("metaTitle"),
     description: tt("metaDescription"),
-    url: `${SITE_URL}${locale === "km" ? "/km" : ""}/about/team`,
+    url: pageUrl,
     inLanguage: ["en", "km"],
     about: {
       "@type": "Organization",
@@ -117,10 +127,47 @@ export default async function TeamPage({
         "@type": "Person",
         name: m.name_en || m.name_km,
         ...(m.position_en ? { jobTitle: m.position_en } : {}),
+        // The employee nodes used to carry no URL at all, so nothing in the
+        // markup connected this page to the profile pages it links to. Giving
+        // each an @id/url lets a crawler resolve the two as one entity.
+        ...(m.slug ? { "@id": profileUrl(m.slug), url: profileUrl(m.slug) } : {}),
         worksFor: { "@type": "Organization", name: org.siteName },
       })),
     },
   };
+
+  // A second, separate node: ItemList is the shape Google reads for "this page
+  // is a list of those pages", and it is what surfaces the individual profiles
+  // as crawlable list items. Only members with a real profile page are listed —
+  // an ItemList entry pointing at nothing is worse than a shorter list.
+  const listedMembers = members.filter(
+    (m): m is PublicTeamMember & { slug: string } => Boolean(m.slug),
+  );
+  const itemListJsonLd =
+    listedMembers.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: tt("directory.heading"),
+          description: tt("metaDescription"),
+          url: pageUrl,
+          numberOfItems: listedMembers.length,
+          itemListOrder: "https://schema.org/ItemListOrderAscending",
+          itemListElement: listedMembers.map((m, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            url: profileUrl(m.slug),
+            item: {
+              "@type": "Person",
+              "@id": profileUrl(m.slug),
+              name: m.name_en || m.name_km,
+              ...(m.position_en ? { jobTitle: m.position_en } : {}),
+              ...(m.photo_url ? { image: m.photo_url } : {}),
+              url: profileUrl(m.slug),
+            },
+          })),
+        }
+      : null;
 
   return (
     <AboutPageShell
@@ -176,6 +223,7 @@ export default async function TeamPage({
       }
     >
       <JsonLd data={jsonLd} />
+      {itemListJsonLd && <JsonLd data={itemListJsonLd} />}
 
       {/* ── Mission ──────────────────────────────────────────────────── */}
       <AboutSection id="mission" title={tt("mission.heading")}>
@@ -186,8 +234,14 @@ export default async function TeamPage({
         </InformationCard>
       </AboutSection>
 
-      {/* ── Metrics — only when there is real data to compute them from ── */}
-      {members.length > 0 && (
+      {/* ── Metrics — only when the numbers actually say something ──────
+          The existing rule was "render unless the roster is empty, because a
+          row of zeroes says nothing". A row of ONES says something worse: at a
+          one-person roster this band reads "1 Team members · 1 Service areas",
+          which draws the eye straight to how small the team is — the opposite
+          of what a band of statistics is for. The section header already
+          states the roster size honestly, where a reader expects it. */}
+      {members.length >= METRICS_MIN_MEMBERS && (
         <AboutSection id="metrics" title={tt("metrics.heading")}>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard

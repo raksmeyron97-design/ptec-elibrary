@@ -180,6 +180,9 @@ export default function TeamForm({
   const previewMember: PublicTeamMember = useMemo(() => ({
     id: initial?.id ?? "preview",
     slug: initial?.slug ?? null,
+    // The live preview never renders a "Last updated" line — the row has not
+    // been saved yet, so there is no real edit timestamp to show.
+    updated_at: null,
     name_km: form.name_km,
     name_en: form.name_en,
     position_km: form.position_km || null,

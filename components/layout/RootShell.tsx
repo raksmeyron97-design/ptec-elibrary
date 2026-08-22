@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 
 // The site stylesheet. This used to be imported by app/layout.tsx; when that
 // file was split into the three root layouts, the import has to live HERE —
@@ -124,9 +124,13 @@ export default async function RootShell({
   // Passing `locale` explicitly keeps next-intl off `headers()` — see
   // i18n/request.ts. Root provider carries only what root-level client
   // components use; each root layout adds its own namespace set below it.
-  const [messages, siteConfig] = await Promise.all([
+  const [messages, siteConfig, t] = await Promise.all([
     getMessages({ locale }).then((m) => pickMessages(m, ROOT_NAMESPACES)),
     getSiteConfig(),
+    // Server-side lookup, deliberately: the skip link is plain markup rendered
+    // here, so it does NOT need "nav" in ROOT_NAMESPACES (which would ship the
+    // whole navigation catalogue to /admin and /auth clients for one string).
+    getTranslations({ locale, namespace: "nav" }),
   ]);
 
   return (
@@ -188,7 +192,7 @@ export default async function RootShell({
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-contrast"
           >
-            Skip to content
+            {t("skipToContent")}
           </a>
           {children}
           {/* Dismisses <PTECBootScreen/>. Sits after {children} and outside any

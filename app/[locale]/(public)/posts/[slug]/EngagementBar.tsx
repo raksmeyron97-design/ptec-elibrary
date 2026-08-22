@@ -1,5 +1,6 @@
 "use client";
 import { useState, useCallback, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { togglePostLike, togglePostSave } from "@/app/actions/post-engagement";
@@ -21,6 +22,7 @@ export default function EngagementBar({
   initialLiked,
   initialSaved,
 }: EngagementBarProps) {
+  const t = useTranslations("posts");
   const router = useRouter();
   const supabase = createClient();
   const [isPending, startTransition] = useTransition();
@@ -70,7 +72,7 @@ export default function EngagementBar({
         className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-all cursor-pointer select-none disabled:opacity-60 ${
           liked
             ? "bg-red-50 border-red-300 text-red-600"
-            : "bg-white border-divider text-text-body hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+            : "bg-bg-surface border-divider text-text-body hover:bg-red-50 hover:border-red-200 hover:text-red-600"
         }`}
       >
         <svg
@@ -80,7 +82,7 @@ export default function EngagementBar({
         >
           <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
         </svg>
-        ចូលចិត្ត
+        {liked ? t("liked") : t("like")}
         {likeCount > 0 && <span className="text-xs opacity-70">· {likeCount}</span>}
       </button>
 
@@ -91,7 +93,7 @@ export default function EngagementBar({
         className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-semibold transition-all cursor-pointer select-none disabled:opacity-60 ${
           saved
             ? "bg-amber-50 border-amber-400 text-amber-700"
-            : "bg-white border-divider text-text-body hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700"
+            : "bg-bg-surface border-divider text-text-body hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700"
         }`}
       >
         <svg
@@ -101,7 +103,7 @@ export default function EngagementBar({
         >
           <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
         </svg>
-        {saved ? "បានរក្សាទុក" : "រក្សាទុក"}
+        {saved ? t("saved") : t("save")}
         {saveCount > 0 && <span className="text-xs opacity-70">· {saveCount}</span>}
       </button>
 
@@ -111,7 +113,7 @@ export default function EngagementBar({
           <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
           <circle cx="12" cy="12" r="3"/>
         </svg>
-        {viewCount.toLocaleString()} ដង
+        {t("viewCount", { count: viewCount })}
       </div>
     </div>
   );

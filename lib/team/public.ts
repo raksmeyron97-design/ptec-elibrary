@@ -37,6 +37,9 @@ export type PublicTeamMember = {
   /** Already privacy-gated: null unless the admin approved public display. */
   phone: string | null;
   email: string | null;
+  /** Last edit to the row (migration 0116). Null on rows read through a
+   *  pre-0116 view — the "Last updated" line is simply not shown. */
+  updated_at: string | null;
 };
 
 export type PublicTeamSection = {
@@ -48,8 +51,16 @@ export type PublicTeamSection = {
   display_order: number;
 };
 
-/** Column list requested from the post-0114 `team_members_public` view. */
+/** Column list requested from the post-0116 `team_members_public` view. */
 export const PUBLIC_MEMBER_SELECT =
+  "id,slug,name_km,name_en,position_km,position_en,education,years_experience," +
+  "photo_url,photo_alt,short_bio_km,short_bio_en,bio_km,bio_en," +
+  "responsibilities_km,responsibilities_en,languages,working_hours," +
+  "is_featured,display_order,section_id,section_name_km,section_name_en,phone,email," +
+  "updated_at";
+
+/** The 0115–0116 window: the view has `slug` but not yet `updated_at`. */
+export const PRE_0116_MEMBER_SELECT =
   "id,slug,name_km,name_en,position_km,position_en,education,years_experience," +
   "photo_url,photo_alt,short_bio_km,short_bio_en,bio_km,bio_en," +
   "responsibilities_km,responsibilities_en,languages,working_hours," +
@@ -105,6 +116,7 @@ export function fromLegacyRow(row: LegacyTeamMemberRow): PublicTeamMember {
     is_featured: false,
     display_order: 0,
     email: row.user_email,
+    updated_at: null,
   };
 }
 
