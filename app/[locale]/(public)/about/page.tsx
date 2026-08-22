@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 
 export async function generateMetadata({
   params,
@@ -15,6 +16,7 @@ export async function generateMetadata({
       "The Library of Phnom Penh Teacher Education College — knowledge, research, and innovation for 21st-century teacher education.",
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: "About — PTEC Library",
       description: "Mission, vision, and values of the PTEC Library.",
       url: alternates.canonical,

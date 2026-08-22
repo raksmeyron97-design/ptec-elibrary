@@ -11,6 +11,7 @@ import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 import type { CatalogBook } from "@/lib/catalog";
 import {
   computeCopyStats,
@@ -125,6 +126,7 @@ export async function generateMetadata({
     description: desc,
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title,
       description: desc,
       type: "book",

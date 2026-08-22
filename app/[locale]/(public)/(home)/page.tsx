@@ -30,6 +30,7 @@ import SignupCta from "@/components/ui/home/SignupCta";
 import SignedOutOnly from "@/components/ui/home/SignedOutOnly";
 import ContinueReadingSwap from "@/components/ui/home/ContinueReadingSwap";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 
 import BrowseBooksSkeleton from "@/components/ui/home/skeletons/BrowseBooksSkeleton";
 import LatestPostsSkeleton from "@/components/ui/home/skeletons/LatestPostsSkeleton";
@@ -76,11 +77,16 @@ export async function generateMetadata({
     title: t("seoTitle"),
     description: t("seoDescription"),
     alternates: localeAlternates("/", locale),
+    // openGraphBase carries siteName, og:locale and the reciprocal
+    // og:locale:alternate. Next does NOT deep-merge `openGraph` — declaring one
+    // here replaces the layout's entirely — which is exactly how this page
+    // shipped with no og:site_name at all. Spread it FIRST so the ogTitle /
+    // ogDescription split below still wins.
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: t("ogTitle"),
       description: t("ogDescription"),
       type: "website",
-      images: ["/og-default.png"],
     },
     twitter: {
       title: t("ogTitle"),

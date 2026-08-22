@@ -1,6 +1,7 @@
 "use client";
 
 import { Link, usePathname } from "@/i18n/navigation";
+import NextLink from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import type { AppRole } from "@/lib/types/roles";
@@ -323,13 +324,18 @@ export default function MobileBottomNav() {
                   </button>
                 </form>
               ) : (
-                <Link
+                // Plain next/link: /auth is outside the locale scheme, so the
+                // localized Link would send a Khmer reader to /km/auth/login
+                // and 404. Latent rather than live — this only renders after
+                // the profile sheet is opened — but the same defect as the
+                // homepage FAQ link.
+                <NextLink
                   href="/auth/login"
                   onClick={closeSheet}
                   className="flex w-full items-center justify-center rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-brand-contrast hover:bg-brand-hover active:scale-[0.98] transition-all"
                 >
                   {t("login")}
-                </Link>
+                </NextLink>
               )}
             </div>
 
