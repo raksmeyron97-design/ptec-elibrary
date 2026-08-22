@@ -174,14 +174,18 @@ export default async function Footer() {
     { label: navT("posts"), href: "/posts" },
   ];
 
+  // About/help only. Privacy and Policy are deliberately NOT repeated here:
+  // they are already the whole of legalLinks in the bottom bar, which is where
+  // readers look for them and where they stay visible on every breakpoint
+  // (the md:hidden accordion below collapses this column, the legal bar never
+  // collapses). Listing them twice made the same two routes appear twice in
+  // one footer.
   const helpLinks: FooterLink[] = [
     { label: navT("about"), href: "/about" },
     ...ABOUT_NAV_ITEMS.map((item) => ({
       label: navT(item.labelKey),
       href: item.href,
     })),
-    { label: t("links.privacy"), href: "/privacy" },
-    { label: t("links.policy"), href: "/policy" },
   ];
 
   const legalLinks: FooterLink[] = [

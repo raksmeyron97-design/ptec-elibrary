@@ -70,7 +70,11 @@ export async function resolvePdfUrl(rawUrl: string): Promise<string | null> {
 /** Per-page text via pdfjs. Empty/scanned pages are dropped. */
 export async function extractPdfPages(bytes: ArrayBuffer): Promise<{ pageNo: number; content: string }[]> {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: true }).promise;
+  // Keep the loading task: pdfjs 6 dropped the PDFDocumentProxy.destroy()
+  // shortcut, and tearing down the worker is only reachable from the task.
+  // loadingTask.destroy() exists on 5 as well, so this is version-agnostic.
+  const loadingTask = getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
+  const doc = await loadingTask.promise;
   const pages: { pageNo: number; content: string }[] = [];
   try {
     for (let p = 1; p <= doc.numPages; p++) {
@@ -90,7 +94,7 @@ export async function extractPdfPages(bytes: ArrayBuffer): Promise<{ pageNo: num
       page.cleanup();
     }
   } finally {
-    await doc.destroy();
+    await loadingTask.destroy();
   }
   return pages;
 }
