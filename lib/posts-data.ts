@@ -254,7 +254,27 @@ export const getFeaturedPost = unstable_cache(
       return null;
     }
     const row = (data ?? [])[0];
-    return row ? mapRow(row) : null;
+    if (row) return mapRow(row);
+
+    // Nothing is explicitly featured — lead with the most recent post instead
+    // of leaving the slot empty. `featured` was the ONLY path here, so on a
+    // library where no one has ticked the box the index opened with no lead
+    // at all and the newest notice was indistinguishable from the oldest. The
+    // flag now acts as an override of this default rather than as the switch
+    // that decides whether a lead exists.
+    const { data: latest, error: latestError } = await publicBase(
+      supabase.from("posts").select(listSelect(withEvents)),
+    )
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (latestError) {
+      console.error("[getFeaturedPost] fallback query failed:", latestError.message);
+      return null;
+    }
+    const newest = (latest ?? [])[0];
+    return newest ? mapRow(newest) : null;
   },
   ["posts-featured"],
   { revalidate: 300, tags: ["posts"] },

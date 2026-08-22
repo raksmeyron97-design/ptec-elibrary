@@ -25,9 +25,12 @@ function isSafeHref(url: string): boolean {
 // ── Inline formatting: bold, italic, code, links ──────────────────
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  // Order matters: code first (so we don't format inside it), then links, bold, italic.
+  // Order matters: code first (so we don't format inside it), then IMAGES,
+  // then links, bold, italic. Images must precede links — `![alt](url)` also
+  // matches the link pattern, which used to consume `[alt](url)` and leave the
+  // leading "!" behind as literal text next to a link to the image file.
   const pattern =
-    /(`[^`]+`)|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(_[^_]+_)/g;
+    /(`[^`]+`)|(!\[[^\]]*\]\([^)]+\))|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(_[^_]+_)/g;
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -46,6 +49,11 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
           {token.slice(1, -1)}
         </code>
       );
+    } else if (token.startsWith("![")) {
+      const m = /!\[([^\]]*)\]\(([^)]+)\)/.exec(token);
+      if (m && isSafeHref(m[2])) {
+        nodes.push(<InlineImage key={key} src={m[2].trim()} alt={m[1]} />);
+      }
     } else if (token.startsWith("[")) {
       const m = /\[([^\]]+)\]\(([^)]+)\)/.exec(token);
       if (m && isSafeHref(m[2])) {
@@ -78,6 +86,22 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
     nodes.push(text.slice(lastIndex));
   }
   return nodes;
+}
+
+/**
+ * A body image from the post's Markdown.
+ *
+ * Deliberately a plain <img>, not next/image: the URL comes from whatever an
+ * editor pasted into the body, and next/image throws at request time for any
+ * host missing from `images.remotePatterns` in next.config.ts — which would
+ * take the whole article down over one image. Sizing and rounding come from
+ * `.prose-content :where(img)` in globals.css.
+ */
+function InlineImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element */
+    <img src={src} alt={alt} loading="lazy" decoding="async" />
+  );
 }
 
 function slugifyHeading(text: string): string {
@@ -129,6 +153,22 @@ export default function Markdown({ content }: { content: string }) {
           <code className="font-mono">{codeLines.join("\n")}</code>
         </pre>
       );
+      continue;
+    }
+
+    // ── Standalone image → figure (+ caption from the alt text) ──
+    const figure = /^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/.exec(line);
+    if (figure) {
+      const [, alt, src] = figure;
+      if (isSafeHref(src)) {
+        blocks.push(
+          <figure key={key++}>
+            <InlineImage src={src.trim()} alt={alt} />
+            {alt.trim() !== "" && <figcaption>{alt}</figcaption>}
+          </figure>
+        );
+      }
+      i++;
       continue;
     }
 
@@ -207,7 +247,7 @@ export default function Markdown({ content }: { content: string }) {
       blocks.push(
         <ul key={key++} className="my-4 space-y-2 pl-6 text-text-body" style={{ listStyleType: "none" }}>
           {items.map((it, idx) => (
-            <li key={idx} className="relative leading-relaxed pl-5 before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
+            <li key={idx} className="relative pl-5 before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
               {renderInline(it, `ul-${key}-${idx}`)}
             </li>
           ))}
@@ -226,7 +266,7 @@ export default function Markdown({ content }: { content: string }) {
       blocks.push(
         <ol key={key++} className="my-4 list-decimal space-y-2 pl-6 text-text-body marker:font-bold marker:text-brand">
           {items.map((it, idx) => (
-            <li key={idx} className="leading-relaxed pl-1">{renderInline(it, `ol-${key}-${idx}`)}</li>
+            <li key={idx} className="pl-1">{renderInline(it, `ol-${key}-${idx}`)}</li>
           ))}
         </ol>
       );
@@ -249,17 +289,18 @@ export default function Markdown({ content }: { content: string }) {
       !lines[i].trimStart().startsWith(">") &&
       !/^\s*[-*]\s+/.test(lines[i]) &&
       !/^\s*\d+\.\s+/.test(lines[i]) &&
-      !/^\s*(---|\*\*\*|___)\s*$/.test(lines[i])
+      !/^\s*(---|\*\*\*|___)\s*$/.test(lines[i]) &&
+      !/^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(lines[i])
     ) {
       paraLines.push(lines[i]);
       i++;
     }
     blocks.push(
-      <p key={key++} className="my-4 leading-relaxed text-text-body">
+      <p key={key++} className="text-text-body">
         {renderInline(paraLines.join(" "), `p-${key}`)}
       </p>
     );
   }
 
-  return <div className="text-[15px]">{blocks}</div>;
+  return <>{blocks}</>;
 }

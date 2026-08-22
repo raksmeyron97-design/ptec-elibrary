@@ -13,13 +13,14 @@ import { useTranslations } from "next-intl";
 import type { PostListItem } from "@/lib/posts-data";
 import type { EventStatus } from "@/lib/posts/event-status";
 import {
-  formatPtecDate,
+  formatDateParts,
   formatEventDateRange,
   formatEventTime,
 } from "@/lib/posts/event-status";
-import { categoryBadge, categoryPlaceholder } from "./postStyles";
+import { categoryPlaceholder } from "./postStyles";
+import DateBlock from "./DateBlock";
 import EventStatusBadge from "./EventStatusBadge";
-import { CalendarIcon, ClockIcon, PinIcon, ArrowRightIcon } from "./icons";
+import { ClockIcon, PinIcon } from "./icons";
 
 /**
  * A standard News & Events card. Renders an event variant (date, time,
@@ -49,14 +50,17 @@ export default function PostCard({
   const formatLabel =
     post.event?.format &&
     t(`eventFormat.${post.event.format}` as never);
+  const dateParts = formatDateParts(post.event?.startAt ?? post.publishedAt, locale);
 
   return (
     <Link
       href={`/posts/${post.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-divider bg-bg-surface no-underline shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+      className="group flex h-full flex-col rounded-xl border border-divider bg-bg-surface no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:shadow-[0_8px_24px_rgba(11,21,48,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-app motion-reduce:transition-none motion-reduce:hover:translate-y-0"
     >
-      {/* Thumbnail */}
-      <div className="relative flex-none overflow-hidden" style={{ aspectRatio: "16 / 9" }}>
+      {/* Thumbnail. The wrapper does NOT clip: the date plate hangs below the
+          image edge, and an overflow-hidden here sheared its lower half off. */}
+      <div className="relative flex-none" style={{ aspectRatio: "16 / 9" }}>
+        <div className="absolute inset-0 overflow-hidden rounded-t-xl">
         {post.coverUrl ? (
           <Image
             src={post.coverUrl}
@@ -80,73 +84,74 @@ export default function PostCard({
           </div>
         )}
 
-        {/* Category badge (top-left) */}
-        <span
-          className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide shadow-sm ${categoryBadge(post.category)}`}
-        >
-          {categoryLabel}
-        </span>
-
-        {/* Event status badge (top-right) */}
         {isEvent && eventStatus && (
           <EventStatusBadge
             status={eventStatus}
             label={t(`eventStatus.${eventStatus}` as never)}
-            className="absolute right-3 top-3 shadow-sm"
+            className="absolute right-3 top-3 z-10 shadow-sm"
           />
         )}
+
+        {/* The date, affixed to the photograph like a stamp on a filed
+            document. Putting it here rather than in the text column matters
+            for Khmer specifically: the block is ~56px wide, and taking that
+            out of a 330px card left the title a column too narrow for a
+            script that cannot hyphenate.
+
+            For an event the stamp carries the EVENT date, not the publication
+            date — when a ceremony happens is the fact a reader is scanning
+            for; when the notice was posted is not. */}
+        {dateParts && (
+          <span className="absolute bottom-3 left-3 z-10 rounded-md bg-plate/95 px-3 py-2 shadow-[0_4px_14px_rgba(11,21,48,0.35)] backdrop-blur-[2px]">
+            <DateBlock parts={dateParts} tone="light" size="sm" />
+          </span>
+        )}
+        </div>
       </div>
 
-      {/* Body */}
+      {/* Body — full width for the title; pt clears the date plate. */}
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="m-0 mb-2 line-clamp-2 font-khmer-serif text-lg font-bold leading-snug text-text-heading transition-colors group-hover:text-brand">
+        <span className="mb-2 font-sans text-[10.5px] font-semibold uppercase tracking-[0.16em] text-brand">
+          {categoryLabel}
+        </span>
+
+        {/* leading-[1.5]: Khmer stacks vowel signs above and subscript
+            consonants below the baseline, so the `leading-snug` (1.375) this
+            used to carry made two-line titles collide. */}
+        <h3 className="m-0 line-clamp-3 font-khmer-serif text-[17px] font-bold leading-[1.5] text-text-heading transition-colors group-hover:text-brand">
           {post.title}
         </h3>
 
         {isEvent ? (
-          <div className="mb-3 space-y-1.5 text-sm text-text-body">
-            <span className="flex items-start gap-2">
-              <CalendarIcon className="mt-0.5 shrink-0 text-brand" />
+          <div className="mt-3 space-y-1 text-[13px] text-text-body">
+            <span className="flex items-start gap-1.5">
+              <ClockIcon className="mt-0.5 shrink-0 text-brand" />
               <span className="min-w-0">
                 {formatEventDateRange(post.event!.startAt, post.event!.endAt, locale)}
                 {post.event!.startAt && (
-                  <span className="ml-1.5 inline-flex items-center gap-1 text-text-muted">
-                    <ClockIcon />
+                  <span className="ml-1.5 text-text-muted">
                     {formatEventTime(post.event!.startAt, locale)}
                   </span>
                 )}
               </span>
             </span>
             {(post.event!.location || formatLabel) && (
-              <span className="flex items-start gap-2 text-text-muted">
+              <span className="flex items-start gap-1.5 text-text-muted">
                 <PinIcon className="mt-0.5 shrink-0" />
                 <span className="line-clamp-1 min-w-0">
                   {post.event!.location || formatLabel}
-                  {post.event!.location && formatLabel && (
-                    <span className="text-text-muted"> · {formatLabel}</span>
-                  )}
+                  {post.event!.location && formatLabel && <span> · {formatLabel}</span>}
                 </span>
               </span>
             )}
           </div>
         ) : (
           post.excerpt && (
-            <p className="m-0 mb-3 line-clamp-2 text-sm leading-relaxed text-text-body">
+            <p className="m-0 mt-3 line-clamp-2 text-[13.5px] leading-[1.7] text-text-body">
               {post.excerpt}
             </p>
           )
         )}
-
-        <div className="mt-auto flex items-center justify-between gap-3 border-t border-divider pt-3">
-          <span className="inline-flex items-center gap-1.5 text-xs text-text-muted">
-            <CalendarIcon />
-            {formatPtecDate(post.publishedAt, locale)}
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand transition-all group-hover:gap-2.5">
-            {isEvent ? t("viewEvent") : t("readMore")}
-            <ArrowRightIcon />
-          </span>
-        </div>
       </div>
     </Link>
   );

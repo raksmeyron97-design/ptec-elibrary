@@ -56,6 +56,20 @@ test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
     await expectNoViolations(page, 'book-detail');
   });
 
+  test('posts listing page', async ({ page }) => {
+    await page.goto('/posts');
+    await expectNoViolations(page, 'posts-listing');
+  });
+
+  test('post detail page', async ({ page }) => {
+    await page.goto('/posts');
+    const firstPost = page.locator('a[href^="/posts/"]').first();
+    if ((await firstPost.count()) === 0) test.skip(true, 'No posts in this environment');
+    await firstPost.click();
+    await page.waitForLoadState('domcontentloaded');
+    await expectNoViolations(page, 'post-detail');
+  });
+
   test('thesis detail page', async ({ page }) => {
     await page.goto('/theses');
     const firstThesis = page.locator('a[href^="/theses/"]').first();
@@ -110,6 +124,15 @@ test.describe('Accessibility — dark theme', () => {
     await page.goto('/search?q=education');
     await page.waitForLoadState('networkidle').catch(() => {});
     await expectNoViolations(page, 'search-dark');
+  });
+
+  test('post detail page (dark)', async ({ page }) => {
+    await page.goto('/posts');
+    const firstPost = page.locator('a[href^="/posts/"]').first();
+    if ((await firstPost.count()) === 0) test.skip(true, 'No posts in this environment');
+    await firstPost.click();
+    await page.waitForLoadState('domcontentloaded');
+    await expectNoViolations(page, 'post-detail-dark');
   });
 
   test('book detail page (dark)', async ({ page }) => {

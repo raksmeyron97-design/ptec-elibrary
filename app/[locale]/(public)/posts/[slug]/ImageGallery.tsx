@@ -6,6 +6,7 @@
 // Fix: outer Tile is <div> not <button> — avoids illegal button-in-button nesting.
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 
 interface ImageGalleryProps {
@@ -114,10 +115,16 @@ function SharePopover({ imageUrl, pageUrl, postTitle, onClose }: SharePopoverPro
 }
 
 /* ─── Single grid tile ─────────────────────────────────────────────────────
-   IMPORTANT: outer element MUST be <div>, not <button>.
-   The action bar inside contains real <button> elements — nesting
-   <button> inside <button> is invalid HTML and causes hydration errors.
-   Keyboard / a11y handled via role="button" + tabIndex + onKeyDown.
+   The outer element is a plain <div> with NO role and NO tabIndex, and the
+   "open this photo" control is a real <button> layered over the image as a
+   SIBLING of the download/share buttons.
+
+   It used to be a <div role="button" tabIndex={0}> wrapping those buttons.
+   That dodged the invalid button-in-button nesting, but only at the HTML
+   level — to assistive tech the tile still announced as one button with two
+   more buttons inside it, which axe flags as `nested-interactive` (WCAG 4.1.2)
+   and which leaves a screen-reader user unable to tell what Enter will do.
+   Three sibling buttons give keyboard users three honest, separate stops.
 ──────────────────────────────────────────────────────────────────────────── */
 interface TileProps {
   url: string;
@@ -130,6 +137,7 @@ interface TileProps {
 }
 
 function Tile({ url, index, alt, featured, pageUrl, postTitle, onOpen }: TileProps) {
+  const t = useTranslations("posts");
   const [loaded, setLoaded] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -147,22 +155,9 @@ function Tile({ url, index, alt, featured, pageUrl, postTitle, onOpen }: TilePro
     setShareOpen((v) => !v);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onOpen();
-    }
-  };
-
   return (
-    // ↓ <div> not <button> — prevents button-in-button hydration error
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={handleKeyDown}
-      className={`gallery-tile group relative overflow-hidden rounded-xl bg-[#0f1a2e] cursor-pointer
-                  focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DDB022]
+      className={`gallery-tile group relative overflow-hidden rounded-xl bg-[#0f1a2e]
                   ${featured ? "col-span-2 row-span-2" : ""}`}
       style={{ aspectRatio: featured ? "16/9" : "4/3" }}
     >
@@ -178,6 +173,16 @@ function Tile({ url, index, alt, featured, pageUrl, postTitle, onOpen }: TilePro
                     group-hover:scale-105 group-hover:brightness-75
                     ${loaded ? "opacity-100" : "opacity-0"}`}
         priority={index < 4}
+      />
+
+      {/* The open-photo control. Covers the tile so a click anywhere on the
+          image still opens the lightbox, but sits EARLIER in the DOM than the
+          action bar, which therefore paints and receives clicks above it. */}
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={t("galleryOpenPhoto", { index: index + 1 })}
+        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DDB022] focus-visible:ring-inset"
       />
 
       {/* gold accent ring on featured */}
@@ -197,7 +202,7 @@ function Tile({ url, index, alt, featured, pageUrl, postTitle, onOpen }: TilePro
       {/* ── slide-up action bar ── */}
       {/* stopPropagation so clicks here don't fire the outer onOpen */}
       <div
-        className="gallery-action-bar absolute bottom-0 left-0 right-0
+        className="gallery-action-bar absolute bottom-0 left-0 right-0 z-10
                    flex items-center justify-center gap-2 px-3 py-2.5
                    bg-gradient-to-t from-black/85 via-black/50 to-transparent
                    translate-y-full group-hover:translate-y-0
@@ -365,6 +370,7 @@ export default function ImageGallery({
   pageUrl: pageProp,
   postTitle = "",
 }: ImageGalleryProps) {
+  const t = useTranslations("posts");
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [pageUrl, setPageUrl] = useState(pageProp ?? "");
@@ -445,7 +451,7 @@ export default function ImageGallery({
             <polyline points="21 15 16 10 5 21"/>
           </svg>
         </span>
-        <span className="text-base font-semibold text-text-body">រូបភាព</span>
+        <span className="text-base font-semibold text-text-body">{t("galleryTitle")}</span>
         <span className="ml-1 rounded-full bg-[#DDB022]/15 border border-[#DDB022]/30
                          px-2.5 py-0.5 text-xs font-semibold text-[#806211]">
           {urls.length}

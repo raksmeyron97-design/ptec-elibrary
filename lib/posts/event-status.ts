@@ -96,8 +96,36 @@ export function isRegistrationOpen(
 
 // ── Formatting ─────────────────────────────────────────────────────────────
 
-function intlLocale(locale: string): string {
-  return locale === "km" ? "km-KH" : "en-US";
+/**
+ * Khmer with the Khmer numbering system explicitly requested.
+ *
+ * Plain "km-KH" is inconsistent about digits: it renders the day in Khmer
+ * numerals but the year in Latin ones, so a Khmer date came out as
+ * "១ កក្កដា 2026" — half one script, half the other, in the same line. The
+ * -u-nu-khmr extension pins every numeral to ០១២៣៤៥៦៧៨៩.
+ */
+function displayLocale(locale: string): string {
+  return locale === "km" ? "km-KH-u-nu-khmr" : "en-US";
+}
+
+export type DateParts = { day: string; month: string; year: string };
+
+/**
+ * A date split into its three fields for the date block that leads every post
+ * card and the detail article. Formatted in PTEC time on the server, so the
+ * day never differs between render and hydration near midnight.
+ */
+export function formatDateParts(iso: string | null, locale: string): DateParts | null {
+  const d = parse(iso);
+  if (!d) return null;
+  const loc = displayLocale(locale);
+  const f = (opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(loc, { timeZone: PTEC_TZ, ...opts }).format(d);
+  return {
+    day: f({ day: "numeric" }),
+    month: f({ month: "short" }),
+    year: f({ year: "numeric" }),
+  };
 }
 
 /**
@@ -114,7 +142,7 @@ export function formatPtecDate(iso: string | null, locale: string): string {
 export function formatEventDate(iso: string | null, locale: string): string {
   const d = parse(iso);
   if (!d) return "";
-  return new Intl.DateTimeFormat(intlLocale(locale), {
+  return new Intl.DateTimeFormat(displayLocale(locale), {
     timeZone: PTEC_TZ,
     year: "numeric",
     month: "long",
@@ -126,7 +154,7 @@ export function formatEventDate(iso: string | null, locale: string): string {
 export function formatEventTime(iso: string | null, locale: string): string {
   const d = parse(iso);
   if (!d) return "";
-  return new Intl.DateTimeFormat(intlLocale(locale), {
+  return new Intl.DateTimeFormat(displayLocale(locale), {
     timeZone: PTEC_TZ,
     hour: "numeric",
     minute: "2-digit",

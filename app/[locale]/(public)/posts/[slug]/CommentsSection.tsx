@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useTransition, useRef, useEffect, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { createComment, deleteComment, updateComment, toggleCommentLike, getCommentLikes } from "@/app/actions/post-comments";
@@ -559,6 +560,7 @@ function CommentItem({
 export default function CommentsSection({
   postId, postSlug, initialComments, currentUserId, isAdmin,
 }: Props) {
+  const t = useTranslations("posts");
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [comments, setComments] = useState<Comment[]>(initialComments);
@@ -623,7 +625,7 @@ export default function CommentsSection({
             </svg>
           </span>
           <h2 className="font-khmer-serif font-bold text-text-heading text-xl m-0 leading-none">
-            មតិយោបល់
+            {t("commentsHeading")}
           </h2>
           {totalCount > 0 && (
             <span className="rounded-full bg-[#DDB022]/15 border border-[#DDB022]/30
@@ -657,11 +659,11 @@ export default function CommentsSection({
           <div className="absolute top-0 left-0 right-0 h-0.5
                           bg-gradient-to-r from-[#DDB022] via-[#d97706] to-transparent" />
           <p className="text-xs font-bold text-[#806211] uppercase tracking-wider mb-3 font-sans">
-            សរសេរមតិយោបល់
+            {t("writeComment")}
           </p>
           <CommentForm
             postId={postId} postSlug={postSlug} onSuccess={() => { stopTyping(); refresh(); }}
-            placeholder="Share your thoughts…"
+            placeholder={t("commentPlaceholder")}
             onTypingStart={startTyping}
             onTypingStop={stopTyping}
           />
@@ -706,8 +708,8 @@ export default function CommentsSection({
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
             </svg>
           </div>
-          <p className="font-khmer-serif font-bold text-text-heading text-base">មិនទាន់មានមតិ</p>
-          <p className="text-xs text-text-muted font-sans mt-1">Be the first to share your thoughts!</p>
+          <p className="font-khmer-serif font-bold text-text-heading text-base">{t("commentsEmptyTitle")}</p>
+          <p className="text-xs text-text-muted font-sans mt-1">{t("commentsEmptyBody")}</p>
         </div>
       ) : (
         <div key={refreshKey} className="flex flex-col gap-5">

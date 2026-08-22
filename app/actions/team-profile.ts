@@ -12,7 +12,7 @@ export async function updateOwnTeamMember(formData: FormData) {
 
     const { data: member } = await supabase
       .from("team_members")
-      .select("id")
+      .select("id, slug")
       .eq("user_id", userId)
       .single();
 
@@ -63,6 +63,12 @@ export async function updateOwnTeamMember(formData: FormData) {
 
     revalidatePath("/admin/profile");
     revalidatePath("/about/team");
+    // The member's OWN profile page was missing here, so a self-service edit
+    // refreshed the directory while /about/team/<slug> — the page that shows
+    // the edited bio in full — stayed on the previous render until its 600 s
+    // ISR window lapsed. The admin-side action (app/(admin)/.../team/actions.ts)
+    // has always revalidated the slug; this brings the two into line.
+    if (member.slug) revalidatePath(`/about/team/${member.slug}`);
     revalidatePath("/admin/team");
     return { success: true };
   } catch {

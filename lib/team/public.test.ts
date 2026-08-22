@@ -15,6 +15,7 @@ function member(overrides: Partial<PublicTeamMember> = {}): PublicTeamMember {
   return {
     id: "m1",
     slug: "sokha",
+    updated_at: null,
     name_km: "សុខា",
     name_en: "Sokha",
     position_km: null,

@@ -1,9 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import PostCard from "@/components/ui/posts/PostCard";
+import { normalizeCategory } from "@/lib/admin/posts-shared";
+import type { PostListItem } from "@/lib/posts-data";
 
-interface RelatedPost {
+/** The columns the detail page selects for its related-posts query. */
+export interface RelatedPostRow {
   id: string;
   title: string;
   slug: string;
@@ -13,82 +15,72 @@ interface RelatedPost {
   created_at: string | null;
 }
 
-const categoryColors: Record<string, string> = {
-  Research:     "text-blue-700",
-  Announcement: "text-gold-700",
-  Event:        "text-orange-600",
-  Journal:      "text-teal-600",
-  Other:        "text-text-muted",
-};
+/**
+ * "More from News & Events" — the three most recent posts sharing this post's
+ * category.
+ *
+ * This used to render its own card markup, which meant a second visual
+ * language for the same object and a date pinned to "km-KH" for every reader.
+ * It now renders the same <PostCard> the listing grid uses, so the two
+ * surfaces can never drift apart again.
+ */
+export default async function RelatedPosts({
+  posts,
+  locale,
+}: {
+  posts: RelatedPostRow[];
+  locale: string;
+}) {
+  const t = await getTranslations({ locale, namespace: "posts" });
+  if (posts.length === 0) return null;
 
-function formatDate(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("km-KH", { year: "numeric", month: "short", day: "numeric" });
-}
-
-export default async function RelatedPosts({ posts, category }: { posts: RelatedPost[]; category: string }) {
-  const t = await getTranslations("posts");
-  if (!posts || posts.length === 0) return null;
+  // PostCard reads the listing's normalized shape. Related rows carry no
+  // excerpt or event columns, so those stay null and the card renders its
+  // news variant.
+  const items: PostListItem[] = posts.map((row) => ({
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    category: normalizeCategory(row.category),
+    excerpt: null,
+    coverUrl: row.cover_urls?.[0] ?? row.cover_url ?? null,
+    coverAlt: row.title,
+    author: "",
+    publishedAt: row.created_at,
+    featured: false,
+    event: null,
+  }));
 
   return (
-    <section className="bg-white border-t border-divider">
-      <div className="max-w-[1180px] mx-auto px-5 py-12">
-        {/* Section header */}
-        <div className="flex items-center gap-3 mb-8">
-          <span className="w-[5px] h-7 bg-accent rounded-full" />
-          <h2 className="font-khmer-serif font-bold text-text-heading text-2xl m-0">
-            {t("relatedPosts")}
-          </h2>
+    <section aria-labelledby="related-posts-heading" className="border-t border-divider bg-bg-surface">
+      <div className="mx-auto max-w-[1180px] px-5 py-12">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="h-7 w-[5px] rounded-full bg-accent" aria-hidden="true" />
+            <h2
+              id="related-posts-heading"
+              className="m-0 font-khmer-serif text-2xl font-bold text-text-heading"
+            >
+              {t("relatedPosts")}
+            </h2>
+          </div>
+          <Link
+            href="/posts"
+            className="inline-flex items-center gap-1.5 rounded-md text-sm font-semibold text-brand no-underline transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
+          >
+            {t("backToPosts")}
+          </Link>
         </div>
 
-        <div className="grid gap-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-          {posts.map((post) => {
-            const thumb =
-              Array.isArray(post.cover_urls) && (post.cover_urls as string[]).length > 0
-                ? (post.cover_urls as string[])[0]
-                : post.cover_url ?? null;
-
-            return (
-              <Link
-                key={post.id}
-                href={`/posts/${post.slug}`}
-                className="group flex flex-col bg-white border border-divider rounded-xl overflow-hidden shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg text-inherit no-underline"
-              >
-                {/* Thumbnail */}
-                <div className="h-[150px] overflow-hidden flex-none">
-                  {thumb ? (
-                    <div className="relative w-full h-full">
-                      <Image
-                        src={thumb}
-                        alt={post.title}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full bg-brand flex items-center justify-center">
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 5a2 2 0 012-2h6a2 2 0 012 2v15a2 2 0 00-2-2H2z"/>
-                        <path d="M22 5a2 2 0 00-2-2h-6a2 2 0 00-2 2v15a2 2 0 012-2h6z"/>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-col flex-1 p-5">
-                  <span className={`text-xs font-bold tracking-wide ${categoryColors[post.category] ?? categoryColors.Other}`}>
-                    {t(`category${post.category}` as any)}
-                  </span>
-                  <h3 className="font-khmer-serif font-bold text-text-heading text-lg leading-snug mt-2 mb-0 transition-colors group-hover:text-brand line-clamp-3">
-                    {post.title}
-                  </h3>
-                  <span className="text-text-muted text-xs mt-auto pt-4">{formatDate(post.created_at)}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        {/* Three across on desktop; a snapping scroll row on narrow screens so
+            the cards keep their proportions instead of squeezing to a strip. */}
+        <ul className="-mx-5 flex snap-x snap-mandatory list-none gap-5 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden">
+          {items.map((post) => (
+            <li key={post.id} className="w-[78vw] min-w-0 shrink-0 snap-start sm:w-auto sm:shrink">
+              <PostCard post={post} eventStatus={null} locale={locale} />
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

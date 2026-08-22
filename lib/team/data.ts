@@ -11,14 +11,16 @@ import "server-only";
 // so neither page can leak a personal contact detail even by accident.
 //
 // Deploy-window fallbacks (same pattern as the 0070 rollout):
-//   1. full select incl. `slug` (post-0114 view),
-//   2. the same view without `slug` (0070 applied, 0114 not yet),
-//   3. the legacy `team_members_with_email` view (pre-0070).
+//   1. full select incl. `slug` + `updated_at` (post-0116 view),
+//   2. the same view without `updated_at` (0115 applied, 0116 not yet),
+//   3. the same view without `slug` (0070 applied, 0115 not yet),
+//   4. the legacy `team_members_with_email` view (pre-0070).
 
 import { cache } from "react";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   PUBLIC_MEMBER_SELECT,
+  PRE_0116_MEMBER_SELECT,
   PRE_0114_MEMBER_SELECT,
   LEGACY_MEMBER_SELECT,
   fromLegacyRow,
@@ -37,16 +39,29 @@ async function fetchMembers(): Promise<PublicTeamMember[]> {
     .order("created_at", { ascending: true });
   if (!full.error) return (full.data ?? []) as unknown as PublicTeamMember[];
 
-  // 0114 not applied yet: retry the same view without `slug`.
+  // 0116 not applied yet: retry without `updated_at`. The profile page simply
+  // omits its "Last updated" line when the column comes back null.
+  const pre0116 = await supabase
+    .from("team_members_public")
+    .select(PRE_0116_MEMBER_SELECT)
+    .order("display_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (!pre0116.error) {
+    return ((pre0116.data ?? []) as unknown as Omit<PublicTeamMember, "updated_at">[]).map(
+      (m) => ({ ...m, updated_at: null }),
+    );
+  }
+
+  // 0115 not applied yet: retry the same view without `slug` either.
   const pre0114 = await supabase
     .from("team_members_public")
     .select(PRE_0114_MEMBER_SELECT)
     .order("display_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (!pre0114.error) {
-    return ((pre0114.data ?? []) as unknown as Omit<PublicTeamMember, "slug">[]).map(
-      (m) => ({ ...m, slug: null }),
-    );
+    return (
+      (pre0114.data ?? []) as unknown as Omit<PublicTeamMember, "slug" | "updated_at">[]
+    ).map((m) => ({ ...m, slug: null, updated_at: null }));
   }
 
   // Pre-0070: the public view does not exist at all.

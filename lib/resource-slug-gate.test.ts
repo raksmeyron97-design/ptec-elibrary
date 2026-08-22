@@ -38,6 +38,19 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     });
   });
 
+  it("posts gate reads posts.is_published — the trigger-maintained mirror of `status` (0073), NOT `status` itself", () => {
+    expect(RESOURCE_GATES.posts).toEqual({
+      table: "posts",
+      publishedColumn: "is_published",
+    });
+  });
+
+  it("posts declare no reserved segments — /posts has no static child route besides [slug]", () => {
+    // If one is ever added, the directory-reading test below fails first; this
+    // pins the current, deliberate emptiness so the two can't silently diverge.
+    expect(RESOURCE_GATES.posts).not.toHaveProperty("reserved");
+  });
+
   it("catalogs gate reads catalog_books.is_active (physical items use is_active, not is_published)", () => {
     expect(RESOURCE_GATES.catalogs).toEqual({
       table: "catalog_books",

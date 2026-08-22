@@ -371,16 +371,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── Thesis / publication / catalog detail slugs: real 404s ──
+  // ── Thesis / publication / catalog / post detail slugs: real 404s ──
   // Same soft-404 problem as books (the loading boundary streams a 200 shell
   // before the page can notFound()), but these types have no retired-slug
   // redirect map, so the gate only decides ok vs not-found. Legacy
   // /theses/<uuid> URLs are already resolved above, so the theses branch here
   // only ever sees non-UUID slugs. FAILS OPEN if Supabase is unreachable.
+  //
+  // Zero-network hint that the viewer is signed in. This is a plain read of
+  // the request's own cookies — NOT a getUser() round-trip — so public paths
+  // keep the fast path they are required to keep. Only the posts gate below
+  // consults it; see why there.
+  const hasSessionCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+
   for (const [segment, cfg] of [
     ["theses", RESOURCE_GATES.theses],
     ["publications", RESOURCE_GATES.publications],
     ["catalogs", RESOURCE_GATES.catalogs],
+    ["posts", RESOURCE_GATES.posts],
     // Two-segment prefix — the regex below is built from the segment string,
     // so /about/team/<slug> matches while /about/team itself does not.
     ["about/team", RESOURCE_GATES["about/team"]],
@@ -389,6 +399,15 @@ export async function middleware(request: NextRequest) {
       new RegExp(`^/${segment}/([^/]+)$`),
     );
     if (!match) continue;
+    // Posts are the only gated type with a signed-in read path on the PUBLIC
+    // route: /posts/[slug] renders drafts (is_published = false) and
+    // admin_only posts for admins, complete with a "Draft preview" badge and
+    // an edit link. The gate's snapshot comes from the anon key, so neither
+    // is in it, and gating a signed-in request would 404 the preview at the
+    // edge. Hand those requests to the page, which already does the real
+    // authorization; anonymous traffic — crawlers, which is who the soft-404
+    // fix is for — still gets a true 404.
+    if (segment === "posts" && hasSessionCookie) break;
     let slug: string | null = null;
     try {
       slug = decodeURIComponent(match[1]);
