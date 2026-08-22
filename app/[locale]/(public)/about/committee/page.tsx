@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Users } from "lucide-react";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 
 export async function generateMetadata({
   params,
@@ -16,6 +17,7 @@ export async function generateMetadata({
       "Library Committee at Phnom Penh Teacher Education College. Member profiles coming soon.",
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: "Library Committee — PTEC Library",
       url: alternates.canonical,
       type: "website",

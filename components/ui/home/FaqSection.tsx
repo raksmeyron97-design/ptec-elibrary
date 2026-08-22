@@ -4,6 +4,8 @@
 // is generated from the same translation strings so the schema always mirrors
 // the visible text (a Google structured-data requirement).
 import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
+import { isLocaleScoped } from "@/lib/routing/locale-scope";
 import { getTranslations, getLocale } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
 
@@ -84,17 +86,28 @@ export default async function FaqSection() {
                   </summary>
                   <div className="px-5 pb-4">
                     <p className="text-[13.5px] leading-relaxed text-text-body">{item.a}</p>
-                    {item.href && (
-                      <Link
-                        href={item.href}
-                        className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-                      >
-                        {t("faqLearnMore")}
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <path d="M5 12h14M13 6l6 6-6 6" />
-                        </svg>
-                      </Link>
-                    )}
+                    {item.href && (() => {
+                      // /auth is OUTSIDE the locale scheme, and Link from
+                      // @/i18n/navigation prefixes the active locale — so the
+                      // "Do I need an account?" answer pointed Khmer readers at
+                      // /km/auth/signup, which 404s. Invisible in English,
+                      // because the default locale is unprefixed. Route
+                      // unscoped hrefs through plain next/link instead;
+                      // isLocaleScoped() is the shared rule, unit-tested in
+                      // lib/routing/locale-scope.test.ts.
+                      const Anchor = isLocaleScoped(item.href) ? Link : NextLink;
+                      return (
+                        <Anchor
+                          href={item.href}
+                          className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
+                        >
+                          {t("faqLearnMore")}
+                          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                          </svg>
+                        </Anchor>
+                      );
+                    })()}
                   </div>
                 </details>
               ))}

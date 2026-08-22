@@ -3,6 +3,8 @@
 // sequence is real information; copy names actual capabilities (offline PWA
 // reading, progress tracking) and frames the account as benefit, not gate.
 import { Link } from "@/i18n/navigation";
+import NextLink from "next/link";
+import { isLocaleScoped } from "@/lib/routing/locale-scope";
 import { getTranslations, getLocale } from "next-intl/server";
 
 const STEP_ICON_PATHS = {
@@ -101,15 +103,24 @@ export default async function HowToUse() {
                 <p className="mt-1.5 text-[13.5px] leading-relaxed text-text-body">
                   {step.body}
                 </p>
-                <Link
-                  href={step.href}
-                  className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-                >
-                  {step.link}
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M5 12h14M13 6l6 6-6 6" />
-                  </svg>
-                </Link>
+                {(() => {
+                  // Step 3 points at /auth/signup, which is outside the locale
+                  // scheme; the localized Link would make it /km/auth/signup
+                  // and 404. Latent today — this section is not mounted on the
+                  // homepage — but wrong the moment it is.
+                  const Anchor = isLocaleScoped(step.href) ? Link : NextLink;
+                  return (
+                    <Anchor
+                      href={step.href}
+                      className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
+                    >
+                      {step.link}
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M5 12h14M13 6l6 6-6 6" />
+                      </svg>
+                    </Anchor>
+                  );
+                })()}
               </div>
             </li>
           ))}

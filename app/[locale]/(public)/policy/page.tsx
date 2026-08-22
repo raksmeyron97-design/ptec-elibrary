@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 
 export async function generateMetadata({
   params,
@@ -14,6 +15,7 @@ export async function generateMetadata({
     description: "PTEC Library borrowing rules: return deadlines, damaged material reporting, and digital resource access terms.",
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: "Borrow & Return Policy | PTEC Library",
       description: "Library borrowing rules, return deadlines, and digital resource access terms.",
       url: alternates.canonical,

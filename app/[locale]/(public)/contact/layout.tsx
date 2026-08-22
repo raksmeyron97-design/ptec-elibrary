@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { compactHoursLabel } from "@/lib/library-hours";
 
@@ -22,6 +23,7 @@ export async function generateMetadata({
     description,
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: `Contact ${library}`,
       description: `Phone, email, and address for ${library}. ${hours}. ${cfg.address.en}.`,
       url: alternates.canonical,

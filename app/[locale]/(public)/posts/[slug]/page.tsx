@@ -23,6 +23,7 @@ import PostEventPanel from "@/components/ui/posts/PostEventPanel";
 import { eventColumnsAvailable } from "@/lib/posts-data";
 import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
+import { openGraphBase } from "@/lib/seo/open-graph";
 import { postEventJsonLd } from "@/lib/seo/posts-seo";
 import type { EventFields } from "@/lib/posts/event-status";
 import { getTranslations } from "next-intl/server";
@@ -88,6 +89,7 @@ export async function generateMetadata({
     description: desc,
     alternates,
     openGraph: {
+      ...(await openGraphBase(locale)),
       title: post.title,
       description: desc,
       type: "article",
