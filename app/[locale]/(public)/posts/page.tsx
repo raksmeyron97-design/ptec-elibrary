@@ -174,7 +174,13 @@ export default async function PostsPage({
       {collectionSchema && <JsonLd data={collectionSchema} />}
 
       <div className="min-h-screen bg-bg-app">
-        {/* ── Compact header ── */}
+        {/* ── Masthead ──
+            This carried a two-stop radial gradient wash, which is the reflex
+            move for "make the header feel like a hero" and said nothing about
+            a teacher's college. The gold rule replaces it: the same rule runs
+            under every date block and across the featured plate, so one device
+            carries the institutional register instead of three unrelated
+            flourishes. */}
         <header className="border-b border-divider bg-bg-surface">
           <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 sm:py-8">
             <nav aria-label={t("breadcrumbAria")} className="mb-3 flex items-center gap-2 text-sm text-text-muted">
@@ -187,10 +193,11 @@ export default async function PostsPage({
 
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-2xl">
-                <h1 className="m-0 font-khmer-serif text-[clamp(24px,3.4vw,34px)] font-bold leading-tight text-text-heading">
+                <h1 className="m-0 font-title text-[clamp(25px,3.6vw,36px)] leading-[1.35] text-brand">
                   {t("title")}
                 </h1>
-                <p className="mt-2 text-[15px] leading-relaxed text-text-body">
+                <span aria-hidden="true" className="mt-3 block h-[3px] w-14 bg-accent" />
+                <p className="mt-3 text-[15px] leading-[1.75] text-text-body">
                   {t("pageDescription")}
                 </p>
               </div>

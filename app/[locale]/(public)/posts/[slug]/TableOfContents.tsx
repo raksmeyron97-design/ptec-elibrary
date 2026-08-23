@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 
 interface TocItem {
   id: string;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function TableOfContents({ toc }: Props) {
+  const t = useTranslations("posts");
   const [activeId, setActiveId] = useState<string>("");
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function TableOfContents({ toc }: Props) {
       {/* Header */}
       <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
         <span className="w-1 h-5 bg-accent rounded-full" />
-        <h3 className="font-khmer-serif font-bold text-text-heading text-base m-0">មាតិកា</h3>
+        <h3 className="font-khmer-serif font-bold text-text-heading text-base m-0">{t("tocTitle")}</h3>
       </div>
 
       {/* Progress bar */}
@@ -78,7 +80,7 @@ export default function TableOfContents({ toc }: Props) {
       </div>
 
       {/* Items */}
-      <nav aria-label="Table of contents" className="px-3 pb-4">
+      <nav aria-label={t("tocAria")} className="px-3 pb-4">
         <ul className="flex flex-col gap-0.5 list-none m-0 p-0">
           {toc.map((item, idx) => {
             const isActive = activeId === item.id;
@@ -116,7 +118,7 @@ export default function TableOfContents({ toc }: Props) {
       {/* Footer count */}
       <div className="border-t border-divider px-5 py-2.5 flex items-center justify-between">
         <span className="text-[11px] text-text-muted font-sans">
-          {activeIdx >= 0 ? activeIdx + 1 : 0} / {toc.length} ផ្នែក
+          {t("tocSections", { current: activeIdx >= 0 ? activeIdx + 1 : 0, total: toc.length })}
         </span>
         <a
           href="#"
@@ -130,7 +132,7 @@ export default function TableOfContents({ toc }: Props) {
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
           </svg>
-          ត្រឡប់ខាងលើ
+          {t("tocBackToTop")}
         </a>
       </div>
     </div>

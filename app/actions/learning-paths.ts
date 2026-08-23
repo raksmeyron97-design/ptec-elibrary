@@ -200,7 +200,25 @@ export async function getPublishedPaths(): Promise<LearningPathSummary[]> {
   return (data ?? []).map(mapSummary);
 }
 
-/** The single manually-featured published path, or null. Used by the /paths hero. */
+/**
+ * The path to lead the /paths hero with: the manually-featured one when an
+ * editor has chosen it, otherwise the first path in curator order.
+ *
+ * The fallback exists because `featured` used to be the ONLY route into this
+ * slot, and it defaults to false — so a library where nobody had ticked the box
+ * rendered no lead card at all, and the catalogue opened on an undifferentiated
+ * grid. The flag now OVERRIDES the default rather than deciding whether a lead
+ * exists.
+ *
+ * Curator order (`position`) rather than most-recent is deliberate here: unlike
+ * a news index, a learning catalogue has a considered starting point — the
+ * admin drag-orders these, and position 1 is the path they want a new trainee
+ * to begin with. Falling back to "newest" would hand the hero to whichever path
+ * was edited last, which is not an editorial statement.
+ *
+ * The caller excludes this path from the grid, so the choice must be stable
+ * between requests; both branches are deterministic.
+ */
 export async function getFeaturedPath(): Promise<LearningPathSummary | null> {
   const db = createServiceClient();
   const { data, error } = await db
@@ -211,8 +229,26 @@ export async function getFeaturedPath(): Promise<LearningPathSummary | null> {
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error || !data) return null;
-  return mapSummary(data);
+
+  if (error) {
+    console.error("[getFeaturedPath]", error.message);
+    return null;
+  }
+  if (data) return mapSummary(data);
+
+  const { data: fallback, error: fallbackError } = await db
+    .from("learning_paths")
+    .select(SUMMARY_SELECT)
+    .eq("status", "published")
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackError) {
+    console.error("[getFeaturedPath] fallback", fallbackError.message);
+    return null;
+  }
+  return fallback ? mapSummary(fallback) : null;
 }
 
 const DETAIL_SELECT =

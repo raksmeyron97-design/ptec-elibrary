@@ -168,37 +168,46 @@ export function OfficialContactCard({
 
       <div className="px-5 py-5 sm:px-6">
         <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
+          {/* A <dl> may contain exactly ONE level of <div> grouping before its
+              <dt>/<dd> pairs. This used to nest a second <div> to stack the
+              text beside the icon, which put dt/dd out of the list entirely —
+              axe reported definition-list + dlitem and it cost the /about/team
+              listing its Lighthouse a11y score. Grid does the same layout with
+              dt/dd as direct children of the one allowed wrapper. */}
           {rows.map((row) => (
-            <div key={row.label} className="flex gap-3">
-              <row.icon className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-              <div className="min-w-0">
-                <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                  {row.label}
-                </dt>
-                <dd className="about-wrap mt-0.5 text-sm text-text-heading">
-                  {row.href ? (
-                    <a
-                      href={row.href}
-                      className="rounded font-medium text-brand hover:underline"
-                    >
-                      {row.value}
-                    </a>
-                  ) : (
-                    row.value
-                  )}
-                </dd>
-              </div>
+            <div
+              key={row.label}
+              className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3"
+            >
+              <row.icon
+                className="row-span-2 mt-0.5 h-4 w-4 shrink-0 text-text-muted"
+                aria-hidden="true"
+              />
+              <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                {row.label}
+              </dt>
+              <dd className="about-wrap col-start-2 mt-0.5 text-sm text-text-heading">
+                {row.href ? (
+                  <a href={row.href} className="rounded font-medium text-brand hover:underline">
+                    {row.value}
+                  </a>
+                ) : (
+                  row.value
+                )}
+              </dd>
             </div>
           ))}
           {hours && (
-            <div className="flex gap-3 sm:col-span-2">
-              <Phone className="mt-0.5 h-4 w-4 shrink-0 opacity-0" aria-hidden="true" />
-              <div className="min-w-0">
-                <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                  {hoursLabel}
-                </dt>
-                <dd className="about-wrap about-copy mt-0.5 text-sm text-text-heading">{hours}</dd>
-              </div>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 sm:col-span-2">
+              {/* Invisible icon purely to align this row's text with the rows
+                  above it; aria-hidden keeps it out of the accessibility tree. */}
+              <Phone className="row-span-2 mt-0.5 h-4 w-4 shrink-0 opacity-0" aria-hidden="true" />
+              <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                {hoursLabel}
+              </dt>
+              <dd className="about-wrap about-copy col-start-2 mt-0.5 text-sm text-text-heading">
+                {hours}
+              </dd>
             </div>
           )}
         </dl>

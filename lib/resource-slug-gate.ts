@@ -53,6 +53,16 @@ export const RESOURCE_GATES = {
     reserved: ["summary"],
   },
   publications: { table: "publications", publishedColumn: "is_published" },
+  // Posts gate on is_published, which is the trigger-maintained mirror of
+  // `status` (0073). Two visibility cases make this safe to gate:
+  //   * `unlisted` posts are is_published = true — they are excluded from the
+  //     public index at the query level, not by RLS, so they stay in this
+  //     snapshot and direct links keep working, which is their whole point.
+  //   * `admin_only` posts are hidden by the anon RLS policy, so they are
+  //     absent from the snapshot and would be gated as not-found.
+  // That last case, and admin preview of drafts, is why middleware skips this
+  // gate entirely for requests carrying a session cookie — see the note there.
+  posts: { table: "posts", publishedColumn: "is_published" },
   catalogs: { table: "catalog_books", publishedColumn: "is_active" },
   // Team member profiles live one level deeper than the other resources —
   // the key is the full path prefix under (public), and middleware builds its

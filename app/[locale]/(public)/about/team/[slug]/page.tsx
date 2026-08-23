@@ -20,15 +20,42 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import JsonLd from "@/components/seo/JsonLd";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
-import { getTeamMemberBySlug } from "@/lib/team/data";
+import { getPublicTeamData, getTeamMemberBySlug } from "@/lib/team/data";
 import { decodeSlugParam } from "@/lib/slug";
 import { photoAltText, truncate, type PublicTeamMember } from "@/lib/team/public";
-import { toAboutLocale, type AboutLocale } from "@/lib/about/format";
-import { AboutLinkAction } from "@/components/about/actions";
+import { formatDate, toAboutLocale, type AboutLocale } from "@/lib/about/format";
+import { AboutExternalAction, AboutLinkAction } from "@/components/about/actions";
 
 // Published team data is public and changes rarely; the admin team actions
 // revalidate /about/team/<slug> on every change, so a long window is safe.
 export const revalidate = 600;
+
+/** Prerender every published profile at build time, in both locales.
+ *  The roster is small and bounded (one row per staff member), so this is a
+ *  handful of pages, and it means a crawler hitting a profile cold gets static
+ *  HTML rather than an on-demand render. `dynamicParams` stays at its default
+ *  (true) so a member published after the build still resolves via ISR — the
+ *  slug gate in middleware still 404s genuinely unknown slugs.
+ *
+ *  This is the only generateStaticParams in the public tree, and the reason
+ *  the others don't exist is that it runs a service-role query AT BUILD TIME:
+ *  createServiceClient() throws outright when SUPABASE_* is absent, which is
+ *  the case in CI. Returning [] on any failure degrades to exactly the
+ *  previous behaviour — every profile rendered on demand and then cached by
+ *  ISR — instead of failing the build. Never let this throw. */
+export async function generateStaticParams() {
+  try {
+    const { members } = await getPublicTeamData();
+    return members
+      .filter((m): m is PublicTeamMember & { slug: string } => Boolean(m.slug))
+      .flatMap((m) => [
+        { locale: "en", slug: m.slug },
+        { locale: "km", slug: m.slug },
+      ]);
+  } catch {
+    return [];
+  }
+}
 
 /* ── Shared field pickers ──────────────────────────────────────────────── */
 
@@ -83,7 +110,9 @@ export async function generateMetadata({
   const { locale, slug: rawSlug } = await params;
   const slug = decodeSlugParam(rawSlug);
   const { member } = await getTeamMemberBySlug(slug);
-  if (!member) return { title: "Not Found" };
+  // The route notFound()s below; tell a crawler that reached the metadata
+  // first not to index this URL either way.
+  if (!member) return { title: "Not Found", robots: { index: false, follow: false } };
 
   const t = await getTranslations({ locale, namespace: "about.team" });
   const org = await getOrgIdentity();
@@ -178,14 +207,6 @@ export default async function TeamMemberPage({
   const previous = index > 0 ? slugged[index - 1] : null;
   const next = index >= 0 && index < slugged.length - 1 ? slugged[index + 1] : null;
 
-  const onThisPage = [
-    ...(lead || bio ? [{ href: "#about", label: t("profile.biography") }] : []),
-    ...(responsibilities.items.length > 0
-      ? [{ href: "#responsibilities", label: t("profile.responsibilities") }]
-      : []),
-    { href: "#contact", label: t("profile.contact") },
-  ];
-
   // Structured data — public, non-contact fields only. Admin-authored names
   // flow in here, so it must go through <JsonLd> (which escapes "<"), never a
   // raw JSON.stringify.
@@ -198,12 +219,51 @@ export default async function TeamMemberPage({
     ...(member.position_en ? { jobTitle: member.position_en } : {}),
     ...(member.photo_url ? { image: member.photo_url } : {}),
     ...(member.languages.length > 0 ? { knowsLanguage: member.languages } : {}),
+    // email/telephone arrive already nulled by the team_members_public view
+    // unless an admin ticked the per-member public-display toggle, so emitting
+    // them when non-null publishes exactly what the library approved and
+    // nothing more. There is no privacy decision to get wrong here.
+    ...(member.email ? { email: member.email } : {}),
+    ...(member.phone ? { telephone: member.phone } : {}),
+    ...(member.section_name_en ? { department: member.section_name_en } : {}),
     url: pageUrl,
-    worksFor: { "@type": "Organization", name: org.siteName, url: SITE_URL },
+    mainEntityOfPage: pageUrl,
+    worksFor: {
+      "@type": "Organization",
+      name: org.siteName,
+      url: SITE_URL,
+      parentOrganization: {
+        "@type": "CollegeOrUniversity",
+        name: cfg.name.en,
+        sameAs: [...cfg.sameAs],
+      },
+    },
   };
 
+  // Pre-addressed mail link. The subject names the person and the library so
+  // the message is recognisable in an inbox that also takes general enquiries.
+  const contactMailto = member.email
+    ? `mailto:${member.email}?subject=${encodeURIComponent(
+        `${org.siteName} — ${name.primary}`,
+      )}`
+    : null;
+
+  // "Last updated" comes from team_members.updated_at, maintained by the
+  // team_members_updated_at trigger (exposed on the view by migration 0116).
+  // It is null when read through a pre-0116 view, in which case the line is
+  // simply not rendered rather than showing a guessed date.
+  // formatDate() takes a bare YYYY-MM-DD (it appends T00:00:00Z); updated_at
+  // is a full timestamptz, so slice the date part or it parses as Invalid Date
+  // and the line silently disappears.
+  const updatedLabel = member.updated_at
+    ? formatDate(member.updated_at.slice(0, 10), locale)
+    : null;
+
   return (
-    <div className="about-page min-h-screen bg-paper">
+    <article
+      className="about-page min-h-screen bg-paper"
+      aria-labelledby="member-name"
+    >
       <JsonLd data={personJsonLd} />
       {/* Breadcrumb structured data mirrors the visible trail exactly — the
           two must agree or Google treats the markup as misleading. */}
@@ -281,7 +341,10 @@ export default async function TeamMemberPage({
                   fill
                   priority
                   sizes="(min-width: 1024px) 16.5rem, (min-width: 640px) 14rem, 11rem"
-                  className="object-cover grayscale contrast-[1.05]"
+                  // In colour, matching the directory card. A reader who taps a
+                  // colour portrait and lands on a desaturated one of the same
+                  // person reads it as a different photo, or a fault.
+                  className="object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
@@ -298,7 +361,10 @@ export default async function TeamMemberPage({
                   {area}
                 </p>
               )}
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
+              <h1
+                id="member-name"
+                className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]"
+              >
                 <span className="about-wrap block" lang={name.primaryLang}>
                   {name.primary}
                 </span>
@@ -405,47 +471,37 @@ export default async function TeamMemberPage({
                 >
                   {t("profile.responsibilities")}
                 </h2>
-                <ol>
-                  {responsibilities.items.map((item, itemIndex) => (
+                {/* A <ul>, and no 01/02/03 markers. Numbering an unordered
+                    set tells the reader the first item matters most or comes
+                    first in time, and neither is true of what someone helps
+                    with — the sequence was decoration wearing the costume of
+                    structure. The rules alone separate the items. */}
+                <ul className="mt-5">
+                  {responsibilities.items.map((item) => (
                     <li
                       key={item}
-                      className="grid grid-cols-[3rem_minmax(0,1fr)] gap-4 border-b border-divider py-4"
+                      className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-4 border-b border-divider py-4 first:border-t first:border-divider"
                     >
-                      <span className="text-sm font-bold tabular-nums text-brand" aria-hidden="true">
-                        {String(itemIndex + 1).padStart(2, "0")}
-                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="h-px w-6 translate-y-[-0.3rem] bg-accent-line"
+                      />
                       <span lang={responsibilities.lang} className="about-copy text-[15px] text-text-body">
                         {item}
                       </span>
                     </li>
                   ))}
-                </ol>
+                </ul>
               </section>
             )}
           </div>
 
           {/* ── Sidebar ──────────────────────────────────────────────── */}
           <aside className="mt-14 space-y-8 lg:mt-0">
-            {onThisPage.length > 1 && (
-              <nav aria-label={t("profile.onThisPage")} data-about-print="hide">
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
-                  {t("profile.onThisPage")}
-                </h2>
-                <ul className="mt-2 border-t border-divider">
-                  {onThisPage.map((item) => (
-                    <li key={item.href} className="border-b border-divider">
-                      <a
-                        href={item.href}
-                        className="flex min-h-11 items-center text-sm font-medium text-text-body transition-colors hover:text-brand"
-                      >
-                        {item.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            )}
-
+            {/* No "On this page" nav here any more. It listed three anchors
+                on a page barely two screens tall, so it cost the reader a
+                decision and a block of sidebar before the contact card — the
+                one thing in this column they actually came for. */}
             <section id="contact" aria-labelledby="member-contact-heading" className="scroll-mt-28 border-2 border-text-heading p-5">
               <h2
                 id="member-contact-heading"
@@ -500,8 +556,21 @@ export default async function TeamMemberPage({
                   </li>
                 )}
               </ul>
-              <div className="mt-5">
-                <AboutLinkAction href="/contact" icon={MessageCircle} variant="primary">
+              <div className="mt-5 flex flex-col gap-2">
+                {/* A direct, pre-addressed route to this person — offered ONLY
+                    when the view handed us an email, i.e. the admin approved
+                    public display. Everyone else gets the library desk below,
+                    which is the point of the privacy note. */}
+                {contactMailto && (
+                  <AboutExternalAction href={contactMailto} icon={Mail} variant="primary">
+                    {t("profile.contactMember", { name: name.primary })}
+                  </AboutExternalAction>
+                )}
+                <AboutLinkAction
+                  href="/contact"
+                  icon={MessageCircle}
+                  variant={contactMailto ? "secondary" : "primary"}
+                >
                   {t("profile.requestHelp")}
                 </AboutLinkAction>
               </div>
@@ -619,7 +688,20 @@ export default async function TeamMemberPage({
             )}
           </nav>
         )}
+
+        {/* A staff profile is the kind of page a reader wants to date-check —
+            it carries a job title and contact route that may have moved on.
+            The <time> element gives the same fact to machines. */}
+        {updatedLabel && (
+          <p className="mt-10 border-t border-divider pt-5 text-xs text-text-muted">
+            {t.rich("profile.lastUpdated", {
+              date: () => (
+                <time dateTime={member.updated_at!.slice(0, 10)}>{updatedLabel}</time>
+              ),
+            })}
+          </p>
+        )}
       </div>
-    </div>
+    </article>
   );
 }

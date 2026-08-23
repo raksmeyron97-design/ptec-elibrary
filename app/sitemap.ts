@@ -174,11 +174,11 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     // in active sections. Before migration 0114 the `slug` column does not
     // exist and this select errors — fetchAllRows then returns [], which is
     // exactly right: no profile pages exist yet either.
-    fetchAllRows<{ slug: string | null; created_at: string | null }>(
+    fetchAllRows<{ slug: string | null; updated_at: string | null; created_at: string | null }>(
       (from, to) =>
         supabase
           .from('team_members_public')
-          .select('slug, created_at')
+          .select('slug, updated_at, created_at')
           .order('created_at', { ascending: true })
           .range(from, to),
     ),
@@ -288,11 +288,16 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
   );
 
   // Members without a slug (pre-0114 rows) have no profile page to advertise.
+  // updated_at (0116) is maintained by the team_members_updated_at trigger, so
+  // it reflects the last real edit; created_at is the pre-0116 fallback.
   const teamUrls: MetadataRoute.Sitemap = teamMembers
-    .filter((m): m is { slug: string; created_at: string | null } => Boolean(m.slug))
+    .filter(
+      (m): m is { slug: string; updated_at: string | null; created_at: string | null } =>
+        Boolean(m.slug),
+    )
     .map((m) =>
       entry(`/about/team/${m.slug}`, {
-        lastModified: sitemapLastmod(m.created_at),
+        lastModified: sitemapLastmod(m.updated_at, m.created_at),
         changeFrequency: 'monthly',
         priority: 0.4,
       }),
