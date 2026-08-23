@@ -6377,7 +6377,7 @@
         "pagerLabel": "សមាជិកក្រុមការងារផ្សេងទៀត",
         "previousMember": "សមាជិកមុន",
         "nextMember": "សមាជិកបន្ទាប់",
-        "lastUpdated": "ប្រវត្តិរូបបានធ្វើបច្ចុប្បន្នភាពចុងក្រោយ {date}",
+        "lastUpdated": "ប្រវត្តិរូបបានធ្វើបច្ចុប្បន្នភាពចុងក្រោយ <date></date>",
         "contactMember": "ទាក់ទង {name}"
       },
       "empty": {

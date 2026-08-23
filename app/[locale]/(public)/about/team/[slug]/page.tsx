@@ -694,6 +694,15 @@ export default async function TeamMemberPage({
             The <time> element gives the same fact to machines. */}
         {updatedLabel && (
           <p className="mt-10 border-t border-divider pt-5 text-xs text-text-muted">
+            {/* The message carries `<date></date>` as a TAG, not a `{date}`
+                placeholder, and that distinction is load-bearing: t.rich calls
+                a function only for a tag. Against a placeholder it substitutes
+                the value as-is, so the handler below was handed to React as a
+                child and prerendering died with "Functions are not valid as a
+                child of Client Components" — a build-breaking failure that no
+                unit test caught because it only surfaces when the page is
+                actually rendered. Passing the element instead is not the fix
+                either: a placeholder value is typed string | number | Date. */}
             {t.rich("profile.lastUpdated", {
               date: () => (
                 <time dateTime={member.updated_at!.slice(0, 10)}>{updatedLabel}</time>
