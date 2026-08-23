@@ -6372,7 +6372,7 @@
         "pagerLabel": "Other team members",
         "previousMember": "Previous member",
         "nextMember": "Next member",
-        "lastUpdated": "Profile last updated {date}",
+        "lastUpdated": "Profile last updated <date></date>",
         "contactMember": "Contact {name}"
       },
       "empty": {
