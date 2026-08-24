@@ -5639,7 +5639,35 @@
         "irreversible": "This cannot be undone. Theses already classified under it keep the value they were saved with.",
         "delete": "Delete",
         "deleting": "Deleting…"
-      }
+      },
+      "tabs": {
+        "programs": "Programs",
+        "faculties": "Faculties",
+        "cohorts": "Cohorts"
+      },
+      "tabsAria": "Taxonomy sections",
+      "breadcrumbAria": "Breadcrumb",
+      "showAllPrograms": "Show all programs",
+      "tagYears": "{count, plural, one {# year} other {# years}}",
+      "tagFaculties": "{count, plural, one {# faculty} other {# faculties}}",
+      "tagCohorts": "{count, plural, one {# cohort} other {# cohorts}}",
+      "tagYearsCount": "{count, plural, one {# year} other {# years}}",
+      "manageFaculties": "Manage faculties",
+      "manageCohortsAction": "Manage cohorts",
+      "editNamed": "Edit {name}",
+      "cancel": "Cancel",
+      "hasSubject": "Has subjects",
+      "noFacultyPrograms": "No program in view is set up to have faculties.",
+      "facultiesCaption": "Faculties in {program}",
+      "colFaculty": "Faculty",
+      "colSubjects": "Subjects",
+      "colActions": "Actions",
+      "subjectsYes": "Yes",
+      "subjectsNo": "—",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "cohortNumber": "Cohort {number}",
+      "cohortKhmer": "ជំនាន់ទី {number}"
     },
     "missing": {
       "title": "Title",

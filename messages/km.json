@@ -5644,7 +5644,35 @@
         "irreversible": "សកម្មភាពនេះមិនអាចត្រឡប់វិញបានទេ។ និក្ខេបបទដែលបានចាត់ថ្នាក់រួចនឹងរក្សាតម្លៃដែលបានរក្សាទុក។",
         "delete": "លុប",
         "deleting": "កំពុងលុប…"
-      }
+      },
+      "tabs": {
+        "programs": "កម្មវិធីសិក្សា",
+        "faculties": "មហាវិទ្យាល័យ",
+        "cohorts": "ជំនាន់"
+      },
+      "tabsAria": "ផ្នែកនៃការចាត់ថ្នាក់",
+      "breadcrumbAria": "ផ្លូវរុករក",
+      "showAllPrograms": "បង្ហាញកម្មវិធីទាំងអស់",
+      "tagYears": "{count} ឆ្នាំ",
+      "tagFaculties": "មហាវិទ្យាល័យ {count}",
+      "tagCohorts": "ជំនាន់ {count}",
+      "tagYearsCount": "{count} ឆ្នាំ",
+      "manageFaculties": "គ្រប់គ្រងមហាវិទ្យាល័យ",
+      "manageCohortsAction": "គ្រប់គ្រងជំនាន់",
+      "editNamed": "កែសម្រួល {name}",
+      "cancel": "បោះបង់",
+      "hasSubject": "មានមុខវិជ្ជា",
+      "noFacultyPrograms": "គ្មានកម្មវិធីណាមួយក្នុងទិដ្ឋភាពនេះដែលបានកំណត់ឲ្យមានមហាវិទ្យាល័យទេ។",
+      "facultiesCaption": "មហាវិទ្យាល័យក្នុង {program}",
+      "colFaculty": "មហាវិទ្យាល័យ",
+      "colSubjects": "មុខវិជ្ជា",
+      "colActions": "សកម្មភាព",
+      "subjectsYes": "មាន",
+      "subjectsNo": "—",
+      "expandAll": "ពង្រីកទាំងអស់",
+      "collapseAll": "បង្រួមទាំងអស់",
+      "cohortNumber": "ជំនាន់ទី {number}",
+      "cohortKhmer": "ជំនាន់ទី {number}"
     },
     "missing": {
       "title": "ចំណងជើង",
