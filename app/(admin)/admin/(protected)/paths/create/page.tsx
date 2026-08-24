@@ -1,17 +1,16 @@
 import { getTranslations } from "next-intl/server";
 import PathBuilderForm from "../_components/PathBuilderForm";
-import { FormShell } from "@/components/admin/kit/form";
 
 export default async function CreatePathPage() {
   const t = await getTranslations("adminPaths");
+  /* FormShell lives inside PathBuilderForm — its context sidebar previews the
+     form's own live state. The route stays a data loader. */
   return (
-    <FormShell
-      backHref="/admin/paths"
-      backLabel={t("builder.backToPaths")}
-      title={t("builder.newTitle")}
-      description={t("builder.newSubtitle")}
-    >
-      <PathBuilderForm initial={null} pathId={null} />
-    </FormShell>
+    <PathBuilderForm
+      initial={null}
+      pathId={null}
+      pageTitle={t("builder.newTitle")}
+      pageDescription={t("builder.newSubtitle")}
+    />
   );
 }

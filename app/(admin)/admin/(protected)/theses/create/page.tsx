@@ -1,23 +1,27 @@
 import { getTranslations } from "next-intl/server";
 import { Settings2 } from "lucide-react";
 import ThesisForm from "@/components/admin/theses/form/ThesisForm";
-import { FormShell, BTN_SECONDARY } from "@/components/admin/kit/form";
+import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function CreateThesisPage() {
   const t = await getTranslations("adminThesisForm");
+  /*
+    Breadcrumb, heading, tabs, context sidebar and action bar all come from
+    FormShell inside ThesisForm — the sidebar previews the form's own live
+    state, so it cannot be assembled here. The route stays a data loader.
+  */
   return (
-    <FormShell
-      backHref="/admin/theses"
-      backLabel={t("backToTheses")}
-      title={t("newTitle")}
-      description={t("createSubtitle")}
+    <ThesisForm
+      institution={(await getOrgIdentity()).institutionName}
+      pageTitle={t("newTitle")}
+      pageDescription={t("createSubtitle")}
       headerActions={
         /*
-          Back in the header, per the redesign — but still opening in a new tab.
-          This form autosaves a recovery draft and guards `beforeunload`, and a
-          client-side <Link> navigation triggers neither, so following it in
-          place would drop whatever the author had typed so far.
+          Opens in a new tab on purpose. This form autosaves a recovery draft and
+          guards `beforeunload`, but a client-side <Link> navigation triggers
+          neither — following it in place would drop whatever the author had
+          typed so far.
         */
         <a
           href="/admin/theses/manage-cohorts"
@@ -30,8 +34,6 @@ export default async function CreateThesisPage() {
           <span className="sr-only"> — {t("opensInNewTab")}</span>
         </a>
       }
-    >
-      <ThesisForm institution={(await getOrgIdentity()).institutionName} />
-    </FormShell>
+    />
   );
 }

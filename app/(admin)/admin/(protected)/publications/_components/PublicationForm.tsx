@@ -48,15 +48,20 @@ import CoverDropzone from "../../theses/_components/CoverDropzone";
 import { LABEL_CLASS } from "../../theses/_components/form-styles";
 import {
   Field,
+  FormShell,
+  FormTabs,
   MONO_INPUT_CLASS,
   TEXTAREA_CLASS,
   focusFirstInvalidAfterPaint,
+  type FormTab,
+  type FormTabState,
 } from "@/components/admin/kit/form";
 import TagInput from "@/components/ui/core/TagInput";
 import { ConfirmDialog } from "@/components/admin/kit";
 import { slugify, makeUid } from "@/lib/book-utils";
-import { FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
+import { SITE_URL } from "@/lib/seo/site";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
+import PublicationContext from "./workspace/PublicationContext";
 import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
 import ReviewPublishPanel from "./workspace/ReviewPublishPanel";
@@ -189,7 +194,22 @@ function newPublicationDraftKey(): string {
   }
 }
 
-export default function PublicationForm({ initial }: { initial?: Publication }) {
+export default function PublicationForm({
+  initial,
+  pageTitle,
+  pageDescription,
+  headerActions,
+}: {
+  initial?: Publication;
+  /*
+    The form owns FormShell rather than the route, because the context sidebar
+    is a live view of this component's own state — a page-level slot could not
+    see it without lifting every field into the route.
+  */
+  pageTitle: string;
+  pageDescription: string;
+  headerActions?: React.ReactNode;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [publicationId, setPublicationId] = useState<string | null>(initial?.id ?? null);
@@ -793,14 +813,61 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
 
 
   return (
-    <form
-      ref={formRef}
+    <FormShell
+      backHref="/admin/publications"
+      backLabel="Back to publications"
+      title={pageTitle}
+      description={pageDescription}
+      headerActions={headerActions}
       onSubmit={(e) => {
         e.preventDefault();
         void handleSave();
       }}
-      onChange={markDirty}
-      className="rounded-2xl border border-divider bg-bg-surface shadow-sm flex flex-col"
+      tabs={
+        <FormTabs
+          idPrefix="pub"
+          ariaLabel="Publication workspace steps"
+          active={activeStep}
+          onChange={(key) => (key === "review" ? goToReview() : setActiveStep(key))}
+          tabs={STEPS.map<FormTab<StepKey>>((step) => ({
+            key: step.key,
+            label: step.label,
+            icon: step.icon,
+            state: TAB_STATE[stepStates[step.key]],
+            stateLabel: STEP_STATE_LABEL[stepStates[step.key]],
+          }))}
+        />
+      }
+      context={
+        <PublicationContext
+          step={activeStep}
+          siteUrl={SITE_URL}
+          title={title}
+          slug={slug}
+          abstract={abstract}
+          journalName={collectScalars().journal_name}
+          keywords={collectScalars().keywords}
+          subjects={collectScalars().subjects}
+          authorCount={authorRows.length}
+          referenceCount={referenceRows.length}
+          hasPdf={!!pdfFile || !!pdfUrl}
+          hasCover={!!coverPreview && !coverRemoved}
+          review={review}
+        />
+      }
+      actions={
+        <SaveBar
+          dirty={dirty}
+          saving={saving}
+          lastSavedAt={lastSavedAt}
+          autosave={autosave}
+          errorCount={review.errors.length}
+          warningCount={review.warnings.length}
+          isEdit={isEdit}
+          onPreview={openPreview}
+          onReview={goToReview}
+        />
+      }
     >
       {error && (
         <div
@@ -847,29 +914,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
         </div>
       )}
 
-      {/*
-        Top tabs, replacing the 224px left rail. On a 900px card the rail spent
-        a quarter of the measure on six words, and on mobile it stacked above
-        the fields — so a phone opened on a list of section names.
-      */}
-      <FormTabs
-        idPrefix="pub"
-        ariaLabel="Publication workspace steps"
-        active={activeStep}
-        onChange={(key) => (key === "review" ? goToReview() : setActiveStep(key))}
-        tabs={STEPS.map<FormTab<StepKey>>((step) => ({
-          key: step.key,
-          label: step.label,
-          icon: step.icon,
-          state: TAB_STATE[stepStates[step.key]],
-          stateLabel: STEP_STATE_LABEL[stepStates[step.key]],
-        }))}
-      />
-
-      <div className="flex flex-1 flex-col">
-        {/* ══ PANELS — all stay mounted so field values survive step switches ═══ */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex-1 px-5 py-6 sm:px-8">
+      {/* Panels stay mounted so field values survive a step switch. */}
             <div id="pub-panel-basic" role="tabpanel" aria-labelledby="pub-tab-basic" hidden={activeStep !== "basic"} className="space-y-8">
               <div className="space-y-4" key={`basic-${epoch}`}>
                 <Field
@@ -1392,21 +1437,6 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                 onUnpublish={() => void handleUnpublish()}
               />
             </div>
-          </div>
-
-          <SaveBar
-            dirty={dirty}
-            saving={saving}
-            lastSavedAt={lastSavedAt}
-            autosave={autosave}
-            errorCount={review.errors.length}
-            warningCount={review.warnings.length}
-            isEdit={isEdit}
-            onPreview={openPreview}
-            onReview={goToReview}
-          />
-        </div>
-      </div>
 
       <ConfirmDialog
         open={confirmUnpublish}
@@ -1421,6 +1451,6 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
           void performUnpublish();
         }}
       />
-    </form>
+    </FormShell>
   );
 }

@@ -73,6 +73,22 @@ export function thesisPublishWarnings(input: ThesisValidationInput): ThesisPubli
   return warnings;
 }
 
+/**
+ * Which of the non-blocking findings read as a probable mistake, and which as an
+ * optional improvement.
+ *
+ * The Review dashboard shows three severities; `thesisPublishWarnings` returns
+ * one flat list, so the split has to live somewhere. Here, next to the rules,
+ * rather than in the component — the judgement "a thesis with no abstract is a
+ * defect, a thesis with no cover is merely plainer" is about the resource, not
+ * about how it is drawn.
+ */
+const MISTAKE_KEYS = new Set(["advisor", "abstract"]);
+
+export function isThesisWarning(warning: ThesisPublishWarning): boolean {
+  return MISTAKE_KEYS.has(warning.key);
+}
+
 export function firstValidationError(errors: ThesisValidationErrors): string | null {
   const values = Object.values(errors).filter(Boolean);
   return values.length ? (values[0] as string) : null;

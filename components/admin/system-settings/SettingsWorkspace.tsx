@@ -35,7 +35,7 @@ import {
   saveSettingsDraft,
 } from "@/app/actions/system-settings";
 import OverviewPanel, { sectionLabel } from "./OverviewPanel";
-import { FormTabs, type FormTab } from "@/components/admin/kit/form";
+import { FormShell, FormTabs, type FormTab } from "@/components/admin/kit/form";
 import VersionsPanel from "./VersionsPanel";
 import {
   ContactForm,
@@ -267,20 +267,47 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
     : [];
 
   return (
-    <div className="mx-auto max-w-6xl">
-      {/* Page header */}
-      <div className="mb-6">
-        <nav aria-label="Breadcrumb" className="text-xs text-text-muted">
-          Admin <span aria-hidden="true">/</span>{" "}
-          <span className="font-semibold text-text-body">System Settings</span>
-        </nav>
-        <h1 className="mt-1 text-xl font-bold text-text-heading">System Settings</h1>
-        <p className="mt-1 max-w-2xl text-sm text-text-muted">
-          The single source of truth for global website information — organization names,
-          contacts, opening hours, links and SEO defaults. Changes go live only when published.
-        </p>
-      </div>
+    /*
+      The same Split-Context Card as every other admin form. This screen had its
+      own hand-rolled breadcrumb, heading and 1152px wrapper; three surfaces
+      that look almost-but-not-quite like the forms next to them is what the
+      shared shell exists to stop.
 
+      No `context` here: this workspace is not editing one record, it is eight
+      independent views, and the panel that would help on Organization has
+      nothing to say on Versions. The Overview view already plays that role.
+    */
+    <FormShell
+      backHref="/admin"
+      backLabel="Back to admin"
+      title="System settings"
+      description="The single source of truth for global website information — organization names, contacts, opening hours, links and SEO defaults. Changes go live only when published."
+      tabs={
+        <FormTabs
+          idPrefix="settings"
+          ariaLabel="Settings sections"
+          active={view}
+          onChange={navigate}
+          tabs={navItems.map<FormTab<View>>((item) => {
+            const sectionState = item !== "overview" && item !== "versions" ? data.sections[item] : null;
+            const dirty = sectionState ? isDirty(item as SettingSection) : false;
+            const hasDraft = sectionState?.draft != null;
+            return {
+              key: item,
+              label: item === "overview" ? "Overview" : item === "versions" ? "Versions" : sectionLabel(item),
+              icon: VIEW_ICONS[item] as FormTab<View>["icon"],
+              /*
+                Both states are amber, not red: an unsaved edit and a draft
+                awaiting publish are work in progress, not errors. Nothing here
+                is broken until a publish is refused.
+              */
+              state: dirty || hasDraft ? "warning" : undefined,
+              stateLabel: dirty ? "Unsaved changes" : hasDraft ? "Draft pending publish" : undefined,
+            };
+          })}
+        />
+      }
+    >
       {/* Setup / permission banners */}
       {!data.storageReady && (
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-warning-line bg-warning-soft p-4 text-sm text-warning-text" role="status">
@@ -321,37 +348,6 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
         )}
       </div>
 
-      {/*
-        Top tabs, replacing the 224px left nav. This workspace has eight views
-        and the nav was already a horizontally-scrolling row below `lg` — the
-        rail only existed on wide screens, so the two layouts taught different
-        shapes for the same thing. One shape now, at every width.
-      */}
-      <FormTabs
-        idPrefix="settings"
-        ariaLabel="Settings sections"
-        active={view}
-        onChange={navigate}
-        tabs={navItems.map<FormTab<View>>((item) => {
-          const sectionState = item !== "overview" && item !== "versions" ? data.sections[item] : null;
-          const dirty = sectionState ? isDirty(item as SettingSection) : false;
-          const hasDraft = sectionState?.draft != null;
-          return {
-            key: item,
-            label: item === "overview" ? "Overview" : item === "versions" ? "Versions" : sectionLabel(item),
-            icon: VIEW_ICONS[item] as FormTab<View>["icon"],
-            /*
-              Both states are amber, not red: an unsaved edit and a draft
-              awaiting publish are work in progress, not errors. Nothing on this
-              screen is broken until a publish is refused.
-            */
-            state: dirty || hasDraft ? "warning" : undefined,
-            stateLabel: dirty ? "Unsaved changes" : hasDraft ? "Draft pending publish" : undefined,
-          };
-        })}
-      />
-
-      <div className="pt-6">
         {/* Content */}
         <div className="min-w-0 flex-1">
           {view === "overview" && <OverviewPanel data={data} onNavigate={navigate} />}
@@ -466,7 +462,6 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
             </div>
           )}
         </div>
-      </div>
 
       {/* Publish confirmation dialog */}
       {publishConfirm && (
@@ -537,6 +532,6 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
         onCancel={() => setDiscardTarget(null)}
         onConfirm={() => discardTarget && void handleDiscard(discardTarget)}
       />
-    </div>
+    </FormShell>
   );
 }

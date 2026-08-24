@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Plus, Trash2, ArrowUp, ArrowDown, AlertCircle, Copy, ChevronDown, ChevronUp,
-  Check, X, CircleCheck, CircleAlert, Loader2, ListChecks, BookOpen, Layers, Settings2, Rocket,
+  Check, X, CircleAlert, Loader2, ListChecks, BookOpen, Layers, Settings2, Rocket,
 } from "lucide-react";
 import { savePath } from "@/app/actions/learning-paths";
 import type {
@@ -16,7 +16,10 @@ import { slugify } from "@/lib/books";
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import StepResourcePicker from "./StepResourcePicker";
 import {
+  ContextPanel,
+  FormShell,
   FormTabs,
+  ReviewDashboard,
   StickyActionBar,
   ButtonBusy,
   BTN_PRIMARY,
@@ -24,6 +27,8 @@ import {
   BTN_DANGER,
   type FormTab,
   type FormTabState,
+  type ReviewFinding,
+  type ReviewTone,
 } from "@/components/admin/kit/form";
 
 type EditableStep = PathStepInput & { _key: string; resourceUnavailable?: boolean };
@@ -46,7 +51,21 @@ type Stage = "details" | "curriculum" | "publish";
 const STAGES: Stage[] = ["details", "curriculum", "publish"];
 const STAGE_ICON: Record<Stage, typeof BookOpen> = { details: Settings2, curriculum: Layers, publish: Rocket };
 
-export default function PathBuilderForm({ initial, pathId: initialPathId }: { initial: LearningPathDetail | null; pathId: string | null }) {
+export default function PathBuilderForm({
+  initial,
+  pathId: initialPathId,
+  pageTitle,
+  pageDescription,
+}: {
+  initial: LearningPathDetail | null;
+  pathId: string | null;
+  /*
+    The form owns FormShell rather than the route: the context sidebar is a live
+    view of this component's own state.
+  */
+  pageTitle: string;
+  pageDescription: string;
+}) {
   const t = useTranslations("adminPaths");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -226,6 +245,26 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
     title showed up as "Publish: 1" — a number on the one stage where nothing
     was wrong.
   */
+  /*
+    Curriculum vs details is decided by the same text test `stageState` uses, so
+    a finding and its tab badge can never disagree about which stage owns it.
+  */
+  const stageForIssue = (issue: string): Stage =>
+    issue.includes("module") || issue.includes("step") ? "curriculum" : "details";
+
+  const toPathFinding = (prefix: string) => (issue: string, i: number): ReviewFinding => ({
+    id: `${prefix}${i}`,
+    message: issue,
+    onNavigate: () => setStage(stageForIssue(issue)),
+    navigateLabel: t(`builder.stages.${stageForIssue(issue)}`),
+  });
+
+  const pathFindings: Record<ReviewTone, ReviewFinding[]> = {
+    blocking: validation.errors.map(toPathFinding("e")),
+    warning: [],
+    recommendation: validation.warnings.map(toPathFinding("w")),
+  };
+
   function stageState(s: Stage): FormTabState {
     const relevant = validation.errors.filter((e) => {
       const curriculum = e.includes("module") || e.includes("step");
@@ -236,32 +275,75 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
     return "complete";
   }
 
-  return (
-    <div>
-      {/*
-        The stage pills become the shared tab row. They were filled brand
-        rectangles with a number bubble, an icon and an error count — four
-        signals for three stages. The tab underline carries "where am I", and a
-        single dot carries "is there a problem here".
-      */}
-      <FormTabs
-        idPrefix="path"
-        ariaLabel={t("builder.stagesLabel")}
-        active={stage}
-        onChange={setStage}
-        tabs={STAGES.map<FormTab<Stage>>((sKey) => ({
-          key: sKey,
-          label: t(`builder.stages.${sKey}`),
-          icon: STAGE_ICON[sKey],
-          state: stageState(sKey),
-          stateLabel: stageState(sKey) === "error" ? t("builder.stageHasErrors") : undefined,
-        }))}
-      />
+  /*
+    Context per stage: Details raises "how will this read to someone browsing",
+    Curriculum raises "is there enough here", Publishing raises nothing the
+    dashboard beside it does not already answer.
+  */
+  const context =
+    stage === "publish" ? null : stage === "curriculum" ? (
+      <ContextPanel title={t("builder.shapeTitle")} icon={ListChecks} hint={t("builder.shapeHint")}>
+        <div className="grid grid-cols-3 gap-2">
+          <CountTile value={modules.length} label={t("builder.modulesLabel")} />
+          <CountTile value={modules.reduce((n, m) => n + m.steps.length, 0)} label={t("builder.stepsLabel")} />
+          <CountTile value={outcomes.length} label={t("builder.outcomesLabel")} />
+        </div>
+      </ContextPanel>
+    ) : (
+      <ContextPanel title={t("builder.previewTitle")} icon={Rocket} hint={t("builder.previewHint")}>
+        <div className="rounded-lg border border-divider bg-bg-surface p-3">
+          <p className="truncate text-[11px] text-success-text">/paths/{slug || "…"}</p>
+          <p className="mt-0.5 line-clamp-2 text-[15px] font-medium leading-[1.5] text-info-text">
+            {title.trim() || t("builder.untitled")}
+          </p>
+          <p className="mt-1 line-clamp-3 text-[12.5px] leading-[1.6] text-text-body">
+            {(description ?? "").trim() || t("builder.noDescription")}
+          </p>
+        </div>
+      </ContextPanel>
+    );
 
-      {/* Everything below the tabs is padded here rather than by the page, so
-          FormTabs can reach the card edges and its bottom border reads as a
-          full rule instead of a floating line. */}
-      <div className="px-5 py-6 sm:px-8">
+  return (
+    <FormShell
+      backHref="/admin/paths"
+      backLabel={t("builder.backToPaths")}
+      title={pageTitle}
+      description={pageDescription}
+      context={context}
+      tabs={
+        <FormTabs
+          idPrefix="path"
+          ariaLabel={t("builder.stagesLabel")}
+          active={stage}
+          onChange={setStage}
+          tabs={STAGES.map<FormTab<Stage>>((sKey) => ({
+            key: sKey,
+            label: t(`builder.stages.${sKey}`),
+            icon: STAGE_ICON[sKey],
+            state: stageState(sKey),
+            stateLabel: stageState(sKey) === "error" ? t("builder.stageHasErrors") : undefined,
+          }))}
+        />
+      }
+      actions={
+        <StickyActionBar status={<SaveIndicator state={saveState} dirty={dirty} t={t} />}>
+          <button type="button" onClick={() => router.push("/admin/paths")} className={BTN_DANGER}>
+            {t("builder.cancel")}
+          </button>
+          <button type="button" onClick={() => persist("draft", true)} disabled={isPending} className={BTN_SECONDARY}>
+            {t("builder.saveDraft")}
+          </button>
+          <button
+            type="button"
+            onClick={() => persist(status === "draft" ? "published" : status, true)}
+            disabled={isPending || validation.errors.length > 0}
+            className={BTN_PRIMARY}
+          >
+            {isPending ? <ButtonBusy label={t("builder.saving")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
+          </button>
+        </StickyActionBar>
+      }
+    >
       {error && (
         <div className="flex items-start gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3.5" role="alert">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
@@ -387,51 +469,23 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
             </label>
           </Section>
 
-          {/* Validation checklist */}
-          <Section title={t("builder.checklistTitle")} icon={ListChecks}>
-            {validation.errors.length === 0 && validation.warnings.length === 0 ? (
-              <p className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-emerald-600">
-                <CircleCheck className="h-4 w-4" aria-hidden="true" /> {t("builder.checklistOk")}
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {validation.errors.map((e, i) => (
-                  <li key={`e${i}`} className="flex items-start gap-2 text-[13px] text-danger">
-                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {e}
-                  </li>
-                ))}
-                {validation.warnings.map((w, i) => (
-                  <li key={`w${i}`} className="flex items-start gap-2 text-[13px] text-amber-600">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {w}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+          {/*
+            One verdict then grouped panels, replacing two flat bullet lists.
+            The lists said what was wrong but never whether the path could go
+            live — the one thing this stage exists to answer. Every finding links
+            to the stage that fixes it rather than leaving the author to guess.
+          */}
+          <ReviewDashboard
+            findings={pathFindings}
+            verdictReady={validation.errors.length === 0}
+            readyTitle={t("builder.verdictReadyTitle")}
+            readyBody={t("builder.verdictReadyBody")}
+            blockedTitle={t("builder.verdictBlockedTitle")}
+          />
         </div>
       )}
 
-      </div>
-
-      <StickyActionBar
-        status={<SaveIndicator state={saveState} dirty={dirty} t={t} />}
-      >
-        <button type="button" onClick={() => router.push("/admin/paths")} className={BTN_DANGER}>
-          {t("builder.cancel")}
-        </button>
-        <button type="button" onClick={() => persist("draft", true)} disabled={isPending} className={BTN_SECONDARY}>
-          {t("builder.saveDraft")}
-        </button>
-        <button
-          type="button"
-          onClick={() => persist(status === "draft" ? "published" : status, true)}
-          disabled={isPending || validation.errors.length > 0}
-          className={BTN_PRIMARY}
-        >
-          {isPending ? <ButtonBusy label={t("builder.saving")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
-        </button>
-      </StickyActionBar>
-    </div>
+    </FormShell>
   );
 }
 
@@ -465,6 +519,16 @@ function SaveIndicator({ state, dirty, t }: { state: "idle" | "saving" | "saved"
   if (state === "saved" && !dirty) return <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-600"><Check className="h-3.5 w-3.5" /> {t("builder.saved")}</span>;
   if (dirty) return <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-text-muted">{t("builder.unsaved")}</span>;
   return null;
+}
+
+/** Small count tile for the context sidebar. */
+function CountTile({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-lg border border-divider bg-bg-surface px-2 py-2 text-center">
+      <p className="text-lg font-bold tabular-nums leading-none text-text-heading">{value}</p>
+      <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+    </div>
+  );
 }
 
 function BilingualListEditor({ items, onChange, addLabel, t }: { items: BilingualEntry[]; onChange: (v: BilingualEntry[]) => void; addLabel: string; t: TFn }) {

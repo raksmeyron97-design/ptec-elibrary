@@ -9,7 +9,7 @@ import { getThesisRank } from "@/lib/theses/download-permission";
 import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/admin/kit";
-import { FormShell, BTN_SECONDARY } from "@/components/admin/kit/form";
+import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
@@ -79,16 +79,19 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
 
   return (
     /*
-      The thesis being edited is named in the heading. Previously the page
-      opened with a bare "Update details for this thesis" and the Download
-      Access card, so an administrator arriving from a list of near-identical
-      titles had to scroll into the form to confirm they were on the right
-      record.
+      Breadcrumb, heading, tabs, context sidebar and action bar all come from
+      FormShell inside ThesisForm — the sidebar previews the form's own live
+      state, so it cannot be assembled here. The route stays a data loader.
+
+      The thesis is named in the heading: the page used to open with a bare
+      "Update details for this thesis", so an administrator arriving from a list
+      of near-identical titles had to scroll into the form to confirm they were
+      on the right record.
     */
-    <FormShell
-      backHref="/admin/theses"
-      backLabel={t("backToTheses")}
-      title={
+    <ThesisForm
+      initial={initial}
+      institution={(await getOrgIdentity()).institutionName}
+      pageTitle={
         <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="min-w-0">{report.title?.trim() || t("untitledThesis")}</span>
           <StatusBadge tone={STATUS_TONES[normalizeStatus(report.status)]}>
@@ -96,7 +99,7 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
           </StatusBadge>
         </span>
       }
-      description={t("editSubtitle")}
+      pageDescription={t("editSubtitle")}
       headerActions={
         isLive && report.slug ? (
           <a
@@ -111,14 +114,7 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
           </a>
         ) : null
       }
-      aside={
-        /*
-          Download Access is a permission on the record, not a field of it — it
-          writes through its own action and is unaffected by Save. It used to
-          sit above the form, pushing the tabs most of a screen down on the page
-          whose first job is editing fields; as a sticky aside it stays
-          reachable without competing for that first screen.
-        */
+      reviewPanel={
         <DownloadAccessCard
           thesisId={report.id}
           isPublished={isLive}
@@ -130,8 +126,6 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
           updatedByName={updatedByName}
         />
       }
-    >
-      <ThesisForm initial={initial} institution={(await getOrgIdentity()).institutionName} />
-    </FormShell>
+    />
   );
 }

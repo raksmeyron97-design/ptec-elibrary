@@ -14,7 +14,8 @@ import { slugify, type ThesisStatus, type ThesisType, type ThesisLanguage } from
 import { focusFirstInvalidAfterPaint } from "@/components/admin/kit/form";
 import { useToast } from "@/components/admin/kit";
 import { THESIS_STEPS, type ThesisStepKey, type ThesisStepState } from "./thesis-steps";
-import { FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
+import { FormShell, FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
+import ThesisContext from "./ThesisContext";
 import ThesisStickyActions from "./ThesisStickyActions";
 import BasicInfoStep from "./BasicInfoStep";
 import ClassificationStep from "./ClassificationStep";
@@ -83,10 +84,32 @@ function toDateInput(iso: string | null): string {
 export default function ThesisForm({
   initial,
   institution,
+  pageTitle,
+  pageDescription,
+  headerActions,
+  reviewPanel,
 }: {
   initial?: ThesisInitial;
   /** Published institution name, resolved by the admin page (server side). */
   institution: string;
+  /*
+    The form owns FormShell rather than the route, because the context sidebar
+    is a live view of this component's own state — a page-level slot could not
+    see it without lifting every field into the route.
+  */
+  pageTitle: React.ReactNode;
+  pageDescription: string;
+  headerActions?: React.ReactNode;
+  /**
+   * Extra panel for the Review step — the edit page's Download Access card.
+   *
+   * It lands on Review rather than in the context sidebar because the sidebar
+   * is now per-tab and this is not context for any one step: it is an access
+   * decision about the published record, which is exactly what Review is for.
+   * It also writes through its own action, so it must not sit inside a step
+   * whose fields Save owns.
+   */
+  reviewPanel?: React.ReactNode;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -276,6 +299,23 @@ export default function ThesisForm({
     if (allPublishErrors.fileUrl) labels.push(t("missing.file"));
     return labels;
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPublishErrors]);
+
+  /*
+    The same publish rules the server enforces, as findings the Review dashboard
+    can list and link. `allPublishErrors` and not `publishErrors`: the dashboard
+    is the one place the rules should always be visible, gate or no gate — that
+    is what the tab is for.
+  */
+  const blockingFindings = useMemo(() => {
+    const map: [keyof ThesisValidationErrors, ThesisStepKey][] = [
+      ["title", "basic"], ["slug", "basic"], ["program", "classification"],
+      ["cohort", "classification"], ["academicYear", "classification"],
+      ["authorNames", "people"], ["fileUrl", "files"],
+    ];
+    return map
+      .filter(([key]) => allPublishErrors[key])
+      .map(([key, step]) => ({ id: key, message: allPublishErrors[key]!, step }));
   }, [allPublishErrors]);
 
   /** Steps whose fields validateThesisPublish() can block a publish on. */
@@ -604,10 +644,60 @@ export default function ThesisForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit}>
-      {/* Notices sit above the tabs and inside the card: they are about the
-          whole form, not the section that happens to be open. */}
-      <div className="empty:hidden space-y-3 px-5 pt-5 sm:px-8">
+    <FormShell
+      backHref="/admin/theses"
+      backLabel={t("backToTheses")}
+      title={pageTitle}
+      description={pageDescription}
+      headerActions={headerActions}
+      onSubmit={handleSubmit}
+      tabs={
+        <FormTabs
+          idPrefix="thesis"
+          ariaLabel={t("steps.navAria")}
+          active={activeStep}
+          onChange={setActiveStep}
+          tabs={THESIS_STEPS.map<FormTab<ThesisStepKey>>((step) => ({
+            key: step.key,
+            label: t(`steps.${step.key}`),
+            icon: step.icon,
+            state: STATE_TO_TAB[stepStates[step.key]],
+          }))}
+        />
+      }
+      context={
+        <ThesisContext
+          step={activeStep}
+          siteUrl={SITE_URL}
+          title={title}
+          slug={slug}
+          abstract={abstract}
+          keywords={keywords}
+          authorCount={authors.filter((a) => a.trim()).length}
+          referenceCount={references.filter((r) => r.trim()).length}
+          hasPdf={Boolean(effectiveFileUrl)}
+          hasCover={Boolean(effectiveCoverUrl)}
+          missingForPublish={missingForPublish}
+        />
+      }
+      actions={
+        <ThesisStickyActions
+          isEdit={isEdit}
+          status={status}
+          scheduledAtSet={!!scheduledAt}
+          wasPublished={wasPublished}
+          submitting={busy}
+          onPreview={() => setPreviewOpen(true)}
+          autosaveStatus={autosaveStatus}
+          lastSavedAt={lastSavedAt}
+          activeStep={activeStep}
+          missingForPublish={missingForPublish}
+        />
+      }
+    >
+      {/* Notices sit above the panels: they are about the whole form, not the
+          section that happens to be open. */}
+      <div className="empty:hidden mb-6 space-y-3">
       {availableDraft && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
           <span>{t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}</span>
@@ -641,36 +731,17 @@ export default function ThesisForm({
       </div>
 
       {/*
-        Top tabs, not the left rail this form used to carry. The rail spent
-        224px of a 900px card — a quarter of the measure — on seven words, and
-        on mobile it stacked *above* the fields, so the first thing a phone
-        showed was a list of section names and the second was a scroll.
-
-        No overflow-hidden here: several fields inside the panels
+        No overflow-hidden anywhere above this: several fields inside the panels
         (SearchableSelect) open an absolutely-positioned dropdown that must be
-        able to extend past this card's edge — clipping it would make lower
+        able to extend past the card's edge — clipping it would make lower
         options unreachable.
       */}
-      <div className="flex flex-col">
-        <FormTabs
-          idPrefix="thesis"
-          ariaLabel={t("steps.navAria")}
-          active={activeStep}
-          onChange={setActiveStep}
-          tabs={THESIS_STEPS.map<FormTab<ThesisStepKey>>((step) => ({
-            key: step.key,
-            label: t(`steps.${step.key}`),
-            icon: step.icon,
-            state: STATE_TO_TAB[stepStates[step.key]],
-          }))}
-        />
-
-        <div
-          id={`thesis-panel-${activeStep}`}
-          role="tabpanel"
-          aria-labelledby={`thesis-tab-${activeStep}`}
-          className="min-w-0 flex-1 px-5 py-6 sm:px-8"
-        >
+      <div
+        id={`thesis-panel-${activeStep}`}
+        role="tabpanel"
+        aria-labelledby={`thesis-tab-${activeStep}`}
+        className="min-w-0"
+      >
           {activeStep === "basic" && (
             <BasicInfoStep
               title={title} onTitleChange={setTitle}
@@ -745,22 +816,11 @@ export default function ThesisForm({
               ogImage={ogImage} onOgImageChange={setOgImage}
               onPreview={() => setPreviewOpen(true)}
               disabled={busy}
+              blocking={blockingFindings}
+              onNavigate={setActiveStep}
             />
           )}
-        </div>
-
-        <ThesisStickyActions
-          isEdit={isEdit}
-          status={status}
-          scheduledAtSet={!!scheduledAt}
-          wasPublished={wasPublished}
-          submitting={busy}
-          onPreview={() => setPreviewOpen(true)}
-          autosaveStatus={autosaveStatus}
-          lastSavedAt={lastSavedAt}
-          activeStep={activeStep}
-          missingForPublish={missingForPublish}
-        />
+          {activeStep === "review" && reviewPanel}
       </div>
 
       {previewOpen && (
@@ -778,7 +838,6 @@ export default function ThesisForm({
           onClose={() => setPreviewOpen(false)}
         />
       )}
-
-    </form>
+    </FormShell>
   );
 }

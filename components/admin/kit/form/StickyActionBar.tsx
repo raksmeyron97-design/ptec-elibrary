@@ -4,12 +4,18 @@ import { useSyncExternalStore } from "react";
 import { Loader2 } from "lucide-react";
 
 /**
- * The save cluster, pinned to the bottom of the viewport.
+ * The floating action bar: the save cluster, detached and pinned near the bottom
+ * of the viewport.
  *
- * Its content is constrained to the same 900px as the form card and centred, so
- * the primary button lands under the form's right edge rather than the screen's
- * — on a 27" monitor a full-bleed bar puts Save 700px from the last field the
- * author touched.
+ * It floats rather than sitting flush to the card's bottom edge. Flush, it read
+ * as the end of the document — so on a long section an author scrolled past it
+ * looking for the "real" save button. Inset and shadowed, it reads as chrome
+ * layered over the form, which is what it is: always available, never the end of
+ * anything.
+ *
+ * It lives inside the card, so it is already the width of the form column and
+ * needs no max-width of its own — the primary button lands under the form's
+ * right edge rather than a 27" screen's.
  *
  * `status` is the left slot: "Unsaved changes", "3 blocking", "Saved 2 minutes
  * ago". The bar is the one element always on screen, so it is the honest place
@@ -18,21 +24,14 @@ import { Loader2 } from "lucide-react";
 export default function StickyActionBar({
   status,
   children,
-  contained = true,
 }: {
   status?: React.ReactNode;
   /** Buttons, in DOM order least- to most-primary. */
   children: React.ReactNode;
-  /** false lets the bar's content span the full viewport (split-layout pages). */
-  contained?: boolean;
 }) {
   return (
-    <div className="sticky bottom-0 z-30 -mx-px mt-8 border-t border-divider bg-bg-surface/95 px-5 py-3 shadow-[0_-4px_12px_rgba(11,21,48,0.06)] backdrop-blur sm:rounded-b-xl sm:px-8">
-      <div
-        className={`flex flex-wrap items-center justify-between gap-3 ${
-          contained ? "mx-auto w-full max-w-[900px]" : ""
-        }`}
-      >
+    <div className="sticky bottom-4 z-30 mx-3 mb-4 rounded-xl border border-divider bg-bg-surface/95 px-4 py-3 shadow-lg backdrop-blur sm:mx-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs">{status}</div>
         <div className="ml-auto flex flex-wrap items-center gap-2">{children}</div>
       </div>

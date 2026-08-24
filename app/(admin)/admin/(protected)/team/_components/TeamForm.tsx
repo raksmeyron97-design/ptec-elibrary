@@ -32,7 +32,13 @@ import type { PublicTeamMember } from "@/lib/team/public";
 import StoragePicker from "@/components/admin/storage/StoragePicker";
 import type { StorageFile } from "@/lib/types/storage";
 import StickyFormFooter from "./StickyFormFooter";
-import { FormShell, FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
+import {
+  FormShell,
+  FormTabs,
+  ContextPanel,
+  type FormTab,
+  type FormTabState,
+} from "@/components/admin/kit/form";
 import useAutoSave from "./useAutoSave";
 
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
@@ -599,122 +605,98 @@ export default function TeamForm({
       backLabel="Back to Library Team"
       title={pageTitle}
       description={pageDescription}
-      aside={
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save(form.is_published);
+      }}
+      tabs={
+        <FormTabs
+          idPrefix="team"
+          ariaLabel="Team member form sections"
+          active={activeTab}
+          onChange={switchTab}
+          tabs={TABS.map<FormTab<TabKey>>((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            icon: tab.icon,
+            state: tabState(tab.key),
+            stateLabel: tabStateLabel(tab.key),
+          }))}
+        />
+      }
+      actions={
+        <StickyFormFooter
+          activeTabIndex={activeTabIndex}
+          totalTabs={TABS.length}
+          onPrev={() => {
+            if (activeTabIndex > 0) switchTab(TABS[activeTabIndex - 1].key);
+          }}
+          onNext={() => {
+            if (activeTabIndex < TABS.length - 1) switchTab(TABS[activeTabIndex + 1].key);
+          }}
+          onSaveDraft={() => void save(false)}
+          onSavePublish={() => void save(true)}
+          onCancel={handleCancel}
+          isDirty={isDirty}
+          busy={busy}
+          phase={phase}
+          isPublished={form.is_published}
+          lastSaved={lastSaved}
+        />
+      }
+      context={
         /*
-          The live public-card preview. It was a third column the page laid out
-          itself; it is FormShell's sticky aside now, so it drops its own
-          positioning and its lg: show/hide — FormShell stacks it under the form
-          below the split breakpoint, which is what the accordion was faking.
+          The live public card, now the context panel rather than a permanent
+          third column. It kept its own `lg:` show/hide and a mobile disclosure
+          button; FormShell decides where context goes and inlines it below the
+          fields under 1440px, so both were doing the shell's job — and the
+          disclosure was a second control for a thing the layout already handled.
+
+          It shows on every tab, not one: unlike an SEO snippet, the card is
+          what every field on every tab is ultimately editing.
         */
-        <aside aria-label="Live preview of the public staff card">
-          {/*
-            On the split layout the preview is simply there. Below it, stacking a
-            full card under a seven-section form buries the save bar, so on small
-            screens it collapses to a disclosure — the spec's bottom accordion.
-          */}
-          <button
-            type="button"
-            onClick={() => setShowPreview((v) => !v)}
-            aria-expanded={showPreview}
-            aria-controls="team-preview-body"
-            className="focus-field mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-divider bg-bg-surface px-4 py-2.5 text-sm font-semibold text-text-body lg:hidden"
+        <ContextPanel
+          title="Public card"
+          icon={UserCircle}
+          hint="Updates as you type. Drafts stay hidden from the public site."
+        >
+          <div
+            className={`rounded-lg transition-all duration-200 ${
+              focusedField === "name" || focusedField === "position" || focusedField === "photo"
+                ? "ring-2 ring-admin-accent-line ring-inset"
+                : ""
+            }`}
           >
-            Public card preview
-            {showPreview ? (
-              <ChevronUp className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-          <div id="team-preview-body" className={showPreview ? "" : "hidden lg:block"}>
-              <div className="bg-bg-surface rounded-xl shadow-sm border border-divider overflow-hidden">
-                {/* Header */}
-                <div className="bg-plate text-white px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold">Preview</span>
-                    <div className="group relative">
-                      <Info className="h-3.5 w-3.5 cursor-help text-text-muted/70 hover:text-white transition" />
-                      <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 w-52 -translate-x-1/2 rounded-lg bg-plate px-3 py-2 text-[11px] leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                        This preview updates as you type. Drafts are hidden from the
-                        public site.
-                        <span className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-plate" />
-                      </div>
-                    </div>
-                  </div>
-                  {!form.is_published && (
-                    <span className="bg-warning-soft text-warning-text text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-                      Draft
-                    </span>
-                  )}
-                  {form.is_published && (
-                    <span className="bg-success-soft text-success-text text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-                      Published
-                    </span>
-                  )}
-                </div>
-
-                {/* Card Body Container with pulse */}
-                <div
-                  className={`p-5 transition-all duration-300 ${
-                    focusedField === "name" ||
-                    focusedField === "position" ||
-                    focusedField === "photo"
-                      ? "ring-2 ring-admin-accent-line ring-inset"
-                      : ""
-                  }`}
-                >
-                  <MemberCard member={previewMember} palette={PALETTES[0]} preview />
-
-                  {!form.is_published && (
-                    <button
-                      disabled
-                      className="mt-4 w-full bg-admin-accent text-white text-sm font-medium py-2 rounded-lg opacity-50 cursor-not-allowed"
-                    >
-                      Draft (Hidden)
-                    </button>
-                  )}
-                </div>
-
-                <div className="px-4 py-3 bg-paper text-[11px] text-text-muted border-t border-divider">
-                  This is how the card appears on the public Library Team page.
-                  Contact details show only when approved.
-                </div>
-              </div>
+            <MemberCard member={previewMember} palette={PALETTES[0]} preview />
           </div>
-        </aside>
+
+          {/* Status reads as a fact about the record, not a button. The draft
+              state used to be a disabled full-width button, which invites a
+              click that can never do anything. */}
+          <p className="mt-3 flex items-center gap-2 text-xs">
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                form.is_published
+                  ? "bg-success-soft text-success-text"
+                  : "bg-warning-soft text-warning-text"
+              }`}
+            >
+              {form.is_published ? "Published" : "Draft"}
+            </span>
+            <span className="text-text-muted">
+              {form.is_published ? "Visible on the public team page." : "Hidden from the public team page."}
+            </span>
+          </p>
+        </ContextPanel>
       }
     >
       {/*
-        Top tabs, replacing the left rail. The rail was 240px of a 900px card
-        for seven labels, and below `lg` it collapsed into a row of anonymous
-        dots with the section name printed underneath — so a phone user had to
-        read a caption to learn where they were. The tab row says it directly.
+        The shake on a refused submit moves from the <form> element to this
+        wrapper: FormShell owns the form now, and the animation only ever needed
+        to move the fields — shaking the tab row and the action bar with them
+        made the whole card lurch.
       */}
-      <FormTabs
-        idPrefix="team"
-        ariaLabel="Team member form sections"
-        active={activeTab}
-        onChange={switchTab}
-        tabs={TABS.map<FormTab<TabKey>>((tab) => ({
-          key: tab.key,
-          label: tab.label,
-          icon: tab.icon,
-          state: tabState(tab.key),
-          stateLabel: tabStateLabel(tab.key),
-        }))}
-      />
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save(form.is_published);
-        }}
-        noValidate
-        style={
-          submitAttempt > 0 && hasErrors
-            ? { animation: "none", transform: "translate3d(0, 0, 0)" }
-            : {}
-        }
+      <div
         ref={(el) => {
           if (el && submitAttempt > 0 && hasErrors) {
             el.style.animation = "";
@@ -1590,26 +1572,6 @@ export default function TeamForm({
           </div>
         </div>
 
-        {/* Sticky footer — always visible, independent of active tab */}
-        <StickyFormFooter
-          activeTabIndex={activeTabIndex}
-          totalTabs={TABS.length}
-          onPrev={() => {
-            if (activeTabIndex > 0) switchTab(TABS[activeTabIndex - 1].key);
-          }}
-          onNext={() => {
-            if (activeTabIndex < TABS.length - 1)
-              switchTab(TABS[activeTabIndex + 1].key);
-          }}
-          onSaveDraft={() => void save(false)}
-          onSavePublish={() => void save(true)}
-          onCancel={handleCancel}
-          isDirty={isDirty}
-          busy={busy}
-          phase={phase}
-          isPublished={form.is_published}
-          lastSaved={lastSaved}
-        />
         <ConfirmDialog
           open={cancelConfirm}
           title="Discard unsaved changes? "
@@ -1621,7 +1583,7 @@ export default function TeamForm({
             router.push("/admin/team");
           }}
         />
-      </form>
+      </div>
     </FormShell>
   );
 }

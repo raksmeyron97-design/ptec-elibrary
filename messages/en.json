@@ -4030,7 +4030,19 @@
       "stageHasErrors": "has problems to fix",
       "backToPaths": "Back to learning paths",
       "newSubtitle": "Build a guided sequence of library resources.",
-      "editSubtitle": "Update this learning path."
+      "editSubtitle": "Update this learning path.",
+      "verdictReadyTitle": "Ready to publish",
+      "verdictReadyBody": "Nothing blocks publication. The server re-checks on publish.",
+      "verdictBlockedTitle": "Not ready to publish",
+      "shapeTitle": "Path shape",
+      "shapeHint": "How much of the curriculum exists so far.",
+      "modulesLabel": "Modules",
+      "stepsLabel": "Steps",
+      "outcomesLabel": "Outcomes",
+      "previewTitle": "Public preview",
+      "previewHint": "Roughly how this path appears to a learner browsing.",
+      "untitled": "Untitled path",
+      "noDescription": "No description yet."
     },
     "toasts": {
       "deleted": "Learning path deleted.",
@@ -5679,6 +5691,30 @@
       "classification": "Program, cohort and year",
       "author": "At least one author",
       "file": "PDF file"
+    },
+    "context": {
+      "untitled": "Untitled thesis",
+      "seoTitle": "Search result preview",
+      "seoHint": "Roughly how this thesis appears in Google and on shared links.",
+      "noAbstract": "No abstract yet — search engines will invent a snippet from the page.",
+      "measureTitle": "Title",
+      "measureSnippet": "Snippet",
+      "willCut": "will be cut",
+      "peopleTitle": "Authorship",
+      "peopleHint": "Order here is the order readers and citations see.",
+      "authorsListed": "{count, plural, one {author listed} other {authors listed}}",
+      "filesTitle": "Files",
+      "filesHint": "What a reader can open and what the listing shows.",
+      "thesisPdf": "Thesis PDF",
+      "coverImage": "Cover image",
+      "required": "Required",
+      "present": "Present",
+      "optional": "Optional",
+      "readinessTitle": "Publish readiness",
+      "readinessHint": "What is still outstanding before this can go live.",
+      "keywords": "Keywords",
+      "references": "References",
+      "nothingOutstanding": "Nothing outstanding — every required field is filled in."
     }
   },
   "adminCatalog": {

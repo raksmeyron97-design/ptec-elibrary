@@ -37,9 +37,9 @@ type StickyFormFooterProps = {
  * open section, so printing it again in the bar was the same string twice on
  * one screen.
  *
- * `contained={false}` because this form uses the split layout — its content
- * spans the form column plus the preview aside, so pinning the bar's content
- * to 900px would have left the buttons short of the form's own right edge.
+ * The bar no longer needs a width opt-out: it lives inside the 840px card, so
+ * it is already the width of the form column. The preview is a context panel
+ * beside the card, not a column the bar has to span.
  */
 export default function StickyFormFooter({
   activeTabIndex,
@@ -57,7 +57,6 @@ export default function StickyFormFooter({
 }: StickyFormFooterProps) {
   return (
     <StickyActionBar
-      contained={false}
       status={
         <>
           {/*
