@@ -81,8 +81,8 @@ export default function ThesisSeoSettings({
 
       <div className="rounded-lg border border-divider p-3">
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-text-muted">{t("searchPreview")}</p>
-        <p className="truncate text-[13px] text-emerald-800">{siteUrl}/theses/{slug || "…"}</p>
-        <p className="truncate text-[18px] text-blue-800 hover:underline">{previewTitle}</p>
+        <p className="truncate text-[13px] text-success-text">{siteUrl}/theses/{slug || "…"}</p>
+        <p className="truncate text-[18px] text-info-text hover:underline">{previewTitle}</p>
         <p className="line-clamp-2 text-[13px] text-text-body">{previewDescription}</p>
       </div>
 

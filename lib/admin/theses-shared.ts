@@ -70,6 +70,23 @@ export const STATUS_BADGE_STYLES: Record<ThesisStatus, string> = {
   rejected: "bg-red-50 text-red-700 border border-red-200",
 };
 
+/**
+ * Status → semantic tone for `components/admin/kit/StatusBadge`.
+ *
+ * `STATUS_BADGE_STYLES` above predates the token palette and still hardcodes
+ * orange/emerald/violet/amber/red; new surfaces should use this map with the
+ * shared badge instead. Draft and Archived share the neutral tone on purpose —
+ * the label carries the difference, and status is never colour-only.
+ */
+export const STATUS_TONES: Record<ThesisStatus, "success" | "warning" | "danger" | "info" | "neutral"> = {
+  draft: "neutral",
+  pending_review: "warning",
+  published: "success",
+  scheduled: "info",
+  archived: "neutral",
+  rejected: "danger",
+};
+
 export function normalizeStatus(raw: string | null | undefined): ThesisStatus {
   return (STATUSES as readonly string[]).includes(raw ?? "") ? (raw as ThesisStatus) : "draft";
 }

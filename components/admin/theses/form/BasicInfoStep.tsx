@@ -38,7 +38,7 @@ export default function BasicInfoStep({
     <div className="space-y-5">
       <div>
         <label className={LABEL_CLASS}>
-          {tr("title")} <span className="text-red-500">*</span>
+          {tr("title")} <span className="text-danger">*</span>
         </label>
         <input
           value={title}
@@ -49,9 +49,9 @@ export default function BasicInfoStep({
           placeholder={tr("titlePlaceholder")}
           aria-invalid={!!fieldErrors.title}
           aria-describedby={fieldErrors.title ? "thesis-title-error" : undefined}
-          className={`${INPUT_CLASS} aria-[invalid=true]:border-red-400`}
+          className={`${INPUT_CLASS} aria-[invalid=true]:border-danger/70`}
         />
-        {fieldErrors.title && <p id="thesis-title-error" className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>}
+        {fieldErrors.title && <p id="thesis-title-error" className="mt-1 text-xs text-danger">{fieldErrors.title}</p>}
       </div>
 
       <ThesisSlugField title={title} slug={slug} onSlugChange={onSlugChange} thesisId={thesisId} disabled={disabled} siteUrl={siteUrl} />
@@ -70,7 +70,7 @@ export default function BasicInfoStep({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className={LABEL_CLASS}>
-            {tr("thesisType")} <span className="text-red-500">*</span>
+            {tr("thesisType")} <span className="text-danger">*</span>
           </label>
           <SearchableSelect
             name="thesis_type"
@@ -83,7 +83,7 @@ export default function BasicInfoStep({
         </div>
         <div>
           <label className={LABEL_CLASS}>
-            {tr("language")} <span className="text-red-500">*</span>
+            {tr("language")} <span className="text-danger">*</span>
           </label>
           <SearchableSelect
             name="language"

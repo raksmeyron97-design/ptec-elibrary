@@ -8,8 +8,8 @@ export type AutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
 const DISPLAY: Record<Exclude<AutosaveStatus, "idle">, { className: string; icon: React.ReactNode }> = {
   unsaved: { className: "text-text-muted", icon: null },
   saving: { className: "text-text-muted", icon: <Loader2 className="h-3 w-3 animate-spin" /> },
-  saved: { className: "text-emerald-600", icon: <Check className="h-3 w-3" /> },
-  error: { className: "text-red-600", icon: <AlertCircle className="h-3 w-3" /> },
+  saved: { className: "text-success", icon: <Check className="h-3 w-3" /> },
+  error: { className: "text-danger", icon: <AlertCircle className="h-3 w-3" /> },
 };
 
 export default function ThesisAutosaveStatus({ status }: { status: AutosaveStatus }) {

@@ -35,6 +35,7 @@ export default function ThesisStepNav({
 }) {
   const t = useTranslations("adminThesisForm.steps");
   const activeIndex = THESIS_STEPS.findIndex((s) => s.key === active);
+  const totalErrors = Object.values(errorCounts).reduce<number>((sum, c) => sum + (c ?? 0), 0);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
@@ -78,15 +79,22 @@ export default function ThesisStepNav({
               <span className="flex-1 whitespace-nowrap">{t(step.key)}</span>
               {errCount > 0 ? (
                 <span
-                  className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                  className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white"
                   aria-hidden="true"
                 >
                   {errCount}
                 </span>
               ) : isDone ? (
-                <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
               ) : null}
-              <span className="sr-only" aria-live="polite">
+              {/*
+                Static description of this step, read as part of the button's
+                accessible name. It is deliberately NOT a live region: one
+                aria-live per step meant seven regions all re-announcing on
+                every keystroke, because the error counts recompute as the
+                author types. The single live region below reports changes.
+              */}
+              <span className="sr-only">
                 {errCount > 0 ? t("srErrors", { count: errCount }) : isDone ? t("srComplete") : ""}
                 {isActive ? t("srCurrent") : ""}
               </span>
@@ -94,6 +102,14 @@ export default function ThesisStepNav({
           );
         })}
       </div>
+
+      {/*
+        One live region for the whole nav. Screen readers hear the total when
+        it changes, instead of seven separate steps competing to announce.
+      */}
+      <p aria-live="polite" className="sr-only">
+        {totalErrors > 0 ? t("srErrors", { count: totalErrors }) : ""}
+      </p>
 
       {/* Mobile compact progress stepper */}
       <div className="flex items-center gap-1 border-b border-divider bg-paper/30 px-3 py-2 md:hidden" aria-hidden="true">

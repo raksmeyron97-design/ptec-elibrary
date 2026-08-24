@@ -366,7 +366,23 @@
     "collectionsGridCardLabel": "Browse {collection}",
     "collectionsGridExternal": "Opens in a new tab",
     "ogTitle": "PTEC Library — The Digital Library for the Next Generation of Teachers",
-    "ogDescription": "Free textbooks, theses and teaching resources in Khmer and English. No account needed."
+    "ogDescription": "Free textbooks, theses and teaching resources in Khmer and English. No account needed.",
+    "photosEyebrow": "Life at the library",
+    "photosTitle": "Building a reading culture, one visit at a time",
+    "photosQuote": "The man who does not read has no advantage over the man who cannot read.",
+    "photosQuoteAuthor": "— Mark Twain",
+    "photosBody": "Reading rooms, study carrels and quiet corners — this is what a normal week at PTEC looks like when students, teachers and researchers make the library their own.",
+    "photosCta": "Browse the collection",
+    "photosMore": "+{count} more photos",
+    "narrativeEyebrow": "A space for every learner",
+    "narrativeTitle": "How students use the PTEC library every day",
+    "narrativeBody": "Three things the library is for — and the people already doing them.",
+    "narrativeFocus": "Focus",
+    "narrativeFocusBody": "Quiet carrels and long tables for the hours when a lesson plan or a thesis chapter needs undivided attention.",
+    "narrativeDiscover": "Discover",
+    "narrativeDiscoverBody": "Open shelves beside a searchable digital collection, so a half-remembered title is a few minutes' work rather than a dead end.",
+    "narrativeConnect": "Connect",
+    "narrativeConnectBody": "Study groups, reading sessions and staff who know the collection — the part of a library that no catalogue can hold."
   },
   "books": {
     "title": "Books",
@@ -2958,7 +2974,8 @@
       "viewPublicSite": "View public site",
       "signOut": "Sign out",
       "badgeAttention": "{count} items awaiting action",
-      "badgeCritical": "{count} items need attention"
+      "badgeCritical": "{count} items need attention",
+      "homepagePhotos": "Homepage Photos"
     },
     "roles": {
       "superAdmin": "Super Admin",
@@ -4563,7 +4580,8 @@
       "contact": "Inbox",
       "users": "Users",
       "roles": "Roles",
-      "settings": "System Settings"
+      "settings": "System Settings",
+      "homepage_photos": "Homepage Photos"
     },
     "initials": {
       "reader": "R",
@@ -4584,7 +4602,8 @@
       "contact": "Contact-form messages and replies",
       "users": "Accounts, team directory, and role assignment",
       "roles": "This permission matrix itself",
-      "settings": "Global site configuration: contacts, hours, links, SEO"
+      "settings": "Global site configuration: contacts, hours, links, SEO",
+      "homepage_photos": "Photos shown in the homepage “Life at the library” gallery"
     },
     "actionBar": {
       "saving": "Saving changes…",
@@ -5308,6 +5327,13 @@
     "createSubtitle": "Add a new student thesis to the repository",
     "editSubtitle": "Update details for this thesis",
     "saveFailed": "Save failed",
+    "publishBlocked": "{count} fields must be filled in before this thesis can be published.",
+    "scheduledAtInvalid": "Choose a date and time in the future.",
+    "backToTheses": "Back to theses",
+    "editingThesis": "Editing",
+    "untitledThesis": "Untitled thesis",
+    "viewPublicPage": "View public page",
+    "opensInNewTab": "Opens in a new tab",
     "unsavedFrom": "You have unsaved changes from {date}.",
     "restore": "Restore",
     "discard": "Discard",
@@ -5338,7 +5364,8 @@
       "saveDraft": "Save Draft",
       "unpublish": "Unpublish",
       "preview": "Preview",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "scheduleNeedsDate": "Pick a publish date and time on the Review step first."
     },
     "autosave": {
       "unsaved": "Unsaved changes",
@@ -5536,7 +5563,6 @@
       "years": "Years",
       "hasFaculty": "Has Faculty",
       "noPrograms": "No programs yet. Add one above.",
-      "deleteProgramConfirm": "Delete program + all data?",
       "deleteProgram": "Delete program",
       "codePlaceholder": "Code *",
       "addFaculty": "Add Faculty",
@@ -5546,7 +5572,6 @@
       "displayLabelBlank": "Display label (blank = use number)",
       "addCohort": "Add Cohort",
       "noCohorts": "No cohorts yet.",
-      "deleteCohortConfirm": "Delete + all years?",
       "editLabel": "Edit label",
       "deleteCohort": "Delete cohort",
       "academicYears": "Academic Years",
@@ -5561,14 +5586,25 @@
       "englishNamePlaceholderReq": "English name *",
       "englishNamePlaceholder": "English name",
       "khmerNamePlaceholder": "Khmer name",
-      "deleteConfirm": "Delete?",
-      "yes": "Yes",
       "err": {
         "programCode": "Program code is required.",
         "englishName": "English name is required.",
         "facultyCode": "Faculty code is required.",
         "cohortNumber": "Enter a valid cohort number (≥ 1).",
         "yearLabel": "Year label is required."
+      },
+      "deleteNamed": "Delete {name}",
+      "confirm": {
+        "programTitle": "Delete the {name} program?",
+        "programCascade": "This also removes {faculties} faculties and {cohorts} cohorts under it, together with their academic years.",
+        "cohortTitle": "Delete cohort {name}?",
+        "cohortCascade": "This also removes the {years} academic years recorded under it.",
+        "facultyTitle": "Delete the {name} faculty?",
+        "yearTitle": "Delete academic year {name}?",
+        "noDependents": "Nothing else is recorded under it.",
+        "irreversible": "This cannot be undone. Theses already classified under it keep the value they were saved with.",
+        "delete": "Delete",
+        "deleting": "Deleting…"
       }
     }
   },
@@ -5586,11 +5622,11 @@
       "backToCatalog": "Back to catalogue admin",
       "addBookTitle": "Add Physical Book",
       "step1Subtitle": "Step 1 of 2 — bibliographic information. Physical copies come next.",
-      "titleReq": "Title *",
+      "titleReq": "Title",
       "titlePlaceholder": "e.g. Introduction to Cambodian Law",
-      "authorReq": "Author *",
+      "authorReq": "Author",
       "authorPlaceholder": "Author full name",
-      "languageReq": "Language *",
+      "languageReq": "Language",
       "lang": {
         "km": "Khmer (ខ្មែរ)",
         "en": "English",
@@ -6388,5 +6424,71 @@
         "hoursLabel": "Hours"
       }
     }
+  },
+  "adminHomepagePhotos": {
+    "title": "Homepage Photos",
+    "subtitle": "Photos shown in the “Life at the library” gallery on the homepage. The first three build the mosaic; the next three fill the Focus / Discover / Connect cards.",
+    "viewHomepage": "View homepage",
+    "addPhoto": "Add photo",
+    "editTitle": "Edit photo",
+    "editPhoto": "Edit photo",
+    "deletePhoto": "Delete photo",
+    "formHint": "Alt text is required. Captions are optional and replace the default card text when set.",
+    "fileLabel": "Photo",
+    "dropzoneTitle": "Drop a photo here",
+    "dropzoneHint": "JPEG, PNG, WebP or AVIF · up to 25 MB · resized to 1920px WebP on upload",
+    "browseFiles": "Choose a file",
+    "chooseDifferent": "Choose a different file",
+    "previewAlt": "Preview of the photo about to be uploaded",
+    "editFileNote": "The image itself cannot be replaced — delete this photo and upload a new one instead, so the caption and alt text never describe the wrong picture.",
+    "altLegend": "Alt text",
+    "altTextKm": "Alt text (Khmer)",
+    "altTextEn": "Alt text (English)",
+    "altPlaceholder": "e.g. Students reading at the study carrels",
+    "altHint": "Describe what is happening in the photo for readers using a screen reader. At least one language is required.",
+    "captionLegend": "Caption (optional)",
+    "captionKm": "Caption (Khmer)",
+    "captionEn": "Caption (English)",
+    "category": "Category",
+    "categories": {
+      "general": "General",
+      "ptec-library": "PTEC Library",
+      "o-bek-kaom": "O Bek Kaom",
+      "events": "Events"
+    },
+    "active": "Visible",
+    "inactive": "Hidden",
+    "noCaption": "No caption",
+    "dragToReorder": "Drag a card, or use the arrow buttons, to change the order. Changes save automatically.",
+    "dragHandle": "Drag to reorder photo",
+    "moveUp": "Move photo earlier",
+    "moveDown": "Move photo later",
+    "slotHero": "Mosaic {n}",
+    "slotNarrative": "Card {n}",
+    "slotUnused": "Not shown",
+    "countSummary": "{total} photos · {active} visible",
+    "savingOrder": "Saving the new order…",
+    "orderUpdated": "Order updated",
+    "uploadSuccess": "Photo uploaded",
+    "uploadAction": "Upload photo",
+    "changesSaved": "Changes saved",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "nowVisible": "Photo is now visible on the homepage",
+    "nowHidden": "Photo is now hidden",
+    "deleted": "Photo deleted",
+    "deleteTitle": "Delete this photo?",
+    "deleteConfirm": "Are you sure you want to delete this photo?",
+    "deleteHint": "The file is removed from storage as well. To take it off the homepage without losing it, hide it instead.",
+    "emptyTitle": "No photos yet",
+    "emptyBody": "Add at least three photos to show the gallery on the homepage. Until then the section stays hidden.",
+    "errorNoFile": "Choose a photo to upload.",
+    "errorTooLarge": "That file is larger than 25 MB.",
+    "errorAltRequired": "Add alt text in at least one language.",
+    "statTotal": "Total photos",
+    "statActive": "Visible",
+    "statHidden": "Hidden",
+    "statInHero": "In the mosaic"
   }
 }

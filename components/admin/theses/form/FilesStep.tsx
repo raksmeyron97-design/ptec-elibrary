@@ -66,10 +66,10 @@ export default function FilesStep({
     <div className="space-y-6">
       <div>
         <label className={LABEL_CLASS}>
-          {t("pdfThesis")} <span className="text-red-500">*</span>
+          {t("pdfThesis")} <span className="text-danger">*</span>
         </label>
         <PdfDropzone file={pdfFile} onChange={onPdfChange} existingLabel={existingPdfLabel} />
-        {fileError && <p className="mt-1.5 text-xs text-red-600">{fileError}</p>}
+        {fileError && <p className="mt-1.5 text-xs text-danger">{fileError}</p>}
       </div>
 
       <div>
@@ -113,7 +113,7 @@ export default function FilesStep({
                     <p className="truncate text-sm text-text-body">{f.filename}</p>
                     <p className="text-[11px] text-text-muted">{SUPPLEMENTARY_EXTENSION_LABELS[f.mimeType] ?? f.mimeType} · {formatSize(f.size)}</p>
                   </div>
-                  <button type="button" onClick={() => onRemoveExistingSupplementary(f.url)} disabled={disabled} aria-label={t("remove", { name: f.filename })} className="text-text-muted hover:text-red-500 disabled:opacity-40">
+                  <button type="button" onClick={() => onRemoveExistingSupplementary(f.url)} disabled={disabled} aria-label={t("remove", { name: f.filename })} className="text-text-muted hover:text-danger disabled:opacity-40">
                     <X className="h-4 w-4" />
                   </button>
                 </li>
@@ -122,8 +122,8 @@ export default function FilesStep({
             {supplementaryNew.map((item, i) => {
               const Icon = iconFor(item.file.type);
               return (
-                <li key={i} className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50/40 px-3 py-2">
-                  <Icon className="h-4 w-4 shrink-0 text-emerald-600" />
+                <li key={i} className="flex items-center gap-3 rounded-lg border border-success-line bg-success-soft/40 px-3 py-2">
+                  <Icon className="h-4 w-4 shrink-0 text-success" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm text-text-body">{item.file.name}</p>
                     <input
@@ -134,7 +134,7 @@ export default function FilesStep({
                       className="focus-field mt-1 h-7 w-full rounded border border-divider bg-transparent px-2 text-xs"
                     />
                   </div>
-                  <button type="button" onClick={() => onRemoveNewSupplementary(i)} disabled={disabled} aria-label={t("remove", { name: item.file.name })} className="text-text-muted hover:text-red-500 disabled:opacity-40">
+                  <button type="button" onClick={() => onRemoveNewSupplementary(i)} disabled={disabled} aria-label={t("remove", { name: item.file.name })} className="text-text-muted hover:text-danger disabled:opacity-40">
                     <X className="h-4 w-4" />
                   </button>
                 </li>
@@ -165,7 +165,7 @@ export default function FilesStep({
             onChange={(e) => handleFiles(e.target.files)}
           />
         </div>
-        {localError && <p className="mt-1.5 text-xs text-red-600">{localError}</p>}
+        {localError && <p className="mt-1.5 text-xs text-danger">{localError}</p>}
       </div>
     </div>
   );

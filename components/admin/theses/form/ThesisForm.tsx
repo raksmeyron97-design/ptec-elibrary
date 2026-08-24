@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { createThesis, updateThesis } from "@/app/actions/theses";
 import { autosaveThesisDraft, getThesisDraft, discardThesisDraft, type ThesisDraftKey, type ThesisDraftPayload } from "@/app/actions/thesis-drafts";
 import { slugify as fileSlugify, makeUid } from "@/lib/book-utils";
@@ -11,6 +11,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { validateThesisDraft, validateThesisPublish, firstValidationError, type ThesisValidationErrors } from "@/lib/admin/thesis-validation";
 import { validateClientFile, sanitizeFilename, type SupplementaryFile } from "@/lib/admin/thesis-file-validation";
 import { slugify, type ThesisStatus, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
+import { focusFirstInvalidAfterPaint } from "@/components/admin/kit/form";
 import ThesisStepNav, { THESIS_STEPS, type ThesisStepKey } from "./ThesisStepNav";
 import ThesisStickyActions from "./ThesisStickyActions";
 import BasicInfoStep from "./BasicInfoStep";
@@ -62,6 +63,9 @@ export type ThesisInitial = {
 
 const NEW_THESIS_DRAFT_KEY_STORAGE = "thesis-draft-key:new";
 
+/** Stable identity so `publishErrors` does not change reference every render. */
+const EMPTY_ERRORS: ThesisValidationErrors = {};
+
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -83,6 +87,7 @@ export default function ThesisForm({
   institution: string;
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const isEdit = !!initial;
 
   const t = useTranslations("adminThesisForm");
@@ -139,6 +144,8 @@ export default function ThesisForm({
   const [supplementaryExisting, setSupplementaryExisting] = useState<SupplementaryFile[]>(initial?.supplementaryFiles ?? []);
   const [supplementaryNew, setSupplementaryNew] = useState<PendingSupplementaryFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  /** Flipped by a refused publish, so the rules are reported from then on. */
+  const [publishAttempted, setPublishAttempted] = useState(false);
 
   // ── Review & Publish ─────────────────────────────────────────────────────
   const [status, setStatus] = useState<ThesisStatus>(initial?.status ?? "draft");
@@ -192,7 +199,7 @@ export default function ThesisForm({
   const effectiveFileUrl = pdfFile ? "pending" : (coverRemoved ? null : initial?.fileUrl ?? null);
   const effectiveCoverUrl = coverFile ? "pending" : (coverRemoved ? null : initial?.coverUrl ?? null);
 
-  const publishErrors: ThesisValidationErrors = useMemo(
+  const allPublishErrors: ThesisValidationErrors = useMemo(
     () => validateThesisPublish({
       title, slug, program: programFields.program || null, cohort: programFields.cohort || null,
       academicYear: programFields.academicYear || null, authorNames: authorNamesJoined || null,
@@ -202,14 +209,46 @@ export default function ThesisForm({
     [title, slug, programFields.program, programFields.cohort, programFields.academicYear, authorNamesJoined, advisorName, effectiveFileUrl, effectiveCoverUrl, abstract, keywords, referencesJoined, license],
   );
 
+  /**
+   * Publish rules are only *reported* once they actually apply.
+   *
+   * `validateThesisPublish` returns seven errors for an empty thesis, so
+   * rendering it unconditionally opened a brand-new Create form with red
+   * counts on four of the seven steps and "Title is required" under an input
+   * the author had not reached yet. A draft is legitimately incomplete —
+   * saving one has only ever needed a title. So the publish errors surface
+   * when the author has chosen to publish or schedule, when the thesis is
+   * already published (the rules are live for it), or after a publish attempt
+   * has been refused.
+   */
+  const publishRulesApply = status === "published" || status === "scheduled" || wasPublished;
+  const showPublishIssues = publishAttempted || publishRulesApply;
+  const publishErrors: ThesisValidationErrors = showPublishIssues ? allPublishErrors : EMPTY_ERRORS;
+
   const stepErrorCounts: Partial<Record<ThesisStepKey, number>> = {
     basic: [publishErrors.title, publishErrors.slug].filter(Boolean).length,
     classification: [publishErrors.program, publishErrors.cohort, publishErrors.academicYear].filter(Boolean).length,
     people: [publishErrors.authorNames].filter(Boolean).length,
     files: [publishErrors.fileUrl].filter(Boolean).length,
   };
+
+  /**
+   * "Complete" means the author has put something in the step — not merely
+   * that it raised no error. Judging it by error count alone put a green tick
+   * on Abstract, References and Review of an untouched form, next to red
+   * counts on the steps that happened to have required fields.
+   */
+  const stepFilled: Record<ThesisStepKey, boolean> = {
+    basic: Boolean(title.trim()),
+    classification: Boolean(programFields.program && programFields.cohort && programFields.academicYear),
+    people: Boolean(authorNamesJoined.trim()),
+    abstract: Boolean(abstract.trim()) || keywords.length > 0,
+    references: referencesJoined.trim().length > 0,
+    files: Boolean(effectiveFileUrl),
+    review: false,
+  };
   const completedSteps = new Set<ThesisStepKey>(
-    THESIS_STEPS.filter((s) => (stepErrorCounts[s.key] ?? 0) === 0).map((s) => s.key),
+    THESIS_STEPS.filter((s) => stepFilled[s.key] && (stepErrorCounts[s.key] ?? 0) === 0).map((s) => s.key),
   );
 
   // ── Autosave ─────────────────────────────────────────────────────────────
@@ -320,6 +359,7 @@ export default function ThesisForm({
   const fail = (msg: string, step: ThesisStepKey) => {
     setError(msg);
     setActiveStep(step);
+    focusFirstInvalidAfterPaint(() => formRef.current);
   };
 
   async function uploadOne(file: File, key: string, target: "public" | "private", extra?: Record<string, string>) {
@@ -363,14 +403,28 @@ export default function ThesisForm({
         ["title", "basic"], ["slug", "basic"], ["program", "classification"], ["cohort", "classification"],
         ["academicYear", "classification"], ["authorNames", "people"], ["fileUrl", "files"],
       ];
-      for (const [key, step] of stepForError) {
-        if (errors[key]) return fail(errors[key]!, step);
+      const failing = stepForError.filter(([key]) => errors[key]);
+      if (failing.length > 0) {
+        // Report the whole set, not just the first. Returning on error #1 made
+        // publishing an incomplete thesis a sequence of save → discover one
+        // problem → fix → save again, with no way to see how many were left.
+        // The step nav already carries per-step counts; this turns them on and
+        // takes the author to the first one.
+        setPublishAttempted(true);
+        const [firstKey, firstStep] = failing[0];
+        return fail(
+          failing.length === 1
+            ? errors[firstKey]!
+            : t("publishBlocked", { count: failing.length }),
+          firstStep,
+        );
       }
       if (effectiveStatus === "scheduled") {
         const when = new Date(scheduledAt);
         if (!scheduledAt || Number.isNaN(when.getTime()) || when.getTime() <= Date.now()) {
-          setScheduledAtError("Scheduled time must be a valid future date/time");
-          return fail("Scheduled time must be a valid future date/time", "review");
+          setPublishAttempted(true);
+          setScheduledAtError(t("scheduledAtInvalid"));
+          return fail(t("scheduledAtInvalid"), "review");
         }
       }
     }
@@ -466,15 +520,13 @@ export default function ThesisForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? t("editTitle") : t("newTitle")}</h1>
-
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
       {availableDraft && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
           <span>{t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}</span>
           <span className="flex gap-2">
-            <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">{t("restore")}</button>
-            <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">{t("discard")}</button>
+            <button type="button" onClick={restoreDraft} className="rounded-lg bg-warning px-3 py-1.5 text-xs font-bold text-white transition hover:opacity-90">{t("restore")}</button>
+            <button type="button" onClick={discardDraft} className="rounded-lg border border-warning-line px-3 py-1.5 text-xs font-semibold text-warning-text transition hover:bg-warning/10">{t("discard")}</button>
           </span>
         </div>
       )}
@@ -489,10 +541,23 @@ export default function ThesisForm({
         autosaveStatus={autosaveStatus}
       />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-sm font-medium text-danger-text"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      )}
       {busy && (
-        <div className="flex items-center gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
-          <Loader2 className="h-4 w-4 animate-spin" /> {uploadProgress}
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-3 rounded-xl border border-info-line bg-info-soft px-4 py-3 text-sm text-info-text"
+        >
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          {uploadProgress}
         </div>
       )}
 

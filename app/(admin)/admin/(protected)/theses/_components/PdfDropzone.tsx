@@ -38,7 +38,7 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
       aria-label={file ? t("replacePdf") : t("uploadPdf")}
       className={`relative flex flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed px-6 py-8 text-center cursor-pointer group transition-colors ${
         file
-          ? "border-emerald-400 bg-emerald-50/40"
+          ? "border-success-line bg-success-soft/40"
           : dragActive
           ? "border-brand bg-brand/5"
           : "border-divider bg-paper hover:border-brand"
@@ -68,7 +68,7 @@ export default function PdfDropzone({ file, onChange, existingLabel, actionLabel
           {t("recommendedSize")}
         </p>
         {file && file.size > RECOMMENDED_PDF_BYTES && (
-          <p className="mt-1 text-[11px] font-semibold text-amber-700">
+          <p className="mt-1 text-[11px] font-semibold text-warning-text">
             {t("largeWarning")}
           </p>
         )}

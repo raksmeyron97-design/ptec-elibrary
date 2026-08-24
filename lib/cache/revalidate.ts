@@ -91,6 +91,8 @@ export const TAGS = {
   siteConfig: "site-config",
   /** Active website-banner announcements (lib/announcements-public.ts). */
   announcementBanner: "announcement-banner",
+  /** Admin-managed homepage gallery photos (lib/homepage-photos.ts). */
+  homepagePhotos: "homepage-photos",
 } as const;
 
 /**
@@ -112,6 +114,17 @@ export function revalidateSiteConfig() {
 export function revalidateAnnouncementBanner() {
   revalidateTag(TAGS.announcementBanner, "max");
   revalidateLocalizedPath("/", "layout");
+}
+
+/**
+ * The homepage photo gallery changed (upload / reorder / show / hide / delete
+ * / caption edit). Unlike site settings this is NOT layout-wide: the gallery
+ * renders on the homepage only, so the tag plus both locale copies of "/" is
+ * the complete blast radius.
+ */
+export function revalidateHomepagePhotos() {
+  revalidateTag(TAGS.homepagePhotos, "max");
+  revalidatePublicPath("/");
 }
 
 /**

@@ -51,6 +51,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "learning_paths", label: "Learning Paths", description: "Curated teacher learning journeys" },
       { key: "announcements", label: "Announcements", description: "Create, edit, and schedule announcements (in-app + banner)" },
       { key: "announcements_push", label: "Announcement Push", description: "Send announcement push notifications to subscribed devices" },
+      { key: "homepage_photos", label: "Homepage Photos", description: "Photos shown in the homepage library-life gallery" },
     ],
   },
   {

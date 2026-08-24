@@ -156,7 +156,7 @@ export default function AddableSelect({
           {canAdd && (
             <div className="mt-1 border-t border-divider pt-1">
               {addError && (
-                <p className="px-3 py-1 text-xs text-red-600">{addError}</p>
+                <p className="px-3 py-1 text-xs text-danger">{addError}</p>
               )}
               {addHint && !addError && (
                 <p className="px-3 pb-1 text-xs text-text-muted">{addHint}</p>

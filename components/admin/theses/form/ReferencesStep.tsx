@@ -90,12 +90,12 @@ export default function ReferencesStep({
                 placeholder={t("refPlaceholder")}
               />
               {URL_OR_DOI_RE.test(ref) && (
-                <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                <span className="mt-1 inline-flex items-center gap-1 text-[11px] text-success">
                   <Link2 className="h-3 w-3" /> {t("linkDetected")}
                 </span>
               )}
             </div>
-            <button type="button" onClick={() => removeRef(i)} disabled={disabled} aria-label={t("remove")} className="mt-2 text-text-muted/50 hover:text-red-500 transition-colors disabled:opacity-40">
+            <button type="button" onClick={() => removeRef(i)} disabled={disabled} aria-label={t("remove")} className="mt-2 text-text-muted/50 hover:text-danger transition-colors disabled:opacity-40">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
