@@ -50,7 +50,7 @@ export default function ThesisSlugField({
   return (
     <div>
       <label htmlFor="thesis-slug-field" className="mb-1.5 block text-sm font-semibold text-text-body">
-        {t("label")} <span className="text-red-500">*</span>
+        {t("label")} <span className="text-danger">*</span>
       </label>
       <input
         id="thesis-slug-field"
@@ -67,8 +67,8 @@ export default function ThesisSlugField({
       <p id="thesis-slug-help" className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
         <span className="font-mono">{siteUrl}/theses/{slug || "…"}</span>
         {availability === "checking" && <span className="text-text-muted">{t("checking")}</span>}
-        {availability === "available" && <span className="font-semibold text-emerald-600">{t("available")}</span>}
-        {availability === "taken" && <span className="font-semibold text-red-600">{t("taken")}</span>}
+        {availability === "available" && <span className="font-semibold text-success">{t("available")}</span>}
+        {availability === "taken" && <span className="font-semibold text-danger">{t("taken")}</span>}
       </p>
     </div>
   );

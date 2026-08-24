@@ -26,6 +26,15 @@ import {
   type ThesisAcademicYear,
 } from "@/app/actions/theses";
 import { Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/admin/kit";
+import { INPUT_CLASS as KIT_INPUT_CLASS } from "@/components/admin/kit/form";
+
+/** What the one shared confirmation dialog is currently asking about. */
+type PendingDelete =
+  | { kind: "program"; id: string; name: string; faculties: number; cohorts: number }
+  | { kind: "faculty"; id: string; name: string }
+  | { kind: "cohort"; id: string; name: string; years: number }
+  | { kind: "year"; id: string; name: string };
 
 interface Props {
   initialPrograms: ThesisProgram[];
@@ -34,8 +43,13 @@ interface Props {
   initialYears: ThesisAcademicYear[];
 }
 
-const INPUT_CLASS =
-  "h-9 rounded-lg border border-divider bg-bg-surface px-3 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15";
+/**
+ * Compact variant of the shared admin control. These rows are dense inline
+ * editors inside a tree, so they run at h-9 rather than the kit's h-11 — the
+ * border, radius, focus treatment and placeholder colour all come from
+ * `INPUT_CLASS` so they cannot drift away from the rest of the panel.
+ */
+const COMPACT_INPUT = KIT_INPUT_CLASS.replace("h-11", "h-9").replace("px-4", "px-3");
 
 export default function ManageCohortsClient({ initialPrograms, initialFaculties, initialCohorts, initialYears }: Props) {
   const router = useRouter();
@@ -60,8 +74,12 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   const [editProgNameKm, setEditProgNameKm] = useState("");
   const [editProgLoading, setEditProgLoading] = useState(false);
 
-  const [deleteProgId, setDeleteProgId] = useState<string | null>(null);
-  const [deleteProgLoading, setDeleteProgLoading] = useState(false);
+  // Deletion state is shared. Four independent id+loading pairs each drove
+  // their own inline "Delete? yes/no", which named neither the record nor what
+  // else went with it — removing a program silently takes its faculties and
+  // cohorts too.
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // ── Faculty CRUD state ─────────────────────────────────────────────────────
   const [addingFacultyFor, setAddingFacultyFor] = useState<string | null>(null); // program code
@@ -77,8 +95,6 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   const [editFacNameKm, setEditFacNameKm] = useState("");
   const [editFacLoading, setEditFacLoading] = useState(false);
 
-  const [deleteFacId, setDeleteFacId] = useState<string | null>(null);
-  const [deleteFacLoading, setDeleteFacLoading] = useState(false);
 
   // ── Cohort CRUD state ─────────────────────────────────────────────────────
   const [addingCohortFor, setAddingCohortFor] = useState<string | null>(null); // program_code
@@ -91,8 +107,6 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   const [editCohortLabel, setEditCohortLabel] = useState("");
   const [editCohortLoading, setEditCohortLoading] = useState(false);
 
-  const [deleteCohortId, setDeleteCohortId] = useState<string | null>(null);
-  const [deleteCohortLoading, setDeleteCohortLoading] = useState(false);
 
   // Expand/collapse
   const [expandedProgCode, setExpandedProgCode] = useState<string | null>(null);
@@ -108,8 +122,6 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   const [editYearLabel, setEditYearLabel] = useState("");
   const [editYearLoading, setEditYearLoading] = useState(false);
 
-  const [deleteYearId, setDeleteYearId] = useState<string | null>(null);
-  const [deleteYearLoading, setDeleteYearLoading] = useState(false);
 
   const [globalError, setGlobalError] = useState("");
 
@@ -160,17 +172,17 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   }
 
   async function handleDeleteProgram(id: string) {
-    setDeleteProgLoading(true);
+    setDeleting(true);
     const prog = programs.find((p) => p.id === id);
     const { error } = await deleteThesisProgram(id);
-    setDeleteProgLoading(false);
-    if (error) { setGlobalError(error); return; }
+    setDeleting(false);
+    if (error) { setGlobalError(error); setPendingDelete(null); return; }
     setPrograms((prev) => prev.filter((p) => p.id !== id));
     if (prog) {
       setFaculties((prev) => prev.filter((f) => f.program_code !== prog.code));
       setCohorts((prev) => prev.filter((c) => c.program_code !== prog.code));
     }
-    setDeleteProgId(null);
+    setPendingDelete(null);
     refresh();
   }
 
@@ -216,12 +228,12 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   }
 
   async function handleDeleteFaculty(id: string) {
-    setDeleteFacLoading(true);
+    setDeleting(true);
     const { error } = await deleteThesisFaculty(id);
-    setDeleteFacLoading(false);
-    if (error) { setGlobalError(error); return; }
+    setDeleting(false);
+    if (error) { setGlobalError(error); setPendingDelete(null); return; }
     setFaculties((prev) => prev.filter((f) => f.id !== id));
-    setDeleteFacId(null);
+    setPendingDelete(null);
     refresh();
   }
 
@@ -264,13 +276,13 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   }
 
   async function handleDeleteCohort(id: string) {
-    setDeleteCohortLoading(true);
+    setDeleting(true);
     const { error } = await deleteThesisCohort(id);
-    setDeleteCohortLoading(false);
-    if (error) { setGlobalError(error); return; }
+    setDeleting(false);
+    if (error) { setGlobalError(error); setPendingDelete(null); return; }
     setCohorts((prev) => prev.filter((c) => c.id !== id));
     setYears((prev) => prev.filter((y) => y.cohort_id !== id));
-    setDeleteCohortId(null);
+    setPendingDelete(null);
     if (expandedCohortId === id) setExpandedCohortId(null);
     refresh();
   }
@@ -304,23 +316,87 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
   }
 
   async function handleDeleteYear(id: string) {
-    setDeleteYearLoading(true);
+    setDeleting(true);
     const { error } = await deleteThesisAcademicYear(id);
-    setDeleteYearLoading(false);
-    if (error) { setGlobalError(error); return; }
+    setDeleting(false);
+    if (error) { setGlobalError(error); setPendingDelete(null); return; }
     setYears((prev) => prev.filter((y) => y.id !== id));
-    setDeleteYearId(null);
+    setPendingDelete(null);
     refresh();
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  /**
+   * What each deletion actually costs, stated before it happens. The program
+   * and cohort actions cascade — the old inline "Delete?" prompt gave no way
+   * to know that.
+   */
+  function deletePrompt(target: PendingDelete): { title: string; description: string } {
+    switch (target.kind) {
+      case "program":
+        return {
+          title: t("confirm.programTitle", { name: target.name }),
+          description:
+            target.faculties + target.cohorts > 0
+              ? t("confirm.programCascade", {
+                  faculties: target.faculties,
+                  cohorts: target.cohorts,
+                })
+              : t("confirm.noDependents"),
+        };
+      case "cohort":
+        return {
+          title: t("confirm.cohortTitle", { name: target.name }),
+          description:
+            target.years > 0
+              ? t("confirm.cohortCascade", { years: target.years })
+              : t("confirm.noDependents"),
+        };
+      case "faculty":
+        return { title: t("confirm.facultyTitle", { name: target.name }), description: t("confirm.noDependents") };
+      case "year":
+        return { title: t("confirm.yearTitle", { name: target.name }), description: t("confirm.noDependents") };
+    }
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    switch (pendingDelete.kind) {
+      case "program": return void handleDeleteProgram(pendingDelete.id);
+      case "faculty": return void handleDeleteFaculty(pendingDelete.id);
+      case "cohort": return void handleDeleteCohort(pendingDelete.id);
+      case "year": return void handleDeleteYear(pendingDelete.id);
+    }
+  }
+
+  const prompt = pendingDelete ? deletePrompt(pendingDelete) : null;
+
   return (
     <div className="space-y-6">
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={prompt?.title ?? ""}
+        description={prompt?.description}
+        hint={t("confirm.irreversible")}
+        confirmLabel={t("confirm.delete")}
+        busyLabel={t("confirm.deleting")}
+        busy={deleting}
+        onCancel={() => !deleting && setPendingDelete(null)}
+        onConfirm={confirmDelete}
+      />
+
       {globalError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {globalError}
-          <button type="button" onClick={() => setGlobalError("")} className="ml-2 font-semibold underline">
+        <div
+          role="alert"
+          className="flex flex-wrap items-center gap-2 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-sm font-medium text-danger-text"
+        >
+          <span className="min-w-0 flex-1">{globalError}</span>
+          <button
+            type="button"
+            onClick={() => setGlobalError("")}
+            className="shrink-0 font-semibold underline underline-offset-2"
+          >
             {t("dismiss")}
           </button>
         </div>
@@ -358,7 +434,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 value={newProgCode}
                 onChange={(e) => setNewProgCode(e.target.value)}
                 placeholder={t("codePlaceholderProgram")}
-                className={`${INPUT_CLASS} w-40`}
+                className={`${COMPACT_INPUT} w-40`}
                 autoFocus
               />
               <input
@@ -366,14 +442,14 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 value={newProgNameEn}
                 onChange={(e) => setNewProgNameEn(e.target.value)}
                 placeholder={t("englishNamePlaceholderReq")}
-                className={`${INPUT_CLASS} w-52`}
+                className={`${COMPACT_INPUT} w-52`}
               />
               <input
                 type="text"
                 value={newProgNameKm}
                 onChange={(e) => setNewProgNameKm(e.target.value)}
                 placeholder={t("khmerNamePlaceholder")}
-                className={`${INPUT_CLASS} w-48`}
+                className={`${COMPACT_INPUT} w-48`}
               />
               <input
                 type="number"
@@ -381,7 +457,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 value={newProgDuration}
                 onChange={(e) => setNewProgDuration(e.target.value)}
                 placeholder={t("years")}
-                className={`${INPUT_CLASS} w-20`}
+                className={`${COMPACT_INPUT} w-20`}
               />
               <label className="inline-flex items-center gap-1.5 text-xs text-text-body h-9 cursor-pointer">
                 <input
@@ -409,7 +485,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            {progAddErr && <p className="mt-1.5 text-xs text-red-600">{progAddErr}</p>}
+            {progAddErr && <p role="alert" className="mt-1.5 text-xs font-medium text-danger">{progAddErr}</p>}
           </div>
         )}
 
@@ -453,7 +529,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           value={editProgNameEn}
                           onChange={(e) => setEditProgNameEn(e.target.value)}
                           placeholder={t("englishNamePlaceholder")}
-                          className={`${INPUT_CLASS} flex-1 max-w-xs`}
+                          className={`${COMPACT_INPUT} flex-1 max-w-xs`}
                           autoFocus
                         />
                         <input
@@ -461,7 +537,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           value={editProgNameKm}
                           onChange={(e) => setEditProgNameKm(e.target.value)}
                           placeholder={t("khmerNamePlaceholder")}
-                          className={`${INPUT_CLASS} flex-1 max-w-xs`}
+                          className={`${COMPACT_INPUT} flex-1 max-w-xs`}
                         />
                         <button
                           type="button"
@@ -511,35 +587,22 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                           <Pencil className="w-4 h-4" />
                         </button>
 
-                        {deleteProgId === prog.id ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-text-muted">{t("deleteProgramConfirm")}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteProgram(prog.id)}
-                              disabled={deleteProgLoading}
-                              className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                            >
-                              {deleteProgLoading ? "…" : t("yes")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteProgId(null)}
-                              className="rounded border border-divider px-2 py-0.5 text-xs font-semibold text-text-body hover:bg-paper"
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteProgId(prog.id)}
-                            className="text-text-muted hover:text-red-500 transition-colors"
-                            title={t("deleteProgram")}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: "program",
+                              id: prog.id,
+                              name: prog.name_en,
+                              faculties: faculties.filter((f) => f.program_code === prog.code).length,
+                              cohorts: cohorts.filter((c) => c.program_code === prog.code).length,
+                            })
+                          }
+                          className="rounded p-1 text-text-muted transition-colors hover:text-danger"
+                          aria-label={t("deleteNamed", { name: prog.name_en })}
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -575,7 +638,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                 value={newFacCode}
                                 onChange={(e) => setNewFacCode(e.target.value)}
                                 placeholder={t("codePlaceholder")}
-                                className={`${INPUT_CLASS} w-32`}
+                                className={`${COMPACT_INPUT} w-32`}
                                 autoFocus
                               />
                               <input
@@ -583,14 +646,14 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                 value={newFacNameEn}
                                 onChange={(e) => setNewFacNameEn(e.target.value)}
                                 placeholder={t("englishNamePlaceholderReq")}
-                                className={`${INPUT_CLASS} w-44`}
+                                className={`${COMPACT_INPUT} w-44`}
                               />
                               <input
                                 type="text"
                                 value={newFacNameKm}
                                 onChange={(e) => setNewFacNameKm(e.target.value)}
                                 placeholder={t("khmerNamePlaceholder")}
-                                className={`${INPUT_CLASS} w-40`}
+                                className={`${COMPACT_INPUT} w-40`}
                               />
                               <label className="inline-flex items-center gap-1.5 text-xs text-text-body h-9 cursor-pointer">
                                 <input
@@ -617,7 +680,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
-                              {facAddErr && <p className="w-full text-xs text-red-600">{facAddErr}</p>}
+                              {facAddErr && <p role="alert" className="w-full text-xs font-medium text-danger">{facAddErr}</p>}
                             </div>
                           )}
 
@@ -633,14 +696,14 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                         type="text"
                                         value={editFacNameEn}
                                         onChange={(e) => setEditFacNameEn(e.target.value)}
-                                        className={`${INPUT_CLASS} w-44`}
+                                        className={`${COMPACT_INPUT} w-44`}
                                         autoFocus
                                       />
                                       <input
                                         type="text"
                                         value={editFacNameKm}
                                         onChange={(e) => setEditFacNameKm(e.target.value)}
-                                        className={`${INPUT_CLASS} w-40`}
+                                        className={`${COMPACT_INPUT} w-40`}
                                       />
                                       <button
                                         type="button"
@@ -673,35 +736,16 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                         >
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
-                                        {deleteFacId === fac.id ? (
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-xs text-text-muted">{t("deleteConfirm")}</span>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeleteFaculty(fac.id)}
-                                              disabled={deleteFacLoading}
-                                              className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                                            >
-                                              {deleteFacLoading ? "…" : t("yes")}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => setDeleteFacId(null)}
-                                              className="rounded border border-divider px-2 py-0.5 text-xs font-semibold text-text-body hover:bg-paper"
-                                            >
-                                              No
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => setDeleteFacId(fac.id)}
-                                            className="text-text-muted hover:text-red-500 transition-colors"
-                                            title={t("delete")}
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPendingDelete({ kind: "faculty", id: fac.id, name: fac.name_en })
+                                          }
+                                          className="rounded p-1 text-text-muted transition-colors hover:text-danger"
+                                          aria-label={t("deleteNamed", { name: fac.name_en })}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                        </button>
                                       </div>
                                     </>
                                   )}
@@ -741,7 +785,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               value={newCohortNum}
                               onChange={(e) => setNewCohortNum(e.target.value)}
                               placeholder={t("cohortNumberPlaceholder")}
-                              className={`${INPUT_CLASS} w-36`}
+                              className={`${COMPACT_INPUT} w-36`}
                               autoFocus
                             />
                             <input
@@ -749,7 +793,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                               value={newCohortLabel}
                               onChange={(e) => setNewCohortLabel(e.target.value)}
                               placeholder={t("displayLabelOptional")}
-                              className={`${INPUT_CLASS} w-48`}
+                              className={`${COMPACT_INPUT} w-48`}
                             />
                             <button
                               type="button"
@@ -767,7 +811,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
-                            {cohortAddErr && <p className="w-full text-xs text-red-600">{cohortAddErr}</p>}
+                            {cohortAddErr && <p role="alert" className="w-full text-xs font-medium text-danger">{cohortAddErr}</p>}
                           </div>
                         )}
 
@@ -807,7 +851,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           value={editCohortLabel}
                                           onChange={(e) => setEditCohortLabel(e.target.value)}
                                           placeholder={t("displayLabelBlank")}
-                                          className={`${INPUT_CLASS} flex-1 max-w-xs`}
+                                          className={`${COMPACT_INPUT} flex-1 max-w-xs`}
                                           autoFocus
                                         />
                                         <button
@@ -855,35 +899,21 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           <Pencil className="w-3.5 h-3.5" />
                                         </button>
 
-                                        {deleteCohortId === cohort.id ? (
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-xs text-text-muted">{t("deleteCohortConfirm")}</span>
-                                            <button
-                                              type="button"
-                                              onClick={() => handleDeleteCohort(cohort.id)}
-                                              disabled={deleteCohortLoading}
-                                              className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                                            >
-                                              {deleteCohortLoading ? "…" : t("yes")}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => setDeleteCohortId(null)}
-                                              className="rounded border border-divider px-2 py-0.5 text-xs font-semibold text-text-body hover:bg-paper"
-                                            >
-                                              No
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => setDeleteCohortId(cohort.id)}
-                                            className="text-text-muted hover:text-red-500 transition-colors"
-                                            title={t("deleteCohort")}
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                          </button>
-                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPendingDelete({
+                                              kind: "cohort",
+                                              id: cohort.id,
+                                              name: displayLabel,
+                                              years: years.filter((y) => y.cohort_id === cohort.id).length,
+                                            })
+                                          }
+                                          className="rounded p-1 text-text-muted transition-colors hover:text-danger"
+                                          aria-label={t("deleteNamed", { name: displayLabel })}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                        </button>
                                       </div>
                                     )}
                                   </div>
@@ -916,7 +946,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                             value={newYearLabel}
                                             onChange={(e) => setNewYearLabel(e.target.value)}
                                             placeholder={t("yearPlaceholder")}
-                                            className={`${INPUT_CLASS} w-40`}
+                                            className={`${COMPACT_INPUT} w-40`}
                                             autoFocus
                                           />
                                           <button
@@ -935,7 +965,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                           >
                                             <X className="w-3.5 h-3.5" />
                                           </button>
-                                          {yearAddErr && <p className="w-full text-xs text-red-600">{yearAddErr}</p>}
+                                          {yearAddErr && <p role="alert" className="w-full text-xs font-medium text-danger">{yearAddErr}</p>}
                                         </div>
                                       )}
 
@@ -951,7 +981,7 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                                     type="text"
                                                     value={editYearLabel}
                                                     onChange={(e) => setEditYearLabel(e.target.value)}
-                                                    className={`${INPUT_CLASS} w-40`}
+                                                    className={`${COMPACT_INPUT} w-40`}
                                                     autoFocus
                                                   />
                                                   <button
@@ -982,35 +1012,16 @@ export default function ManageCohortsClient({ initialPrograms, initialFaculties,
                                                     >
                                                       <Pencil className="w-3.5 h-3.5" />
                                                     </button>
-                                                    {deleteYearId === yr.id ? (
-                                                      <div className="flex items-center gap-1">
-                                                        <span className="text-xs text-text-muted">{t("deleteConfirm")}</span>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => handleDeleteYear(yr.id)}
-                                                          disabled={deleteYearLoading}
-                                                          className="rounded bg-red-600 px-2 py-0.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
-                                                        >
-                                                          {deleteYearLoading ? "…" : t("yes")}
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => setDeleteYearId(null)}
-                                                          className="rounded border border-divider px-2 py-0.5 text-xs font-semibold text-text-body hover:bg-paper"
-                                                        >
-                                                          No
-                                                        </button>
-                                                      </div>
-                                                    ) : (
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => setDeleteYearId(yr.id)}
-                                                        className="text-text-muted hover:text-red-500 transition-colors"
-                                                        title={t("delete")}
-                                                      >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                      </button>
-                                                    )}
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setPendingDelete({ kind: "year", id: yr.id, name: yr.label })
+                                                      }
+                                                      className="rounded p-1 text-text-muted transition-colors hover:text-danger"
+                                                      aria-label={t("deleteNamed", { name: yr.label })}
+                                                    >
+                                                      <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    </button>
                                                   </div>
                                                 </>
                                               )}

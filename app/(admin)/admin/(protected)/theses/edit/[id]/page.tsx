@@ -2,13 +2,14 @@ import { getTranslations } from "next-intl/server";
 import { getThesisById } from "@/app/actions/theses";
 import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
 import DownloadAccessCard from "@/components/admin/theses/DownloadAccessCard";
-import { normalizeStatus } from "@/lib/admin/theses-shared";
+import { normalizeStatus, STATUS_LABELS, STATUS_TONES } from "@/lib/admin/theses-shared";
 import type { SupplementaryFile } from "@/lib/admin/thesis-file-validation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getThesisRank } from "@/lib/theses/download-permission";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
+import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,21 +75,55 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
   };
 
   const t = await getTranslations("adminThesisForm");
+  const isLive = report.is_published === true && (report.status == null || report.status === "published");
+
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/theses"
-          className="p-2 hover:bg-black/5 rounded-full transition-colors text-text-muted hover:text-text-heading"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <p className="text-text-muted text-sm">{t("editSubtitle")}</p>
-      </div>
+    <div className="mx-auto max-w-5xl">
+      {/*
+        The thesis being edited is named in the heading. Previously the page
+        opened with a bare "Update details for this thesis" and the Download
+        Access card, so an administrator arriving from a list of near-identical
+        titles had to scroll into the form to confirm they were on the right
+        record.
+      */}
+      <PageHeader
+        breadcrumb={
+          <Link
+            href="/admin/theses"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition hover:text-brand"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {t("backToTheses")}
+          </Link>
+        }
+        title={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="min-w-0">{report.title?.trim() || t("untitledThesis")}</span>
+            <StatusBadge tone={STATUS_TONES[normalizeStatus(report.status)]}>
+              {STATUS_LABELS[normalizeStatus(report.status)]}
+            </StatusBadge>
+          </span>
+        }
+        description={t("editSubtitle")}
+        actions={
+          isLive && report.slug ? (
+            <a
+              href={`/theses/${report.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-divider bg-bg-surface px-4 text-sm font-semibold text-text-body transition hover:border-brand/50 hover:text-brand"
+            >
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              {t("viewPublicPage")}
+              <span className="sr-only"> — {t("opensInNewTab")}</span>
+            </a>
+          ) : null
+        }
+      />
 
       <DownloadAccessCard
         thesisId={report.id}
-        isPublished={report.is_published === true && (report.status == null || report.status === "published")}
+        isPublished={isLive}
         downloadCount={report.download_count ?? 0}
         rank={rank}
         currentOverride={currentOverride}
@@ -97,7 +132,9 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         updatedByName={updatedByName}
       />
 
-      <ThesisForm initial={initial} institution={(await getOrgIdentity()).institutionName} />
+      <div className="mt-6">
+        <ThesisForm initial={initial} institution={(await getOrgIdentity()).institutionName} />
+      </div>
     </div>
   );
 }

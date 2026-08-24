@@ -47,7 +47,13 @@ import {
 } from "lucide-react";
 import PdfDropzone from "../../theses/_components/PdfDropzone";
 import CoverDropzone from "../../theses/_components/CoverDropzone";
-import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
+import { LABEL_CLASS } from "../../theses/_components/form-styles";
+import {
+  Field,
+  MONO_INPUT_CLASS,
+  TEXTAREA_CLASS,
+  focusFirstInvalidAfterPaint,
+} from "@/components/admin/kit/form";
 import TagInput from "@/components/ui/core/TagInput";
 import { ConfirmDialog } from "@/components/admin/kit";
 import { slugify, makeUid } from "@/lib/book-utils";
@@ -355,6 +361,25 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
       references: initial?.references ?? [],
     }),
   );
+  /**
+   * Publish-readiness problems are only shown against the fields themselves
+   * once the author has asked to publish (or opened Review). A draft is
+   * legitimately incomplete — painting a brand-new form red on first render
+   * would report a dozen "errors" the author has not had a chance to make yet.
+   * Saving a draft never turns this on; only Review and Publish do.
+   */
+  const [showFieldIssues, setShowFieldIssues] = useState(false);
+
+  /** review.field is the `pf-field-<id>` suffix, so it maps straight onto a field. */
+  const fieldIssues = useMemo(() => {
+    if (!showFieldIssues) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const item of review.errors) {
+      if (item.field && !map[item.field]) map[item.field] = item.message;
+    }
+    return map;
+  }, [showFieldIssues, review.errors]);
+
   const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scheduleReview = useCallback(() => {
     if (reviewTimerRef.current) clearTimeout(reviewTimerRef.current);
@@ -659,11 +684,20 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
       } else {
         setPublishError(result.error);
         if (result.review) setReview(result.review);
+        // The server refused. Show the problems against the fields that own
+        // them and take the author to the first one, rather than leaving a
+        // banner on the Review step and a form they have to re-audit by eye.
+        setShowFieldIssues(true);
+        const firstFieldItem = (result.review ?? review).errors.find((item) => item.field);
+        if (firstFieldItem) {
+          setActiveStep(firstFieldItem.step);
+          focusFirstInvalidAfterPaint(() => formRef.current);
+        }
       }
     } finally {
       setPublishing(false);
     }
-  }, [publicationId, publishing]);
+  }, [publicationId, publishing, review]);
 
   const [confirmUnpublish, setConfirmUnpublish] = useState(false);
 
@@ -728,6 +762,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
 
   const goToReview = useCallback(() => {
     setReview(computeReview());
+    setShowFieldIssues(true);
     setActiveStep("review");
   }, [computeReview]);
 
@@ -887,147 +922,201 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
           <div className="p-4 sm:p-6 flex-1">
             <div id="panel-basic" role="tabpanel" aria-labelledby="step-basic" hidden={activeStep !== "basic"} className="space-y-8">
               <div className="space-y-4" key={`basic-${epoch}`}>
-                <div>
-                  <label htmlFor="pf-field-title" className={LABEL_CLASS}>Title (EN)</label>
-                  <input
-                    id="pf-field-title"
-                    name="title"
-                    required
-                    value={title}
-                    onChange={(e) => {
-                      setTitle(e.target.value);
-                      if (!slugTouched) setSlug(slugify(e.target.value));
-                    }}
-                    className={INPUT_CLASS}
-                    placeholder="e.g. Digital pedagogy adoption in Cambodian teacher education"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="pf-field-title_km" className={LABEL_CLASS}>Title (KH, optional)</label>
+                <Field
+                  label="Title (EN)"
+                  required
+                  htmlFor="pf-field-title"
+                  error={fieldIssues.title}
+                >
+                  {(p) => (
                     <input
-                      id="pf-field-title_km"
-                      name="title_km"
-                      lang="km"
-                      defaultValue={defaults.title_km}
-                      className={INPUT_CLASS}
-                      placeholder="ចំណងជើងជាភាសាខ្មែរ"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-slug" className={LABEL_CLASS}>Slug (URL)</label>
-                    <input
-                      id="pf-field-slug"
-                      name="slug"
-                      value={slug}
+                      {...p}
+                      name="title"
+                      value={title}
                       onChange={(e) => {
-                        setSlugTouched(true);
-                        setSlug(e.target.value);
+                        setTitle(e.target.value);
+                        if (!slugTouched) setSlug(slugify(e.target.value));
                       }}
-                      className={`${INPUT_CLASS} font-mono text-xs`}
-                      placeholder="auto-generated-from-title"
+                      placeholder="e.g. Digital pedagogy adoption in Cambodian teacher education"
                     />
-                  </div>
+                  )}
+                </Field>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field
+                    label="Title (KH)"
+                    htmlFor="pf-field-title_km"
+                    error={fieldIssues.title_km}
+                    hint="Leave blank if the article has no Khmer title."
+                  >
+                    {(p) => (
+                      <input
+                        {...p}
+                        name="title_km"
+                        lang="km"
+                        defaultValue={defaults.title_km}
+                        placeholder="ចំណងជើងជាភាសាខ្មែរ"
+                      />
+                    )}
+                  </Field>
+                  <Field
+                    label="Slug (URL)"
+                    required
+                    htmlFor="pf-field-slug"
+                    error={fieldIssues.slug}
+                    hint="Follows the title until you edit it. Changing it after publishing breaks existing links."
+                  >
+                    {(p) => (
+                      <input
+                        {...p}
+                        className={
+                          fieldIssues.slug ? `${p.className} font-mono text-xs` : MONO_INPUT_CLASS
+                        }
+                        name="slug"
+                        value={slug}
+                        onChange={(e) => {
+                          setSlugTouched(true);
+                          setSlug(e.target.value);
+                        }}
+                        placeholder="auto-generated-from-title"
+                      />
+                    )}
+                  </Field>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="pf-field-article_type" className={LABEL_CLASS}>Article type</label>
-                    <select id="pf-field-article_type" name="article_type" defaultValue={defaults.article_type} className={INPUT_CLASS}>
-                      <option value="article">Article</option>
-                      <option value="review">Review</option>
-                      <option value="account">Account</option>
-                      <option value="editorial">Editorial</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-language" className={LABEL_CLASS}>Language</label>
-                    <select id="pf-field-language" name="language" defaultValue={defaults.language} className={INPUT_CLASS}>
-                      <option value="en">English</option>
-                      <option value="km">Khmer</option>
-                    </select>
-                  </div>
+                  <Field label="Article type" required htmlFor="pf-field-article_type">
+                    {(p) => (
+                      <select {...p} name="article_type" defaultValue={defaults.article_type}>
+                        <option value="article">Article</option>
+                        <option value="review">Review</option>
+                        <option value="account">Account</option>
+                        <option value="editorial">Editorial</option>
+                      </select>
+                    )}
+                  </Field>
+                  <Field label="Language" required htmlFor="pf-field-language">
+                    {(p) => (
+                      <select {...p} name="language" defaultValue={defaults.language}>
+                        <option value="en">English</option>
+                        <option value="km">Khmer</option>
+                      </select>
+                    )}
+                  </Field>
                 </div>
               </div>
 
               <hr className="border-divider" />
 
               <div key={`journal-${epoch}`}>
-                <h3 className="text-lg font-semibold text-text-heading mb-4">Journal & Issue</h3>
+                <h3 className="text-sm font-semibold text-text-heading">Journal &amp; issue</h3>
+                <p className="mb-4 mt-0.5 text-xs text-text-muted">
+                  Where the article appeared. Everything here is optional — a publication with
+                  no journal of record simply omits it from the citation.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label htmlFor="pf-field-journal_name" className={LABEL_CLASS}>Journal name (optional)</label>
-                    <input
-                      id="pf-field-journal_name"
-                      name="journal_name"
-                      defaultValue={defaults.journal_name}
-                      className={INPUT_CLASS}
-                      placeholder="e.g. PTEC Journal of Education"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-volume" className={LABEL_CLASS}>Volume</label>
-                    <input id="pf-field-volume" name="volume" defaultValue={defaults.volume} className={INPUT_CLASS} placeholder="12" />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-issue_no" className={LABEL_CLASS}>Issue</label>
-                    <input id="pf-field-issue_no" name="issue_no" defaultValue={defaults.issue_no} className={INPUT_CLASS} placeholder="3" />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-page_start" className={LABEL_CLASS}>First page</label>
-                    <input id="pf-field-page_start" name="page_start" defaultValue={defaults.page_start} className={INPUT_CLASS} placeholder="101" />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-page_end" className={LABEL_CLASS}>Last page</label>
-                    <input id="pf-field-page_end" name="page_end" defaultValue={defaults.page_end} className={INPUT_CLASS} placeholder="118" />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-article_no" className={LABEL_CLASS}>Article number (optional)</label>
-                    <input id="pf-field-article_no" name="article_no" defaultValue={defaults.article_no} className={INPUT_CLASS} placeholder="e0123" />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-publication_date" className={LABEL_CLASS}>Publication date</label>
-                    <input id="pf-field-publication_date" type="date" name="publication_date" defaultValue={defaults.publication_date} className={INPUT_CLASS} />
-                  </div>
+                  <Field
+                    label="Journal name"
+                    htmlFor="pf-field-journal_name"
+                    error={fieldIssues.journal_name}
+                    className="md:col-span-2"
+                  >
+                    {(p) => (
+                      <input
+                        {...p}
+                        name="journal_name"
+                        defaultValue={defaults.journal_name}
+                        placeholder="e.g. PTEC Journal of Education"
+                      />
+                    )}
+                  </Field>
+                  <Field label="Volume" htmlFor="pf-field-volume" error={fieldIssues.volume}>
+                    {(p) => (
+                      <input {...p} name="volume" defaultValue={defaults.volume} placeholder="12" inputMode="numeric" />
+                    )}
+                  </Field>
+                  <Field label="Issue" htmlFor="pf-field-issue_no" error={fieldIssues.issue_no}>
+                    {(p) => (
+                      <input {...p} name="issue_no" defaultValue={defaults.issue_no} placeholder="3" inputMode="numeric" />
+                    )}
+                  </Field>
+                  <Field label="First page" htmlFor="pf-field-page_start" error={fieldIssues.page_start}>
+                    {(p) => (
+                      <input {...p} name="page_start" defaultValue={defaults.page_start} placeholder="101" inputMode="numeric" />
+                    )}
+                  </Field>
+                  <Field label="Last page" htmlFor="pf-field-page_end" error={fieldIssues.page_end}>
+                    {(p) => (
+                      <input {...p} name="page_end" defaultValue={defaults.page_end} placeholder="118" inputMode="numeric" />
+                    )}
+                  </Field>
+                  <Field
+                    label="Article number"
+                    htmlFor="pf-field-article_no"
+                    error={fieldIssues.article_no}
+                    hint="Used instead of page numbers by some journals."
+                  >
+                    {(p) => (
+                      <input {...p} name="article_no" defaultValue={defaults.article_no} placeholder="e0123" />
+                    )}
+                  </Field>
+                  <Field
+                    label="Publication date"
+                    htmlFor="pf-field-publication_date"
+                    error={fieldIssues.publication_date}
+                  >
+                    {(p) => (
+                      <input {...p} type="date" name="publication_date" defaultValue={defaults.publication_date} />
+                    )}
+                  </Field>
                 </div>
               </div>
 
               <hr className="border-divider" />
 
               <div key={`rights-${epoch}`}>
-                <h3 className="text-lg font-semibold text-text-heading mb-4">Identifiers & Rights</h3>
+                <h3 className="text-sm font-semibold text-text-heading">Identifiers &amp; rights</h3>
+                <p className="mb-4 mt-0.5 text-xs text-text-muted">
+                  A license is required to publish, because harvesters (BASE, CORE, OpenAIRE)
+                  only take openly-licensed records.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="pf-field-doi" className={LABEL_CLASS}>DOI (optional)</label>
-                    <input
-                      id="pf-field-doi"
-                      name="doi"
-                      defaultValue={defaults.doi}
-                      className={`${INPUT_CLASS} font-mono text-xs`}
-                      placeholder="10.1234/abcd.2026.001"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="pf-field-license" className={LABEL_CLASS}>License (optional)</label>
-                    <input
-                      id="pf-field-license"
-                      name="license"
-                      defaultValue={defaults.license}
-                      className={INPUT_CLASS}
-                      placeholder="CC BY 4.0"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label htmlFor="pf-field-copyright" className={LABEL_CLASS}>Copyright (optional)</label>
-                    <input
-                      id="pf-field-copyright"
-                      name="copyright"
-                      defaultValue={defaults.copyright}
-                      className={INPUT_CLASS}
-                      placeholder="© 2026 The Authors"
-                    />
-                  </div>
+                  <Field
+                    label="DOI"
+                    htmlFor="pf-field-doi"
+                    error={fieldIssues.doi}
+                    hint="Just the identifier — no https://doi.org/ prefix."
+                  >
+                    {(p) => (
+                      <input
+                        {...p}
+                        className={fieldIssues.doi ? `${p.className} font-mono text-xs` : MONO_INPUT_CLASS}
+                        name="doi"
+                        defaultValue={defaults.doi}
+                        placeholder="10.1234/abcd.2026.001"
+                      />
+                    )}
+                  </Field>
+                  <Field
+                    label="License"
+                    htmlFor="pf-field-license"
+                    error={fieldIssues.license}
+                    hint="Required before publishing."
+                  >
+                    {(p) => (
+                      <input {...p} name="license" defaultValue={defaults.license} placeholder="CC BY 4.0" />
+                    )}
+                  </Field>
+                  <Field
+                    label="Copyright"
+                    htmlFor="pf-field-copyright"
+                    error={fieldIssues.copyright}
+                    className="md:col-span-2"
+                  >
+                    {(p) => (
+                      <input {...p} name="copyright" defaultValue={defaults.copyright} placeholder="© 2026 The Authors" />
+                    )}
+                  </Field>
                 </div>
               </div>
             </div>
@@ -1051,147 +1140,209 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
                 previewNonce={previewNonce}
               />
 
-              <div id="pf-field-keywords" tabIndex={-1} key={`keywords-${epoch}`} className="max-w-2xl scroll-mt-24">
-                <label className={LABEL_CLASS}>Keywords / Tags (ពាក្យគន្លឹះ)</label>
-                <TagInput
-                  name="keywords"
-                  defaultTags={splitList(defaults.keywords, 20)}
-                  placeholder="e.g. pedagogy, STEM, teacher education…"
-                  disabled={saving}
-                />
-                <p className="mt-1 text-[11px] text-text-muted">ចុច Enter ឬ , ដើម្បីបន្ថែម tag</p>
+              <div
+                id="pf-field-keywords"
+                tabIndex={-1}
+                key={`keywords-${epoch}`}
+                className="max-w-2xl scroll-mt-24"
+                data-invalid={fieldIssues.keywords ? "true" : undefined}
+              >
+                <Field
+                  label="Keywords / Tags (ពាក្យគន្លឹះ)"
+                  required
+                  htmlFor="pf-field-keywords-input"
+                  error={fieldIssues.keywords}
+                  hint="ចុច Enter ឬ , ដើម្បីបន្ថែម tag — max 20."
+                >
+                  <TagInput
+                    name="keywords"
+                    defaultTags={splitList(defaults.keywords, 20)}
+                    placeholder="e.g. pedagogy, STEM, teacher education…"
+                    disabled={saving}
+                  />
+                </Field>
               </div>
             </div>
 
             <div id="panel-details" role="tabpanel" aria-labelledby="step-details" hidden={activeStep !== "details"} className="space-y-6" key={`details-${epoch}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="pf-field-publisher" className={LABEL_CLASS}>Publisher (optional)</label>
-                  <input
-                    id="pf-field-publisher"
-                    name="publisher"
-                    defaultValue={defaults.publisher}
-                    className={INPUT_CLASS}
-                    placeholder="Publisher of record (leave blank if none)"
+                <Field label="Publisher" htmlFor="pf-field-publisher" error={fieldIssues.publisher}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      name="publisher"
+                      defaultValue={defaults.publisher}
+                      placeholder="Publisher of record (leave blank if none)"
+                    />
+                  )}
+                </Field>
+                <Field label="ISBN" htmlFor="pf-field-isbn" error={fieldIssues.isbn}>
+                  {(p) => (
+                    <input
+                      {...p}
+                      className={fieldIssues.isbn ? `${p.className} font-mono text-xs` : MONO_INPUT_CLASS}
+                      name="isbn"
+                      defaultValue={defaults.isbn}
+                      placeholder="978-9924-XX-XXX-X"
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <div
+                id="pf-field-subjects"
+                tabIndex={-1}
+                className="scroll-mt-24"
+                data-invalid={fieldIssues.subjects ? "true" : undefined}
+              >
+                <Field
+                  label="Subjects"
+                  htmlFor="pf-field-subjects-input"
+                  error={fieldIssues.subjects}
+                  hint="Broad subject areas shown as chips in the article Overview (max 12)."
+                >
+                  <TagInput
+                    name="subjects"
+                    defaultTags={splitList(defaults.subjects, 12)}
+                    placeholder="e.g. Education, Pedagogy, STEM…"
+                    disabled={saving}
                   />
-                </div>
-                <div>
-                  <label htmlFor="pf-field-isbn" className={LABEL_CLASS}>ISBN (optional)</label>
-                  <input
-                    id="pf-field-isbn"
-                    name="isbn"
-                    defaultValue={defaults.isbn}
-                    className={`${INPUT_CLASS} font-mono text-xs`}
-                    placeholder="978-9924-XX-XXX-X"
+                </Field>
+              </div>
+
+              <Field
+                label="Table of contents"
+                htmlFor="pf-field-table_of_contents"
+                hint={
+                  <>
+                    One entry per line, as <code>Section title :: page</code> — the page number
+                    may be left off.
+                  </>
+                }
+              >
+                {(p) => (
+                  <textarea
+                    {...p}
+                    className={`${TEXTAREA_CLASS} font-mono text-xs`}
+                    name="table_of_contents"
+                    rows={8}
+                    defaultValue={defaults.table_of_contents}
+                    placeholder={"Introduction :: 1\nLiterature review :: 4\nMethodology :: 9"}
                   />
-                </div>
-              </div>
+                )}
+              </Field>
 
-              <div id="pf-field-subjects" tabIndex={-1} className="scroll-mt-24">
-                <label className={LABEL_CLASS}>Subjects (optional)</label>
-                <TagInput
-                  name="subjects"
-                  defaultTags={splitList(defaults.subjects, 12)}
-                  placeholder="e.g. Education, Pedagogy, STEM…"
-                  disabled={saving}
-                />
-                <p className="mt-1 text-[11px] text-text-muted">
-                  Broad subject areas shown as chips in the article Overview (max 12).
-                </p>
-              </div>
+              <Field
+                label="Learning outcomes"
+                htmlFor="pf-field-learning_outcomes"
+                hint="One per line."
+              >
+                {(p) => (
+                  <textarea
+                    {...p}
+                    className={TEXTAREA_CLASS}
+                    name="learning_outcomes"
+                    rows={5}
+                    defaultValue={defaults.learning_outcomes}
+                    placeholder={"Explain the drivers of digital pedagogy adoption\nApply the framework to lesson planning"}
+                  />
+                )}
+              </Field>
 
-              <div>
-                <label htmlFor="pf-field-table_of_contents" className={LABEL_CLASS}>
-                  Table of contents — one entry per line (optional)
-                </label>
-                <textarea
-                  id="pf-field-table_of_contents"
-                  name="table_of_contents"
-                  rows={8}
-                  defaultValue={defaults.table_of_contents}
-                  className={`${INPUT_CLASS} h-auto py-3 font-mono text-xs leading-relaxed`}
-                  placeholder={"Introduction :: 1\nLiterature review :: 4\nMethodology :: 9"}
-                />
-                <p className="mt-1 text-[11px] text-text-muted">
-                  Format: <code>Section title :: page</code> — the page number is optional.
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="pf-field-learning_outcomes" className={LABEL_CLASS}>
-                  Learning outcomes — one per line (optional)
-                </label>
-                <textarea
-                  id="pf-field-learning_outcomes"
-                  name="learning_outcomes"
-                  rows={5}
-                  defaultValue={defaults.learning_outcomes}
-                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
-                  placeholder={"Explain the drivers of digital pedagogy adoption\nApply the framework to lesson planning"}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="pf-field-faqs" className={LABEL_CLASS}>FAQ (optional)</label>
-                <textarea
-                  id="pf-field-faqs"
-                  name="faqs"
-                  rows={8}
-                  defaultValue={defaults.faqs}
-                  className={`${INPUT_CLASS} h-auto py-3 leading-relaxed`}
-                  placeholder={"Q: Who is this article for?\nA: Teacher educators and student teachers.\n\nQ: Can I reuse the figures?\nA: Yes, under the CC BY 4.0 license with attribution."}
-                />
-                <p className="mt-1 text-[11px] text-text-muted">
-                  Start each question with <code>Q:</code> and each answer with <code>A:</code>. Shown as an accordion and emitted as FAQ structured data for search engines.
-                </p>
-              </div>
+              <Field
+                label="FAQ"
+                htmlFor="pf-field-faqs"
+                hint={
+                  <>
+                    Start each question with <code>Q:</code> and each answer with <code>A:</code>.
+                    Shown as an accordion and emitted as FAQ structured data for search engines.
+                  </>
+                }
+              >
+                {(p) => (
+                  <textarea
+                    {...p}
+                    className={TEXTAREA_CLASS}
+                    name="faqs"
+                    rows={8}
+                    defaultValue={defaults.faqs}
+                    placeholder={"Q: Who is this article for?\nA: Teacher educators and student teachers.\n\nQ: Can I reuse the figures?\nA: Yes, under the CC BY 4.0 license with attribution."}
+                  />
+                )}
+              </Field>
             </div>
 
             <div id="panel-files" role="tabpanel" aria-labelledby="step-files" hidden={activeStep !== "files"} className="space-y-6">
-              <div id="pf-field-pdf" tabIndex={-1} className="scroll-mt-24">
-                <label className={LABEL_CLASS}>Article PDF</label>
-                <PdfDropzone
-                  file={pdfFile}
-                  onChange={(file) => {
-                    setPdfFile(file);
-                    markDirty();
-                  }}
-                  existingLabel={isEdit && pdfUrl ? "A PDF is already attached — upload to replace it" : null}
-                />
-                <p className="mt-1 text-[11px] text-text-muted">
-                  You can save a draft without the PDF; publishing requires it.
-                </p>
+              <div
+                id="pf-field-pdf"
+                tabIndex={-1}
+                className="scroll-mt-24"
+                data-invalid={fieldIssues.pdf ? "true" : undefined}
+              >
+                <Field
+                  label="Article PDF"
+                  required
+                  htmlFor="pf-field-pdf-input"
+                  error={fieldIssues.pdf}
+                  hint="PDF only. You can save a draft without it; publishing requires it."
+                >
+                  <PdfDropzone
+                    file={pdfFile}
+                    onChange={(file) => {
+                      setPdfFile(file);
+                      markDirty();
+                    }}
+                    existingLabel={
+                      isEdit && pdfUrl ? "A PDF is already attached — upload to replace it" : null
+                    }
+                  />
+                </Field>
               </div>
 
-              <div id="pf-field-cover" tabIndex={-1} className="scroll-mt-24">
-                <label className={LABEL_CLASS}>Graphical abstract / cover image (optional)</label>
-                <CoverDropzone
-                  file={coverFile}
-                  previewUrl={coverPreview}
-                  existingUrl={initial?.cover_url}
-                  removed={coverRemoved}
-                  onChange={(file) => {
-                    setCoverRemoved(false);
-                    if (file) {
-                      setCoverFile(file);
-                      setCoverPreview(URL.createObjectURL(file));
-                    } else {
+              <div
+                id="pf-field-cover"
+                tabIndex={-1}
+                className="scroll-mt-24"
+                data-invalid={fieldIssues.cover ? "true" : undefined}
+              >
+                <Field
+                  label="Graphical abstract / cover image"
+                  htmlFor="pf-field-cover-input"
+                  error={fieldIssues.cover}
+                  hint="JPG, PNG, WebP or AVIF. Without one, listings show a placeholder."
+                >
+                  <CoverDropzone
+                    file={coverFile}
+                    previewUrl={coverPreview}
+                    existingUrl={initial?.cover_url}
+                    removed={coverRemoved}
+                    onChange={(file) => {
+                      setCoverRemoved(false);
+                      if (file) {
+                        setCoverFile(file);
+                        setCoverPreview(URL.createObjectURL(file));
+                      } else {
+                        setCoverFile(null);
+                        setCoverPreview(null);
+                      }
+                      markDirty();
+                    }}
+                    onRemove={() => {
                       setCoverFile(null);
                       setCoverPreview(null);
-                    }
-                    markDirty();
-                  }}
-                  onRemove={() => {
-                    setCoverFile(null);
-                    setCoverPreview(null);
-                    setCoverRemoved(true);
-                    markDirty();
-                  }}
-                />
+                      setCoverRemoved(true);
+                      markDirty();
+                    }}
+                  />
+                </Field>
               </div>
 
               <div>
-                <label className={LABEL_CLASS}>Supporting information (PDF, optional)</label>
+                <p className={LABEL_CLASS}>Supporting information</p>
+                <p className="-mt-1 mb-2 text-xs text-text-muted">
+                  Datasets, appendices or instruments, as PDFs. Each one needs a label readers
+                  will recognise.
+                </p>
 
                 {existingSiFiles.length + newSiFiles.length > 0 && (
                   <ul className="mb-3 space-y-2">

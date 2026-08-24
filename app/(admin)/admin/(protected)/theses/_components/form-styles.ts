@@ -1,12 +1,11 @@
 /**
  * Shared field-styling tokens, originally written for the thesis Create/Edit
- * forms. Also reused by the Publications and Learning Path admin forms —
- * check for other importers before changing these values.
+ * forms and also used by the Publications and Learning Path admin forms.
+ *
+ * The values now live in `components/admin/kit/form/styles.ts` alongside the
+ * `Field` component that consumes them; this module re-exports them so the
+ * existing importers keep working unchanged. Prefer importing from
+ * `@/components/admin/kit/form` in new code.
  */
 
-/** Text input / select base styling. */
-export const INPUT_CLASS =
-  "h-11 w-full rounded-lg border border-divider/60 bg-transparent px-4 text-sm outline-none transition-all placeholder:text-text-muted/50 focus:border-brand focus:ring-[3px] focus:ring-brand/15 hover:border-divider";
-
-/** Field label styling. */
-export const LABEL_CLASS = "block text-sm font-semibold text-text-body mb-1.5";
+export { INPUT_CLASS, LABEL_CLASS } from "@/components/admin/kit/form/styles";

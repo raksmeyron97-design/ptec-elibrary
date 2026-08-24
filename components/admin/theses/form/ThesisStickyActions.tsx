@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Eye } from "lucide-react";
+import { Eye, Loader2 } from "lucide-react";
 import ThesisAutosaveStatus, { type AutosaveStatus } from "./ThesisAutosaveStatus";
 import type { ThesisStatus } from "@/lib/admin/theses-shared";
 
@@ -72,8 +72,16 @@ export default function ThesisStickyActions({
         name="intent"
         value="submit"
         disabled={primaryDisabled}
+        /*
+          `title` explains the one non-obvious disabled case. A primary action
+          that is greyed out with no stated reason reads as a broken page.
+        */
+        title={status === "scheduled" && !scheduledAtSet ? t("scheduleNeedsDate") : undefined}
         className="ml-auto inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
+        {submitting && (
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+        )}
         {submitting ? t("saving") : primaryLabel}
       </button>
     </div>

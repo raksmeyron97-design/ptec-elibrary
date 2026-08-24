@@ -290,7 +290,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {/* Program */}
       <div>
         <label className="block text-sm font-semibold text-text-body mb-1.5">
-          {t("program")} <span className="text-red-500">*</span>
+          {t("program")} <span className="text-danger">*</span>
         </label>
         <AddableSelect
           value={program}
@@ -308,7 +308,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {hasFaculty && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            {t("faculty")} <span className="text-red-500">*</span>
+            {t("faculty")} <span className="text-danger">*</span>
           </label>
           <AddableSelect
             value={faculty}
@@ -327,7 +327,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       {hasSubject && (
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            {t("subject")} <span className="text-red-500">*</span>
+            {t("subject")} <span className="text-danger">*</span>
           </label>
           <select
             value={subject}
@@ -348,7 +348,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            {t("cohort")} <span className="text-red-500">*</span>
+            {t("cohort")} <span className="text-danger">*</span>
           </label>
           <AddableSelect
             value={cohortId}
@@ -364,7 +364,7 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
 
         <div>
           <label className="block text-sm font-semibold text-text-body mb-1.5">
-            {t("academicYear")} <span className="text-red-500">*</span>
+            {t("academicYear")} <span className="text-danger">*</span>
           </label>
           <AddableSelect
             value={academicYear}

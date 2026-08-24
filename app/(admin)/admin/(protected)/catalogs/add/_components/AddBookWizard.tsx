@@ -8,6 +8,7 @@ import Link from "next/link";
 import { addCatalogBook } from "../../actions";
 import CopiesPanel from "../../_components/CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
+import { Field, ERROR_CLASS } from "@/components/admin/kit/form";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
@@ -57,25 +58,10 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
     }
   }
 
-  const labelCls = "block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5";
-  const inputCls = `
-    w-full rounded-xl border border-divider bg-paper/50
-    px-3.5 py-2.5 text-sm text-text-heading placeholder:text-text-muted
-    outline-none transition
-    focus:border-brand/50 focus:bg-bg-surface focus:ring-2 focus:ring-focus-ring/15
-  `;
-
-  const fieldError = (name: string) =>
-    fieldErrors[name] ? (
-      <p id={`${name}-error`} role="alert" className="mt-1 text-[11px] font-semibold text-red-500">
-        {fieldErrors[name]}
-      </p>
-    ) : null;
-
-  const errProps = (name: string) =>
-    fieldErrors[name]
-      ? { "aria-invalid": true as const, "aria-describedby": `${name}-error`, className: inputCls + " !border-red-300" }
-      : { className: inputCls };
+  // Label, control, required marker and the error slot all come from the shared
+  // <Field>. This file used to carry its own `labelCls`/`inputCls`/`errProps`
+  // trio — byte-identical to the one in EditBookWizard — which is exactly the
+  // duplication the admin form kit exists to remove.
 
   if (step === 2 && book) {
     return (
@@ -149,79 +135,92 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
 
         {/* ── Core info ── */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label htmlFor="f-title" className={labelCls}>{t("titleReq")}</label>
-            <input id="f-title" name="title" required placeholder={t("titlePlaceholder")} {...errProps("title")}
-              onChange={(e) => setPreview((p) => ({ ...p, title: e.target.value }))} />
-            {fieldError("title")}
-          </div>
+          <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
+            {(p) => (
+              <input
+                {...p}
+                name="title"
+                placeholder={t("titlePlaceholder")}
+                onChange={(e) => setPreview((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            )}
+          </Field>
 
-          <div>
-            <label htmlFor="f-author" className={labelCls}>{t("authorReq")}</label>
-            <input id="f-author" name="author" required placeholder={t("authorPlaceholder")} {...errProps("author")}
-              onChange={(e) => setPreview((p) => ({ ...p, author: e.target.value }))} />
-            {fieldError("author")}
-          </div>
+          <Field label={t("authorReq")} required htmlFor="f-author" error={fieldErrors.author}>
+            {(p) => (
+              <input
+                {...p}
+                name="author"
+                placeholder={t("authorPlaceholder")}
+                onChange={(e) => setPreview((prev) => ({ ...prev, author: e.target.value }))}
+              />
+            )}
+          </Field>
 
-          <div>
-            <label htmlFor="f-language" className={labelCls}>{t("languageReq")}</label>
-            <select id="f-language" name="language" defaultValue="km" className={inputCls}>
-              <option value="km">{t("lang.km")}</option>
-              <option value="en">{t("lang.en")}</option>
-              <option value="fr">{t("lang.fr")}</option>
-              <option value="zh">{t("lang.zh")}</option>
-              <option value="other">{t("lang.other")}</option>
-            </select>
-          </div>
+          <Field label={t("languageReq")} required htmlFor="f-language">
+            {(p) => (
+              <select {...p} name="language" defaultValue="km">
+                <option value="km">{t("lang.km")}</option>
+                <option value="en">{t("lang.en")}</option>
+                <option value="fr">{t("lang.fr")}</option>
+                <option value="zh">{t("lang.zh")}</option>
+                <option value="other">{t("lang.other")}</option>
+              </select>
+            )}
+          </Field>
 
-          <div>
-            <label htmlFor="f-isbn" className={labelCls}>{t("isbn")}</label>
-            <input id="f-isbn" name="isbn" placeholder="978-0-000-00000-0" {...errProps("isbn")} />
-            {fieldError("isbn")}
-          </div>
+          <Field label={t("isbn")} htmlFor="f-isbn" error={fieldErrors.isbn}>
+            {(p) => <input {...p} name="isbn" placeholder="978-0-000-00000-0" />}
+          </Field>
 
-          <div>
-            <label htmlFor="f-publisher" className={labelCls}>{t("publisher")}</label>
-            <input id="f-publisher" name="publisher" placeholder={t("optional")} {...errProps("publisher")} />
-            {fieldError("publisher")}
-          </div>
+          <Field label={t("publisher")} htmlFor="f-publisher" error={fieldErrors.publisher}>
+            {(p) => <input {...p} name="publisher" placeholder={t("optional")} />}
+          </Field>
 
-          <div>
-            <label htmlFor="f-year" className={labelCls}>{t("year")}</label>
-            <input id="f-year" name="year" inputMode="numeric" placeholder={String(new Date().getFullYear())} {...errProps("year")} />
-            {fieldError("year")}
-          </div>
+          <Field label={t("year")} htmlFor="f-year" error={fieldErrors.year}>
+            {(p) => (
+              <input {...p} name="year" inputMode="numeric" placeholder={String(new Date().getFullYear())} />
+            )}
+          </Field>
 
-          <div>
-            <label htmlFor="f-category" className={labelCls}>{t("category")}</label>
-            <input id="f-category" name="category" list="cat-list" placeholder={t("categoryPlaceholder")} {...errProps("category")}
-              onChange={(e) => setPreview((p) => ({ ...p, category: e.target.value }))} />
-            <datalist id="cat-list">
-              {categories.map((c) => <option key={c} value={c} />)}
-            </datalist>
-            {fieldError("category")}
-          </div>
+          <Field label={t("category")} htmlFor="f-category" error={fieldErrors.category}>
+            {(p) => (
+              <>
+                <input
+                  {...p}
+                  name="category"
+                  list="cat-list"
+                  placeholder={t("categoryPlaceholder")}
+                  onChange={(e) => setPreview((prev) => ({ ...prev, category: e.target.value }))}
+                />
+                <datalist id="cat-list">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </>
+            )}
+          </Field>
 
-          <div>
-            <label htmlFor="f-department" className={labelCls}>{t("department")}</label>
-            <input id="f-department" name="department" placeholder={t("departmentPlaceholder")} {...errProps("department")} />
-            {fieldError("department")}
-          </div>
+          <Field label={t("department")} htmlFor="f-department" error={fieldErrors.department}>
+            {(p) => <input {...p} name="department" placeholder={t("departmentPlaceholder")} />}
+          </Field>
         </div>
 
         <hr className="border-divider" />
 
         {/* ── Library-specific ── */}
-        <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">{t("libraryDetails")}</h2>
+        <h2 className="text-sm font-semibold text-text-heading">{t("libraryDetails")}</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="f-shelf" className={labelCls}>{t("shelfLocation")}</label>
-            <input id="f-shelf" name="shelf_location" placeholder="A-3-12" {...errProps("shelf_location")} />
-            <p className="mt-1 text-[10px] text-text-muted">{t("shelfHint")}</p>
-            {fieldError("shelf_location")}
-          </div>
-
+          <Field
+            label={t("shelfLocation")}
+            htmlFor="f-shelf"
+            error={fieldErrors.shelf_location}
+            hint={t("shelfHint")}
+          >
+            {(p) => <input {...p} name="shelf_location" placeholder="A-3-12" />}
+          </Field>
         </div>
 
         {/* Book cover — upload to PTEC Storage / external URL / auto-generated */}
@@ -233,26 +232,27 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
           category={preview.category}
           disabled={loading}
         />
-        {fieldError("cover")}
-
-        <div>
-          <label htmlFor="f-description" className={labelCls}>{t("description")}</label>
-          <textarea id="f-description" name="description" rows={4} placeholder={t("descriptionPlaceholder")}
-            className={inputCls + " resize-none" + (fieldErrors.description ? " !border-red-300" : "")} />
-          {fieldError("description")}
-        </div>
-
-        <div>
-          <label className={labelCls}>{t("keywords")}</label>
-          <TagInput
-            name="keywords"
-            placeholder={t("keywordsPlaceholder")}
-            disabled={loading}
-          />
-          <p className="mt-1 text-[10px] text-text-muted">
-            {t("keywordsHint")}
+        {fieldErrors.cover && (
+          <p role="alert" className={ERROR_CLASS}>
+            {fieldErrors.cover}
           </p>
-        </div>
+        )}
+
+        <Field label={t("description")} htmlFor="f-description" error={fieldErrors.description}>
+          {(p) => (
+            <textarea
+              {...p}
+              className={`${p.className} h-auto resize-none py-3 leading-relaxed`}
+              name="description"
+              rows={4}
+              placeholder={t("descriptionPlaceholder")}
+            />
+          )}
+        </Field>
+
+        <Field label={t("keywords")} htmlFor="f-keywords" hint={t("keywordsHint")}>
+          <TagInput name="keywords" placeholder={t("keywordsPlaceholder")} disabled={loading} />
+        </Field>
 
         <SeoOverrideFields
           routePrefix="/catalogs"

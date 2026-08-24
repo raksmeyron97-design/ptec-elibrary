@@ -48,7 +48,7 @@ export default function PeopleStep({
       <div>
         <div className="mb-2 flex items-center justify-between">
           <label className={LABEL_CLASS.replace("mb-1.5", "")}>
-            {t("authors")} <span className="text-red-500">*</span>
+            {t("authors")} <span className="text-danger">*</span>
           </label>
           <span className="text-xs text-brand font-medium bg-brand/10 px-2 py-0.5 rounded-full">
             {t("authorCount", { count: authors.length })}
@@ -78,14 +78,14 @@ export default function PeopleStep({
                 onClick={() => removeAuthor(i)}
                 disabled={disabled}
                 aria-label={t("remove", { name: name || t("author") })}
-                className="shrink-0 text-text-muted/50 hover:text-red-500 disabled:opacity-40"
+                className="shrink-0 text-text-muted/50 hover:text-danger disabled:opacity-40"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}
         </div>
-        {authorsError && <p className="mt-1.5 text-xs text-red-600">{authorsError}</p>}
+        {authorsError && <p className="mt-1.5 text-xs text-danger">{authorsError}</p>}
 
         <button
           type="button"

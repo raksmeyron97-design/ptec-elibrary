@@ -83,11 +83,11 @@ export default function ThesisCitationPreview({
           aria-label={t("copy")}
           className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-bg-surface hover:text-brand"
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
         </button>
       </div>
       {(!authorNames.trim() || !publishedAt) && (
-        <p className="text-[11px] text-amber-600">{t("qualityHint")}</p>
+        <p className="text-[11px] text-warning">{t("qualityHint")}</p>
       )}
     </div>
   );

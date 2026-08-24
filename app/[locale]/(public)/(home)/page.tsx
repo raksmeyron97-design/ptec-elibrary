@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { getTrendingBooksCached, getTrendingTermsCached } from "@/lib/home-data";
 import { getPublishedPaths } from "@/app/actions/learning-paths";
+import { getHomepagePhotos } from "@/lib/homepage-photos";
 import HeroBookStack from "@/components/ui/home/HeroBookStack";
 import { getTranslations, getLocale } from "next-intl/server";
 // ── Feature components ───────────────────────────────────────────────────────
@@ -24,6 +25,8 @@ import CategoryGrid from "@/components/ui/home/CategoryGrid";
 import TrendingResearch from "@/components/ui/home/TrendingResearch";
 import LatestPostsSection from "@/components/ui/home/LatestPostsSection";
 import LibraryNow from "@/components/ui/home/LibraryNow";
+import HeroPhotoGallery, { HERO_PHOTO_COUNT } from "@/components/ui/home/HeroPhotoGallery";
+import NarrativeCards, { NARRATIVE_PHOTO_COUNT } from "@/components/ui/home/NarrativeCards";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import FaqSection from "@/components/ui/home/FaqSection";
 import SignupCta from "@/components/ui/home/SignupCta";
@@ -127,6 +130,17 @@ export default async function HomePage() {
     getPublishedPaths(),
     getSiteConfig(),
   ]);
+
+  // Admin-managed gallery (/admin/homepage-photos). One fetch, sliced by
+  // position: the first three photos build the mosaic, the next three the
+  // narrative cards. Both components return null when their slice is short,
+  // so an empty or partly-filled gallery simply removes its own section.
+  const galleryPhotos = await getHomepagePhotos(locale);
+  const mosaicPhotos = galleryPhotos.slice(0, HERO_PHOTO_COUNT);
+  const narrativePhotos = galleryPhotos.slice(
+    HERO_PHOTO_COUNT,
+    HERO_PHOTO_COUNT + NARRATIVE_PHOTO_COUNT,
+  );
 
   const heroBooks = trendingBooks.slice(0, 8).map((b) => ({
     slug: b.slug,
@@ -309,6 +323,15 @@ export default async function HomePage() {
           getCollectionStats(); nothing here is estimated. */}
       <TrustBar />
 
+      {/* ════════ LIFE AT THE LIBRARY — admin-managed photo mosaic ════════
+          Editorial, not decorative: it answers "is this place actually used?"
+          right after <TrustBar> quantifies the collection. Content comes from
+          /admin/homepage-photos, so a new term's photos need no deploy. The
+          section removes itself entirely when no photos are active. */}
+      <div className="cv-auto">
+        <HeroPhotoGallery photos={mosaicPhotos} totalCount={galleryPhotos.length} />
+      </div>
+
       {/* ════════ START WITH YOUR GOAL — task-first discovery, slot 2 ════════
           Wired to real learning paths (or curated routes); no data round-trip
           beyond the paths already fetched above, so it renders immediately. */}
@@ -387,6 +410,15 @@ export default async function HomePage() {
         <Suspense fallback={<LatestPostsSkeleton />}>
           <LatestPostsSection />
         </Suspense>
+      </div>
+
+      {/* ════════ FOCUS / DISCOVER / CONNECT — the gallery's second half ════
+          Placed here rather than directly under the mosaic on purpose: it
+          leads into <LibraryNow>, which is the physical-library bridge, so
+          the photos of the reading room introduce the section about visiting
+          it. Needs all three slots filled or it renders nothing. */}
+      <div className="cv-auto">
+        <NarrativeCards photos={narrativePhotos} />
       </div>
 
       {/* ════════ LIBRARY NOW — digital ↔ physical bridge (live open/closed) ════════ */}

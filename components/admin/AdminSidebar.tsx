@@ -37,6 +37,7 @@ import {
   Inbox,
   SlidersHorizontal,
   HardDrive,
+  Images,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
@@ -156,6 +157,7 @@ function getNavTree(
   if (perm(p, "publications",   "read")) content.push({ name: t("publications"),  href: "/admin/publications",  icon: ScrollText    });
   if (perm(p, "learning_paths", "read")) content.push({ name: t("learningPaths"), href: "/admin/paths",         icon: Route         });
   if (perm(p, "announcements",  "read")) content.push({ name: t("announcements"), href: "/admin/announcements", icon: Megaphone     });
+  if (perm(p, "homepage_photos", "read")) content.push({ name: t("homepagePhotos"), href: "/admin/homepage-photos", icon: Images    });
 
   const insights: NavChild[] = [];
   if (perm(p, "books", "read")) insights.push({ name: t("searchInsights"), href: "/admin/search-insights", icon: SearchX });

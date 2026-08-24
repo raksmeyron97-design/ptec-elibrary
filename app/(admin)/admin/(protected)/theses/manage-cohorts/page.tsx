@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
+import { PageHeader } from "@/components/admin/kit";
 import ManageCohortsClient from "./_components/ManageCohortsClient";
 
 export default async function ManageCohortsPage() {
@@ -18,23 +19,29 @@ export default async function ManageCohortsPage() {
   const years = yearRes.data ?? [];
 
   const t = await getTranslations("adminThesisForm.cohorts");
+  const tf = await getTranslations("adminThesisForm");
+
   return (
-    <div className="mx-auto max-w-[900px] space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/theses/create"
-          className="p-2 hover:bg-black/5 rounded-full transition-colors text-text-muted hover:text-text-heading"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-text-heading">{t("pageTitle")}</h1>
-          <p className="text-text-muted text-sm mt-1">
-            {t("pageDescription")}
-          </p>
-        </div>
-      </div>
+    <div className="mx-auto max-w-4xl">
+      {/*
+        Back goes to the theses list, not to the Create form. This page is
+        reached from Create, from Edit and from the section nav, so a hardcoded
+        return to Create sent two of those three journeys somewhere the user
+        had never been — and, from Edit, away from unsaved work.
+      */}
+      <PageHeader
+        breadcrumb={
+          <Link
+            href="/admin/theses"
+            className="inline-flex items-center gap-1.5 text-sm text-text-muted transition hover:text-brand"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {tf("backToTheses")}
+          </Link>
+        }
+        title={t("pageTitle")}
+        description={t("pageDescription")}
+      />
 
       <ManageCohortsClient
         initialPrograms={programs}

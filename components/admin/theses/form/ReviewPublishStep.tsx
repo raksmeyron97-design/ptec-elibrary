@@ -90,16 +90,16 @@ export default function ReviewPublishStep({
         </div>
 
         {warnings.length > 0 ? (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+          <div className="rounded-xl border border-warning-line bg-warning-soft p-4">
+            <p className="flex items-center gap-2 text-sm font-bold text-warning-text">
               <AlertTriangle className="h-4 w-4" /> {t("recommendations", { count: warnings.length })}
             </p>
-            <ul className="mt-2 space-y-1 text-sm text-amber-800">
+            <ul className="mt-2 space-y-1 text-sm text-warning-text">
               {warnings.map((w) => <li key={w.key}>• {w.label}</li>)}
             </ul>
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+          <div className="flex items-center gap-2 rounded-xl border border-success-line bg-success-soft p-4 text-sm font-semibold text-success-text">
             <CheckCircle2 className="h-4 w-4" /> Metadata looks complete.
           </div>
         )}
@@ -148,7 +148,7 @@ export default function ReviewPublishStep({
             {status === "scheduled" && (
               <div className="mt-2.5">
                 <label htmlFor="thesis-scheduledAt" className="mb-1.5 block text-xs font-semibold text-text-body">
-                  {tp("publishDate")} <span className="text-red-500">*</span>
+                  {tp("publishDate")} <span className="text-danger">*</span>
                 </label>
                 <input
                   id="thesis-scheduledAt"
@@ -161,7 +161,7 @@ export default function ReviewPublishStep({
                   aria-invalid={!!scheduledAtError}
                   className={fieldClass}
                 />
-                {scheduledAtError && <p className="mt-1 text-xs text-red-600">{scheduledAtError}</p>}
+                {scheduledAtError && <p className="mt-1 text-xs text-danger">{scheduledAtError}</p>}
               </div>
             )}
           </div>
