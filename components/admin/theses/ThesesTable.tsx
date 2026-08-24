@@ -2,46 +2,18 @@
 
 import { Fragment } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Eye, Download, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, Download, ExternalLink, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import ThesisActionsMenu from "@/components/admin/theses/ThesisActionsMenu";
+import ThesisDownloadControl from "@/components/admin/theses/ThesisDownloadControl";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
-import { STATUS_BADGE_STYLES, STATUS_LABELS, effectiveThesisDownloadPolicy, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
+import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
 import { thesisHref } from "@/lib/theses";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-
-/** At-a-glance effective download policy + Top-10 rank (server enforces). */
-function DownloadPolicyBadge({ thesis }: { thesis: ThesisListRow }) {
-  const t = useTranslations("adminTheses.downloadPolicy");
-  const eff = effectiveThesisDownloadPolicy(thesis);
-  const allowed = eff.policy === "allowed";
-  const sourceLabel =
-    eff.source === "allow" ? t("adminAllow") : eff.source === "block" ? t("adminBlock") : t("automatic");
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <span
-        title={`${allowed ? t("allowed") : t("blocked")} · ${sourceLabel}`}
-        className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-          allowed
-            ? "bg-emerald-100 text-emerald-700"
-            : "bg-red-100 text-red-700"
-        }`}
-      >
-        {allowed ? t("allowed") : t("blocked")}
-      </span>
-      {eff.isTopTen && thesis.rank != null && (
-        <span className="text-[10px] font-semibold text-amber-700">{t("topTen", { rank: thesis.rank })}</span>
-      )}
-      {eff.source !== "automatic" && (
-        <span className="text-[9px] uppercase tracking-wide text-text-muted">{sourceLabel}</span>
-      )}
-    </div>
-  );
 }
 
 function programLabel(programs: ThesisProgramOption[], code: string | null): string {
@@ -161,17 +133,25 @@ export default function ThesesTable({
                         </div>
                       )}
                     </td>
-                    <td className="max-w-[280px] px-4 py-3">
+                    {/*
+                      min-w, not max-w. This cell was capped at 280px, which is
+                      the *floor* a bilingual title needs, not its ceiling —
+                      Khmer titles clipped to two ellipsed lines at every
+                      viewport. Author and advisor sit at 14px/1.6 rather than
+                      12px: Khmer subscript stacks (្រ, ្ត) lose their legs at
+                      12px and collide between lines under a tight leading.
+                    */}
+                    <td className="min-w-[280px] px-4 py-3">
                       <button
                         type="button"
                         onClick={() => onToggleExpand(thesis.id)}
                         title={thesis.title}
-                        className="text-left font-semibold leading-[1.6] text-text-heading hover:text-brand line-clamp-2"
+                        className="focus-field rounded text-left text-sm font-semibold leading-[1.6] text-text-heading hover:text-brand line-clamp-2"
                       >
                         {thesis.title}
                       </button>
-                      <p className="mt-0.5 truncate text-xs text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
-                      <p className="truncate text-xs text-text-muted">{thesis.advisorName ? t("advisor", { name: thesis.advisorName }) : t("noAdvisor")}</p>
+                      <p className="mt-0.5 truncate text-sm leading-[1.6] text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
+                      <p className="truncate text-sm leading-[1.6] text-text-muted">{thesis.advisorName ? t("advisor", { name: thesis.advisorName }) : t("noAdvisor")}</p>
                     </td>
                     <td className="hidden px-4 py-3 text-text-body lg:table-cell">
                       <p className="font-medium text-text-heading">{programLabel(programs, thesis.program)}</p>
@@ -197,20 +177,57 @@ export default function ThesesTable({
                       </span>
                     </td>
                     <td className="hidden px-4 py-3 text-center md:table-cell">
-                      <DownloadPolicyBadge thesis={thesis} />
+                      <ThesisDownloadControl thesis={thesis} />
                     </td>
                     <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted xl:table-cell">{formatDate(thesis.updatedAt)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <ThesisActionsMenu
-                        thesis={thesis}
-                        busy={isBusy}
-                        onPublish={() => actions.onPublish(thesis.id)}
-                        onUnpublish={() => actions.onUnpublish(thesis.id)}
-                        onArchive={() => actions.onArchive(thesis.id)}
-                        onUnarchive={() => actions.onUnarchive(thesis.id)}
-                        onDuplicate={() => actions.onDuplicate(thesis.id)}
-                        onDelete={() => actions.onDeleteRequest(thesis.id, thesis.title)}
-                      />
+                    <td className="px-4 py-3">
+                      {/*
+                        Edit and View are the two actions a librarian performs
+                        dozens of times a session; behind the ⋮ each cost two
+                        clicks and a menu scan. They are inline icon buttons
+                        now, and removed from the menu so there is exactly one
+                        way to reach each.
+                      */}
+                      <div className="flex items-center justify-end gap-0.5">
+                        <Link
+                          href={`/admin/theses/edit/${thesis.id}`}
+                          aria-label={t("editNamed", { title: thesis.title })}
+                          title={t("editAction")}
+                          className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                        >
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                        </Link>
+                        {thesis.status === "published" ? (
+                          <Link
+                            href={thesisHref(thesis)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={t("viewNamed", { title: thesis.title })}
+                            title={t("viewAction")}
+                            className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        ) : (
+                          <span
+                            title={t("viewUnavailable")}
+                            className="flex h-8 w-8 cursor-not-allowed items-center justify-center rounded-lg text-text-muted/40"
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">{t("viewUnavailable")}</span>
+                          </span>
+                        )}
+                        <ThesisActionsMenu
+                          thesis={thesis}
+                          busy={isBusy}
+                          onPublish={() => actions.onPublish(thesis.id)}
+                          onUnpublish={() => actions.onUnpublish(thesis.id)}
+                          onArchive={() => actions.onArchive(thesis.id)}
+                          onUnarchive={() => actions.onUnarchive(thesis.id)}
+                          onDuplicate={() => actions.onDuplicate(thesis.id)}
+                          onDelete={() => actions.onDeleteRequest(thesis.id, thesis.title)}
+                        />
+                      </div>
                     </td>
                   </tr>
                   {isExpanded && (

@@ -2,11 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   MoreVertical,
-  Eye,
-  Pencil,
   Copy,
   Link2,
   Download,
@@ -87,7 +84,7 @@ export default function ThesisActionsMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t("menuFor", { title: thesis.title })}
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-text-heading disabled:opacity-50"
+        className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-text-heading disabled:opacity-50"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -99,18 +96,8 @@ export default function ThesisActionsMenu({
           aria-label={t("menuFor", { title: thesis.title })}
           className="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
         >
-          {isPublished ? (
-            <Link href={publicPath} target="_blank" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-              <Eye className="h-4 w-4 text-text-muted" /> {t("viewPublic")}
-            </Link>
-          ) : (
-            <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true">
-              <Eye className="h-4 w-4 text-text-muted" /> {t("notPublished")}
-            </span>
-          )}
-          <Link href={`/admin/theses/edit/${thesis.id}`} role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
-            <Pencil className="h-4 w-4 text-text-muted" /> {t("edit")}
-          </Link>
+          {/* Edit and View are inline icon buttons in the row (ThesesTable) —
+              duplicating them here gave the same action two homes. */}
           <button type="button" role="menuitem" className={itemClass} onClick={() => run(onDuplicate)}>
             <Copy className="h-4 w-4 text-text-muted" /> {t("duplicate")}
           </button>
@@ -163,7 +150,7 @@ export default function ThesisActionsMenu({
           <button
             type="button"
             role="menuitem"
-            className={`${itemClass} text-red-600 hover:bg-red-50`}
+            className={`${itemClass} text-danger hover:bg-danger-soft`}
             onClick={() => run(onDelete)}
           >
             <Trash2 className="h-4 w-4" /> {t("delete")}

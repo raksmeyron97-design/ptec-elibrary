@@ -4949,7 +4949,12 @@
       "noAdvisor": "No advisor listed",
       "cohort": "Cohort {cohort}",
       "noCohort": "No cohort",
-      "noYear": "No year"
+      "noYear": "No year",
+      "editAction": "Edit",
+      "editNamed": "Edit {title}",
+      "viewAction": "View on the public site",
+      "viewNamed": "View {title} on the public site",
+      "viewUnavailable": "Not published — nothing to view yet"
     },
     "downloadPolicy": {
       "adminAllow": "Admin allow",
@@ -4959,7 +4964,13 @@
       "blocked": "Blocked",
       "topTen": "Top 10 · #{rank}",
       "dlAllowed": "DL allowed",
-      "dlBlocked": "DL blocked"
+      "dlBlocked": "DL blocked",
+      "automaticHint": "Follow the Top-10 rule. Right now that resolves to: {policy}.",
+      "allowHint": "Always downloadable, even if it enters the Top 10.",
+      "blockHint": "Never downloadable, whatever the rank.",
+      "changeAria": "Change reader download permission for {title}",
+      "saved": "Download permission updated",
+      "saveFailed": "Could not update download permission."
     },
     "details": {
       "abstractPreview": "Abstract preview",
@@ -5025,7 +5036,9 @@
       "uploadCta": "Upload Thesis",
       "noResultsTitle": "No theses found",
       "noResultsBody": "Try changing your search or filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadFailed": "Could not load theses.",
+      "retry": "Retry"
     }
   },
   "adminPosts": {

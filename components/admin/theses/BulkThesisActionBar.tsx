@@ -36,7 +36,7 @@ export default function BulkThesisActionBar({
   if (count === 0) return null;
 
   const btn =
-    "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50";
+    "focus-field inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-text-body transition hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div
@@ -48,7 +48,7 @@ export default function BulkThesisActionBar({
         type="button"
         onClick={onClear}
         aria-label={t("clearSelection")}
-        className="flex h-7 w-7 items-center justify-center rounded-full text-brand hover:bg-brand/10"
+        className="focus-field flex h-7 w-7 items-center justify-center rounded-full text-brand hover:bg-brand/10"
       >
         <X className="h-3.5 w-3.5" />
       </button>
@@ -142,7 +142,7 @@ export default function BulkThesisActionBar({
           type="button"
           disabled={busy}
           onClick={onDelete}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="focus-field inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-danger transition hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Trash2 className="h-3.5 w-3.5" /> {t("delete")}
         </button>
