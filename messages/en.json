@@ -5378,13 +5378,18 @@
       "unpublish": "Unpublish",
       "preview": "Preview",
       "saving": "Saving…",
-      "scheduleNeedsDate": "Pick a publish date and time on the Review step first."
+      "scheduleNeedsDate": "Pick a publish date and time on the Review step first.",
+      "publishNeeds": "Still needed to publish: {fields}."
     },
     "autosave": {
       "unsaved": "Unsaved changes",
       "saving": "Saving…",
       "saved": "Saved",
-      "error": "Autosave failed"
+      "error": "Autosave failed",
+      "savedToast": "Draft saved",
+      "lastSavedJustNow": "Last saved just now",
+      "lastSavedMinutes": "Last saved {count, plural, one {# minute} other {# minutes}} ago",
+      "lastSavedHours": "Last saved {count, plural, one {# hour} other {# hours}} ago"
     },
     "steps": {
       "navAria": "Thesis form steps",
@@ -5397,7 +5402,14 @@
       "review": "Review",
       "srErrors": ", {count, plural, one {# error} other {# errors}}",
       "srComplete": ", complete",
-      "srCurrent": ", current step"
+      "srCurrent": ", current step",
+      "progressStep": "Step {current} of {total}",
+      "progressDone": "{done}/{total} done",
+      "progressAria": "Sections completed",
+      "srBlocking": ". Required, and publishing is waiting on it.",
+      "srTodo": ". Required, not filled in yet.",
+      "srOptional": ". Optional.",
+      "srBlockingCount": "{count} required sections are still blocking publication."
     },
     "basic": {
       "title": "Title",
@@ -5418,7 +5430,16 @@
         "km": "Khmer",
         "en": "English",
         "km_en": "Khmer + English"
-      }
+      },
+      "identityHeading": "Identity",
+      "identityIntro": "What this thesis is called, and where it will live.",
+      "classificationHeading": "Classification",
+      "classificationIntro": "How the record is typed and licensed.",
+      "titleHint": "The full title as it appears on the title page.",
+      "doiHint": "Optional. Leave blank if the thesis has not been assigned one.",
+      "licenseHint": "Defaults to All Rights Reserved.",
+      "copyLink": "Copy link",
+      "copied": "Copied"
     },
     "classification": {
       "intro": "Classification controls how this thesis appears on the public thesis page and summary index.",
@@ -5619,6 +5640,12 @@
         "delete": "Delete",
         "deleting": "Deleting…"
       }
+    },
+    "missing": {
+      "title": "Title",
+      "classification": "Program, cohort and year",
+      "author": "At least one author",
+      "file": "PDF file"
     }
   },
   "adminCatalog": {

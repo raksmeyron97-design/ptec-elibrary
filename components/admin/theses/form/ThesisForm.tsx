@@ -12,7 +12,8 @@ import { validateThesisDraft, validateThesisPublish, firstValidationError, type 
 import { validateClientFile, sanitizeFilename, type SupplementaryFile } from "@/lib/admin/thesis-file-validation";
 import { slugify, type ThesisStatus, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
 import { focusFirstInvalidAfterPaint } from "@/components/admin/kit/form";
-import ThesisStepNav, { THESIS_STEPS, type ThesisStepKey } from "./ThesisStepNav";
+import { useToast } from "@/components/admin/kit";
+import ThesisStepNav, { THESIS_STEPS, type ThesisStepKey, type ThesisStepState } from "./ThesisStepNav";
 import ThesisStickyActions from "./ThesisStickyActions";
 import BasicInfoStep from "./BasicInfoStep";
 import ClassificationStep from "./ClassificationStep";
@@ -91,6 +92,7 @@ export default function ThesisForm({
   const isEdit = !!initial;
 
   const t = useTranslations("adminThesisForm");
+  const toast = useToast();
   const [phase, setPhase] = useState<Phase>("idle");
   const [uploadProgress, setUploadProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +105,15 @@ export default function ThesisForm({
   const [doi, setDoi] = useState(initial?.doi ?? "");
   const [thesisType, setThesisType] = useState<ThesisType>((initial?.thesisType as ThesisType) ?? "thesis");
   const [language, setLanguage] = useState<ThesisLanguage>((initial?.language as ThesisLanguage) ?? "km");
-  const [license, setLicense] = useState(initial?.license ?? "");
+  /*
+    A new thesis defaults to All Rights Reserved, which is what PTEC actually
+    holds on a student thesis unless someone deliberately opens it up. The old
+    default was "" / "Not specified", so the common case required an action and
+    forgetting it published a work with no stated terms at all — the one
+    outcome a repository cannot afford. An existing row keeps whatever it has,
+    including a deliberate blank.
+  */
+  const [license, setLicense] = useState(initial?.license ?? (initial ? "" : "all_rights_reserved"));
 
   // ── Classification ──────────────────────────────────────────────────────
   const [programFields, setProgramFields] = useState<CascadeValues>({
@@ -225,11 +235,14 @@ export default function ThesisForm({
   const showPublishIssues = publishAttempted || publishRulesApply;
   const publishErrors: ThesisValidationErrors = showPublishIssues ? allPublishErrors : EMPTY_ERRORS;
 
-  const stepErrorCounts: Partial<Record<ThesisStepKey, number>> = {
-    basic: [publishErrors.title, publishErrors.slug].filter(Boolean).length,
-    classification: [publishErrors.program, publishErrors.cohort, publishErrors.academicYear].filter(Boolean).length,
-    people: [publishErrors.authorNames].filter(Boolean).length,
-    files: [publishErrors.fileUrl].filter(Boolean).length,
+  const stepHasError: Record<ThesisStepKey, boolean> = {
+    basic: Boolean(publishErrors.title || publishErrors.slug),
+    classification: Boolean(publishErrors.program || publishErrors.cohort || publishErrors.academicYear),
+    people: Boolean(publishErrors.authorNames),
+    abstract: false,
+    references: false,
+    files: Boolean(publishErrors.fileUrl),
+    review: false,
   };
 
   /**
@@ -247,8 +260,41 @@ export default function ThesisForm({
     files: Boolean(effectiveFileUrl),
     review: false,
   };
-  const completedSteps = new Set<ThesisStepKey>(
-    THESIS_STEPS.filter((s) => stepFilled[s.key] && (stepErrorCounts[s.key] ?? 0) === 0).map((s) => s.key),
+
+  /*
+    What the primary button is waiting for, named. These come from
+    `allPublishErrors` and not from `publishErrors`, because the button has to
+    know whether a publish would be refused *before* the author has attempted
+    one — the gated `publishErrors` is empty at that point by design.
+  */
+  const missingForPublish = useMemo(() => {
+    const labels: string[] = [];
+    if (allPublishErrors.title || allPublishErrors.slug) labels.push(t("missing.title"));
+    if (allPublishErrors.program || allPublishErrors.cohort || allPublishErrors.academicYear) labels.push(t("missing.classification"));
+    if (allPublishErrors.authorNames) labels.push(t("missing.author"));
+    if (allPublishErrors.fileUrl) labels.push(t("missing.file"));
+    return labels;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPublishErrors]);
+
+  /** Steps whose fields validateThesisPublish() can block a publish on. */
+  const REQUIRED_STEPS: ThesisStepKey[] = ["basic", "classification", "people", "files"];
+
+  /*
+    Four badge states rather than a red error count — see STEP_STATE_NOTE in
+    ThesisStepNav. `todo` vs `attention` is the whole point: an empty required
+    step is a task, and only becomes a *problem* once the author has asked to
+    publish (or the thesis is already live, so the rules apply to it now).
+  */
+  const stepStates = THESIS_STEPS.reduce(
+    (acc, step) => {
+      const required = REQUIRED_STEPS.includes(step.key);
+      if (stepFilled[step.key] && !stepHasError[step.key]) acc[step.key] = "complete";
+      else if (!required) acc[step.key] = "optional";
+      else acc[step.key] = showPublishIssues ? "attention" : "todo";
+      return acc;
+    },
+    {} as Record<ThesisStepKey, ThesisStepState>,
   );
 
   // ── Autosave ─────────────────────────────────────────────────────────────
@@ -257,6 +303,8 @@ export default function ThesisForm({
   // published thesis's public content.
   const [draftKey, setDraftKey] = useState<string>("");
   const [autosaveStatus, setAutosaveStatus] = useState<AutosaveStatus>("idle");
+  /** Wall-clock of the last successful draft save, for the "Last saved …" line. */
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [availableDraft, setAvailableDraft] = useState<{ payload: ThesisDraftPayload; updatedAt: string } | null>(null);
   const didMountAutosaveRef = useRef(false);
   const dirtyRef = useRef(false);
@@ -289,13 +337,24 @@ export default function ThesisForm({
     };
   });
 
-  const performSave = useCallback(async () => {
+  const performSave = useCallback(async (opts?: { announce?: boolean }) => {
     if (!draftTarget) return;
     setAutosaveStatus("saving");
     const res = await autosaveThesisDraft(draftTarget, payloadRef.current);
     dirtyRef.current = false;
     setAutosaveStatus(res.success ? "saved" : "error");
-    if (res.success) setTimeout(() => setAutosaveStatus((s) => (s === "saved" ? "idle" : s)), 2500);
+    if (res.success) {
+      setLastSavedAt(Date.now());
+      /*
+        Only the periodic save announces itself. The debounced save fires two
+        seconds after any keystroke, so toasting that would stack a notification
+        on the author every few seconds while they type — the inline status pill
+        is the right channel for something that frequent. The 30s tick is rare
+        enough to be reassuring rather than noise.
+      */
+      if (opts?.announce) toast.success(t("autosave.savedToast"));
+      setTimeout(() => setAutosaveStatus((s) => (s === "saved" ? "idle" : s)), 2500);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftTargetKey]);
 
@@ -305,13 +364,15 @@ export default function ThesisForm({
     dirtyRef.current = true;
     setAutosaveStatus("unsaved");
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(performSave, 2000);
+    debounceTimerRef.current = setTimeout(() => performSave(), 2000);
     return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, slug, doi, thesisType, language, license, programFields, authors, advisorName, coAdvisorName, publishedAt, defenseDate, submittedDate, abstract, keywords, references, coverAltText, status, scheduledAt, seoTitle, seoDescription, ogImage, draftTargetKey]);
 
   useEffect(() => {
-    const interval = setInterval(() => { if (dirtyRef.current) performSave(); }, 25_000);
+    const interval = setInterval(() => {
+      if (dirtyRef.current) performSave({ announce: true });
+    }, 30_000);
     return () => clearInterval(interval);
   }, [performSave]);
 
@@ -382,8 +443,17 @@ export default function ThesisForm({
     setScheduledAtError(null);
 
     const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
-    const intent = submitter?.value === "draft" ? "draft" : "submit";
-    const effectiveStatus: ThesisStatus = intent === "draft" ? "draft" : status;
+    const raw = submitter?.value;
+    const intent = raw === "draft" ? "draft" : raw === "publish" ? "publish" : "submit";
+    const effectiveStatus: ThesisStatus =
+      intent === "draft" ? "draft" : intent === "publish" ? "published" : status;
+    /*
+      Keep the Review step's selector honest. Publishing via the primary button
+      no longer goes through that radio group, so without this an author who
+      published from the top of the form would find the Review step still
+      claiming "Draft" — the same row described two ways on one screen.
+    */
+    if (intent === "publish" && status !== "published") setStatus("published");
 
     const finalSlug = slugify(slug || title);
     const finalAuthorNames = authors.map((a) => a.trim()).filter(Boolean).join(", ");
@@ -520,7 +590,13 @@ export default function ThesisForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
+    /*
+      pb-24 on small screens clears the fixed mobile action footer below. Without
+      it the footer sat on top of the last field of every step — including the
+      Review step's publish controls, which is the one place you cannot afford to
+      cover.
+    */
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5 pb-24 md:pb-0">
       {availableDraft && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
           <span>{t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}</span>
@@ -539,6 +615,8 @@ export default function ThesisForm({
         submitting={busy}
         onPreview={() => setPreviewOpen(true)}
         autosaveStatus={autosaveStatus}
+        lastSavedAt={lastSavedAt}
+        missingForPublish={missingForPublish}
       />
 
       {error && (
@@ -565,7 +643,7 @@ export default function ThesisForm({
           open an absolutely-positioned dropdown that must be able to extend past
           this card's edge — clipping it would make lower options unreachable. */}
       <div className="flex flex-col rounded-2xl border border-divider bg-bg-surface shadow-sm md:flex-row">
-        <ThesisStepNav active={activeStep} completed={completedSteps} errorCounts={stepErrorCounts} onSelect={setActiveStep} />
+        <ThesisStepNav active={activeStep} states={stepStates} onSelect={setActiveStep} />
 
         <div id={`thesis-panel-${activeStep}`} role="tabpanel" aria-labelledby={`thesis-step-${activeStep}`} className="min-w-0 flex-1 p-6 md:p-8">
           {activeStep === "basic" && (
@@ -580,6 +658,7 @@ export default function ThesisForm({
               siteUrl={SITE_URL}
               disabled={busy}
               fieldErrors={{ title: publishErrors.title, slug: publishErrors.slug }}
+              submitAttempted={publishAttempted}
             />
           )}
           {activeStep === "classification" && (
@@ -661,6 +740,23 @@ export default function ThesisForm({
           onClose={() => setPreviewOpen(false)}
         />
       )}
+
+      {/*
+        Mobile action footer. The seven-step form is long, and on a phone the
+        top bar scrolls away within the first field — so saving meant scrolling
+        back to the top of whatever step you were on, past everything you had
+        just filled in. Same component, same intents, pinned to the viewport.
+      */}
+      <ThesisStickyActions
+        variant="footer"
+        isEdit={isEdit}
+        status={status}
+        scheduledAtSet={!!scheduledAt}
+        wasPublished={wasPublished}
+        submitting={busy}
+        onPreview={() => setPreviewOpen(true)}
+        missingForPublish={missingForPublish}
+      />
     </form>
   );
 }
