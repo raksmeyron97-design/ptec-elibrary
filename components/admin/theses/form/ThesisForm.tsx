@@ -13,7 +13,8 @@ import { validateClientFile, sanitizeFilename, type SupplementaryFile } from "@/
 import { slugify, type ThesisStatus, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
 import { focusFirstInvalidAfterPaint } from "@/components/admin/kit/form";
 import { useToast } from "@/components/admin/kit";
-import ThesisStepNav, { THESIS_STEPS, type ThesisStepKey, type ThesisStepState } from "./ThesisStepNav";
+import { THESIS_STEPS, type ThesisStepKey, type ThesisStepState } from "./thesis-steps";
+import { FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
 import ThesisStickyActions from "./ThesisStickyActions";
 import BasicInfoStep from "./BasicInfoStep";
 import ClassificationStep from "./ClassificationStep";
@@ -282,10 +283,23 @@ export default function ThesisForm({
 
   /*
     Four badge states rather than a red error count — see STEP_STATE_NOTE in
-    ThesisStepNav. `todo` vs `attention` is the whole point: an empty required
+    thesis-steps.ts. `todo` vs `attention` is the whole point: an empty required
     step is a task, and only becomes a *problem* once the author has asked to
     publish (or the thesis is already live, so the rules apply to it now).
   */
+  /*
+    The kit's FormTabs speaks complete/error/todo/optional; the form computes
+    complete/attention/todo/optional. `attention` and `error` are the same
+    claim ("publishing is blocked on this"), so they map 1:1 — the two names
+    exist because the form's own vocabulary predates the shared kit.
+  */
+  const STATE_TO_TAB: Record<ThesisStepState, FormTabState> = {
+    complete: "complete",
+    attention: "error",
+    todo: "todo",
+    optional: "optional",
+  };
+
   const stepStates = THESIS_STEPS.reduce(
     (acc, step) => {
       const required = REQUIRED_STEPS.includes(step.key);
@@ -590,13 +604,10 @@ export default function ThesisForm({
   }
 
   return (
-    /*
-      pb-24 on small screens clears the fixed mobile action footer below. Without
-      it the footer sat on top of the last field of every step — including the
-      Review step's publish controls, which is the one place you cannot afford to
-      cover.
-    */
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5 pb-24 md:pb-0">
+    <form ref={formRef} onSubmit={handleSubmit}>
+      {/* Notices sit above the tabs and inside the card: they are about the
+          whole form, not the section that happens to be open. */}
+      <div className="empty:hidden space-y-3 px-5 pt-5 sm:px-8">
       {availableDraft && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-sm text-warning-text">
           <span>{t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}</span>
@@ -607,17 +618,6 @@ export default function ThesisForm({
         </div>
       )}
 
-      <ThesisStickyActions
-        isEdit={isEdit}
-        status={status}
-        scheduledAtSet={!!scheduledAt}
-        wasPublished={wasPublished}
-        submitting={busy}
-        onPreview={() => setPreviewOpen(true)}
-        autosaveStatus={autosaveStatus}
-        lastSavedAt={lastSavedAt}
-        missingForPublish={missingForPublish}
-      />
 
       {error && (
         <div
@@ -638,14 +638,39 @@ export default function ThesisForm({
           {uploadProgress}
         </div>
       )}
+      </div>
 
-      {/* No overflow-hidden here: several fields inside the panels (SearchableSelect)
-          open an absolutely-positioned dropdown that must be able to extend past
-          this card's edge — clipping it would make lower options unreachable. */}
-      <div className="flex flex-col rounded-2xl border border-divider bg-bg-surface shadow-sm md:flex-row">
-        <ThesisStepNav active={activeStep} states={stepStates} onSelect={setActiveStep} />
+      {/*
+        Top tabs, not the left rail this form used to carry. The rail spent
+        224px of a 900px card — a quarter of the measure — on seven words, and
+        on mobile it stacked *above* the fields, so the first thing a phone
+        showed was a list of section names and the second was a scroll.
 
-        <div id={`thesis-panel-${activeStep}`} role="tabpanel" aria-labelledby={`thesis-step-${activeStep}`} className="min-w-0 flex-1 p-6 md:p-8">
+        No overflow-hidden here: several fields inside the panels
+        (SearchableSelect) open an absolutely-positioned dropdown that must be
+        able to extend past this card's edge — clipping it would make lower
+        options unreachable.
+      */}
+      <div className="flex flex-col">
+        <FormTabs
+          idPrefix="thesis"
+          ariaLabel={t("steps.navAria")}
+          active={activeStep}
+          onChange={setActiveStep}
+          tabs={THESIS_STEPS.map<FormTab<ThesisStepKey>>((step) => ({
+            key: step.key,
+            label: t(`steps.${step.key}`),
+            icon: step.icon,
+            state: STATE_TO_TAB[stepStates[step.key]],
+          }))}
+        />
+
+        <div
+          id={`thesis-panel-${activeStep}`}
+          role="tabpanel"
+          aria-labelledby={`thesis-tab-${activeStep}`}
+          className="min-w-0 flex-1 px-5 py-6 sm:px-8"
+        >
           {activeStep === "basic" && (
             <BasicInfoStep
               title={title} onTitleChange={setTitle}
@@ -723,6 +748,19 @@ export default function ThesisForm({
             />
           )}
         </div>
+
+        <ThesisStickyActions
+          isEdit={isEdit}
+          status={status}
+          scheduledAtSet={!!scheduledAt}
+          wasPublished={wasPublished}
+          submitting={busy}
+          onPreview={() => setPreviewOpen(true)}
+          autosaveStatus={autosaveStatus}
+          lastSavedAt={lastSavedAt}
+          activeStep={activeStep}
+          missingForPublish={missingForPublish}
+        />
       </div>
 
       {previewOpen && (
@@ -741,22 +779,6 @@ export default function ThesisForm({
         />
       )}
 
-      {/*
-        Mobile action footer. The seven-step form is long, and on a phone the
-        top bar scrolls away within the first field — so saving meant scrolling
-        back to the top of whatever step you were on, past everything you had
-        just filled in. Same component, same intents, pinned to the viewport.
-      */}
-      <ThesisStickyActions
-        variant="footer"
-        isEdit={isEdit}
-        status={status}
-        scheduledAtSet={!!scheduledAt}
-        wasPublished={wasPublished}
-        submitting={busy}
-        onPreview={() => setPreviewOpen(true)}
-        missingForPublish={missingForPublish}
-      />
     </form>
   );
 }

@@ -5379,7 +5379,8 @@
       "preview": "Preview",
       "saving": "Saving…",
       "scheduleNeedsDate": "Pick a publish date and time on the Review step first.",
-      "publishNeeds": "Still needed to publish: {fields}."
+      "publishNeeds": "Still needed to publish: {fields}.",
+      "blockingCount": "{count, plural, one {# blocking} other {# blocking}}"
     },
     "autosave": {
       "unsaved": "Unsaved changes",
