@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useWideContext } from "./use-wide-context";
@@ -28,6 +29,7 @@ export default function FormShell({
   tabs,
   context,
   actions,
+  contentKey,
   onSubmit,
   children,
 }: {
@@ -46,11 +48,38 @@ export default function FormShell({
   context?: React.ReactNode;
   /** The floating action bar (a `StickyActionBar`), rendered at the card foot. */
   actions?: React.ReactNode;
+  /**
+   * The active tab's key. Changing it replays the panel's entrance animation.
+   *
+   * Deliberately NOT used as a React `key` on the panel wrapper, which would be
+   * the obvious way to restart a CSS animation: the publication and team forms
+   * keep every panel mounted (`hidden` on the inactive ones) so uncontrolled
+   * field values survive a tab switch, and remounting the wrapper would wipe
+   * every one of them. The animation is retriggered imperatively instead — see
+   * the effect below.
+   */
+  contentKey?: string;
   /** When given, the card is a `<form>` and submit buttons in `actions` work. */
   onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
 }) {
   const wide = useWideContext();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  /*
+    Restart the entrance animation without remounting the children. Removing the
+    class, forcing a reflow, then re-adding it is the only way to replay a CSS
+    animation on an element that is not being recreated. Under
+    prefers-reduced-motion the rule is `animation: none !important`, so this is
+    inert rather than needing its own guard.
+  */
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || contentKey === undefined) return;
+    el.classList.remove("tab-panel-in");
+    void el.offsetWidth;
+    el.classList.add("tab-panel-in");
+  }, [contentKey]);
 
   const CARD_CLASS =
     "w-full min-w-0 border-y border-divider bg-bg-surface shadow-sm sm:rounded-xl sm:border min-[1440px]:w-[840px] min-[1440px]:shrink-0";
@@ -73,7 +102,7 @@ export default function FormShell({
 
       {tabs}
 
-      <div className="px-5 py-6 sm:px-8">
+      <div ref={panelRef} className="tab-panel-in px-5 py-6 sm:px-8">
         {children}
         {/* Inline context, below the fields it describes. */}
         {context && !wide && <div className="mt-8 border-t border-divider pt-6">{context}</div>}

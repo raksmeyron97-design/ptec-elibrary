@@ -9,11 +9,8 @@ import {
   Briefcase,
   Camera,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   FileText,
   IdCard,
-  Info,
   Link as LinkIcon,
   Search,
   Settings2,
@@ -171,7 +168,6 @@ export default function TeamForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [showPreview, setShowPreview] = useState(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(
     () => new Set(["identity"]),
   );
@@ -605,6 +601,7 @@ export default function TeamForm({
       backLabel="Back to Library Team"
       title={pageTitle}
       description={pageDescription}
+      contentKey={activeTab}
       onSubmit={(e) => {
         e.preventDefault();
         void save(form.is_published);

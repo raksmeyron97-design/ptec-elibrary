@@ -819,6 +819,7 @@ export default function PublicationForm({
       title={pageTitle}
       description={pageDescription}
       headerActions={headerActions}
+      contentKey={activeStep}
       onSubmit={(e) => {
         e.preventDefault();
         void handleSave();

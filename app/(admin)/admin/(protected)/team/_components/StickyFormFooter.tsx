@@ -4,8 +4,7 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   StickyActionBar,
   ButtonBusy,
-  UnsavedPill,
-  SavedPill,
+  SaveStatus,
   BTN_PRIMARY,
   BTN_SECONDARY,
   BTN_DANGER,
@@ -88,22 +87,28 @@ export default function StickyFormFooter({
             </button>
           </div>
 
-          {isDirty && !busy ? (
-            <UnsavedPill label="Unsaved changes" />
-          ) : lastSaved && !isDirty ? (
-            <SavedPill
-              at={lastSaved.getTime()}
-              format={(seconds) =>
+          {/*
+            The bar used to fall through to a static "No changes" and stay there
+            while a save was in flight — so an author who pressed Save watched
+            nothing move. `busy` is now a first-class state, and it outranks
+            dirty: what the form is doing beats what it holds.
+          */}
+          <SaveStatus
+            state={busy ? "saving" : isDirty ? "dirty" : lastSaved ? "saved" : "idle"}
+            savedAt={lastSaved ? lastSaved.getTime() : null}
+            labels={{
+              idle: "No changes",
+              dirty: "Unsaved changes",
+              saving: phase === "uploading" ? "Uploading photo…" : "Saving…",
+              error: "Save failed",
+              savedAgo: (seconds) =>
                 seconds < 60
                   ? "Saved just now"
                   : seconds < 3600
                     ? `Saved ${Math.floor(seconds / 60)} min ago`
-                    : `Saved ${Math.floor(seconds / 3600)}h ago`
-              }
-            />
-          ) : (
-            <span className="text-text-muted">No changes</span>
-          )}
+                    : `Saved ${Math.floor(seconds / 3600)}h ago`,
+            }}
+          />
         </>
       }
     >

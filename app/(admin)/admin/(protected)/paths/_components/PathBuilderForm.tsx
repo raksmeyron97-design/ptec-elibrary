@@ -17,6 +17,7 @@ import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import StepResourcePicker from "./StepResourcePicker";
 import {
   ContextPanel,
+  FieldEmptyState,
   FormShell,
   FormTabs,
   ReviewDashboard,
@@ -309,6 +310,7 @@ export default function PathBuilderForm({
       backLabel={t("builder.backToPaths")}
       title={pageTitle}
       description={pageDescription}
+      contentKey={stage}
       context={context}
       tabs={
         <FormTabs
@@ -415,6 +417,23 @@ export default function PathBuilderForm({
       {/* ══ Stage: Curriculum ══ */}
       {stage === "curriculum" && (
         <div className="space-y-4">
+          {/*
+            This stage rendered nothing at all with no modules — a blank panel
+            under a tab whose badge said the path was incomplete, with no hint
+            that the fix lived in the button below the fold.
+          */}
+          {modules.length === 0 && (
+            <FieldEmptyState
+              icon={ListChecks}
+              title={t("builder.noModulesTitle")}
+              description={t("builder.noModulesBody")}
+              action={
+                <button type="button" onClick={addModule} className={BTN_SECONDARY}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> {t("builder.addModule")}
+                </button>
+              }
+            />
+          )}
           {modules.map((m, mi) => (
             <ModuleEditor
               key={m._key}

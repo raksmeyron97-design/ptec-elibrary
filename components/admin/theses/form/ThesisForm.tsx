@@ -650,6 +650,7 @@ export default function ThesisForm({
       title={pageTitle}
       description={pageDescription}
       headerActions={headerActions}
+      contentKey={activeStep}
       onSubmit={handleSubmit}
       tabs={
         <FormTabs

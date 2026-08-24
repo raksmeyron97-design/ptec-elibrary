@@ -4,8 +4,14 @@
 // shortcuts, and the primary actions. Never reports "Saved" optimistically —
 // the state only changes after the server confirms.
 
-import { AlertCircle, AlertTriangle, CheckCircle2, CloudOff, Eye, Loader2, Save, UploadCloud } from "lucide-react";
-import { StickyActionBar, BTN_PRIMARY, BTN_SECONDARY } from "@/components/admin/kit/form";
+import { AlertCircle, AlertTriangle, CloudOff, Eye, Loader2, UploadCloud } from "lucide-react";
+import {
+  StickyActionBar,
+  SaveStatus,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  type SaveLifecycle,
+} from "@/components/admin/kit/form";
 
 export type AutosaveState =
   | "idle"
@@ -29,10 +35,6 @@ export interface SaveBarProps {
   onReview: () => void;
 }
 
-function timeLabel(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
 export default function SaveBar({
   dirty,
   saving,
@@ -45,47 +47,54 @@ export default function SaveBar({
   onPreview,
   onReview,
 }: SaveBarProps) {
-  let status: { icon: typeof Save; text: string; tone: string };
-  if (saving) {
-    status = { icon: Loader2, text: "Saving…", tone: "text-brand" };
-  } else if (autosave === "saving" || autosave === "pending") {
-    status = { icon: Loader2, text: "Autosaving draft…", tone: "text-text-muted" };
-  } else if (dirty) {
-    status = {
-      icon: AlertCircle,
-      text:
-        autosave === "saved"
-          ? "Unsaved changes — recovery draft kept"
-          : autosave === "unavailable"
-            ? "Unsaved changes — autosave unavailable"
-            : autosave === "error" || autosave === "stale"
-              ? "Unsaved changes — autosave failed, save manually"
-              : "Unsaved changes",
-      tone: autosave === "error" || autosave === "stale" ? "text-warning" : "text-text-muted",
-    };
-  } else if (lastSavedAt) {
-    status = { icon: CheckCircle2, text: `Saved at ${timeLabel(lastSavedAt)}`, tone: "text-success" };
-  } else {
-    status = { icon: Save, text: isEdit ? "No changes yet" : "Not saved yet", tone: "text-text-muted" };
-  }
+  /*
+    One lifecycle, ordered by precedence rather than by what is cheapest to
+    check: in-flight beats dirty beats saved beats idle. The autosave sub-states
+    fold into it — "autosaving a recovery draft" and "saving" are the same fact
+    to the author, and the difference was only ever visible as slightly
+    different wording in a status line nobody reads twice.
 
-  const StatusIcon = status.icon;
+    `autosave === "error" | "stale"` stays distinguishable, because that one
+    changes what the author should do: save manually.
+  */
+  const lifecycle: SaveLifecycle =
+    saving || autosave === "saving" || autosave === "pending"
+      ? "saving"
+      : autosave === "error" || autosave === "stale"
+        ? "error"
+        : dirty
+          ? "dirty"
+          : lastSavedAt
+            ? "saved"
+            : "idle";
 
   return (
     <StickyActionBar
       status={
         <>
-          <p role="status" aria-live="polite" className={`flex items-center gap-1.5 text-[12.5px] font-medium ${status.tone}`}>
-            {autosave === "unavailable" && !saving && !dirty ? (
+          {autosave === "unavailable" && !saving && !dirty ? (
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-text-muted">
               <CloudOff className="h-3.5 w-3.5" aria-hidden="true" />
-            ) : (
-              <StatusIcon
-                className={`h-3.5 w-3.5 ${saving || autosave === "saving" || autosave === "pending" ? "animate-spin motion-reduce:animate-none" : ""}`}
-                aria-hidden="true"
-              />
-            )}
-            {status.text}
-          </p>
+              Autosave unavailable
+            </span>
+          ) : (
+            <SaveStatus
+              state={lifecycle}
+              savedAt={lastSavedAt ? lastSavedAt.getTime() : null}
+              labels={{
+                idle: isEdit ? "No changes yet" : "Not saved yet",
+                dirty: autosave === "saved" ? "Unsaved changes — recovery draft kept" : "Unsaved changes",
+                saving: "Saving…",
+                error: "Autosave failed — save manually",
+                savedAgo: (seconds) =>
+                  seconds < 60
+                    ? "Saved just now"
+                    : seconds < 3600
+                      ? `Saved ${Math.floor(seconds / 60)} min ago`
+                      : `Saved ${Math.floor(seconds / 3600)}h ago`,
+              }}
+            />
+          )}
 
           {/*
             These stay buttons, not decorative pills: their whole value is that

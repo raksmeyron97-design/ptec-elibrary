@@ -4042,7 +4042,9 @@
       "previewTitle": "Public preview",
       "previewHint": "Roughly how this path appears to a learner browsing.",
       "untitled": "Untitled path",
-      "noDescription": "No description yet."
+      "noDescription": "No description yet.",
+      "noModulesTitle": "No modules yet",
+      "noModulesBody": "A learning path is a sequence of modules, each holding steps that point at library resources. Add the first one to begin."
     },
     "toasts": {
       "deleted": "Learning path deleted.",
@@ -5406,7 +5408,8 @@
       "savedToast": "Draft saved",
       "lastSavedJustNow": "Last saved just now",
       "lastSavedMinutes": "Last saved {count, plural, one {# minute} other {# minutes}} ago",
-      "lastSavedHours": "Last saved {count, plural, one {# hour} other {# hours}} ago"
+      "lastSavedHours": "Last saved {count, plural, one {# hour} other {# hours}} ago",
+      "idleLabel": "No changes yet"
     },
     "steps": {
       "navAria": "Thesis form steps",
@@ -5525,7 +5528,8 @@
       "smartSplit": "Smart Split & Add",
       "addRow": "Add empty row",
       "pasteBlob": "Paste a blob",
-      "oneLine": "One reference per line"
+      "oneLine": "One reference per line",
+      "emptyTitle": "No references yet"
     },
     "seo": {
       "untitled": "Untitled thesis",

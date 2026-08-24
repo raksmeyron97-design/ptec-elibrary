@@ -5,9 +5,8 @@ import { Eye, Send, Check } from "lucide-react";
 import {
   StickyActionBar,
   ButtonBusy,
-  UnsavedPill,
   BlockingPill,
-  SavedPill,
+  SaveStatus,
   BTN_PRIMARY,
   BTN_SECONDARY,
 } from "@/components/admin/kit/form";
@@ -95,20 +94,37 @@ export default function ThesisStickyActions({
             <BlockingPill label={t("blockingCount", { count: missingForPublish.length })} />
           )}
 
-          {autosaveStatus === "unsaved" || autosaveStatus === "saving" ? (
-            <UnsavedPill label={tAuto(autosaveStatus)} />
-          ) : (
-            <SavedPill
-              at={lastSavedAt ?? null}
-              format={(seconds) =>
+          {/*
+            "unsaved" and "saving" used to share one grey pill, so the moment an
+            autosave actually fired was invisible — the state the author most
+            wants confirmed looked identical to the state before it.
+          */}
+          <SaveStatus
+            state={
+              submitting || autosaveStatus === "saving"
+                ? "saving"
+                : autosaveStatus === "error"
+                  ? "error"
+                  : autosaveStatus === "unsaved"
+                    ? "dirty"
+                    : lastSavedAt
+                      ? "saved"
+                      : "idle"
+            }
+            savedAt={lastSavedAt ?? null}
+            labels={{
+              idle: tAuto("idleLabel"),
+              dirty: tAuto("unsaved"),
+              saving: tAuto("saving"),
+              error: tAuto("error"),
+              savedAgo: (seconds) =>
                 seconds < 60
                   ? tAuto("lastSavedJustNow")
                   : seconds < 3600
                     ? tAuto("lastSavedMinutes", { count: Math.floor(seconds / 60) })
-                    : tAuto("lastSavedHours", { count: Math.floor(seconds / 3600) })
-              }
-            />
-          )}
+                    : tAuto("lastSavedHours", { count: Math.floor(seconds / 3600) }),
+            }}
+          />
 
           {/*
             A greyed-out primary with no stated reason reads as a broken page,

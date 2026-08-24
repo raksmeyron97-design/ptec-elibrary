@@ -282,6 +282,7 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
       backLabel="Back to admin"
       title="System settings"
       description="The single source of truth for global website information — organization names, contacts, opening hours, links and SEO defaults. Changes go live only when published."
+      contentKey={view}
       tabs={
         <FormTabs
           idPrefix="settings"

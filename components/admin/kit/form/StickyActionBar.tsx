@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Check, Loader2 } from "lucide-react";
 
 /**
  * The floating action bar: the save cluster, detached and pinned near the bottom
@@ -67,6 +67,62 @@ export function ButtonBusy({ label }: { label: string }) {
 
 /* ── Save-state pills for the bar's status slot ─────────────────────────── */
 
+/**
+ * The save lifecycle, as one component.
+ *
+ * Every bar was assembling this from three or four pills plus a fallback string,
+ * and the fallback was the weak point: "Not saved yet" / "No changes" is a
+ * static sentence that stays put while the form is mid-flight, so an author who
+ * pressed Save saw nothing change. The states are ordered by precedence, not by
+ * what is easiest to check: in-flight beats dirty beats saved beats idle,
+ * because that is the order the author cares about.
+ *
+ * "Saved" is never optimistic. `savedAt` is only passed once the server has
+ * confirmed, and the check mark is the signal an author scans for — showing it
+ * before the round trip completes would make it a lie exactly when it matters.
+ */
+export type SaveLifecycle = "idle" | "dirty" | "saving" | "saved" | "error";
+
+export function SaveStatus({
+  state,
+  savedAt,
+  labels,
+}: {
+  state: SaveLifecycle;
+  /** Wall-clock of the last confirmed save; drives the "Saved 2 minutes ago" form. */
+  savedAt?: number | null;
+  labels: {
+    idle: string;
+    dirty: string;
+    saving: string;
+    error: string;
+    /** (secondsAgo) => "Saved 2 minutes ago". Falls back to `saved` at 0s. */
+    savedAgo: (secondsAgo: number) => string;
+  };
+}) {
+  if (state === "saving") {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-text-body" aria-live="polite">
+        <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+        {labels.saving}
+      </span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-danger-text" aria-live="polite">
+        <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        {labels.error}
+      </span>
+    );
+  }
+  if (state === "dirty") return <UnsavedPill label={labels.dirty} />;
+  if (state === "saved" && savedAt != null) {
+    return <SavedPill at={savedAt} format={labels.savedAgo} />;
+  }
+  return <span className="text-text-muted">{labels.idle}</span>;
+}
+
 export function UnsavedPill({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 font-medium text-warning-text">
@@ -120,8 +176,8 @@ export function SavedPill({
   if (at == null) return null;
   const seconds = Math.max(0, Math.round((bucket * TICK_MS - at) / 1000));
   return (
-    <span className="inline-flex items-center gap-1.5 font-medium text-success-text">
-      <span className="h-2 w-2 rounded-full bg-success" aria-hidden="true" />
+    <span className="inline-flex items-center gap-1.5 font-medium text-success-text" aria-live="polite">
+      <Check className="h-3.5 w-3.5 text-success" aria-hidden="true" />
       {format(seconds)}
     </span>
   );

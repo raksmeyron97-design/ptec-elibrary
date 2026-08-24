@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus, Trash2, Sparkles, ChevronUp, ChevronDown, Link2 } from "lucide-react";
+import { BookOpen, Plus, Trash2, Sparkles, ChevronUp, ChevronDown, Link2 } from "lucide-react";
+import { FieldEmptyState } from "@/components/admin/kit/form";
 
 const URL_OR_DOI_RE = /(https?:\/\/|doi\.org|10\.\d{4,9}\/)/i;
 
@@ -64,9 +65,7 @@ export default function ReferencesStep({
       </div>
 
       {references.length === 0 && !showPasteArea && (
-        <p className="rounded-lg border border-dashed border-divider bg-paper/40 px-3 py-4 text-center text-xs text-text-muted">
-          {t("empty")}
-        </p>
+        <FieldEmptyState icon={BookOpen} title={t("emptyTitle")} description={t("empty")} />
       )}
 
       <div className="space-y-2">

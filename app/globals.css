@@ -705,7 +705,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
   .animate-float-orb, .animate-float-orb-slow, .skeleton, .ptec-reveal { animation: none !important; }
-  .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in { animation: none !important; }
+  .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in, .tab-panel-in { animation: none !important; }
 }
 
 /* ── Footer redesign (night sky + aurora + motion) ──────────────── */
@@ -836,6 +836,16 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .modal-pop-in { animation: modal-pop-in .18s cubic-bezier(.22,1,.36,1) both; }
 .drawer-slide-in { animation: drawer-slide-in .22s cubic-bezier(.22,1,.36,1) both; }
 .fade-rise-in { animation: fade-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Tab-panel entrance for admin forms. Same shape as .fade-rise-in at 200ms and
+   a shorter travel: a tab switch replaces the whole panel, so the motion has to
+   read as "this is new content" without making the reader wait for it. Any
+   longer and repeatedly stepping through a seven-tab form feels sticky. */
+@keyframes tab-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-panel-in { animation: tab-panel-in .2s cubic-bezier(.22,1,.36,1) both; }
 
 /* ── Scroll reveal (CSS-only; toggled by ScrollRevealWrapper's observer) ─
    Default state is fully visible — the hidden start state only applies once
