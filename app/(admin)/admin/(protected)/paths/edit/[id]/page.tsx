@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { adminGetPathDetail } from "@/app/actions/learning-paths";
 import PathBuilderForm from "../../_components/PathBuilderForm";
+import { FormShell } from "@/components/admin/kit/form";
 
 export default async function EditPathPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -9,9 +10,14 @@ export default async function EditPathPage({ params }: { params: Promise<{ id: s
   if (!path) notFound();
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-10">
-      <h1 className="mb-6 text-[22px] font-bold text-text-heading">{t("builder.editTitle")}</h1>
+    <FormShell
+      backHref="/admin/paths"
+      backLabel={t("builder.backToPaths")}
+      /* Named, so an editor arriving from the list knows which path they opened. */
+      title={path.title?.trim() || t("builder.editTitle")}
+      description={t("builder.editSubtitle")}
+    >
       <PathBuilderForm initial={path} pathId={id} />
-    </div>
+    </FormShell>
   );
 }

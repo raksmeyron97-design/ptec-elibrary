@@ -20,7 +20,7 @@ export function SectionIntro({
   return (
     <div className="mb-5">
       <h2 className="text-lg font-bold text-text-heading">{title}</h2>
-      <p className="mt-1 text-sm text-slate-500">{description}</p>
+      <p className="mt-1 text-sm text-text-muted">{description}</p>
     </div>
   );
 }
@@ -37,7 +37,7 @@ export function FieldGroup({
   return (
     <fieldset className="rounded-2xl border border-divider bg-bg-surface p-5">
       <legend className="px-1 text-sm font-bold text-text-heading">{title}</legend>
-      {hint && <p className="mb-3 -mt-1 text-xs text-slate-500">{hint}</p>}
+      {hint && <p className="mb-3 -mt-1 text-xs text-text-muted">{hint}</p>}
       <div className="space-y-4">{children}</div>
     </fieldset>
   );
@@ -82,13 +82,13 @@ export function TextField({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1 flex items-baseline gap-1.5 text-[13px] font-semibold text-slate-700">
+      <label htmlFor={id} className="mb-1 flex items-baseline gap-1.5 text-[13px] font-semibold text-text-body">
         {label}
         {required && (
-          <span aria-hidden="true" className="text-rose-500">*</span>
+          <span aria-hidden="true" className="text-danger">*</span>
         )}
         {maxLength != null && value.length > maxLength * 0.8 && (
-          <span className="ml-auto text-[11px] font-normal tabular-nums text-slate-400">
+          <span className="ml-auto text-[11px] font-normal tabular-nums text-text-muted/70">
             {value.length}/{maxLength}
           </span>
         )}
@@ -105,22 +105,22 @@ export function TextField({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
         aria-required={required || undefined}
-        className={`w-full rounded-xl border px-3 py-2 text-sm text-text-heading transition-colors focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
-          error ? "border-rose-400 bg-rose-50/40" : "border-divider bg-bg-surface"
+        className={`w-full rounded-xl border px-3 py-2 text-sm text-text-heading transition-colors focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:cursor-not-allowed disabled:bg-paper disabled:text-text-muted/70 ${
+          error ? "border-danger bg-danger-soft/40" : "border-divider bg-bg-surface"
         } ${lang === "km" ? "font-kh leading-relaxed" : ""}`}
       />
       {helper && !error && (
-        <p id={`${id}-helper`} className="mt-1 text-xs text-slate-500">
+        <p id={`${id}-helper`} className="mt-1 text-xs text-text-muted">
           {helper}
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-rose-600">
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">
           {error}
         </p>
       )}
       {usedIn && (
-        <p className="mt-1 text-[11px] text-slate-400">Used in: {usedIn}</p>
+        <p className="mt-1 text-[11px] text-text-muted/70">Used in: {usedIn}</p>
       )}
     </div>
   );
@@ -153,11 +153,11 @@ export function TextAreaField({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 flex items-baseline gap-1.5 text-[13px] font-semibold text-slate-700">
+      <label htmlFor={id} className="mb-1 flex items-baseline gap-1.5 text-[13px] font-semibold text-text-body">
         {label}
-        {required && <span aria-hidden="true" className="text-rose-500">*</span>}
+        {required && <span aria-hidden="true" className="text-danger">*</span>}
         {maxLength != null && (
-          <span className="ml-auto text-[11px] font-normal tabular-nums text-slate-400">
+          <span className="ml-auto text-[11px] font-normal tabular-nums text-text-muted/70">
             {value.length}/{maxLength}
           </span>
         )}
@@ -173,13 +173,13 @@ export function TextAreaField({
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         aria-required={required || undefined}
-        className={`w-full rounded-xl border px-3 py-2 text-sm text-text-heading transition-colors focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
-          error ? "border-rose-400 bg-rose-50/40" : "border-divider bg-bg-surface"
+        className={`w-full rounded-xl border px-3 py-2 text-sm text-text-heading transition-colors focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:cursor-not-allowed disabled:bg-paper disabled:text-text-muted/70 ${
+          error ? "border-danger bg-danger-soft/40" : "border-divider bg-bg-surface"
         } ${lang === "km" ? "font-kh leading-relaxed" : ""}`}
       />
-      {helper && !error && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
+      {helper && !error && <p className="mt-1 text-xs text-text-muted">{helper}</p>}
       {error && (
-        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-rose-600">
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-danger">
           {error}
         </p>
       )}
@@ -218,7 +218,7 @@ export function LocalizedFields({
   const Comp = textarea ? TextAreaField : TextField;
   return (
     <div>
-      <p className="mb-1.5 text-[13px] font-semibold text-slate-700">{label}</p>
+      <p className="mb-1.5 text-[13px] font-semibold text-text-body">{label}</p>
       <div className="grid gap-3 md:grid-cols-2">
         <Comp
           id={`${idBase}-en`}
@@ -242,7 +242,7 @@ export function LocalizedFields({
           maxLength={maxLength}
         />
       </div>
-      {usedIn && <p className="mt-1 text-[11px] text-slate-400">Used in: {usedIn}</p>}
+      {usedIn && <p className="mt-1 text-[11px] text-text-muted/70">Used in: {usedIn}</p>}
     </div>
   );
 }

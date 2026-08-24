@@ -4026,7 +4026,11 @@
         "noOutcomes": "No learning outcomes added.",
         "badDuration": "Estimated duration must be a positive number.",
         "noSchedule": "Choose a publish date to schedule."
-      }
+      },
+      "stageHasErrors": "has problems to fix",
+      "backToPaths": "Back to learning paths",
+      "newSubtitle": "Build a guided sequence of library resources.",
+      "editSubtitle": "Update this learning path."
     },
     "toasts": {
       "deleted": "Learning path deleted.",

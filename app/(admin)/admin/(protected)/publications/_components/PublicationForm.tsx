@@ -36,8 +36,6 @@ import {
   Paperclip,
   Users,
   AlertCircle,
-  AlertTriangle,
-  Check,
   History,
   ListChecks,
   Plus,
@@ -57,6 +55,7 @@ import {
 import TagInput from "@/components/ui/core/TagInput";
 import { ConfirmDialog } from "@/components/admin/kit";
 import { slugify, makeUid } from "@/lib/book-utils";
+import { FormTabs, type FormTab, type FormTabState } from "@/components/admin/kit/form";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
 import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
@@ -74,6 +73,19 @@ const STEPS: { key: StepKey; label: string; icon: LucideIcon; optional?: boolean
 ];
 
 type StepState = "error" | "warning" | "complete" | "empty";
+
+/*
+  This form's vocabulary predates the shared kit. `empty` is the kit's
+  `optional` here rather than `todo`: the publication review engine already
+  reports every genuinely-required omission as an `error`, so an untouched step
+  has nothing outstanding to claim.
+*/
+const TAB_STATE: Record<StepState, FormTabState> = {
+  error: "error",
+  warning: "warning",
+  complete: "complete",
+  empty: "optional",
+};
 
 const STEP_STATE_LABEL: Record<StepState, string> = {
   error: "has blocking problems",
@@ -751,15 +763,6 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
     };
   }, [review, title, authorRows.length, abstract, referenceRows.length, defaults, pdfFile, pdfUrl, dirty, isEdit]);
 
-  function handleStepKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft" && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    e.preventDefault();
-    const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
-    const next = STEPS[(index + dir + STEPS.length) % STEPS.length];
-    setActiveStep(next.key);
-    document.getElementById(`step-${next.key}`)?.focus();
-  }
-
   const goToReview = useCallback(() => {
     setReview(computeReview());
     setShowFieldIssues(true);
@@ -788,35 +791,6 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
 
   const publicHref = isPublished && initial?.slug ? `/publications/${slug || initial.slug}` : null;
 
-  const stepIndicator = (state: StepState, optional?: boolean) => {
-    if (state === "complete") {
-      return (
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-success/15" aria-hidden="true">
-          <Check className="h-3 w-3 text-success" />
-        </span>
-      );
-    }
-    if (state === "error") {
-      return (
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger/15" aria-hidden="true">
-          <AlertCircle className="h-3 w-3 text-danger" />
-        </span>
-      );
-    }
-    if (state === "warning") {
-      return (
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-warning/15" aria-hidden="true">
-          <AlertTriangle className="h-3 w-3 text-warning" />
-        </span>
-      );
-    }
-    return (
-      <span
-        aria-hidden="true"
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${optional ? "bg-divider" : "bg-divider"} mx-[5px]`}
-      />
-    );
-  };
 
   return (
     <form
@@ -873,54 +847,30 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row flex-1">
-        {/* ══ STEP RAIL ═══════════════════════════════════════════════════ */}
-        <div
-          role="tablist"
-          aria-label="Publication workspace steps"
-          aria-orientation="vertical"
-          className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible border-b md:border-b-0 md:border-r border-divider p-3 md:w-56 md:shrink-0 bg-paper/30"
-        >
-          {STEPS.map((step, i) => {
-            const isActive = activeStep === step.key;
-            const state = stepStates[step.key];
-            return (
-              <button
-                key={step.key}
-                type="button"
-                id={`step-${step.key}`}
-                role="tab"
-                aria-selected={isActive}
-                aria-controls={`panel-${step.key}`}
-                tabIndex={isActive ? 0 : -1}
-                onClick={() => (step.key === "review" ? goToReview() : setActiveStep(step.key))}
-                onKeyDown={(e) => handleStepKeyDown(e, i)}
-                className={`relative flex shrink-0 items-center gap-3 rounded-lg px-3.5 py-3 text-sm font-medium transition-all cursor-pointer text-left ${
-                  isActive
-                    ? "bg-brand/10 text-brand shadow-sm"
-                    : "text-text-muted hover:bg-paper hover:text-text-heading"
-                }`}
-              >
-                <step.icon className={`h-4 w-4 shrink-0 ${isActive ? "text-brand" : "text-text-muted"}`} />
-                <span className="flex-1 whitespace-nowrap">
-                  {step.label}
-                  {step.optional ? (
-                    <span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-text-muted">
-                      Optional
-                    </span>
-                  ) : null}
-                </span>
-                {stepIndicator(state, step.optional)}
-                <span className="sr-only">— {STEP_STATE_LABEL[state]}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/*
+        Top tabs, replacing the 224px left rail. On a 900px card the rail spent
+        a quarter of the measure on six words, and on mobile it stacked above
+        the fields — so a phone opened on a list of section names.
+      */}
+      <FormTabs
+        idPrefix="pub"
+        ariaLabel="Publication workspace steps"
+        active={activeStep}
+        onChange={(key) => (key === "review" ? goToReview() : setActiveStep(key))}
+        tabs={STEPS.map<FormTab<StepKey>>((step) => ({
+          key: step.key,
+          label: step.label,
+          icon: step.icon,
+          state: TAB_STATE[stepStates[step.key]],
+          stateLabel: STEP_STATE_LABEL[stepStates[step.key]],
+        }))}
+      />
 
+      <div className="flex flex-1 flex-col">
         {/* ══ PANELS — all stay mounted so field values survive step switches ═══ */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="p-4 sm:p-6 flex-1">
-            <div id="panel-basic" role="tabpanel" aria-labelledby="step-basic" hidden={activeStep !== "basic"} className="space-y-8">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex-1 px-5 py-6 sm:px-8">
+            <div id="pub-panel-basic" role="tabpanel" aria-labelledby="pub-tab-basic" hidden={activeStep !== "basic"} className="space-y-8">
               <div className="space-y-4" key={`basic-${epoch}`}>
                 <Field
                   label="Title (EN)"
@@ -1121,11 +1071,11 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
               </div>
             </div>
 
-            <div id="panel-authors" role="tabpanel" aria-labelledby="step-authors" hidden={activeStep !== "authors"}>
+            <div id="pub-panel-authors" role="tabpanel" aria-labelledby="pub-tab-authors" hidden={activeStep !== "authors"}>
               <AuthorshipEditor value={authorRows} onChange={changeAuthors} disabled={saving} />
             </div>
 
-            <div id="panel-content" role="tabpanel" aria-labelledby="step-content" hidden={activeStep !== "content"} className="space-y-6">
+            <div id="pub-panel-content" role="tabpanel" aria-labelledby="pub-tab-content" hidden={activeStep !== "content"} className="space-y-6">
               <ContentWorkspace
                 abstract={abstract}
                 abstractKm={abstractKm}
@@ -1164,7 +1114,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
               </div>
             </div>
 
-            <div id="panel-details" role="tabpanel" aria-labelledby="step-details" hidden={activeStep !== "details"} className="space-y-6" key={`details-${epoch}`}>
+            <div id="pub-panel-details" role="tabpanel" aria-labelledby="pub-tab-details" hidden={activeStep !== "details"} className="space-y-6" key={`details-${epoch}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Publisher" htmlFor="pf-field-publisher" error={fieldIssues.publisher}>
                   {(p) => (
@@ -1272,7 +1222,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
               </Field>
             </div>
 
-            <div id="panel-files" role="tabpanel" aria-labelledby="step-files" hidden={activeStep !== "files"} className="space-y-6">
+            <div id="pub-panel-files" role="tabpanel" aria-labelledby="pub-tab-files" hidden={activeStep !== "files"} className="space-y-6">
               <div
                 id="pf-field-pdf"
                 tabIndex={-1}
@@ -1427,7 +1377,7 @@ export default function PublicationForm({ initial }: { initial?: Publication }) 
               </div>
             </div>
 
-            <div id="panel-review" role="tabpanel" aria-labelledby="step-review" hidden={activeStep !== "review"}>
+            <div id="pub-panel-review" role="tabpanel" aria-labelledby="pub-tab-review" hidden={activeStep !== "review"}>
               <ReviewPublishPanel
                 review={review}
                 dirty={dirty}

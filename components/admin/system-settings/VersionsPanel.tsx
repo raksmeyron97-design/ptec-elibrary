@@ -13,9 +13,9 @@ import type {
 import { sectionLabel } from "./OverviewPanel";
 
 const ACTION_STYLE: Record<string, string> = {
-  seed: "bg-slate-100 text-slate-600",
-  publish: "bg-emerald-50 text-emerald-700",
-  rollback: "bg-amber-50 text-amber-700",
+  seed: "bg-paper text-text-body",
+  publish: "bg-success-soft text-success-text",
+  rollback: "bg-warning-soft text-warning-text",
 };
 
 export default function VersionsPanel({
@@ -43,13 +43,13 @@ export default function VersionsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-text-heading">Version History</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-text-muted">
             Every publication is kept forever. Restoring an older version publishes it as a new
             version — nothing is deleted.
           </p>
         </div>
         <div>
-          <label htmlFor="versions-filter" className="mr-2 text-xs font-semibold text-slate-500">
+          <label htmlFor="versions-filter" className="mr-2 text-xs font-semibold text-text-muted">
             Section
           </label>
           <select
@@ -67,10 +67,10 @@ export default function VersionsPanel({
       </div>
 
       {versions.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center">
-          <History className="h-8 w-8 text-slate-300" aria-hidden="true" />
-          <p className="text-sm font-semibold text-slate-600">No publications yet</p>
-          <p className="max-w-sm text-xs text-slate-500">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-divider px-6 py-12 text-center">
+          <History className="h-8 w-8 text-text-muted/50" aria-hidden="true" />
+          <p className="text-sm font-semibold text-text-body">No publications yet</p>
+          <p className="max-w-sm text-xs text-text-muted">
             {data.storageReady
               ? "Publish a section and its versions will appear here."
               : "Version history becomes available once migration 0098 is applied."}
@@ -100,25 +100,25 @@ export default function VersionsPanel({
                             : "Published"}
                       </span>
                       {current && (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">
+                        <span className="rounded-full bg-info-soft px-2 py-0.5 text-[11px] font-bold text-info-text">
                           Live
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-text-muted">
                       {fmt(v.publishedAt)}
                       {v.publishedBy && ` · ${data.actorNames[v.publishedBy] ?? "Unknown"}`}
                       {v.changedFields.length > 0 &&
                         ` · ${v.changedFields.length} field${v.changedFields.length === 1 ? "" : "s"} changed`}
                     </p>
                     {v.changedFields.length > 0 && (
-                      <p className="mt-1 break-words font-mono text-[11px] text-slate-400">
+                      <p className="mt-1 break-words font-mono text-[11px] text-text-muted/70">
                         {v.changedFields.slice(0, 8).join(", ")}
                         {v.changedFields.length > 8 && ` +${v.changedFields.length - 8} more`}
                       </p>
                     )}
                     {v.comment && (
-                      <p className="mt-1.5 text-xs italic text-slate-600">“{v.comment}”</p>
+                      <p className="mt-1.5 text-xs italic text-text-body">“{v.comment}”</p>
                     )}
                   </div>
 
@@ -126,7 +126,7 @@ export default function VersionsPanel({
                     <div className="shrink-0">
                       {isConfirming ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-600">
+                          <span className="text-xs font-semibold text-text-body">
                             Publish v{v.version} as the live version?
                           </span>
                           <button
@@ -136,14 +136,14 @@ export default function VersionsPanel({
                               setConfirming(null);
                               onRollback(v.section, v.version);
                             }}
-                            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-amber-600 disabled:opacity-50"
+                            className="rounded-lg bg-warning px-3 py-1.5 text-xs font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50"
                           >
                             Restore
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirming(null)}
-                            className="rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                            className="rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-body hover:bg-paper"
                           >
                             Cancel
                           </button>
@@ -153,7 +153,7 @@ export default function VersionsPanel({
                           type="button"
                           disabled={busy}
                           onClick={() => setConfirming({ section: v.section, version: v.version })}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-amber-300 hover:text-amber-700 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-divider px-3 py-1.5 text-xs font-semibold text-text-body transition-colors hover:border-warning-line hover:text-warning-text disabled:opacity-50"
                         >
                           <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                           Restore this version

@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 
-export type FormTabState = "complete" | "error" | "todo" | "optional";
+export type FormTabState = "complete" | "error" | "warning" | "todo" | "optional";
 
 export type FormTab<K extends string> = {
   key: K;
@@ -11,6 +11,15 @@ export type FormTab<K extends string> = {
   icon?: LucideIcon;
   /** Drives the trailing indicator. Omit for a tab with nothing to report. */
   state?: FormTabState;
+  /**
+   * Screen-reader wording for `state`, e.g. "has blocking problems".
+   *
+   * The dot itself is aria-hidden — colour is never the only signal, so the
+   * state has to reach a screen reader as words. This is a prop rather than a
+   * lookup inside the component because the wording is the caller's to
+   * translate, and each form phrases its states differently.
+   */
+  stateLabel?: string;
 };
 
 /**
@@ -102,6 +111,7 @@ export default function FormTabs<K extends string>({
               )}
               {tab.label}
               <TabIndicator state={tab.state} />
+              {tab.stateLabel && <span className="sr-only"> — {tab.stateLabel}</span>}
             </button>
           );
         })}
@@ -118,22 +128,30 @@ export default function FormTabs<K extends string>({
 }
 
 /**
- * Trailing indicator. A red dot for a section holding errors, a green dot for
- * one that is done, a hollow ring for required-and-empty, nothing for optional.
+ * Trailing indicator.
+ *
+ *   error     red dot      blocking; this section stops a publish
+ *   warning   amber dot    non-blocking; worth a look before going live
+ *   complete  green dot    done
+ *   todo      hollow ring  required and still empty, nothing blocked yet
+ *   optional  nothing      quiet on purpose
  *
  * Deliberately a dot and not a count: the number told the author something they
  * could not act on — nobody needs to know a tab has three problems rather than
  * two before opening it — and a fresh form lit up with red numerals.
+ *
+ * `error` and `warning` are separate because the publication form has always
+ * distinguished them and collapsing both to red would make "you cannot publish"
+ * and "you might want to check this" the same signal.
  */
+const INDICATOR: Record<Exclude<FormTabState, "optional">, string> = {
+  error: "h-2 w-2 rounded-full bg-danger",
+  warning: "h-2 w-2 rounded-full bg-warning",
+  complete: "h-2 w-2 rounded-full bg-success",
+  todo: "h-2 w-2 rounded-full border-[1.5px] border-text-muted/40",
+};
+
 function TabIndicator({ state }: { state?: FormTabState }) {
   if (!state || state === "optional") return null;
-  if (state === "error") {
-    return <span className="h-2 w-2 shrink-0 rounded-full bg-danger" aria-hidden="true" />;
-  }
-  if (state === "complete") {
-    return <span className="h-2 w-2 shrink-0 rounded-full bg-success" aria-hidden="true" />;
-  }
-  return (
-    <span className="h-2 w-2 shrink-0 rounded-full border-[1.5px] border-text-muted/40" aria-hidden="true" />
-  );
+  return <span className={`shrink-0 ${INDICATOR[state]}`} aria-hidden="true" />;
 }

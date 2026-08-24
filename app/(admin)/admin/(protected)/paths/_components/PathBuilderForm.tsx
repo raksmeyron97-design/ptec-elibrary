@@ -15,6 +15,16 @@ import type {
 import { slugify } from "@/lib/books";
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import StepResourcePicker from "./StepResourcePicker";
+import {
+  FormTabs,
+  StickyActionBar,
+  ButtonBusy,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  BTN_DANGER,
+  type FormTab,
+  type FormTabState,
+} from "@/components/admin/kit/form";
 
 type EditableStep = PathStepInput & { _key: string; resourceUnavailable?: boolean };
 type EditableModule = { _key: string; title: string; title_km: string | null; description: string | null; description_km: string | null; steps: EditableStep[] };
@@ -210,31 +220,50 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
     const s = [...m.steps]; [s[si], s[j]] = [s[j], s[si]]; return { ...m, steps: s };
   }));
 
-  return (
-    <div className="space-y-5">
-      {/* ── Stepper + save state ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <nav className="flex items-center gap-1.5" aria-label={t("builder.stagesLabel")}>
-          {STAGES.map((s, i) => {
-            const Icon = STAGE_ICON[s];
-            const active = stage === s;
-            const badge = s === "publish" ? validation.errors.length : 0;
-            return (
-              <button key={s} type="button" onClick={() => setStage(s)} aria-current={active ? "step" : undefined}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${active ? "bg-brand text-white" : "text-text-muted hover:bg-paper"}`}>
-                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${active ? "bg-white/20" : "bg-paper"}`}>{i + 1}</span>
-                <Icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />
-                {t(`builder.stages.${s}`)}
-                {badge > 0 && <span className="rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{badge}</span>}
-              </button>
-            );
-          })}
-        </nav>
-        <SaveIndicator state={saveState} dirty={dirty} t={t} />
-      </div>
+  /*
+    Errors are attributed to the stage that can fix them, not all parked on
+    Publish. The old badge put every count on the last tab, so a missing module
+    title showed up as "Publish: 1" — a number on the one stage where nothing
+    was wrong.
+  */
+  function stageState(s: Stage): FormTabState {
+    const relevant = validation.errors.filter((e) => {
+      const curriculum = e.includes("module") || e.includes("step");
+      return s === "curriculum" ? curriculum : s === "details" ? !curriculum : false;
+    });
+    if (relevant.length > 0) return "error";
+    if (s === "publish") return validation.errors.length > 0 ? "error" : "complete";
+    return "complete";
+  }
 
+  return (
+    <div>
+      {/*
+        The stage pills become the shared tab row. They were filled brand
+        rectangles with a number bubble, an icon and an error count — four
+        signals for three stages. The tab underline carries "where am I", and a
+        single dot carries "is there a problem here".
+      */}
+      <FormTabs
+        idPrefix="path"
+        ariaLabel={t("builder.stagesLabel")}
+        active={stage}
+        onChange={setStage}
+        tabs={STAGES.map<FormTab<Stage>>((sKey) => ({
+          key: sKey,
+          label: t(`builder.stages.${sKey}`),
+          icon: STAGE_ICON[sKey],
+          state: stageState(sKey),
+          stateLabel: stageState(sKey) === "error" ? t("builder.stageHasErrors") : undefined,
+        }))}
+      />
+
+      {/* Everything below the tabs is padded here rather than by the page, so
+          FormTabs can reach the card edges and its bottom border reads as a
+          full rule instead of a floating line. */}
+      <div className="px-5 py-6 sm:px-8">
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger/5 px-4 py-3.5" role="alert">
+        <div className="flex items-start gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3.5" role="alert">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
           <p className="text-sm text-danger">{error}</p>
         </div>
@@ -382,20 +411,26 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
         </div>
       )}
 
-      {/* ── Footer actions ── */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-divider pt-5">
-        <button type="button" onClick={() => router.push("/admin/paths")} className="rounded-xl px-4 py-3 text-sm font-semibold text-text-muted hover:text-text-heading">
+      </div>
+
+      <StickyActionBar
+        status={<SaveIndicator state={saveState} dirty={dirty} t={t} />}
+      >
+        <button type="button" onClick={() => router.push("/admin/paths")} className={BTN_DANGER}>
           {t("builder.cancel")}
         </button>
-        <button type="button" onClick={() => persist("draft", true)} disabled={isPending}
-          className="rounded-xl border border-divider px-5 py-3 text-sm font-semibold text-text-body transition hover:border-brand/40 hover:text-brand disabled:opacity-60">
+        <button type="button" onClick={() => persist("draft", true)} disabled={isPending} className={BTN_SECONDARY}>
           {t("builder.saveDraft")}
         </button>
-        <button type="button" onClick={() => persist(status === "draft" ? "published" : status, true)} disabled={isPending || validation.errors.length > 0}
-          className="btn-brand-gradient rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-          {isPending ? t("builder.saving") : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
+        <button
+          type="button"
+          onClick={() => persist(status === "draft" ? "published" : status, true)}
+          disabled={isPending || validation.errors.length > 0}
+          className={BTN_PRIMARY}
+        >
+          {isPending ? <ButtonBusy label={t("builder.saving")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
         </button>
-      </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -435,17 +470,45 @@ function SaveIndicator({ state, dirty, t }: { state: "idle" | "saving" | "saved"
 function BilingualListEditor({ items, onChange, addLabel, t }: { items: BilingualEntry[]; onChange: (v: BilingualEntry[]) => void; addLabel: string; t: TFn }) {
   return (
     <div className="space-y-2.5">
+      {/*
+        One quiet container per row. Bare inputs in a three-column grid gave a
+        list of eight outcomes twenty-four floating boxes and no way to see
+        which English string paired with which Khmer one; the tinted row is the
+        pairing, and the ordinal makes a specific outcome nameable in review.
+      */}
       {items.map((it, i) => (
-        <div key={i} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-          <input value={it.en} onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))} className={INPUT_CLASS} placeholder={t("builder.english")} />
-          <input value={it.km} onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, km: e.target.value } : x)))} className={INPUT_CLASS} placeholder={t("builder.khmer")} />
-          <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={t("builder.remove")} className="rounded-lg border border-divider px-3 text-text-muted hover:text-danger">
-            <Trash2 className="h-4 w-4" />
-          </button>
+        <div key={i} className="rounded-lg bg-paper/60 p-3">
+          <div className="grid gap-2 md:grid-cols-[auto_1fr_1fr_auto] md:items-center">
+            <span className="text-xs font-semibold tabular-nums text-text-muted md:w-5">{i + 1}</span>
+            <input
+              value={it.en}
+              onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))}
+              className={INPUT_CLASS}
+              placeholder={t("builder.english")}
+            />
+            <input
+              value={it.km}
+              onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, km: e.target.value } : x)))}
+              className={INPUT_CLASS}
+              placeholder={t("builder.khmer")}
+            />
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+              aria-label={t("builder.remove")}
+              className="focus-field inline-flex h-11 items-center justify-center rounded-lg border border-divider bg-bg-surface px-3 text-text-muted transition hover:border-danger-line hover:text-danger"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...items, { en: "", km: "" }])} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline">
-        <Plus className="h-3.5 w-3.5" /> {addLabel}
+      <button
+        type="button"
+        onClick={() => onChange([...items, { en: "", km: "" }])}
+        className="focus-field inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-[13px] font-semibold text-admin-accent-text transition hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" /> {addLabel}
       </button>
     </div>
   );
