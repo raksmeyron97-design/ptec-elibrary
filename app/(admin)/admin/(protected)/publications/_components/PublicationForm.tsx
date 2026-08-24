@@ -916,7 +916,7 @@ export default function PublicationForm({
       )}
 
       {/* Panels stay mounted so field values survive a step switch. */}
-            <div id="pub-panel-basic" role="tabpanel" aria-labelledby="pub-tab-basic" hidden={activeStep !== "basic"} className="space-y-8">
+            <div id="pub-panel-basic" role="tabpanel" aria-labelledby="pub-tab-basic" tabIndex={-1} hidden={activeStep !== "basic"} className="space-y-8">
               <div className="space-y-4" key={`basic-${epoch}`}>
                 <Field
                   label="Title (EN)"
@@ -1117,11 +1117,11 @@ export default function PublicationForm({
               </div>
             </div>
 
-            <div id="pub-panel-authors" role="tabpanel" aria-labelledby="pub-tab-authors" hidden={activeStep !== "authors"}>
+            <div id="pub-panel-authors" role="tabpanel" aria-labelledby="pub-tab-authors" tabIndex={-1} hidden={activeStep !== "authors"}>
               <AuthorshipEditor value={authorRows} onChange={changeAuthors} disabled={saving} />
             </div>
 
-            <div id="pub-panel-content" role="tabpanel" aria-labelledby="pub-tab-content" hidden={activeStep !== "content"} className="space-y-6">
+            <div id="pub-panel-content" role="tabpanel" aria-labelledby="pub-tab-content" tabIndex={-1} hidden={activeStep !== "content"} className="space-y-6">
               <ContentWorkspace
                 abstract={abstract}
                 abstractKm={abstractKm}
@@ -1160,7 +1160,7 @@ export default function PublicationForm({
               </div>
             </div>
 
-            <div id="pub-panel-details" role="tabpanel" aria-labelledby="pub-tab-details" hidden={activeStep !== "details"} className="space-y-6" key={`details-${epoch}`}>
+            <div id="pub-panel-details" role="tabpanel" aria-labelledby="pub-tab-details" tabIndex={-1} hidden={activeStep !== "details"} className="space-y-6" key={`details-${epoch}`}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Publisher" htmlFor="pf-field-publisher" error={fieldIssues.publisher}>
                   {(p) => (
@@ -1268,7 +1268,7 @@ export default function PublicationForm({
               </Field>
             </div>
 
-            <div id="pub-panel-files" role="tabpanel" aria-labelledby="pub-tab-files" hidden={activeStep !== "files"} className="space-y-6">
+            <div id="pub-panel-files" role="tabpanel" aria-labelledby="pub-tab-files" tabIndex={-1} hidden={activeStep !== "files"} className="space-y-6">
               <div
                 id="pf-field-pdf"
                 tabIndex={-1}
@@ -1423,7 +1423,7 @@ export default function PublicationForm({
               </div>
             </div>
 
-            <div id="pub-panel-review" role="tabpanel" aria-labelledby="pub-tab-review" hidden={activeStep !== "review"}>
+            <div id="pub-panel-review" role="tabpanel" aria-labelledby="pub-tab-review" tabIndex={-1} hidden={activeStep !== "review"}>
               <ReviewPublishPanel
                 review={review}
                 dirty={dirty}

@@ -355,7 +355,13 @@ export default function PathBuilderForm({
 
       {/* ══ Stage: Details ══ */}
       {stage === "details" && (
-        <div className="space-y-5">
+        <div
+          id="path-panel-details"
+          role="tabpanel"
+          aria-labelledby="path-tab-details"
+          tabIndex={-1}
+          className="space-y-5 focus:outline-none"
+        >
           <Section title={t("builder.stages.details")} icon={Settings2}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("builder.fields.titleEn")} required>
@@ -416,7 +422,13 @@ export default function PathBuilderForm({
 
       {/* ══ Stage: Curriculum ══ */}
       {stage === "curriculum" && (
-        <div className="space-y-4">
+        <div
+          id="path-panel-curriculum"
+          role="tabpanel"
+          aria-labelledby="path-tab-curriculum"
+          tabIndex={-1}
+          className="space-y-4 focus:outline-none"
+        >
           {/*
             This stage rendered nothing at all with no modules — a blank panel
             under a tab whose badge said the path was incomplete, with no hint
@@ -457,7 +469,13 @@ export default function PathBuilderForm({
 
       {/* ══ Stage: Publish ══ */}
       {stage === "publish" && (
-        <div className="space-y-5">
+        <div
+          id="path-panel-publish"
+          role="tabpanel"
+          aria-labelledby="path-tab-publish"
+          tabIndex={-1}
+          className="space-y-5 focus:outline-none"
+        >
           <Section title={t("builder.publishTitle")} icon={Rocket}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("builder.fields.status")}>

@@ -748,9 +748,10 @@ export default function TeamForm({
         <div className="p-8">
           {/* IDENTITY */}
           <div
-            id="panel-identity"
+            id="team-panel-identity"
             role="tabpanel"
-            aria-labelledby="tab-identity"
+            aria-labelledby="team-tab-identity"
+            tabIndex={-1}
             hidden={activeTab !== "identity"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-6 pb-2 border-b border-divider">
@@ -905,9 +906,10 @@ export default function TeamForm({
 
           {/* ROLE & SECTION */}
           <div
-            id="panel-role"
+            id="team-panel-role"
             role="tabpanel"
-            aria-labelledby="tab-role"
+            aria-labelledby="team-tab-role"
+            tabIndex={-1}
             hidden={activeTab !== "role"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-6 pb-2 border-b border-divider">
@@ -1019,9 +1021,10 @@ export default function TeamForm({
 
           {/* PUBLIC PROFILE */}
           <div
-            id="panel-profile"
+            id="team-panel-profile"
             role="tabpanel"
-            aria-labelledby="tab-profile"
+            aria-labelledby="team-tab-profile"
+            tabIndex={-1}
             hidden={activeTab !== "profile"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-2 pb-2 border-b border-divider">
@@ -1214,9 +1217,10 @@ export default function TeamForm({
 
           {/* BIOGRAPHY */}
           <div
-            id="panel-bio"
+            id="team-panel-bio"
             role="tabpanel"
-            aria-labelledby="tab-bio"
+            aria-labelledby="team-tab-bio"
+            tabIndex={-1}
             hidden={activeTab !== "bio"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-2 pb-2 border-b border-divider">
@@ -1294,9 +1298,10 @@ export default function TeamForm({
 
           {/* CONTACT & PRIVACY */}
           <div
-            id="panel-contact"
+            id="team-panel-contact"
             role="tabpanel"
-            aria-labelledby="tab-contact"
+            aria-labelledby="team-tab-contact"
+            tabIndex={-1}
             hidden={activeTab !== "contact"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-2 pb-2 border-b border-divider">
@@ -1381,9 +1386,10 @@ export default function TeamForm({
 
           {/* ACCOUNT LINK */}
           <div
-            id="panel-account"
+            id="team-panel-account"
             role="tabpanel"
-            aria-labelledby="tab-account"
+            aria-labelledby="team-tab-account"
+            tabIndex={-1}
             hidden={activeTab !== "account"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-2 pb-2 border-b border-divider">
@@ -1480,9 +1486,10 @@ export default function TeamForm({
 
           {/* PUBLISHING */}
           <div
-            id="panel-publishing"
+            id="team-panel-publishing"
             role="tabpanel"
-            aria-labelledby="tab-publishing"
+            aria-labelledby="team-tab-publishing"
+            tabIndex={-1}
             hidden={activeTab !== "publishing"}
           >
             <h3 className="text-lg font-semibold text-text-heading mb-6 pb-2 border-b border-divider">

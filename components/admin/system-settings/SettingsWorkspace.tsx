@@ -349,8 +349,17 @@ export default function SettingsWorkspace({ data }: { data: SettingsWorkspaceDat
         )}
       </div>
 
-        {/* Content */}
-        <div className="min-w-0 flex-1">
+        {/* Content. A real tabpanel: FormTabs' aria-controls pointed at
+            `settings-panel-…` ids that did not exist, so the tablist announced
+            that it controlled nothing. One panel with a dynamic id, because this
+            workspace renders one view at a time. */}
+        <div
+          id={`settings-panel-${view}`}
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${view}`}
+          tabIndex={-1}
+          className="min-w-0 flex-1 focus:outline-none"
+        >
           {view === "overview" && <OverviewPanel data={data} onNavigate={navigate} />}
           {view === "versions" && (
             <VersionsPanel data={data} busy={busy} onRollback={handleRollback} />

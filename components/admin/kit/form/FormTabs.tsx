@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
 export type FormTabState = "complete" | "error" | "warning" | "todo" | "optional";
@@ -51,28 +51,92 @@ export default function FormTabs<K extends string>({
 }) {
   const listRef = useRef<HTMLDivElement>(null);
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
-    const map: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
-    if (e.key === "Home") {
-      e.preventDefault();
-      focusTab(tabs[0].key);
-      return;
-    }
-    if (e.key === "End") {
-      e.preventDefault();
-      focusTab(tabs[tabs.length - 1].key);
-      return;
-    }
-    const dir = map[e.key];
-    if (!dir) return;
-    e.preventDefault();
-    focusTab(tabs[(index + dir + tabs.length) % tabs.length].key);
+  /*
+    ── Manual activation, per the WAI-ARIA Tabs pattern ──
+
+    Arrow keys move *focus* between tabs; Enter or Space activates the focused
+    one. The alternative — automatic activation, where an arrow press selects
+    immediately — is what this component did before, and it is the wrong half of
+    the pattern for these forms. APG says so directly: prefer manual activation
+    when displaying a panel is expensive. Here every arrow press would swap a
+    panel holding dozens of uncontrolled inputs and replay a 200ms entrance
+    animation, so arrowing from Basic info to Review rendered five panels nobody
+    asked to see.
+
+    It is also the only reading under which "arrows cycle" and "focus moves to
+    the panel on switch" can both be true: if an arrow both selected a tab and
+    sent focus into the panel, the second arrow press would never reach the tab
+    list.
+
+    `focusedKey` is separate from `active` because with manual activation the two
+    genuinely differ — focus can sit on Files while Basic info is still selected.
+    It resets when focus leaves the list, so tabbing back in lands on the
+    selected tab rather than wherever the user last looked.
+  */
+  const [focusedKey, setFocusedKey] = useState<K | null>(null);
+  const tabbableKey = focusedKey ?? active;
+
+  const indexOf = (key: K) => tabs.findIndex((t) => t.key === key);
+
+  function moveFocus(key: K) {
+    setFocusedKey(key);
+    document.getElementById(`${idPrefix}-tab-${key}`)?.focus();
   }
 
-  function focusTab(key: K) {
+  /**
+   * Select a tab, and — for keyboard activation only — send focus into the panel
+   * that just appeared.
+   *
+   * Pointer activation deliberately leaves focus on the tab. A click already
+   * put it there, the user can see what changed, and yanking focus somewhere
+   * they did not ask for it to go is the kind of help nobody wants. For a
+   * keyboard or screen-reader user pressing Enter, "where am I now" is the open
+   * question, and the answer is the new panel.
+   */
+  function activate(key: K, opts?: { focusPanel?: boolean }) {
     onChange(key);
-    // The panel swap happens in the same commit, so query after it paints.
-    requestAnimationFrame(() => document.getElementById(`${idPrefix}-tab-${key}`)?.focus());
+    setFocusedKey(key);
+    if (!opts?.focusPanel) return;
+    // The panel is swapped in this commit; query it once it exists.
+    requestAnimationFrame(() => {
+      document.getElementById(`${idPrefix}-panel-${key}`)?.focus();
+    });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLButtonElement>, key: K) {
+    const index = indexOf(key);
+
+    switch (e.key) {
+      case "ArrowRight":
+        e.preventDefault();
+        moveFocus(tabs[(index + 1) % tabs.length].key);
+        return;
+      case "ArrowLeft":
+        e.preventDefault();
+        moveFocus(tabs[(index - 1 + tabs.length) % tabs.length].key);
+        return;
+      case "Home":
+        e.preventDefault();
+        moveFocus(tabs[0].key);
+        return;
+      case "End":
+        e.preventDefault();
+        moveFocus(tabs[tabs.length - 1].key);
+        return;
+      case "Enter":
+      case " ":
+        // Space would scroll the card; Enter would submit the surrounding form.
+        e.preventDefault();
+        activate(key, { focusPanel: true });
+        return;
+      default:
+        return;
+    }
+  }
+
+  /** Forget the roving position once focus leaves the list entirely. */
+  function handleBlur(e: React.FocusEvent<HTMLDivElement>) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusedKey(null);
   }
 
   return (
@@ -81,9 +145,11 @@ export default function FormTabs<K extends string>({
         ref={listRef}
         role="tablist"
         aria-label={ariaLabel}
+        aria-orientation="horizontal"
+        onBlur={handleBlur}
         className="flex gap-6 overflow-x-auto whitespace-nowrap px-5 [scrollbar-width:none] sm:px-8 [&::-webkit-scrollbar]:hidden"
       >
-        {tabs.map((tab, i) => {
+        {tabs.map((tab) => {
           const isActive = active === tab.key;
           const Icon = tab.icon;
           return (
@@ -94,9 +160,9 @@ export default function FormTabs<K extends string>({
               id={`${idPrefix}-tab-${tab.key}`}
               aria-selected={isActive}
               aria-controls={`${idPrefix}-panel-${tab.key}`}
-              tabIndex={isActive ? 0 : -1}
-              onClick={() => onChange(tab.key)}
-              onKeyDown={(e) => handleKeyDown(e, i)}
+              tabIndex={tabbableKey === tab.key ? 0 : -1}
+              onClick={() => activate(tab.key)}
+              onKeyDown={(e) => handleKeyDown(e, tab.key)}
               className={`focus-field -mb-px inline-flex shrink-0 items-center gap-2 border-b-2 pb-3 pt-1 text-sm transition-all duration-200 ${
                 isActive
                   ? "border-admin-accent font-semibold text-admin-accent-text"

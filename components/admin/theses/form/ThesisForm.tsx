@@ -741,7 +741,10 @@ export default function ThesisForm({
         id={`thesis-panel-${activeStep}`}
         role="tabpanel"
         aria-labelledby={`thesis-tab-${activeStep}`}
-        className="min-w-0"
+        /* -1, not 0: the panel is full of real inputs, so it must be reachable
+           by FormTabs' Enter handler without adding a stop to the tab order. */
+        tabIndex={-1}
+        className="min-w-0 focus:outline-none"
       >
           {activeStep === "basic" && (
             <BasicInfoStep
