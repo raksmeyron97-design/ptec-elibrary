@@ -58,3 +58,16 @@ export function unicodeSlug(value: string): string {
   if (!/\p{L}/u.test(unicode) && unicode.length < 3) return ascii;
   return unicode;
 }
+
+/**
+ * Does `value` look like a slug unicodeSlug() would emit? Lowercase letters
+ * in any script, combining marks, digits, single hyphens between segments.
+ *
+ * This lives beside the builder on purpose: the admin post/thesis forms run
+ * every keystroke through unicodeSlug(), so a validator that only accepted
+ * /^[a-z0-9-]+$/ rejected the slug its own form had just generated, and no
+ * Khmer-titled post or thesis could be saved at all.
+ */
+export function isValidSlug(value: string): boolean {
+  return value === value.toLowerCase() && /^[\p{L}\p{M}\p{N}]+(-[\p{L}\p{M}\p{N}]+)*$/u.test(value);
+}

@@ -12,10 +12,12 @@ import {
   sequenceValue,
   generateCopies,
   findInternalDuplicates,
+  catalogRecordSlug,
   catalogSlugify,
   YEAR_MIN,
   yearMax,
 } from "./catalog";
+import { isValidSlug } from "./slug";
 
 describe("normalizeCopyStatus", () => {
   it("keeps canonical statuses", () => {
@@ -202,6 +204,26 @@ describe("findInternalDuplicates", () => {
   it("finds duplicates and ignores nulls", () => {
     expect(findInternalDuplicates(["a", null, "b", "a", null])).toEqual(["a"]);
     expect(findInternalDuplicates(["a", "b"])).toEqual([]);
+  });
+});
+
+describe("catalogRecordSlug", () => {
+  it("keeps Khmer titles instead of collapsing them to a junk fallback", () => {
+    const slug = catalogRecordSlug("សៀវភៅគរុកោសល្យ");
+    expect(slug).toBe("សៀវភៅគរុកោសល្យ");
+    expect(isValidSlug(slug)).toBe(true);
+  });
+
+  it("still produces the plain ASCII slug for Latin titles", () => {
+    expect(catalogRecordSlug("Café & Books! ")).toBe("cafe-books");
+  });
+
+  it("never ends on a dangling hyphen or combining mark after the length cap", () => {
+    for (const title of ["ការស្រាវជ្រាវប្រតិបត្តិ ".repeat(20), "a ".repeat(120)]) {
+      const slug = catalogRecordSlug(title);
+      expect(slug.length).toBeLessThanOrEqual(100);
+      expect(isValidSlug(slug)).toBe(true);
+    }
   });
 });
 

@@ -10,7 +10,7 @@ import { revalidatePath } from "next/cache";
 import { revalidateCatalogBook } from "@/lib/cache/revalidate";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import {
-  catalogSlugify,
+  catalogRecordSlug,
   pickCatalogColor,
   validateIsbn,
   validatePublicationYear,
@@ -32,6 +32,21 @@ import { zimaRelativePath } from "@/lib/zima";
 export type BookActionResult =
   | { success: true; book: { id: string; slug: string; shelf_location: string | null; accession_number: string | null } }
   | { success: false; error: string; fieldErrors?: Record<string, string> };
+
+/**
+ * Live-availability probe for the slug field on the add wizard.
+ *
+ * Read-only and permission-gated like its posts counterpart. A "taken" answer
+ * is advisory: addCatalogBook() still resolves collisions with a numeric
+ * suffix, because two physical books legitimately share a title.
+ */
+export async function checkCatalogSlugAvailable(slug: string): Promise<boolean> {
+  const { supabase } = await requirePermission("books", "read");
+  const clean = catalogRecordSlug(slug);
+  if (!clean) return false;
+  const { data } = await supabase.from("catalog_books").select("id").eq("slug", clean).limit(1);
+  return (data ?? []).length === 0;
+}
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -189,7 +204,15 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
   const cover = await resolveCover(formData, userId);
   if (!cover.ok) return { success: false, error: cover.error, fieldErrors: cover.fieldErrors };
 
-  const baseSlug = catalogSlugify(parsed.fields.title as string) || `book-${Date.now().toString(36)}`;
+  // The wizard submits the slug it previewed, so what the cataloguer saw is
+  // what gets saved. It is still re-derived server-side: the field is the
+  // suggestion, never the authority. Blank (or an older client that sends no
+  // slug at all) falls back to the title exactly as before.
+  const requestedSlug = catalogRecordSlug(formData.get("slug")?.toString() ?? "");
+  const baseSlug =
+    requestedSlug ||
+    catalogRecordSlug(parsed.fields.title as string) ||
+    `book-${Date.now().toString(36)}`;
 
   // Copies start at 0 — counters are derived from catalog_copies rows.
   const record = {

@@ -5,6 +5,7 @@
  */
 
 import { CATEGORIES, STATUSES, type PostCategory, type PostStatus } from "@/lib/admin/posts-shared";
+import { isValidSlug } from "@/lib/slug";
 
 export type PostEventInput = {
   startAt?: string | null;
@@ -45,8 +46,6 @@ function isSafeHttpUrl(value: string): boolean {
   }
 }
 
-const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
 export function validatePost(input: PostValidationInput): PostValidationErrors {
   const errors: PostValidationErrors = {};
 
@@ -57,7 +56,7 @@ export function validatePost(input: PostValidationInput): PostValidationErrors {
 
   const slug = input.slug.trim();
   if (!slug) errors.slug = "Slug is required";
-  else if (!SLUG_RE.test(slug)) errors.slug = "Slug must be lowercase letters, numbers, and hyphens only";
+  else if (!isValidSlug(slug)) errors.slug = "Slug can only contain letters, numbers, and single hyphens";
 
   if (!CATEGORIES.includes(input.category as PostCategory)) errors.category = "Choose a valid category";
 

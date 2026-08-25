@@ -4,6 +4,8 @@
  * re-run client-side for inline feedback since they touch no I/O.
  */
 
+import { isValidSlug } from "@/lib/slug";
+
 export type ThesisValidationInput = {
   title: string;
   slug: string;
@@ -27,8 +29,6 @@ export type ThesisValidationErrors = Partial<Record<
 
 export type ThesisPublishWarning = { key: string; label: string };
 
-const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
 /** Minimal check before saving any draft — a thesis needs at least a title to exist. */
 export function validateThesisDraft(input: { title: string }): ThesisValidationErrors {
   const errors: ThesisValidationErrors = {};
@@ -50,7 +50,7 @@ export function validateThesisPublish(input: ThesisValidationInput): ThesisValid
 
   const slug = input.slug.trim();
   if (!slug) errors.slug = "Slug is required before publishing";
-  else if (!SLUG_RE.test(slug)) errors.slug = "Slug must be lowercase letters, numbers, and hyphens only";
+  else if (!isValidSlug(slug)) errors.slug = "Slug can only contain letters, numbers, and single hyphens";
 
   if (!input.program) errors.program = "Program is required before publishing";
   if (!input.cohort) errors.cohort = "Cohort is required before publishing";

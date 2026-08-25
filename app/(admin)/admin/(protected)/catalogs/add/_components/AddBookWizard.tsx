@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { addCatalogBook } from "../../actions";
+import { addCatalogBook, checkCatalogSlugAvailable } from "../../actions";
 import CopiesPanel from "../../_components/CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
 import { Field, ERROR_CLASS } from "@/components/admin/kit/form";
@@ -14,6 +14,7 @@ import {
   FormShell,
   FormTabs,
   StickyActionBar,
+  SlugField,
   ContextPanel,
   ButtonBusy,
   BTN_PRIMARY,
@@ -23,6 +24,7 @@ import {
 import { AlertCircle, BookOpen, Image as ImageIcon, type LucideIcon } from "lucide-react";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
+import { catalogRecordSlug } from "@/lib/catalog";
 
 interface BookData {
   id: string;
@@ -55,6 +57,9 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
   const [loading, setLoading] = useState(false);
   // Mirrors of the (uncontrolled) form fields that drive the cover preview.
   const [preview, setPreview] = useState({ title: "", author: "", category: "" });
+  // The slug is the one field that is controlled: it follows the title until
+  // the cataloguer edits it, which needs state on this side of the form.
+  const [slug, setSlug] = useState("");
 
   async function handleAddBook(formData: FormData) {
     if (loading) return;
@@ -155,9 +160,10 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
       }
       context={
         /*
-          A new record has no slug and no cover yet, so a search-result preview
-          would be a preview of nothing. What a cataloguer actually needs here is
-          the shape of the job: which required fields are still empty.
+          A new record has no cover yet, so a search-result preview would be a
+          preview of nothing — the slug field carries its own URL preview. What
+          a cataloguer needs here is the shape of the job: which required fields
+          are still empty.
         */
         <ContextPanel title={t("addContextTitle")} icon={BookOpen} hint={t("addContextHint")}>
           <p className="text-xs leading-[1.6] text-text-muted">{t("addContextBody")}</p>
@@ -205,6 +211,27 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
               />
             )}
           </Field>
+
+          <SlugField
+            value={slug}
+            onChange={setSlug}
+            source={preview.title}
+            routePrefix="/catalogs"
+            className="sm:col-span-2"
+            siteUrl={SITE_URL}
+            checkAvailability={checkCatalogSlugAvailable}
+            slugify={catalogRecordSlug}
+            disabled={loading}
+            error={fieldErrors.slug}
+            labels={{
+              label: t("slug"),
+              autoHint: t("slugAuto"),
+              reset: t("slugReset"),
+              checking: t("slugChecking"),
+              available: t("slugAvailable"),
+              taken: t("slugTaken"),
+            }}
+          />
 
           <Field label={t("authorReq")} required htmlFor="f-author" error={fieldErrors.author}>
             {(p) => (
