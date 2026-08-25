@@ -5317,6 +5317,8 @@
     },
     "slug": {
       "label": "Slug",
+      "auto": "From the title",
+      "reset": "Use the title",
       "checking": "Checking…",
       "available": "Available",
       "taken": "Already taken — choose another"
@@ -5784,6 +5786,14 @@
       "step1Subtitle": "Step 1 of 2 — bibliographic information. Physical copies come next.",
       "titleReq": "Title",
       "titlePlaceholder": "e.g. Introduction to Cambodian Law",
+      "slug": "Slug",
+      "slugAuto": "From the title",
+      "slugReset": "Use the title",
+      "slugChecking": "Checking…",
+      "slugAvailable": "Available",
+      "slugTaken": "Already used — a number will be added",
+      "slugTakenEdit": "Already used by another record",
+      "slugChangeWarning": "This changes the public URL. Links to /catalogs/{oldSlug} will redirect to the new one, so existing links keep working.",
       "authorReq": "Author",
       "authorPlaceholder": "Author full name",
       "languageReq": "Language",

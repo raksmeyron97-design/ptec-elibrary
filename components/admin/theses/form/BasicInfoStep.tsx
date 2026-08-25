@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import ThesisSlugField from "./ThesisSlugField";
+
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
-import { Field, FormSection, INPUT_CLASS } from "@/components/admin/kit/form";
+import { Field, FormSection, INPUT_CLASS, SlugField } from "@/components/admin/kit/form";
 import { LICENSE_OPTIONS } from "@/lib/book-utils";
-import { THESIS_TYPES, THESIS_LANGUAGES, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
+import { THESIS_TYPES, THESIS_LANGUAGES, slugify, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
+import { checkThesisSlugAvailable } from "@/app/actions/theses";
 
 /**
  * Step 1 — two groups rather than one flat column of six.
@@ -49,6 +50,7 @@ export default function BasicInfoStep({
   submitAttempted: boolean;
 }) {
   const tr = useTranslations("adminThesisForm.basic");
+  const tSlug = useTranslations("adminPostForm.slug");
 
   /*
     Two gates, not one. "Title is required" used to appear the moment the
@@ -78,14 +80,30 @@ export default function BasicInfoStep({
           )}
         </Field>
 
-        <ThesisSlugField
-          title={title}
-          slug={slug}
-          onSlugChange={onSlugChange}
-          thesisId={thesisId}
-          disabled={disabled}
+        <SlugField
+          value={slug}
+          onChange={onSlugChange}
+          source={title}
+          routePrefix="/theses"
           siteUrl={siteUrl}
+          slugify={slugify}
+          // Closed over the thesis's own id so editing never reports its own
+          // slug as taken.
+          checkAvailability={(candidate) => checkThesisSlugAvailable(candidate, thesisId)}
+          disabled={disabled}
+          required
           error={submitAttempted ? fieldErrors.slug : undefined}
+          // Kept from the field this replaced: the first thing anyone does with
+          // a new thesis page is send someone the link.
+          copyLabels={{ copy: tr("copyLink"), copied: tr("copied") }}
+          labels={{
+            label: tSlug("label"),
+            autoHint: tSlug("auto"),
+            reset: tSlug("reset"),
+            checking: tSlug("checking"),
+            available: tSlug("available"),
+            taken: tSlug("taken"),
+          }}
         />
 
         <Field label={tr("doi")} hint={tr("doiHint")}>

@@ -8,9 +8,11 @@
 // production build, which is why it is a test.
 
 import { beforeAll, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 
 import Field from "./Field";
+import SlugField from "./SlugField";
 import { focusFirstInvalid } from "./focus-first-invalid";
 
 describe("<Field>", () => {
@@ -122,5 +124,114 @@ describe("focusFirstInvalid", () => {
     expect(focusFirstInvalid(null)).toBe(false);
 
     root.remove();
+  });
+});
+
+describe("<SlugField>", () => {
+  // A controlled harness, because the field's whole job is a two-way
+  // relationship with a title the parent owns.
+  function Harness({ title }: { title: string }) {
+    const [slug, setSlug] = useState("");
+    return (
+      <SlugField
+        value={slug}
+        onChange={setSlug}
+        source={title}
+        routePrefix="/catalogs"
+        siteUrl="https://library.ptec.edu.kh"
+        labels={{
+          label: "Slug",
+          autoHint: "From the title",
+          reset: "Use the title",
+          checking: "Checking…",
+          available: "Available",
+          taken: "Already used",
+        }}
+      />
+    );
+  }
+
+  it("derives the slug from the title", () => {
+    render(<Harness title="Teaching Practice Handbook" />);
+    expect(screen.getByLabelText("Slug")).toHaveValue("teaching-practice-handbook");
+  });
+
+  it("keeps a Khmer title's own script rather than dropping it", () => {
+    render(<Harness title="សៀវភៅគរុកោសល្យ" />);
+    expect(screen.getByLabelText("Slug")).toHaveValue("សៀវភៅគរុកោសល្យ");
+  });
+
+  it("never overwrites a slug the record already has — the edit-form bug the older copies shared", () => {
+    // Mounting an edit form used to re-derive the slug from the title and
+    // silently discard a hand-picked one.
+    function EditHarness() {
+      const [slug, setSlug] = useState("hand-picked-slug");
+      return (
+        <SlugField
+          value={slug}
+          onChange={setSlug}
+          source="A Completely Different Title"
+          routePrefix="/catalogs"
+          siteUrl="https://library.ptec.edu.kh"
+          labels={{
+            label: "Slug",
+            autoHint: "From the title",
+            reset: "Use the title",
+            checking: "Checking…",
+            available: "Available",
+            taken: "Already used",
+          }}
+        />
+      );
+    }
+    render(<EditHarness />);
+    expect(screen.getByLabelText("Slug")).toHaveValue("hand-picked-slug");
+    // And it offers the way back rather than pretending it is still tracking.
+    expect(screen.getByRole("button", { name: "Use the title" })).toBeInTheDocument();
+  });
+
+  it("shows the URL the record will actually live at", () => {
+    render(<Harness title="Teaching Practice" />);
+    expect(
+      screen.getByText("https://library.ptec.edu.kh/catalogs/teaching-practice"),
+    ).toBeInTheDocument();
+  });
+
+  it("stops following the title once edited by hand, and can be handed back", async () => {
+    const { rerender } = render(<Harness title="First Title" />);
+    const input = screen.getByLabelText("Slug");
+
+    fireEvent.change(input, { target: { value: "custom-slug" } });
+    rerender(<Harness title="First Title Extended" />);
+    expect(input).toHaveValue("custom-slug");
+
+    // Handing it back picks up the title as it stands *now*, not the one the
+    // slug was originally derived from.
+    fireEvent.click(screen.getByRole("button", { name: "Use the title" }));
+    await waitFor(() => expect(input).toHaveValue("first-title-extended"));
+  });
+
+  it("announces the availability verdict politely", async () => {
+    render(
+      <SlugField
+        value="taken-slug"
+        onChange={() => {}}
+        source="Taken Slug"
+        routePrefix="/catalogs"
+        siteUrl="https://library.ptec.edu.kh"
+        checkAvailability={async () => false}
+        labels={{
+          label: "Slug",
+          autoHint: "From the title",
+          reset: "Use the title",
+          checking: "Checking…",
+          available: "Available",
+          taken: "Already used",
+        }}
+      />,
+    );
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    await waitFor(() => expect(status).toHaveTextContent("Already used"), { timeout: 2000 });
   });
 });

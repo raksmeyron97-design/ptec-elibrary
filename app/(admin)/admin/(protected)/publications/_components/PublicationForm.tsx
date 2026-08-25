@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/publication-workspace";
 import {
   togglePublicationPublishStatus,
+  checkPublicationSlugAvailable,
   type PublicationData,
   type PublicationFileInput,
 } from "@/app/actions/publications";
@@ -51,6 +52,7 @@ import {
   FormShell,
   FormTabs,
   MONO_INPUT_CLASS,
+  SlugField,
   TEXTAREA_CLASS,
   focusFirstInvalidAfterPaint,
   type FormTab,
@@ -229,7 +231,6 @@ export default function PublicationForm({
   // ── Controlled content state ──
   const [title, setTitle] = useState(initial?.title ?? "");
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [slugTouched, setSlugTouched] = useState(!!initial);
   const [authorRows, setAuthorRows] = useState<AuthorshipRow[]>(
     initial?.authorships?.map((a) => ({
       author: a.author,
@@ -531,15 +532,13 @@ export default function PublicationForm({
     const payload = draftBanner?.payload;
     if (!payload) return;
     const scalars = payload.scalars as Partial<Scalars> | undefined;
-    if (scalars) {
-      setDefaults((prev) => ({ ...prev, ...scalars }));
-      setEpoch((e) => e + 1);
-    }
+    if (scalars) setDefaults((prev) => ({ ...prev, ...scalars }));
+    // Remount unconditionally, not only when there are scalars: a restored slug
+    // is a hand-picked one, and the remount is what tells SlugField to stop
+    // tracking the title instead of overwriting what we just restored.
+    setEpoch((e) => e + 1);
     if (typeof payload.title === "string") setTitle(payload.title);
-    if (typeof payload.slug === "string") {
-      setSlug(payload.slug);
-      setSlugTouched(true);
-    }
+    if (typeof payload.slug === "string") setSlug(payload.slug);
     if (typeof payload.abstract === "string") setAbstract(payload.abstract);
     if (typeof payload.abstractKm === "string") setAbstractKm(payload.abstractKm);
     if (Array.isArray(payload.references)) {
@@ -929,10 +928,7 @@ export default function PublicationForm({
                       {...p}
                       name="title"
                       value={title}
-                      onChange={(e) => {
-                        setTitle(e.target.value);
-                        if (!slugTouched) setSlug(slugify(e.target.value));
-                      }}
+                      onChange={(e) => setTitle(e.target.value)}
                       placeholder="e.g. Digital pedagogy adoption in Cambodian teacher education"
                     />
                   )}
@@ -955,29 +951,34 @@ export default function PublicationForm({
                       />
                     )}
                   </Field>
-                  <Field
-                    label="Slug (URL)"
+                  <SlugField
+                    value={slug}
+                    onChange={setSlug}
+                    source={title}
+                    routePrefix="/publications"
+                    siteUrl={SITE_URL}
+                    slugify={slugify}
+                    // Closed over this publication's own id so editing never
+                    // reports its own slug as taken.
+                    checkAvailability={(candidate) =>
+                      checkPublicationSlugAvailable(candidate, initial?.id)
+                    }
+                    // Unlike posts/theses/catalogs, a duplicate here is rejected
+                    // by the insert rather than suffixed — so it really is an
+                    // error, not a note.
+                    takenIsError
                     required
                     htmlFor="pf-field-slug"
                     error={fieldIssues.slug}
-                    hint="Follows the title until you edit it. Changing it after publishing breaks existing links."
-                  >
-                    {(p) => (
-                      <input
-                        {...p}
-                        className={
-                          fieldIssues.slug ? `${p.className} font-mono text-xs` : MONO_INPUT_CLASS
-                        }
-                        name="slug"
-                        value={slug}
-                        onChange={(e) => {
-                          setSlugTouched(true);
-                          setSlug(e.target.value);
-                        }}
-                        placeholder="auto-generated-from-title"
-                      />
-                    )}
-                  </Field>
+                    labels={{
+                      label: "Slug (URL)",
+                      autoHint: "From the title",
+                      reset: "Use the title",
+                      checking: "Checking…",
+                      available: "Available",
+                      taken: "Already used — choose another",
+                    }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

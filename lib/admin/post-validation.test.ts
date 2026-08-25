@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { validatePost, type PostValidationInput } from "./post-validation";
+import { unicodeSlug } from "@/lib/slug";
 
 function valid(overrides: Partial<PostValidationInput> = {}): PostValidationInput {
   return {
@@ -26,6 +27,11 @@ describe("validatePost — core", () => {
 
   it("rejects a bad slug", () => {
     expect(validatePost(valid({ slug: "Not A Slug" })).slug).toBeTruthy();
+  });
+
+  it("accepts the Khmer slug the form itself generates", () => {
+    const title = "ពិធីបិទវគ្គបណ្ដុះបណ្ដាល ស្ដីពី «ការស្រាវជ្រាវប្រតិបត្តិ» នៅវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ";
+    expect(validatePost(valid({ title, slug: unicodeSlug(title) })).slug).toBeUndefined();
   });
 
   it("requires a future scheduledAt when scheduling", () => {

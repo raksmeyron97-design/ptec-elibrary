@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { asciiSlug, unicodeSlug } from "./slug";
+import { asciiSlug, isValidSlug, unicodeSlug } from "./slug";
 
 describe("asciiSlug", () => {
   it("keeps the historical Latin behavior", () => {
@@ -40,5 +40,22 @@ describe("unicodeSlug", () => {
 
   it("returns empty when there is nothing usable, so callers hit their fallback", () => {
     expect(unicodeSlug("!!! ***")).toBe("");
+  });
+});
+
+describe("isValidSlug", () => {
+  const KHMER_TITLE =
+    "ពិធីបិទវគ្គបណ្ដុះបណ្ដាល ស្ដីពី «ការស្រាវជ្រាវប្រតិបត្តិ» នៅវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ";
+
+  it("accepts what unicodeSlug emits — otherwise a form rejects its own output", () => {
+    for (const title of [KHMER_TITLE, "A Valid Post Title", "សៀវភៅ ២០២៦", "Recherche appliquée"]) {
+      expect(isValidSlug(unicodeSlug(title))).toBe(true);
+    }
+  });
+
+  it("keeps rejecting the malformed shapes it always did", () => {
+    for (const bad of ["Not A Slug", "trailing-", "-leading", "double--hyphen", "has space", "", "Uppercase"]) {
+      expect(isValidSlug(bad)).toBe(false);
+    }
   });
 });

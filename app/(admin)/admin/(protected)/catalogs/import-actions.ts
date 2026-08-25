@@ -28,7 +28,7 @@ import { revalidatePath } from "next/cache";
 import { revalidateCatalogBook } from "@/lib/cache/revalidate";
 import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
-import { catalogSlugify, pickCatalogColor, computeCopyStats } from "@/lib/catalog";
+import { catalogRecordSlug, catalogSlugify, pickCatalogColor, computeCopyStats } from "@/lib/catalog";
 import {
   validateRow,
   markInFileDuplicates,
@@ -478,9 +478,13 @@ async function importGroup(
   }
 
   // Insert the new bibliographic record; slug collisions get numeric suffixes.
-  const baseSlug = catalogSlugify(n.title) || `book-${Date.now().toString(36)}`;
+  const baseSlug = catalogRecordSlug(n.title) || `book-${Date.now().toString(36)}`;
   const suffix = n.isbn ? catalogSlugify(n.isbn) : catalogSlugify(n.author);
-  const preferredSlug = suffix ? `${baseSlug}-${suffix}`.slice(0, 120) : baseSlug;
+  // The 120-cap can now land inside a Khmer cluster, so trim the same way
+  // catalogRecordSlug() does rather than leaving a dangling mark or hyphen.
+  const preferredSlug = suffix
+    ? `${baseSlug}-${suffix}`.slice(0, 120).replace(/[-\p{M}]+$/u, "")
+    : baseSlug;
 
   const record = {
     title: n.title,

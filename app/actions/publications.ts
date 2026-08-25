@@ -34,6 +34,25 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Forbidden";
 }
 
+/**
+ * Live-availability probe for the slug field.
+ *
+ * Unlike posts/theses/catalogs — which de-duplicate with a numeric suffix — a
+ * duplicate publication slug is rejected outright by the insert (23505), so
+ * telling the author before they submit saves a round trip and a lost form.
+ */
+export async function checkPublicationSlugAvailable(
+  slug: string,
+  ignoreId?: string,
+): Promise<boolean> {
+  await requirePermission("publications", "read");
+  const clean = slug.trim();
+  if (!clean) return false;
+  const supabase = createServiceClient();
+  const { data } = await supabase.from("publications").select("id").eq("slug", clean).limit(1);
+  return !(data ?? []).some((row: { id: string }) => row.id !== ignoreId);
+}
+
 /** Strip PostgREST filter metacharacters before building .or(...) strings. */
 function sanitizeSearchTerm(input: string): string {
   return input

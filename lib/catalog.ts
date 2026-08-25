@@ -11,6 +11,8 @@
 // kept in sync by recountCatalogBook() in copy-actions and (after migration
 // 0095) a DB trigger. Nothing may write them from a form.
 
+import { unicodeSlug } from "@/lib/slug";
+
 export type CatalogBook = {
   id:               string;
   title:            string;
@@ -415,6 +417,23 @@ export function findInternalDuplicates(values: (string | null)[]): string[] {
 }
 
 // ── Slug helper ───────────────────────────────────────────────────────────────
+
+/**
+ * URL slug for a catalog record. Unicode-aware like every other resource type
+ * (see lib/slug.ts): a Khmer title used to strip to "" here and fall back to a
+ * junk `book-mfa3k2` slug, even though /catalogs/[slug] already decodes
+ * non-ASCII slugs on the way back in. catalogSlugify() below stays ASCII-only
+ * — it also builds storage filenames, which must not carry Khmer.
+ */
+export function catalogRecordSlug(title: string): string {
+  // Fold Latin diacritics first, exactly as catalogSlugify() always has, so
+  // "Café" keeps slugging to "cafe" and not "caf". The stripped range is
+  // Latin combining marks only — Khmer's marks live at U+17B4+ and survive.
+  const folded = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Slicing can land inside a Khmer cluster; drop any dangling mark or hyphen
+  // so the slug never ends mid-character.
+  return unicodeSlug(folded).slice(0, 100).replace(/[-\p{M}]+$/u, "");
+}
 
 export function catalogSlugify(str: string): string {
   return str
