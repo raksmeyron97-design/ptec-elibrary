@@ -10,6 +10,7 @@
  * Admin routes are deliberately NOT locale-prefixed (see i18n/routing.ts), so a
  * bare "/admin" prefix check is exact — there is no "/km/admin".
  */
-export function isAdminPath(pathname: string): boolean {
+export function isAdminPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
   return pathname === "/admin" || pathname.startsWith("/admin/");
 }

@@ -55,8 +55,8 @@ const SearchIcon = () => (
 );
 
 // ── Nav link (desktop uses separate component; this is mobile-only) ──
-function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC; label: string, pathname: string }) {
-  const isActive = pathname === href || (href !== "/" && pathname.startsWith(href));
+function NavLink({ href, Icon, label, pathname }: { href: string; Icon: React.FC; label: string, pathname?: string | null }) {
+  const isActive = pathname ? (pathname === href || (href !== "/" && pathname.startsWith(href))) : false;
   return (
     <Link
       href={href}
@@ -171,17 +171,17 @@ export default function MobileBottomNav() {
           <Link
             href="/search"
             aria-label={t("searchLibrary")}
-            aria-current={pathname.startsWith("/search") ? "page" : undefined}
+            aria-current={pathname?.startsWith("/search") ? "page" : undefined}
             className="relative z-10 -mt-5 flex flex-col items-center gap-[3px] rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg-surface"
           >
             <span
               className={`flex h-[50px] w-[50px] items-center justify-center rounded-full shadow-[0_2px_10px_rgba(30,58,138,0.35)] transition-transform active:scale-95 ${
-                pathname.startsWith("/search") ? "bg-brand-hover" : "bg-brand"
+                pathname?.startsWith("/search") ? "bg-brand-hover" : "bg-brand"
               } text-white`}
             >
               <SearchIcon />
             </span>
-            <span className={`text-[11px] tracking-wide whitespace-nowrap ${pathname.startsWith("/search") ? "text-brand font-bold" : "text-text-muted font-medium"}`}>
+            <span className={`text-[11px] tracking-wide whitespace-nowrap ${pathname?.startsWith("/search") ? "text-brand font-bold" : "text-text-muted font-medium"}`}>
               {t("searchShort")}
             </span>
           </Link>

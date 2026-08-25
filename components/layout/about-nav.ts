@@ -72,15 +72,17 @@ export const ABOUT_NAV_ITEMS = [
   },
 ] satisfies AboutNavItem[];
 
-export function isRouteSegmentActive(pathname: string, href: string) {
+export function isRouteSegmentActive(pathname: string | null | undefined, href: string) {
+  if (!pathname) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function isAboutItemActive(pathname: string, item: AboutNavItem) {
+export function isAboutItemActive(pathname: string | null | undefined, item: AboutNavItem) {
   return isRouteSegmentActive(pathname, item.href);
 }
 
-export function isAboutSectionActive(pathname: string) {
+export function isAboutSectionActive(pathname: string | null | undefined) {
+  if (!pathname) return false;
   return (
     pathname === "/about" ||
     pathname.startsWith("/about/") ||

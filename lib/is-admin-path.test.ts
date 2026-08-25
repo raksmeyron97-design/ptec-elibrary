@@ -26,4 +26,10 @@ describe("isAdminPath", () => {
   it("does not match a locale-prefixed lookalike (admin is never localized)", () => {
     expect(isAdminPath("/km/admin")).toBe(false);
   });
+
+  it("handles null, undefined, and empty strings safely", () => {
+    expect(isAdminPath(null)).toBe(false);
+    expect(isAdminPath(undefined)).toBe(false);
+    expect(isAdminPath("")).toBe(false);
+  });
 });

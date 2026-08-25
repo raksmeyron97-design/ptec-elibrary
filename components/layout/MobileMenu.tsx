@@ -59,11 +59,12 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
   const t = useTranslations("nav");
   const footerT = useTranslations("footer");
   const notificationsT = useTranslations("notifications");
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const drawerId = useId();
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const open = openPath === pathname;
+  const open = openPath !== null && openPath === pathname;
   const drawer = useMountTransition(open);
 
   const closeDrawer = useCallback(() => setOpenPath(null), []);
@@ -87,7 +88,7 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
   const trapRef = useFocusTrap<HTMLDivElement>(open && drawer.mounted);
 
   const isActive = (href: string) =>
-    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+    pathname ? (pathname === href || (href !== "/" && pathname.startsWith(`${href}/`))) : false;
 
   return (
     <div className="lg:hidden">
