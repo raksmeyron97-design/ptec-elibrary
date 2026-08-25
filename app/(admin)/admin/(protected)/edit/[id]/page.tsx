@@ -70,10 +70,23 @@ export default async function EditBookPage({
     fileFormat:  (primaryFile?.format as string | null) ?? null,
   };
 
+  /*
+    Breadcrumb, heading, tabs, context sidebar and action bar all come from
+    FormShell inside EditForm — the sidebar previews the form's own live state,
+    so it cannot be assembled here. The route stays a data loader.
+
+    The h1 used to be `sr-only`, so the page rendered with no visible heading at
+    all: an admin arriving from a list of near-identical Khmer titles had to read
+    the Title field to confirm which record they had opened. It is the real
+    heading now, and it names the book.
+  */
   return (
-    <div className="mx-auto max-w-[800px] space-y-8">
-      <h1 className="sr-only">Edit e-book — {initial.title}</h1>
-      <EditForm initial={initial} departments={departments} categories={categories} />
-    </div>
+    <EditForm
+      initial={initial}
+      departments={departments}
+      categories={categories}
+      pageTitle={initial.title.trim() || "Untitled e-book"}
+      pageDescription="Metadata, cover image and PDF file for this e-book."
+    />
   );
 }
