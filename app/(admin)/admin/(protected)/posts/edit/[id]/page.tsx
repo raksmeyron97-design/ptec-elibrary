@@ -79,8 +79,13 @@ export default async function EditPostPage({
   }
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-8">
-      <PostForm initial={initial} authorName={authorName} />
-    </div>
+    <PostForm
+      initial={initial}
+      authorName={authorName}
+      /* Named, because "Edit post" over a list of similar headlines told the
+         editor nothing about which record they had opened. */
+      pageTitle={initial.title?.trim() || "Untitled post"}
+      pageDescription="Update this post."
+    />
   );
 }

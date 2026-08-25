@@ -13,6 +13,13 @@ import PostEventDetails, { type EventDraft } from "@/components/admin/posts/Post
 import PostCoverUploader, { type CoverItem } from "@/components/admin/posts/PostCoverUploader";
 import SeoSettings from "@/components/admin/posts/SeoSettings";
 import PostFormStickyActions from "@/components/admin/posts/PostFormStickyActions";
+import {
+  FormShell,
+  FormTabs,
+  ContextPanel,
+  type FormTab,
+} from "@/components/admin/kit/form";
+import { FileText, Globe, Image as ImageIcon, Search, type LucideIcon } from "lucide-react";
 import PostPreviewModal from "@/components/admin/posts/PostPreviewModal";
 import { SITE_URL } from "@/lib/seo/site";
 import { slugify } from "@/lib/admin/posts-shared";
@@ -59,9 +66,39 @@ function toDatetimeLocal(iso: string | null): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export default function PostForm({ initial, authorName }: { initial?: PostInitial; authorName: string }) {
+type Tab = "content" | "media" | "publish";
+
+/*
+  Three tabs, replacing a 1fr/340px split. That split was the problem: the
+  sidebar carried the publish controls, the tag input, the cover uploader and
+  four SEO overrides in one 340px column, so the two decisions that end a post
+  — when it goes live, and what it looks like when shared — were the narrowest
+  things on the page, while the body editor had the width.
+*/
+const TABS: { key: Tab; labelKey: string; icon: LucideIcon }[] = [
+  { key: "content", labelKey: "tabContent", icon: FileText },
+  { key: "media", labelKey: "tabMedia", icon: ImageIcon },
+  { key: "publish", labelKey: "tabPublish", icon: Globe },
+];
+
+export default function PostForm({
+  initial,
+  authorName,
+  pageTitle,
+  pageDescription,
+}: {
+  initial?: PostInitial;
+  authorName: string;
+  /*
+    The form owns FormShell rather than the route, because the context sidebar is
+    a live view of this component's own state.
+  */
+  pageTitle: string;
+  pageDescription: string;
+}) {
   const t = useTranslations("adminPostForm");
   const isEdit = !!initial;
+  const [tab, setTab] = useState<Tab>("content");
   const editorSectionRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -374,194 +411,263 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
       ? new Date(initial.createdAt).toLocaleDateString()
       : t("justNow");
 
+  /*
+    Context per tab. Content and Media both raise "how will this read to someone
+    who has not opened it", so both get the search-result preview. Publish gets
+    nothing — that tab already holds the SEO overrides the preview would be
+    previewing, and a preview of the thing beside it is noise.
+  */
+  const context =
+    tab === "publish" ? null : (
+      <ContextPanel title={t("contextPreviewTitle")} icon={Search} hint={t("contextPreviewHint")}>
+        <div className="rounded-lg border border-divider bg-bg-surface p-3">
+          <p className="truncate text-[11px] text-success-text">{SITE_URL}/posts/{slug || "…"}</p>
+          <p className="mt-0.5 line-clamp-2 text-[15px] font-medium leading-[1.5] text-info-text">
+            {seoTitle.trim() || title.trim() || t("contextUntitled")}
+          </p>
+          <p className="mt-1 line-clamp-3 text-[12.5px] leading-[1.6] text-text-body">
+            {seoDescription.trim() || excerpt.trim() || t("contextNoExcerpt")}
+          </p>
+        </div>
+        <p className="mt-3 text-xs leading-[1.6] text-text-muted">
+          {t("contextOverrideHint")}
+        </p>
+      </ContextPanel>
+    );
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <h1 className="text-2xl font-bold text-text-heading">{isEdit ? t("editTitle") : t("newTitle")}</h1>
-
-      {availableDraft && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <span>
-            {t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}
-          </span>
-          <span className="flex gap-2">
-            <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">
-              {t("restore")}
-            </button>
-            <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
-              {t("discard")}
-            </button>
-          </span>
-        </div>
-      )}
-
-      <PostFormStickyActions
-        isEdit={isEdit}
-        status={status}
-        scheduledAtSet={!!scheduledAt}
-        wasPublished={wasPublished}
-        submitting={busy}
-        onPreview={handlePreview}
-        autosaveStatus={autosaveStatus}
-      />
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
-      {busy && (
-        <div className="flex items-center gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
-          {uploadProgress}
-        </div>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        {/* ── Main column ───────────────────────────────────────── */}
-        <div className="space-y-5 rounded-xl border border-divider bg-bg-surface p-5 shadow-sm sm:p-6">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-text-body">
-              {t("title")} <span className="text-red-500">*</span>
+    <FormShell
+      backHref="/admin/posts"
+      backLabel={t("backToPosts")}
+      title={pageTitle}
+      description={pageDescription}
+      contentKey={tab}
+      onSubmit={handleSubmit}
+      tabs={
+        <FormTabs
+          idPrefix="post"
+          ariaLabel={t("tabsAria")}
+          active={tab}
+          onChange={setTab}
+          tabs={TABS.map<FormTab<Tab>>((entry) => ({
+            key: entry.key,
+            label: t(entry.labelKey),
+            icon: entry.icon,
+            state: entry.key === "content" && fieldErrors.title ? "error" : undefined,
+          }))}
+        />
+      }
+      context={context}
+      actions={
+        <PostFormStickyActions
+          isEdit={isEdit}
+          status={status}
+          scheduledAtSet={!!scheduledAt}
+          wasPublished={wasPublished}
+          submitting={busy}
+          onPreview={handlePreview}
+          autosaveStatus={autosaveStatus}
+        />
+      }
+    >
+      {/* Notices sit above the panels: they are about the whole post, not the
+          section that happens to be open. */}
+      <div className="empty:hidden mb-6 space-y-3">
+        {availableDraft && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>
+              {t("unsavedFrom", { date: new Date(availableDraft.updatedAt).toLocaleString() })}
             </span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-              required
-              disabled={busy}
-              placeholder={t("titlePlaceholder")}
-              aria-invalid={!!fieldErrors.title}
-              aria-describedby={fieldErrors.title ? "title-error" : undefined}
-              className="h-11 w-full rounded-lg border border-divider px-4 text-lg leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60 aria-[invalid=true]:border-red-400"
-            />
-            {fieldErrors.title && (
-              <p id="title-error" className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
-            )}
-          </label>
-
-          <PostSlugField
-            title={title}
-            slug={slug}
-            onSlugChange={setSlug}
-            postId={initial?.id}
-            disabled={busy}
-            siteUrl={SITE_URL}
-          />
-
-          <label className="block">
-            <span className="mb-1 flex items-center justify-between text-sm font-semibold text-text-body">
-              {t("excerpt")}
-              <span className={`font-normal ${excerptCount > 160 ? "text-amber-600" : "text-text-muted"}`}>
-                {excerptCount}/160
-              </span>
+            <span className="flex gap-2">
+              <button type="button" onClick={restoreDraft} className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700">
+                {t("restore")}
+              </button>
+              <button type="button" onClick={discardDraft} className="rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+                {t("discard")}
+              </button>
             </span>
-            <textarea
-              rows={2}
-              value={excerpt}
-              onChange={(e) => setExcerpt(e.target.value)}
-              disabled={busy}
-              placeholder={t("excerptPlaceholder")}
-              className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
-            />
-            <p className="mt-1 text-xs text-text-muted">
-              {excerpt.trim() ? t("excerptHint") : t("excerptAutoHint")}
-            </p>
-          </label>
-
-          <div ref={editorSectionRef}>
-            <MarkdownEditor
-              name="content"
-              value={content}
-              onChange={setContent}
-              disabled={busy}
-              required
-              tab={editorTab}
-              onTabChange={setEditorTab}
-              images={uploadedImages}
-            />
           </div>
+        )}
 
-          {category === "Event" && (
-            <PostEventDetails
-              value={event}
-              onChange={patchEvent}
-              disabled={busy}
-              errors={{
-                startAt: fieldErrors.eventStartAt,
-                endAt: fieldErrors.eventEndAt,
-                registrationUrl: fieldErrors.eventRegistrationUrl,
-              }}
-            />
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        )}
+        {busy && (
+          <div className="flex items-center gap-3 rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+            {uploadProgress}
+          </div>
+        )}
+      </div>
+
+      <div
+        id="post-panel-content"
+        role="tabpanel"
+        aria-labelledby="post-tab-content"
+        tabIndex={-1}
+        hidden={tab !== "content"}
+        className="space-y-5 focus:outline-none"
+      >
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-semibold text-text-body">
+            {t("title")} <span className="text-red-500">*</span>
+          </span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+            required
+            disabled={busy}
+            placeholder={t("titlePlaceholder")}
+            aria-invalid={!!fieldErrors.title}
+            aria-describedby={fieldErrors.title ? "title-error" : undefined}
+            className="h-11 w-full rounded-lg border border-divider px-4 text-lg leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60 aria-[invalid=true]:border-red-400"
+          />
+          {fieldErrors.title && (
+            <p id="title-error" className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
           )}
-        </div>
+        </label>
 
-        {/* ── Sidebar ───────────────────────────────────────────── */}
-        <div className="space-y-5">
-          <PostPublishPanel
-            status={status}
-            onStatusChange={setStatus}
-            scheduledAt={scheduledAt}
-            onScheduledAtChange={setScheduledAt}
-            scheduledAtError={scheduledAtError}
-            visibility={visibility}
-            onVisibilityChange={setVisibility}
-            category={category}
-            onCategoryChange={setCategory}
+        <PostSlugField
+          title={title}
+          slug={slug}
+          onSlugChange={setSlug}
+          postId={initial?.id}
+          disabled={busy}
+          siteUrl={SITE_URL}
+        />
+
+        <label className="block">
+          <span className="mb-1 flex items-center justify-between text-sm font-semibold text-text-body">
+            {t("excerpt")}
+            <span className={`font-normal ${excerptCount > 160 ? "text-amber-600" : "text-text-muted"}`}>
+              {excerptCount}/160
+            </span>
+          </span>
+          <textarea
+            rows={2}
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value)}
             disabled={busy}
+            placeholder={t("excerptPlaceholder")}
+            className="w-full resize-none rounded-lg border border-divider p-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 disabled:bg-paper disabled:opacity-60"
           />
+          <p className="mt-1 text-xs text-text-muted">
+            {excerpt.trim() ? t("excerptHint") : t("excerptAutoHint")}
+          </p>
+        </label>
 
-          <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={featured}
-                onChange={(e) => setFeatured(e.target.checked)}
-                disabled={busy}
-                className="mt-0.5 h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
-              />
-              <span>
-                <span className="block text-sm font-semibold text-text-heading">{t("featured.label")}</span>
-                <span className="mt-0.5 block text-xs text-text-muted">{t("featured.help")}</span>
-              </span>
-            </label>
-          </div>
-
-          <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
-            <TagInput
-              key={restoreVersion}
-              name="tags"
-              defaultTags={tags}
-              onChange={setTags}
-              disabled={busy}
-              max={10}
-              label={t("tags")}
-              placeholder={t("tagsPlaceholder")}
-            />
-          </div>
-
-          <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
-            <PostCoverUploader
-              items={coverItems}
-              onItemsChange={setCoverItems}
-              disabled={busy}
-              error={coverError}
-              onError={setCoverError}
-            />
-          </div>
-
-          <SeoSettings
-            seoTitle={seoTitle}
-            seoDescription={seoDescription}
-            ogImage={ogImage}
-            onSeoTitleChange={setSeoTitle}
-            onSeoDescriptionChange={setSeoDescription}
-            onOgImageChange={setOgImage}
-            fallbackTitle={title}
-            fallbackDescription={excerpt}
-            fallbackImage={heroUrl}
-            siteUrl={SITE_URL}
-            slug={slug}
+        <div ref={editorSectionRef}>
+          <MarkdownEditor
+            name="content"
+            value={content}
+            onChange={setContent}
             disabled={busy}
+            required
+            tab={editorTab}
+            onTabChange={setEditorTab}
+            images={uploadedImages}
           />
         </div>
+
+        {category === "Event" && (
+          <PostEventDetails
+            value={event}
+            onChange={patchEvent}
+            disabled={busy}
+            errors={{
+              startAt: fieldErrors.eventStartAt,
+              endAt: fieldErrors.eventEndAt,
+              registrationUrl: fieldErrors.eventRegistrationUrl,
+            }}
+          />
+        )}
+      </div>
+
+      <div
+        id="post-panel-media"
+        role="tabpanel"
+        aria-labelledby="post-tab-media"
+        tabIndex={-1}
+        hidden={tab !== "media"}
+        className="space-y-5 focus:outline-none"
+      >
+        <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+          <TagInput
+            key={restoreVersion}
+            name="tags"
+            defaultTags={tags}
+            onChange={setTags}
+            disabled={busy}
+            max={10}
+            label={t("tags")}
+            placeholder={t("tagsPlaceholder")}
+          />
+        </div>
+
+        <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+          <PostCoverUploader
+            items={coverItems}
+            onItemsChange={setCoverItems}
+            disabled={busy}
+            error={coverError}
+            onError={setCoverError}
+          />
+        </div>
+      </div>
+
+      <div
+        id="post-panel-publish"
+        role="tabpanel"
+        aria-labelledby="post-tab-publish"
+        tabIndex={-1}
+        hidden={tab !== "publish"}
+        className="space-y-5 focus:outline-none"
+      >
+        <PostPublishPanel
+          status={status}
+          onStatusChange={setStatus}
+          scheduledAt={scheduledAt}
+          onScheduledAtChange={setScheduledAt}
+          scheduledAtError={scheduledAtError}
+          visibility={visibility}
+          onVisibilityChange={setVisibility}
+          category={category}
+          onCategoryChange={setCategory}
+          disabled={busy}
+        />
+
+        <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={featured}
+              onChange={(e) => setFeatured(e.target.checked)}
+              disabled={busy}
+              className="mt-0.5 h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-text-heading">{t("featured.label")}</span>
+              <span className="mt-0.5 block text-xs text-text-muted">{t("featured.help")}</span>
+            </span>
+          </label>
+        </div>
+
+        <SeoSettings
+          seoTitle={seoTitle}
+          seoDescription={seoDescription}
+          ogImage={ogImage}
+          onSeoTitleChange={setSeoTitle}
+          onSeoDescriptionChange={setSeoDescription}
+          onOgImageChange={setOgImage}
+          fallbackTitle={title}
+          fallbackDescription={excerpt}
+          fallbackImage={heroUrl}
+          siteUrl={SITE_URL}
+          slug={slug}
+          disabled={busy}
+        />
       </div>
 
       {previewOpen && (
@@ -577,6 +683,6 @@ export default function PostForm({ initial, authorName }: { initial?: PostInitia
           onClose={() => setPreviewOpen(false)}
         />
       )}
-    </form>
+    </FormShell>
   );
 }

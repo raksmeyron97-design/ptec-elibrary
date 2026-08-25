@@ -31,6 +31,9 @@ export default function FormShell({
   actions,
   contentKey,
   onSubmit,
+  action,
+  onFormChange,
+  formRef,
   children,
 }: {
   backHref: string;
@@ -59,8 +62,16 @@ export default function FormShell({
    * the effect below.
    */
   contentKey?: string;
-  /** When given, the card is a `<form>` and submit buttons in `actions` work. */
+  /**
+   * When either `onSubmit` or `action` is given, the card *is* a `<form>`, so
+   * submit buttons in `actions` work. `action` is for the server-action forms
+   * (the catalog wizards); `onSubmit` for the client-handled ones.
+   */
   onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
+  action?: (formData: FormData) => void | Promise<void>;
+  /** Change handler on the form element — the catalog wizards track dirty this way. */
+  onFormChange?: React.FormEventHandler<HTMLFormElement>;
+  formRef?: React.Ref<HTMLFormElement>;
   children: React.ReactNode;
 }) {
   const wide = useWideContext();
@@ -83,6 +94,8 @@ export default function FormShell({
 
   const CARD_CLASS =
     "w-full min-w-0 border-y border-divider bg-bg-surface shadow-sm sm:rounded-xl sm:border min-[1440px]:w-[840px] min-[1440px]:shrink-0";
+
+  const isForm = Boolean(onSubmit || action);
 
   /*
     Two branches rather than a dynamic tag. `<Card onSubmit={…}>` where Card is
@@ -126,8 +139,15 @@ export default function FormShell({
       </Link>
 
       <div className="flex flex-col items-start gap-8 min-[1440px]:flex-row">
-        {onSubmit ? (
-          <form onSubmit={onSubmit} noValidate className={CARD_CLASS}>
+        {isForm ? (
+          <form
+            ref={formRef}
+            {...(onSubmit ? { onSubmit } : {})}
+            {...(action ? { action } : {})}
+            onChange={onFormChange}
+            noValidate
+            className={CARD_CLASS}
+          >
             {inner}
           </form>
         ) : (
