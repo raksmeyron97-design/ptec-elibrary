@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, type ComponentProps } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link } from "@/i18n/navigation";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
@@ -40,6 +41,7 @@ export default function BookShowcaseTabs({
   const t = useTranslations("home");
   const [tab, setTab] = useState<TabKey>("trending");
   const [activeDept, setActiveDept] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
 
   // When a dept chip is active, show its pre-fetched books (trending order).
   // Sort toggle only applies to the "All" view.
@@ -68,13 +70,18 @@ export default function BookShowcaseTabs({
             return (
               <button key={key} type="button" role="tab" aria-selected={active}
                 onClick={() => { setTab(key); setActiveDept(null); }}
-                className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-all sm:px-5 ${
-                  active
-                    ? "bg-gradient-to-r from-brand to-blue-600 text-white shadow-md shadow-brand/20"
-                    : "text-text-muted hover:text-text-heading"
+                className={`relative rounded-full px-4 py-2 text-[13px] font-bold transition-colors sm:px-5 ${
+                  active ? "text-white" : "text-text-muted hover:text-text-heading"
                 }`}
               >
-                {key === "trending" ? t("browseTrending") : t("browseRecent")}
+                {active && (
+                  <motion.span
+                    layoutId="bookShowcaseActiveTab"
+                    className="absolute inset-0 rounded-full bg-gradient-to-r from-brand to-blue-600 shadow-md shadow-brand/20"
+                    transition={reduceMotion ? { duration: 0 } : { type: "spring", bounce: 0.15, duration: 0.45 }}
+                  />
+                )}
+                <span className="relative">{key === "trending" ? t("browseTrending") : t("browseRecent")}</span>
               </button>
             );
           })}
@@ -128,38 +135,50 @@ export default function BookShowcaseTabs({
         </div>
       )}
 
-      {/* ── Content ── */}
-      {books.length === 0 ? (
-        <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-sm text-text-muted">
-          {activeDept
-            ? `No books found in ${activeDept}.`
-            : tab === "trending"
-              ? "No resources published yet."
-              : "Nothing added recently."}
-        </div>
-      ) : layout === "grid" ? (
-        <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
-          {books.map((book) => (
-            <StaggerRevealItem key={book.slug} className="h-full">
-              <BookCard book={book} />
-            </StaggerRevealItem>
-          ))}
-        </StaggerRevealContainer>
-      ) : (
-        <BookCarousel
-          aria-label={
-            activeDept
-              ? `Books in ${activeDept}`
-              : tab === "trending"
-                ? "Trending books"
-                : "Recently added books"
-          }
+      {/* ── Content — cross-fades between tab/department switches. Keyed on
+          the active selection so AnimatePresence treats each switch as an
+          exit+enter rather than an instant DOM swap. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={activeDept ?? tab}
+          initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
+          transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          {books.map((book) => (
-            <BookCard key={book.slug} book={book} />
-          ))}
-        </BookCarousel>
-      )}
+          {books.length === 0 ? (
+            <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-divider bg-paper text-sm text-text-muted">
+              {activeDept
+                ? `No books found in ${activeDept}.`
+                : tab === "trending"
+                  ? "No resources published yet."
+                  : "Nothing added recently."}
+            </div>
+          ) : layout === "grid" ? (
+            <StaggerRevealContainer className="grid grid-cols-2 gap-4 sm:gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              {books.map((book) => (
+                <StaggerRevealItem key={book.slug} className="h-full">
+                  <BookCard book={book} />
+                </StaggerRevealItem>
+              ))}
+            </StaggerRevealContainer>
+          ) : (
+            <BookCarousel
+              aria-label={
+                activeDept
+                  ? `Books in ${activeDept}`
+                  : tab === "trending"
+                    ? "Trending books"
+                    : "Recently added books"
+              }
+            >
+              {books.map((book) => (
+                <BookCard key={book.slug} book={book} />
+              ))}
+            </BookCarousel>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

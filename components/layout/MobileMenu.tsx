@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Link, usePathname } from "@/i18n/navigation";
 import NextLink from "next/link";
 import Icon from "@/components/ui/core/Icon";
@@ -8,7 +9,6 @@ import ThemeToggle from "@/components/ui/core/ThemeToggle";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
-import { useMountTransition } from "@/lib/hooks/useMountTransition";
 import MobileDigitalLibraryAccordion from "./MobileDigitalLibraryAccordion";
 import MobileAboutAccordion from "./MobileAboutAccordion";
 import NotificationBell from "@/components/ui/notifications/NotificationBell";
@@ -65,7 +65,7 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const open = openPath !== null && openPath === pathname;
-  const drawer = useMountTransition(open);
+  const reduceMotion = useReducedMotion();
 
   const closeDrawer = useCallback(() => setOpenPath(null), []);
 
@@ -85,7 +85,7 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
     return () => document.removeEventListener("keydown", onKey);
   }, [open, closeDrawer]);
 
-  const trapRef = useFocusTrap<HTMLDivElement>(open && drawer.mounted);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   const isActive = (href: string) =>
     pathname ? (pathname === href || (href !== "/" && pathname.startsWith(`${href}/`))) : false;
@@ -116,17 +116,23 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
         </svg>
       </button>
 
-      {drawer.mounted && (
-        <div
-          onClick={closeDrawer}
-          aria-hidden="true"
-          className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px] transition-opacity duration-200 ease-out motion-reduce:transition-none"
-          style={{ opacity: drawer.shown ? 1 : 0 }}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            onClick={closeDrawer}
+            aria-hidden="true"
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.25, ease: "easeOut" }}
+            className="fixed left-0 top-0 z-[60] h-[100dvh] w-screen bg-slate-950/45 backdrop-blur-[2px]"
+          />
+        )}
+      </AnimatePresence>
 
-      {drawer.mounted && (
-        <div
+      <AnimatePresence>
+        {open && (
+          <motion.div
           id={drawerId}
           ref={trapRef}
           role="dialog"
@@ -135,8 +141,11 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
           inert={!open}
           aria-hidden={!open}
           tabIndex={-1}
-          className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[min(100vw,390px)] flex-col bg-bg-surface pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] shadow-[-10px_0_32px_rgba(0,0,0,0.18)] outline-none transition-transform duration-[240ms] ease-out motion-reduce:transition-none"
-          style={{ transform: drawer.shown ? "translateX(0)" : "translateX(100%)" }}
+          initial={reduceMotion ? false : { x: "100%", opacity: 0.8 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={reduceMotion ? undefined : { x: "100%", opacity: 0.8 }}
+          transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 28, stiffness: 260 }}
+          className="fixed right-0 top-0 z-[70] flex h-[100dvh] w-[min(100vw,390px)] flex-col bg-bg-surface pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] shadow-[-10px_0_32px_rgba(0,0,0,0.18)] outline-none"
         >
           <div className="flex shrink-0 items-center justify-between border-b border-divider px-4 py-3">
             <Link href="/" onClick={closeDrawer} className="flex min-w-0 items-center gap-3">
@@ -329,8 +338,9 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
               </form>
             </div>
           )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
