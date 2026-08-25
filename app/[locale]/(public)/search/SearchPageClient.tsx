@@ -616,6 +616,67 @@ export default function SearchPageClient({ departments, languages, categories }:
   // must not render the "no results" dead-end.
   const noResults = results !== null && results.length === 0 && pageHits.length === 0 && !loading;
 
+  // The case full-text search exists for: the catalogue record matched nothing,
+  // but the words are inside the documents. Without this the page rendered an
+  // empty results area with the page hits stranded underneath it, which reads
+  // as "nothing found" — the opposite of what happened.
+  const onlyInside =
+    results !== null && results.length === 0 && pageHits.length > 0 && !loading && activeType === "all";
+
+  /** The "found inside" cards. Shared by the two placements below: leading the
+   *  results when full-text is the only thing that matched, trailing them
+   *  otherwise. Extracted so the two can never drift apart. */
+  function pageHitCards() {
+    return (
+      <div className="flex flex-col gap-2.5">
+        {pageHits.map((hit) => (
+        <Link
+          key={`${hit.recordType}-${hit.recordId}`}
+          href={hit.url}
+          className="group relative overflow-hidden rounded-[14px] border p-4 pl-5 transition-all hover:shadow-md"
+          style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
+        >
+          {/* Bookmark spine — marks the card as a passage pulled from a page */}
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-0 w-[3px] transition-opacity opacity-60 group-hover:opacity-100"
+            style={{ background: "var(--ptec-brand)" }}
+          />
+          <blockquote
+            className="text-[14.5px] leading-relaxed"
+            style={{
+              color: "var(--ptec-text-body)",
+              fontFamily: "var(--font-var-serif), var(--font-var-hanuman), Georgia, serif",
+            }}
+          >
+            {hit.snippet}
+          </blockquote>
+          <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
+            <span className="font-bold group-hover:underline underline-offset-2" style={{ color: "var(--ptec-text-heading)" }}>
+              {hit.title}
+            </span>
+            <span className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
+              {t("onPage", { page: hit.pageNo })}
+            </span>
+            {hit.matchType === "semantic" && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                style={{
+                  background: "color-mix(in srgb, var(--ptec-brand) 9%, transparent)",
+                  color: "var(--ptec-brand)",
+                }}
+              >
+                {t("relatedPassage")}
+              </span>
+            )}
+          </p>
+        </Link>
+        ))}
+      </div>
+    );
+  }
+
+
   const hasFacetValues =
     facetCounts !== null && FACET_DIMENSIONS.some((dim) => facetCounts[dim].length > 0);
 
@@ -1074,6 +1135,32 @@ export default function SearchPageClient({ departments, languages, categories }:
         </div>
       )}
 
+      {/* ── Found inside PDFs — LEADING placement ─────────────────────
+          Nothing matched by title, author or subject, but the words are in the
+          documents. This is the single case full-text search exists for, so it
+          gets the top of the page and an explanation rather than being left
+          below an empty results area. */}
+      {onlyInside && !error && (
+        <section className="mb-8" aria-labelledby="only-inside-heading">
+          <div
+            className="mb-3 rounded-[14px] border p-4"
+            style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
+          >
+            <p
+              id="only-inside-heading"
+              className="text-[15px] font-semibold"
+              style={{ color: "var(--ptec-text-heading)" }}
+            >
+              {t("onlyInsideTitle", { query: q })}
+            </p>
+            <p className="mt-1 text-[13px]" style={{ color: "var(--ptec-text-muted)" }}>
+              {t("onlyInsideBody")}
+            </p>
+          </div>
+          {pageHitCards()}
+        </section>
+      )}
+
       {/* ── No results ────────────────────────────────────────────────── */}
       {noResults && !error && (
         <div
@@ -1205,9 +1292,9 @@ export default function SearchPageClient({ departments, languages, categories }:
           )}
         </>
       )}
-
-      {/* ── Found inside PDFs (full-text page hits) ───────────────────── */}
-      {!loading && activeType === "all" && pageHits.length > 0 && (
+      {/* ── Found inside PDFs — trailing placement ────────────────────
+          Some titles already matched, so these are supplementary. */}
+      {!loading && activeType === "all" && pageHits.length > 0 && !onlyInside && (
         <section className="mt-8" aria-labelledby="page-hits-heading">
           <h3
             id="page-hits-heading"
@@ -1216,51 +1303,7 @@ export default function SearchPageClient({ departments, languages, categories }:
           >
             {t("foundInside")}
           </h3>
-          <div className="flex flex-col gap-2.5">
-            {pageHits.map((hit) => (
-              <Link
-                key={`${hit.recordType}-${hit.recordId}`}
-                href={hit.url}
-                className="group relative overflow-hidden rounded-[14px] border p-4 pl-5 transition-all hover:shadow-md"
-                style={{ background: "var(--ptec-bg-surface)", borderColor: "var(--ptec-border)" }}
-              >
-                {/* Bookmark spine — marks the card as a passage pulled from a page */}
-                <span
-                  aria-hidden
-                  className="absolute inset-y-0 left-0 w-[3px] transition-opacity opacity-60 group-hover:opacity-100"
-                  style={{ background: "var(--ptec-brand)" }}
-                />
-                <blockquote
-                  className="text-[14.5px] leading-relaxed"
-                  style={{
-                    color: "var(--ptec-text-body)",
-                    fontFamily: "var(--font-var-serif), var(--font-var-hanuman), Georgia, serif",
-                  }}
-                >
-                  {hit.snippet}
-                </blockquote>
-                <p className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
-                  <span className="font-bold group-hover:underline underline-offset-2" style={{ color: "var(--ptec-text-heading)" }}>
-                    {hit.title}
-                  </span>
-                  <span className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
-                    {t("onPage", { page: hit.pageNo })}
-                  </span>
-                  {hit.matchType === "semantic" && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
-                      style={{
-                        background: "color-mix(in srgb, var(--ptec-brand) 9%, transparent)",
-                        color: "var(--ptec-brand)",
-                      }}
-                    >
-                      {t("relatedPassage")}
-                    </span>
-                  )}
-                </p>
-              </Link>
-            ))}
-          </div>
+          {pageHitCards()}
         </section>
       )}
 

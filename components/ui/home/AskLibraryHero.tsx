@@ -13,6 +13,8 @@ type Props = {
   prompts?: string[];
   askLabel: string;
   hint: string;
+  /** Desktop-only addendum (the `/` shortcut). Phones have no keyboard. */
+  hintKeyboard: string;
 };
 
 // ─── SparkleIcon (shared with other components) ───────────────────────────────
@@ -54,7 +56,7 @@ type ScopeId = (typeof SCOPES)[number]["id"];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function AskLibraryHero({ trending = [], prompts = [], askLabel, hint }: Props) {
+export default function AskLibraryHero({ trending = [], prompts = [], askLabel, hint, hintKeyboard }: Props) {
   const router = useRouter();
   const t = useTranslations("home");
   const tSearch = useTranslations("search");
@@ -270,7 +272,12 @@ export default function AskLibraryHero({ trending = [], prompts = [], askLabel, 
 
       {/* ── Hint + secondary paths ── */}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <p className="text-[12px] text-blue-300/70">{hint}</p>
+        <p className="text-[12px] text-blue-300/70">
+          {hint}
+          {/* Matches the `lg:flex` on the kbd chip above: the sentence and the
+              key it describes appear and disappear together. */}
+          <span className="hidden lg:inline"> {hintKeyboard}</span>
+        </p>
         <span className="hidden h-3 w-px bg-white/15 sm:block" aria-hidden />
         <Link
           href="/search"

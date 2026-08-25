@@ -280,49 +280,18 @@ export const getMostViewedBooksCached = unstable_cache(
   { revalidate: REVALIDATE, tags: ["home-books"] }
 );
 
-// ── Latest published post (This Week editorial) ────────────────────────────
-export type LatestPostRow = {
-  id: string;
-  title: string;
-  slug: string;
-  excerpt: string | null;
-  category: string | null;
-  published_at: string | null;
-  created_at: string | null;
-};
-
-export const getLatestPostCached = unstable_cache(
-  async (): Promise<LatestPostRow | null> => {
-    const db = createServiceClient();
-    const { data, error } = await db
-      .from("posts")
-      .select("id, title, slug, excerpt, category, published_at, created_at")
-      .eq("status", "published")
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      // posts table/status column may be absent on older deployments — hide
-      // the post card rather than break This Week.
-      console.error("[home-data] latest post:", error.message);
-      return null;
-    }
-    return (data as LatestPostRow) ?? null;
-  },
-  ["home-latest-post"],
-  { revalidate: REVALIDATE, tags: ["home-posts"] }
-);
-
 // ── Latest posts (the homepage News & Events band) ──────────────────────────
 //
 // Four rows, not one: <LatestPosts> renders a featured card plus three
-// secondary cards. It deliberately shares the "home-posts" cache tag and the
-// SAME visibility predicate as getLatestPostCached above — `status` is the
-// source of truth for posts (migration 0073; a BEFORE trigger keeps the older
-// `is_published` flag in lock-step). If the two fetchers ever disagreed, the
-// post featured in <ThisWeekAtPtec> and the one heading the news band could
-// come from different sets, which reads as a bug on a single screen.
+// secondary cards. `status` is the source of truth for posts (migration 0073;
+// a BEFORE trigger keeps the older `is_published` flag in lock-step) — never
+// filter this on `is_published`, which is the mirror rather than the source.
+//
+// This is now the ONLY posts fetcher on the homepage. It used to have a
+// single-row sibling (getLatestPostCached) feeding the "This week at PTEC"
+// band; that band was replaced by <GrowTheCollection> and the sibling went
+// with it, which also removes the risk of the two disagreeing about which
+// posts are live.
 export type LatestPostCardRow = {
   id: string;
   title: string;
@@ -362,7 +331,7 @@ export const getLatestPostsCached = unstable_cache(
       .limit(4);
 
     if (error) {
-      // Same degradation as getLatestPostCached: the band hides itself rather
+      // Degrade quietly: the band hides itself rather
       // than taking the homepage down with it.
       console.error("[home-data] latest posts:", error.message);
       return [];
@@ -543,4 +512,30 @@ export const getRecentAdditions = unstable_cache(
   },
   ["home-recent-additions"],
   { revalidate: REVALIDATE, tags: ["home-books", "home-theses", "home-publications"] }
+);
+
+// ── Contribution counter (GrowTheCollection) ──────────────────────────────
+// How many reader submissions the librarians have actually taken in. This is
+// social proof with a job: an invitation to contribute is far more persuasive
+// once it can show that earlier contributions were acted on.
+//
+// NOT a resource count — it tallies `book_requests` rows, not library items —
+// so it is deliberately outside lib/collection-stats.ts. The section renders
+// the figure only when it is above zero, so a library that has not yet
+// fulfilled anything simply omits the line rather than advertising a 0.
+export const getContributionCountCached = unstable_cache(
+  async (): Promise<number> => {
+    const db = createServiceClient();
+    const { count, error } = await db
+      .from("book_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "added");
+    if (error) {
+      console.error("[home-data] contribution count:", error.message);
+      return 0;
+    }
+    return count ?? 0;
+  },
+  ["home-contribution-count"],
+  { revalidate: REVALIDATE, tags: ["home-contributions"] }
 );

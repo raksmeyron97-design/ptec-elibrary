@@ -18,7 +18,7 @@ import CollectionGrid from "@/components/ui/home/CollectionGrid";
 import TrustBar from "@/components/ui/home/TrustBar";
 import NewArrivals from "@/components/ui/home/NewArrivals";
 import ForYouShelf from "@/components/ui/home/ForYouShelf";
-import ThisWeekAtPtec from "@/components/ui/home/ThisWeekAtPtec";
+import GrowTheCollection from "@/components/ui/home/GrowTheCollection";
 import MobileFeaturedStrip from "@/components/ui/home/MobileFeaturedStrip";
 import BrowseBooksSection from "@/components/ui/home/BrowseBooksSection";
 import CategoryGrid from "@/components/ui/home/CategoryGrid";
@@ -281,6 +281,7 @@ export default async function HomePage() {
                   prompts={[t("prompt1"), t("prompt2"), t("prompt3")]}
                   askLabel={t("searchButton")}
                   hint={t("askHint")}
+                  hintKeyboard={t("askHintKeyboard")}
                 />
               </div>
 
@@ -361,13 +362,17 @@ export default async function HomePage() {
         <ForYouShelf popularBooks={trendingBooks} />
       </ContinueReadingSwap>
 
-      {/* ════════ THIS WEEK AT PTEC — one editorial band ════════
-          Editor's pick + publication + learning path + news, replacing the two
-          old repetitive "featured" sections. Editor's pick excludes the hero
-          books so nothing appears twice above the fold. */}
+      {/* ════════ GROW THE COLLECTION — the contribution band ════════
+          Replaces "This week at PTEC" / "New and noteworthy", which was a fifth
+          view of the same handful of books the shelves above already showed
+          (audit: 32 resource links on this page resolved to 16 unique items).
+          This slot now ASKS rather than displays, because the collection's real
+          constraint is its size — 112 books but one thesis and one publication.
+          Both doors land in the existing /admin/book-requests queue via the
+          `kind` column from migration 0119. */}
       <div className="cv-auto">
-        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
-          <ThisWeekAtPtec paths={paths} excludeSlugs={heroBooks.map((b) => b.slug)} />
+        <Suspense fallback={<div className="h-80 animate-pulse border-b border-divider bg-paper" aria-hidden />}>
+          <GrowTheCollection />
         </Suspense>
       </div>
 
@@ -386,8 +391,9 @@ export default async function HomePage() {
       </div>
 
       {/* ════════ NEW THIS WEEK — chronological, across all three types ══════
-          Complements <ThisWeekAtPtec> above rather than repeating it: that
-          band is curated, this one is simply "what arrived most recently". */}
+          Purely "what arrived most recently". Since <ThisWeekAtPtec> was
+          replaced by <GrowTheCollection>, this is the only curated-by-date
+          band left, so it no longer has a sibling to differentiate from. */}
       <div className="cv-auto">
         <Suspense fallback={<div className="h-72 animate-pulse border-b border-divider/60 bg-bg-surface" aria-hidden />}>
           <NewArrivals />
@@ -402,10 +408,9 @@ export default async function HomePage() {
       </div>
 
       {/* ════════ NEWS & EVENTS ════════
-          <ThisWeekAtPtec> above carries a single editorial post inside a mixed
-          band; this is the actual news section — a featured post plus three
-          more, with its own "view all posts" exit to /posts. The component and
-          its skeleton already existed and were simply never mounted. */}
+          The site's only news band now that <ThisWeekAtPtec> is gone — a
+          featured post plus three more, with its own "view all posts" exit to
+          /posts. */}
       <div className="cv-auto">
         <Suspense fallback={<LatestPostsSkeleton />}>
           <LatestPostsSection />

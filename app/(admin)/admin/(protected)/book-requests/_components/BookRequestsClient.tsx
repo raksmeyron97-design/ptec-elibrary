@@ -6,6 +6,7 @@ import {
   BookPlus,
   Check,
   ChevronDown,
+  FileUp,
   Search,
   SearchX,
   Trash2,
@@ -82,14 +83,41 @@ function TransitionButtons({
   );
 }
 
-/** Title + author + ISBN block, shared by table rows and mobile cards. */
+/** Title + author + ISBN/source block, shared by table rows and mobile cards. */
 function RequestSummary({ req }: { req: BookRequest }) {
   const t = useTranslations("adminBookRequests");
+  // Deposits (migration 0119) arrive in the same queue as acquisitions but need
+  // the opposite action from the librarian — collect a file the submitter
+  // already has, rather than go and source one. The badge is what tells the two
+  // apart at a glance, so it leads the row.
+  const isDeposit = req.kind === "deposit";
   return (
     <>
+      <p className="mb-1 flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide ${
+            isDeposit
+              ? "bg-[var(--ptec-success-soft)] text-[var(--ptec-success-text)]"
+              : "bg-[var(--ptec-info-soft)] text-[var(--ptec-info-text)]"
+          }`}
+        >
+          {isDeposit ? <FileUp className="h-3 w-3" aria-hidden="true" /> : <BookPlus className="h-3 w-3" aria-hidden="true" />}
+          {t(isDeposit ? "kind.deposit" : "kind.acquisition")}
+        </span>
+      </p>
       <p className="text-[14px] font-bold leading-snug text-text-heading">{req.title}</p>
       {req.author && <p className="mt-0.5 text-[12.5px] text-text-muted">{t("by", { author: req.author })}</p>}
       {req.isbn && <p className="mt-0.5 font-mono text-[11.5px] text-text-muted">{t("isbn", { isbn: req.isbn })}</p>}
+      {req.source_url && (
+        <a
+          href={req.source_url}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="mt-1 inline-block max-w-full truncate text-[11.5px] font-semibold text-brand underline underline-offset-2"
+        >
+          {t("sourceLink")}
+        </a>
+      )}
     </>
   );
 }

@@ -11,9 +11,13 @@ export default async function NewPostPage() {
     authorName = profile?.full_name ?? profile?.email ?? "You";
   }
 
+  /* FormShell lives inside PostForm — its context sidebar previews the form's
+     own live state. The route stays a data loader. */
   return (
-    <div className="mx-auto max-w-[1280px] space-y-8">
-      <PostForm authorName={authorName} />
-    </div>
+    <PostForm
+      authorName={authorName}
+      pageTitle="New post"
+      pageDescription="Write an article, announcement or event for the public site."
+    />
   );
 }

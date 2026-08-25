@@ -96,3 +96,105 @@ describe("findDuplicateGroups", () => {
     expect(coding.confidence).toBe("medium");
   });
 });
+
+describe("findDuplicateGroups — title-prefix signal", () => {
+  const LONG = "Introduction to Research Methods: A Practical Guide";
+  const LONGER = `${LONG} for Anyone Undertaking a Research Project (5th ed.)`;
+
+  it("groups a truncated title with its fuller form by the same author", () => {
+    // The real production miss this signal was added for: same work, catalogued
+    // twice, once with the full title and once truncated.
+    const groups = findDuplicateGroups([
+      book({ id: "a", slug: "intro-practical-guide", title: LONG, author: "Catherine Dawson" }),
+      book({ id: "b", slug: "educational-research-text", title: LONGER, author: "Catherine Dawson", year: 2019 }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].books.map((b) => b.id).sort()).toEqual(["a", "b"]);
+    expect(groups[0].signals).toContain("title-prefix");
+  });
+
+  it("stays LOW confidence — a prefix is also how separate editions look", () => {
+    const groups = findDuplicateGroups([
+      book({ id: "a", slug: "x", title: LONG, author: "Catherine Dawson" }),
+      book({ id: "b", slug: "y", title: LONGER, author: "Catherine Dawson" }),
+    ]);
+    expect(groups[0].confidence).toBe("low");
+  });
+
+  it("does not group a prefix across DIFFERENT authors", () => {
+    expect(
+      findDuplicateGroups([
+        book({ id: "a", slug: "x", title: LONG, author: "Catherine Dawson" }),
+        book({ id: "b", slug: "y", title: LONGER, author: "Someone Else" }),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it("does not group when the author is unknown on either side", () => {
+    expect(
+      findDuplicateGroups([
+        book({ id: "a", slug: "x", title: LONG, author: null }),
+        book({ id: "b", slug: "y", title: LONGER, author: null }),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it("respects word boundaries — 'guide' must not match 'guidebook'", () => {
+    expect(
+      findDuplicateGroups([
+        book({ id: "a", slug: "x", title: "The Action Research Guide", author: "Same Person" }),
+        book({ id: "b", slug: "y", title: "The Action Research Guidebook", author: "Same Person" }),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it("ignores prefixes shorter than the minimum, so short titles can't cluster the shelf", () => {
+    expect(
+      findDuplicateGroups([
+        book({ id: "a", slug: "x", title: "Research", author: "Same Person" }),
+        book({ id: "b", slug: "y", title: "Research Methods in Education", author: "Same Person" }),
+      ]),
+    ).toHaveLength(0);
+  });
+
+  it("leaves an exact-title pair on the stronger 'title' signal, not the prefix one", () => {
+    const groups = findDuplicateGroups([
+      book({ id: "a", slug: "x", title: LONG, author: "Catherine Dawson", year: 2019 }),
+      book({ id: "b", slug: "y", title: LONG, author: "Catherine Dawson", year: 2019 }),
+    ]);
+    expect(groups[0].confidence).toBe("medium");
+    expect(groups[0].signals).toContain("title");
+    expect(groups[0].signals).not.toContain("title-prefix");
+  });
+});
+
+describe("findDuplicateGroups — evidence survives cluster merges", () => {
+  it("keeps MEDIUM when a prefix-matched third record joins a title+author+year pair", () => {
+    // Regression: cluster signals/confidence are keyed by union-find root, and
+    // a merge used to drop whichever root stopped being the representative.
+    // Production symptom — a real MEDIUM group silently reported as LOW the
+    // moment a third, prefix-matched edition joined it.
+    const base = "Research Design: Qualitative, Quantitative, and Mixed Methods Approaches";
+    const groups = findDuplicateGroups([
+      book({ id: "a", slug: "rd", title: base, author: "John Creswell", year: 2014 }),
+      book({ id: "b", slug: "rd-1", title: base, author: "John Creswell", year: 2014 }),
+      book({ id: "c", slug: "rd-4th", title: `${base} 4th Edition`, author: "John Creswell", year: 2014 }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].books).toHaveLength(3);
+    expect(groups[0].confidence).toBe("medium");
+    // Both the exact-title evidence and the prefix evidence are reported.
+    expect(groups[0].signals).toEqual(expect.arrayContaining(["title", "author", "year", "title-prefix"]));
+  });
+
+  it("keeps HIGH when an ISBN cluster later merges into a title cluster", () => {
+    const groups = findDuplicateGroups([
+      book({ id: "a", slug: "x", title: "A Very Long Book Title Here", isbn: "9780061120084", author: "Same Person" }),
+      book({ id: "b", slug: "y", title: "Something Else Entirely Different", isbn: "9780061120084", author: "Same Person" }),
+      book({ id: "c", slug: "z", title: "A Very Long Book Title Here", author: "Same Person" }),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].confidence).toBe("high");
+    expect(groups[0].signals).toEqual(expect.arrayContaining(["isbn", "title"]));
+  });
+});

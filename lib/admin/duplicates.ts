@@ -21,7 +21,14 @@ export type DuplicateBook = {
   createdAt: string | null;
 };
 
-export type DuplicateSignal = "isbn" | "content-hash" | "file-size" | "title" | "author" | "year";
+export type DuplicateSignal =
+  | "isbn"
+  | "content-hash"
+  | "file-size"
+  | "title"
+  | "title-prefix"
+  | "author"
+  | "year";
 export type DuplicateConfidence = "high" | "medium" | "low";
 
 export type DuplicateGroup = {
@@ -64,6 +71,8 @@ const CONFIDENCE_RANK: Record<DuplicateConfidence, number> = { high: 3, medium: 
  *   * identical normalized title AND (same author OR same year OR same file
  *     size)                                → medium
  *   * identical normalized title only      → low
+ *   * one title is a word-boundary PREFIX of another by the same author
+ *                                          → low  ("title-prefix")
  *
  * Each returned group is a maximal set of books connected by these signals
  * (union-find), tagged with the strongest confidence and the signals seen.
@@ -81,7 +90,37 @@ export function findDuplicateGroups(books: DuplicateBook[]): DuplicateGroup[] {
     }
     return root;
   };
-  const union = (a: string, b: string) => parent.set(find(a), find(b));
+  // Evidence is keyed by cluster ROOT, so a merge has to carry the losing
+  // root's signals and confidence across. Without this, two clusters joining
+  // silently discard whichever root stopped being the representative — which
+  // downgraded a real MEDIUM group (same title + author + year) to LOW the
+  // moment a third, prefix-matched record joined it.
+  const clusterSignals = new Map<string, Set<DuplicateSignal>>();
+  const clusterConfidence = new Map<string, DuplicateConfidence>();
+
+  const union = (a: string, b: string) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra === rb) return;
+    parent.set(ra, rb);
+
+    const movingSignals = clusterSignals.get(ra);
+    if (movingSignals) {
+      const target = clusterSignals.get(rb) ?? new Set<DuplicateSignal>();
+      for (const sig of movingSignals) target.add(sig);
+      clusterSignals.set(rb, target);
+      clusterSignals.delete(ra);
+    }
+
+    const movingConfidence = clusterConfidence.get(ra);
+    if (movingConfidence) {
+      const target = clusterConfidence.get(rb);
+      if (!target || CONFIDENCE_RANK[movingConfidence] > CONFIDENCE_RANK[target]) {
+        clusterConfidence.set(rb, movingConfidence);
+      }
+      clusterConfidence.delete(ra);
+    }
+  };
   for (const b of books) parent.set(b.id, b.id);
 
   const byId = new Map(books.map((b) => [b.id, b]));
@@ -101,10 +140,6 @@ export function findDuplicateGroups(books: DuplicateBook[]): DuplicateGroup[] {
     push(hashIndex, b.contentHash, b.id);
     push(titleIndex, normalizeTitle(b.title) || null, b.id);
   }
-
-  // Track the reason(s) that connected each root cluster.
-  const clusterSignals = new Map<string, Set<DuplicateSignal>>();
-  const clusterConfidence = new Map<string, DuplicateConfidence>();
 
   const connect = (ids: string[], signal: DuplicateSignal, confidence: DuplicateConfidence) => {
     if (ids.length < 2) return;
@@ -142,6 +177,49 @@ export function findDuplicateGroups(books: DuplicateBook[]): DuplicateGroup[] {
     if (sameAuthor || sameYear || sameSize) {
       const prev = clusterConfidence.get(root)!;
       if (CONFIDENCE_RANK["medium"] > CONFIDENCE_RANK[prev]) clusterConfidence.set(root, "medium");
+    }
+  }
+
+  // Subtitle / edition variants: one normalized title is a word-boundary prefix
+  // of another by the same author.
+  //
+  // This exists because exact-title matching misses the most common real
+  // cataloguing duplicate — the same work entered once with its full title and
+  // once truncated. In this library:
+  //   "Introduction to Research Methods: A Practical Guide"
+  //   "Introduction to Research Methods: A Practical Guide for Anyone
+  //    Undertaking a Research Project (5th ed.)"
+  // — same author, same work, two published records, invisible to every other
+  // signal here.
+  //
+  // Deliberately "low": a prefix is ALSO how genuine separate editions look
+  // ("… , 5th Edition"), and this module never auto-merges. Low confidence
+  // means "a person should look at these two", not "these are the same file".
+  //
+  // Bucketed by author so this stays linear in the library size rather than
+  // O(n²) across every book.
+  const PREFIX_MIN_LEN = 20; // "research methods" alone must not cluster the shelf
+  const byAuthor = new Map<string, string[]>();
+  for (const b of books) {
+    const a = normalizeAuthor(b.author);
+    if (!a) continue; // an unknown author is not evidence of anything
+    push(byAuthor, a, b.id);
+  }
+  for (const ids of byAuthor.values()) {
+    if (ids.length < 2) continue;
+    const rows = ids
+      .map((id) => ({ id, norm: normalizeTitle(byId.get(id)!.title) }))
+      .filter((r) => r.norm.length >= PREFIX_MIN_LEN)
+      // Shortest first, so each title is only ever tested as the prefix of a
+      // longer one.
+      .sort((x, y) => x.norm.length - y.norm.length);
+    for (let i = 0; i < rows.length; i++) {
+      for (let j = i + 1; j < rows.length; j++) {
+        if (rows[i].norm === rows[j].norm) continue; // exact pass owns this
+        // Word boundary: "a practical guide" must not match "a practical guidebook".
+        if (!rows[j].norm.startsWith(rows[i].norm + " ")) continue;
+        connect([rows[i].id, rows[j].id], "title-prefix", "low");
+      }
     }
   }
 

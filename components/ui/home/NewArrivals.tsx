@@ -2,10 +2,10 @@
 // "New this week" — the most recently ADDED items across all three digital
 // types, ranked purely by when they joined the library.
 //
-// Distinct from <ThisWeekAtPtec>, which is curated (editor's pick + a
-// publication + a path + a post). This one makes no editorial claim: it is a
-// chronological window on the collection, so a reader who visits weekly can
-// see what is actually new.
+// It makes no editorial claim — no "pick", no ranking. It is a chronological
+// window on the collection, so a reader who visits weekly can see what is
+// actually new. (It used to sit beside a curated "This week at PTEC" band,
+// which was replaced by <GrowTheCollection>.)
 import { Link } from "@/i18n/navigation";
 import { getTranslations, getLocale } from "next-intl/server";
 import { getRecentAdditions, type RecentItem, type RecentItemType } from "@/lib/home-data";

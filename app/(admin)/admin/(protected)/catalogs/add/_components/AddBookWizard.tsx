@@ -10,6 +10,17 @@ import CopiesPanel from "../../_components/CopiesPanel";
 import TagInput from "@/components/ui/core/TagInput";
 import { Field, ERROR_CLASS } from "@/components/admin/kit/form";
 import CatalogCoverField from "@/components/admin/catalogs/CatalogCoverField";
+import {
+  FormShell,
+  FormTabs,
+  StickyActionBar,
+  ContextPanel,
+  ButtonBusy,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  type FormTab,
+} from "@/components/admin/kit/form";
+import { AlertCircle, BookOpen, Image as ImageIcon, type LucideIcon } from "lucide-react";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
 
@@ -22,8 +33,21 @@ interface BookData {
   accession_number: string | null;
 }
 
+type Tab = "info" | "media";
+
+/*
+  The same two content tabs as the edit wizard, so a cataloguer who learns one
+  screen has learned the other. Add has no Copies tab: copies are created on the
+  next step, once the record exists to hang them on.
+*/
+const TABS: { key: Tab; labelKey: string; icon: LucideIcon }[] = [
+  { key: "info", labelKey: "tabInfo", icon: BookOpen },
+  { key: "media", labelKey: "tabMedia", icon: ImageIcon },
+];
+
 export default function AddBookWizard({ categories }: { categories: string[] }) {
   const t = useTranslations("adminCatalog.form");
+  const [tab, setTab] = useState<Tab>("info");
   const [step, setStep] = useState<1 | 2>(1);
   const [book, setBook] = useState<BookData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -108,31 +132,67 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
       </div>
     );
   }
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link href="/admin/catalogs" className="mb-3 inline-flex items-center gap-1.5 text-sm text-text-muted transition hover:text-brand">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-            <path d="M19 12H5m0 0 7 7m-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {t("backToCatalog")}
-        </Link>
-        <h1 className="text-2xl font-bold text-text-heading">{t("addBookTitle")}</h1>
-        <p className="mt-1 text-sm text-text-muted">{t("step1Subtitle")}</p>
-      </div>
-
-      {/* Error banner */}
-      {error && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
-          {error}
-        </div>
-      )}
-
-      {/* Form */}
-      <form action={handleAddBook} className="space-y-5 rounded-2xl border border-divider bg-bg-surface p-6 shadow-sm">
-
+    <FormShell
+      backHref="/admin/catalogs"
+      backLabel={t("backToCatalog")}
+      title={t("addBookTitle")}
+      description={t("step1Subtitle")}
+      contentKey={tab}
+      action={handleAddBook}
+      tabs={
+        <FormTabs
+          idPrefix="catalogadd"
+          ariaLabel={t("addTabsAria")}
+          active={tab}
+          onChange={setTab}
+          tabs={TABS.map<FormTab<Tab>>((entry) => ({
+            key: entry.key,
+            label: t(entry.labelKey),
+            icon: entry.icon,
+          }))}
+        />
+      }
+      context={
+        /*
+          A new record has no slug and no cover yet, so a search-result preview
+          would be a preview of nothing. What a cataloguer actually needs here is
+          the shape of the job: which required fields are still empty.
+        */
+        <ContextPanel title={t("addContextTitle")} icon={BookOpen} hint={t("addContextHint")}>
+          <p className="text-xs leading-[1.6] text-text-muted">{t("addContextBody")}</p>
+        </ContextPanel>
+      }
+      actions={
+        <StickyActionBar
+          status={
+            error ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
+                <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                {error}
+              </span>
+            ) : (
+              <span className="text-text-muted">{t("addStatusHint")}</span>
+            )
+          }
+        >
+          <Link href="/admin/catalogs" className={BTN_SECONDARY}>
+            {t("cancel")}
+          </Link>
+          <button type="submit" disabled={loading} className={BTN_PRIMARY}>
+            {loading ? <ButtonBusy label={t("saving")} /> : t("saveAndAddCopies")}
+          </button>
+        </StickyActionBar>
+      }
+    >
+      <div
+        id="catalogadd-panel-info"
+        role="tabpanel"
+        aria-labelledby="catalogadd-tab-info"
+        tabIndex={-1}
+        hidden={tab !== "info"}
+        className="space-y-5 focus:outline-none"
+      >
         {/* ── Core info ── */}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
@@ -222,7 +282,16 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
             {(p) => <input {...p} name="shelf_location" placeholder="A-3-12" />}
           </Field>
         </div>
+      </div>
 
+      <div
+        id="catalogadd-panel-media"
+        role="tabpanel"
+        aria-labelledby="catalogadd-tab-media"
+        tabIndex={-1}
+        hidden={tab !== "media"}
+        className="space-y-5 focus:outline-none"
+      >
         {/* Book cover — upload to PTEC Storage / external URL / auto-generated */}
         <CatalogCoverField
           initialCoverUrl={null}
@@ -269,22 +338,8 @@ export default function AddBookWizard({ categories }: { categories: string[] }) 
         />
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Link
-            href="/admin/catalogs"
-            className="rounded-xl border border-divider px-5 py-2.5 text-sm font-semibold text-text-body transition hover:bg-paper"
-          >
-            {t("cancel")}
-          </Link>
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-xl bg-brand px-8 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? t("saving") : t("saveAndAddCopies")}
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+
+    </FormShell>
   );
 }

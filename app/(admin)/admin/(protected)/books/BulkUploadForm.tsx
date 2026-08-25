@@ -11,6 +11,7 @@ import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
 import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
+import { getPdfPageCount } from "@/lib/pdf-client-utils";
 import {
   FileSpreadsheet, FolderOpen, Image as ImageIcon, Upload as UploadIcon,
   CheckCircle, AlertCircle, RotateCcw, FileText,
@@ -151,6 +152,18 @@ async function uploadBook(
 
     // 3. Save record
     onStatus("saving");
+
+    // Auto-detect pages from PDF if not specified in CSV row
+    let pages = (row.pages ?? "").trim();
+    if (!pages && pdfFile) {
+      try {
+        const detected = await getPdfPageCount(pdfFile);
+        if (detected) pages = String(detected);
+      } catch {
+        // non-fatal fallback
+      }
+    }
+
     const result = await saveBookRecord({
       title:      row.title,
       author:     row.author,
@@ -160,7 +173,7 @@ async function uploadBook(
       summary:    row.summary ?? "",
       isbn:       row.isbn ?? "",
       year:       row.year ?? "",
-      pages:      row.pages ?? "",
+      pages,
       tags:       row.keywords ?? "",
       fileUrl:    pdfPublicUrl,
       fileSizeKb: String(Math.round(pdfFile.size / 1024)),

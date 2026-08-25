@@ -20,7 +20,31 @@ import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import BookSeoPanel from "@/components/admin/ebooks/BookSeoPanel";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
-import { ImagePlus, UploadCloud, Save, BookOpen, AlertCircle, X, FileText, Info, Download } from "lucide-react";
+import { getPdfPageCount } from "@/lib/pdf-client-utils";
+import {
+  ImagePlus,
+  UploadCloud,
+  Save,
+  BookOpen,
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  X,
+  FileText,
+  Info,
+  Download,
+  Search,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  FormShell,
+  FormTabs,
+  StickyActionBar,
+  ContextPanel,
+  ButtonBusy,
+  BTN_PRIMARY,
+  type FormTab,
+} from "@/components/admin/kit/form";
 
 type Initial = {
   id: string;
@@ -59,6 +83,52 @@ const SELECT_CLASS =
   "focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm " +
   "disabled:opacity-60 text-text-body";
 
+type TabKey = "files" | "details" | "seo";
+
+/*
+  Three tabs, replacing a single 800px column that stacked five cards.
+  The form is not long because it asks a lot — it asks about twenty things — it
+  was long because everything was open at once, so the Title field sat below two
+  dropzones an editor had usually come to leave alone. Cover joins PDF rather
+  than getting a fourth tab of its own: both are uploads, both are optional
+  once set, and they are the two things you either replace together or not at
+  all.
+*/
+const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
+  { key: "files", label: "Files", icon: FileText },
+  { key: "details", label: "Book Details", icon: BookOpen },
+  { key: "seo", label: "SEO & Metadata Quality", icon: Search },
+];
+
+function FileStatusRow({
+  label,
+  present,
+  required,
+  detail,
+}: {
+  label: string;
+  present: boolean;
+  required?: boolean;
+  detail?: string;
+}) {
+  return (
+    <li className="flex items-center gap-2">
+      {present ? (
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+      ) : (
+        <AlertCircle
+          className={`h-4 w-4 shrink-0 ${required ? "text-danger" : "text-warning"}`}
+          aria-hidden="true"
+        />
+      )}
+      <span className="text-text-body">{label}</span>
+      <span className="ml-auto text-xs text-text-muted">
+        {detail ?? (present ? "Present" : required ? "Required" : "Optional")}
+      </span>
+    </li>
+  );
+}
+
 function activatePickerFromKeyboard(
   e: React.KeyboardEvent<HTMLDivElement>,
   openPicker: () => void,
@@ -76,29 +146,47 @@ function FieldLabel({
   required?: boolean;
 }) {
   return (
-    <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">
-      {children}{" "}
+    /*
+      Sentence case, not the uppercase micro-caps this form shipped with. The
+      admin form standard calls that style legacy for a reason: "TITLE" and
+      "AUTHOR" at 11px with widened tracking read as decoration rather than as
+      the name of the box under them, and uppercase destroys the word shapes a
+      reader scans a form by.
+    */
+    <span className="mb-1.5 block text-sm font-medium text-text-body">
+      {children}
       {required && (
-        <span className="normal-case tracking-normal font-normal text-rose-500">*</span>
+        <span className="ms-0.5 font-normal text-danger" aria-hidden="true">*</span>
       )}
     </span>
   );
 }
 
+/**
+ * Upload/save progress, three steps.
+ *
+ * Every colour here used to be an inline hex — a violet step, a cyan step, an
+ * emerald step, plus two greys — which made the one element that appears only
+ * while the form is busy also the most colourful thing on the page. Progress is
+ * not a category: the states are pending, running and done, so there are three
+ * tokens rather than five hexes, and `info` carries the running step because
+ * that is what the panel's own surface already is.
+ */
 function PhaseStepper({ phase }: { phase: Phase }) {
   if (phase === "idle") return null;
   const steps = [
-    { id: "uploading-pdf",   label: "Uploading PDF",   color: "#7c3aed" },
-    { id: "uploading-cover", label: "Uploading cover", color: "#0e7490" },
-    { id: "saving",          label: "Saving record",   color: "#0f9d6b" },
+    { id: "uploading-pdf", label: "Uploading PDF" },
+    { id: "uploading-cover", label: "Uploading cover" },
+    { id: "saving", label: "Saving record" },
   ] as const;
   const order = steps.map((s) => s.id as string);
   const ci = order.indexOf(phase);
 
   return (
     <div
-      className="flex items-center gap-4 rounded-2xl border px-5 py-3.5"
-      style={{ borderColor: "#A5F3FC", background: "#ECFEFF" }}
+      role="status"
+      aria-live="polite"
+      className="mb-6 flex items-center gap-4 rounded-xl border border-info-line bg-info-soft px-5 py-3.5"
     >
       <div className="flex flex-1 items-center gap-2">
         {steps.map((step, i) => {
@@ -108,26 +196,27 @@ function PhaseStepper({ phase }: { phase: Phase }) {
             <Fragment key={step.id}>
               {i > 0 && (
                 <div
-                  className="h-px flex-1 rounded-full transition-colors duration-500"
-                  style={{ background: isDone ? "#0f9d6b" : "#A5F3FC" }}
+                  className={`h-px flex-1 rounded-full transition-colors duration-500 ${
+                    isDone ? "bg-success" : "bg-info-line"
+                  }`}
                 />
               )}
               <div className="flex shrink-0 items-center gap-1.5">
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all"
-                  style={
+                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
                     isDone
-                      ? { background: "#0f9d6b", color: "#fff" }
+                      ? "bg-success text-white"
                       : isActive
-                      ? { background: step.color, color: "#fff" }
-                      : { background: "#DDE8F0", color: "#9CA3AF" }
-                  }
+                        ? "bg-info text-white"
+                        : "bg-paper text-text-muted"
+                  }`}
                 >
-                  {isDone ? "✓" : i + 1}
+                  {isDone ? <Check className="h-3 w-3" aria-hidden="true" /> : i + 1}
                 </span>
                 <span
-                  className="text-xs font-semibold"
-                  style={{ color: isActive ? step.color : isDone ? "#0f9d6b" : "#9CA3AF" }}
+                  className={`text-xs font-semibold ${
+                    isActive ? "text-info-text" : isDone ? "text-success-text" : "text-text-muted"
+                  }`}
                 >
                   {step.label}
                 </span>
@@ -136,11 +225,8 @@ function PhaseStepper({ phase }: { phase: Phase }) {
           );
         })}
       </div>
-      <div
-        className="flex shrink-0 items-center gap-1.5 text-xs font-medium"
-        style={{ color: "#0e7490" }}
-      >
-        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+      <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-info-text">
+        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
         {phase === "uploading-pdf" ? "Uploading PDF…" : phase === "uploading-cover" ? "Uploading cover…" : "Saving…"}
       </div>
     </div>
@@ -151,11 +237,20 @@ export default function EditForm({
   initial,
   departments,
   categories,
+  pageTitle,
+  pageDescription,
 }: {
   initial: Initial;
   departments: string[];
   categories: string[];
+  /*
+    The form owns FormShell rather than the route, because the context sidebar
+    is a live view of this component's own state.
+  */
+  pageTitle: string;
+  pageDescription: string;
 }) {
+  const [activeTab, setActiveTab] = useState<TabKey>("files");
   const [phase, setPhase]         = useState<Phase>("idle");
   const [error, setError]         = useState<string | null>(null);
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
@@ -165,6 +260,9 @@ export default function EditForm({
 
   const [pdfFile, setPdfFile]     = useState<File | null>(null);
   const pdfInputRef               = useRef<HTMLInputElement>(null);
+  const pagesInputRef             = useRef<HTMLInputElement>(null);
+  const [detectedPages, setDetectedPages] = useState<number | null>(null);
+  const [isDetectingPages, setIsDetectingPages] = useState(false);
 
   // Live snapshot of the SEO-relevant fields for the quality panel. Read from
   // the form on every input so the panel + Google preview stay in sync without
@@ -219,13 +317,26 @@ export default function EditForm({
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.type !== "application/pdf") { setError("File must be a PDF"); return; }
     if (file.size > 100 * 1024 * 1024)   { setError("PDF must be under 100 MB"); return; }
     setError(null);
     setPdfFile(file);
+
+    // Auto-detect page count from the replacement PDF.
+    setDetectedPages(null);
+    setIsDetectingPages(true);
+    try {
+      const count = await getPdfPageCount(file);
+      if (count && pagesInputRef.current) {
+        pagesInputRef.current.value = String(count);
+        setDetectedPages(count);
+      }
+    } finally {
+      setIsDetectingPages(false);
+    }
   }
 
   function removePdf() {
@@ -310,402 +421,513 @@ export default function EditForm({
     "saving":          "Saving…",
   };
 
-  return (
-    <form onSubmit={handleSubmit} onInput={handleFormInput} className="space-y-5">
+  /*
+    Context per tab. Files raises "is what a reader downloads actually there";
+    Book Details raises "how will this read to someone who has not opened it".
+    The SEO tab gets nothing — that tab already *is* the quality panel, and a
+    summary of the summary is noise.
+  */
+  const context =
+    activeTab === "seo" ? null : activeTab === "files" ? (
+      <ContextPanel title="File status" icon={FileText} hint="What a reader can open, and what the listing shows.">
+        <ul className="space-y-1.5 text-[13px]">
+          <FileStatusRow
+            label="Book PDF"
+            present={Boolean(initial.fileUrl) || Boolean(pdfFile)}
+            required
+            detail={
+              pdfFile
+                ? `${formatFileSize(Math.round(pdfFile.size / 1024))} · queued`
+                : initial.fileSizeKb
+                  ? formatFileSize(initial.fileSizeKb)
+                  : undefined
+            }
+          />
+          <FileStatusRow label="Cover image" present={preview !== null} detail={coverFile ? "queued" : undefined} />
+        </ul>
+        <p className="mt-3 border-t border-divider pt-3 text-xs leading-[1.6] text-text-muted">
+          Replacing a file takes effect when you save. Nothing is overwritten until then.
+        </p>
+      </ContextPanel>
+    ) : (
+      <ContextPanel
+        title="Search result preview"
+        icon={Search}
+        hint="Roughly how this book appears in Google and on shared links."
+      >
+        <div className="rounded-lg border border-divider bg-bg-surface p-3">
+          <p className="truncate text-[11px] text-success-text">
+            {SITE_URL}/books/{initial.slug || "…"}
+          </p>
+          {/* 15px/1.5: Khmer titles are the norm in this collection, and a 13px
+              preview of one previews nothing a reader will actually see. */}
+          <p className="mt-0.5 line-clamp-2 text-[15px] font-medium leading-[1.5] text-info-text">
+            {seoState.title.trim() || "Untitled book"}
+          </p>
+          <p className="mt-1 line-clamp-3 text-[12.5px] leading-[1.6] text-text-body">
+            {seoState.summary.trim() ||
+              "No summary yet — search engines will invent a snippet from the page."}
+          </p>
+        </div>
+        <p className="mt-3 text-xs leading-[1.6] text-text-muted">
+          Override the title and description on the SEO tab if the automatic
+          version is not what you want.
+        </p>
+      </ContextPanel>
+    );
 
-      {/* ── Phase progress ── */}
+  return (
+    <FormShell
+      backHref="/admin/books"
+      backLabel="Back to e-books"
+      title={pageTitle}
+      description={pageDescription}
+      contentKey={activeTab}
+      onSubmit={handleSubmit}
+      tabs={
+        <FormTabs
+          idPrefix="ebook"
+          ariaLabel="E-book form sections"
+          active={activeTab}
+          onChange={setActiveTab}
+          tabs={TABS.map<FormTab<TabKey>>((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            icon: tab.icon,
+          }))}
+        />
+      }
+      context={context}
+      actions={
+        <StickyActionBar
+          status={
+            error ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-danger-text">
+                <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                {error}
+              </span>
+            ) : saving ? (
+              <span className="text-text-muted">{phaseLabel[phase]}</span>
+            ) : (
+              <span className="text-text-muted">Changes are saved to the live record.</span>
+            )
+          }
+        >
+          {/*
+            One primary button, not a full-width gradient bar. Full width made
+            Save the widest element on the page and put it at the very bottom of
+            a 2,000px column, so it was both the loudest thing in the design and
+            the hardest to reach. In the floating bar it is always one click away.
+          */}
+          <button type="submit" disabled={saving} className={BTN_PRIMARY}>
+            {saving ? (
+              <ButtonBusy label={phaseLabel[phase]} />
+            ) : (
+              <>
+                <Save className="h-4 w-4" aria-hidden="true" />
+                Save changes
+              </>
+            )}
+          </button>
+        </StickyActionBar>
+      }
+    >
+      {/* Upload progress stays above the panels: it is about the whole save,
+          not the section that happens to be open. */}
       <PhaseStepper phase={phase} />
 
-      {/* ── Info banner ── */}
+
       <div
-        className="flex items-center gap-3 rounded-xl border px-4 py-3"
-        style={{ borderColor: "#C7D2FE", background: "#EEF2FF" }}
+        id="ebook-panel-files"
+        role="tabpanel"
+        aria-labelledby="ebook-tab-files"
+        tabIndex={-1}
+        hidden={activeTab !== "files"}
+        className="space-y-5 focus:outline-none"
       >
-        <Info className="h-4 w-4 shrink-0" style={{ color: "#4f46e5" }} />
-        <p className="text-xs" style={{ color: "#4f46e5" }}>
-          Editing metadata, cover image, and PDF file for this e-book.
-        </p>
-      </div>
-
-      {/* ── PDF file card ── */}
-      <div id="replace-pdf" className="form-card-accent scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
-          <span className="sec-chip sec-chip--files">
-            <FileText className="h-[18px] w-[18px]" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-text-heading">PDF File</h2>
-            <p className="text-xs text-text-muted">PDF only · max 100 MB · recommended under 25 MB</p>
-          </div>
-          {!pdfFile && (
-            <span
-              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
-              style={initial.fileUrl ? { background: "rgba(15,157,107,0.10)", color: "#0f9d6b" } : { background: "rgba(220,38,38,0.10)", color: "#dc2626" }}
-            >
-              {initial.fileUrl ? "PDF ready" : "Missing PDF"}
+        {/* ── PDF file card ── */}
+        <div id="replace-pdf" className="scroll-mt-24 overflow-hidden rounded-xl border border-divider">
+          <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-admin-accent-soft text-admin-accent" aria-hidden="true">
+              <FileText className="h-[18px] w-[18px]" />
             </span>
-          )}
-          {pdfFile && (
-            <span
-              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
-              style={{ background: "rgba(221,176,34,0.12)", color: "#806211" }}
-            >
-              New PDF selected
-            </span>
-          )}
-        </div>
-
-        <div className="p-6 space-y-3">
-          {initial.fileUrl && !pdfFile && (
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-divider bg-paper px-4 py-3">
-              <div className="flex min-w-0 items-center gap-2 text-sm text-text-body">
-                <FileText className="h-4 w-4 shrink-0 text-text-muted" />
-                <span className="truncate">Current file · {(initial.fileFormat ?? "pdf").toUpperCase()} · {formatFileSize(initial.fileSizeKb)}</span>
-              </div>
-              <a
-                href={initial.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
-              >
-                <Download className="h-3.5 w-3.5" /> Open
-              </a>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-bold text-text-heading">PDF File</h2>
+              <p className="text-xs text-text-muted">PDF only · max 100 MB · recommended under 25 MB</p>
             </div>
-          )}
-
-          <div
-            role="button"
-            tabIndex={saving ? -1 : 0}
-            aria-label={pdfFile ? "Replace PDF file" : initial.fileUrl ? "Replace PDF file" : "Upload PDF file"}
-            className="relative flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
-            onClick={() => !saving && pdfInputRef.current?.click()}
-            onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && pdfInputRef.current?.click())}
-          >
-            <UploadCloud className="h-5 w-5 text-text-muted" />
-            <p className="text-xs text-text-muted leading-tight">
-              {pdfFile ? `Selected: ${pdfFile.name}` : initial.fileUrl ? "Click to replace PDF" : "Click to upload PDF"}
-            </p>
-            <p className="max-w-sm text-[11px] leading-4 text-text-muted">
-              Compress scanned PDFs before uploading so the online reader stays fast.
-            </p>
-            <input
-              ref={pdfInputRef}
-              type="file"
-              accept="application/pdf"
-              aria-label="PDF file"
-              disabled={saving}
-              onChange={handlePdfChange}
-              className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
-            />
+            {!pdfFile && (
+              <span
+                className={
+                  initial.fileUrl
+                    ? "shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-success-line bg-success-soft text-success-text"
+                    : "shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-danger-line bg-danger-soft text-danger-text"
+                }
+              >
+                {initial.fileUrl ? "PDF ready" : "Missing PDF"}
+              </span>
+            )}
+            {pdfFile && (
+              <span
+                className="shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-warning-line bg-warning-soft text-warning-text"
+              >
+                New PDF selected
+              </span>
+            )}
           </div>
 
-          {pdfFile && (
-            <button
-              type="button"
-              onClick={removePdf}
-              disabled={saving}
-              className="text-xs font-semibold text-text-muted hover:text-red-600 disabled:opacity-50"
-            >
-              Cancel PDF replacement
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Cover image card ── */}
-      <div id="cover" className="form-card-accent scroll-mt-24 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
-          <span className="sec-chip sec-chip--files">
-            <ImagePlus className="h-[18px] w-[18px]" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-bold text-text-heading">Cover Image</h2>
-            <p className="text-xs text-text-muted">JPEG, PNG, WebP · max 5 MB</p>
-          </div>
-          {preview && !coverFile && (
-            <span
-              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
-              style={{ background: "rgba(15,157,107,0.10)", color: "#0f9d6b" }}
-            >
-              Current cover
-            </span>
-          )}
-          {coverFile && (
-            <span
-              className="shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold"
-              style={{ background: "rgba(221,176,34,0.12)", color: "#806211" }}
-            >
-              New cover selected
-            </span>
-          )}
-        </div>
-
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            {/* Preview */}
-            {preview ? (
-              <div className="relative h-36 w-24 shrink-0 overflow-hidden rounded-xl border border-divider shadow-md">
-                <Image
-                  src={preview}
-                  alt="Cover preview"
-                  fill
-                  sizes="96px"
-                  className="object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={removeCover}
-                  disabled={saving}
-                  title="Remove cover"
-                  aria-label="Remove cover"
-                  className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/65 text-white transition-colors hover:bg-black/85 disabled:opacity-50"
+          <div className="p-6 space-y-3">
+            {initial.fileUrl && !pdfFile && (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-divider bg-paper px-4 py-3">
+                <div className="flex min-w-0 items-center gap-2 text-sm text-text-body">
+                  <FileText className="h-4 w-4 shrink-0 text-text-muted" />
+                  <span className="truncate">Current file · {(initial.fileFormat ?? "pdf").toUpperCase()} · {formatFileSize(initial.fileSizeKb)}</span>
+                </div>
+                <a
+                  href={initial.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-brand hover:underline"
                 >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex h-36 w-24 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-divider bg-paper text-[11px] font-medium text-text-muted">
-                No cover
+                  <Download className="h-3.5 w-3.5" /> Open
+                </a>
               </div>
             )}
 
-            {/* Dropzone */}
             <div
-              ref={coverZoneRef}
               role="button"
               tabIndex={saving ? -1 : 0}
-              aria-label={preview ? "Replace cover image" : "Upload cover image"}
-              className="relative flex h-36 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
-              onClick={() => !saving && fileInputRef.current?.click()}
-              onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && fileInputRef.current?.click())}
+              aria-label={pdfFile ? "Replace PDF file" : initial.fileUrl ? "Replace PDF file" : "Upload PDF file"}
+              className="relative flex h-24 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
+              onClick={() => !saving && pdfInputRef.current?.click()}
+              onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && pdfInputRef.current?.click())}
             >
-              <ImagePlus className="h-6 w-6 text-text-muted" />
+              <UploadCloud className="h-5 w-5 text-text-muted" />
               <p className="text-xs text-text-muted leading-tight">
-                {preview
-                  ? coverFile
-                    ? `Selected: ${coverFile.name}`
-                    : "Click to replace cover"
-                  : "Click to select cover image"}
+                {pdfFile ? `Selected: ${pdfFile.name}` : initial.fileUrl ? "Click to replace PDF" : "Click to upload PDF"}
+              </p>
+              <p className="max-w-sm text-[11px] leading-4 text-text-muted">
+                Compress scanned PDFs before uploading so the online reader stays fast.
               </p>
               <input
-                ref={fileInputRef}
+                ref={pdfInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                aria-label="Cover image"
+                accept="application/pdf"
+                aria-label="PDF file"
                 disabled={saving}
-                onChange={handleCoverChange}
+                onChange={handlePdfChange}
                 className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
               />
             </div>
+
+            {pdfFile && (
+              <button
+                type="button"
+                onClick={removePdf}
+                disabled={saving}
+                className="focus-field rounded text-xs font-semibold text-text-muted hover:text-danger disabled:opacity-50"
+              >
+                Cancel PDF replacement
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Cover image card ── */}
+        <div id="cover" className="scroll-mt-24 overflow-hidden rounded-xl border border-divider">
+          <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-admin-accent-soft text-admin-accent" aria-hidden="true">
+              <ImagePlus className="h-[18px] w-[18px]" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-bold text-text-heading">Cover Image</h2>
+              <p className="text-xs text-text-muted">JPEG, PNG, WebP · max 5 MB</p>
+            </div>
+            {preview && !coverFile && (
+              <span
+                className="shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-success-line bg-success-soft text-success-text"
+              >
+                Current cover
+              </span>
+            )}
+            {coverFile && (
+              <span
+                className="shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold border-warning-line bg-warning-soft text-warning-text"
+              >
+                New cover selected
+              </span>
+            )}
+          </div>
+
+          <div className="p-6">
+            <div className="flex items-start gap-4">
+              {/* Preview */}
+              {preview ? (
+                <div className="relative h-36 w-24 shrink-0 overflow-hidden rounded-xl border border-divider shadow-md">
+                  <Image
+                    src={preview}
+                    alt="Cover preview"
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeCover}
+                    disabled={saving}
+                    title="Remove cover"
+                    aria-label="Remove cover"
+                    className="absolute right-1 top-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/65 text-white transition-colors hover:bg-black/85 disabled:opacity-50"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex h-36 w-24 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-divider bg-paper text-[11px] font-medium text-text-muted">
+                  No cover
+                </div>
+              )}
+
+              {/* Dropzone */}
+              <div
+                ref={coverZoneRef}
+                role="button"
+                tabIndex={saving ? -1 : 0}
+                aria-label={preview ? "Replace cover image" : "Upload cover image"}
+                className="relative flex h-36 flex-1 flex-col items-center justify-center gap-2.5 rounded-xl border-2 border-dashed border-divider bg-paper px-4 text-center transition-all hover:border-brand hover:bg-bg-surface cursor-pointer"
+                onClick={() => !saving && fileInputRef.current?.click()}
+                onKeyDown={(e) => activatePickerFromKeyboard(e, () => !saving && fileInputRef.current?.click())}
+              >
+                <ImagePlus className="h-6 w-6 text-text-muted" />
+                <p className="text-xs text-text-muted leading-tight">
+                  {preview
+                    ? coverFile
+                      ? `Selected: ${coverFile.name}`
+                      : "Click to replace cover"
+                    : "Click to select cover image"}
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/avif"
+                  aria-label="Cover image"
+                  disabled={saving}
+                  onChange={handleCoverChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* ── Book details card ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
-          <span className="sec-chip sec-chip--details">
-            <BookOpen className="h-[18px] w-[18px]" />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-text-heading">Book Details</h2>
-            <p className="text-xs text-text-muted">Title, author, category, and more</p>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-5">
-          {/* Title — full width */}
-          <label className="block">
-            <FieldLabel required>Title</FieldLabel>
-            <input
-              name="title"
-              required
-              defaultValue={initial.title}
-              placeholder="Book title"
-              disabled={saving}
-              className={INPUT_CLASS}
-            />
-          </label>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            {/* Author */}
-            <label>
-              <FieldLabel required>Author</FieldLabel>
-              <input
-                name="author"
-                required
-                defaultValue={initial.author}
-                placeholder="Author or institution"
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {/* Language */}
-            <label>
-              <FieldLabel required>Language</FieldLabel>
-              <input
-                name="language"
-                required
-                defaultValue={initial.language}
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {/* ISBN */}
-            <label>
-              <FieldLabel>ISBN</FieldLabel>
-              <input
-                name="isbn"
-                defaultValue={initial.isbn}
-                placeholder="Optional"
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {/* Publisher */}
-            <label>
-              <FieldLabel>Publisher</FieldLabel>
-              <input
-                name="publisher"
-                defaultValue={initial.publisher}
-                placeholder="Optional"
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {/* License */}
-            <label>
-              <FieldLabel>License</FieldLabel>
-              <select name="license" disabled={saving} defaultValue={initial.license ?? ""} className={SELECT_CLASS}>
-                {LICENSE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </label>
-
-            {/* Category */}
-            <div>
-              <FieldLabel required>Category</FieldLabel>
-              <SearchableSelect
-                name="category"
-                required
-                options={categories}
-                defaultValue={initial.category}
-                disabled={saving}
-              />
-            </div>
-
-            {/* Department */}
-            <div>
-              <FieldLabel required>Department</FieldLabel>
-              <SearchableSelect
-                name="department"
-                required
-                options={departments}
-                defaultValue={initial.department}
-                disabled={saving}
-              />
-            </div>
-
-            {/* Year */}
-            <label>
-              <FieldLabel>Year</FieldLabel>
-              <input
-                name="year"
-                type="number"
-                min="1900"
-                max="2099"
-                defaultValue={initial.year}
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {/* Pages */}
-            <label>
-              <FieldLabel>Pages</FieldLabel>
-              <input
-                name="pages"
-                type="number"
-                min="1"
-                defaultValue={initial.pages}
-                disabled={saving}
-                className={INPUT_CLASS}
-              />
-            </label>
-          </div>
-
-          {/* Summary */}
-          <label className="block">
-            <FieldLabel required>Summary</FieldLabel>
-            <textarea
-              name="summary"
-              required
-              rows={4}
-              defaultValue={initial.summary}
-              disabled={saving}
-              className="focus-field w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body"
-            />
-          </label>
-
-          {/* Tags */}
-          <div>
-            <FieldLabel>Keywords / Tags (ពាក្យគន្លឺះ)</FieldLabel>
-            <TagInput name="tags" defaultTags={initial.tags} disabled={saving} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── SEO & metadata quality ── */}
-      <BookSeoPanel
-        slug={initial.slug}
-        fields={{ ...seoState, coverPresent: preview !== null }}
-      />
-
-      {/* ── SEO overrides (optional; blank = auto-generate) ── */}
-      <SeoOverrideFields
-        routePrefix="/books"
-        slug={initial.slug}
-        siteUrl={SITE_URL}
-        defaultSeoTitle={initial.seoTitle}
-        defaultSeoDescription={initial.seoDescription}
-        defaultOgImage={initial.ogImage}
-        fallbackTitle={seoState.title}
-        fallbackDescription={seoState.summary}
-        fallbackImage={preview}
-        disabled={saving}
-      />
-
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={saving}
-        className="btn-brand-gradient flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+      <div
+        id="ebook-panel-details"
+        role="tabpanel"
+        aria-labelledby="ebook-tab-details"
+        tabIndex={-1}
+        hidden={activeTab !== "details"}
+        className="space-y-5 focus:outline-none"
       >
-        {saving ? (
-          <>
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            {phaseLabel[phase]}
-          </>
-        ) : (
-          <>
-            <Save className="h-4 w-4" />
-            Save changes
-          </>
-        )}
-      </button>
-    </form>
+        {/* ── Book details card ── */}
+        <div className="overflow-hidden rounded-xl border border-divider">
+          <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-admin-accent-soft text-admin-accent" aria-hidden="true">
+              <BookOpen className="h-[18px] w-[18px]" />
+            </span>
+            <div>
+              <h2 className="text-sm font-bold text-text-heading">Book Details</h2>
+              <p className="text-xs text-text-muted">Title, author, category, and more</p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-5">
+            {/* Title — full width */}
+            <label className="block">
+              <FieldLabel required>Title</FieldLabel>
+              <input
+                name="title"
+                required
+                defaultValue={initial.title}
+                placeholder="Book title"
+                disabled={saving}
+                className={INPUT_CLASS}
+              />
+            </label>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              {/* Author */}
+              <label>
+                <FieldLabel required>Author</FieldLabel>
+                <input
+                  name="author"
+                  required
+                  defaultValue={initial.author}
+                  placeholder="Author or institution"
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+
+              {/* Language */}
+              <label>
+                <FieldLabel required>Language</FieldLabel>
+                <input
+                  name="language"
+                  required
+                  defaultValue={initial.language}
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+
+              {/* ISBN */}
+              <label>
+                <FieldLabel>ISBN</FieldLabel>
+                <input
+                  name="isbn"
+                  defaultValue={initial.isbn}
+                  placeholder="Optional"
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+
+              {/* Publisher */}
+              <label>
+                <FieldLabel>Publisher</FieldLabel>
+                <input
+                  name="publisher"
+                  defaultValue={initial.publisher}
+                  placeholder="Optional"
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+
+              {/* License */}
+              <label>
+                <FieldLabel>License</FieldLabel>
+                <select name="license" disabled={saving} defaultValue={initial.license ?? ""} className={SELECT_CLASS}>
+                  {LICENSE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </label>
+
+              {/* Category */}
+              <div>
+                <FieldLabel required>Category</FieldLabel>
+                <SearchableSelect
+                  name="category"
+                  required
+                  options={categories}
+                  defaultValue={initial.category}
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Department */}
+              <div>
+                <FieldLabel required>Department</FieldLabel>
+                <SearchableSelect
+                  name="department"
+                  required
+                  options={departments}
+                  defaultValue={initial.department}
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Year */}
+              <label>
+                <FieldLabel>Year</FieldLabel>
+                <input
+                  name="year"
+                  type="number"
+                  min="1900"
+                  max="2099"
+                  defaultValue={initial.year}
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+
+              {/* Pages */}
+              <label>
+                <div className="flex items-center justify-between">
+                  <FieldLabel>Pages</FieldLabel>
+                  {isDetectingPages && (
+                    <span className="flex items-center gap-1 text-[11px] font-medium text-brand animate-pulse">
+                      <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-brand border-t-transparent" />
+                      Detecting pages…
+                    </span>
+                  )}
+                  {detectedPages && !isDetectingPages && (
+                    <span className="text-[11px] font-medium text-success-text">
+                      ✓ Detected {detectedPages} pages
+                    </span>
+                  )}
+                </div>
+                <input
+                  ref={pagesInputRef}
+                  name="pages"
+                  type="number"
+                  min="1"
+                  defaultValue={initial.pages}
+                  disabled={saving}
+                  className={INPUT_CLASS}
+                />
+              </label>
+            </div>
+
+            {/* Summary */}
+            <label className="block">
+              <FieldLabel required>Summary</FieldLabel>
+              <textarea
+                name="summary"
+                required
+                rows={4}
+                defaultValue={initial.summary}
+                disabled={saving}
+                className="focus-field w-full resize-none rounded-xl border border-divider bg-bg-surface p-4 text-sm disabled:bg-paper disabled:opacity-60 placeholder:text-text-muted/60 text-text-body"
+              />
+            </label>
+
+            {/* Tags */}
+            <div>
+              <FieldLabel>Keywords / Tags (ពាក្យគន្លឺះ)</FieldLabel>
+              <TagInput name="tags" defaultTags={initial.tags} disabled={saving} />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        id="ebook-panel-seo"
+        role="tabpanel"
+        aria-labelledby="ebook-tab-seo"
+        tabIndex={-1}
+        hidden={activeTab !== "seo"}
+        className="space-y-5 focus:outline-none"
+      >
+        {/* ── SEO & metadata quality ── */}
+        <BookSeoPanel
+          slug={initial.slug}
+          fields={{ ...seoState, coverPresent: preview !== null }}
+        />
+
+        {/* ── SEO overrides (optional; blank = auto-generate) ── */}
+        <SeoOverrideFields
+          routePrefix="/books"
+          slug={initial.slug}
+          siteUrl={SITE_URL}
+          defaultSeoTitle={initial.seoTitle}
+          defaultSeoDescription={initial.seoDescription}
+          defaultOgImage={initial.ogImage}
+          fallbackTitle={seoState.title}
+          fallbackDescription={seoState.summary}
+          fallbackImage={preview}
+          disabled={saving}
+        />
+      </div>
+    </FormShell>
   );
 }

@@ -201,7 +201,7 @@
     "prompt2": "Khmer literature for grade 9…",
     "prompt3": "Theses on early-childhood education…",
     "askButton": "Ask",
-    "askHint": "Search e-books, physical books, and theses — or press / to start typing.",
+    "askHint": "Search titles and authors — and the full text inside every PDF.",
     "constellationHint": "Focus the search field to see the collection light up.",
     "recent": "Recent",
     "clear": "Clear",
@@ -311,17 +311,6 @@
     "goalTeacherBody": "Guided learning paths for professional growth.",
     "goalKhmer": "Explore Khmer resources",
     "goalKhmerBody": "Books and materials in the Khmer language.",
-    "weekEyebrow": "This week at PTEC",
-    "weekTitle": "New and noteworthy",
-    "weekPick": "Editor's pick",
-    "weekPublication": "New publication",
-    "weekPath": "New learning path",
-    "weekPost": "Latest news",
-    "weekReadNow": "Read now",
-    "weekReadArticle": "Read article",
-    "weekOpenPath": "Open path",
-    "weekViewPost": "Read the news",
-    "weekEmpty": "New highlights are being curated — check back soon.",
     "popularEyebrow": "Popular right now",
     "popularTitle": "Popular with PTEC students",
     "popularOnboarding": "Sign in free to track your reading and pick up where you left off.",
@@ -382,7 +371,47 @@
     "narrativeDiscover": "Discover",
     "narrativeDiscoverBody": "Open shelves beside a searchable digital collection, so a half-remembered title is a few minutes' work rather than a dead end.",
     "narrativeConnect": "Connect",
-    "narrativeConnectBody": "Study groups, reading sessions and staff who know the collection — the part of a library that no catalogue can hold."
+    "narrativeConnectBody": "Study groups, reading sessions and staff who know the collection — the part of a library that no catalogue can hold.",
+    "growEyebrow": "Grow the collection",
+    "growTitle": "The library grows when you add to it",
+    "growBody": "PTEC's collection is built by the people who use it. Deposit your own research, or tell us what is missing — a librarian reads every submission.",
+    "growDepositTitle": "Deposit your thesis",
+    "growDepositBody": "Finished a thesis, a research report or a teaching resource? Put it in the library so the next cohort can build on it. You keep the copyright; we handle cataloguing, a permanent link and a citation.",
+    "growDepositCta": "Submit your work",
+    "growDepositIntro": "Tell us about your work. A librarian will contact you to arrange the file and confirm the licence before anything is published.",
+    "growDepositSent": "A librarian will review your submission and contact you about the file and licence.",
+    "growDepositFieldTitle": "Title of your work",
+    "growDepositFieldTitlePlaceholder": "e.g. Teaching fractions through visual models",
+    "growDepositFieldAuthor": "Author(s)",
+    "growDepositFieldAuthorPlaceholder": "Your name, and any co-authors",
+    "growDepositFieldLink": "Link to the file",
+    "growDepositFieldLinkHelp": "A Google Drive, OneDrive or repository link. Leave it empty and we will email you about how to send the file.",
+    "growDepositFieldReason": "Anything we should know",
+    "growDepositFieldReasonPlaceholder": "Year, department, supervisor, or how you would like it credited…",
+    "growDepositSubmit": "Submit work",
+    "growRequestTitle": "Request a book",
+    "growRequestBody": "Looking for something the library does not hold yet? Tell us the title and why it matters, and we will try to source it or find an open-access alternative.",
+    "growRequestCta": "Make a request",
+    "growRequestIntro": "Can't find what you need? Tell us and we'll try to add it to the library.",
+    "growRequestSent": "We'll review your request and add the book if we can source it.",
+    "growRequestFieldTitle": "Book title",
+    "growRequestFieldTitlePlaceholder": "e.g. Introduction to Education Theory",
+    "growRequestFieldAuthor": "Author",
+    "growRequestFieldAuthorPlaceholder": "e.g. John Dewey",
+    "growRequestFieldIsbn": "ISBN",
+    "growRequestFieldReason": "Why do you need this book?",
+    "growRequestFieldReasonPlaceholder": "Briefly explain how it would help your study or teaching…",
+    "growRequestSubmit": "Submit request",
+    "growStatResearch": "{count, plural, =0 {No research works deposited yet — be the first} one {# research work in the collection so far} other {# research works in the collection so far}}",
+    "growStatFulfilled": "{count, plural, one {# reader submission added to the library} other {# reader submissions added to the library}}",
+    "growStatCredit": "Contributors are credited by name",
+    "growSignIn": "Please <link>sign in</link> to submit — it takes a minute and it's free.",
+    "growSentTitle": "Thank you — received",
+    "growDone": "Done",
+    "growCancel": "Cancel",
+    "growSubmitting": "Submitting…",
+    "growClose": "Close",
+    "askHintKeyboard": "Press / to start typing."
   },
   "books": {
     "title": "Books",
@@ -1124,7 +1153,7 @@
     "busy": "The assistant is busy right now. Try again in a few minutes."
   },
   "search": {
-    "placeholder": "Search books, authors, theses…",
+    "placeholder": "Search books, authors — and inside the PDFs…",
     "ariaLabel": "Search the PTEC Library",
     "searchButton": "Search",
     "clearInput": "Clear search input",
@@ -1246,7 +1275,9 @@
     "facetShowMore": "Show more",
     "facetShowLess": "Show less",
     "resultsAnnouncement": "{count, plural, =0 {No results} =1 {1 result} other {# results}} for {query}",
-    "removeFilter": "Remove {label} filter"
+    "removeFilter": "Remove {label} filter",
+    "onlyInsideTitle": "No titles matched “{query}” — but these documents contain it",
+    "onlyInsideBody": "Full-text search looks inside every PDF in the library, not just the catalogue record."
   },
   "pagination": {
     "showing": "Showing {from}–{to} of {total, plural, =1 {1 result} other {# results}}",
@@ -3296,7 +3327,12 @@
       "deleted": "Request deleted.",
       "updateFailed": "Could not update the request — please try again.",
       "deleteFailed": "Could not delete the request — please try again."
-    }
+    },
+    "kind": {
+      "deposit": "Deposit",
+      "acquisition": "Request"
+    },
+    "sourceLink": "Open submitted file ↗"
   },
   "adminAnnouncements": {
     "title": "Announcements",
@@ -4086,7 +4122,8 @@
       "file-size": "same file size",
       "title": "same title",
       "author": "same author",
-      "year": "same year"
+      "year": "same year",
+      "title-prefix": "one title extends the other"
     },
     "keep": "Keep",
     "keepThis": "Keep this record",
@@ -5350,7 +5387,17 @@
       "chars": "{count} chars",
       "tabHint": "Tab = 2 spaces",
       "escHint": " · Esc to exit"
-    }
+    },
+    "backToPosts": "Back to posts",
+    "tabsAria": "Post sections",
+    "tabContent": "Content",
+    "tabMedia": "Media & Tags",
+    "tabPublish": "Publishing & SEO",
+    "contextPreviewTitle": "Search result preview",
+    "contextPreviewHint": "Roughly how this post appears in Google and on shared links.",
+    "contextUntitled": "Untitled post",
+    "contextNoExcerpt": "No excerpt yet — search engines will invent a snippet from the body.",
+    "contextOverrideHint": "Override the title and description on the Publishing & SEO tab if the automatic version is not what you want."
   },
   "adminThesisForm": {
     "newTitle": "Upload Thesis",
@@ -5772,7 +5819,14 @@
       "seoTitle": "SEO title",
       "seoDescription": "Meta description",
       "seoOgImage": "Social image URL (Open Graph)",
-      "seoSearchPreview": "Search result preview"
+      "seoSearchPreview": "Search result preview",
+      "tabInfo": "Book Details",
+      "tabMedia": "Cover & SEO",
+      "addTabsAria": "New catalog record sections",
+      "addContextTitle": "Before you save",
+      "addContextHint": "What this record needs to exist.",
+      "addContextBody": "Title, author and language are required. Everything else — cover, description, keywords, SEO — can be filled in later from the edit screen. Saving takes you straight to adding physical copies.",
+      "addStatusHint": "Saving creates the record, then opens copy entry."
     },
     "edit": {
       "title": "Edit Book",
@@ -5793,7 +5847,17 @@
       "totalsHint": "Totals are calculated from copy records and cannot be edited here.",
       "managePhysical": "Manage physical copies →",
       "saveChanges": "Save changes",
-      "savedShort": "Saved"
+      "savedShort": "Saved",
+      "tabMedia": "Cover & SEO",
+      "contextRecordTitle": "This record",
+      "contextRecordHint": "The fields a librarian identifies a copy by.",
+      "contextAuthor": "Author",
+      "contextCategory": "Category",
+      "contextShelf": "Shelf",
+      "contextCopies": "Available / total",
+      "contextPreviewTitle": "Search result preview",
+      "contextPreviewHint": "Roughly how this record appears in Google and on shared links.",
+      "contextNoDescription": "No description yet — search engines will invent a snippet from the page."
     },
     "copies": {
       "heading": "Physical Copies",
@@ -6133,7 +6197,9 @@
       "submitReview": "Submit for review",
       "hiddenUntilApproved": "(stays hidden until approved)",
       "submitPublish": "Upload and publish",
-      "submitForReview": "Upload for review"
+      "submitForReview": "Upload for review",
+      "detectingPages": "Detecting pages…",
+      "detectedPages": "Detected {count} pages"
     },
     "bulk": {
       "rowStatus": {

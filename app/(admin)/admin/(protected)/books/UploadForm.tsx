@@ -20,6 +20,7 @@ import {
 import Icon from "@/components/ui/core/Icon";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import TagInput from "@/components/ui/core/TagInput";
+import { getPdfPageCount } from "@/lib/pdf-client-utils";
 import { FileText, ImagePlus, Upload, AlertCircle, BookOpen, X } from "lucide-react";
 
 const LANGUAGES = ["Khmer", "English"] as const;
@@ -150,6 +151,8 @@ export default function UploadForm({
   const [catList, setCatList]           = useState<string[]>([]);
   const [aiLoading, setAiLoading]       = useState(false);
   const [aiError, setAiError]           = useState<string | null>(null);
+  const [detectedPages, setDetectedPages] = useState<number | null>(null);
+  const [isDetectingPages, setIsDetectingPages] = useState(false);
   const t = useTranslations("adminUpload.single");
 
   const pdfInputRef   = useRef<HTMLInputElement>(null);
@@ -159,6 +162,7 @@ export default function UploadForm({
   const yearInputRef    = useRef<HTMLInputElement>(null);
   const languageSelectRef = useRef<HTMLSelectElement>(null);
   const summaryInputRef = useRef<HTMLTextAreaElement>(null);
+  const pagesInputRef   = useRef<HTMLInputElement>(null);
 
   const refreshLists = useCallback(async () => {
     const [deptRes, catRes] = await Promise.all([
@@ -190,10 +194,24 @@ export default function UploadForm({
     else setCoverPreview(null);
   };
 
-  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePdfChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     setPdfName(file ? file.name : null);
     setAiError(null);
+    setDetectedPages(null);
+
+    if (file && file.type === "application/pdf") {
+      setIsDetectingPages(true);
+      try {
+        const count = await getPdfPageCount(file);
+        if (count && pagesInputRef.current) {
+          pagesInputRef.current.value = String(count);
+          setDetectedPages(count);
+        }
+      } finally {
+        setIsDetectingPages(false);
+      }
+    }
   };
 
   async function handleAutoFill() {
@@ -203,9 +221,16 @@ export default function UploadForm({
     setAiLoading(true);
     setAiError(null);
     try {
+      // Run AI extraction and page count detection in parallel — the page
+      // count is local (sub-100ms) while the AI call takes a few seconds,
+      // so the page count will usually be ready before the AI response.
       const fd = new FormData();
       fd.set("pdf", file);
-      const res = await extractBookMetadata(fd);
+      const [res, pageCount] = await Promise.all([
+        extractBookMetadata(fd),
+        detectedPages ? Promise.resolve(null) : getPdfPageCount(file),
+      ]);
+
       if ("error" in res) { setAiError(res.error); return; }
 
       const { title, author, year, language, summary } = res.data;
@@ -218,6 +243,12 @@ export default function UploadForm({
       if (year && yearInputRef.current) yearInputRef.current.value = String(year);
       if (language && languageSelectRef.current) languageSelectRef.current.value = language;
       if (summary && summaryInputRef.current) summaryInputRef.current.value = summary;
+
+      // Fill pages if not already detected from handlePdfChange.
+      if (pageCount && pagesInputRef.current) {
+        pagesInputRef.current.value = String(pageCount);
+        setDetectedPages(pageCount);
+      }
     } finally {
       setAiLoading(false);
     }
@@ -682,8 +713,22 @@ export default function UploadForm({
 
             {/* Pages */}
             <label>
-              <FieldLabel>{t("field.pages")}</FieldLabel>
+              <div className="flex items-center justify-between">
+                <FieldLabel>{t("field.pages")}</FieldLabel>
+                {isDetectingPages && (
+                  <span className="flex items-center gap-1 text-[11px] font-medium text-brand animate-pulse">
+                    <span className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-brand border-t-transparent" />
+                    {t("detectingPages")}
+                  </span>
+                )}
+                {detectedPages && !isDetectingPages && (
+                  <span className="text-[11px] font-medium" style={{ color: "#0f9d6b" }}>
+                    ✓ {t("detectedPages", { count: detectedPages })}
+                  </span>
+                )}
+              </div>
               <input
+                ref={pagesInputRef}
                 name="pages"
                 type="number"
                 min="1"
