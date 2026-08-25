@@ -1,7 +1,11 @@
 // Edge-safe published-slug existence gate for middleware — generalises the
 // books gate (lib/book-slug-gate.ts) to resource types that have a `slug` and
-// a boolean "is public" column but NO retired-slug redirect map (theses,
-// publications, physical catalog items).
+// a boolean "is public" column (theses, publications, physical catalog items).
+//
+// Catalogs additionally declare a `redirectTable`, because the catalog edit
+// wizard can change a record's slug: a retired slug resolves to a real 301
+// instead of a 404. Resources without one behave exactly as before and cost no
+// extra network call.
 //
 // Why this exists: every route under app/[locale]/(public) streams its
 // `loading` boundary first, so an unknown /theses/<slug>, /publications/<slug>
@@ -20,7 +24,10 @@
 //   * any fetch failure → FAIL OPEN (null verdict → the request falls through
 //     to the page exactly as before this gate existed).
 
-export type SlugGateResult = { kind: "ok" } | { kind: "not-found" };
+export type SlugGateResult =
+  | { kind: "ok" }
+  | { kind: "redirect"; slug: string }
+  | { kind: "not-found" };
 
 export type SlugGateEnv = { supabaseUrl: string; anonKey: string };
 
@@ -44,6 +51,17 @@ export type ResourceGateConfig = {
    * is missing, so this cannot drift.
    */
   reserved?: readonly string[];
+  /**
+   * Table mapping a retired slug to a live row, for resources whose slug can
+   * change. Shape must be `(old_slug text, <fk> uuid references table)`,
+   * exactly like book_slug_redirects (0091) and catalog_slug_redirects (0120);
+   * the FK column name does not matter, PostgREST resolves the embed from the
+   * relationship.
+   *
+   * Omit it and nothing about this gate changes — no extra fetch, and a miss
+   * is a plain not-found.
+   */
+  redirectTable?: string;
 };
 
 export const RESOURCE_GATES = {
@@ -63,7 +81,14 @@ export const RESOURCE_GATES = {
   // That last case, and admin preview of drafts, is why middleware skips this
   // gate entirely for requests carrying a session cookie — see the note there.
   posts: { table: "posts", publishedColumn: "is_published" },
-  catalogs: { table: "catalog_books", publishedColumn: "is_active" },
+  // The only gated resource whose slug is editable after creation (the edit
+  // wizard), so it is the only one that needs a retired-slug map. See
+  // migration 0120.
+  catalogs: {
+    table: "catalog_books",
+    publishedColumn: "is_active",
+    redirectTable: "catalog_slug_redirects",
+  },
   // Team member profiles live one level deeper than the other resources —
   // the key is the full path prefix under (public), and middleware builds its
   // matcher from it the same way. The lookup target is the SECURITY DEFINER
@@ -82,12 +107,20 @@ export function resolveSlugGate(
   slug: string,
   liveSlugs: Set<string>,
   reserved: readonly string[] = [],
+  redirects: Map<string, string> = new Map(),
 ): SlugGateResult {
   if (reserved.includes(slug)) return { kind: "ok" };
-  return liveSlugs.has(slug) ? { kind: "ok" } : { kind: "not-found" };
+  if (liveSlugs.has(slug)) return { kind: "ok" };
+  const target = redirects.get(slug);
+  // Never redirect to itself or to a target that is not live — that would loop
+  // or hand the browser a 301 to a 404.
+  if (target && target !== slug && liveSlugs.has(target)) {
+    return { kind: "redirect", slug: target };
+  }
+  return { kind: "not-found" };
 }
 
-type Snapshot = { slugs: Set<string>; fetchedAt: number };
+type Snapshot = { slugs: Set<string>; redirects: Map<string, string>; fetchedAt: number };
 
 const SNAPSHOT_TTL_MS = 120_000;
 // PostgREST caps responses at the project max_rows (1000). Misses fall back to
@@ -102,19 +135,58 @@ function restHeaders(env: SlugGateEnv) {
   return { apikey: env.anonKey, Authorization: `Bearer ${env.anonKey}` };
 }
 
+type RedirectRow = { old_slug: string | null; [key: string]: unknown };
+
+/**
+ * Retired-slug → live-slug map. Embeds the target row so the map holds slugs,
+ * never ids — the resolver can then check the target is live without a second
+ * lookup, which is what makes chains and dead targets impossible to follow.
+ *
+ * Pre-migration safety: before 0120 the table does not exist, this fetch
+ * fails, and the map stays empty — existence gating still works.
+ */
+async function fetchRedirects(
+  cfg: ResourceGateConfig,
+  env: SlugGateEnv,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!cfg.redirectTable) return map;
+  try {
+    const res = await fetch(
+      `${env.supabaseUrl}/rest/v1/${cfg.redirectTable}` +
+        `?select=old_slug,${cfg.table}!inner(slug)` +
+        `&${cfg.table}.${cfg.publishedColumn}=eq.true&limit=${ROW_CAP}`,
+      { headers: restHeaders(env) },
+    );
+    if (!res.ok) return map;
+    const rows: RedirectRow[] = await res.json();
+    for (const row of rows) {
+      const embedded = row[cfg.table] as { slug: string | null } | null;
+      const target = embedded?.slug;
+      if (row.old_slug && target) map.set(row.old_slug, target);
+    }
+  } catch {
+    /* Fail open: no redirects rather than no gate. */
+  }
+  return map;
+}
+
 async function fetchSnapshot(
   cfg: ResourceGateConfig,
   env: SlugGateEnv,
 ): Promise<Snapshot | null> {
   try {
-    const res = await fetch(
-      `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug&${cfg.publishedColumn}=eq.true&slug=not.is.null&limit=${ROW_CAP}`,
-      { headers: restHeaders(env) },
-    );
+    const [res, redirects] = await Promise.all([
+      fetch(
+        `${env.supabaseUrl}/rest/v1/${cfg.table}?select=slug&${cfg.publishedColumn}=eq.true&slug=not.is.null&limit=${ROW_CAP}`,
+        { headers: restHeaders(env) },
+      ),
+      fetchRedirects(cfg, env),
+    ]);
     if (!res.ok) return null;
     const rows: { slug: string | null }[] = await res.json();
     const slugs = new Set(rows.map((r) => r.slug).filter((s): s is string => !!s));
-    return { slugs, fetchedAt: Date.now() };
+    return { slugs, redirects, fetchedAt: Date.now() };
   } catch {
     return null;
   }
@@ -165,6 +237,39 @@ async function confirmSlug(
       snapshots.get(cfg.table)?.slugs.add(slug);
       return { kind: "ok" };
     }
+    // Not a live slug. Before calling it a 404, check whether it is a slug that
+    // was retired more recently than the snapshot — otherwise every rename
+    // 404s its own old URL for up to the snapshot TTL, which is precisely the
+    // window in which the old links are still being followed.
+    return confirmRedirect(cfg, slug, env);
+  } catch {
+    return null;
+  }
+}
+
+/** One confirming round-trip for a redirect the snapshot doesn't know yet. */
+async function confirmRedirect(
+  cfg: ResourceGateConfig,
+  slug: string,
+  env: SlugGateEnv,
+): Promise<SlugGateResult | null> {
+  if (!cfg.redirectTable) return { kind: "not-found" };
+  try {
+    const enc = encodeURIComponent(slug);
+    const res = await fetch(
+      `${env.supabaseUrl}/rest/v1/${cfg.redirectTable}` +
+        `?select=old_slug,${cfg.table}!inner(slug)` +
+        `&old_slug=eq.${enc}&${cfg.table}.${cfg.publishedColumn}=eq.true&limit=1`,
+      { headers: restHeaders(env) },
+    );
+    if (!res.ok) return { kind: "not-found" };
+    const rows: RedirectRow[] = await res.json();
+    const embedded = rows[0]?.[cfg.table] as { slug: string | null } | null;
+    const target = embedded?.slug;
+    if (target && target !== slug) {
+      snapshots.get(cfg.table)?.redirects.set(slug, target);
+      return { kind: "redirect", slug: target };
+    }
     return { kind: "not-found" };
   } catch {
     return null;
@@ -184,7 +289,7 @@ export async function gateResourceSlug(
   if (!env.supabaseUrl || !env.anonKey) return null;
   const snap = await getSnapshot(cfg, env);
   if (!snap) return null;
-  const verdict = resolveSlugGate(slug, snap.slugs, cfg.reserved);
+  const verdict = resolveSlugGate(slug, snap.slugs, cfg.reserved, snap.redirects);
   if (verdict.kind !== "not-found") return verdict;
   return confirmSlug(cfg, slug, env);
 }

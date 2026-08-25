@@ -424,6 +424,17 @@ export async function middleware(request: NextRequest) {
       const res = NextResponse.rewrite(new URL(NOT_FOUND_PATH, request.url));
       return applySecurity(res);
     }
+    // A retired slug (currently only catalogs, whose slug is editable) gets a
+    // real 301 to the record's current URL, keeping the locale prefix and the
+    // query string so a shared link survives the rename intact.
+    if (verdict?.kind === "redirect") {
+      const prefix = activeLocale === "en" ? "" : `/${activeLocale}`;
+      const target = new URL(
+        `${prefix}/${segment}/${encodeURIComponent(verdict.slug)}${url.search}`,
+        request.url,
+      );
+      return applySecurity(NextResponse.redirect(target, 301));
+    }
     break; // ok / null → fall through to the page unchanged.
   }
 

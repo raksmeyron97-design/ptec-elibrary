@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { uploadToZima } from "@/app/actions/upload";
-import { createPost, updatePost } from "@/app/(admin)/admin/(protected)/posts/actions";
+import { createPost, updatePost, checkSlugAvailableAction } from "@/app/(admin)/admin/(protected)/posts/actions";
 import { autosavePostDraft, getPostDraft, discardPostDraft, type PostDraftKey, type PostDraftPayload } from "@/app/actions/post-drafts";
 import TagInput from "@/components/ui/core/TagInput";
 import MarkdownEditor from "@/components/admin/posts/MarkdownEditor";
-import PostSlugField from "@/components/admin/posts/PostSlugField";
+
 import PostPublishPanel from "@/components/admin/posts/PostPublishPanel";
 import PostEventDetails, { type EventDraft } from "@/components/admin/posts/PostEventDetails";
 import PostCoverUploader, { type CoverItem } from "@/components/admin/posts/PostCoverUploader";
@@ -17,6 +17,7 @@ import {
   FormShell,
   FormTabs,
   ContextPanel,
+  SlugField,
   type FormTab,
 } from "@/components/admin/kit/form";
 import { FileText, Globe, Image as ImageIcon, Search, type LucideIcon } from "lucide-react";
@@ -97,6 +98,7 @@ export default function PostForm({
   pageDescription: string;
 }) {
   const t = useTranslations("adminPostForm");
+  const tSlug = useTranslations("adminPostForm.slug");
   const isEdit = !!initial;
   const [tab, setTab] = useState<Tab>("content");
   const editorSectionRef = useRef<HTMLDivElement>(null);
@@ -529,13 +531,26 @@ export default function PostForm({
           )}
         </label>
 
-        <PostSlugField
-          title={title}
-          slug={slug}
-          onSlugChange={setSlug}
-          postId={initial?.id}
-          disabled={busy}
+        <SlugField
+          value={slug}
+          onChange={setSlug}
+          source={title}
+          routePrefix="/posts"
           siteUrl={SITE_URL}
+          slugify={slugify}
+          // Closed over the post's own id so editing a post never reports its
+          // own slug as taken.
+          checkAvailability={(candidate) => checkSlugAvailableAction(candidate, initial?.id)}
+          disabled={busy}
+          error={fieldErrors.slug}
+          labels={{
+            label: tSlug("label"),
+            autoHint: tSlug("auto"),
+            reset: tSlug("reset"),
+            checking: tSlug("checking"),
+            available: tSlug("available"),
+            taken: tSlug("taken"),
+          }}
         />
 
         <label className="block">

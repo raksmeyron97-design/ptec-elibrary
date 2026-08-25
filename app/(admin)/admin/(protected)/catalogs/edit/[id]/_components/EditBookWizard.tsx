@@ -10,10 +10,10 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { updateCatalogBook } from "../../../actions";
+import { updateCatalogBook, checkCatalogSlugAvailable } from "../../../actions";
 import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../../copy-actions";
-import { computeCopyStats } from "@/lib/catalog";
+import { computeCopyStats, catalogRecordSlug } from "@/lib/catalog";
 import CopiesPanel from "../../../_components/CopiesPanel";
 import { ConfirmDialog } from "@/components/admin/kit";
 import TagInput from "@/components/ui/core/TagInput";
@@ -23,6 +23,7 @@ import {
   FormShell,
   FormTabs,
   StickyActionBar,
+  SlugField,
   ContextPanel,
   ButtonBusy,
   UnsavedPill,
@@ -85,6 +86,10 @@ export default function EditBookWizard({
   const [saved, setSaved] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // The form is uncontrolled, but the slug field needs a live title to offer
+  // "use the title", and the slug itself has to be controlled to be previewed.
+  const [title, setTitle] = useState(book.title);
+  const [slug, setSlug] = useState(book.slug);
   const [pendingTab, setPendingTab] = useState<Tab | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -276,8 +281,55 @@ export default function EditBookWizard({
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t("titleReq")} required htmlFor="f-title" error={fieldErrors.title} className="sm:col-span-2">
-            {(p) => <input {...p} name="title" defaultValue={book.title} />}
+            {(p) => (
+              <input
+                {...p}
+                name="title"
+                defaultValue={book.title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            )}
           </Field>
+
+          <div className="sm:col-span-2">
+            <SlugField
+              value={slug}
+              // "Use the title" changes the slug without firing a DOM change
+              // event, so the form-level handler never sees it — mark dirty
+              // here or Save stays disabled after a real edit.
+              onChange={(next) => { setSlug(next); setDirty(true); setSaved(null); }}
+              source={title}
+              routePrefix="/catalogs"
+              siteUrl={SITE_URL}
+              slugify={catalogRecordSlug}
+              checkAvailability={(candidate) => checkCatalogSlugAvailable(candidate, book.id)}
+              disabled={loading}
+              required
+              error={fieldErrors.slug}
+              labels={{
+                label: t("slug"),
+                autoHint: t("slugAuto"),
+                reset: t("slugReset"),
+                checking: t("slugChecking"),
+                available: t("slugAvailable"),
+                taken: t("slugTakenEdit"),
+              }}
+            />
+            {slug !== book.slug && (
+              /*
+                Renaming a live record changes a URL that is already out in the
+                world — on shelf labels, in reading lists, in search results.
+                The redirect makes that survivable, but the cataloguer should
+                know it happened rather than discover it later.
+              */
+              <p
+                role="status"
+                className="mt-2 rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-[12px] leading-[1.6] text-warning-text"
+              >
+                {t("slugChangeWarning", { oldSlug: book.slug })}
+              </p>
+            )}
+          </div>
 
           <Field label={t("authorReq")} required htmlFor="f-author" error={fieldErrors.author}>
             {(p) => <input {...p} name="author" defaultValue={book.author} />}

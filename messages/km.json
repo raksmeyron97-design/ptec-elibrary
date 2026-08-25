@@ -5322,6 +5322,8 @@
     },
     "slug": {
       "label": "Slug",
+      "auto": "ពីចំណងជើង",
+      "reset": "ប្រើចំណងជើង",
       "checking": "កំពុងពិនិត្យ…",
       "available": "អាចប្រើបាន",
       "taken": "បានប្រើហើយ — សូមជ្រើសផ្សេង"
@@ -5795,6 +5797,8 @@
       "slugChecking": "កំពុងពិនិត្យ…",
       "slugAvailable": "អាចប្រើបាន",
       "slugTaken": "បានប្រើហើយ — លេខនឹងត្រូវបានបន្ថែម",
+      "slugTakenEdit": "បានប្រើដោយកំណត់ត្រាផ្សេង",
+      "slugChangeWarning": "នេះនឹងផ្លាស់ប្ដូរ URL សាធារណៈ។ តំណទៅ /catalogs/{oldSlug} នឹងបញ្ជូនបន្តទៅ URL ថ្មី ដូច្នេះតំណចាស់នៅតែដំណើរការ។",
       "authorReq": "អ្នកនិពន្ធ",
       "authorPlaceholder": "ឈ្មោះពេញអ្នកនិពន្ធ",
       "languageReq": "ភាសា",

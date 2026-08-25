@@ -34,18 +34,24 @@ export type BookActionResult =
   | { success: false; error: string; fieldErrors?: Record<string, string> };
 
 /**
- * Live-availability probe for the slug field on the add wizard.
+ * Live-availability probe for the slug field on both catalog wizards.
  *
- * Read-only and permission-gated like its posts counterpart. A "taken" answer
- * is advisory: addCatalogBook() still resolves collisions with a numeric
- * suffix, because two physical books legitimately share a title.
+ * Read-only and permission-gated like its posts counterpart. What "taken"
+ * means differs by wizard, which is why both surface it as a note rather than
+ * a block: on add, addCatalogBook() resolves a collision with a numeric suffix
+ * (two physical books legitimately share a title); on edit, the update rejects
+ * it outright and the cataloguer is told after the save attempt.
  */
-export async function checkCatalogSlugAvailable(slug: string): Promise<boolean> {
+export async function checkCatalogSlugAvailable(
+  slug: string,
+  ignoreId?: string,
+): Promise<boolean> {
   const { supabase } = await requirePermission("books", "read");
   const clean = catalogRecordSlug(slug);
   if (!clean) return false;
   const { data } = await supabase.from("catalog_books").select("id").eq("slug", clean).limit(1);
-  return (data ?? []).length === 0;
+  // A record editing its own slug must not report itself as a clash.
+  return !(data ?? []).some((row: { id: string }) => row.id !== ignoreId);
 }
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
@@ -264,22 +270,27 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
   const cover = await resolveCover(formData, userId);
   if (!cover.ok) return { success: false, error: cover.error, fieldErrors: cover.fieldErrors };
 
-  // Current cover, read BEFORE the update: the replaced storage object is
-  // deleted only after the DB write succeeds, and only if it belonged to this
-  // record (it came from this row) and lives under catalog-covers/.
-  let previousCoverUrl: string | null = null;
-  if (cover.update) {
-    const { data: current, error: readError } = await supabase
-      .from("catalog_books")
-      .select("cover_url")
-      .eq("id", bookId)
-      .single();
-    if (readError) {
-      if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
-      return { success: false, error: `Update failed: ${readError.message}` };
-    }
-    previousCoverUrl = current?.cover_url ?? null;
+  // The row as it stands, read BEFORE the update. Two things depend on it:
+  // the replaced cover object (deleted only after the DB write succeeds, and
+  // only if it belonged to this record) and the outgoing slug, which becomes a
+  // redirect if the cataloguer changed it.
+  const { data: current, error: readError } = await supabase
+    .from("catalog_books")
+    .select("cover_url, slug")
+    .eq("id", bookId)
+    .single();
+  if (readError) {
+    if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
+    return { success: false, error: `Update failed: ${readError.message}` };
   }
+  const previousCoverUrl: string | null = cover.update ? current?.cover_url ?? null : null;
+  const previousSlug: string | null = current?.slug ?? null;
+
+  // A blank slug field means "leave it alone" — the wizard only submits a slug
+  // when the cataloguer opened the field, and an empty one must never wipe a
+  // live URL.
+  const requestedSlug = catalogRecordSlug(formData.get("slug")?.toString() ?? "");
+  const slugChanged = Boolean(requestedSlug) && requestedSlug !== previousSlug;
 
   // NOTE: copies_total / copies_available deliberately absent — derived data.
   const { data: book, error } = await supabase
@@ -288,6 +299,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
       ...parsed.fields,
       keywords: parseTags(formData, "keywords"),
       ...(cover.update ?? {}),
+      ...(slugChanged ? { slug: requestedSlug } : {}),
     })
     .eq("id", bookId)
     .select("id, slug, shelf_location, accession_number")
@@ -296,15 +308,43 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
   if (error) {
     // Never orphan a fresh upload when the save it belonged to failed.
     if (cover.uploadedUrl) await deleteCatalogCoverIfOwned(cover.uploadedUrl);
-    if (error.code === "23505") return { success: false, error: "Another book already uses this slug." };
+    if (error.code === "23505") {
+      // Field-scoped, so it lands on the slug control rather than only in the
+      // banner — the cataloguer should not have to hunt for which field.
+      const message = "Another book already uses this slug.";
+      return { success: false, error: message, fieldErrors: { slug: message } };
+    }
     return { success: false, error: `Update failed: ${error.message}` };
+  }
+
+  // The rename succeeded — leave the old URL pointing at this record so
+  // bookmarks, shelf-label QR codes and search-engine signal survive it
+  // (migration 0120; middleware turns the row into a 301).
+  if (slugChanged && previousSlug) {
+    // Any redirect already aimed at this record keeps pointing at it, so an
+    // a → b → c rename sequence collapses to a → c and b → c rather than
+    // forming a chain. A row FROM the new slug would loop the page onto
+    // itself — that happens when a record is renamed and then renamed back.
+    await supabase.from("catalog_slug_redirects").delete().eq("old_slug", book.slug);
+    const { error: redirectErr } = await supabase
+      .from("catalog_slug_redirects")
+      .upsert({ old_slug: previousSlug, book_id: book.id }, { onConflict: "old_slug" });
+    // The save already succeeded; a missing redirect table must not fail it.
+    // Log loudly instead — the consequence is a 404 on the old URL, not a lost
+    // edit, and the admin has already been told the record saved.
+    if (redirectErr) {
+      console.error("[catalog] slug redirect not recorded:", redirectErr.message);
+    }
   }
 
   await logAdminAction(userId, "updateCatalogBook", "catalog_books", book.id, {
     title: parsed.fields.title,
+    ...(slugChanged ? { slugFrom: previousSlug, slugTo: book.slug } : {}),
     ...(cover.update ? { cover: coverAudit(previousCoverUrl, cover.update.cover_url) } : {}),
   });
   revalidateCatalogBook(book.slug);
+  // The old URL is now a redirect — its cached 200 has to go too.
+  if (slugChanged && previousSlug) revalidateCatalogBook(previousSlug);
   revalidatePath("/admin/catalogs");
 
   // DB now points at the new cover — the old storage object (if ours) can go.

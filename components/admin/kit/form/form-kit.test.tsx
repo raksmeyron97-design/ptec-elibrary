@@ -161,6 +161,35 @@ describe("<SlugField>", () => {
     expect(screen.getByLabelText("Slug")).toHaveValue("សៀវភៅគរុកោសល្យ");
   });
 
+  it("never overwrites a slug the record already has — the edit-form bug the older copies shared", () => {
+    // Mounting an edit form used to re-derive the slug from the title and
+    // silently discard a hand-picked one.
+    function EditHarness() {
+      const [slug, setSlug] = useState("hand-picked-slug");
+      return (
+        <SlugField
+          value={slug}
+          onChange={setSlug}
+          source="A Completely Different Title"
+          routePrefix="/catalogs"
+          siteUrl="https://library.ptec.edu.kh"
+          labels={{
+            label: "Slug",
+            autoHint: "From the title",
+            reset: "Use the title",
+            checking: "Checking…",
+            available: "Available",
+            taken: "Already used",
+          }}
+        />
+      );
+    }
+    render(<EditHarness />);
+    expect(screen.getByLabelText("Slug")).toHaveValue("hand-picked-slug");
+    // And it offers the way back rather than pretending it is still tracking.
+    expect(screen.getByRole("button", { name: "Use the title" })).toBeInTheDocument();
+  });
+
   it("shows the URL the record will actually live at", () => {
     render(<Harness title="Teaching Practice" />);
     expect(

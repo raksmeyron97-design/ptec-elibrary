@@ -21,6 +21,37 @@ describe("resolveSlugGate — pure published-slug existence", () => {
   });
 });
 
+describe("resolveSlugGate — retired-slug redirects", () => {
+  const live = new Set(["current-slug", "other-book"]);
+
+  it("301s a retired slug to the record's current one", () => {
+    const redirects = new Map([["old-slug", "current-slug"]]);
+    expect(resolveSlugGate("old-slug", live, [], redirects)).toEqual({
+      kind: "redirect",
+      slug: "current-slug",
+    });
+  });
+
+  it("prefers a live slug over a redirect — a slug reused by a new record is not a redirect", () => {
+    const redirects = new Map([["current-slug", "other-book"]]);
+    expect(resolveSlugGate("current-slug", live, [], redirects)).toEqual({ kind: "ok" });
+  });
+
+  it("never follows a redirect onto itself", () => {
+    const redirects = new Map([["loop", "loop"]]);
+    expect(resolveSlugGate("loop", live, [], redirects)).toEqual({ kind: "not-found" });
+  });
+
+  it("never 301s to a target that is not live — a deactivated record 404s rather than redirecting to a dead page", () => {
+    const redirects = new Map([["old-slug", "deactivated-book"]]);
+    expect(resolveSlugGate("old-slug", live, [], redirects)).toEqual({ kind: "not-found" });
+  });
+
+  it("leaves resources with no redirect map behaving exactly as before", () => {
+    expect(resolveSlugGate("old-slug", live)).toEqual({ kind: "not-found" });
+  });
+});
+
 describe("RESOURCE_GATES config maps each type to its real table + public column", () => {
   it("theses gate reads research_reports.is_published", () => {
     // Asserts the lookup target only. `reserved` is covered by its own tests
@@ -55,7 +86,15 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     expect(RESOURCE_GATES.catalogs).toEqual({
       table: "catalog_books",
       publishedColumn: "is_active",
+      redirectTable: "catalog_slug_redirects",
     });
+  });
+
+  it("catalogs is the only gate carrying a redirect map — it is the only one whose slug is editable after creation", () => {
+    const withRedirects = Object.entries(RESOURCE_GATES)
+      .filter(([, cfg]) => "redirectTable" in cfg)
+      .map(([name]) => name);
+    expect(withRedirects).toEqual(["catalogs"]);
   });
 
   it("team profiles gate reads the team_members_public VIEW — anon reads of the base table were closed in 0071, so gating team_members itself would 401 at the edge and permanently fail open", () => {
