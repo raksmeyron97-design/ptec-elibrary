@@ -1,18 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 type ScrollPhase = "top" | "fading" | "pill";
 
 export default function NavbarStickyWrapper({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<ScrollPhase>("top");
+  const [hidden, setHidden] = useState(false);
   const ticking = useRef(false);
+  const lastY = useRef(0);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const update = () => {
       ticking.current = false;
       const y = window.scrollY;
       setPhase(y < 10 ? "top" : y < 60 ? "fading" : "pill");
+      // Hide on scroll-down (once the pill has fully formed), reveal the
+      // moment the user scrolls back up. Only visible while the header is
+      // actually fixed (pill phase) — harmless no-op otherwise, since a
+      // relatively-positioned header already scrolls away with the page.
+      setHidden(y > lastY.current && y > 80);
+      lastY.current = y;
     };
     const onScroll = () => {
       if (!ticking.current) {
@@ -81,15 +91,18 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
       {isPill && <div className="hidden lg:block h-[72px] w-full" aria-hidden="true" />}
 
       {/* ── Outer shell ─────────────────────────────────────── */}
-      <div
+      <motion.div
+        animate={{ y: hidden ? "-100%" : 0 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
         className={
           isPill
             ? "hidden lg:flex fixed top-0 inset-x-0 z-50 justify-center items-start pt-2.5 px-5 pointer-events-none"
             : "relative w-full z-40"
         }
       >
-        {/* ── Pill / bar — CSS transition (was a framer spring; the ~35 KB
-             library isn't worth a bounce on a navbar) ── */}
+        {/* ── Pill / bar shape morph — plain CSS transition, not framer-motion
+             (the outer wrapper already pulls in framer-motion for hide/show,
+             but this shape morph is cheap enough to stay CSS-only) ── */}
         <div
           style={{
             borderRadius: isPill ? 9999 : 0,
@@ -118,7 +131,7 @@ export default function NavbarStickyWrapper({ children }: { children: ReactNode 
         >
           {children}
         </div>
-      </div>
+      </motion.div>
     </>
   );
 }

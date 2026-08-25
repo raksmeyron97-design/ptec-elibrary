@@ -3,6 +3,7 @@
 
 import { Link } from "@/i18n/navigation";
 import { useState, useEffect } from "react";
+import Tilt from "react-parallax-tilt";
 import type { Book } from "@/lib/books";
 import SmartBookCover from "@/components/ui/books/SmartBookCover";
 import RatingStars from "@/components/ui/reviews/RatingStars";
@@ -39,6 +40,17 @@ export default function BookCard({ book, variant = "browse", priority = false }:
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), []);
 
+  // Tilt only for a real mouse (fine pointer + hover support) and only when
+  // motion is welcome — a touch drag-scroll over the card would otherwise
+  // read as an unwanted wobble, and react-parallax-tilt listens on touch
+  // events too. Starts false so SSR/first paint match; flips after mount.
+  const [tiltEnabled, setTiltEnabled] = useState(false);
+  useEffect(() => {
+    const precise = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    setTiltEnabled(precise && !reduceMotion);
+  }, []);
+
   const t = useTranslations("home");
   const tc = useTranslations("bookCard");
   const tm = useTranslations("metrics");
@@ -66,7 +78,7 @@ export default function BookCard({ book, variant = "browse", priority = false }:
   // View analytics moved to the detail page's BookViewPing (one event per
   // real detail view, anonymous included) — card clicks no longer log.
 
-  return (
+  const card = (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-xl bg-bg-surface border border-white/10 shadow-lg transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_8px_24px_-6px_rgba(79,70,229,0.3)] transform-gpu will-change-transform">
 
       {/* Brand-colored top-rule accent — reveals on hover */}
@@ -202,5 +214,20 @@ export default function BookCard({ book, variant = "browse", priority = false }:
         </div>
       </Link>
     </article>
+  );
+
+  if (!tiltEnabled) return card;
+
+  return (
+    <Tilt
+      className="h-full"
+      tiltMaxAngleX={5}
+      tiltMaxAngleY={5}
+      transitionSpeed={400}
+      glareEnable={false}
+      tiltReverse
+    >
+      {card}
+    </Tilt>
   );
 }

@@ -10,6 +10,7 @@
 import { Link } from "@/i18n/navigation";
 import { getDepartmentCountsCached } from "@/lib/home-data";
 import { getTranslations, getLocale } from "next-intl/server";
+import { StaggerGrid, StaggerItem } from "@/components/ui/animations/StaggerGrid";
 import {
   GraduationCap,
   FlaskConical,
@@ -109,11 +110,11 @@ export default async function CategoryGrid() {
         </div>
 
         {/* ── Tiles ── */}
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StaggerGrid as="ul" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map(({ name, count }, i) => {
             const { Icon, plate } = themes[i];
             return (
-              <li key={name}>
+              <StaggerItem as="li" key={name}>
                 <Link
                   href={`/books?dept=${encodeURIComponent(name)}`}
                   aria-label={t("categoriesCardLabel", { subject: name })}
@@ -141,12 +142,12 @@ export default async function CategoryGrid() {
                     <path d="M5 12h14M13 6l6 6-6 6" />
                   </svg>
                 </Link>
-              </li>
+              </StaggerItem>
             );
           })}
 
           {/* All-subjects tile */}
-          <li>
+          <StaggerItem as="li">
             <Link
               href="/books"
               className="group flex min-h-[92px] items-center justify-between gap-3 rounded-xl border border-brand/25 bg-brand/5 px-5 py-4 transition-all duration-200 hover:-translate-y-1 hover:border-brand hover:bg-brand/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
@@ -162,8 +163,8 @@ export default async function CategoryGrid() {
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </Link>
-          </li>
-        </ul>
+          </StaggerItem>
+        </StaggerGrid>
       </div>
     </section>
   );

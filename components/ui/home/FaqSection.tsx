@@ -1,13 +1,16 @@
 // components/ui/home/FaqSection.tsx
 // Six questions the front desk actually gets, phrased the way users ask them.
-// Native <details>/<summary> — zero JS, free keyboard support. FAQPage JSON-LD
+// Accordion open/close is animated (AnimatedAccordion, client) for a smooth
+// height transition instead of native <details>'s snap-open. FAQPage JSON-LD
 // is generated from the same translation strings so the schema always mirrors
-// the visible text (a Google structured-data requirement).
+// the visible text (a Google structured-data requirement) — this section stays
+// an async server component so translations/schema are still resolved server-side.
 import { Link } from "@/i18n/navigation";
 import NextLink from "next/link";
 import { isLocaleScoped } from "@/lib/routing/locale-scope";
 import { getTranslations, getLocale } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
+import AnimatedAccordion from "@/components/ui/animations/AnimatedAccordion";
 
 type FaqItem = {
   q: string;
@@ -68,48 +71,36 @@ export default async function FaqSection() {
           {columns.map((col, ci) => (
             <div key={col[0]?.q ?? ci} className="flex flex-col gap-3">
               {col.map((item, i) => (
-                <details
+                <AnimatedAccordion
                   key={item.q}
+                  title={item.q}
                   // First item open so the disclosure pattern is self-evident
-                  open={ci === 0 && i === 0}
-                  className="group rounded-xl border border-divider bg-bg-surface open:border-brand/30 open:shadow-sm"
+                  defaultOpen={ci === 0 && i === 0}
                 >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-[14.5px] font-bold text-text-heading transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-xl [&::-webkit-details-marker]:hidden">
-                    {item.q}
-                    <svg
-                      className="h-4 w-4 shrink-0 text-text-muted transition-transform duration-200 group-open:rotate-180"
-                      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}
-                      strokeLinecap="round" strokeLinejoin="round" aria-hidden
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </summary>
-                  <div className="px-5 pb-4">
-                    <p className="text-[13.5px] leading-relaxed text-text-body">{item.a}</p>
-                    {item.href && (() => {
-                      // /auth is OUTSIDE the locale scheme, and Link from
-                      // @/i18n/navigation prefixes the active locale — so the
-                      // "Do I need an account?" answer pointed Khmer readers at
-                      // /km/auth/signup, which 404s. Invisible in English,
-                      // because the default locale is unprefixed. Route
-                      // unscoped hrefs through plain next/link instead;
-                      // isLocaleScoped() is the shared rule, unit-tested in
-                      // lib/routing/locale-scope.test.ts.
-                      const Anchor = isLocaleScoped(item.href) ? Link : NextLink;
-                      return (
-                        <Anchor
-                          href={item.href}
-                          className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
-                        >
-                          {t("faqLearnMore")}
-                          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                            <path d="M5 12h14M13 6l6 6-6 6" />
-                          </svg>
-                        </Anchor>
-                      );
-                    })()}
-                  </div>
-                </details>
+                  <p className="text-[13.5px] leading-relaxed text-text-body">{item.a}</p>
+                  {item.href && (() => {
+                    // /auth is OUTSIDE the locale scheme, and Link from
+                    // @/i18n/navigation prefixes the active locale — so the
+                    // "Do I need an account?" answer pointed Khmer readers at
+                    // /km/auth/signup, which 404s. Invisible in English,
+                    // because the default locale is unprefixed. Route
+                    // unscoped hrefs through plain next/link instead;
+                    // isLocaleScoped() is the shared rule, unit-tested in
+                    // lib/routing/locale-scope.test.ts.
+                    const Anchor = isLocaleScoped(item.href) ? Link : NextLink;
+                    return (
+                      <Anchor
+                        href={item.href}
+                        className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-bold text-brand transition-colors hover:text-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50 rounded-sm"
+                      >
+                        {t("faqLearnMore")}
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg>
+                      </Anchor>
+                    );
+                  })()}
+                </AnimatedAccordion>
               ))}
             </div>
           ))}
