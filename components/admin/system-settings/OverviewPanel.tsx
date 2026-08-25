@@ -95,7 +95,7 @@ export default function OverviewPanel({
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold text-text-heading">Overview</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-text-muted">
           Health of the published site configuration. Draft changes never affect the public
           site until they are published.
         </p>
@@ -104,46 +104,46 @@ export default function OverviewPanel({
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-divider bg-bg-surface p-4">
-          <div className="flex items-center gap-2 text-slate-500">
+          <div className="flex items-center gap-2 text-text-muted">
             <FileClock className="h-4 w-4" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-wide">Pending drafts</p>
           </div>
           <p className="mt-2 text-2xl font-bold text-text-heading">{draftsPending.length}</p>
           {draftsPending.length > 0 && (
-            <p className="mt-1 truncate text-xs text-slate-500">
+            <p className="mt-1 truncate text-xs text-text-muted">
               {draftsPending.map((s) => SECTION_LABELS[s.section]).join(", ")}
             </p>
           )}
         </div>
         <div className="rounded-2xl border border-divider bg-bg-surface p-4">
-          <div className="flex items-center gap-2 text-slate-500">
+          <div className="flex items-center gap-2 text-text-muted">
             <History className="h-4 w-4" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-wide">Last published</p>
           </div>
           <p className="mt-2 text-sm font-bold text-text-heading">
             {lastPublished ? SECTION_LABELS[lastPublished.section] : "—"}
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-text-muted">
             {fmt(lastPublished?.publishedAt ?? null)}
             {lastPublished?.publishedBy &&
               ` · ${data.actorNames[lastPublished.publishedBy] ?? "Unknown"}`}
           </p>
         </div>
         <div className="rounded-2xl border border-divider bg-bg-surface p-4">
-          <div className="flex items-center gap-2 text-slate-500">
+          <div className="flex items-center gap-2 text-text-muted">
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-wide">Warnings</p>
           </div>
           <p className="mt-2 text-2xl font-bold text-text-heading">{warnings.length}</p>
         </div>
         <div className="rounded-2xl border border-divider bg-bg-surface p-4">
-          <div className="flex items-center gap-2 text-slate-500">
+          <div className="flex items-center gap-2 text-text-muted">
             <CalendarClock className="h-4 w-4" aria-hidden="true" />
             <p className="text-xs font-semibold uppercase tracking-wide">Upcoming closures</p>
           </div>
           <p className="mt-2 text-2xl font-bold text-text-heading">{closures.length}</p>
           {closures[0] && (
-            <p className="mt-1 truncate text-xs text-slate-500">
+            <p className="mt-1 truncate text-xs text-text-muted">
               Next: {closures[0].from}
               {closures[0].to !== closures[0].from && ` → ${closures[0].to}`}
             </p>
@@ -157,7 +157,7 @@ export default function OverviewPanel({
           <h3 className="text-sm font-bold text-text-heading">Configuration health</h3>
         </div>
         {warnings.length === 0 ? (
-          <div className="flex items-center gap-2 px-5 py-4 text-sm text-emerald-700">
+          <div className="flex items-center gap-2 px-5 py-4 text-sm text-success-text">
             <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             Everything looks complete — no warnings.
           </div>
@@ -168,10 +168,10 @@ export default function OverviewPanel({
                 <button
                   type="button"
                   onClick={() => onNavigate(w.section)}
-                  className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                  className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left text-sm text-text-body transition-colors hover:bg-paper"
                 >
                   <span className="flex items-center gap-2.5">
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
                     {w.message}
                   </span>
                   <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-brand">
@@ -196,13 +196,13 @@ export default function OverviewPanel({
               <button
                 type="button"
                 onClick={() => onNavigate(s.section)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-slate-50"
+                className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition-colors hover:bg-paper"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-text-heading">
                     {SECTION_LABELS[s.section]}
                   </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
+                  <p className="mt-0.5 text-xs text-text-muted">
                     {s.publishedVersion > 0
                       ? `Version ${s.publishedVersion} · published ${fmt(s.publishedAt)}${
                           s.publishedBy ? ` by ${data.actorNames[s.publishedBy] ?? "Unknown"}` : ""
@@ -212,11 +212,11 @@ export default function OverviewPanel({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {s.draft !== null && (
-                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">
+                    <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-[11px] font-bold text-warning-text">
                       Draft pending
                     </span>
                   )}
-                  <ArrowRight className="h-4 w-4 text-slate-300" aria-hidden="true" />
+                  <ArrowRight className="h-4 w-4 text-text-muted/50" aria-hidden="true" />
                 </div>
               </button>
             </li>

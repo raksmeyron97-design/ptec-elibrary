@@ -24,7 +24,7 @@ export default function PushNotificationOnboarding() {
   }, []);
 
   useEffect(() => {
-    if (pathname.startsWith("/admin") || pathname.startsWith("/auth")) return;
+    if (!pathname || pathname.startsWith("/admin") || pathname.startsWith("/auth")) return;
     if (loading || open) return;
     if (status.code === PUSH_ERROR_CODES.UNAUTHORIZED) return;
     if (status.kind === "dev-disabled") return;

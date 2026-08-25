@@ -487,7 +487,7 @@ export default function AdminSidebar({
   userPermissions?: Record<string, PermLevel>;
   badges?: SidebarBadges;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const router = useRouter();
   const tNav = useTranslations("adminShell.nav");
   const tBrand = useTranslations("adminShell.brand");
@@ -541,7 +541,7 @@ export default function AdminSidebar({
   }, [role, isSuperAdmin, userPermissions, badges, publicSiteUrl, tPalette]);
 
   const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+    !pathname ? false : (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
 
   // Stable, locale-independent group key — the persisted open-state must not
   // change when the UI language does.
@@ -625,7 +625,7 @@ export default function AdminSidebar({
         }
       }
     }
-    return pathname.split("/").pop()?.replace(/-/g, " ") ?? "Admin";
+    return pathname ? pathname.split("/").pop()?.replace(/-/g, " ") ?? "Admin" : "Admin";
   })();
 
   const sidebarWidth = mounted && collapsed ? "72px" : "256px";

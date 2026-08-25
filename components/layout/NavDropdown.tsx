@@ -19,11 +19,14 @@ type NavDropdownProps = {
 export default function NavDropdown({ label, href, icon, subLinks }: NavDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
 
   const isActive =
-    pathname === href || (href !== "/" && pathname.startsWith(href)) ||
-    subLinks.some((s) => pathname === s.href || pathname.startsWith(s.href));
+    pathname
+      ? pathname === href ||
+        (href !== "/" && pathname.startsWith(href)) ||
+        subLinks.some((s) => pathname === s.href || pathname.startsWith(s.href))
+      : false;
 
   // Close on outside click
   useEffect(() => {

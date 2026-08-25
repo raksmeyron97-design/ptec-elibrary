@@ -1,5 +1,3 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getTeamSections, getAllProfiles } from "../actions";
 import TeamForm from "../_components/TeamForm";
@@ -11,17 +9,17 @@ export default async function NewTeamMemberPage() {
     getAllProfiles(),
   ]);
 
+  /*
+    The breadcrumb, heading and card come from FormShell, which TeamForm renders
+    — its sticky aside is a live preview of the form's own state, so it cannot be
+    passed down from here. The route stays a data loader.
+  */
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <h1 className="sr-only">Add new team member</h1>
-      <Link
-        href="/admin/team"
-        className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-text-muted transition hover:text-text-body"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to team
-      </Link>
-      <TeamForm sections={sections} profiles={profiles} />
-    </div>
+    <TeamForm
+      sections={sections}
+      profiles={profiles}
+      pageTitle="Add new team member"
+      pageDescription="Create a public profile for a library staff member."
+    />
   );
 }

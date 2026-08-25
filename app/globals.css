@@ -95,6 +95,30 @@
   --ptec-amber: #d97706;
   --ptec-rose: #e11d48;
 
+  /* ── Admin form accent ─────────────────────────────────────────────────
+     The semantic name for the indigo above, for admin form chrome: tab
+     underlines, primary buttons, focus rings, selected states.
+
+     It derives from --ptec-indigo rather than restating #4f46e5, because that
+     hex is already the sidebar gradient's — two independent declarations of
+     one colour is precisely the drift the status-surface block above exists
+     to stop. Retune the indigo and the forms follow.
+
+     Deliberately NOT --ptec-brand. The admin panel is a separate surface: it
+     forces light mode, no reader ever sees it, and its job is to stay legible
+     for eight hours rather than to carry the college's identity. --ptec-brand
+     (#1E3A8A) *is* that identity and belongs to the public site; spending it
+     on every tab underline would put the institutional navy on chrome.
+
+     Not re-declared for dark mode: AdminThemeEnforcer pins the panel to light,
+     so a dark variant would be dead code that drifts. Anything outside /admin
+     uses --ptec-brand. */
+  --ptec-admin-accent: var(--ptec-indigo);
+  --ptec-admin-accent-hover: #4338CA;  /* indigo-700 */
+  --ptec-admin-accent-soft: #EEF2FF;   /* indigo-50  */
+  --ptec-admin-accent-line: #C7D2FE;   /* indigo-200 */
+  --ptec-admin-accent-text: #3730A3;   /* indigo-800 — 8.6:1 on white */
+
   /* ── Admin metric accent palette ─────────────────────────────── */
   /* Digital Books → indigo */
   --ptec-metric-books-bg:     #EEF2FF;  /* indigo-50  */
@@ -251,6 +275,11 @@
   --color-accent: var(--ptec-accent);
   --color-accent-text: var(--ptec-accent-text);
   --color-accent-line: var(--ptec-accent-line);
+  --color-admin-accent: var(--ptec-admin-accent);
+  --color-admin-accent-hover: var(--ptec-admin-accent-hover);
+  --color-admin-accent-soft: var(--ptec-admin-accent-soft);
+  --color-admin-accent-line: var(--ptec-admin-accent-line);
+  --color-admin-accent-text: var(--ptec-admin-accent-text);
   --color-focus-ring: var(--ptec-focus-ring);
   --color-divider: var(--ptec-divider);
   --color-reader-control-border: var(--ptec-reader-control-border);
@@ -321,6 +350,14 @@
   --shadow-sm: 0 1px 2px rgba(11,21,48,.06);
   --shadow-md: 0 4px 14px rgba(11,21,48,.08);
   --shadow-lg: 0 12px 32px rgba(11,21,48,.10);
+
+  --animate-shake: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+  }
 }
 
 body {
@@ -668,7 +705,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
   .aurora { animation: none; }
   .hero-stagger > * { opacity:1; transform:none; animation:none; }
   .animate-float-orb, .animate-float-orb-slow, .skeleton, .ptec-reveal { animation: none !important; }
-  .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in { animation: none !important; }
+  .modal-backdrop-in, .modal-pop-in, .drawer-slide-in, .fade-rise-in, .tab-panel-in { animation: none !important; }
 }
 
 /* ── Footer redesign (night sky + aurora + motion) ──────────────── */
@@ -799,6 +836,16 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 .modal-pop-in { animation: modal-pop-in .18s cubic-bezier(.22,1,.36,1) both; }
 .drawer-slide-in { animation: drawer-slide-in .22s cubic-bezier(.22,1,.36,1) both; }
 .fade-rise-in { animation: fade-rise-in .3s cubic-bezier(.22,1,.36,1) both; }
+
+/* Tab-panel entrance for admin forms. Same shape as .fade-rise-in at 200ms and
+   a shorter travel: a tab switch replaces the whole panel, so the motion has to
+   read as "this is new content" without making the reader wait for it. Any
+   longer and repeatedly stepping through a seven-tab form feels sticky. */
+@keyframes tab-panel-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-panel-in { animation: tab-panel-in .2s cubic-bezier(.22,1,.36,1) both; }
 
 /* ── Scroll reveal (CSS-only; toggled by ScrollRevealWrapper's observer) ─
    Default state is fully visible — the hidden start state only applies once

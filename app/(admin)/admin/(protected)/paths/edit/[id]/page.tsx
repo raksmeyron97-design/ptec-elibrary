@@ -9,9 +9,12 @@ export default async function EditPathPage({ params }: { params: Promise<{ id: s
   if (!path) notFound();
 
   return (
-    <div className="mx-auto max-w-[960px] p-6 md:p-10">
-      <h1 className="mb-6 text-[22px] font-bold text-text-heading">{t("builder.editTitle")}</h1>
-      <PathBuilderForm initial={path} pathId={id} />
-    </div>
+    <PathBuilderForm
+      initial={path}
+      pathId={id}
+      /* Named, so an editor arriving from the list knows which path they opened. */
+      pageTitle={path.title?.trim() || t("builder.editTitle")}
+      pageDescription={t("builder.editSubtitle")}
+    />
   );
 }

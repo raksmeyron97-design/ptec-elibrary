@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import TeamForm from "../../_components/TeamForm";
@@ -28,21 +26,24 @@ export default async function EditTeamMemberPage({
 
   if (!data) notFound();
 
+  const member = data as TeamMemberRow;
+
+  /*
+    Breadcrumb, heading and card come from FormShell inside TeamForm — its
+    sticky aside previews the form's own live state, so it cannot be passed
+    from here. The route stays a data loader.
+
+    The member is named in the heading: the page used to open with an sr-only
+    "Edit team member" and nothing visible, so an admin arriving from the list
+    had no confirmation of which record they had opened.
+  */
   return (
-    <div className="mx-auto max-w-6xl space-y-4">
-      <h1 className="sr-only">Edit team member</h1>
-      <Link
-        href="/admin/team"
-        className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-text-muted transition hover:text-text-body"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to team
-      </Link>
-      <TeamForm
-        initial={data as TeamMemberRow}
-        sections={sections}
-        profiles={profiles}
-      />
-    </div>
+    <TeamForm
+      initial={member}
+      sections={sections}
+      profiles={profiles}
+      pageTitle={member.name_en?.trim() || member.name_km?.trim() || "Edit team member"}
+      pageDescription="Update this staff profile."
+    />
   );
 }

@@ -19,17 +19,6 @@ import { METADATA_TIER_LABELS, type MetadataQualityTier } from "@/lib/admin/thes
 
 const compactSelectWrapper = "w-[172px] shrink-0 [&_button]:h-10";
 
-const SORT_LABELS: Record<(typeof SORT_OPTIONS)[number], string> = {
-  newest: "Newest first",
-  oldest: "Oldest first",
-  "most-viewed": "Most viewed",
-  "most-downloaded": "Most downloaded",
-  "title-asc": "Title A–Z",
-  "title-desc": "Title Z–A",
-  updated: "Recently updated",
-  "metadata-quality": "Metadata completeness",
-};
-
 const FILE_STATUS_LABELS: Record<(typeof FILE_STATUS_OPTIONS)[number], string> = {
   has_pdf: "Has PDF",
   missing_pdf: "Missing PDF",
@@ -83,7 +72,11 @@ export default function ThesisFilters({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* One bordered bar. The three selects and the More-filters trigger used
+          to float loose above the table, reading as four unrelated controls;
+          grouping them makes "the filters" a single object on the page, and
+          the chip row below it the record of what is currently applied. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-divider bg-bg-surface px-3 py-2.5">
         <div className={compactSelectWrapper}>
           <SearchableSelect
             name="status-filter"
@@ -126,7 +119,7 @@ export default function ThesisFilters({
           <button
             type="button"
             onClick={() => router.push("/admin/theses")}
-            className="rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
+            className="focus-field ml-auto rounded-lg px-2 py-1 text-[13px] font-semibold text-text-muted transition hover:text-brand"
           >
             {t("clearFilters")}
           </button>
@@ -140,7 +133,7 @@ export default function ThesisFilters({
               key={chip.key}
               type="button"
               onClick={() => setParam(chip.key, "")}
-              className="inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/5 px-2.5 py-1 text-[12px] font-semibold text-brand transition hover:bg-brand/10"
+              className="focus-field inline-flex items-center gap-1 rounded-full border border-brand/30 bg-brand/5 px-2.5 py-1 text-[12px] font-semibold text-brand transition hover:bg-brand/10"
             >
               {chip.label}
               <X className="h-3 w-3" aria-hidden="true" />
@@ -153,7 +146,7 @@ export default function ThesisFilters({
   );
 }
 
-/** Cohort + Academic Year + File Status + Metadata Quality — less common, tucked into a small dialog. */
+/** Cohort + Academic Year + File Status + Metadata Quality — less common, tucked into a slide-over panel. */
 function MoreFiltersButton({
   open,
   onOpenChange,
@@ -226,7 +219,7 @@ function MoreFiltersButton({
         onClick={() => onOpenChange(true)}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`inline-flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-[13.5px] font-semibold transition ${
+        className={`focus-field inline-flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-[13.5px] font-semibold transition ${
           activeExtra
             ? "border-brand bg-brand/5 text-brand"
             : "border-divider bg-bg-surface text-text-body hover:bg-paper"
@@ -236,9 +229,18 @@ function MoreFiltersButton({
         {t("moreFilters")}
       </button>
 
+      {/*
+        A slide-over, not the centred modal this used to be, and not the inline
+        expansion the modal replaced. Expanding inline pushed the stats strip,
+        the toolbar and the whole table down the page on open and yanked them
+        back on close — the reader lost their place in the rows they were
+        filtering. A panel anchored to the right edge leaves the table where it
+        is, and keeps the current result set visible beside the controls that
+        are about to change it.
+      */}
       {open && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          className="modal-backdrop-in fixed inset-0 z-[100] flex justify-end bg-black/40 backdrop-blur-sm"
           onClick={() => onOpenChange(false)}
           role="dialog"
           aria-modal="true"
@@ -247,7 +249,7 @@ function MoreFiltersButton({
           <form
             onSubmit={submit}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-bg-surface p-6 shadow-2xl sm:rounded-2xl"
+            className="flex h-full w-full max-w-sm flex-col overflow-y-auto border-l border-divider bg-bg-surface p-6 shadow-2xl"
           >
             <div className="mb-5 flex items-center justify-between">
               <h2 id={headingId} className="text-lg font-bold text-text-heading">{t("moreFilters")}</h2>
@@ -255,15 +257,15 @@ function MoreFiltersButton({
                 type="button"
                 onClick={() => onOpenChange(false)}
                 aria-label={t("close")}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading"
+                className="focus-field flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-paper hover:text-text-heading"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 pb-6">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("cohort")}</span>
+                <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("cohort")}</span>
                 <SearchableSelect
                   ref={firstFieldRef}
                   name="cohort-filter"
@@ -275,7 +277,7 @@ function MoreFiltersButton({
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("academicYear")}</span>
+                <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("academicYear")}</span>
                 <SearchableSelect
                   name="academic-year-filter"
                   ariaLabel={t("academicYear")}
@@ -286,7 +288,7 @@ function MoreFiltersButton({
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("fileStatusLabel")}</span>
+                <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("fileStatusLabel")}</span>
                 <SearchableSelect
                   name="file-status-filter"
                   ariaLabel={t("fileStatusLabel")}
@@ -297,7 +299,7 @@ function MoreFiltersButton({
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("metadataQuality")}</span>
+                <span className="mb-1.5 block text-sm font-semibold text-text-body">{t("metadataQuality")}</span>
                 <SearchableSelect
                   name="metadata-quality-filter"
                   ariaLabel={t("metadataQuality")}
@@ -308,17 +310,17 @@ function MoreFiltersButton({
               </label>
             </div>
 
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-auto flex items-center gap-3 border-t border-divider pt-5">
               <button
                 type="button"
                 onClick={() => { setCohort(""); setAcademicYear(""); setFileStatus(""); setMetadataQuality(""); }}
-                className="text-[13px] font-semibold text-text-muted hover:text-brand"
+                className="focus-field rounded-lg px-1 text-[13px] font-semibold text-text-muted hover:text-brand"
               >
                 {t("clearThese")}
               </button>
               <button
                 type="submit"
-                className="ml-auto inline-flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover"
+                className="focus-field ml-auto inline-flex items-center justify-center rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white transition hover:bg-brand-hover"
               >
                 {t("apply")}
               </button>

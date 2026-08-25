@@ -1,8 +1,8 @@
 export function ThesisStatsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="h-[104px] animate-pulse rounded-2xl border border-divider bg-paper" />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="h-[100px] animate-pulse rounded-xl border border-divider bg-paper" />
       ))}
     </div>
   );

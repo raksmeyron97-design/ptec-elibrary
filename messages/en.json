@@ -4026,7 +4026,25 @@
         "noOutcomes": "No learning outcomes added.",
         "badDuration": "Estimated duration must be a positive number.",
         "noSchedule": "Choose a publish date to schedule."
-      }
+      },
+      "stageHasErrors": "has problems to fix",
+      "backToPaths": "Back to learning paths",
+      "newSubtitle": "Build a guided sequence of library resources.",
+      "editSubtitle": "Update this learning path.",
+      "verdictReadyTitle": "Ready to publish",
+      "verdictReadyBody": "Nothing blocks publication. The server re-checks on publish.",
+      "verdictBlockedTitle": "Not ready to publish",
+      "shapeTitle": "Path shape",
+      "shapeHint": "How much of the curriculum exists so far.",
+      "modulesLabel": "Modules",
+      "stepsLabel": "Steps",
+      "outcomesLabel": "Outcomes",
+      "previewTitle": "Public preview",
+      "previewHint": "Roughly how this path appears to a learner browsing.",
+      "untitled": "Untitled path",
+      "noDescription": "No description yet.",
+      "noModulesTitle": "No modules yet",
+      "noModulesBody": "A learning path is a sequence of modules, each holding steps that point at library resources. Add the first one to begin."
     },
     "toasts": {
       "deleted": "Learning path deleted.",
@@ -4949,7 +4967,12 @@
       "noAdvisor": "No advisor listed",
       "cohort": "Cohort {cohort}",
       "noCohort": "No cohort",
-      "noYear": "No year"
+      "noYear": "No year",
+      "editAction": "Edit",
+      "editNamed": "Edit {title}",
+      "viewAction": "View on the public site",
+      "viewNamed": "View {title} on the public site",
+      "viewUnavailable": "Not published — nothing to view yet"
     },
     "downloadPolicy": {
       "adminAllow": "Admin allow",
@@ -4959,7 +4982,13 @@
       "blocked": "Blocked",
       "topTen": "Top 10 · #{rank}",
       "dlAllowed": "DL allowed",
-      "dlBlocked": "DL blocked"
+      "dlBlocked": "DL blocked",
+      "automaticHint": "Follow the Top-10 rule. Right now that resolves to: {policy}.",
+      "allowHint": "Always downloadable, even if it enters the Top 10.",
+      "blockHint": "Never downloadable, whatever the rank.",
+      "changeAria": "Change reader download permission for {title}",
+      "saved": "Download permission updated",
+      "saveFailed": "Could not update download permission."
     },
     "details": {
       "abstractPreview": "Abstract preview",
@@ -5025,7 +5054,9 @@
       "uploadCta": "Upload Thesis",
       "noResultsTitle": "No theses found",
       "noResultsBody": "Try changing your search or filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadFailed": "Could not load theses.",
+      "retry": "Retry"
     }
   },
   "adminPosts": {
@@ -5365,13 +5396,20 @@
       "unpublish": "Unpublish",
       "preview": "Preview",
       "saving": "Saving…",
-      "scheduleNeedsDate": "Pick a publish date and time on the Review step first."
+      "scheduleNeedsDate": "Pick a publish date and time on the Review step first.",
+      "publishNeeds": "Still needed to publish: {fields}.",
+      "blockingCount": "{count, plural, one {# blocking} other {# blocking}}"
     },
     "autosave": {
       "unsaved": "Unsaved changes",
       "saving": "Saving…",
       "saved": "Saved",
-      "error": "Autosave failed"
+      "error": "Autosave failed",
+      "savedToast": "Draft saved",
+      "lastSavedJustNow": "Last saved just now",
+      "lastSavedMinutes": "Last saved {count, plural, one {# minute} other {# minutes}} ago",
+      "lastSavedHours": "Last saved {count, plural, one {# hour} other {# hours}} ago",
+      "idleLabel": "No changes yet"
     },
     "steps": {
       "navAria": "Thesis form steps",
@@ -5384,7 +5422,14 @@
       "review": "Review",
       "srErrors": ", {count, plural, one {# error} other {# errors}}",
       "srComplete": ", complete",
-      "srCurrent": ", current step"
+      "srCurrent": ", current step",
+      "progressStep": "Step {current} of {total}",
+      "progressDone": "{done}/{total} done",
+      "progressAria": "Sections completed",
+      "srBlocking": ". Required, and publishing is waiting on it.",
+      "srTodo": ". Required, not filled in yet.",
+      "srOptional": ". Optional.",
+      "srBlockingCount": "{count} required sections are still blocking publication."
     },
     "basic": {
       "title": "Title",
@@ -5405,7 +5450,16 @@
         "km": "Khmer",
         "en": "English",
         "km_en": "Khmer + English"
-      }
+      },
+      "identityHeading": "Identity",
+      "identityIntro": "What this thesis is called, and where it will live.",
+      "classificationHeading": "Classification",
+      "classificationIntro": "How the record is typed and licensed.",
+      "titleHint": "The full title as it appears on the title page.",
+      "doiHint": "Optional. Leave blank if the thesis has not been assigned one.",
+      "licenseHint": "Defaults to All Rights Reserved.",
+      "copyLink": "Copy link",
+      "copied": "Copied"
     },
     "classification": {
       "intro": "Classification controls how this thesis appears on the public thesis page and summary index.",
@@ -5474,7 +5528,8 @@
       "smartSplit": "Smart Split & Add",
       "addRow": "Add empty row",
       "pasteBlob": "Paste a blob",
-      "oneLine": "One reference per line"
+      "oneLine": "One reference per line",
+      "emptyTitle": "No references yet"
     },
     "seo": {
       "untitled": "Untitled thesis",
@@ -5605,7 +5660,65 @@
         "irreversible": "This cannot be undone. Theses already classified under it keep the value they were saved with.",
         "delete": "Delete",
         "deleting": "Deleting…"
-      }
+      },
+      "tabs": {
+        "programs": "Programs",
+        "faculties": "Faculties",
+        "cohorts": "Cohorts"
+      },
+      "tabsAria": "Taxonomy sections",
+      "breadcrumbAria": "Breadcrumb",
+      "showAllPrograms": "Show all programs",
+      "tagYears": "{count, plural, one {# year} other {# years}}",
+      "tagFaculties": "{count, plural, one {# faculty} other {# faculties}}",
+      "tagCohorts": "{count, plural, one {# cohort} other {# cohorts}}",
+      "tagYearsCount": "{count, plural, one {# year} other {# years}}",
+      "manageFaculties": "Manage faculties",
+      "manageCohortsAction": "Manage cohorts",
+      "editNamed": "Edit {name}",
+      "cancel": "Cancel",
+      "hasSubject": "Has subjects",
+      "noFacultyPrograms": "No program in view is set up to have faculties.",
+      "facultiesCaption": "Faculties in {program}",
+      "colFaculty": "Faculty",
+      "colSubjects": "Subjects",
+      "colActions": "Actions",
+      "subjectsYes": "Yes",
+      "subjectsNo": "—",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "cohortNumber": "Cohort {number}",
+      "cohortKhmer": "ជំនាន់ទី {number}"
+    },
+    "missing": {
+      "title": "Title",
+      "classification": "Program, cohort and year",
+      "author": "At least one author",
+      "file": "PDF file"
+    },
+    "context": {
+      "untitled": "Untitled thesis",
+      "seoTitle": "Search result preview",
+      "seoHint": "Roughly how this thesis appears in Google and on shared links.",
+      "noAbstract": "No abstract yet — search engines will invent a snippet from the page.",
+      "measureTitle": "Title",
+      "measureSnippet": "Snippet",
+      "willCut": "will be cut",
+      "peopleTitle": "Authorship",
+      "peopleHint": "Order here is the order readers and citations see.",
+      "authorsListed": "{count, plural, one {author listed} other {authors listed}}",
+      "filesTitle": "Files",
+      "filesHint": "What a reader can open and what the listing shows.",
+      "thesisPdf": "Thesis PDF",
+      "coverImage": "Cover image",
+      "required": "Required",
+      "present": "Present",
+      "optional": "Optional",
+      "readinessTitle": "Publish readiness",
+      "readinessHint": "What is still outstanding before this can go live.",
+      "keywords": "Keywords",
+      "references": "References",
+      "nothingOutstanding": "Nothing outstanding — every required field is filled in."
     }
   },
   "adminCatalog": {

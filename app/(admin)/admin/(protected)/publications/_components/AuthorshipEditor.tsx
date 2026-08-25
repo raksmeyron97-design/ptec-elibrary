@@ -1,5 +1,7 @@
 "use client";
 
+import { FieldEmptyState } from "@/components/admin/kit/form";
+
 import { useEffect, useRef, useState } from "react";
 import {
   searchPublicationAuthors,
@@ -17,6 +19,7 @@ import {
   Plus,
   Search,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 
@@ -270,9 +273,11 @@ export default function AuthorshipEditor({
 
       {/* ── Author rows ── */}
       {value.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-divider px-4 py-6 text-center text-sm text-text-muted">
-          No authors yet — search above or create a new one.
-        </p>
+        <FieldEmptyState
+          icon={Users}
+          title="No authors yet"
+          description="Search for an existing author above, or create a new one. The order you add them in is the order readers and citations see."
+        />
       ) : (
         <ul className="space-y-2">
           {value.map((row, i) => (

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   Plus, Trash2, ArrowUp, ArrowDown, AlertCircle, Copy, ChevronDown, ChevronUp,
-  Check, X, CircleCheck, CircleAlert, Loader2, ListChecks, BookOpen, Layers, Settings2, Rocket,
+  Check, X, CircleAlert, Loader2, ListChecks, BookOpen, Layers, Settings2, Rocket,
 } from "lucide-react";
 import { savePath } from "@/app/actions/learning-paths";
 import type {
@@ -15,6 +15,22 @@ import type {
 import { slugify } from "@/lib/books";
 import { INPUT_CLASS, LABEL_CLASS } from "../../theses/_components/form-styles";
 import StepResourcePicker from "./StepResourcePicker";
+import {
+  ContextPanel,
+  FieldEmptyState,
+  FormShell,
+  FormTabs,
+  ReviewDashboard,
+  StickyActionBar,
+  ButtonBusy,
+  BTN_PRIMARY,
+  BTN_SECONDARY,
+  BTN_DANGER,
+  type FormTab,
+  type FormTabState,
+  type ReviewFinding,
+  type ReviewTone,
+} from "@/components/admin/kit/form";
 
 type EditableStep = PathStepInput & { _key: string; resourceUnavailable?: boolean };
 type EditableModule = { _key: string; title: string; title_km: string | null; description: string | null; description_km: string | null; steps: EditableStep[] };
@@ -36,7 +52,21 @@ type Stage = "details" | "curriculum" | "publish";
 const STAGES: Stage[] = ["details", "curriculum", "publish"];
 const STAGE_ICON: Record<Stage, typeof BookOpen> = { details: Settings2, curriculum: Layers, publish: Rocket };
 
-export default function PathBuilderForm({ initial, pathId: initialPathId }: { initial: LearningPathDetail | null; pathId: string | null }) {
+export default function PathBuilderForm({
+  initial,
+  pathId: initialPathId,
+  pageTitle,
+  pageDescription,
+}: {
+  initial: LearningPathDetail | null;
+  pathId: string | null;
+  /*
+    The form owns FormShell rather than the route: the context sidebar is a live
+    view of this component's own state.
+  */
+  pageTitle: string;
+  pageDescription: string;
+}) {
   const t = useTranslations("adminPaths");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -210,31 +240,114 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
     const s = [...m.steps]; [s[si], s[j]] = [s[j], s[si]]; return { ...m, steps: s };
   }));
 
-  return (
-    <div className="space-y-5">
-      {/* ── Stepper + save state ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <nav className="flex items-center gap-1.5" aria-label={t("builder.stagesLabel")}>
-          {STAGES.map((s, i) => {
-            const Icon = STAGE_ICON[s];
-            const active = stage === s;
-            const badge = s === "publish" ? validation.errors.length : 0;
-            return (
-              <button key={s} type="button" onClick={() => setStage(s)} aria-current={active ? "step" : undefined}
-                className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${active ? "bg-brand text-white" : "text-text-muted hover:bg-paper"}`}>
-                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${active ? "bg-white/20" : "bg-paper"}`}>{i + 1}</span>
-                <Icon className="hidden h-4 w-4 sm:block" aria-hidden="true" />
-                {t(`builder.stages.${s}`)}
-                {badge > 0 && <span className="rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{badge}</span>}
-              </button>
-            );
-          })}
-        </nav>
-        <SaveIndicator state={saveState} dirty={dirty} t={t} />
-      </div>
+  /*
+    Errors are attributed to the stage that can fix them, not all parked on
+    Publish. The old badge put every count on the last tab, so a missing module
+    title showed up as "Publish: 1" — a number on the one stage where nothing
+    was wrong.
+  */
+  /*
+    Curriculum vs details is decided by the same text test `stageState` uses, so
+    a finding and its tab badge can never disagree about which stage owns it.
+  */
+  const stageForIssue = (issue: string): Stage =>
+    issue.includes("module") || issue.includes("step") ? "curriculum" : "details";
 
+  const toPathFinding = (prefix: string) => (issue: string, i: number): ReviewFinding => ({
+    id: `${prefix}${i}`,
+    message: issue,
+    onNavigate: () => setStage(stageForIssue(issue)),
+    navigateLabel: t(`builder.stages.${stageForIssue(issue)}`),
+  });
+
+  const pathFindings: Record<ReviewTone, ReviewFinding[]> = {
+    blocking: validation.errors.map(toPathFinding("e")),
+    warning: [],
+    recommendation: validation.warnings.map(toPathFinding("w")),
+  };
+
+  function stageState(s: Stage): FormTabState {
+    const relevant = validation.errors.filter((e) => {
+      const curriculum = e.includes("module") || e.includes("step");
+      return s === "curriculum" ? curriculum : s === "details" ? !curriculum : false;
+    });
+    if (relevant.length > 0) return "error";
+    if (s === "publish") return validation.errors.length > 0 ? "error" : "complete";
+    return "complete";
+  }
+
+  /*
+    Context per stage: Details raises "how will this read to someone browsing",
+    Curriculum raises "is there enough here", Publishing raises nothing the
+    dashboard beside it does not already answer.
+  */
+  const context =
+    stage === "publish" ? null : stage === "curriculum" ? (
+      <ContextPanel title={t("builder.shapeTitle")} icon={ListChecks} hint={t("builder.shapeHint")}>
+        <div className="grid grid-cols-3 gap-2">
+          <CountTile value={modules.length} label={t("builder.modulesLabel")} />
+          <CountTile value={modules.reduce((n, m) => n + m.steps.length, 0)} label={t("builder.stepsLabel")} />
+          <CountTile value={outcomes.length} label={t("builder.outcomesLabel")} />
+        </div>
+      </ContextPanel>
+    ) : (
+      <ContextPanel title={t("builder.previewTitle")} icon={Rocket} hint={t("builder.previewHint")}>
+        <div className="rounded-lg border border-divider bg-bg-surface p-3">
+          <p className="truncate text-[11px] text-success-text">/paths/{slug || "…"}</p>
+          <p className="mt-0.5 line-clamp-2 text-[15px] font-medium leading-[1.5] text-info-text">
+            {title.trim() || t("builder.untitled")}
+          </p>
+          <p className="mt-1 line-clamp-3 text-[12.5px] leading-[1.6] text-text-body">
+            {(description ?? "").trim() || t("builder.noDescription")}
+          </p>
+        </div>
+      </ContextPanel>
+    );
+
+  return (
+    <FormShell
+      backHref="/admin/paths"
+      backLabel={t("builder.backToPaths")}
+      title={pageTitle}
+      description={pageDescription}
+      contentKey={stage}
+      context={context}
+      tabs={
+        <FormTabs
+          idPrefix="path"
+          ariaLabel={t("builder.stagesLabel")}
+          active={stage}
+          onChange={setStage}
+          tabs={STAGES.map<FormTab<Stage>>((sKey) => ({
+            key: sKey,
+            label: t(`builder.stages.${sKey}`),
+            icon: STAGE_ICON[sKey],
+            state: stageState(sKey),
+            stateLabel: stageState(sKey) === "error" ? t("builder.stageHasErrors") : undefined,
+          }))}
+        />
+      }
+      actions={
+        <StickyActionBar status={<SaveIndicator state={saveState} dirty={dirty} t={t} />}>
+          <button type="button" onClick={() => router.push("/admin/paths")} className={BTN_DANGER}>
+            {t("builder.cancel")}
+          </button>
+          <button type="button" onClick={() => persist("draft", true)} disabled={isPending} className={BTN_SECONDARY}>
+            {t("builder.saveDraft")}
+          </button>
+          <button
+            type="button"
+            onClick={() => persist(status === "draft" ? "published" : status, true)}
+            disabled={isPending || validation.errors.length > 0}
+            className={BTN_PRIMARY}
+          >
+            {isPending ? <ButtonBusy label={t("builder.saving")} /> : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
+          </button>
+        </StickyActionBar>
+      }
+    >
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger/5 px-4 py-3.5" role="alert">
+        <div className="flex items-start gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3.5" role="alert">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
           <p className="text-sm text-danger">{error}</p>
         </div>
@@ -242,7 +355,13 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
 
       {/* ══ Stage: Details ══ */}
       {stage === "details" && (
-        <div className="space-y-5">
+        <div
+          id="path-panel-details"
+          role="tabpanel"
+          aria-labelledby="path-tab-details"
+          tabIndex={-1}
+          className="space-y-5 focus:outline-none"
+        >
           <Section title={t("builder.stages.details")} icon={Settings2}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("builder.fields.titleEn")} required>
@@ -303,7 +422,30 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
 
       {/* ══ Stage: Curriculum ══ */}
       {stage === "curriculum" && (
-        <div className="space-y-4">
+        <div
+          id="path-panel-curriculum"
+          role="tabpanel"
+          aria-labelledby="path-tab-curriculum"
+          tabIndex={-1}
+          className="space-y-4 focus:outline-none"
+        >
+          {/*
+            This stage rendered nothing at all with no modules — a blank panel
+            under a tab whose badge said the path was incomplete, with no hint
+            that the fix lived in the button below the fold.
+          */}
+          {modules.length === 0 && (
+            <FieldEmptyState
+              icon={ListChecks}
+              title={t("builder.noModulesTitle")}
+              description={t("builder.noModulesBody")}
+              action={
+                <button type="button" onClick={addModule} className={BTN_SECONDARY}>
+                  <Plus className="h-4 w-4" aria-hidden="true" /> {t("builder.addModule")}
+                </button>
+              }
+            />
+          )}
           {modules.map((m, mi) => (
             <ModuleEditor
               key={m._key}
@@ -327,7 +469,13 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
 
       {/* ══ Stage: Publish ══ */}
       {stage === "publish" && (
-        <div className="space-y-5">
+        <div
+          id="path-panel-publish"
+          role="tabpanel"
+          aria-labelledby="path-tab-publish"
+          tabIndex={-1}
+          className="space-y-5 focus:outline-none"
+        >
           <Section title={t("builder.publishTitle")} icon={Rocket}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label={t("builder.fields.status")}>
@@ -358,45 +506,23 @@ export default function PathBuilderForm({ initial, pathId: initialPathId }: { in
             </label>
           </Section>
 
-          {/* Validation checklist */}
-          <Section title={t("builder.checklistTitle")} icon={ListChecks}>
-            {validation.errors.length === 0 && validation.warnings.length === 0 ? (
-              <p className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-emerald-600">
-                <CircleCheck className="h-4 w-4" aria-hidden="true" /> {t("builder.checklistOk")}
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {validation.errors.map((e, i) => (
-                  <li key={`e${i}`} className="flex items-start gap-2 text-[13px] text-danger">
-                    <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {e}
-                  </li>
-                ))}
-                {validation.warnings.map((w, i) => (
-                  <li key={`w${i}`} className="flex items-start gap-2 text-[13px] text-amber-600">
-                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" /> {w}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+          {/*
+            One verdict then grouped panels, replacing two flat bullet lists.
+            The lists said what was wrong but never whether the path could go
+            live — the one thing this stage exists to answer. Every finding links
+            to the stage that fixes it rather than leaving the author to guess.
+          */}
+          <ReviewDashboard
+            findings={pathFindings}
+            verdictReady={validation.errors.length === 0}
+            readyTitle={t("builder.verdictReadyTitle")}
+            readyBody={t("builder.verdictReadyBody")}
+            blockedTitle={t("builder.verdictBlockedTitle")}
+          />
         </div>
       )}
 
-      {/* ── Footer actions ── */}
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-divider pt-5">
-        <button type="button" onClick={() => router.push("/admin/paths")} className="rounded-xl px-4 py-3 text-sm font-semibold text-text-muted hover:text-text-heading">
-          {t("builder.cancel")}
-        </button>
-        <button type="button" onClick={() => persist("draft", true)} disabled={isPending}
-          className="rounded-xl border border-divider px-5 py-3 text-sm font-semibold text-text-body transition hover:border-brand/40 hover:text-brand disabled:opacity-60">
-          {t("builder.saveDraft")}
-        </button>
-        <button type="button" onClick={() => persist(status === "draft" ? "published" : status, true)} disabled={isPending || validation.errors.length > 0}
-          className="btn-brand-gradient rounded-xl px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60">
-          {isPending ? t("builder.saving") : status === "published" ? t("builder.saveChanges") : t("builder.publish")}
-        </button>
-      </div>
-    </div>
+    </FormShell>
   );
 }
 
@@ -432,20 +558,58 @@ function SaveIndicator({ state, dirty, t }: { state: "idle" | "saving" | "saved"
   return null;
 }
 
+/** Small count tile for the context sidebar. */
+function CountTile({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-lg border border-divider bg-bg-surface px-2 py-2 text-center">
+      <p className="text-lg font-bold tabular-nums leading-none text-text-heading">{value}</p>
+      <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+    </div>
+  );
+}
+
 function BilingualListEditor({ items, onChange, addLabel, t }: { items: BilingualEntry[]; onChange: (v: BilingualEntry[]) => void; addLabel: string; t: TFn }) {
   return (
     <div className="space-y-2.5">
+      {/*
+        One quiet container per row. Bare inputs in a three-column grid gave a
+        list of eight outcomes twenty-four floating boxes and no way to see
+        which English string paired with which Khmer one; the tinted row is the
+        pairing, and the ordinal makes a specific outcome nameable in review.
+      */}
       {items.map((it, i) => (
-        <div key={i} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-          <input value={it.en} onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))} className={INPUT_CLASS} placeholder={t("builder.english")} />
-          <input value={it.km} onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, km: e.target.value } : x)))} className={INPUT_CLASS} placeholder={t("builder.khmer")} />
-          <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={t("builder.remove")} className="rounded-lg border border-divider px-3 text-text-muted hover:text-danger">
-            <Trash2 className="h-4 w-4" />
-          </button>
+        <div key={i} className="rounded-lg bg-paper/60 p-3">
+          <div className="grid gap-2 md:grid-cols-[auto_1fr_1fr_auto] md:items-center">
+            <span className="text-xs font-semibold tabular-nums text-text-muted md:w-5">{i + 1}</span>
+            <input
+              value={it.en}
+              onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, en: e.target.value } : x)))}
+              className={INPUT_CLASS}
+              placeholder={t("builder.english")}
+            />
+            <input
+              value={it.km}
+              onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, km: e.target.value } : x)))}
+              className={INPUT_CLASS}
+              placeholder={t("builder.khmer")}
+            />
+            <button
+              type="button"
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+              aria-label={t("builder.remove")}
+              className="focus-field inline-flex h-11 items-center justify-center rounded-lg border border-divider bg-bg-surface px-3 text-text-muted transition hover:border-danger-line hover:text-danger"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...items, { en: "", km: "" }])} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline">
-        <Plus className="h-3.5 w-3.5" /> {addLabel}
+      <button
+        type="button"
+        onClick={() => onChange([...items, { en: "", km: "" }])}
+        className="focus-field inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-[13px] font-semibold text-admin-accent-text transition hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" /> {addLabel}
       </button>
     </div>
   );

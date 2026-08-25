@@ -66,7 +66,7 @@ export default function DeleteThesisDialog({
         className="w-full max-w-md rounded-2xl bg-bg-surface p-6 shadow-2xl"
       >
         <div className="mb-4 flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger">
             <AlertTriangle className="h-5 w-5" />
           </span>
           <div>
@@ -87,7 +87,7 @@ export default function DeleteThesisDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:opacity-50"
+            className="focus-field rounded-lg border border-divider px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper disabled:opacity-50"
           >
             {t("cancel")}
           </button>
@@ -96,7 +96,7 @@ export default function DeleteThesisDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="focus-field rounded-lg bg-danger px-4 py-2 text-sm font-bold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? t("busy") : isBulk ? t("confirmBulk") : t("confirm")}
           </button>

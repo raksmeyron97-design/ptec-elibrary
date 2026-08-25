@@ -1,11 +1,13 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Eye, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Eye } from "lucide-react";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisSeoSettings from "./ThesisSeoSettings";
 import ThesisCitationPreview from "./ThesisCitationPreview";
-import { thesisPublishWarnings } from "@/lib/admin/thesis-validation";
+import { thesisPublishWarnings, isThesisWarning } from "@/lib/admin/thesis-validation";
+import { ReviewDashboard, type ReviewFinding, type ReviewTone } from "@/components/admin/kit/form";
+import type { ThesisStepKey } from "./thesis-steps";
 import type { ThesisStatus } from "@/lib/admin/theses-shared";
 import type { MetadataQualityInput } from "@/lib/admin/thesis-metadata-quality";
 
@@ -27,6 +29,8 @@ export default function ReviewPublishStep({
   onPreview,
   disabled,
   institution,
+  blocking,
+  onNavigate,
 }: {
   thesis: Omit<MetadataQualityInput, "program" | "cohort" | "academicYear"> & {
     program: string; cohort: string; academicYear: string; doi: string;
@@ -46,9 +50,14 @@ export default function ReviewPublishStep({
   ogImage: string; onOgImageChange: (v: string) => void;
   onPreview: () => void;
   disabled?: boolean;
+  /** Blocking publish errors, keyed by the step that resolves each. */
+  blocking: { id: string; message: string; step: ThesisStepKey }[];
+  /** Sends the author to the step that fixes a finding. */
+  onNavigate: (step: ThesisStepKey) => void;
 }) {
   const t = useTranslations("adminThesisForm.review");
   const tp = useTranslations("adminPostForm.publish");
+  const tSteps = useTranslations("adminThesisForm.steps");
   const warnings = thesisPublishWarnings({
     title: thesis.title ?? "", slug: thesis.slug ?? "", program: thesis.program, cohort: thesis.cohort,
     academicYear: thesis.academicYear, authorNames: thesis.authorNames, advisorName: thesis.advisorName,
@@ -56,8 +65,53 @@ export default function ReviewPublishStep({
     references: thesis.references, license: thesis.license,
   });
 
+  /*
+    Three severities from two validators. `blocking` comes from
+    validateThesisPublish (the same rules the server enforces); the flat warning
+    list is split by isThesisWarning, which keeps the "is this a defect or a
+    nicety" judgement next to the rules rather than in this component.
+  */
+  const STEP_FOR_WARNING: Record<string, ThesisStepKey> = {
+    advisor: "people",
+    abstract: "abstract",
+    keywords: "abstract",
+    references: "references",
+    cover: "files",
+    license: "basic",
+  };
+
+  const toFinding = (key: string, message: string, step: ThesisStepKey): ReviewFinding => ({
+    id: key,
+    message,
+    onNavigate: () => onNavigate(step),
+    navigateLabel: tSteps(step),
+  });
+
+  const findings: Record<ReviewTone, ReviewFinding[]> = {
+    blocking: blocking.map((b) => toFinding(b.id, b.message, b.step)),
+    warning: warnings
+      .filter(isThesisWarning)
+      .map((w) => toFinding(w.key, w.label, STEP_FOR_WARNING[w.key] ?? "basic")),
+    recommendation: warnings
+      .filter((w) => !isThesisWarning(w))
+      .map((w) => toFinding(w.key, w.label, STEP_FOR_WARNING[w.key] ?? "basic")),
+  };
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+    /*
+      One column. This step used to be a 1fr/340px split of its own, which on
+      the new 840px card left the right-hand publish controls at ~300px — and
+      duplicated the job the context sidebar now does at the page level.
+    */
+    <div className="space-y-6">
+      <ReviewDashboard
+        findings={findings}
+        verdictReady={blocking.length === 0}
+        readyTitle={t("verdictReadyTitle")}
+        readyBody={t("verdictReadyBody")}
+        blockedTitle={t("verdictBlockedTitle")}
+      />
+
       <div className="space-y-5">
         <div className="rounded-xl border border-divider bg-bg-surface p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
@@ -88,21 +142,6 @@ export default function ReviewPublishStep({
             <Eye className="h-3.5 w-3.5" /> {t("openPreview")}
           </button>
         </div>
-
-        {warnings.length > 0 ? (
-          <div className="rounded-xl border border-warning-line bg-warning-soft p-4">
-            <p className="flex items-center gap-2 text-sm font-bold text-warning-text">
-              <AlertTriangle className="h-4 w-4" /> {t("recommendations", { count: warnings.length })}
-            </p>
-            <ul className="mt-2 space-y-1 text-sm text-warning-text">
-              {warnings.map((w) => <li key={w.key}>• {w.label}</li>)}
-            </ul>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-xl border border-success-line bg-success-soft p-4 text-sm font-semibold text-success-text">
-            <CheckCircle2 className="h-4 w-4" /> Metadata looks complete.
-          </div>
-        )}
 
         <ThesisCitationPreview
           title={thesis.title ?? ""}

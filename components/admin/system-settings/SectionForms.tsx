@@ -116,7 +116,7 @@ export function ContactForm({ doc, onChange, errors, disabled }: FormProps<Conta
           usedIn="Header top bar · Footer · Site-wide JSON-LD (Organization + Library)"
         />
         {phonePreview && (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <p className="rounded-lg bg-paper px-3 py-2 text-xs text-text-body">
             Will display as <strong>{phoneToIntlDisplay(phonePreview)}</strong> · links as{" "}
             <code className="text-[11px]">{phoneToTel(phonePreview)}</code>
           </p>
@@ -257,10 +257,10 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
             return (
               <div key={day} className="rounded-xl border border-divider p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] font-semibold text-slate-700">{DAY_LABELS[day]}</p>
+                  <p className="text-[13px] font-semibold text-text-body">{DAY_LABELS[day]}</p>
                   <div className="flex items-center gap-2">
                     {intervals.length === 0 && (
-                      <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+                      <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold text-danger">
                         Closed
                       </span>
                     )}
@@ -268,7 +268,7 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
                       type="button"
                       disabled={disabled}
                       onClick={() => setDay(day, [...intervals, { open: "07:00", close: "17:00" }])}
-                      className="inline-flex items-center gap-1 rounded-lg border border-divider px-2 py-1 text-[11px] font-semibold text-slate-600 transition-colors hover:border-brand/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-lg border border-divider px-2 py-1 text-[11px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Plus className="h-3 w-3" aria-hidden="true" /> Add hours
                     </button>
@@ -276,7 +276,7 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
                 </div>
                 {intervals.map((r, i) => (
                   <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="text-[11px] font-medium text-slate-500" htmlFor={`hours-${key}-${i}-open`}>
+                    <label className="text-[11px] font-medium text-text-muted" htmlFor={`hours-${key}-${i}-open`}>
                       Opens
                     </label>
                     <input
@@ -291,7 +291,7 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
                       }}
                       className="rounded-lg border border-divider px-2 py-1.5 text-sm tabular-nums"
                     />
-                    <label className="text-[11px] font-medium text-slate-500" htmlFor={`hours-${key}-${i}-close`}>
+                    <label className="text-[11px] font-medium text-text-muted" htmlFor={`hours-${key}-${i}-close`}>
                       Closes
                     </label>
                     <input
@@ -311,31 +311,31 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
                       disabled={disabled}
                       onClick={() => setDay(day, intervals.filter((_, j) => j !== i))}
                       aria-label={`Remove ${DAY_LABELS[day]} interval ${i + 1}`}
-                      className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded-lg p-1.5 text-text-muted/70 transition-colors hover:bg-danger-soft hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
                     {errorFor(errors, `weekly.${key}.${i}.open`) && (
-                      <p role="alert" className="w-full text-xs font-medium text-rose-600">
+                      <p role="alert" className="w-full text-xs font-medium text-danger">
                         {errorFor(errors, `weekly.${key}.${i}.open`)}
                       </p>
                     )}
                     {errorFor(errors, `weekly.${key}.${i}.close`) && (
-                      <p role="alert" className="w-full text-xs font-medium text-rose-600">
+                      <p role="alert" className="w-full text-xs font-medium text-danger">
                         {errorFor(errors, `weekly.${key}.${i}.close`)}
                       </p>
                     )}
                   </div>
                 ))}
                 {dayError && (
-                  <p role="alert" className="mt-2 text-xs font-medium text-rose-600">{dayError}</p>
+                  <p role="alert" className="mt-2 text-xs font-medium text-danger">{dayError}</p>
                 )}
               </div>
             );
           })}
         </div>
         {errorFor(errors, "weekly") && (
-          <p role="alert" className="text-xs font-medium text-rose-600">
+          <p role="alert" className="text-xs font-medium text-danger">
             {errorFor(errors, "weekly")}
           </p>
         )}
@@ -346,7 +346,7 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
         hint="Public holidays or temporary closures. During a closure the site shows the library as closed with the reason."
       >
         {doc.closures.length === 0 && (
-          <p className="text-sm text-slate-500">No special closures scheduled.</p>
+          <p className="text-sm text-text-muted">No special closures scheduled.</p>
         )}
         <div className="space-y-3">
           {doc.closures.map((cl, i) => (
@@ -386,7 +386,7 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
                   onClick={() =>
                     onChange({ ...doc, closures: doc.closures.filter((_, j) => j !== i) })
                   }
-                  className="mb-1 inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-rose-300 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mb-1 inline-flex items-center gap-1 rounded-lg border border-divider px-2.5 py-1.5 text-xs font-semibold text-text-body transition-colors hover:border-danger-line hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Remove
                 </button>
@@ -422,43 +422,43 @@ export function HoursForm({ doc, onChange, errors, disabled }: FormProps<HoursSe
               ],
             })
           }
-          className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:border-brand/50 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-divider px-3 py-2 text-sm font-semibold text-text-body transition-colors hover:border-brand/50 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" aria-hidden="true" /> Add closure
         </button>
       </FieldGroup>
 
       {/* Live preview — exactly what the public site will derive */}
-      <div className="rounded-2xl border border-divider bg-slate-50 p-5">
+      <div className="rounded-2xl border border-divider bg-paper p-5">
         <h3 className="text-sm font-bold text-text-heading">Preview</h3>
         <dl className="mt-3 space-y-2 text-sm">
           <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-text-muted/70">
               English sentence (footer, catalogs page)
             </dt>
-            <dd className="text-slate-700">{hoursSentence("en", doc.weekly)}</dd>
+            <dd className="text-text-body">{hoursSentence("en", doc.weekly)}</dd>
           </div>
           <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-text-muted/70">
               Khmer sentence
             </dt>
-            <dd lang="km" className="font-kh text-slate-700">{hoursSentence("km", doc.weekly)}</dd>
+            <dd lang="km" className="font-kh text-text-body">{hoursSentence("km", doc.weekly)}</dd>
           </div>
           <div>
-            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-text-muted/70">
               schema.org spec (JSON-LD)
             </dt>
-            <dd className="font-mono text-xs text-slate-600">{spec.join(" · ") || "—"}</dd>
+            <dd className="font-mono text-xs text-text-body">{spec.join(" · ") || "—"}</dd>
           </div>
           {status && (
             <div>
-              <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <dt className="text-[11px] font-semibold uppercase tracking-wide text-text-muted/70">
                 Right now (Cambodia time)
               </dt>
               <dd>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    status.isOpen ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"
+                    status.isOpen ? "bg-success-soft text-success-text" : "bg-danger-soft text-danger"
                   }`}
                 >
                   {status.isOpen ? "Open" : "Closed"}
@@ -584,20 +584,20 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
           textarea
           usedIn="Search results · Social share cards"
         />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-muted">
           Aim for 50–160 characters. If the Khmer description is empty, the English one is used.
         </p>
       </FieldGroup>
 
       {/* Search-result preview */}
-      <div className="rounded-2xl border border-divider bg-slate-50 p-5">
+      <div className="rounded-2xl border border-divider bg-paper p-5">
         <h3 className="text-sm font-bold text-text-heading">Search preview</h3>
-        <div className="mt-3 max-w-xl rounded-xl bg-white p-4 shadow-sm">
-          <p className="truncate text-[13px] text-emerald-700">library.ptec.edu.kh</p>
-          <p className="mt-0.5 truncate text-lg leading-snug text-blue-700">
+        <div className="mt-3 max-w-xl rounded-xl bg-bg-surface p-4 shadow-sm">
+          <p className="truncate text-[13px] text-success-text">library.ptec.edu.kh</p>
+          <p className="mt-0.5 truncate text-lg leading-snug text-info-text">
             {doc.siteTitle || "Site title"}
           </p>
-          <p className="mt-1 line-clamp-2 text-sm text-slate-600">
+          <p className="mt-1 line-clamp-2 text-sm text-text-body">
             {doc.siteDescription.en || "Default description appears here."}
           </p>
         </div>
@@ -607,7 +607,7 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
         title="Search engine indexing"
         hint="Takes effect after publishing, like every setting here. Only production can ever be indexed — previews and staging are always noindex regardless of this switch."
       >
-        <label className="flex items-start gap-3 rounded-xl border border-divider bg-white p-4">
+        <label className="flex items-start gap-3 rounded-xl border border-divider bg-bg-surface p-4">
           <input
             type="checkbox"
             className="mt-0.5 h-4 w-4 accent-brand"
@@ -619,7 +619,7 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
             <span className="block text-sm font-semibold text-text-heading">
               Allow search engines to index the site
             </span>
-            <span className="mt-0.5 block text-xs text-slate-600">
+            <span className="mt-0.5 block text-xs text-text-body">
               Turning this off marks every public page <code>noindex</code> and empties the
               sitemap — the site will gradually drop out of Google. Use only during major
               content resets.
@@ -627,7 +627,7 @@ export function SeoForm({ doc, onChange, errors, disabled }: FormProps<SeoSettin
           </span>
         </label>
         {!doc.indexingEnabled && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          <p className="rounded-lg bg-warning-soft px-3 py-2 text-xs font-medium text-warning-text">
             Indexing is OFF. Once published, search engines will be told to remove the whole
             site from their results.
           </p>

@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Eye, Download } from "lucide-react";
+import { Eye, Download, Pencil } from "lucide-react";
+import { thesisHref } from "@/lib/theses";
 import ThesisActionsMenu from "@/components/admin/theses/ThesisActionsMenu";
 import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
-import { STATUS_BADGE_STYLES, STATUS_LABELS, effectiveThesisDownloadPolicy, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
+import ThesisDownloadControl from "@/components/admin/theses/ThesisDownloadControl";
+import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
 
 function programLabel(programs: ThesisProgramOption[], code: string | null): string {
   if (!code) return "No program";
@@ -39,7 +42,6 @@ export default function ThesisMobileCard({
 }) {
   const t = useTranslations("adminTheses.table");
   const tStatus = useTranslations("adminTheses.status");
-  const tDl = useTranslations("adminTheses.downloadPolicy");
   return (
     <div className="space-y-3 md:hidden">
       {rows.map((thesis) => {
@@ -65,9 +67,9 @@ export default function ThesisMobileCard({
                 <div className="h-16 w-12 shrink-0 rounded border border-divider bg-paper" />
               )}
               <div className="min-w-0 flex-1">
-                <p className="font-semibold leading-[1.6] text-text-heading line-clamp-2">{thesis.title}</p>
-                <p className="mt-0.5 truncate text-xs text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
-                <p className="mt-1 text-xs text-text-muted">
+                <p className="text-sm font-semibold leading-[1.6] text-text-heading line-clamp-2">{thesis.title}</p>
+                <p className="mt-0.5 truncate text-sm leading-[1.6] text-text-muted">{thesis.authorNames || t("noAuthor")}</p>
+                <p className="mt-1 text-sm leading-[1.6] text-text-muted">
                   {programLabel(programs, thesis.program)} · {thesis.cohort ? t("cohort", { cohort: thesis.cohort }) : t("noCohort")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -75,19 +77,7 @@ export default function ThesisMobileCard({
                     {STATUS_LABELS[thesis.status] ? tStatus(thesis.status) : thesis.status}
                   </span>
                   <ThesisMetadataBadge thesis={thesis} />
-                  {(() => {
-                    const eff = effectiveThesisDownloadPolicy(thesis);
-                    return (
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                          eff.policy === "allowed" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {eff.policy === "allowed" ? tDl("dlAllowed") : tDl("dlBlocked")}
-                        {eff.isTopTen && thesis.rank != null ? ` · #${thesis.rank}` : ""}
-                      </span>
-                    );
-                  })()}
+                  <ThesisDownloadControl thesis={thesis} />
                 </div>
                 <div className="mt-2">
                   <ThesisFileStatusBadge hasPdf={Boolean(thesis.fileUrl)} hasCover={Boolean(thesis.coverUrl)} />
@@ -97,16 +87,39 @@ export default function ThesisMobileCard({
                   <div className="flex items-center gap-1"><Download className="h-3 w-3" /> {thesis.downloadCount.toLocaleString()}</div>
                 </dl>
               </div>
-              <ThesisActionsMenu
-                thesis={thesis}
-                busy={isBusy}
-                onPublish={() => onPublish(thesis.id)}
-                onUnpublish={() => onUnpublish(thesis.id)}
-                onArchive={() => onArchive(thesis.id)}
-                onUnarchive={() => onUnarchive(thesis.id)}
-                onDuplicate={() => onDuplicate(thesis.id)}
-                onDelete={() => onDeleteRequest(thesis.id, thesis.title)}
-              />
+              {/* Same inline Edit/View pair as the desktop row — the ⋮ menu no
+                  longer carries them, so a card without these would strand a
+                  tablet user with no way to open a thesis. */}
+              <div className="flex shrink-0 flex-col items-center gap-0.5">
+                <Link
+                  href={`/admin/theses/edit/${thesis.id}`}
+                  aria-label={t("editNamed", { title: thesis.title })}
+                  className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                </Link>
+                {thesis.status === "published" && (
+                  <Link
+                    href={thesisHref(thesis)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("viewNamed", { title: thesis.title })}
+                    className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                  >
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                )}
+                <ThesisActionsMenu
+                  thesis={thesis}
+                  busy={isBusy}
+                  onPublish={() => onPublish(thesis.id)}
+                  onUnpublish={() => onUnpublish(thesis.id)}
+                  onArchive={() => onArchive(thesis.id)}
+                  onUnarchive={() => onUnarchive(thesis.id)}
+                  onDuplicate={() => onDuplicate(thesis.id)}
+                  onDelete={() => onDeleteRequest(thesis.id, thesis.title)}
+                />
+              </div>
             </div>
           </div>
         );

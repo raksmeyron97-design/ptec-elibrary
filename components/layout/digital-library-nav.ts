@@ -64,20 +64,22 @@ export const DIGITAL_LIBRARY_ITEMS = [
   },
 ] satisfies DigitalLibraryItem[];
 
-export function isRouteSegmentActive(pathname: string, href: string) {
+export function isRouteSegmentActive(pathname: string | null | undefined, href: string) {
+  if (!pathname) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function isDigitalLibraryItemActive(
-  pathname: string,
+  pathname: string | null | undefined,
   item: DigitalLibraryItem,
 ) {
-  if (item.external) return false;
+  if (!pathname || item.external) return false;
   return isRouteSegmentActive(pathname, item.href);
 }
 
-export function isDigitalLibrarySectionActive(pathname: string) {
+export function isDigitalLibrarySectionActive(pathname: string | null | undefined) {
+  if (!pathname) return false;
   return DIGITAL_LIBRARY_ITEMS.some((item) =>
-    isDigitalLibraryItemActive(pathname, item),
+    isDigitalLibraryItemActive(pathname, item)
   );
 }
