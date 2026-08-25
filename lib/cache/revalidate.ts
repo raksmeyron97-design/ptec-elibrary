@@ -93,6 +93,8 @@ export const TAGS = {
   announcementBanner: "announcement-banner",
   /** Admin-managed homepage gallery photos (lib/homepage-photos.ts). */
   homepagePhotos: "homepage-photos",
+  /** The "reader submissions added" figure in <GrowTheCollection>. */
+  homeContributions: "home-contributions",
 } as const;
 
 /**
@@ -137,6 +139,17 @@ export function revalidateHomepagePhotos() {
  */
 export function revalidateCollectionStats() {
   revalidateTag(TAGS.collectionStats, "max");
+  revalidatePublicPath("/");
+}
+
+/**
+ * A book request or thesis deposit reached (or left) the `added` state, so the
+ * "reader submissions added to the library" figure in <GrowTheCollection>
+ * changed. Cheap to bust: one cached integer plus the homepage, and the figure
+ * is the section's only social proof — a stale one undersells the invitation.
+ */
+export function revalidateContributions() {
+  revalidateTag(TAGS.homeContributions, "max");
   revalidatePublicPath("/");
 }
 
@@ -229,7 +242,7 @@ export function revalidateLearningPath(slug?: string | null) {
     revalidatePublicPath(`/paths/${slug}`);
   }
   revalidatePublicPath("/paths");
-  revalidatePublicPath("/"); // paths are rendered in ThisWeekAtPtec
+  revalidatePublicPath("/"); // paths are rendered in StartWithGoal
   revalidateCollectionStats();
 }
 
