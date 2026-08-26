@@ -1,12 +1,18 @@
 import { isIndexableEnvironment } from "@/lib/seo/indexing";
+import { PRODUCTION_SITE_URL } from "@/lib/seo/production-origin";
 
 /**
  * Canonical production origin. Used as the fallback whenever
  * NEXT_PUBLIC_SITE_URL is unset or fails validation — canonical URLs,
  * hreflang alternates, JSON-LD ids, and sitemap entries must never point at
  * localhost, a malformed value, or a typo'd domain.
+ *
+ * Defined in lib/seo/production-origin.ts (a leaf module) and re-exported
+ * here, which is still the import site for the rest of the app: indexing.ts
+ * needs the same constant to detect self-hosted production, and it cannot
+ * import from this file without creating a cycle.
  */
-export const PRODUCTION_SITE_URL = "https://library.ptec.edu.kh";
+export { PRODUCTION_SITE_URL };
 
 function isLoopbackHost(hostname: string): boolean {
   return (

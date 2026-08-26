@@ -20,6 +20,7 @@ import { canActorVerifyInPlace } from "@/lib/content-status";
 import { evaluateQuality } from "@/lib/metadata-quality";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { shouldNotifyPublishedTransition } from "@/lib/push-utils";
+import { clientIpOrUndefined } from "@/lib/client-ip";
 
 const REVALIDATE_PATHS = ["/admin/manage", "/admin", "/books", "/"];
 
@@ -36,7 +37,7 @@ function errorMessage(error: unknown): string {
 async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
   try {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const ip = clientIpOrUndefined(h);
     return { ip, userAgent: h.get("user-agent") ?? undefined };
   } catch {
     return {};

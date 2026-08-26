@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from 'next-intl';
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { authRedirect } from "@/lib/auth/redirect-url";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 // ── PTEC content data ────────────────────────────────────────────────────────
@@ -141,7 +142,11 @@ export default function LoginContent({ stats, site }: Props) {
     setGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback?callbackUrl=${encodeURIComponent(callbackUrl)}` },
+      options: {
+        redirectTo: authRedirect(
+          `/auth/callback?callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        ),
+      },
     });
     if (error) { setError(friendlyError(error.message)); setGoogleLoading(false); }
   }

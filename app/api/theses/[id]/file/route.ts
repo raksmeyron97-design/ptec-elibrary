@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { clientIp } from "@/lib/client-ip";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -48,10 +49,7 @@ export async function GET(
     return NextResponse.redirect(new URL(`/api/theses/${id}/download`, request.url), 307);
   }
 
-  const ip =
-    request.headers.get("x-real-ip")?.trim() ??
-    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(request.headers);
   const { limit, windowMs } = ratePolicy("fileRead");
   const rl = await rateLimit(`thesis-file:${ip}`, limit, windowMs);
   if (!rl.success) {

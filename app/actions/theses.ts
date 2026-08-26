@@ -15,6 +15,7 @@ import { checkThesisPublishReady } from "@/lib/publish-readiness";
 import { canActorVerifyInPlace } from "@/lib/content-status";
 import { evaluateQuality } from "@/lib/metadata-quality";
 import { logContentView } from "@/lib/analytics/events";
+import { clientIpOrUndefined } from "@/lib/client-ip";
 
 
 // Admin-side paths only; public tags/paths/counters are handled by the
@@ -40,7 +41,7 @@ function errorMessage(error: unknown): string {
 async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
   try {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const ip = clientIpOrUndefined(h);
     return { ip, userAgent: h.get("user-agent") ?? undefined };
   } catch {
     return {};

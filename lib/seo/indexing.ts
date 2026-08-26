@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+// Relative, NOT "@/...": next.config.ts imports this module directly and path
+// aliases are not resolved inside it (see the note at the top of that file).
+import { PRODUCTION_SITE_HOST } from "./production-origin";
 
 /**
  * Environment-aware indexing policy — the single decision point for whether
@@ -9,16 +12,29 @@ import type { Metadata } from "next";
  *   - app/sitemap.ts           → empty sitemap off-production
  *   - app/root-metadata.ts     → <meta name="robots"> baseline
  *
- * Indexing is OPT-IN: only a real Vercel production deployment (or an
- * explicit SEO_INDEXING=on) is indexable. Previews, branch deploys, local
- * dev, CI, and self-hosted staging all default to noindex — demo/testing
- * content must never leak into search results.
+ * Indexing is OPT-IN. A deployment is indexable when it is one of:
+ *   - a real Vercel production deployment, or
+ *   - the self-hosted production container: NODE_ENV=production AND
+ *     NEXT_PUBLIC_SITE_URL pointing at the canonical public origin
+ *     (https://library.ptec.edu.kh), or
+ *   - anything with an explicit SEO_INDEXING=on.
+ * Previews, branch deploys, local dev, CI, and staging hostnames (including
+ * the tunnel's fallback origin on *.storage-ptec.online) all default to
+ * noindex — demo/testing content must never leak into search results, and the
+ * fallback origin must never compete with the canonical one.
  *
- * SEO_INDEXING (server-only env var):
- *   "on"  — force indexable  (self-hosted production, CI e2e asserting
- *            production behavior)
+ * The self-hosted clause exists because production moved off Vercel to a
+ * Docker container on ZimaOS behind Cloudflare Tunnel: VERCEL_ENV is simply
+ * absent there, so the old rule left the live site noindex unless someone
+ * remembered SEO_INDEXING=on. The site URL is a signal that is already
+ * required to be correct (canonicals, sitemap, OAuth redirects all read it),
+ * so tying indexability to it cannot drift on its own.
+ *
+ * SEO_INDEXING (server-only env var) still overrides both directions:
+ *   "on"  — force indexable  (staging hostname, CI e2e asserting production
+ *            behavior)
  *   "off" — force noindex    (emergency kill switch, works even on prod)
- *   unset — VERCEL_ENV === "production" decides
+ *   unset — the platform/site-URL rules above decide
  *
  * A second, admin-managed kill switch lives in system settings
  * (seo.indexingEnabled) and is applied by the rendered layer on top of this
@@ -38,15 +54,38 @@ export function seoEnvironment(): SeoEnvironment {
       return "development";
   }
   // No platform signal (bare `next build && next start`, CI, self-hosted).
-  // Without an explicit SEO_INDEXING=on this still resolves non-indexable.
   return process.env.NODE_ENV === "production" ? "production" : "development";
+}
+
+/**
+ * True when NEXT_PUBLIC_SITE_URL names the canonical public origin. Parsed
+ * rather than string-compared so a trailing slash, an added path, or a
+ * missing scheme cannot silently flip the site to noindex.
+ *
+ * Deliberately host-only: the tunnel's fallback origin
+ * (library.storage-ptec.online) and any LAN/IP access are NOT the canonical
+ * site and must not be indexed.
+ */
+function isCanonicalSiteUrl(): boolean {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return false;
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(candidate).hostname.toLowerCase() === PRODUCTION_SITE_HOST;
+  } catch {
+    return false;
+  }
 }
 
 export function isIndexableEnvironment(): boolean {
   const override = (process.env.SEO_INDEXING ?? "").trim().toLowerCase();
   if (override === "on" || override === "true" || override === "1") return true;
   if (override === "off" || override === "false" || override === "0") return false;
-  return process.env.VERCEL_ENV === "production" && process.env.NODE_ENV === "production";
+  if (process.env.NODE_ENV !== "production") return false;
+  // Vercel production, or the self-hosted container serving the canonical
+  // origin. Both require NODE_ENV=production, so a dev server pointed at the
+  // production URL stays noindex.
+  return process.env.VERCEL_ENV === "production" || isCanonicalSiteUrl();
 }
 
 /** Header value for blanket non-production noindex (belt — metadata is the

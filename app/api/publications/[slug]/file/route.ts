@@ -8,6 +8,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { isFreelyAccessible } from "@/lib/seo/publication-seo";
 import { doiUrl } from "@/lib/seo/identifiers";
+import { clientIp } from "@/lib/client-ip";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -32,10 +33,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const ip =
-    request.headers.get("x-real-ip")?.trim() ??
-    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(request.headers);
   const { limit, windowMs } = ratePolicy("fileRead");
   const rl = await rateLimit(`publication-file:${ip}`, limit, windowMs);
   if (!rl.success) {

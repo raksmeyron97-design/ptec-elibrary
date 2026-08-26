@@ -20,6 +20,7 @@ import {
   parseExportFormat,
 } from "@/lib/metadata-exports/scholarly";
 import { EXPORT_TYPES, fetchExportWorks } from "@/lib/metadata-exports/works";
+import { clientIp } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,7 @@ const CACHE_HEADERS = {
 } as const;
 
 function clientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown"
-  );
+  return clientIp(req.headers);
 }
 
 export async function GET(

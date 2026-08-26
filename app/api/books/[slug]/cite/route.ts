@@ -10,6 +10,7 @@ import {
   bookCitationFile,
   type CiteFormat,
 } from "@/lib/books/citation";
+import { clientIp } from "@/lib/client-ip";
 
 const FORMATS: CiteFormat[] = ["apa", "bibtex", "ris"];
 
@@ -17,10 +18,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const ip =
-    request.headers.get("x-real-ip")?.trim() ??
-    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(request.headers);
   const rl = await rateLimit(`book-cite:${ip}`, 30, 60_000);
   if (!rl.success) {
     return NextResponse.json(

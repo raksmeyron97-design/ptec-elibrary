@@ -225,6 +225,59 @@ and `v1.2.3` / `v1.2` for git tags. Browse them at
 | `docker compose ps` shows no cloudflared | `TUNNEL_TOKEN` is empty in `.env`. The tunnel is a compose profile and `deploy.sh` enables it only when a token is present. |
 | Container never reaches `healthy` | `docker logs ptec-elibrary`. Usually a missing runtime env var — the healthcheck fetches `/`, which touches Supabase. |
 | Timer runs but nothing happens | Expected. It exits early when the digest is unchanged. Confirm with `journalctl -u ptec-elibrary-deploy -n 20`. |
+| Site indexed as the wrong domain, or not at all | `NEXT_PUBLIC_SITE_URL` in `.env` is not `https://library.ptec.edu.kh`. It is a **build arg**, not just a runtime value — the client bundle bakes it in, so a wrong value needs a rebuild, not a restart. It also decides indexability (`lib/seo/indexing.ts`) and every auth callback origin (`lib/site-origin.ts`). |
+| Everyone gets rate-limited at once | The app is seeing one IP for all traffic. `docker logs ptec-elibrary` and check a `rate_limited` security event's `ip` field: if it is `172.17.0.1` or `10.1.1.x`, `cf-connecting-ip` is not reaching the container. Confirm requests arrive through cloudflared and not a second reverse proxy that strips it. |
+| Signed-in users appear signed out after Google login | Check which host the browser is on. Only `library.ptec.edu.kh` holds the session; middleware 308s the fallback hostname to it (`lib/canonical-host.ts`). If that redirect is off, `CANONICAL_HOST_REDIRECT` is set to `off` in `.env`. |
+
+## 2c. Scheduled jobs (there is no Vercel Cron here)
+
+Two routes have to be called on a schedule, and the box does not schedule them:
+
+| Route | Cadence | What breaks without it |
+| --- | --- | --- |
+| `/api/cron/publish-scheduled` | every 15 min | Content an editor scheduled stays `scheduled` forever; announcements never publish, expire, or retry push delivery. |
+| `/api/cron/cleanup` | daily, 20:00 UTC (03:00 local) | The `rate_limit` table grows without bound. |
+
+Both are plain `GET`s guarded by `Authorization: Bearer $CRON_SECRET`, so any
+scheduler works. **`.github/workflows/cron.yml` is the scheduler of record.** It
+runs off-box deliberately: it keeps firing when the college's network or the box
+is down, and a failed run emails the repo owner — which is the alert.
+
+Setup is one secret: add `CRON_SECRET` to *GitHub → Settings → Secrets and
+variables → Actions*, with the **same value** as in the box's `.env`. Rotating it
+means changing both in one maintenance window. Verify by hand at any time:
+
+```bash
+curl -i -H "Authorization: Bearer $CRON_SECRET" \
+  https://library.ptec.edu.kh/api/cron/publish-scheduled
+```
+
+A `401` means the two values disagree. Run the sweeps on demand from
+*Actions → Scheduled Jobs → Run workflow*.
+
+If you would rather not depend on GitHub, put a cron container on the box
+instead — but run one **or** the other, never both. The sweeps are idempotent,
+so two schedulers do no damage; they just double the logs you have to reconcile
+during an incident.
+
+```yaml
+  # docker-compose.yml — alternative to .github/workflows/cron.yml
+  cron:
+    image: alpine:3
+    restart: unless-stopped
+    env_file: .env          # supplies CRON_SECRET
+    networks: [web]
+    command: >
+      sh -c 'apk add --no-cache curl >/dev/null &&
+      while :; do
+        curl -fsS -H "Authorization: Bearer $$CRON_SECRET" http://app:3000/api/cron/publish-scheduled || true
+        sleep 900
+      done'
+```
+
+(Reaching `http://app:3000` on the internal network skips the tunnel entirely —
+and skips middleware's canonical-host redirect, since a bare container hostname
+is exempt from it.)
 
 ## 3. What must stay private (never internet-reachable)
 

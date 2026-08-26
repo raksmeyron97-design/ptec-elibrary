@@ -23,6 +23,7 @@ import {
 } from "@/lib/admin/posts";
 import { validatePost, firstValidationError } from "@/lib/admin/post-validation";
 import { eventColumnsAvailable } from "@/lib/posts-data";
+import { clientIpOrUndefined } from "@/lib/client-ip";
 
 /** Server Action wrapper — lets client components call the lib helper directly. */
 export async function checkSlugAvailableAction(slug: string, ignoreId?: string): Promise<boolean> {
@@ -86,7 +87,7 @@ const parseTags = (fd: FormData) => parseStringArray(fd, "tags").slice(0, 10);
 async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
   try {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const ip = clientIpOrUndefined(h);
     return { ip, userAgent: h.get("user-agent") ?? undefined };
   } catch {
     return {};
