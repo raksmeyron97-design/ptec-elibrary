@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { get } from "@vercel/blob";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { clientIp } from "@/lib/client-ip";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -36,10 +36,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";
 
-  const ip =
-    request.headers.get("x-real-ip")?.trim() ??
-    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(request.headers);
   const { limit, windowMs } = ratePolicy("fileRead");
   const rl = await rateLimit(`book-file:${ip}`, limit, windowMs);
   if (!rl.success) {
@@ -84,26 +81,13 @@ export async function GET(
 
   const rangeHeader = request.headers.get("range");
 
-  // ── Vercel Blob ────────────────────────────────────────────────
-  const isBlob =
-    fileUrl.includes(".private.blob.vercel-storage.com") ||
-    fileUrl.includes(".public.blob.vercel-storage.com");
-
-  if (isBlob) {
-    const access = fileUrl.includes(".private.") ? "private" : "public";
-    const blobResult = await get(fileUrl, { access });
-    if (!blobResult?.stream) {
-      return new NextResponse("File not found in Blob storage", { status: 404 });
-    }
-    const headers = new Headers(blobResult.headers as any);
-    headers.set("Content-Type", "application/pdf");
-    headers.set("Content-Disposition", disposition);
-    headers.set("Accept-Ranges", "bytes");
-    if (access === "private") {
-      headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
-    }
-    return new NextResponse(blobResult.stream as any, { headers, status: blobResult.statusCode });
-  }
+  // NOTE — there used to be a @vercel/blob branch here for records whose
+  // file_url pointed at *.blob.vercel-storage.com. It is gone with the move to
+  // self-hosting: that SDK reads a Vercel-issued token this deployment no
+  // longer holds, so it could only ever have failed at runtime. Public blob
+  // URLs still work, because the generic HTTP proxy below handles them like
+  // any other absolute URL; a private one 404s with the same message as any
+  // other unreachable object. Book files live in Zima Storage now.
 
   // ── Zima CDN or any full HTTP(S) URL — fetch & proxy server-side ─
   if (fileUrl.startsWith("https://") || fileUrl.startsWith("http://")) {

@@ -11,20 +11,22 @@ export const dynamic = "force-dynamic";
  * RPC (migration 0031). Rows idle for more than 24 h are deleted to prevent
  * table bloat — without this, sliding-window keys accumulate forever.
  *
- * ── Setup ─────────────────────────────────────────────────────────────────
- * 1. Set CRON_SECRET (a long random string, e.g. `openssl rand -hex 32`) in
- *    your environment (Vercel → Project Settings → Environment Variables).
+ * ── Who calls this ────────────────────────────────────────────────────────
+ * Nothing about this route is platform-specific: it is a GET carrying
+ * `Authorization: Bearer $CRON_SECRET`, so any scheduler that can send a
+ * header works. That matters because the self-hosted Docker container has no
+ * built-in scheduler the way Vercel Cron was.
  *
- * 2a. Vercel Cron — add to vercel.json (Vercel automatically sends
- *     `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is set):
- *       {
- *         "crons": [{ "path": "/api/cron/cleanup", "schedule": "0 20 * * *" }]
- *       }
- *     (20:00 UTC = 03:00 Asia/Phnom_Penh — off-peak for the library.)
+ * The scheduler of record is .github/workflows/cron.yml, daily at 20:00 UTC
+ * (= 03:00 Asia/Phnom_Penh, off-peak for the library). It runs off-box on
+ * purpose: it still fires, and still alerts, when the box or the college's
+ * network is down. docs/ZIMAOS-DEPLOYMENT.md documents an on-box cron
+ * container as the alternative — run one or the other, not both.
  *
- * 2b. External cron service (cron-job.org, GitHub Actions, etc.) — schedule:
- *       curl -H "Authorization: Bearer $CRON_SECRET" \
- *         https://your-domain.com/api/cron/cleanup
+ * CRON_SECRET (a long random string, e.g. `openssl rand -hex 32`) must match
+ * between the box's .env and the GitHub repo secret. By hand:
+ *   curl -H "Authorization: Bearer $CRON_SECRET" \
+ *     https://library.ptec.edu.kh/api/cron/cleanup
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;

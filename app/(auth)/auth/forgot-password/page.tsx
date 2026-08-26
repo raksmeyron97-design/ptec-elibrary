@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/core/Button";
 import { useTranslations } from "next-intl";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { authRedirect } from "@/lib/auth/redirect-url";
 
 export default function ForgotPasswordPage() {
   const t = useTranslations('auth');
@@ -25,7 +26,7 @@ export default function ForgotPasswordPage() {
     setMsg("");
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${location.origin}/auth/reset-password`,
+      redirectTo: authRedirect("/auth/reset-password"),
       captchaToken,
     });
 

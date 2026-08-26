@@ -11,6 +11,7 @@ import {
   type CiteFormat,
 } from "@/lib/theses/citation";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { clientIp } from "@/lib/client-ip";
 
 const FORMATS: CiteFormat[] = ["apa", "mla", "chicago", "ieee", "bibtex", "ris"];
 
@@ -20,10 +21,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ip =
-    request.headers.get("x-real-ip")?.trim() ??
-    request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(request.headers);
   const rl = await rateLimit(`thesis-cite:${ip}`, 30, 60_000);
   if (!rl.success) {
     return NextResponse.json(

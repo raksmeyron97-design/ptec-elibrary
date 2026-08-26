@@ -16,13 +16,14 @@ import { getOrCreateDeliveryJob, processAnnouncementDeliveryJob, retryFailedDeli
 import { logAnnouncementActivity, recordStatusHistory } from "@/lib/admin/announcements/audit";
 import { inputToRow, rowToInput, channelsSummary } from "@/lib/admin/announcements/mapping";
 import { bridgeToNotifications, unbridgeNotification } from "@/lib/admin/announcements/notifications-bridge";
+import { clientIpOrUndefined } from "@/lib/client-ip";
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
 async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
   try {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const ip = clientIpOrUndefined(h);
     return { ip, userAgent: h.get("user-agent") ?? undefined };
   } catch {
     return {};

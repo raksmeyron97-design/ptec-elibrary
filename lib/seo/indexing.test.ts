@@ -12,17 +12,64 @@ afterEach(() => {
 });
 
 describe("isIndexableEnvironment", () => {
-  it("is indexable only on a real Vercel production deployment", () => {
+  it("is indexable on a real Vercel production deployment", () => {
     vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("NODE_ENV", "production");
     expect(isIndexableEnvironment()).toBe(true);
+  });
+
+  // Production is a Docker container on ZimaOS behind Cloudflare Tunnel;
+  // VERCEL_ENV does not exist there. The canonical site URL is the signal.
+  it("is indexable on the self-hosted container serving the canonical origin", () => {
+    vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://library.ptec.edu.kh");
+    expect(isIndexableEnvironment()).toBe(true);
+  });
+
+  it.each([
+    "https://library.ptec.edu.kh/",
+    "library.ptec.edu.kh",
+    "https://LIBRARY.PTEC.EDU.KH",
+  ])("accepts %j as the canonical origin", (siteUrl) => {
+    vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", siteUrl);
+    expect(isIndexableEnvironment()).toBe(true);
+  });
+
+  // The tunnel's fallback origin resolves the same app. It must never be
+  // indexed alongside the canonical domain.
+  it.each([
+    "https://library.storage-ptec.online",
+    "http://10.1.1.146:13000",
+    "https://library-test.storage-ptec.online",
+    "not a url",
+  ])("stays noindex when the site URL is %j", (siteUrl) => {
+    vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", siteUrl);
+    expect(isIndexableEnvironment()).toBe(false);
+  });
+
+  it("stays noindex on a dev server pointed at the production URL", () => {
+    vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://library.ptec.edu.kh");
+    expect(isIndexableEnvironment()).toBe(false);
   });
 
   it.each(["preview", "development", ""])(
     "defaults to noindex when VERCEL_ENV is %j",
     (vercelEnv) => {
       vi.stubEnv("SEO_INDEXING", "");
+      vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
       vi.stubEnv("VERCEL_ENV", vercelEnv);
       vi.stubEnv("NODE_ENV", "production");
       expect(isIndexableEnvironment()).toBe(false);
@@ -31,6 +78,7 @@ describe("isIndexableEnvironment", () => {
 
   it("is noindex for a bare production build without a platform signal (opt-in)", () => {
     vi.stubEnv("SEO_INDEXING", "");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
     vi.stubEnv("VERCEL_ENV", "");
     vi.stubEnv("NODE_ENV", "production");
     expect(isIndexableEnvironment()).toBe(false);
@@ -46,6 +94,14 @@ describe("isIndexableEnvironment", () => {
     vi.stubEnv("SEO_INDEXING", "off");
     vi.stubEnv("VERCEL_ENV", "production");
     vi.stubEnv("NODE_ENV", "production");
+    expect(isIndexableEnvironment()).toBe(false);
+  });
+
+  it("SEO_INDEXING=off overrides the self-hosted canonical-origin signal", () => {
+    vi.stubEnv("SEO_INDEXING", "off");
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://library.ptec.edu.kh");
     expect(isIndexableEnvironment()).toBe(false);
   });
 });

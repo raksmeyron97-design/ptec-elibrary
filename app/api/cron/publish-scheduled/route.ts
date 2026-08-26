@@ -26,15 +26,16 @@ export const maxDuration = 60;
  * for the sweep implementation. Wrapped in try/catch so a pre-0100 database
  * (table not found) never breaks the posts/theses/books sweep above it.
  *
- * ── Setup ─────────────────────────────────────────────────────────────────
- * Same CRON_SECRET pattern as /api/cron/cleanup — add to vercel.json:
- *   { "crons": [{ "path": "/api/cron/publish-scheduled", "schedule": "*\/15 * * * *" }] }
- * (Vercel Hobby plans only allow once-daily crons; on Hobby, use an external
- * pinger — e.g. cron-job.org — hitting this URL every few minutes instead,
- * with the same `Authorization: Bearer $CRON_SECRET` header.) Push delivery
- * for an urgent announcement should not wait on this cadence alone — publish
- * already kicks off a same-request-lifetime `after()` delivery pass; this
- * sweep is the backstop, not the primary path.
+ * ── Who calls this ────────────────────────────────────────────────────────
+ * Same CRON_SECRET pattern as /api/cron/cleanup: a GET with
+ * `Authorization: Bearer $CRON_SECRET`, so no scheduler is privileged. The
+ * self-hosted container schedules nothing on its own, so the scheduler of
+ * record is .github/workflows/cron.yml, every 15 minutes — the finest
+ * granularity an editor can meaningfully schedule content to.
+ *
+ * Push delivery for an urgent announcement should not wait on this cadence
+ * alone — publish already kicks off a same-request-lifetime `after()`
+ * delivery pass; this sweep is the backstop, not the primary path.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;

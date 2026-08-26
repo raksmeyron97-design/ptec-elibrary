@@ -23,6 +23,7 @@ import {
   type ScholarlyWork,
 } from "@/lib/metadata-exports/scholarly";
 import { EXPORT_TYPES, fetchExportWork } from "@/lib/metadata-exports/works";
+import { clientIp } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +53,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ type: string; slug: string }> },
 ) {
-  const ip =
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown";
+  const ip = clientIp(req.headers);
   const { limit, windowMs } = ratePolicy("export");
   if (!(await rateLimit(`export:${ip}`, limit, windowMs)).success) {
     logSecurityEvent({ type: "rate_limited", where: "/api/export", ip });

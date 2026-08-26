@@ -47,11 +47,6 @@ const ENV_GROUPS: { group: string; critical: boolean; vars: string[] }[] = [
     critical: false,
     vars: ["CRON_SECRET"],
   },
-  {
-    group: "User avatars (Vercel Blob)",
-    critical: false,
-    vars: ["BLOB_READ_WRITE_TOKEN"],
-  },
 ];
 
 export async function register() {

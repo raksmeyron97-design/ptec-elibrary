@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from 'next-intl';
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { authRedirect } from "@/lib/auth/redirect-url";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 function friendlyError(msg: string): string {
@@ -156,7 +157,7 @@ export default function SignupContent({ stats, site }: Props) {
       options: {
         captchaToken,
         data: { full_name: fullName },
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        emailRedirectTo: authRedirect("/auth/callback"),
       },
     });
 
@@ -177,7 +178,7 @@ export default function SignupContent({ stats, site }: Props) {
     setGoogleLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: authRedirect("/auth/callback") },
     });
     if (error) { setError(friendlyErrorLocal(error.message)); setGoogleLoading(false); }
   }
