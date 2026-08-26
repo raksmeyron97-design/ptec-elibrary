@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, forwardRef } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, forwardRef } from "react";
 import Icon from "@/components/ui/core/Icon";
+
+/**
+ * `useLayoutEffect` warns when it runs during server rendering, and a client
+ * component still renders on the server. Same hook, no warning.
+ *
+ * Placement is measured from the laid-out DOM, so it has to be resolved
+ * before paint — a passive effect flips the menu one frame *after* it has
+ * already been painted downward.
+ */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export type SearchableSelectOption = { value: string; label: string };
 
@@ -97,7 +107,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
   }, [options, internalSelected, defaultValue, isControlled]);
 
   // Recheck placement when open, or on resize/scroll
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!isOpen) return;
     checkPlacement();
     const handleScrollOrResize = () => checkPlacement();

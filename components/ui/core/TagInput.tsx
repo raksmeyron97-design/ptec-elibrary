@@ -1,7 +1,17 @@
 "use client";
 
-import React, { useState, useRef, KeyboardEvent, useEffect } from "react";
+import React, { useState, useRef, KeyboardEvent, useEffect, useLayoutEffect } from "react";
 import { getAllTags } from "@/app/actions/tags";
+
+/**
+ * `useLayoutEffect` warns when it runs during server rendering, and a client
+ * component still renders on the server. Same hook, no warning.
+ *
+ * Placement is measured from the laid-out DOM, so it has to be resolved
+ * before paint — a passive effect flips the menu one frame *after* it has
+ * already been painted downward.
+ */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 interface TagInputProps {
   name: string;
@@ -72,7 +82,7 @@ export default function TagInput({
     }
   };
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!isFocused) return;
     checkPlacement();
     const handleScrollOrResize = () => checkPlacement();
