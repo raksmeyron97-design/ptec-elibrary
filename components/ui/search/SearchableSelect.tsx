@@ -24,6 +24,8 @@ interface SearchableSelectProps {
    * shipped with and stays the default so existing call sites are unchanged.
    */
   chevron?: "right" | "down";
+  /** Dropdown menu placement: "auto" (default), "top", or "bottom" */
+  placement?: "auto" | "top" | "bottom";
 }
 
 function normalize(options: string[] | SearchableSelectOption[]): SearchableSelectOption[] {
@@ -41,17 +43,49 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
   placeholder = "Select...",
   ariaLabel,
   chevron = "right",
+  placement = "auto",
 }, ref) {
   const isControlled = value !== undefined;
   const normalizedOptions = normalize(options);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const [search, setSearch] = useState("");
   const [internalSelected, setInternalSelected] = useState(defaultValue ?? normalizedOptions[0]?.value ?? "");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const selected = isControlled ? value! : internalSelected;
   const selectedLabel = normalizedOptions.find((o) => o.value === selected)?.label ?? "";
+
+  const checkPlacement = () => {
+    if (placement === "top") {
+      setDropUp(true);
+      return;
+    }
+    if (placement === "bottom") {
+      setDropUp(false);
+      return;
+    }
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const stickyBar = document.querySelector(".sticky.bottom-4, [class*='bottom-']");
+      const bottomOffset = stickyBar ? 80 : 0;
+      let spaceBelow = window.innerHeight - bottomOffset - rect.bottom;
+      let spaceAbove = rect.top;
+
+      // Also check bounding box of any scroll container or modal dialog ancestor
+      const scrollParent = wrapperRef.current.closest(".overflow-y-auto, [role='dialog'], form");
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const parentSpaceBelow = parentRect.bottom - rect.bottom;
+        const parentSpaceAbove = rect.top - parentRect.top;
+        spaceBelow = Math.min(spaceBelow, parentSpaceBelow);
+        spaceAbove = Math.min(spaceAbove, parentSpaceAbove);
+      }
+
+      setDropUp(spaceBelow < 280 && spaceAbove > spaceBelow);
+    }
+  };
 
   // Sync when options load asynchronously (e.g. from useEffect) — uncontrolled only.
   useEffect(() => {
@@ -61,6 +95,19 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options, internalSelected, defaultValue, isControlled]);
+
+  // Recheck placement when open, or on resize/scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    checkPlacement();
+    const handleScrollOrResize = () => checkPlacement();
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [isOpen, placement]);
 
   // Close on outside click.
   useEffect(() => {
@@ -74,6 +121,14 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  function handleToggle() {
+    if (disabled) return;
+    if (!isOpen) {
+      checkPlacement();
+    }
+    setIsOpen((prev) => !prev);
+  }
 
   function selectOption(v: string) {
     if (isControlled) onChange?.(v);
@@ -96,7 +151,7 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
         ref={ref}
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleToggle}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -117,7 +172,11 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-divider bg-bg-surface p-2 shadow-lg">
+        <div
+          className={`absolute z-50 w-full rounded-lg border border-divider bg-bg-surface p-2 shadow-xl ${
+            dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
+          }`}
+        >
           {/* Search Input */}
           <div className="relative mb-2">
             <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />

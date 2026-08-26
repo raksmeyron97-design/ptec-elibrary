@@ -117,6 +117,8 @@ export type EbookListRow = {
   language: string | null;
   year: number | null;
   status: EbookStatus;
+  /** Trust stamp (migration 0062). null = no librarian has verified the metadata. */
+  verifiedAt: string | null;
   coverUrl: string | null;
   fileUrl: string | null;
   fileFormat: string | null;

@@ -18,6 +18,7 @@ import {
   type ThesisAcademicYear,
 } from "@/app/actions/theses";
 import AddableSelect, { type SelectOption } from "./AddableSelect";
+import SearchableSelect from "@/components/ui/search/SearchableSelect";
 
 export interface CascadeValues {
   program: string;
@@ -329,18 +330,21 @@ export default function ProgramCohortFields({ defaultValues, onChange }: Props) 
           <label className="block text-sm font-semibold text-text-body mb-1.5">
             {t("subject")} <span className="text-danger">*</span>
           </label>
-          <select
+          <SearchableSelect
+            name="subject"
+            ariaLabel={t("subject")}
             value={subject}
-            onChange={(e) => handleSubjectChange(e.target.value)}
-            className={SELECT_CLASS}
-          >
-            <option value="">{t("selectSubject")}</option>
-            {subjectOptions.map((s) => (
-              <option key={s.code} value={s.code}>
-                {s.nameKm} — {s.nameEn}
-              </option>
-            ))}
-          </select>
+            onChange={handleSubjectChange}
+            options={[
+              { value: "", label: t("selectSubject") },
+              ...subjectOptions.map((s) => ({
+                value: s.code,
+                label: `${s.nameKm} — ${s.nameEn}`,
+              })),
+            ]}
+            placeholder={t("selectSubject")}
+            chevron="down"
+          />
         </div>
       )}
 

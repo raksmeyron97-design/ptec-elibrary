@@ -4803,6 +4803,10 @@
       "downloadPdf": "ទាញយក PDF",
       "comingSoon": "នឹងមកដល់ឆាប់ៗ",
       "featureBook": "លើកជាសៀវភៅពិសេស",
+      "submitForReview": "ដាក់ស្នើសម្រាប់ត្រួតពិនិត្យ",
+      "verifyMetadata": "ផ្ទៀងផ្ទាត់ទិន្នន័យ",
+      "unverifyMetadata": "ដកការផ្ទៀងផ្ទាត់",
+      "alreadyVerified": "បានផ្ទៀងផ្ទាត់ដោយបណ្ណារក្ស",
       "unpublish": "ដកការផ្សាយ",
       "publish": "បោះពុម្ពផ្សាយ",
       "restore": "ស្ដារពីបណ្ណសារ",
@@ -4861,7 +4865,10 @@
       "deleted": "សៀវភៅត្រូវបានលុប។",
       "deleteFailed": "ការលុបបរាជ័យ",
       "archived": "សៀវភៅត្រូវបានទុកក្នុងបណ្ណសារ។",
-      "archiveFailed": "ការទុកក្នុងបណ្ណសារបរាជ័យ"
+      "archiveFailed": "ការទុកក្នុងបណ្ណសារបរាជ័យ",
+      "submittedForReview": "បានផ្ញើទៅជួរត្រួតពិនិត្យ។",
+      "verified": "បានផ្ទៀងផ្ទាត់ទិន្នន័យ។",
+      "unverified": "បានដកការផ្ទៀងផ្ទាត់។"
     },
     "deleteDialog": {
       "title": "លុបសៀវភៅ?",
@@ -5051,6 +5058,9 @@
       "duplicate": "ចម្លង",
       "copyLink": "ចម្លងតំណសាធារណៈ",
       "downloadPdf": "ទាញយក PDF",
+      "submitForReview": "ដាក់ស្នើសម្រាប់ត្រួតពិនិត្យ",
+      "verifyMetadata": "ផ្ទៀងផ្ទាត់ទិន្នន័យ",
+      "unverifyMetadata": "ដកការផ្ទៀងផ្ទាត់",
       "unpublish": "ដកការផ្សាយ",
       "publish": "បោះពុម្ពផ្សាយ",
       "restore": "ស្ដារពីបណ្ណសារ",
@@ -5077,7 +5087,10 @@
       "bulkFailed": "សកម្មភាពជាដុំបរាជ័យ",
       "updated": "សារណាត្រូវបានធ្វើបច្ចុប្បន្នភាព។",
       "deleted": "សារណាត្រូវបានលុប។",
-      "deleteFailed": "ការលុបបរាជ័យ"
+      "deleteFailed": "ការលុបបរាជ័យ",
+      "submittedForReview": "បានផ្ញើទៅជួរត្រួតពិនិត្យ។",
+      "verified": "បានផ្ទៀងផ្ទាត់ទិន្នន័យ។",
+      "unverified": "បានដកការផ្ទៀងផ្ទាត់។"
     },
     "deleteDialog": {
       "title": "លុបសារណានេះ?",

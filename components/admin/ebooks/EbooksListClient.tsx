@@ -16,6 +16,9 @@ import {
   unpublishEbook,
   archiveEbook,
   restoreEbook,
+  submitEbookForReview,
+  verifyEbook,
+  unverifyEbook,
   deleteEbook,
   bulkUpdateEbooks,
   type BulkEbookAction,
@@ -83,14 +86,18 @@ export default function EbooksListClient({
     setSelectedIds((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
   }
 
-  async function runRowAction(id: string, fn: () => Promise<{ success: boolean; error?: string }>) {
+  async function runRowAction(
+    id: string,
+    fn: () => Promise<{ success: boolean; error?: string }>,
+    successMessage?: string,
+  ) {
     setBusyId(id);
     try {
       const result = await fn();
       if (!result.success) {
         toast.error(result.error ?? t("failed"));
       } else {
-        toast.success(t("updated"));
+        toast.success(successMessage ?? t("updated"));
         startTransition(() => router.refresh());
       }
     } catch (err) {
@@ -171,6 +178,10 @@ export default function EbooksListClient({
       setArchiveTarget({ kind: "single", id, title: book?.title ?? "this e-book" });
     },
     onRestore: (id: string) => runRowAction(id, () => restoreEbook(id)),
+    onSubmitForReview: (id: string) =>
+      runRowAction(id, () => submitEbookForReview(id), t("submittedForReview")),
+    onVerify: (id: string) => runRowAction(id, () => verifyEbook(id), t("verified")),
+    onUnverify: (id: string) => runRowAction(id, () => unverifyEbook(id), t("unverified")),
     onDeleteRequest: (id: string, title: string) => setDeleteTarget({ kind: "single", id, title }),
   };
 

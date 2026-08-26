@@ -20,7 +20,7 @@ import {
 import Icon from "@/components/ui/core/Icon";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import TagInput from "@/components/ui/core/TagInput";
-import { getPdfPageCount } from "@/lib/pdf-client-utils";
+import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
 import { FileText, ImagePlus, Upload, AlertCircle, BookOpen, X } from "lucide-react";
 
 const LANGUAGES = ["Khmer", "English"] as const;
@@ -200,14 +200,18 @@ export default function UploadForm({
     setAiError(null);
     setDetectedPages(null);
 
-    if (file && file.type === "application/pdf") {
+    if (file && isPdfFile(file)) {
       setIsDetectingPages(true);
       try {
         const count = await getPdfPageCount(file);
-        if (count && pagesInputRef.current) {
-          pagesInputRef.current.value = String(count);
+        if (count && count > 0) {
+          if (pagesInputRef.current) {
+            pagesInputRef.current.value = String(count);
+          }
           setDetectedPages(count);
         }
+      } catch (err) {
+        console.warn("[UploadForm] Could not detect pages:", err);
       } finally {
         setIsDetectingPages(false);
       }
@@ -265,7 +269,7 @@ export default function UploadForm({
 
     const pdf = formData.get("pdf");
     if (!(pdf instanceof File) || pdf.size === 0) { setError(t("err.pdfRequired")); return; }
-    if (pdf.type !== "application/pdf") { setError(t("err.pdfOnly")); return; }
+    if (!isPdfFile(pdf)) { setError(t("err.pdfOnly")); return; }
 
     const cover    = formData.get("cover");
     const hasCover = cover instanceof File && cover.size > 0;
@@ -759,6 +763,7 @@ export default function UploadForm({
               name="tags"
               placeholder={t("field.keywordsPlaceholder")}
               disabled={busy}
+              placement="top"
             />
             <p className="mt-1.5 text-[11px] text-text-muted">
               ចុច Enter ឬ , ដើម្បីបន្ថែម tag · Press Enter or comma to add each tag

@@ -15,6 +15,9 @@ import {
   archiveThesis,
   unarchiveThesis,
   duplicateThesis,
+  submitThesisForReview,
+  verifyThesis,
+  unverifyThesis,
   deleteThesis,
   bulkUpdateTheses,
   type BulkThesisAction,
@@ -87,11 +90,26 @@ export default function ThesesListClient({
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
-  async function runRowAction(id: string, fn: () => Promise<unknown>) {
+  /*
+    Row actions in this file come in two shapes: the older ones throw on
+    failure, the newer ones return { success, error }. Handling both is
+    deliberate — checking the returned result also fixes a latent bug where a
+    rejected toggleThesisPublishStatus (which returns rather than throws) still
+    toasted "updated".
+  */
+  async function runRowAction(
+    id: string,
+    fn: () => Promise<unknown>,
+    successMessage?: string,
+  ) {
     setBusyId(id);
     try {
-      await fn();
-      toast.success(t("updated"));
+      const result = (await fn()) as { success?: boolean; error?: string } | undefined;
+      if (result && result.success === false) {
+        toast.error(result.error ?? t("failed"));
+        return;
+      }
+      toast.success(successMessage ?? t("updated"));
       startTransition(() => router.refresh());
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("failed"));
@@ -144,6 +162,10 @@ export default function ThesesListClient({
     onArchive: (id: string) => runRowAction(id, () => archiveThesis(id)),
     onUnarchive: (id: string) => runRowAction(id, () => unarchiveThesis(id)),
     onDuplicate: (id: string) => runRowAction(id, () => duplicateThesis(id)),
+    onSubmitForReview: (id: string) =>
+      runRowAction(id, () => submitThesisForReview(id), t("submittedForReview")),
+    onVerify: (id: string) => runRowAction(id, () => verifyThesis(id), t("verified")),
+    onUnverify: (id: string) => runRowAction(id, () => unverifyThesis(id), t("unverified")),
     onDeleteRequest: (id: string, title: string) => setDeleteTarget({ kind: "single", id, title }),
   };
 

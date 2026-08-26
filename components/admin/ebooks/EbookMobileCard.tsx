@@ -23,6 +23,9 @@ export default function EbookMobileCard({
   onUnpublish,
   onArchive,
   onRestore,
+  onSubmitForReview,
+  onVerify,
+  onUnverify,
   onDeleteRequest,
 }: {
   rows: EbookListRow[];
@@ -33,6 +36,9 @@ export default function EbookMobileCard({
   onUnpublish: (id: string) => void;
   onArchive: (id: string) => void;
   onRestore: (id: string) => void;
+  onSubmitForReview: (id: string) => void;
+  onVerify: (id: string) => void;
+  onUnverify: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
   const t = useTranslations("adminEbooks.table");
@@ -113,6 +119,9 @@ export default function EbookMobileCard({
                       onUnpublish={() => onUnpublish(book.id)}
                       onArchive={() => onArchive(book.id)}
                       onRestore={() => onRestore(book.id)}
+                      onSubmitForReview={() => onSubmitForReview(book.id)}
+                      onVerify={() => onVerify(book.id)}
+                      onUnverify={() => onUnverify(book.id)}
                       onDeleteRequest={onDeleteRequest}
                     />
                   </div>

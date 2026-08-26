@@ -79,6 +79,9 @@ type RowActions = {
   onUnpublish: (id: string) => void;
   onArchive: (id: string) => void;
   onRestore: (id: string) => void;
+  onSubmitForReview: (id: string) => void;
+  onVerify: (id: string) => void;
+  onUnverify: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 };
 
@@ -266,6 +269,9 @@ export default function EbooksTable({
                       onUnpublish={() => actions.onUnpublish(book.id)}
                       onArchive={() => actions.onArchive(book.id)}
                       onRestore={() => actions.onRestore(book.id)}
+                      onSubmitForReview={() => actions.onSubmitForReview(book.id)}
+                      onVerify={() => actions.onVerify(book.id)}
+                      onUnverify={() => actions.onUnverify(book.id)}
                       onDeleteRequest={actions.onDeleteRequest}
                     />
                   </div>

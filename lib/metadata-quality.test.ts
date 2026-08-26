@@ -74,6 +74,51 @@ describe("evaluateQuality — theses", () => {
   });
 });
 
+/*
+  missingRequired is the gate the in-place verification actions apply before
+  stamping verified_at (verifyEbook / verifyThesis). Pinning the exact set
+  matters in both directions: promoting a field to `required` silently starts
+  blocking verification on historical records that can never satisfy it, and
+  demoting one lets a record carry a public "verified by librarian" badge
+  without it.
+*/
+describe("required-field set gating verification", () => {
+  it("books gate on title, author and language only", () => {
+    const report = evaluateQuality("book", {});
+    expect(report.missingRequired.sort()).toEqual(
+      ["Author / contributor", "Language", "Title"].sort(),
+    );
+  });
+
+  it("theses additionally gate on the PDF", () => {
+    const report = evaluateQuality("thesis", {});
+    expect(report.missingRequired.sort()).toEqual(
+      ["Author / contributor", "File (PDF)", "Language", "Title"].sort(),
+    );
+  });
+
+  it("a thesis with the four required fields is verifiable despite an otherwise thin record", () => {
+    const report = evaluateQuality("thesis", {
+      title: "A study of X",
+      author_names: "សុខ សុភា",
+      language: "km",
+      file_url: "https://cdn.example/theses/x.pdf",
+    });
+    // No blocking gaps, but plenty still advisory — verification must not
+    // demand a perfect score, only a truthful one.
+    expect(report.missingRequired).toEqual([]);
+    expect(report.score).toBeLessThan(100);
+  });
+
+  it("license and cover never block verification on either type", () => {
+    for (const type of ["book", "thesis"] as const) {
+      const report = evaluateQuality(type, {});
+      expect(report.missingRequired).not.toContain("Rights / license");
+      expect(report.missingRequired).not.toContain("Cover / preview image");
+    }
+  });
+});
+
 describe("evaluateQuality — publications", () => {
   it("uses publication_date and journal fields", () => {
     const report = evaluateQuality("publication", {

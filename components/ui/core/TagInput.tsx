@@ -10,6 +10,8 @@ interface TagInputProps {
   max?: number;
   disabled?: boolean;
   label?: string;
+  /** Dropdown menu placement: "auto" (default), "top", or "bottom" */
+  placement?: "auto" | "top" | "bottom";
   /** Notified with the current tag list on every change (including mount). Optional — most callers just read the hidden input at submit time. */
   onChange?: (tags: string[]) => void;
 }
@@ -21,13 +23,16 @@ export default function TagInput({
   max = 20,
   disabled = false,
   label,
+  placement = "auto",
   onChange,
 }: TagInputProps) {
   const [tags, setTags] = useState<string[]>(defaultTags);
   const [inputValue, setInputValue] = useState("");
   const [allTags, setAllTags] = useState<string[]>([]);
   const [isFocused, setIsFocused] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getAllTags().then(setAllTags).catch(console.error);
@@ -37,6 +42,47 @@ export default function TagInput({
     onChange?.(tags);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tags]);
+
+  const checkPlacement = () => {
+    if (placement === "top") {
+      setDropUp(true);
+      return;
+    }
+    if (placement === "bottom") {
+      setDropUp(false);
+      return;
+    }
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const stickyBar = document.querySelector(".sticky.bottom-4, [class*='bottom-']");
+      const bottomOffset = stickyBar ? 80 : 0;
+      let spaceBelow = window.innerHeight - bottomOffset - rect.bottom;
+      let spaceAbove = rect.top;
+
+      const scrollParent = containerRef.current.closest(".overflow-y-auto, [role='dialog'], form");
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const parentSpaceBelow = parentRect.bottom - rect.bottom;
+        const parentSpaceAbove = rect.top - parentRect.top;
+        spaceBelow = Math.min(spaceBelow, parentSpaceBelow);
+        spaceAbove = Math.min(spaceAbove, parentSpaceAbove);
+      }
+
+      setDropUp(spaceBelow < 250 && spaceAbove > spaceBelow);
+    }
+  };
+
+  useEffect(() => {
+    if (!isFocused) return;
+    checkPlacement();
+    const handleScrollOrResize = () => checkPlacement();
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [isFocused, placement]);
 
   const filteredSuggestions = allTags.filter(
     (t) =>
@@ -73,7 +119,7 @@ export default function TagInput({
   };
 
   return (
-    <div className="w-full relative">
+    <div className="w-full relative" ref={containerRef}>
       {label && <label className="mb-1.5 block text-sm font-semibold text-text-body">{label}</label>}
       <div
         className={`focus-shell flex flex-wrap gap-1.5 min-h-[44px] rounded-xl border border-divider bg-bg-surface p-2 hover:border-border-strong ${
@@ -106,7 +152,10 @@ export default function TagInput({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            checkPlacement();
+            setIsFocused(true);
+          }}
           onBlur={() => {
             addTag(inputValue);
             setIsFocused(false);
@@ -119,20 +168,26 @@ export default function TagInput({
       
       {/* Dropdown Suggestions */}
       {isFocused && inputValue && filteredSuggestions.length > 0 && (
-        <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-divider bg-bg-surface p-1 shadow-xl">
-          {filteredSuggestions.map((suggestion) => (
-            <li
-              key={suggestion}
-              className="cursor-pointer rounded-lg px-3 py-2 text-sm text-text-body transition-colors hover:bg-brand/10 hover:text-brand"
-              onMouseDown={(e) => {
-                e.preventDefault(); // Prevents input from losing focus
-                addTag(suggestion);
-              }}
-            >
-              {suggestion}
-            </li>
-          ))}
-        </ul>
+        <div
+          className={`absolute z-50 w-full rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl ${
+            dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
+          }`}
+        >
+          <ul className="max-h-48 overflow-y-auto space-y-0.5">
+            {filteredSuggestions.map((suggestion) => (
+              <li
+                key={suggestion}
+                className="cursor-pointer rounded-lg px-3 py-2 text-sm font-medium text-text-body transition-colors hover:bg-brand/5 hover:text-brand"
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevents input from losing focus
+                  addTag(suggestion);
+                }}
+              >
+                {suggestion}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <input type="hidden" name={name} value={tags.join(",")} />

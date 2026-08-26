@@ -105,6 +105,8 @@ export type ThesisListRow = {
   cohort: string | null;
   academicYear: string | null;
   status: ThesisStatus;
+  /** Trust stamp (migration 0062). null = no librarian has verified the metadata. */
+  verifiedAt: string | null;
   coverUrl: string | null;
   fileUrl: string | null;
   doi: string | null;

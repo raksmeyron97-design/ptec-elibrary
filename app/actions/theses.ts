@@ -12,6 +12,8 @@ import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizeStatus, slugify, type ThesisStatus } from "@/lib/admin/theses-shared";
 import { checkThesisPublishReady } from "@/lib/publish-readiness";
+import { canActorVerifyInPlace } from "@/lib/content-status";
+import { evaluateQuality } from "@/lib/metadata-quality";
 import { logContentView } from "@/lib/analytics/events";
 
 
@@ -574,6 +576,156 @@ export async function archiveThesis(id: string) {
 
 export async function unarchiveThesis(id: string) {
   await setThesisStatus(id, "draft");
+}
+
+// ── Metadata verification (trust badge + authoritative citations) ────────
+//
+// Mirrors app/actions/ebooks.ts. Verification stamps verified_at/verified_by
+// WITHOUT moving status, which is the one thing the review queue cannot do:
+// canTransition() in lib/content-status.ts rejects from === to, so a thesis
+// already sitting at 'published' with verified_at = null had no legal route
+// to a verified stamp.
+//
+// These columns are deliberately NOT added to THESIS_FIELDS. That whitelist
+// guards createThesis/updateThesis, which take an arbitrary caller-supplied
+// payload — putting verified_at in it would let anyone with research:write
+// stamp their own record straight from the form body and walk straight past
+// the reviewer separation below. Dedicated actions writing their own columns
+// is the existing shape in this file (see setThesisStatus /
+// toggleThesisPublishStatus, which write status and is_published the same way).
+
+type VerifyResult = { success: boolean; error?: string };
+
+const THESIS_VERIFY_COLS = `
+  id, title, slug, status, created_by, author_names, language, published_at,
+  academic_year, abstract, license, cover_url, source_attribution,
+  department_id, advisor_name, file_url, file_size_kb, keywords, doi
+`;
+
+async function loadThesisVerifyTarget(
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
+  id: string,
+) {
+  const rich = await supabase.from("research_reports").select(THESIS_VERIFY_COLS).eq("id", id).maybeSingle();
+  if (!rich.error) return rich.data;
+  // Pre-0086: no created_by column. Re-read without it; the self-approval
+  // check then cannot fire, matching how app/actions/review.ts degrades.
+  if (rich.error.code !== "42703") throw new Error(rich.error.message);
+  const basic = await supabase
+    .from("research_reports")
+    .select(THESIS_VERIFY_COLS.replace("created_by,", ""))
+    .eq("id", id)
+    .maybeSingle();
+  if (basic.error) throw new Error(basic.error.message);
+  return basic.data;
+}
+
+/**
+ * Stamp this thesis as verified by the current librarian.
+ *
+ * Blocks on missing *required* metadata — for a thesis that is title, author,
+ * language and the PDF itself (lib/metadata-quality.ts). A trust badge on a
+ * record with no file attached would assert something untrue.
+ */
+export async function verifyThesis(id: string): Promise<VerifyResult> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+    await enforceRateLimit(admin.user.id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user, role } = admin;
+
+  let row: Record<string, unknown> | null;
+  try {
+    row = (await loadThesisVerifyTarget(supabase, id)) as Record<string, unknown> | null;
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  if (!row) return { success: false, error: "Thesis not found" };
+
+  const isOwnContent = Boolean(row.created_by && row.created_by === user.id);
+  const check = canActorVerifyInPlace({ role, isOwnContent });
+  if (!check.allowed) return { success: false, error: check.reason ?? "Not allowed" };
+
+  const quality = evaluateQuality("thesis", row);
+  if (quality.missingRequired.length > 0) {
+    return {
+      success: false,
+      error: `Cannot verify — still missing: ${quality.missingRequired.join(", ")}.`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("research_reports")
+    .update({ verified_at: new Date().toISOString(), verified_by: user.id })
+    .eq("id", id);
+  if (error) {
+    if (error.code === "PGRST204") {
+      return { success: false, error: "Verification needs migration 0062_trust_fields.sql applied first." };
+    }
+    return { success: false, error: error.message };
+  }
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "thesis.verify", "research_reports", id, {
+    title: row.title,
+    score: quality.score,
+    grade: quality.grade,
+    ...(check.override ? { override: check.override } : {}),
+    ...meta,
+  });
+
+  revalidateAllTheses();
+  return { success: true };
+}
+
+/**
+ * Clear the verification stamp. Verification is a public claim — it drives
+ * the trust badge, the citation box and OAI-PMH inclusion — so verifying the
+ * wrong record has to be undoable.
+ */
+export async function unverifyThesis(id: string): Promise<VerifyResult> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("research", "write");
+    await enforceRateLimit(admin.user.id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user, role } = admin;
+
+  // Withdrawing a claim needs the same standing as making one, but never the
+  // self-approval bar: un-verifying your own record removes trust, it does
+  // not grant it.
+  const check = canActorVerifyInPlace({ role, isOwnContent: false });
+  if (!check.allowed) return { success: false, error: check.reason ?? "Not allowed" };
+
+  const { data: row, error } = await supabase
+    .from("research_reports")
+    .update({ verified_at: null, verified_by: null })
+    .eq("id", id)
+    .select("title")
+    .maybeSingle();
+  if (error) return { success: false, error: error.message };
+  if (!row) return { success: false, error: "Thesis not found" };
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "thesis.unverify", "research_reports", id, { title: row.title, ...meta });
+
+  revalidateAllTheses();
+  return { success: true };
+}
+
+/** Push a thesis into the /admin/review queue for a librarian to verify. */
+export async function submitThesisForReview(id: string): Promise<VerifyResult> {
+  try {
+    await setThesisStatus(id, "pending_review");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
 }
 
 export async function scheduleThesis(id: string, scheduledAt: string) {

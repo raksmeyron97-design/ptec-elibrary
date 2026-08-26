@@ -4798,6 +4798,10 @@
       "downloadPdf": "Download PDF",
       "comingSoon": "Coming soon",
       "featureBook": "Feature book",
+      "submitForReview": "Submit for review",
+      "verifyMetadata": "Verify metadata",
+      "unverifyMetadata": "Remove verification",
+      "alreadyVerified": "Verified by a librarian",
       "unpublish": "Unpublish",
       "publish": "Publish",
       "restore": "Restore from archive",
@@ -4856,7 +4860,10 @@
       "deleted": "E-book deleted.",
       "deleteFailed": "Delete failed",
       "archived": "E-book archived.",
-      "archiveFailed": "Archive failed"
+      "archiveFailed": "Archive failed",
+      "submittedForReview": "Sent to the review queue.",
+      "verified": "Metadata verified.",
+      "unverified": "Verification removed."
     },
     "deleteDialog": {
       "title": "Delete e-book?",
@@ -5046,6 +5053,9 @@
       "duplicate": "Duplicate",
       "copyLink": "Copy public link",
       "downloadPdf": "Download PDF",
+      "submitForReview": "Submit for review",
+      "verifyMetadata": "Verify metadata",
+      "unverifyMetadata": "Remove verification",
       "unpublish": "Unpublish",
       "publish": "Publish",
       "restore": "Restore from archive",
@@ -5072,7 +5082,10 @@
       "bulkFailed": "Bulk action failed",
       "updated": "Thesis updated.",
       "deleted": "Thesis deleted.",
-      "deleteFailed": "Delete failed"
+      "deleteFailed": "Delete failed",
+      "submittedForReview": "Sent to the review queue.",
+      "verified": "Metadata verified.",
+      "unverified": "Verification removed."
     },
     "deleteDialog": {
       "title": "Delete this thesis?",

@@ -6,6 +6,8 @@ import { useRouter } from "@/i18n/navigation";
 import { SlidersHorizontal, X } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, type ThesisProgram, type ThesisFaculty } from "@/app/actions/theses";
 
+import SearchableSelect, { type SearchableSelectOption } from "@/components/ui/search/SearchableSelect";
+
 export type FacetOption = { value: string; label: string; count: number };
 
 interface Props {
@@ -23,10 +25,6 @@ interface Props {
   advisors: FacetOption[];
   keywords: FacetOption[];
 }
-
-// Shared single-control focus state — see `focus-field` in app/globals.css.
-const fieldClass = "focus-field h-10 w-full rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body";
-const selectClass = `${fieldClass} appearance-none cursor-pointer`;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -111,6 +109,41 @@ export default function AdvancedSearchModal({
 
   const facultyOptions = faculties.filter((f) => f.program_code === program);
 
+  const programSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "All Programs" },
+    ...programs.map((p) => ({ value: p.code, label: p.name_en })),
+  ];
+
+  const facultySelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "All Faculties" },
+    ...facultyOptions.map((f) => ({ value: f.code, label: f.name_en })),
+  ];
+
+  const cohortSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "All Cohorts" },
+    ...cohorts.map((c) => ({ value: c.value, label: `${c.label} (${c.count})` })),
+  ];
+
+  const yearSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "Any Year" },
+    ...years.map((y) => ({ value: y, label: y })),
+  ];
+
+  const authorSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "Any Author" },
+    ...authors.map((a) => ({ value: a.value, label: `${a.label} (${a.count})` })),
+  ];
+
+  const advisorSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "Any Advisor" },
+    ...advisors.map((a) => ({ value: a.value, label: `${a.label} (${a.count})` })),
+  ];
+
+  const keywordSelectOptions: SearchableSelectOption[] = [
+    { value: "", label: "Any Keyword" },
+    ...keywords.map((k) => ({ value: k.value, label: `${k.label} (${k.count})` })),
+  ];
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const params: Record<string, string> = {};
@@ -176,99 +209,99 @@ export default function AdvancedSearchModal({
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search title, author, advisor..."
-                  className={fieldClass}
+                  className="focus-field h-11 w-full rounded-lg border border-divider bg-bg-surface px-4 text-sm text-text-heading placeholder:text-text-muted outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/30"
                 />
               </Field>
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Program">
-                  <select
+                  <SearchableSelect
+                    name="program"
+                    ariaLabel="Program"
                     value={program}
-                    onChange={(e) => {
-                      setProgram(e.target.value);
+                    onChange={(v) => {
+                      setProgram(v);
                       setFaculty("");
                     }}
-                    className={selectClass}
-                  >
-                    <option value="">All Programs</option>
-                    {programs.map((p) => (
-                      <option key={p.code} value={p.code}>
-                        {p.name_en}
-                      </option>
-                    ))}
-                  </select>
+                    options={programSelectOptions}
+                    placeholder="All Programs"
+                    chevron="down"
+                  />
                 </Field>
 
                 <Field label="Faculty">
-                  <select
+                  <SearchableSelect
+                    name="faculty"
+                    ariaLabel="Faculty"
                     value={faculty}
-                    onChange={(e) => setFaculty(e.target.value)}
+                    onChange={setFaculty}
                     disabled={facultyOptions.length === 0}
-                    className={`${selectClass} disabled:cursor-not-allowed disabled:opacity-50`}
-                  >
-                    <option value="">All Faculties</option>
-                    {facultyOptions.map((f) => (
-                      <option key={f.code} value={f.code}>
-                        {f.name_en}
-                      </option>
-                    ))}
-                  </select>
+                    options={facultySelectOptions}
+                    placeholder="All Faculties"
+                    chevron="down"
+                  />
                 </Field>
 
                 <Field label="Cohort">
-                  <select value={cohort} onChange={(e) => setCohort(e.target.value)} className={selectClass}>
-                    <option value="">All Cohorts</option>
-                    {cohorts.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label} ({c.count})
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    name="cohort"
+                    ariaLabel="Cohort"
+                    value={cohort}
+                    onChange={setCohort}
+                    options={cohortSelectOptions}
+                    placeholder="All Cohorts"
+                    chevron="down"
+                  />
                 </Field>
 
                 <Field label="Published Year">
-                  <select value={year} onChange={(e) => setYear(e.target.value)} className={selectClass}>
-                    <option value="">Any Year</option>
-                    {years.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    name="year"
+                    ariaLabel="Published Year"
+                    value={year}
+                    onChange={setYear}
+                    options={yearSelectOptions}
+                    placeholder="Any Year"
+                    chevron="down"
+                  />
                 </Field>
 
                 <Field label="Author">
-                  <select value={author} onChange={(e) => setAuthor(e.target.value)} className={selectClass}>
-                    <option value="">Any Author</option>
-                    {authors.map((a) => (
-                      <option key={a.value} value={a.value}>
-                        {a.label} ({a.count})
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    name="author"
+                    ariaLabel="Author"
+                    value={author}
+                    onChange={setAuthor}
+                    options={authorSelectOptions}
+                    placeholder="Any Author"
+                    chevron="down"
+                  />
                 </Field>
 
                 <Field label="Advisor">
-                  <select value={advisor} onChange={(e) => setAdvisor(e.target.value)} className={selectClass}>
-                    <option value="">Any Advisor</option>
-                    {advisors.map((a) => (
-                      <option key={a.value} value={a.value}>
-                        {a.label} ({a.count})
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    name="advisor"
+                    ariaLabel="Advisor"
+                    value={advisor}
+                    onChange={setAdvisor}
+                    options={advisorSelectOptions}
+                    placeholder="Any Advisor"
+                    chevron="down"
+                  />
                 </Field>
               </div>
 
               <Field label="Keyword Tag">
-                <select value={keyword} onChange={(e) => setKeyword(e.target.value)} className={selectClass}>
-                  <option value="">Any Keyword</option>
-                  {keywords.map((k) => (
-                    <option key={k.value} value={k.value}>
-                      {k.label} ({k.count})
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  name="keyword"
+                  ariaLabel="Keyword Tag"
+                  value={keyword}
+                  onChange={setKeyword}
+                  options={keywordSelectOptions}
+                  placeholder="Any Keyword"
+                  chevron="down"
+                  placement="top"
+                />
               </Field>
             </div>
 

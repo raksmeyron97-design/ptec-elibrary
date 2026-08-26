@@ -18,9 +18,10 @@ import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import BookSeoPanel from "@/components/admin/ebooks/BookSeoPanel";
+import BookVerifyPanel from "@/components/admin/ebooks/BookVerifyPanel";
 import SeoOverrideFields from "@/components/admin/seo/SeoOverrideFields";
 import { SITE_URL } from "@/lib/seo/site";
-import { getPdfPageCount } from "@/lib/pdf-client-utils";
+import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
 import {
   ImagePlus,
   UploadCloud,
@@ -34,6 +35,7 @@ import {
   Info,
   Download,
   Search,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -68,6 +70,11 @@ type Initial = {
   fileUrl: string | null;
   fileSizeKb: number | null;
   fileFormat: string | null;
+  /* Editorial state, for the Review & Verify tab. */
+  status: string;
+  verifiedAt: string | null;
+  verifierName: string | null;
+  sourceAttribution: string;
 };
 
 type Phase = "idle" | "uploading-pdf" | "uploading-cover" | "saving";
@@ -83,7 +90,7 @@ const SELECT_CLASS =
   "focus-field h-11 w-full rounded-xl border border-divider bg-bg-surface px-4 text-sm " +
   "disabled:opacity-60 text-text-body";
 
-type TabKey = "files" | "details" | "seo";
+type TabKey = "files" | "details" | "seo" | "review";
 
 /*
   Three tabs, replacing a single 800px column that stacked five cards.
@@ -98,6 +105,7 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "files", label: "Files", icon: FileText },
   { key: "details", label: "Book Details", icon: BookOpen },
   { key: "seo", label: "SEO & Metadata Quality", icon: Search },
+  { key: "review", label: "Review & Verify", icon: ShieldCheck },
 ];
 
 function FileStatusRow({
@@ -277,6 +285,8 @@ export default function EditForm({
     year: initial.year || null,
     pages: initial.pages || null,
     tags: initial.tags,
+    category: initial.category,
+    license: initial.license ?? "",
   });
 
   function handleFormInput(e: React.FormEvent<HTMLFormElement>) {
@@ -295,6 +305,8 @@ export default function EditForm({
       year: num(fd.get("year")),
       pages: num(fd.get("pages")),
       tags: fd.getAll("tags").map(String).filter(Boolean),
+      category: String(fd.get("category") ?? ""),
+      license: String(fd.get("license") ?? ""),
     });
   }
 
@@ -320,7 +332,7 @@ export default function EditForm({
   async function handlePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.type !== "application/pdf") { setError("File must be a PDF"); return; }
+    if (!isPdfFile(file)) { setError("File must be a PDF"); return; }
     if (file.size > 100 * 1024 * 1024)   { setError("PDF must be under 100 MB"); return; }
     setError(null);
     setPdfFile(file);
@@ -330,10 +342,12 @@ export default function EditForm({
     setIsDetectingPages(true);
     try {
       const count = await getPdfPageCount(file);
-      if (count && pagesInputRef.current) {
+      if (count && count > 0 && pagesInputRef.current) {
         pagesInputRef.current.value = String(count);
         setDetectedPages(count);
       }
+    } catch (err) {
+      console.warn("[EditForm] Could not detect pages:", err);
     } finally {
       setIsDetectingPages(false);
     }
@@ -422,13 +436,54 @@ export default function EditForm({
   };
 
   /*
+    The metadata-quality checklist reads a books *row*, so the live form state
+    is reshaped into one. Fields the form does not expose (source_attribution)
+    come from the loaded record unchanged.
+  */
+  const qualityRow: Record<string, unknown> = {
+    title: seoState.title,
+    authors: { name: seoState.author },
+    language: seoState.language,
+    published_at: seoState.year ? String(seoState.year) : "",
+    description: seoState.summary,
+    license: seoState.license,
+    cover_url: preview ?? "",
+    source_attribution: initial.sourceAttribution,
+    category_id: seoState.category,
+    isbn: seoState.isbn,
+    pages: seoState.pages,
+    tags: seoState.tags,
+  };
+
+  /*
+    Verification stamps the *saved* row, so the panel has to know whether the
+    form is ahead of it. This form has no general dirty tracking (it saves on
+    submit and nothing else depends on it), so the flag is derived from the
+    same live snapshot the checklist uses, plus any queued upload.
+  */
+  const verifyDirty =
+    Boolean(pdfFile) ||
+    Boolean(coverFile) ||
+    seoState.title !== initial.title ||
+    seoState.author !== initial.author ||
+    seoState.summary !== initial.summary ||
+    seoState.language !== initial.language ||
+    seoState.isbn !== initial.isbn ||
+    seoState.publisher !== initial.publisher ||
+    seoState.category !== initial.category ||
+    seoState.license !== (initial.license ?? "") ||
+    (seoState.year ?? 0) !== (initial.year || 0) ||
+    (seoState.pages ?? 0) !== (initial.pages || 0) ||
+    seoState.tags.join("\u0000") !== initial.tags.join("\u0000");
+
+  /*
     Context per tab. Files raises "is what a reader downloads actually there";
     Book Details raises "how will this read to someone who has not opened it".
     The SEO tab gets nothing — that tab already *is* the quality panel, and a
     summary of the summary is noise.
   */
   const context =
-    activeTab === "seo" ? null : activeTab === "files" ? (
+    activeTab === "seo" || activeTab === "review" ? null : activeTab === "files" ? (
       <ContextPanel title="File status" icon={FileText} hint="What a reader can open, and what the listing shows.">
         <ul className="space-y-1.5 text-[13px]">
           <FileStatusRow
@@ -895,7 +950,7 @@ export default function EditForm({
             {/* Tags */}
             <div>
               <FieldLabel>Keywords / Tags (ពាក្យគន្លឺះ)</FieldLabel>
-              <TagInput name="tags" defaultTags={initial.tags} disabled={saving} />
+              <TagInput name="tags" defaultTags={initial.tags} disabled={saving} placement="top" />
             </div>
           </div>
         </div>
@@ -926,6 +981,24 @@ export default function EditForm({
           fallbackDescription={seoState.summary}
           fallbackImage={preview}
           disabled={saving}
+        />
+      </div>
+      <div
+        id="ebook-panel-review"
+        role="tabpanel"
+        aria-labelledby="ebook-tab-review"
+        tabIndex={-1}
+        hidden={activeTab !== "review"}
+        className="space-y-5 focus:outline-none"
+      >
+        <BookVerifyPanel
+          bookId={initial.id}
+          row={qualityRow}
+          status={initial.status}
+          verifiedAt={initial.verifiedAt}
+          verifierName={initial.verifierName}
+          dirty={verifyDirty}
+          onNavigate={setActiveTab}
         />
       </div>
     </FormShell>

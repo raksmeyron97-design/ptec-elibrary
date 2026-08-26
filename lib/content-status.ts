@@ -113,6 +113,42 @@ export function canActorTransition(opts: {
   return { allowed: true };
 }
 
+/**
+ * Verification of a record that is *already* in its final status — the
+ * "Verify metadata" action on an existing published book/thesis.
+ *
+ * canActorTransition() cannot express this: canTransition() returns false when
+ * from === to, so a row sitting at 'published' with verified_at = null had no
+ * legal path to a verified stamp at all. That is the common case for anything
+ * published before the workflow shipped (migration 0062 anticipated it —
+ * "They can also be set directly from the edit forms for existing published
+ * content" — but nothing ever called it).
+ *
+ * Same role separation as a verifying transition: reviewers only, never your
+ * own record unless you are an admin, and then it is audit-logged as an
+ * override.
+ */
+export function canActorVerifyInPlace(opts: {
+  role: AppRole;
+  isOwnContent: boolean;
+}): { allowed: boolean; override?: "self_approval"; reason?: string } {
+  const { role, isOwnContent } = opts;
+  const isReviewerRole = role === "librarian" || role === "admin" || role === "super_admin";
+  if (!isReviewerRole) {
+    return { allowed: false, reason: "Only librarians and admins can verify metadata" };
+  }
+  if (isOwnContent) {
+    if (role === "admin" || role === "super_admin") {
+      return { allowed: true, override: "self_approval" };
+    }
+    return {
+      allowed: false,
+      reason: "You created this record — another reviewer must verify it (or ask an admin)",
+    };
+  }
+  return { allowed: true };
+}
+
 /** Statuses that count as publicly visible. Everything else is internal. */
 export function isPublicStatus(status: string): boolean {
   return canonicalize(status) === "published";

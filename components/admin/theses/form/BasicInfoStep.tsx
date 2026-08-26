@@ -150,20 +150,16 @@ export default function BasicInfoStep({
           {/* Defaults to All Rights Reserved for a new thesis — see the note on
               the `license` state in ThesisForm. "Not specified" stays in the
               list because existing rows legitimately hold it. */}
-          <Field label={tr("license")} hint={tr("licenseHint")}>
-            {(p) => (
-              <select
-                {...p}
-                value={license}
-                onChange={(e) => onLicenseChange(e.target.value)}
-                disabled={disabled}
-                className={`${INPUT_CLASS} bg-bg-surface`}
-              >
-                {LICENSE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            )}
+          <Field label={tr("license")} hint={tr("licenseHint")} htmlFor="license">
+            <SearchableSelect
+              name="license"
+              ariaLabel={tr("license")}
+              value={license}
+              onChange={onLicenseChange}
+              disabled={disabled}
+              options={LICENSE_OPTIONS}
+              chevron="down"
+            />
           </Field>
         </div>
       </FormSection>
