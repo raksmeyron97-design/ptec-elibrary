@@ -60,7 +60,7 @@ export default async function DuplicatesPage() {
   const groups = findDuplicateGroups(books);
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <Link
           href="/admin/manage"

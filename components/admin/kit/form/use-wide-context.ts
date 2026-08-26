@@ -3,14 +3,9 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 
 /**
- * Width at which a form gains its context sidebar.
- *
- * 1440 rather than a Tailwind breakpoint because the number is load-bearing:
- * 840 card + 32 gap + 380 sidebar + gutters needs ~1290px before the sidebar
- * starts squeezing the form, and `xl` (1280) is under that. It lives here, in
- * TypeScript, because the layout decision is made in JS — see below.
+ * Width at which a form gains its context sidebar (standard Tailwind xl breakpoint: 1280px).
  */
-export const SPLIT_BREAKPOINT = 1440;
+export const SPLIT_BREAKPOINT = 1280;
 
 const QUERY = `(min-width: ${SPLIT_BREAKPOINT}px)`;
 

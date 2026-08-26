@@ -22,7 +22,7 @@ export default async function ManageCohortsPage() {
   const tf = await getTranslations("adminThesisForm");
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="w-full space-y-6">
       {/*
         Back goes to the theses list, not to the Create form. This page is
         reached from Create, from Edit and from the section nav, so a hardcoded

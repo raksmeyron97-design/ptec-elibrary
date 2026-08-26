@@ -23,7 +23,7 @@ export default async function AdminPathsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-[1280px]">
+    <div className="w-full space-y-6">
       <PageHeader
         title={t("title")}
         description={t("description")}

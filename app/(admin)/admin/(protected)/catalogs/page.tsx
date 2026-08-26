@@ -162,7 +162,7 @@ export default async function AdminCatalogsPage({
   ].filter((a) => a.value > 0);
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="w-full space-y-6">
       <div className="mb-6 flex flex-wrap justify-end gap-3">
         <CsvImportWizard />
         <Link

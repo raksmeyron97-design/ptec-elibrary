@@ -1,7 +1,7 @@
 /** Loading skeleton mirroring the Users page layout (stats → toolbar → table). */
 export default function UserSkeleton() {
   return (
-    <div className="mx-auto max-w-[1280px] animate-pulse space-y-6">
+    <div className="w-full animate-pulse space-y-6">
       <div className="space-y-2">
         <div className="h-7 w-40 rounded-lg bg-slate-200" />
         <div className="h-4 w-72 rounded bg-slate-100" />

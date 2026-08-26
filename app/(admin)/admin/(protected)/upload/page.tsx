@@ -23,7 +23,7 @@ export default async function AdminUploadPage({
   const t = await getTranslations("adminShell.nav");
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-8">
+    <div className="w-full space-y-8">
       <div className="flex flex-col gap-8">
         <PageHeader title={t("uploadBook")} className="mb-0" />
         {/* ── Client Component with Tab Switcher ── */}

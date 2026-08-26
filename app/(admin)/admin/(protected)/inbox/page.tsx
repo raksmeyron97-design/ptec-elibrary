@@ -8,7 +8,7 @@ export default async function AdminInboxPage() {
   const initial = await adminListContactMessages({ status: "all", page: 1, pageSize: 20 });
 
   return (
-    <div className="p-6 md:p-10">
+    <div className="w-full space-y-6">
       <div className="mb-6 flex flex-wrap items-center gap-2.5">
         <Inbox className="h-6 w-6 text-brand" />
         <h1 className="text-[22px] font-bold text-text-heading">Inbox</h1>

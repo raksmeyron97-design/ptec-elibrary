@@ -58,7 +58,7 @@ export default async function AdminPostsPage({
   );
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <PostStats summary={summary} />

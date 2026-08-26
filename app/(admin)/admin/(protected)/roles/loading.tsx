@@ -6,7 +6,7 @@ const CATEGORY_ROWS = [2, 6, 1, 3]; // features per category, mirroring PERMISSI
 
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-[1200px] pb-4" aria-busy="true">
+    <div className="w-full pb-4" aria-busy="true">
       {/* Header */}
       <div className="mb-8">
         <div className="mb-3 h-3 w-24 animate-pulse rounded bg-paper" />

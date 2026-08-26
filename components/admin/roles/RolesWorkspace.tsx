@@ -155,7 +155,7 @@ export default function RolesWorkspace({
   const selectedRole = roleFilter === "all" ? null : roleFilter;
 
   return (
-    <div className="mx-auto max-w-[1200px] pb-4">
+    <div className="w-full pb-4">
       <RolesHeader
         editMode={editMode}
         onEdit={enterEdit}

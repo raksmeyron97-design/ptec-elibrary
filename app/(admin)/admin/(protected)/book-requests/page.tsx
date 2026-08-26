@@ -13,7 +13,7 @@ export default async function BookRequestsPage() {
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div className="w-full space-y-6">
       <PageHeader
         title={t("title")}
         description={t("description")}

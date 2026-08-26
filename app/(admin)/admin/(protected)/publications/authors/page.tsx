@@ -19,7 +19,7 @@ export default async function PublicationAuthorsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center gap-4">
         <Link
           href="/admin/publications"

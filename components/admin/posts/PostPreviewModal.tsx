@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Monitor, Smartphone, X } from "lucide-react";
 import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
@@ -31,9 +32,14 @@ export default function PostPreviewModal({
 }) {
   const t = useTranslations("adminPostForm.preview");
   const [viewport, setViewport] = useState<Viewport>("desktop");
+  const [mounted, setMounted] = useState(false);
   const headingId = "post-preview-heading";
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -59,7 +65,9 @@ export default function PostPreviewModal({
     };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
@@ -142,6 +150,7 @@ export default function PostPreviewModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

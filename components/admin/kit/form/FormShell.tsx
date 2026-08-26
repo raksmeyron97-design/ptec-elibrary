@@ -93,7 +93,7 @@ export default function FormShell({
   }, [contentKey]);
 
   const CARD_CLASS =
-    "w-full min-w-0 border-y border-divider bg-bg-surface shadow-sm sm:rounded-xl sm:border min-[1440px]:w-[840px] min-[1440px]:shrink-0";
+    "w-full min-w-0 flex-1 border-y border-divider bg-bg-surface shadow-sm sm:rounded-xl sm:border";
 
   const isForm = Boolean(onSubmit || action);
 
@@ -126,7 +126,7 @@ export default function FormShell({
   );
 
   return (
-    <div className="mx-auto w-full max-w-[840px] pb-4 min-[1440px]:max-w-[1252px]">
+    <div className="w-full pb-4">
       {/* Breadcrumb sits outside the card: it is navigation away from this page,
           not part of the record being edited. Plain next/link — /admin is
           outside the locale scheme and i18n/navigation would add a /km prefix. */}
@@ -138,7 +138,7 @@ export default function FormShell({
         {backLabel}
       </Link>
 
-      <div className="flex flex-col items-start gap-8 min-[1440px]:flex-row">
+      <div className="flex flex-col items-start gap-6 xl:flex-row">
         {isForm ? (
           <form
             ref={formRef}
@@ -155,7 +155,7 @@ export default function FormShell({
         )}
 
         {context && wide && (
-          <aside className="sticky top-6 w-[380px] shrink-0" aria-label="Context for the current section">
+          <aside className="sticky top-6 w-full shrink-0 xl:w-[380px]" aria-label="Context for the current section">
             {context}
           </aside>
         )}

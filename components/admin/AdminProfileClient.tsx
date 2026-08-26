@@ -275,7 +275,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
     "w-full h-11 px-3.5 rounded-xl bg-bg-surface border border-divider text-text-body placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none transition text-sm";
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="w-full">
       {/* Top Banners */}
       <div className="mb-6 space-y-3 empty:hidden">
         <TopBanner msg={profileMsg} onDismiss={() => setProfileMsg(null)} />

@@ -54,16 +54,12 @@ export default async function EditCatalogBookPage({
   );
 
   return (
-    <section className="min-h-screen bg-paper px-4 py-8 md:px-12">
-      <div className="mx-auto max-w-[900px]">
-        <EditBookWizard
-          book={b}
-          coverSource={coverSourceFromUrl(b.cover_url)}
-          categories={categories}
-          initialCopies={initialCopies}
-          initialTab={sp.tab === "copies" ? "copies" : "info"}
-        />
-      </div>
-    </section>
+    <EditBookWizard
+      book={b}
+      coverSource={coverSourceFromUrl(b.cover_url)}
+      categories={categories}
+      initialCopies={initialCopies}
+      initialTab={sp.tab === "copies" ? "copies" : "info"}
+    />
   );
 }
