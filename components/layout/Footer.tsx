@@ -233,6 +233,17 @@ export default async function Footer() {
                 <h2 id="footer-brand-heading" className="footer-shine mt-1 w-fit text-[27px] font-bold leading-tight tracking-wide">
                   {cfg.libraryName.en}
                 </h2>
+                {/* The formal lockup: the brand alone is the wordmark, but the
+                    footer is where the library is named in full, next to the
+                    institution that runs it. */}
+                <p
+                  lang={locale === "km" ? "km" : undefined}
+                  className={`mt-1.5 text-[12.5px] leading-snug text-blue-100/72 ${
+                    locale === "km" ? "font-khmer-serif" : ""
+                  }`}
+                >
+                  {locale === "km" ? cfg.name.km : cfg.name.en}
+                </p>
               </div>
             </div>
             <p className="max-w-sm text-[14px] leading-7 text-blue-100/82">

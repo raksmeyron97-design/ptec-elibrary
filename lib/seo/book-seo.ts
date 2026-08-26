@@ -92,12 +92,12 @@ export function bookFallbackDescription(book: BookSeoInput, locale: string): str
   const subject = clean(book.category) || clean(book.department);
   if (locale === "km") {
     const byline = authors.length > 0 ? ` ដោយ ${authors.join(", ")}` : "";
-    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យឌីជីថល វ.គ.ភ។ អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។`;
+    return `${clean(book.title)}${byline} — សៀវភៅឌីជីថលឥតគិតថ្លៃក្នុងបណ្ណាល័យ វ.គ.ភ។ អានតាមអ៊ីនធឺណិត ឬទាញយកជា PDF ដោយឥតគិតថ្លៃ។`;
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const subjectPart = subject && subject !== "General" ? ` ${subject}` : "";
   const languagePart = book.language ? ` (${clean(book.language)})` : "";
-  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Digital Library. Read online or download the PDF${languagePart}.`;
+  return `${clean(book.title)}${byline} — a free${subjectPart} e-book in the PTEC Library. Read online or download the PDF${languagePart}.`;
 }
 
 /** Meta description: the record's own description when present (enriched with

@@ -161,7 +161,7 @@ export default function GeneratedBookCover({
       {/* Content */}
       <div className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${s.pad} pl-3.5`}>
         <p className={`font-bold uppercase opacity-90 ${s.brand}`} style={{ color: "#EDCB55" }}>
-          PTEC Digital Library
+          PTEC Library
         </p>
 
         <div className="mt-auto min-w-0">
