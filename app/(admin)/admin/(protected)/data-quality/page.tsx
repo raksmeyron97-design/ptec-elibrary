@@ -100,7 +100,7 @@ export default async function DataQualityPage() {
   const lastSweep = timeAgo(summary.fileHealthCheckedAt, t);
 
   return (
-    <main className="mx-auto max-w-[1400px]">
+    <div className="w-full space-y-6">
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -330,6 +330,6 @@ export default async function DataQualityPage() {
           </div>
         </aside>
       </div>
-    </main>
+    </div>
   );
 }

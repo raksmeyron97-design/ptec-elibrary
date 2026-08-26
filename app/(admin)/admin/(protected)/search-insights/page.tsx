@@ -136,7 +136,7 @@ export default async function SearchInsightsPage() {
   const enPct = Math.round((analytics.languageUsage.en / languageTotal) * 100);
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="w-full space-y-6">
       <PageHeader title={t("title")} description={t("description")} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

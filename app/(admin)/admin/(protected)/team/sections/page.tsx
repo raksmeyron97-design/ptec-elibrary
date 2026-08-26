@@ -27,7 +27,7 @@ export default async function TeamSectionsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="w-full space-y-6">
 
       {/* Back link */}
       <Link

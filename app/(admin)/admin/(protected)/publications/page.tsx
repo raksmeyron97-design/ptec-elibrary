@@ -120,7 +120,7 @@ export default async function AdminPublicationsPage({
   const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-[1200px] space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-heading">Manage Publications</h1>

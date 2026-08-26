@@ -843,7 +843,7 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
    longer and repeatedly stepping through a seven-tab form feels sticky. */
 @keyframes tab-panel-in {
   from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 .tab-panel-in { animation: tab-panel-in .2s cubic-bezier(.22,1,.36,1) both; }
 

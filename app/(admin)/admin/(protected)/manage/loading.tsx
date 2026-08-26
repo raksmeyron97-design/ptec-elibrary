@@ -2,7 +2,7 @@ import { EbookStatsSkeleton, EbookCommandBarSkeleton, EbooksTableSkeleton } from
 
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div className="w-full space-y-6">
       <div className="mb-8 space-y-2">
         <div className="h-4 w-40 animate-pulse rounded bg-paper" />
         <div className="h-8 w-56 animate-pulse rounded bg-paper" />

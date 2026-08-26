@@ -29,7 +29,7 @@ export default async function HomepagePhotosPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader
         title={t("title")}
         description={t("subtitle")}

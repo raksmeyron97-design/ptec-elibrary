@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Markdown from "@/app/[locale]/(public)/posts/[slug]/Markdown";
 
 interface Props {
@@ -193,6 +194,11 @@ export default function MarkdownEditor({
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const tr = useTranslations("adminPostForm.editor");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const wordCount = value.trim() ? value.trim().split(/\s+/).filter(Boolean).length : 0;
   const charCount = value.length;
@@ -299,7 +305,7 @@ export default function MarkdownEditor({
     };
   }, [isFullscreen]);
 
-  return (
+  const editorNode = (
     <div
       ref={wrapperRef}
       role={isFullscreen ? "dialog" : undefined}
@@ -308,7 +314,7 @@ export default function MarkdownEditor({
       className={[
         "flex flex-col overflow-hidden border-divider bg-bg-surface shadow-sm transition-all",
         isFullscreen
-          ? "fixed inset-0 z-[200] rounded-none border-0"
+          ? "fixed inset-0 z-[200] h-screen w-screen rounded-none border-0"
           : "rounded-xl border",
         // The editor chrome is the field boundary; `focus-shell` keeps the
         // textarea inside it from painting a second one.
@@ -526,4 +532,10 @@ title={tr("insertImage")}
       </div>
     </div>
   );
+
+  if (isFullscreen && mounted) {
+    return createPortal(editorNode, document.body);
+  }
+
+  return editorNode;
 }

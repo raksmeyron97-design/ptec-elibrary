@@ -142,7 +142,7 @@ export default function ReviewDashboard({
           Nothing outstanding. Every check passed.
         </p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 min-[1440px]:grid-cols-1">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
           {ORDER.map((tone) => {
             const items = findings[tone];
             if (items.length === 0) return null;

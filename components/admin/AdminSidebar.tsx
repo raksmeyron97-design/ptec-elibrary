@@ -1009,7 +1009,7 @@ export default function AdminSidebar({
             block, so `.dash-controlbar`'s `position: sticky` still resolves
             against <main>. */}
         <main className="flex-1 overflow-y-auto bg-[var(--dash-bg)] px-7 py-6">
-          <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+          <div className="w-full">{children}</div>
         </main>
       </div>
     </div>

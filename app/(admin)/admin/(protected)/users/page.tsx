@@ -54,7 +54,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader title={t("title")} description={t("description")} className="mb-0" />
 
       <UserStats summary={summary} />

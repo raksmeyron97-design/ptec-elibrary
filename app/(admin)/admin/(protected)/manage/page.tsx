@@ -71,7 +71,7 @@ export default async function ManageEbooksPage({
   };
 
   return (
-    <div className="mx-auto max-w-[1200px]">
+    <div className="w-full space-y-6">
       {/* Zone 1 — identity. */}
       <PageHeader
         breadcrumb={

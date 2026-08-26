@@ -22,11 +22,5 @@ export default async function AddCatalogBookPage() {
     .limit(200);
   const categories = [...new Set((catRows ?? []).map((r: any) => r.category).filter(Boolean))].sort();
 
-  return (
-    <section className="min-h-screen bg-paper px-4 py-8 md:px-12">
-      <div className="mx-auto max-w-[760px]">
-        <AddBookWizard categories={categories} />
-      </div>
-    </section>
-  );
+  return <AddBookWizard categories={categories} />;
 }
