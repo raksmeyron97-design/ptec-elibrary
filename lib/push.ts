@@ -66,9 +66,20 @@ async function settleInBatches<T>(
   }
 }
 
+/** Default push lifetime at the push service: 24 hours. */
+const DEFAULT_TTL_SECONDS = 86400;
+/** Web Push caps TTL at 4 weeks (RFC 8030). */
+const MAX_TTL_SECONDS = 2_419_200;
+
+function resolveTtl(ttlSeconds?: number | null): number {
+  if (typeof ttlSeconds !== "number" || !Number.isFinite(ttlSeconds)) return DEFAULT_TTL_SECONDS;
+  return Math.min(Math.max(Math.round(ttlSeconds), 0), MAX_TTL_SECONDS);
+}
+
 export async function sendPush(
   subscription: SerializedPushSubscription,
   payload: PushPayload,
+  options?: { ttlSeconds?: number | null },
 ) {
   try {
     ensureVapid();
@@ -78,7 +89,7 @@ export async function sendPush(
         keys: { p256dh: subscription.keys.p256dh, auth: subscription.keys.auth },
       },
       JSON.stringify(normalizePayload(payload)),
-      { TTL: 86400 },
+      { TTL: resolveTtl(options?.ttlSeconds) },
     );
     return { ok: true };
   } catch (err: unknown) {

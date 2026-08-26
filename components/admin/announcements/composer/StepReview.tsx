@@ -76,6 +76,10 @@ export default function StepReview({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {value.channels.inApp && (
           <PreviewCard icon={Bell} label={t("previewInApp")}>
+            {value.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={value.imageUrl} alt={t("previewImageAlt")} className="mb-2 aspect-video w-full rounded-lg object-cover" />
+            )}
             <p className="text-sm font-semibold text-text-heading">{value.content.en.title || t("untitled")}</p>
             <p className="mt-0.5 line-clamp-2 text-xs text-text-muted">{value.content.en.summary || value.content.en.body || "—"}</p>
           </PreviewCard>

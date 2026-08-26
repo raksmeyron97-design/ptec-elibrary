@@ -14,6 +14,11 @@ const textareaClass =
   "w-full rounded-lg border border-divider bg-bg-surface px-3 py-2 text-sm text-text-body placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand/30 resize-y";
 const labelClass = "mb-1.5 block text-xs font-semibold text-text-muted";
 
+/** Types the server's magic-byte guard accepts (lib/upload-content-guard.ts). */
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+/** Kept under next.config.ts's 6 MB Server Action body limit. */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="mt-1 text-xs font-medium text-danger" role="alert">{message}</p>;
@@ -47,11 +52,15 @@ export default function StepContent({
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type)) {
+    // Only reject a type the browser positively identifies as unsupported.
+    // An empty or unfamiliar `file.type` (common for photos picked on iOS /
+    // some file managers) is left to the server, which sniffs the real magic
+    // bytes — rejecting it here made valid photos look like a broken upload.
+    if (file.type && !ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       setUploadError(t("imageBadType"));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > MAX_IMAGE_BYTES) {
       setUploadError(t("imageTooLarge"));
       return;
     }
@@ -63,6 +72,11 @@ export default function StepContent({
       const res = await uploadToZima(fd, "announcements");
       if ("error" in res) setUploadError(res.error);
       else onChange({ imageUrl: res.publicUrl });
+    } catch (err) {
+      // A Server Action can reject outright (network drop, payload over the
+      // body limit, expired session). Without this the spinner just stopped
+      // and nothing was shown.
+      setUploadError(t("imageUploadFailed", { error: err instanceof Error ? err.message : String(err) }));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -113,24 +127,31 @@ export default function StepContent({
 
         <div>
           <span className={labelClass}>{t("image")}</span>
+          {/* The input is always mounted so an image can be replaced in place —
+              previously it only existed while `imageUrl` was null, so the only
+              way to swap a picture was to remove it first. */}
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImagePick} className="hidden" id="ann-image-input" disabled={uploading} />
           {value.imageUrl ? (
-            <div className="relative w-48 overflow-hidden rounded-lg border border-divider">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={value.imageUrl} alt="" className="aspect-video w-full object-cover" />
-              <button type="button" onClick={() => onChange({ imageUrl: null })} aria-label={t("removeImage")} className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80">
-                <X className="h-3.5 w-3.5" />
-              </button>
+            <div className="w-48 space-y-1.5">
+              <div className="relative overflow-hidden rounded-lg border border-divider">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={value.imageUrl} alt="" className="aspect-video w-full object-cover" />
+                <button type="button" onClick={() => onChange({ imageUrl: null })} aria-label={t("removeImage")} className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <label htmlFor="ann-image-input" className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-text-muted transition hover:text-brand">
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {uploading ? t("uploading") : t("replaceImage")}
+              </label>
             </div>
           ) : (
-            <>
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={handleImagePick} className="hidden" id="ann-image-input" disabled={uploading} />
-              <label htmlFor="ann-image-input" className="flex w-48 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-divider bg-paper py-6 text-xs font-semibold text-text-muted transition hover:border-brand hover:text-brand">
-                {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-                {uploading ? t("uploading") : t("chooseImage")}
-              </label>
-            </>
+            <label htmlFor="ann-image-input" className="flex w-48 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-divider bg-paper py-6 text-xs font-semibold text-text-muted transition hover:border-brand hover:text-brand">
+              {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+              {uploading ? t("uploading") : t("chooseImage")}
+            </label>
           )}
-          {uploadError && <p className="mt-1 text-xs text-danger">{uploadError}</p>}
+          {uploadError && <p className="mt-1 text-xs text-danger" role="alert">{uploadError}</p>}
         </div>
       </fieldset>
 
