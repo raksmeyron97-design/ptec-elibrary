@@ -14,6 +14,12 @@ import {
 const PAGE_SIZE_DEFAULT = 20;
 const PAGE_SIZE_MAX = 100;
 
+/** Widen a bare `YYYY-MM-DD` filter bound to the last instant of that day.
+ *  A value that already carries a time component is passed through untouched. */
+function endOfDay(date: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date.trim()) ? `${date.trim()}T23:59:59.999Z` : date;
+}
+
 /** Same metacharacter strip used by app/api/chat/route.ts for PostgREST `.or()` filters. */
 function sanitizeSearchTerm(input: string): string {
   return input.replace(/[%,()\\*]/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
@@ -65,7 +71,10 @@ export async function queryAnnouncements(
   if (filters.langComplete === "both") query = query.not("title_km", "is", null).neq("title_km", "");
   if (filters.langComplete === "en_only") query = query.or("title_km.is.null,title_km.eq.");
   if (filters.dateFrom) query = query.gte("created_at", filters.dateFrom);
-  if (filters.dateTo) query = query.lte("created_at", filters.dateTo);
+  // The picker submits a bare date ("2026-08-26"), which Postgres reads as
+  // midnight — so `lte` excluded everything created ON the chosen end day.
+  // Compare against the end of that day instead.
+  if (filters.dateTo) query = query.lte("created_at", endOfDay(filters.dateTo));
 
   const q = sanitizeSearchTerm(filters.q);
   if (q) {

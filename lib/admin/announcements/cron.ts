@@ -57,7 +57,11 @@ export async function sweepScheduledAnnouncements(db: ReturnType<typeof createSe
         userIds: announcement.audience_user_ids ?? [],
       });
 
-      const idemKey: string = announcement.publish_idempotency_key ?? `${announcement.id}:${randomUUID()}`;
+      // A row reaching this sweep is always `scheduled`, i.e. NOT mid-publish,
+      // so any key left over from an earlier publish is stale — reusing it
+      // would resolve to that finished delivery job and send nothing. Mirrors
+      // the same rule in publishAnnouncement().
+      const idemKey = `${announcement.id}:${randomUUID()}`;
       const nowIso = new Date().toISOString();
 
       await db

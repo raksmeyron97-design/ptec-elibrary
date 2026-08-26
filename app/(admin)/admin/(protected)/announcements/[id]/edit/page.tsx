@@ -6,7 +6,7 @@ import { hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/admin/kit";
 import AnnouncementComposer from "@/components/admin/announcements/composer/AnnouncementComposer";
 import { getAnnouncementDetail } from "@/lib/admin/announcements/query";
-import { rowToInput } from "@/lib/admin/announcements/mapping";
+import { rowToComposerInput } from "@/lib/admin/announcements/mapping";
 import { EDITABLE_STATUSES, normalizeStatus } from "@/lib/admin/announcements/shared";
 import type { ComposerStepKey } from "@/components/admin/announcements/composer/ComposerStepNav";
 
@@ -47,7 +47,7 @@ export default async function EditAnnouncementPage({
   return (
     <div>
       <PageHeader title={t("editTitle", { name: detail.row.internal_name })} description={t("editDescription")} />
-      <AnnouncementComposer mode="edit" announcementId={id} initial={rowToInput(detail.row)} initialStep={initialStep} canPush={canPush} />
+      <AnnouncementComposer mode="edit" announcementId={id} initial={rowToComposerInput(detail.row)} initialStep={initialStep} canPush={canPush} />
     </div>
   );
 }

@@ -154,10 +154,13 @@ export async function processAnnouncementDeliveryJob(jobId: string): Promise<{ s
   });
 
   const payload = buildPushPayload(announcement);
+  // The composer's "time to live" field was collected into push_ttl_seconds and
+  // then never reached the push service — every send used the hardcoded 24 h.
+  const ttlSeconds: number | null = announcement.push_ttl_seconds ?? null;
 
   await settleInBatches(targets, DELIVERY_CONCURRENCY, async (sub: any) => {
     const existing = existingBySub.get(sub.id);
-    const result = await sendPush({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload);
+    const result = await sendPush({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } }, payload, { ttlSeconds });
     const nowIso = new Date().toISOString();
 
     if (result.ok) {
