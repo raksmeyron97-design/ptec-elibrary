@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 import { getThesisById } from "@/app/actions/theses";
 import ThesisForm, { type ThesisInitial } from "@/components/admin/theses/form/ThesisForm";
 import DownloadAccessCard from "@/components/admin/theses/DownloadAccessCard";
+import ThesisVerifyPanel from "@/components/admin/theses/ThesisVerifyPanel";
 import { normalizeStatus, STATUS_LABELS, STATUS_TONES } from "@/lib/admin/theses-shared";
 import type { SupplementaryFile } from "@/lib/admin/thesis-file-validation";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -11,6 +12,7 @@ import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/admin/kit";
 import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { evaluateQuality } from "@/lib/metadata-quality";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -35,6 +37,20 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
       .maybeSingle();
     updatedByName = editor?.full_name ?? null;
   }
+  // Verification state for the Review step. The checklist is scored here, on
+  // the saved row, because that is what the verify action stamps — see the
+  // note in ThesisVerifyPanel.
+  let verifierName: string | null = null;
+  if (report.verified_by) {
+    const { data: verifier } = await service
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", report.verified_by as string)
+      .maybeSingle();
+    verifierName = verifier?.full_name || verifier?.email || null;
+  }
+  const quality = evaluateQuality("thesis", report);
+
   const currentOverride =
     report.download_override === "allow" || report.download_override === "block"
       ? report.download_override
@@ -115,16 +131,25 @@ export default async function EditThesisPage({ params }: { params: Promise<{ id:
         ) : null
       }
       reviewPanel={
-        <DownloadAccessCard
-          thesisId={report.id}
-          isPublished={isLive}
-          downloadCount={report.download_count ?? 0}
-          rank={rank}
-          currentOverride={currentOverride}
-          reason={report.download_override_reason ?? null}
-          updatedAt={report.download_override_updated_at ?? null}
-          updatedByName={updatedByName}
-        />
+        <div className="space-y-6">
+          <ThesisVerifyPanel
+            thesisId={report.id}
+            quality={quality}
+            status={normalizeStatus(report.status)}
+            verifiedAt={report.verified_at ?? null}
+            verifierName={verifierName}
+          />
+          <DownloadAccessCard
+            thesisId={report.id}
+            isPublished={isLive}
+            downloadCount={report.download_count ?? 0}
+            rank={rank}
+            currentOverride={currentOverride}
+            reason={report.download_override_reason ?? null}
+            updatedAt={report.download_override_updated_at ?? null}
+            updatedByName={updatedByName}
+          />
+        </div>
       }
     />
   );

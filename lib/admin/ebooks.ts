@@ -27,7 +27,7 @@ let updatedAtMissing = false;
 
 function listColumns(withUpdatedAt: boolean): string {
   return `
-    id, title, slug, description, language, isbn, publisher, license, status,
+    id, title, slug, description, language, isbn, publisher, license, status, verified_at,
     cover_url, published_at, created_at${withUpdatedAt ? ", updated_at" : ""},
     download_count, view_count, tags, department, department_id,
     authors ( name ),
@@ -71,6 +71,7 @@ function toRow(r: Record<string, unknown>, broken: BrokenMap): EbookListRow {
     language: (r.language as string) || null,
     year: r.published_at ? new Date(r.published_at as string).getFullYear() : null,
     status: normalizeEbookStatus(r.status as string),
+    verifiedAt: (r.verified_at as string) ?? null,
     coverUrl: (r.cover_url as string) || null,
     fileUrl: file?.file_url ?? null,
     fileFormat: file?.format ?? null,

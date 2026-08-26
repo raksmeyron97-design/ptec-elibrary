@@ -11,6 +11,9 @@ import {
   XCircle,
   Archive,
   ArchiveRestore,
+  ShieldCheck,
+  ShieldOff,
+  ClipboardCheck,
   Trash2,
 } from "lucide-react";
 import { thesisHref } from "@/lib/theses";
@@ -29,6 +32,9 @@ export default function ThesisActionsMenu({
   onArchive,
   onUnarchive,
   onDuplicate,
+  onSubmitForReview,
+  onVerify,
+  onUnverify,
   onDelete,
 }: {
   thesis: ThesisListRow;
@@ -38,6 +44,9 @@ export default function ThesisActionsMenu({
   onArchive: () => void;
   onUnarchive: () => void;
   onDuplicate: () => void;
+  onSubmitForReview: () => void;
+  onVerify: () => void;
+  onUnverify: () => void;
   onDelete: () => void;
 }) {
   const t = useTranslations("adminTheses.actions");
@@ -73,6 +82,8 @@ export default function ThesisActionsMenu({
   const publicPath = thesisHref(thesis);
   const isPublished = thesis.status === "published";
   const isArchived = thesis.status === "archived";
+  const isVerified = Boolean(thesis.verifiedAt);
+  const inReviewQueue = thesis.status === "pending_review";
 
   return (
     <div className="relative inline-block text-left">
@@ -122,6 +133,26 @@ export default function ThesisActionsMenu({
             >
               <Download className="h-4 w-4 text-text-muted" /> {t("downloadPdf")}
             </a>
+          )}
+
+          <div className="my-1 h-px bg-divider" />
+
+          {/* Verification is a separate axis from publication: a thesis can be
+              live-but-unverified (everything predating the review workflow) or
+              verified-but-still-draft. */}
+          {isVerified ? (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnverify)}>
+              <ShieldOff className="h-4 w-4 text-text-muted" /> {t("unverifyMetadata")}
+            </button>
+          ) : (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onVerify)}>
+              <ShieldCheck className="h-4 w-4 text-text-muted" /> {t("verifyMetadata")}
+            </button>
+          )}
+          {!isVerified && !inReviewQueue && (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onSubmitForReview)}>
+              <ClipboardCheck className="h-4 w-4 text-text-muted" /> {t("submitForReview")}
+            </button>
           )}
 
           <div className="my-1 h-px bg-divider" />

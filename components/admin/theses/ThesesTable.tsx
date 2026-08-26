@@ -27,6 +27,9 @@ type RowActions = {
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onSubmitForReview: (id: string) => void;
+  onVerify: (id: string) => void;
+  onUnverify: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 };
 
@@ -225,6 +228,9 @@ export default function ThesesTable({
                           onArchive={() => actions.onArchive(thesis.id)}
                           onUnarchive={() => actions.onUnarchive(thesis.id)}
                           onDuplicate={() => actions.onDuplicate(thesis.id)}
+                          onSubmitForReview={() => actions.onSubmitForReview(thesis.id)}
+                          onVerify={() => actions.onVerify(thesis.id)}
+                          onUnverify={() => actions.onUnverify(thesis.id)}
                           onDelete={() => actions.onDeleteRequest(thesis.id, thesis.title)}
                         />
                       </div>

@@ -3,6 +3,7 @@ import {
   canonicalize,
   canTransition,
   canActorTransition,
+  canActorVerifyInPlace,
   isVerifyingTransition,
   isPublicStatus,
   isAuthoritative,
@@ -86,6 +87,41 @@ describe("canActorTransition (role separation)", () => {
   });
   it("still enforces the state machine for admins", () => {
     expect(canActorTransition({ role: "super_admin", from: "draft", to: "published", isOwnContent: false }).allowed).toBe(false);
+  });
+});
+
+describe("canActorVerifyInPlace", () => {
+  // The gap this closes: canTransition() rejects from === to, so a row already
+  // at 'published' with verified_at = null had no legal path to a stamp.
+  it("has no transition path for verifying an already-published record", () => {
+    expect(canTransition("published", "published")).toBe(false);
+    expect(canTransition("published", "verified")).toBe(false);
+  });
+
+  it("lets a librarian verify someone else's record", () => {
+    const r = canActorVerifyInPlace({ role: "librarian", isOwnContent: false });
+    expect(r.allowed).toBe(true);
+    expect(r.override).toBeUndefined();
+  });
+
+  it("blocks a librarian from verifying their own record", () => {
+    const r = canActorVerifyInPlace({ role: "librarian", isOwnContent: true });
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBeTruthy();
+  });
+
+  it("lets an admin self-verify, flagged as an override", () => {
+    for (const role of ["admin", "super_admin"] as const) {
+      const r = canActorVerifyInPlace({ role, isOwnContent: true });
+      expect(r.allowed).toBe(true);
+      expect(r.override).toBe("self_approval");
+    }
+  });
+
+  it("refuses non-reviewer roles outright", () => {
+    for (const role of ["reader", "staff"] as const) {
+      expect(canActorVerifyInPlace({ role, isOwnContent: false }).allowed).toBe(false);
+    }
   });
 });
 

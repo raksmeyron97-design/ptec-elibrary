@@ -15,6 +15,9 @@ import {
   XCircle,
   Archive,
   ArchiveRestore,
+  ShieldCheck,
+  ShieldOff,
+  ClipboardCheck,
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -32,6 +35,9 @@ export default function EbookActionsMenu({
   onUnpublish,
   onArchive,
   onRestore,
+  onSubmitForReview,
+  onVerify,
+  onUnverify,
   onDeleteRequest,
 }: {
   book: EbookListRow;
@@ -40,6 +46,9 @@ export default function EbookActionsMenu({
   onUnpublish: () => void;
   onArchive: () => void;
   onRestore: () => void;
+  onSubmitForReview: () => void;
+  onVerify: () => void;
+  onUnverify: () => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
   const t = useTranslations("adminEbooks.actions");
@@ -76,6 +85,8 @@ export default function EbookActionsMenu({
   const isPublished = book.status === "published";
   const isArchived = book.status === "archived";
   const hasPdf = Boolean(book.fileUrl);
+  const isVerified = Boolean(book.verifiedAt);
+  const inReviewQueue = book.status === "pending_review";
 
   return (
     <div className="relative inline-block text-left">
@@ -143,6 +154,27 @@ export default function EbookActionsMenu({
           <span className={`${itemClass} cursor-not-allowed opacity-50`} aria-disabled="true" title={t("comingSoon")}>
             <Star className="h-4 w-4 text-text-muted" /> {t("featureBook")}
           </span>
+
+          {/* Verification is a separate axis from publication: a book can be
+              live-but-unverified (everything predating the review workflow) or
+              verified-but-still-draft. Both actions therefore sit alongside
+              publish/unpublish rather than replacing it. */}
+          {isVerified ? (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnverify)}>
+              <ShieldOff className="h-4 w-4 text-text-muted" /> {t("unverifyMetadata")}
+            </button>
+          ) : (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onVerify)}>
+              <ShieldCheck className="h-4 w-4 text-text-muted" /> {t("verifyMetadata")}
+            </button>
+          )}
+          {!isVerified && !inReviewQueue && (
+            <button type="button" role="menuitem" className={itemClass} onClick={() => run(onSubmitForReview)}>
+              <ClipboardCheck className="h-4 w-4 text-text-muted" /> {t("submitForReview")}
+            </button>
+          )}
+
+          <div className="my-1 h-px bg-divider" />
 
           {isPublished ? (
             <button type="button" role="menuitem" className={itemClass} onClick={() => run(onUnpublish)}>

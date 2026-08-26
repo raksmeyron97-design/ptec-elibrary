@@ -16,6 +16,8 @@ import { rateLimit } from "@/lib/rate-limit";
 import { zimaDelete } from "@/lib/zima";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { normalizeEbookStatus, type EbookStatus } from "@/lib/admin/ebooks-shared";
+import { canActorVerifyInPlace } from "@/lib/content-status";
+import { evaluateQuality } from "@/lib/metadata-quality";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { shouldNotifyPublishedTransition } from "@/lib/push-utils";
 
@@ -140,6 +142,158 @@ export async function archiveEbook(id: string): Promise<ActionResult> {
 
 export async function restoreEbook(id: string): Promise<ActionResult> {
   return setEbookStatus(id, "draft", "book.restore");
+}
+
+/** Push a book into the /admin/review queue for a librarian to verify. */
+export async function submitEbookForReview(id: string): Promise<ActionResult> {
+  return setEbookStatus(id, "pending_review");
+}
+
+// ── Metadata verification (trust badge + authoritative citations) ─────────
+//
+// Distinct from the status transitions above: verification stamps
+// verified_at/verified_by WITHOUT moving the record's status. The review
+// queue (app/actions/review.ts) only ever stamps them as a side effect of a
+// transition, and its state machine rejects from === to — so a book already
+// sitting at 'published' with verified_at = null (everything published before
+// the workflow shipped) had no route to a verified stamp at all. Migration
+// 0062 anticipated exactly this action; nothing had implemented it.
+//
+// What the stamp actually controls, publicly:
+//   - the "Verified by librarian" badge (components/ui/trust/TrustBadges)
+//   - the amber "not yet verified" notice on the citation box (CiteBook)
+//   - inclusion in OAI-PMH + metadata exports (lib/oai/records.ts filters on
+//     verified_at IS NOT NULL)
+// So it is a public trust claim, which is why it is reviewer-gated, quality-
+// gated, audit-logged, and reversible.
+
+const VERIFY_QUALITY_COLS = `
+  id, title, slug, status, created_by, language, published_at, description,
+  license, cover_url, source_attribution, category_id, isbn, pages, tags,
+  authors ( name )
+`;
+
+async function loadVerifyTarget(
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
+  id: string,
+) {
+  const rich = await supabase.from("books").select(VERIFY_QUALITY_COLS).eq("id", id).maybeSingle();
+  if (!rich.error) return { row: rich.data, hasCreatedBy: true as const };
+  // Pre-0086: no created_by column. Re-read without it; the self-approval
+  // check then can't fire, which matches how review.ts degrades.
+  if (rich.error.code !== "42703") throw new Error(rich.error.message);
+  const basic = await supabase
+    .from("books")
+    .select(VERIFY_QUALITY_COLS.replace("created_by,", ""))
+    .eq("id", id)
+    .maybeSingle();
+  if (basic.error) throw new Error(basic.error.message);
+  return { row: basic.data, hasCreatedBy: false as const };
+}
+
+/**
+ * Stamp this book as verified by the current librarian.
+ *
+ * Blocks on missing *required* metadata (title / author / language — the
+ * lenient set from lib/metadata-quality.ts), because a badge asserting a
+ * librarian checked the record is worthless on a record that is still
+ * missing its author.
+ */
+export async function verifyEbook(id: string): Promise<ActionResult> {
+  if (!UUID_RE.test(id)) return { success: false, error: "Invalid book id" };
+
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("books", "write");
+    await enforceRateLimit(admin.user.id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user, role } = admin;
+
+  let target: Awaited<ReturnType<typeof loadVerifyTarget>>;
+  try {
+    target = await loadVerifyTarget(supabase, id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const row = target.row as Record<string, unknown> | null;
+  if (!row) return { success: false, error: "Book not found" };
+
+  const isOwnContent = Boolean(row.created_by && row.created_by === user.id);
+  const check = canActorVerifyInPlace({ role, isOwnContent });
+  if (!check.allowed) return { success: false, error: check.reason ?? "Not allowed" };
+
+  const quality = evaluateQuality("book", row);
+  if (quality.missingRequired.length > 0) {
+    return {
+      success: false,
+      error: `Cannot verify — still missing: ${quality.missingRequired.join(", ")}.`,
+    };
+  }
+
+  const { error } = await supabase
+    .from("books")
+    .update({ verified_at: new Date().toISOString(), verified_by: user.id })
+    .eq("id", id);
+  if (error) {
+    if (error.code === "PGRST204") {
+      return { success: false, error: "Verification needs migration 0062_trust_fields.sql applied first." };
+    }
+    return { success: false, error: error.message };
+  }
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "book.verify", "books", id, {
+    title: row.title,
+    score: quality.score,
+    grade: quality.grade,
+    ...(check.override ? { override: check.override } : {}),
+    ...meta,
+  });
+
+  revalidateAll(row.slug as string | null);
+  return { success: true };
+}
+
+/**
+ * Clear the verification stamp. Present because verification is a public
+ * claim: verifying the wrong record, or finding out later that the metadata
+ * was wrong, must be undoable — otherwise the badge and the OAI feed keep
+ * asserting something a librarian no longer stands behind.
+ */
+export async function unverifyEbook(id: string): Promise<ActionResult> {
+  if (!UUID_RE.test(id)) return { success: false, error: "Invalid book id" };
+
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("books", "write");
+    await enforceRateLimit(admin.user.id);
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, user, role } = admin;
+
+  // Withdrawing a claim needs the same standing as making one, but never the
+  // self-approval bar: un-verifying your own record removes trust, it does
+  // not grant it.
+  const check = canActorVerifyInPlace({ role, isOwnContent: false });
+  if (!check.allowed) return { success: false, error: check.reason ?? "Not allowed" };
+
+  const { data: row, error } = await supabase
+    .from("books")
+    .update({ verified_at: null, verified_by: null })
+    .eq("id", id)
+    .select("title, slug")
+    .maybeSingle();
+  if (error) return { success: false, error: error.message };
+  if (!row) return { success: false, error: "Book not found" };
+
+  const meta = await requestMeta();
+  await logAdminAction(user.id, "book.unverify", "books", id, { title: row.title, ...meta });
+
+  revalidateAll(row.slug as string | null);
+  return { success: true };
 }
 
 /**

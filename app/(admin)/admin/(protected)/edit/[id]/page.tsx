@@ -20,6 +20,7 @@ export default async function EditBookPage({
       id, title, slug, description, language, published_at,
       department, isbn, publisher, pages, cover_url, tags, license,
       seo_title, seo_description, og_image,
+      status, verified_at, verified_by, source_attribution,
       authors(name),
       categories(name),
       departments(name),
@@ -29,6 +30,22 @@ export default async function EditBookPage({
     .single();
 
   if (!book) notFound();
+
+  /*
+    Who verified this record. A second query rather than a PostgREST embed:
+    books has two FKs into profiles (verified_by, created_by), so an embed
+    would have to name the constraint, and this page already runs a small
+    fan-out of lookups.
+  */
+  let verifierName: string | null = null;
+  if (book.verified_by) {
+    const { data: verifier } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", book.verified_by as string)
+      .maybeSingle();
+    verifierName = verifier?.full_name || verifier?.email || null;
+  }
 
   // Fetch departments and categories for the searchable selects
   const [{ data: deptRows }, { data: catRows }] = await Promise.all([
@@ -68,6 +85,10 @@ export default async function EditBookPage({
     fileUrl:     (primaryFile?.file_url as string | null) ?? null,
     fileSizeKb:  (primaryFile?.file_size_kb as number | null) ?? null,
     fileFormat:  (primaryFile?.format as string | null) ?? null,
+    status:            (book.status as string | null) ?? "draft",
+    verifiedAt:        (book.verified_at as string | null) ?? null,
+    verifierName,
+    sourceAttribution: (book.source_attribution as string | null) ?? "",
   };
 
   /*

@@ -26,6 +26,9 @@ export default function ThesisMobileCard({
   onArchive,
   onUnarchive,
   onDuplicate,
+  onSubmitForReview,
+  onVerify,
+  onUnverify,
   onDeleteRequest,
 }: {
   rows: ThesisListRow[];
@@ -38,6 +41,9 @@ export default function ThesisMobileCard({
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onSubmitForReview: (id: string) => void;
+  onVerify: (id: string) => void;
+  onUnverify: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
 }) {
   const t = useTranslations("adminTheses.table");
@@ -117,6 +123,9 @@ export default function ThesisMobileCard({
                   onArchive={() => onArchive(thesis.id)}
                   onUnarchive={() => onUnarchive(thesis.id)}
                   onDuplicate={() => onDuplicate(thesis.id)}
+                  onSubmitForReview={() => onSubmitForReview(thesis.id)}
+                  onVerify={() => onVerify(thesis.id)}
+                  onUnverify={() => onUnverify(thesis.id)}
                   onDelete={() => onDeleteRequest(thesis.id, thesis.title)}
                 />
               </div>

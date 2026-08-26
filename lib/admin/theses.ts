@@ -23,7 +23,7 @@ type ServiceClient = ReturnType<typeof createServiceClient>;
 
 const LIST_COLUMNS = `
   id, title, slug, author_names, advisor_name, program, cohort, academic_year,
-  status, cover_url, file_url, doi, view_count, download_count,
+  status, verified_at, cover_url, file_url, doi, view_count, download_count,
   created_at, updated_at, published_at, scheduled_at,
   abstract, keywords, references, license
 `;
@@ -45,6 +45,7 @@ function toRow(r: Record<string, unknown>): ThesisListRow {
     cohort: r.cohort != null ? String(r.cohort) : null,
     academicYear: (r.academic_year as string) ?? null,
     status: normalizeStatus(r.status as string),
+    verifiedAt: (r.verified_at as string) ?? null,
     coverUrl: (r.cover_url as string) ?? null,
     fileUrl: (r.file_url as string) ?? null,
     doi: (r.doi as string) ?? null,

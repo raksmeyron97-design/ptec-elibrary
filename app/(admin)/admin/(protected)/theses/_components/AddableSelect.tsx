@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, ChevronDown, Search, Loader2 } from "lucide-react";
+
+/**
+ * `useLayoutEffect` warns when it runs during server rendering, and a client
+ * component still renders on the server. Same hook, no warning.
+ *
+ * Placement is measured from the laid-out DOM, so it has to be resolved
+ * before paint — a passive effect flips the menu one frame *after* it has
+ * already been painted downward.
+ */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 export interface SelectOption {
   value: string;
@@ -20,6 +30,8 @@ interface AddableSelectProps {
   disabled?: boolean;
   /** External label to validate add input (e.g. "Enter a number") */
   addHint?: string;
+  /** Dropdown menu placement: "auto" (default), "top", or "bottom" */
+  placement?: "auto" | "top" | "bottom";
 }
 
 const BASE_BTN =
@@ -34,13 +46,56 @@ export default function AddableSelect({
   addPlaceholder = "Type to add…",
   disabled = false,
   addHint,
+  placement = "auto",
 }: AddableSelectProps) {
   const t = useTranslations("adminThesisForm.addableSelect");
   const [isOpen, setIsOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const checkPlacement = () => {
+    if (placement === "top") {
+      setDropUp(true);
+      return;
+    }
+    if (placement === "bottom") {
+      setDropUp(false);
+      return;
+    }
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      const stickyBar = document.querySelector(".sticky.bottom-4, [class*='bottom-']");
+      const bottomOffset = stickyBar ? 80 : 0;
+      let spaceBelow = window.innerHeight - bottomOffset - rect.bottom;
+      let spaceAbove = rect.top;
+
+      const scrollParent = wrapperRef.current.closest(".overflow-y-auto, [role='dialog'], form");
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const parentSpaceBelow = parentRect.bottom - rect.bottom;
+        const parentSpaceAbove = rect.top - parentRect.top;
+        spaceBelow = Math.min(spaceBelow, parentSpaceBelow);
+        spaceAbove = Math.min(spaceAbove, parentSpaceAbove);
+      }
+
+      setDropUp(spaceBelow < 280 && spaceAbove > spaceBelow);
+    }
+  };
+
+  useIsomorphicLayoutEffect(() => {
+    if (!isOpen) return;
+    checkPlacement();
+    const handleScrollOrResize = () => checkPlacement();
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [isOpen, placement]);
 
   // Close on outside click
   useEffect(() => {
@@ -74,6 +129,14 @@ export default function AddableSelect({
     setAddError("");
   }
 
+  function handleToggle() {
+    if (disabled) return;
+    if (!isOpen) {
+      checkPlacement();
+    }
+    setIsOpen((prev) => !prev);
+  }
+
   async function handleAdd() {
     if (!onAdd || !search.trim()) return;
     setAdding(true);
@@ -100,9 +163,7 @@ export default function AddableSelect({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => {
-          if (!disabled) setIsOpen((prev) => !prev);
-        }}
+        onClick={handleToggle}
         className={`${BASE_BTN} disabled:bg-paper disabled:opacity-60 disabled:cursor-not-allowed`}
       >
         <span className={value ? "text-text-heading" : "text-text-muted"}>
@@ -115,7 +176,11 @@ export default function AddableSelect({
 
       {/* Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-divider bg-bg-surface p-2 shadow-lg">
+        <div
+          className={`absolute z-50 w-full rounded-lg border border-divider bg-bg-surface p-2 shadow-xl ${
+            dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
+          }`}
+        >
           {/* Search input */}
           <div className="relative mb-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />

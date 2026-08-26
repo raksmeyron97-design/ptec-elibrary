@@ -8,10 +8,7 @@ interface NavContextType {
   navigate: (href: string) => void;
 }
 
-const NavContext = createContext<NavContextType>({
-  isPending: false,
-  navigate: () => {},
-});
+const NavContext = createContext<NavContextType | null>(null);
 
 export function ClientNavWrapper({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -38,8 +35,14 @@ export function ClientNavWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-export function useClientNav() {
-  return useContext(NavContext);
+export function useClientNav(): NavContextType {
+  const nav = useContext(NavContext);
+  const router = useRouter();
+  if (nav) return nav;
+  return {
+    isPending: false,
+    navigate: (href: string) => router.push(href, { scroll: false }),
+  };
 }
 
 interface FilterLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
