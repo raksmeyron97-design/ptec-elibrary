@@ -490,7 +490,7 @@ title={tr("insertImage")}
 
       {/* ── Preview pane ────────────────────────────────────────────── */}
       {tab === "preview" && (
-        <div className={`bg-white px-6 py-5 ${isFullscreen ? "flex-1 overflow-y-auto" : "min-h-[20rem]"}`}>
+        <div className={`prose-content bg-white px-6 py-5 ${isFullscreen ? "flex-1 overflow-y-auto" : "min-h-[20rem]"}`}>
           {value.trim() ? (
             <Markdown content={value} />
           ) : (

@@ -221,7 +221,7 @@ export default function DashboardControlBar({
               checked={filters.compare}
               disabled={isPending}
               onChange={(e) => apply({ ...filters, compare: e.target.checked })}
-              className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand,#1E3A8A)]"
+              className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand)]"
             />
             {t("compareShort")}
           </label>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   MoreVertical,
@@ -53,11 +54,36 @@ export default function EbookActionsMenu({
 }) {
   const t = useTranslations("adminEbooks.actions");
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<React.CSSProperties | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const menuWidth = 256;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropUp = spaceBelow < 340 && spaceAbove > spaceBelow;
+
+    setMenuPosition({
+      position: "fixed",
+      zIndex: 60,
+      width: `${menuWidth}px`,
+      top: dropUp ? undefined : `${rect.bottom + 4}px`,
+      bottom: dropUp ? `${window.innerHeight - rect.top + 4}px` : undefined,
+      left: `${Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth))}px`,
+    });
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
+    updatePosition();
     function onClick(e: MouseEvent) {
       if (menuRef.current?.contains(e.target as Node) || buttonRef.current?.contains(e.target as Node)) return;
       setOpen(false);
@@ -65,13 +91,18 @@ export default function EbookActionsMenu({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") { setOpen(false); buttonRef.current?.focus(); }
     }
+    const handleScrollOrResize = () => updatePosition();
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", onClick);
       document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
     };
-  }, [open]);
+  }, [open, updatePosition]);
 
   function run(fn: () => void) {
     setOpen(false);
@@ -93,7 +124,10 @@ export default function EbookActionsMenu({
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) updatePosition();
+          setOpen((v) => !v);
+        }}
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -103,12 +137,13 @@ export default function EbookActionsMenu({
         <MoreVertical className="h-4 w-4" />
       </button>
 
-      {open && (
+      {open && mounted && menuPosition && createPortal(
         <div
           ref={menuRef}
           role="menu"
+          style={menuPosition}
           aria-label={t("menuFor", { title: book.title })}
-          className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
+          className="rounded-xl border border-divider bg-bg-surface p-1.5 shadow-xl"
         >
           {isPublished ? (
             <Link href={publicPath} target="_blank" role="menuitem" onClick={() => setOpen(false)} className={itemClass}>
@@ -205,7 +240,8 @@ export default function EbookActionsMenu({
           >
             <Trash2 className="h-4 w-4" /> {t("delete")}
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -21,6 +21,7 @@
 //    and recounts from canonical rows; there is no stored total to overwrite.
 
 import { useState, useTransition } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { RefreshCw, CheckCircle2, AlertTriangle, Search, Copy } from "lucide-react";
 import { recalculateResourceStats } from "@/app/actions/data-quality";
 import type { AdminTypeStats } from "@/lib/admin/resource-stats";
@@ -30,30 +31,20 @@ type Props = {
   initial: { reconciliation: ResourceStatsReconciliation; byType: AdminTypeStats[] };
 };
 
-const TYPE_LABEL: Record<AdminTypeStats["type"], string> = {
-  book: "E-books",
-  thesis: "Theses",
-  publication: "Publications",
-  learning_path: "Learning paths",
-  physical_catalog: "Physical catalog",
-};
+/** The public figures, in the order they are shown. */
+const FIGURE_KEYS = ["digital", "books", "theses", "publications", "catalog", "paths"] as const;
 
-const SEARCH_TYPE_LABEL: Record<string, string> = {
-  book: "E-books",
-  thesis: "Theses",
-  publication: "Publications",
-  physical_catalog: "Physical catalog",
-};
-
-// Built once at module scope — constructing an Intl formatter is expensive
-// and this renders a few dozen figures per pass.
-const NUMBER_FORMAT = new Intl.NumberFormat("en");
-
-function fmt(n: number) {
-  return NUMBER_FORMAT.format(n);
-}
+const STATUS_COLUMNS = ["published", "draft", "inReview", "scheduled", "archived", "all"] as const;
 
 export default function ResourceCountAudit({ initial }: Props) {
+  const t = useTranslations("adminDataQuality.reconcile");
+  const locale = useLocale();
+  // One formatter per render pass, not one per figure: constructing an Intl
+  // formatter is expensive and this panel prints a few dozen numbers. It has
+  // to follow the admin's locale — Khmer digits are what the rest of this
+  // panel's text is now written in.
+  const numberFormat = new Intl.NumberFormat(locale);
+  const fmt = (value: number) => numberFormat.format(value);
   // Seeded from the server render, then replaced by "Recalculate and verify".
   // The page keys this component on `initial.reconciliation.checkedAt`, so a
   // fresh server fetch remounts it — this state cannot go stale behind a
@@ -71,7 +62,7 @@ export default function ResourceCountAudit({ initial }: Props) {
       try {
         setData(await recalculateResourceStats());
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Recalculation failed");
+        setError(e instanceof Error ? e.message : t("recalculateFailed"));
       }
     });
   }
@@ -87,14 +78,9 @@ export default function ResourceCountAudit({ initial }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="resource-count-audit-heading" className="text-[15px] font-bold text-text-heading">
-            Resource count reconciliation
+            {t("title")}
           </h2>
-          <p className="mt-1 max-w-[68ch] text-[12.5px] text-text-muted">
-            Public totals are recalculated from canonical records — never stored
-            and never edited by hand. &ldquo;Digital resources&rdquo; is published
-            e-books + theses + publications; the physical catalog and learning
-            paths are counted separately and are not part of that total.
-          </p>
+          <p className="mt-1 max-w-[68ch] text-[12.5px] text-text-muted">{t("description")}</p>
         </div>
         <button
           type="button"
@@ -103,12 +89,12 @@ export default function ResourceCountAudit({ initial }: Props) {
           className="inline-flex min-h-[38px] items-center gap-2 rounded-lg border border-divider bg-paper px-3.5 text-[12.5px] font-semibold text-text-body transition-colors hover:border-brand/40 hover:text-brand disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${pending ? "animate-spin" : ""}`} aria-hidden />
-          {pending ? "Recalculating…" : "Recalculate and verify"}
+          {pending ? t("recalculating") : t("recalculate")}
         </button>
       </div>
 
       {error && (
-        <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700">
+        <p role="alert" className="mt-3 rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-[12.5px] text-danger-text">
           {error}
         </p>
       )}
@@ -116,32 +102,28 @@ export default function ResourceCountAudit({ initial }: Props) {
       {/* ── Cache vs database ── */}
       <div className="mt-4">
         {actual === null ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
-            The canonical statistics view could not be read. Public surfaces are
-            omitting their resource figures rather than showing a wrong one.
+          <p className="rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-[12.5px] text-warning-text">
+            {t("viewUnavailable")}
           </p>
         ) : rec.drift.length === 0 ? (
-          <p className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12.5px] font-semibold text-emerald-700">
+          <p className="inline-flex items-center gap-2 rounded-lg border border-success-line bg-success-soft px-3 py-2 text-[12.5px] font-semibold text-success-text">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
-            Cache matches the database on every metric.
+            {t("cacheMatches")}
           </p>
         ) : (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-            <p className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-amber-800">
+          <div className="rounded-lg border border-warning-line bg-warning-soft px-3 py-2.5">
+            <p className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-warning-text">
               <AlertTriangle className="h-4 w-4" aria-hidden />
-              {rec.drift.length} metric{rec.drift.length === 1 ? "" : "s"} differ from the cached value
+              {t("driftCount", { count: rec.drift.length })}
             </p>
-            <ul className="mt-1.5 space-y-0.5 text-[12px] text-amber-900">
+            <ul className="mt-1.5 space-y-0.5 text-[12px] text-warning-text">
               {rec.drift.map((d) => (
                 <li key={d.metric} className="tabular-nums">
-                  {d.metric}: cache {fmt(d.cached)} → database {fmt(d.actual)}
+                  {t("driftRow", { metric: d.metric, cached: fmt(d.cached), actual: fmt(d.actual) })}
                 </li>
               ))}
             </ul>
-            <p className="mt-1.5 text-[11.5px] text-amber-800">
-              Use &ldquo;Recalculate and verify&rdquo; to drop the cache; the next
-              public render will recount.
-            </p>
+            <p className="mt-1.5 text-[11.5px] text-warning-text">{t("driftHint")}</p>
           </div>
         )}
       </div>
@@ -149,49 +131,47 @@ export default function ResourceCountAudit({ initial }: Props) {
       {/* ── Canonical public figures ── */}
       {actual && (
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {(
-            [
-              ["Digital resources", actual.totalDigitalResources],
-              ["E-books", actual.books],
-              ["Theses", actual.theses],
-              ["Publications", actual.publications],
-              ["Physical catalog", actual.physicalCatalogs],
-              ["Learning paths", actual.learningPaths],
-            ] as const
-          ).map(([label, value]) => (
-            <div key={label} className="rounded-xl border border-divider bg-paper p-3">
-              <dd className="text-[22px] font-bold leading-none tabular-nums text-text-heading">
-                {fmt(value)}
-              </dd>
-              <dt className="mt-1 text-[11px] text-text-muted">{label}</dt>
-            </div>
-          ))}
+          {FIGURE_KEYS.map((key) => {
+            const value = {
+              digital: actual.totalDigitalResources,
+              books: actual.books,
+              theses: actual.theses,
+              publications: actual.publications,
+              catalog: actual.physicalCatalogs,
+              paths: actual.learningPaths,
+            }[key];
+            return (
+              <div key={key} className="rounded-xl border border-divider bg-paper p-3">
+                <dd className="text-[22px] font-bold leading-none tabular-nums text-text-heading">
+                  {fmt(value)}
+                </dd>
+                <dt className="mt-1 text-[11px] text-text-muted">{t(`figures.${key}`)}</dt>
+              </div>
+            );
+          })}
         </dl>
       )}
 
       {/* ── Status breakdown (admin only) ── */}
       <div className="mt-6 overflow-x-auto">
-        <h3 className="text-[12.5px] font-bold text-text-heading">By status</h3>
-        <p className="mt-0.5 text-[11.5px] text-text-muted">
-          Admin view. Only the &ldquo;Published&rdquo; column is a public figure.
-        </p>
+        <h3 className="text-[12.5px] font-bold text-text-heading">{t("status.title")}</h3>
+        <p className="mt-0.5 text-[11.5px] text-text-muted">{t("status.hint")}</p>
         <table className="mt-2 w-full min-w-[560px] border-collapse text-[12.5px]">
           <thead>
             <tr className="border-b border-divider text-left text-[11px] uppercase tracking-[0.08em] text-text-muted">
-              <th scope="col" className="py-2 pr-3 font-bold">Type</th>
-              <th scope="col" className="py-2 pr-3 text-right font-bold">Published</th>
-              <th scope="col" className="py-2 pr-3 text-right font-bold">Draft</th>
-              <th scope="col" className="py-2 pr-3 text-right font-bold">In review</th>
-              <th scope="col" className="py-2 pr-3 text-right font-bold">Scheduled</th>
-              <th scope="col" className="py-2 pr-3 text-right font-bold">Archived</th>
-              <th scope="col" className="py-2 text-right font-bold">All records</th>
+              <th scope="col" className="py-2 pr-3 font-bold">{t("status.type")}</th>
+              {STATUS_COLUMNS.map((column) => (
+                <th key={column} scope="col" className="py-2 pr-3 text-right font-bold last:pr-0">
+                  {t(`status.${column}`)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {byType.map((row) => (
               <tr key={row.type} className="border-b border-divider/60">
                 <th scope="row" className="py-2 pr-3 text-left font-semibold text-text-body">
-                  {TYPE_LABEL[row.type]}
+                  {t(`type.${row.type}`)}
                 </th>
                 <td className="py-2 pr-3 text-right font-semibold tabular-nums text-text-heading">{fmt(row.published)}</td>
                 <td className="py-2 pr-3 text-right tabular-nums text-text-muted">{fmt(row.draft)}</td>
@@ -209,19 +189,18 @@ export default function ResourceCountAudit({ initial }: Props) {
       <div className="mt-6">
         <h3 className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-text-heading">
           <Search className="h-3.5 w-3.5" aria-hidden />
-          Search index
+          {t("search.title")}
         </h3>
         {rec.searchIndex === null ? (
-          <p className="mt-1 text-[12px] text-text-muted">
-            Search-health view unavailable (migration 0103 not applied yet).
-          </p>
+          <p className="mt-1 text-[12px] text-text-muted">{t("search.unavailable")}</p>
         ) : (
           <>
             <p className="mt-0.5 text-[11.5px] text-text-muted">
-              Published records carrying a semantic-search embedding. Records
-              without one are still reachable through keyword search; run{" "}
-              <code className="rounded bg-paper px-1">npx tsx scripts/embed-library.ts</code>{" "}
-              to close the gap.
+              {t.rich("search.hint", {
+                command: () => (
+                  <code className="rounded bg-paper px-1">npx tsx scripts/embed-library.ts</code>
+                ),
+              })}
             </p>
             <ul className="mt-2 flex flex-wrap gap-2">
               {rec.searchIndex.map((r) => (
@@ -229,20 +208,25 @@ export default function ResourceCountAudit({ initial }: Props) {
                   key={r.resourceType}
                   className={`rounded-lg border px-3 py-1.5 text-[12px] tabular-nums ${
                     r.missingEmbedding > 0
-                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      ? "border-warning-line bg-warning-soft text-warning-text"
                       : "border-divider bg-paper text-text-muted"
                   }`}
                 >
-                  {SEARCH_TYPE_LABEL[r.resourceType] ?? r.resourceType}: {fmt(r.embedded)} / {fmt(r.published)} indexed
-                  {r.missingEmbedding > 0 && <> · {fmt(r.missingEmbedding)} missing</>}
+                  {t("search.chip", {
+                    type: t.has(`type.${r.resourceType}`) ? t(`type.${r.resourceType}`) : r.resourceType,
+                    embedded: fmt(r.embedded),
+                    published: fmt(r.published),
+                  })}
+                  {r.missingEmbedding > 0 && <> · {t("search.chipMissing", { count: fmt(r.missingEmbedding) })}</>}
                 </li>
               ))}
             </ul>
             {actual && searchGap !== null && (
               <p className="mt-2 text-[11.5px] text-text-muted">
-                Searchable digital resources: {fmt(actual.searchableResources)} of{" "}
-                {fmt(actual.totalDigitalResources)}. This is reported separately and
-                is never shown publicly as the resource total.
+                {t("search.searchable", {
+                  searchable: fmt(actual.searchableResources),
+                  total: fmt(actual.totalDigitalResources),
+                })}
               </p>
             )}
           </>
@@ -254,18 +238,18 @@ export default function ResourceCountAudit({ initial }: Props) {
         <div className="mt-6">
           <h3 className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-text-heading">
             <Copy className="h-3.5 w-3.5" aria-hidden />
-            Possible duplicate records ({rec.possibleDuplicates.length})
+            {t("duplicates.title", { count: rec.possibleDuplicates.length })}
           </h3>
-          <p className="mt-0.5 max-w-[68ch] text-[11.5px] text-text-muted">
-            Published records sharing a title within the same type. They are each
-            counted once (counts are per row, with no joins), so these do not
-            inflate any total — but two editions of the same work may be worth
-            merging or distinguishing.
-          </p>
+          <p className="mt-0.5 max-w-[68ch] text-[11.5px] text-text-muted">{t("duplicates.hint")}</p>
           <ul className="mt-2 space-y-1 text-[12px] text-text-muted">
             {rec.possibleDuplicates.slice(0, 10).map((d) => (
               <li key={`${d.type}:${d.title}`}>
-                <span className="font-semibold text-text-body">{d.title}</span> — {d.count} records ({d.type})
+                <span className="font-semibold text-text-body" dir="auto">{d.title}</span>
+                {" — "}
+                {t("duplicates.row", {
+                  count: d.count,
+                  type: t.has(`type.${d.type}`) ? t(`type.${d.type}`) : d.type,
+                })}
               </li>
             ))}
           </ul>
@@ -273,7 +257,9 @@ export default function ResourceCountAudit({ initial }: Props) {
       )}
 
       <p className="mt-5 text-[11px] text-text-muted">
-        Last reconciled {new Date(rec.checkedAt).toLocaleString("en-GB", { timeZone: "UTC" })} UTC
+        {t("lastReconciled", {
+          time: new Date(rec.checkedAt).toLocaleString("en-GB", { timeZone: "UTC" }),
+        })}
       </p>
     </section>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import BookCard from "@/components/ui/books/BookCard";
@@ -76,7 +77,15 @@ export default function DashboardTabs({
   totalInProgress, totalCompleted,
 }: Props) {
   const t = useTranslations("dashboard");
-  const [tab, setTab] = useState<TabId>("reading");
+  // Read `?tab=` once via a lazy initializer (not a post-mount effect) so the
+  // server-rendered markup and the first client render agree on the active
+  // tab — an effect-driven flip would hydrate as "reading" and then jump,
+  // which both flashes the wrong panel and risks a hydration mismatch.
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<TabId>(() => {
+    const requested = searchParams.get("tab");
+    return (TAB_IDS as readonly string[]).includes(requested ?? "") ? (requested as TabId) : "reading";
+  });
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
 
   const labels: Record<TabId, string> = {

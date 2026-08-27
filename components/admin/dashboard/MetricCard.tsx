@@ -2,9 +2,6 @@
 
 import { useId, useState } from "react";
 import {
-  TrendingDown,
-  TrendingUp,
-  Minus,
   Info,
   ChevronRight,
   Eye,
@@ -18,14 +15,7 @@ import type { TrendInfo, DashboardMetric } from "@/lib/admin/dashboard-shared";
 import type { TrendPoint } from "@/lib/admin/dashboard";
 import SparkLine from "./SparkLine";
 import { useMetricSelection } from "./MetricSelection";
-
-// Status tokens rather than palette weights, so a trend arrow here is exactly
-// the green/red used by every other status surface in the app.
-const TREND_STYLE = {
-  up: { icon: TrendingUp, className: "text-[var(--ptec-success)]" },
-  down: { icon: TrendingDown, className: "text-[var(--ptec-danger)]" },
-  neutral: { icon: Minus, className: "text-[var(--dash-ink-3)]" },
-} as const;
+import { TREND_STYLE } from "./trend-style";
 
 const METRIC_ICON: Record<DashboardMetric, LucideIcon> = {
   visitors: Users,
@@ -115,7 +105,10 @@ export default function MetricCard({
         </span>
 
         <span className="flex w-full items-end justify-between gap-2">
-          <span className="text-[28px] font-bold leading-none tabular-nums text-text-heading">
+          {/* Proportional figures, not `tabular-nums`: equal-width digits are
+              for columns that must align, and at 28px they make a value like
+              "116" look gappy. The comparison lines below it stay tabular. */}
+          <span className="text-[28px] font-bold leading-none text-text-heading">
             {data.formattedValue}
           </span>
           {data.spark && data.spark.length > 1 && <SparkLine points={data.spark} accent={accent} />}

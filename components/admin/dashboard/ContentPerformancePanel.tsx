@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle, ChevronDown, FileStack, ExternalLink, PenLine } from "lucide-react";
 import type { TopContentRow } from "@/lib/admin/intelligence";
+import { deltaClass } from "./trend-style";
 
 type Preset = "top" | "rising" | "viewedNotOpened" | "openedNotDownloaded" | "incomplete";
 
@@ -141,7 +142,7 @@ export default function ContentPerformancePanel({
                       <span>{tTypes(`type.${r.type}`)}</span>
                       <span className="tabular-nums">{t("views", { count: nf.format(r.views) })}</span>
                       {compare && delta !== 0 && (
-                        <span className={`tabular-nums font-semibold ${delta > 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                        <span className={`tabular-nums font-semibold ${deltaClass(delta)}`}>
                           {delta > 0 ? "+" : ""}
                           {nf.format(delta)}
                         </span>
