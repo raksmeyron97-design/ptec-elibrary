@@ -94,6 +94,21 @@ export const EBOOK_COVER_STATUS_LABELS: Record<EbookCoverStatusFilter, string> =
 export const EBOOK_QUALITY_OPTIONS = ["complete", "good", "needs_review", "incomplete"] as const;
 
 /**
+ * Verification is a second axis, independent of status (migration 0062): a
+ * book can be live-but-unverified — everything uploaded with "publish
+ * immediately" — or verified while still a draft. Readers see the difference:
+ * an unverified record carries the "not yet verified by library staff"
+ * warning on its citation box and is excluded from OAI-PMH.
+ */
+export const EBOOK_VERIFICATION_OPTIONS = ["verified", "unverified"] as const;
+export type EbookVerificationFilter = (typeof EBOOK_VERIFICATION_OPTIONS)[number];
+
+export const EBOOK_VERIFICATION_LABELS: Record<EbookVerificationFilter, string> = {
+  verified: "Verified",
+  unverified: "Not verified",
+};
+
+/**
  * A PDF at or above this size gets the amber "Large file" badge — a flag for
  * slow connections and mobile data, not a hard upload limit.
  */
@@ -152,6 +167,8 @@ export type EbooksSummary = {
   totalDownloads: number;
   storageKb: number;
   missingMetadata: number;
+  /** Published but never verified — the citation warning is live on these. */
+  unverifiedLive: number;
 };
 
 export type EbookOption = { value: string; label: string };
@@ -166,6 +183,7 @@ export type EbooksQueryParams = {
   fileStatus?: string;
   coverStatus?: string;
   quality?: string;
+  verification?: string;
   sort?: string;
   page: number;
   pageSize: number;

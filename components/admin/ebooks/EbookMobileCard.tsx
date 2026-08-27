@@ -7,6 +7,7 @@ import { Badge } from "@/components/admin/kit";
 import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
+import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
 import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
 
@@ -88,6 +89,7 @@ export default function EbookMobileCard({
                   <Badge tone={EBOOK_STATUS_TONES[book.status]}>
                     {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
                   </Badge>
+                  <EbookVerificationBadge book={book} />
                   <EbookFileHealthBadge book={book} />
                   <EbookQualityBadge book={book} />
                 </div>

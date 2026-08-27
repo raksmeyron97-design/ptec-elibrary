@@ -16,6 +16,8 @@ import {
   EBOOK_COVER_STATUS_OPTIONS,
   EBOOK_COVER_STATUS_LABELS,
   EBOOK_QUALITY_OPTIONS,
+  EBOOK_VERIFICATION_OPTIONS,
+  EBOOK_VERIFICATION_LABELS,
   type EbookOption,
 } from "@/lib/admin/ebooks-shared";
 import { METADATA_TIER_LABELS, type MetadataQualityTier } from "@/lib/admin/ebook-quality";
@@ -47,6 +49,7 @@ export type EbookFiltersValue = {
   fileStatus: string;
   coverStatus: string;
   quality: string;
+  verification: string;
   sort: string;
 };
 
@@ -153,6 +156,7 @@ export function EbookFilterChips({ value, departments, categories }: Pick<Filter
   const tFile = useTranslations("adminEbooks.fileStatus");
   const tCover = useTranslations("adminEbooks.coverStatus");
   const tQuality = useTranslations("adminEbooks.quality");
+  const tVerification = useTranslations("adminEbooks.verification");
 
   const optionLabel = (options: EbookOption[], v: string) => options.find((o) => o.value === v)?.label ?? v;
 
@@ -165,6 +169,7 @@ export function EbookFilterChips({ value, departments, categories }: Pick<Filter
   if (isSet(value.fileStatus)) chips.push({ key: "fileStatus", label: EBOOK_FILE_STATUS_LABELS[value.fileStatus as keyof typeof EBOOK_FILE_STATUS_LABELS] ? tFile(value.fileStatus) : value.fileStatus });
   if (isSet(value.coverStatus)) chips.push({ key: "coverStatus", label: EBOOK_COVER_STATUS_LABELS[value.coverStatus as keyof typeof EBOOK_COVER_STATUS_LABELS] ? tCover(value.coverStatus) : value.coverStatus });
   if (isSet(value.quality)) chips.push({ key: "quality", label: t("metadataChip", { label: METADATA_TIER_LABELS[value.quality as MetadataQualityTier] ? tQuality(value.quality) : value.quality }) });
+  if (isSet(value.verification)) chips.push({ key: "verification", label: t("verificationChip", { label: EBOOK_VERIFICATION_LABELS[value.verification as keyof typeof EBOOK_VERIFICATION_LABELS] ? tVerification(value.verification) : value.verification }) });
 
   if (chips.length === 0) return null;
 
@@ -208,6 +213,7 @@ function MoreFiltersButton({
   const tFile = useTranslations("adminEbooks.fileStatus");
   const tCover = useTranslations("adminEbooks.coverStatus");
   const tQuality = useTranslations("adminEbooks.quality");
+  const tVerification = useTranslations("adminEbooks.verification");
   const headingId = "ebook-filters-heading";
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
@@ -218,6 +224,7 @@ function MoreFiltersButton({
   const [fileStatus, setFileStatus] = useState(value.fileStatus);
   const [coverStatus, setCoverStatus] = useState(value.coverStatus);
   const [quality, setQuality] = useState(value.quality);
+  const [verification, setVerification] = useState(value.verification);
 
   useEffect(() => {
     if (!open) return;
@@ -227,6 +234,7 @@ function MoreFiltersButton({
     setFileStatus(value.fileStatus);
     setCoverStatus(value.coverStatus);
     setQuality(value.quality);
+    setVerification(value.verification);
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -245,9 +253,15 @@ function MoreFiltersButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const activeExtra = [value.category, value.year, value.language, value.fileStatus, value.coverStatus, value.quality].some(
-    (v) => v && v !== "all",
-  );
+  const activeExtra = [
+    value.category,
+    value.year,
+    value.language,
+    value.fileStatus,
+    value.coverStatus,
+    value.quality,
+    value.verification,
+  ].some((v) => v && v !== "all");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -259,6 +273,7 @@ function MoreFiltersButton({
       fileStatus: fileStatus || null,
       coverStatus: coverStatus || null,
       quality: quality || null,
+      verification: verification || null,
     }));
   }
 
@@ -368,6 +383,17 @@ function MoreFiltersButton({
               </label>
 
               <label className="block">
+                <span className={fieldLabel}>{t("verificationLabel")}</span>
+                <SearchableSelect
+                  name="verification-filter"
+                  ariaLabel={t("verificationLabel")}
+                  value={verification || "all"}
+                  onChange={setVerification}
+                  options={[{ value: "all", label: t("anyVerification") }, ...EBOOK_VERIFICATION_OPTIONS.map((v) => ({ value: v, label: tVerification(v) }))]}
+                />
+              </label>
+
+              <label className="block">
                 <span className={fieldLabel}>{t("metadataQuality")}</span>
                 <SearchableSelect
                   name="quality-filter"
@@ -382,7 +408,7 @@ function MoreFiltersButton({
             <div className="mt-6 flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => { setCategory(""); setYear(""); setLanguage(""); setFileStatus(""); setCoverStatus(""); setQuality(""); }}
+                onClick={() => { setCategory(""); setYear(""); setLanguage(""); setFileStatus(""); setCoverStatus(""); setQuality(""); setVerification(""); }}
                 className="text-[13px] font-semibold text-text-muted hover:text-brand"
               >
                 {t("clearThese")}

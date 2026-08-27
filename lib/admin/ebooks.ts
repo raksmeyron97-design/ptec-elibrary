@@ -210,6 +210,15 @@ async function applyFilters(
     }
   }
 
+  // Verification is orthogonal to status — combining the two (?status=published
+  // &verification=unverified) is what surfaces the records whose public pages
+  // carry the "not yet verified" citation warning.
+  if (params.verification === "verified") {
+    query = query.not("verified_at", "is", null);
+  } else if (params.verification === "unverified") {
+    query = query.is("verified_at", null);
+  }
+
   if (params.coverStatus && params.coverStatus !== "all") {
     if (params.coverStatus === "has_cover") query = query.not("cover_url", "is", null);
     if (params.coverStatus === "missing_cover") query = query.is("cover_url", null);
@@ -417,7 +426,7 @@ export async function getEbooks(
 export async function getEbooksSummary(): Promise<EbooksSummary> {
   const supabase = createServiceClient();
 
-  const [total, live, drafts, pendingReview, archived, missingCovers, brokenFiles, pdfIds, broken] =
+  const [total, live, drafts, pendingReview, archived, missingCovers, brokenFiles, pdfIds, broken, unverifiedLive] =
     await Promise.all([
       supabase.from("books").select("id", { count: "exact", head: true }),
       supabase.from("books").select("id", { count: "exact", head: true }).eq("status", "published"),
@@ -433,6 +442,11 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
         .eq("status", "broken"),
       getPdfBookIds(supabase),
       getBrokenMap(supabase),
+      supabase
+        .from("books")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "published")
+        .is("verified_at", null),
     ]);
 
   // Hosted PostgREST has .sum() aggregates disabled, so each of these keeps a
@@ -474,6 +488,7 @@ export async function getEbooksSummary(): Promise<EbooksSummary> {
     totalDownloads,
     storageKb,
     missingMetadata,
+    unverifiedLive: unverifiedLive.count ?? 0,
   };
 }
 
