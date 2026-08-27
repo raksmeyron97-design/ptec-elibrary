@@ -43,22 +43,22 @@ export default function SearchTrendChart({
     <div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-hidden="true">
         <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
-          <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#1E3A8A" strokeWidth="2" /></svg>
+          <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--ptec-series-views)" strokeWidth="2" /></svg>
           {t("trendSearches")}
         </span>
         <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
-          <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="#BE123C" strokeWidth="2" strokeDasharray="3 3" /></svg>
+          <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--ptec-danger)" strokeWidth="2" strokeDasharray="3 3" /></svg>
           {t("trendZero")}
         </span>
       </div>
       <div ref={ref}>
         <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={srSummary}>
           <ChartGrid ticks={ticks} padLeft={padLeft} width={width} padRight={padRight} />
-          <path d={path((p) => p.searches)} fill="none" stroke="#1E3A8A" strokeWidth="2" strokeLinejoin="round" />
-          <path d={path((p) => p.zeroResults)} fill="none" stroke="#BE123C" strokeWidth="1.5" strokeDasharray="3 3" strokeLinejoin="round" />
+          <path d={path((p) => p.searches)} fill="none" stroke="var(--ptec-series-views)" strokeWidth="2" strokeLinejoin="round" />
+          <path d={path((p) => p.zeroResults)} fill="none" stroke="var(--ptec-danger)" strokeWidth="1.5" strokeDasharray="3 3" strokeLinejoin="round" />
           {trend.map((p, i) =>
             p.searches > 0 ? (
-              <circle key={p.date} cx={x(i)} cy={y(p.searches)} r="2.5" fill="#1E3A8A">
+              <circle key={p.date} cx={x(i)} cy={y(p.searches)} r="2.5" fill="var(--ptec-series-views)">
                 <title>{`${formatBucket(p.date, granularity)}: ${p.searches} · ${t("trendZero")}: ${p.zeroResults}`}</title>
               </circle>
             ) : null,

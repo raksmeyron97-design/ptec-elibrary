@@ -35,13 +35,27 @@ export function niceMax4(max: number): number {
   return Math.max(4, Math.ceil(max / 4) * 4);
 }
 
+/**
+ * Axis type. `--dash-chart-axis` is the AA ramp step (4.8:1), not the
+ * decorative #94A3B8 this used to hard-code — 2.8:1, which admin.css declares
+ * in as many words as a NON-TEXT mark colour. Axis ticks are a column of
+ * numbers, so they get tabular figures.
+ */
 export const AXIS_TEXT = {
   fontSize: 10,
-  fill: "#94A3B8",
+  fill: "var(--dash-chart-axis)",
   fontFamily: "system-ui,-apple-system,sans-serif",
+  style: { fontVariantNumeric: "tabular-nums" },
 } as const;
 
-/** Horizontal grid lines + y-axis labels shared by the trend charts. */
+/**
+ * Horizontal grid lines + y-axis labels shared by the trend charts.
+ *
+ * Solid hairlines, one step off the surface, with the zero line a shade
+ * stronger. They used to be dashed: dashing is how a plot says "threshold" or
+ * "projection", and spending that on a ruler both adds noise and leaves the
+ * chart with no way to mark a real one.
+ */
 export function ChartGrid({
   ticks,
   padLeft,
@@ -62,10 +76,8 @@ export function ChartGrid({
             x2={width - padRight}
             y1={t.y}
             y2={t.y}
-            stroke={i === 0 ? "#CBD5E1" : "#E2E8F0"}
-            strokeWidth={i === 0 ? 1 : 0.75}
-            strokeDasharray={i > 0 ? "4 6" : undefined}
-            strokeOpacity={0.9}
+            stroke={i === 0 ? "var(--dash-chart-baseline)" : "var(--dash-chart-grid)"}
+            strokeWidth="1"
           />
           <text x={padLeft - 8} y={t.y} textAnchor="end" dominantBaseline="middle" {...AXIS_TEXT}>
             {Math.round(t.v)}
@@ -73,56 +85,5 @@ export function ChartGrid({
         </g>
       ))}
     </>
-  );
-}
-
-/** Dark floating tooltip anchored to a chart coordinate. */
-export function ChartTooltip({
-  x,
-  y,
-  color,
-  primary,
-  secondary,
-}: {
-  x: number;
-  y: number;
-  color: string;
-  primary: string;
-  secondary: string;
-}) {
-  return (
-    <div
-      className="pointer-events-none absolute z-20"
-      style={{ left: x, top: y - 12, transform: "translate(-50%, -100%)" }}
-    >
-      <div
-        className="rounded-lg px-3 py-2 text-xs whitespace-nowrap"
-        style={{
-          background: "rgba(15,23,42,0.94)",
-          border: `1px solid ${color}30`,
-          boxShadow: "0 12px 32px rgba(0,0,0,0.28)",
-        }}
-      >
-        <div className="flex items-center gap-1.5 font-semibold leading-none mb-1" style={{ color }}>
-          <span
-            className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
-            style={{ background: color }}
-          />
-          {primary}
-        </div>
-        <div className="pl-[13px] font-medium leading-none text-slate-400">{secondary}</div>
-      </div>
-      <div className="flex justify-center">
-        <div
-          style={{
-            width: 0,
-            height: 0,
-            borderLeft: "5px solid transparent",
-            borderRight: "5px solid transparent",
-            borderTop: "5px solid rgba(15,23,42,0.94)",
-          }}
-        />
-      </div>
-    </div>
   );
 }

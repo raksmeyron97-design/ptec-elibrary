@@ -189,6 +189,53 @@ export default function TeamForm({
   // User link
   const [userSearch, setUserSearch] = useState("");
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
+  const userSearchRef = useRef<HTMLDivElement>(null);
+
+  const checkUserDropdownPlacement = useCallback(() => {
+    if (userSearchRef.current) {
+      const rect = userSearchRef.current.getBoundingClientRect();
+      const stickyBar = document.querySelector(".sticky.bottom-4, [class*='bottom-']");
+      const bottomOffset = stickyBar ? 80 : 0;
+      let spaceBelow = window.innerHeight - bottomOffset - rect.bottom;
+      let spaceAbove = rect.top;
+
+      const scrollParent = userSearchRef.current.closest(".overflow-y-auto, [role='dialog'], form");
+      if (scrollParent) {
+        const parentRect = scrollParent.getBoundingClientRect();
+        const parentSpaceBelow = parentRect.bottom - rect.bottom;
+        const parentSpaceAbove = rect.top - parentRect.top;
+        spaceBelow = Math.min(spaceBelow, parentSpaceBelow);
+        spaceAbove = Math.min(spaceAbove, parentSpaceAbove);
+      }
+
+      setDropUp(spaceBelow < 280 && spaceAbove > spaceBelow);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showUserDropdown) return;
+    checkUserDropdownPlacement();
+    const handleScrollOrResize = () => checkUserDropdownPlacement();
+    window.addEventListener("resize", handleScrollOrResize);
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    return () => {
+      window.removeEventListener("resize", handleScrollOrResize);
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+    };
+  }, [showUserDropdown, checkUserDropdownPlacement]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userSearchRef.current && !userSearchRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const busy = phase !== "idle";
   const isDirty = JSON.stringify(form) !== savedSnapshot || photoFile !== null;
@@ -1430,20 +1477,23 @@ export default function TeamForm({
                 </button>
               </div>
             ) : (
-              <div className="relative">
+              <div className="relative" ref={userSearchRef}>
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted/70" />
                   <input
                     type="text"
+                    name="user_search"
+                    autoComplete="off"
                     value={userSearch}
                     onChange={(e) => {
                       setUserSearch(e.target.value);
+                      checkUserDropdownPlacement();
                       setShowUserDropdown(true);
                     }}
-                    onFocus={() => setShowUserDropdown(true)}
-                    onBlur={() =>
-                      setTimeout(() => setShowUserDropdown(false), 150)
-                    }
+                    onFocus={() => {
+                      checkUserDropdownPlacement();
+                      setShowUserDropdown(true);
+                    }}
                     placeholder="Search by name or email…"
                     disabled={busy}
                     aria-label="Search user accounts to link"
@@ -1452,12 +1502,16 @@ export default function TeamForm({
                 </div>
                 {showUserDropdown &&
                   (filteredProfiles.length > 0 ? (
-                    <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-divider bg-bg-surface shadow-lg">
+                    <div
+                      className={`absolute z-50 w-full max-h-60 overflow-y-auto rounded-xl border border-divider bg-bg-surface shadow-xl ${
+                        dropUp ? "bottom-full mb-2" : "top-full mt-2"
+                      }`}
+                    >
                       {filteredProfiles.map((p) => (
                         <button
                           key={p.id}
                           type="button"
-                          onMouseDown={() => {
+                          onClick={() => {
                             set("user_id", p.id);
                             setUserSearch("");
                             setShowUserDropdown(false);
@@ -1474,7 +1528,11 @@ export default function TeamForm({
                       ))}
                     </div>
                   ) : userSearch.trim() ? (
-                    <div className="absolute z-20 mt-2 w-full rounded-xl border border-divider bg-bg-surface px-4 py-3 text-sm text-text-muted shadow-lg">
+                    <div
+                      className={`absolute z-50 w-full rounded-xl border border-divider bg-bg-surface px-4 py-3 text-sm text-text-muted shadow-xl ${
+                        dropUp ? "bottom-full mb-2" : "top-full mt-2"
+                      }`}
+                    >
                       No account matches “{userSearch.trim()}”. The person may
                       not have signed up yet — you can still save the profile
                       without a linked account.

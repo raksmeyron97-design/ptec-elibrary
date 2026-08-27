@@ -6,6 +6,7 @@
 // confirmation removes the reference AND all its tokens in one operation.
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import type { PublicationReference } from "@/lib/publications";
 import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
@@ -45,9 +46,9 @@ export default function DeleteReferenceDialog({
   const display = referenceCardDisplay(reference);
   const cited = citedEn + citedKm > 0;
 
-  return (
+  const dialogNode = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/50 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
@@ -125,4 +126,6 @@ export default function DeleteReferenceDialog({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(dialogNode, document.body) : null;
 }

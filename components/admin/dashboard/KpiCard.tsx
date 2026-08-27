@@ -1,17 +1,9 @@
-import { TrendingDown, TrendingUp, Minus, Info, type LucideIcon } from "lucide-react";
+import { Info, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { TrendInfo } from "@/lib/admin/dashboard-shared";
 import SparkLine from "./SparkLine";
+import { TREND_STYLE } from "./trend-style";
 import type { TrendPoint } from "@/lib/admin/dashboard";
-
-// Status tokens rather than palette weights: these already resolve per theme
-// and are the same green/red every other callout in the app uses, so a trend
-// arrow cannot drift away from the rest of the status language.
-const TREND_STYLE = {
-  up: { icon: TrendingUp, className: "text-[var(--ptec-success)]" },
-  down: { icon: TrendingDown, className: "text-[var(--ptec-danger)]" },
-  neutral: { icon: Minus, className: "text-[var(--dash-ink-3)]" },
-} as const;
 
 /** Metric colour identity — drives the icon tile tint + top accent strip. */
 export type KpiAccent = "visitors" | "views" | "reader" | "downloads" | "brand" | "gold" | "emerald";
@@ -85,7 +77,7 @@ export default function KpiCard({
           </details>
         </div>
 
-        <span className="mt-2.5 block text-[42px] font-bold leading-none tracking-tight tabular-nums text-white">
+        <span className="mt-2.5 block text-[42px] font-bold leading-none tracking-tight text-white">
           {value}
         </span>
 
@@ -141,7 +133,7 @@ export default function KpiCard({
       </div>
 
       <div className="mt-2.5 flex items-end justify-between gap-2">
-        <span className="text-[27px] font-bold leading-none tabular-nums text-text-heading">{value}</span>
+        <span className="text-[27px] font-bold leading-none text-text-heading">{value}</span>
         {spark && spark.length > 1 && <SparkLine points={spark} accent={accent} />}
       </div>
 

@@ -23,17 +23,14 @@ import {
   type SeoHealthResult,
   type SeoResourceInput,
 } from "@/lib/seo/health";
+import {
+  buildQualityReport,
+  tierOf,
+  type QualityReport,
+  type ScoredRecord,
+} from "@/lib/admin/metadata-quality-report";
 
 export type ContentType = "book" | "research";
-
-export interface MetadataGap {
-  id: string;
-  type: ContentType;
-  title: string;
-  completeness: number;
-  missingFields: string[];
-  editUrl: string;
-}
 
 const BOOK_QUALITY_COLUMNS = `
   id, title, slug, department, published_at, language, description, tags,
@@ -67,7 +64,7 @@ function scoreBook(row: Record<string, unknown>) {
     license: (row.license as string) ?? null,
     publisher: (row.publisher as string) ?? null,
   });
-  return { completeness: result.score, missingFields: result.missing.map((field) => field.label) };
+  return { completeness: result.score, missing: result.missing };
 }
 
 function scoreThesis(row: Record<string, unknown>) {
@@ -87,94 +84,102 @@ function scoreThesis(row: Record<string, unknown>) {
     fileUrl: (row.file_url as string) ?? null,
     license: (row.license as string) ?? null,
   });
-  return { completeness: result.score, missingFields: result.missing.map((field) => field.label) };
+  return { completeness: result.score, missing: result.missing };
 }
 
-/** Worst-first metadata completeness across books + theses. */
-export async function getMetadataGaps(limit = 30): Promise<MetadataGap[]> {
+/**
+ * ONE scoring pass over every published book and thesis, feeding all three
+ * metadata views: the repair queue, the tier distribution, and the per-field
+ * impact ranking.
+ *
+ * This used to be two independent actions — `getMetadataGaps()` and the
+ * metadata half of `getDataQualitySummary()` — which each fetched the full
+ * `books` and `research_reports` tables and scored every row, so a page load
+ * ran the whole thing twice and then threw one copy away. It also capped the
+ * queue at 30 rows with no way to reach the rest; the report returns every
+ * gap and the page paginates it.
+ */
+export async function getMetadataQualityReport(): Promise<{
+  report: QualityReport;
+  available: boolean;
+}> {
   const { supabase } = await requireLibrarian();
 
-  const [{ data: books }, { data: theses }] = await Promise.all([
-    supabase
-      .from("books")
-      .select(BOOK_QUALITY_COLUMNS)
-      .eq("is_published", true)
-      .limit(10_000),
-    supabase
-      .from("research_reports")
-      .select(THESIS_QUALITY_COLUMNS)
-      .eq("is_published", true)
-      .limit(10_000),
+  const [booksResult, thesesResult] = await Promise.all([
+    supabase.from("books").select(BOOK_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
+    supabase.from("research_reports").select(THESIS_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
   ]);
 
-  const gaps: MetadataGap[] = [];
-
-  for (const b of books ?? []) {
-    const { completeness, missingFields } = scoreBook(b);
-    if (missingFields.length > 0) {
-      gaps.push({ id: b.id, type: "book", title: b.title, completeness, missingFields, editUrl: `/admin/edit/${b.id}` });
-    }
+  const records: ScoredRecord[] = [];
+  for (const book of booksResult.data ?? []) {
+    const { completeness, missing } = scoreBook(book);
+    records.push({
+      id: book.id,
+      type: "book",
+      title: book.title,
+      completeness,
+      tier: tierOf(completeness),
+      missing,
+      editUrl: `/admin/edit/${book.id}`,
+    });
   }
-  for (const r of theses ?? []) {
-    const { completeness, missingFields } = scoreThesis(r);
-    if (missingFields.length > 0) {
-      gaps.push({ id: r.id, type: "research", title: r.title, completeness, missingFields, editUrl: `/admin/theses/edit/${r.id}` });
-    }
+  for (const thesis of thesesResult.data ?? []) {
+    const { completeness, missing } = scoreThesis(thesis);
+    records.push({
+      id: thesis.id,
+      type: "research",
+      title: thesis.title,
+      completeness,
+      tier: tierOf(completeness),
+      missing,
+      editUrl: `/admin/theses/edit/${thesis.id}`,
+    });
   }
 
-  return gaps.sort((a, b) => a.completeness - b.completeness).slice(0, limit);
+  return {
+    report: buildQualityReport(records),
+    available: !booksResult.error && !thesesResult.error,
+  };
 }
 
-export interface DataQualitySummary {
-  totalBooks: number;
-  totalTheses: number;
-  avgBookCompleteness: number;
-  avgThesisCompleteness: number;
+export interface FileHealthSummary {
   brokenFileCount: number;
   unknownFileCount: number;
   checkedFileCount: number;
-  metadataIssueCount: number;
-  fileHealthCheckedAt: string | null;
-  fileHealthAvailable: boolean;
-  metadataAvailable: boolean;
+  healthyFileCount: number;
+  checkedAt: string | null;
+  available: boolean;
 }
 
-export async function getDataQualitySummary(): Promise<DataQualitySummary> {
+/**
+ * The link-sweep totals. Deliberately no metadata scoring here any more —
+ * that lives in `getMetadataQualityReport()`, and having both meant scoring
+ * the whole library twice per page load.
+ */
+export async function getFileHealthSummary(): Promise<FileHealthSummary> {
   const { supabase } = await requireLibrarian();
 
-  const [booksResult, thesesResult, brokenResult, unknownResult, checkedResult, latestCheckResult] = await Promise.all([
-    supabase.from("books").select(BOOK_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
-    supabase.from("research_reports").select(THESIS_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
+  const [brokenResult, unknownResult, checkedResult, latestCheckResult] = await Promise.all([
     supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "broken"),
     supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "unknown"),
     supabase.from("file_health").select("id", { count: "exact", head: true }),
     supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  const books = booksResult.data;
-  const theses = thesesResult.data;
-
-  const bookScores = (books ?? []).map((book) => scoreBook(book).completeness);
-  const thesisScores = (theses ?? []).map((thesis) => scoreThesis(thesis).completeness);
-  const avg = (arr: number[]) => (arr.length ? Math.round(arr.reduce((s, n) => s + n, 0) / arr.length) : 100);
 
   // A clean sweep has no broken rows, so recency must come from the latest
   // check across every status rather than from the broken subset.
-  const fileHealthAvailable = !checkedResult.error && !latestCheckResult.error;
-  const metadataIssueCount = bookScores.filter((score) => score < 100).length
-    + thesisScores.filter((score) => score < 100).length;
+  const available = !checkedResult.error && !latestCheckResult.error;
+  const checked = checkedResult.error ? 0 : (checkedResult.count ?? 0);
+  const broken = brokenResult.error ? 0 : (brokenResult.count ?? 0);
+  const unknown = unknownResult.error ? 0 : (unknownResult.count ?? 0);
 
   return {
-    totalBooks: books?.length ?? 0,
-    totalTheses: theses?.length ?? 0,
-    avgBookCompleteness: avg(bookScores),
-    avgThesisCompleteness: avg(thesisScores),
-    brokenFileCount: brokenResult.error ? 0 : (brokenResult.count ?? 0),
-    unknownFileCount: unknownResult.error ? 0 : (unknownResult.count ?? 0),
-    checkedFileCount: checkedResult.error ? 0 : (checkedResult.count ?? 0),
-    metadataIssueCount,
-    fileHealthCheckedAt: fileHealthAvailable ? (latestCheckResult.data?.checked_at ?? null) : null,
-    fileHealthAvailable,
-    metadataAvailable: !booksResult.error && !thesesResult.error,
+    brokenFileCount: broken,
+    unknownFileCount: unknown,
+    checkedFileCount: checked,
+    healthyFileCount: Math.max(0, checked - broken - unknown),
+    checkedAt: available ? (latestCheckResult.data?.checked_at ?? null) : null,
+    available,
   };
 }
 

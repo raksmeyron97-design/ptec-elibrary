@@ -11,7 +11,7 @@ const TONE_VARS: Record<StatTone, { bg: string; border: string; num: string; bad
   green:  { bg: "var(--ptec-metric-views-bg)", border: "var(--ptec-metric-views-border)", num: "var(--ptec-metric-views-num)", badge: "metric-badge-views" },
   purple: { bg: "var(--ptec-metric-users-bg)", border: "var(--ptec-metric-users-border)", num: "var(--ptec-metric-users-num)", badge: "metric-badge-users" },
   cyan:   { bg: "var(--ptec-metric-cat-bg)",   border: "var(--ptec-metric-cat-border)",   num: "var(--ptec-metric-cat-num)",   badge: "metric-badge-catalog" },
-  gold:   { bg: "#FFFBEB",                     border: "#FDE68A",                          num: "#B45309",                      badge: "metric-badge-dl" },
+  gold:   { bg: "var(--ptec-metric-dl-bg)",    border: "var(--ptec-metric-dl-border)",    num: "var(--ptec-metric-dl-num)",    badge: "metric-badge-dl" },
   red:    { bg: "var(--ptec-metric-red-bg)",   border: "var(--ptec-metric-red-border)",   num: "var(--ptec-metric-red-num)",   badge: "metric-badge-red" },
   gray:   { bg: "var(--ptec-metric-gray-bg)",  border: "var(--ptec-metric-gray-border)",  num: "var(--ptec-metric-gray-num)",  badge: "metric-badge-gray" },
 };

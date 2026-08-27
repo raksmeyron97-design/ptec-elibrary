@@ -1,92 +1,29 @@
-// app/posts/[slug]/Markdown.tsx
+// app/[locale]/(public)/posts/[slug]/Markdown.tsx
 // ──────────────────────────────────────────────────────────────────
-// Minimal, dependency-free Markdown renderer.
+// Renders a post body. The grammar lives in `lib/markdown/parse.ts` (pure,
+// unit-tested); this file owns only how each node looks.
 //
-// Supports: headings (#..######), bold (**), italic (*/_), inline code (`),
-// links [text](url), unordered (-/*) and ordered (1.) lists, blockquotes (>),
-// fenced code blocks (```), horizontal rules (---), and paragraphs.
+// Everything is React elements — no `dangerouslySetInnerHTML`, no sanitiser
+// in the path — so an author cannot inject markup through a post body, and
+// the two URL-bearing nodes (links, images) are scheme-checked by
+// `isSafeHref()` before they are rendered at all.
 //
-// If you'd rather use a full library, install `react-markdown` + `remark-gfm`
-// and replace this component with:
-//   import ReactMarkdown from "react-markdown";
-//   import remarkGfm from "remark-gfm";
-//   <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+// Rhythm, measure, images, figures and tables are styled by `.prose-content`
+// in globals.css; the classes here add colour and the accent details. Both
+// the public post page and the admin preview modal wrap this in
+// `.prose-content`, so anything typographic belongs there, not here.
 // ──────────────────────────────────────────────────────────────────
 
 import React from "react";
+import {
+  isExternalHref,
+  parseDocument,
+  type BlockNode,
+  type InlineNode,
+} from "@/lib/markdown/parse";
 
-// Only allow safe URL schemes in links — blocks javascript:, data:, vbscript:,
-// etc. that could execute in the reader's session via a crafted [text](url).
-function isSafeHref(url: string): boolean {
-  const trimmed = url.trim();
-  return /^(https?:\/\/|mailto:|tel:|\/|#)/i.test(trimmed);
-}
-
-// ── Inline formatting: bold, italic, code, links ──────────────────
-function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  // Order matters: code first (so we don't format inside it), then IMAGES,
-  // then links, bold, italic. Images must precede links — `![alt](url)` also
-  // matches the link pattern, which used to consume `[alt](url)` and leave the
-  // leading "!" behind as literal text next to a link to the image file.
-  const pattern =
-    /(`[^`]+`)|(!\[[^\]]*\]\([^)]+\))|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(_[^_]+_)/g;
-
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let i = 0;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
-    }
-    const token = match[0];
-    const key = `${keyPrefix}-${i++}`;
-
-    if (token.startsWith("`")) {
-      nodes.push(
-        <code key={key} className="rounded-md border border-brand/10 bg-brand/5 px-1.5 py-0.5 font-mono text-[0.85em] text-brand">
-          {token.slice(1, -1)}
-        </code>
-      );
-    } else if (token.startsWith("![")) {
-      const m = /!\[([^\]]*)\]\(([^)]+)\)/.exec(token);
-      if (m && isSafeHref(m[2])) {
-        nodes.push(<InlineImage key={key} src={m[2].trim()} alt={m[1]} />);
-      }
-    } else if (token.startsWith("[")) {
-      const m = /\[([^\]]+)\]\(([^)]+)\)/.exec(token);
-      if (m && isSafeHref(m[2])) {
-        nodes.push(
-          <a
-            key={key}
-            href={m[2].trim()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-brand underline underline-offset-2 decoration-brand/40 transition-colors hover:text-accent hover:decoration-accent"
-          >
-            {m[1]}
-          </a>
-        );
-      } else if (m) {
-        // Unsafe scheme — render the link text as plain text, drop the href.
-        nodes.push(<React.Fragment key={key}>{m[1]}</React.Fragment>);
-      }
-    } else if (token.startsWith("**")) {
-      nodes.push(<strong key={key} className="font-bold text-brand">{token.slice(2, -2)}</strong>);
-    } else {
-      // *italic* or _italic_
-      nodes.push(<em key={key} className="text-text-body">{token.slice(1, -1)}</em>);
-    }
-
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex));
-  }
-  return nodes;
-}
+export { extractToc, computeReadingTime } from "@/lib/markdown/parse";
+export type { TocEntry } from "@/lib/markdown/parse";
 
 /**
  * A body image from the post's Markdown.
@@ -104,203 +41,273 @@ function InlineImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function slugifyHeading(text: string): string {
-  return text
-    .trim()
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/`/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/[^a-zA-Z0-9ក-៿-]/g, "")
-    .toLowerCase();
+// ── Inline nodes ──────────────────────────────────────────────────
+
+function renderInline(nodes: InlineNode[], keyPrefix: string): React.ReactNode[] {
+  return nodes.map((node, idx) => {
+    const key = `${keyPrefix}-${idx}`;
+    switch (node.type) {
+      case "text":
+        return <React.Fragment key={key}>{node.value}</React.Fragment>;
+
+      case "break":
+        return <br key={key} />;
+
+      case "code":
+        return (
+          <code
+            key={key}
+            className="rounded-md border border-brand/10 bg-brand/5 px-1.5 py-0.5 font-mono text-[0.85em] text-brand"
+          >
+            {node.value}
+          </code>
+        );
+
+      case "strong":
+        return (
+          <strong key={key} className="font-bold text-brand">
+            {renderInline(node.children, key)}
+          </strong>
+        );
+
+      case "em":
+        return <em key={key}>{renderInline(node.children, key)}</em>;
+
+      case "del":
+        return (
+          <s key={key} className="text-text-muted decoration-text-muted/60">
+            {renderInline(node.children, key)}
+          </s>
+        );
+
+      case "link": {
+        // Only links that leave the site open in a new tab. An in-page
+        // anchor or an internal path opening a tab is a bug readers feel:
+        // the table of contents and "see the rules" links both land here.
+        const external = isExternalHref(node.href);
+        return (
+          <a
+            key={key}
+            href={node.href}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className="font-semibold text-brand underline underline-offset-2 decoration-brand/40 transition-colors hover:text-accent hover:decoration-accent"
+          >
+            {renderInline(node.children, key)}
+          </a>
+        );
+      }
+
+      case "image":
+        return <InlineImage key={key} src={node.src} alt={node.alt} />;
+    }
+  });
 }
 
-export function extractToc(content: string): { id: string; text: string }[] {
-  const toc: { id: string; text: string }[] = [];
-  for (const line of content.split("\n")) {
-    const m = /^##\s+(.+)$/.exec(line);
-    if (m) toc.push({ id: slugifyHeading(m[1]), text: m[1].trim() });
-  }
-  return toc;
-}
+// ── Block nodes ───────────────────────────────────────────────────
 
-export function computeReadingTime(content: string): number {
-  const words = content.trim().split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.ceil(words / 150));
+/** H3–H6. H1 and H2 carry their own ornament and are built inline below. */
+const HEADING_CLASS: Record<number, string> = {
+  3: "mt-6 mb-2 font-title text-xl text-brand scroll-mt-24",
+  4: "mt-5 mb-2 font-title text-lg text-brand/80",
+  5: "mt-4 mb-2 font-title text-base text-text-body",
+  6: "mt-4 mb-2 font-title text-sm uppercase tracking-widest text-text-muted",
+};
+
+function renderBlocks(blocks: BlockNode[], keyPrefix: string, depth = 0): React.ReactNode[] {
+  return blocks.map((block, idx) => {
+    const key = `${keyPrefix}-${idx}`;
+
+    switch (block.type) {
+      case "heading": {
+        const inline = renderInline(block.children, key);
+
+        // H1 — large PTEC navy with a gold accent underline.
+        if (block.level === 1) {
+          return (
+            <h1 key={key} className="mt-8 mb-4 font-title text-3xl text-brand pb-2 border-b-2 border-accent/40">
+              {inline}
+            </h1>
+          );
+        }
+
+        // H2 — the gold pill bar the design spec asks for. The bar is
+        // decorative, so it is hidden from assistive tech and the heading
+        // reads as its text alone.
+        if (block.level === 2) {
+          return (
+            <h2
+              key={key}
+              id={block.id ?? undefined}
+              className="mt-8 mb-4 flex items-center gap-3 font-title text-2xl text-brand scroll-mt-24"
+            >
+              <span className="w-1.5 h-7 rounded-full bg-accent shrink-0" aria-hidden="true" />
+              <span>{inline}</span>
+            </h2>
+          );
+        }
+
+        const Tag = `h${block.level}` as "h3" | "h4" | "h5" | "h6";
+        return (
+          <Tag key={key} id={block.id ?? undefined} className={HEADING_CLASS[block.level]}>
+            {inline}
+          </Tag>
+        );
+      }
+
+      case "paragraph":
+        return (
+          <p key={key} className="text-text-body">
+            {renderInline(block.children, key)}
+          </p>
+        );
+
+      case "codeBlock":
+        return (
+          <div key={key} className="my-5 overflow-hidden rounded-xl border border-brand/20 shadow-sm">
+            {block.lang && (
+              <div className="border-b border-white/10 bg-plate px-5 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-slate-400">
+                {block.lang}
+              </div>
+            )}
+            <pre className="overflow-x-auto bg-plate p-5 text-sm leading-relaxed text-slate-100">
+              <code className={`font-mono${block.lang ? ` language-${block.lang}` : ""}`}>
+                {block.value}
+              </code>
+            </pre>
+          </div>
+        );
+
+      case "blockquote":
+        return (
+          <blockquote
+            key={key}
+            className="my-5 rounded-r-lg border-l-4 border-accent bg-accent/[0.07] py-3 pl-5 pr-3 italic text-text-body [&>:last-child]:mb-0"
+          >
+            {renderBlocks(block.children, key, depth + 1)}
+          </blockquote>
+        );
+
+      case "list": {
+        const spacing = depth > 0 ? "mt-2 mb-0" : "my-4";
+        const items = block.items.map((item, i) => {
+          const itemKey = `${key}-i${i}`;
+          // Only a loose item holds <p> children, and only its last one needs
+          // the trailing paragraph margin taken back.
+          const flush = block.tight ? "" : " [&>p:last-child]:mb-0";
+          // A tight item's paragraphs render as bare inline runs: wrapping
+          // them in <p> would add the 1.5em paragraph rhythm between one-line
+          // bullets and the list would read as a stack of paragraphs.
+          const body =
+            block.tight
+              ? item.children.flatMap((child, ci) =>
+                  child.type === "paragraph"
+                    ? renderInline(child.children, `${itemKey}-${ci}`)
+                    : renderBlocks([child], `${itemKey}-${ci}`, depth + 1)
+                )
+              : renderBlocks(item.children, itemKey, depth + 1);
+
+          // A task item replaces the marker with its checkbox.
+          if (item.checked !== null) {
+            return (
+              <li key={itemKey} className={`flex items-start gap-2.5${flush}`}>
+                <input
+                  type="checkbox"
+                  checked={item.checked}
+                  readOnly
+                  disabled
+                  aria-label={item.checked ? "Completed" : "Not completed"}
+                  className="mt-[0.45em] h-3.5 w-3.5 shrink-0 accent-accent"
+                />
+                <span className={item.checked ? "text-text-muted line-through" : undefined}>{body}</span>
+              </li>
+            );
+          }
+
+          if (block.ordered) {
+            return (
+              <li key={itemKey} className={`pl-1${flush}`}>
+                {body}
+              </li>
+            );
+          }
+
+          return (
+            <li
+              key={itemKey}
+              className={`relative pl-5${flush} before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent`}
+            >
+              {body}
+            </li>
+          );
+        });
+
+        return block.ordered ? (
+          <ol
+            key={key}
+            start={block.start === 1 ? undefined : block.start}
+            className={`${spacing} list-decimal space-y-2 pl-6 text-text-body marker:font-bold marker:text-brand`}
+          >
+            {items}
+          </ol>
+        ) : (
+          <ul key={key} className={`${spacing} list-none space-y-2 pl-6 text-text-body`}>
+            {items}
+          </ul>
+        );
+      }
+
+      case "table":
+        // Borders, padding and the header fill come from `.prose-content`,
+        // which also makes the table its own horizontal scroll container so a
+        // wide one never widens the article column.
+        return (
+          <table key={key} className="my-6">
+            <thead>
+              <tr>
+                {block.header.map((cell, ci) => (
+                  <th key={`${key}-h${ci}`} style={block.align[ci] ? { textAlign: block.align[ci]! } : undefined}>
+                    {renderInline(cell, `${key}-h${ci}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, ri) => (
+                <tr key={`${key}-r${ri}`}>
+                  {row.map((cell, ci) => (
+                    <td
+                      key={`${key}-r${ri}c${ci}`}
+                      style={block.align[ci] ? { textAlign: block.align[ci]! } : undefined}
+                    >
+                      {renderInline(cell, `${key}-r${ri}c${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+
+      case "figure":
+        return (
+          <figure key={key}>
+            <InlineImage src={block.src} alt={block.alt} />
+            {block.alt.trim() !== "" && <figcaption>{block.alt}</figcaption>}
+          </figure>
+        );
+
+      case "thematicBreak":
+        return (
+          <hr
+            key={key}
+            className="my-8 h-px border-0 bg-gradient-to-r from-brand/30 via-accent/50 to-brand/30"
+          />
+        );
+    }
+  });
 }
 
 export default function Markdown({ content }: { content: string }) {
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const blocks: React.ReactNode[] = [];
-
-  let i = 0;
-  let key = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // ── Fenced code block ──
-    if (line.trimStart().startsWith("```")) {
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trimStart().startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      i++; // skip closing fence
-      blocks.push(
-        <pre key={key++} className="my-5 overflow-x-auto rounded-xl border border-brand/20 bg-[#0B1530] p-5 text-sm leading-relaxed text-slate-100 shadow-sm">
-          <code className="font-mono">{codeLines.join("\n")}</code>
-        </pre>
-      );
-      continue;
-    }
-
-    // ── Standalone image → figure (+ caption from the alt text) ──
-    const figure = /^\s*!\[([^\]]*)\]\(([^)]+)\)\s*$/.exec(line);
-    if (figure) {
-      const [, alt, src] = figure;
-      if (isSafeHref(src)) {
-        blocks.push(
-          <figure key={key++}>
-            <InlineImage src={src.trim()} alt={alt} />
-            {alt.trim() !== "" && <figcaption>{alt}</figcaption>}
-          </figure>
-        );
-      }
-      i++;
-      continue;
-    }
-
-    // ── Horizontal rule ──
-    if (/^\s*(---|\*\*\*|___)\s*$/.test(line)) {
-      blocks.push(<hr key={key++} className="my-8 border-0 h-px bg-gradient-to-r from-brand/30 via-accent/50 to-brand/30" />);
-      i++;
-      continue;
-    }
-
-    // ── Headings ──
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
-    if (heading) {
-      const level = heading[1].length;
-      const hText = heading[2];
-      const content = renderInline(hText, `h-${key}`);
-      const id = level >= 2 ? slugifyHeading(hText) : undefined;
-
-      if (level === 1) {
-        // H1 — large PTEC navy with gold accent underline
-        blocks.push(
-          <h1 key={key++} className="mt-8 mb-4 font-title text-3xl text-brand pb-2 border-b-2 border-accent/40">
-            {content}
-          </h1>
-        );
-      } else if (level === 2) {
-        // H2 — flex with gold rounded pill bar (matching design spec)
-        blocks.push(
-          <h2 key={key++} id={id} className="mt-8 mb-4 flex items-center gap-3 font-title text-2xl text-brand scroll-mt-24">
-            <span className="w-1.5 h-7 rounded-full bg-accent shrink-0" aria-hidden="true" />
-            <span>{content}</span>
-          </h2>
-        );
-      } else {
-        const cls = [
-          "",  // H1 handled above
-          "",  // H2 handled above
-          // H3 — PTEC navy
-          "mt-6 mb-2 font-title text-xl text-brand scroll-mt-24",
-          // H4 — slightly muted
-          "mt-5 mb-2 font-title text-lg text-brand/80",
-          // H5
-          "mt-4 mb-2 font-title text-base text-text-body",
-          // H6 — uppercase label
-          "mt-4 mb-2 font-title text-sm uppercase tracking-widest text-text-muted",
-        ][level - 1];
-        const Tag = (`h${level}` as keyof React.JSX.IntrinsicElements);
-        blocks.push(<Tag key={key++} id={id} className={cls}>{content}</Tag>);
-      }
-      i++;
-      continue;
-    }
-
-    // ── Blockquote (consecutive > lines) ──
-    if (line.trimStart().startsWith(">")) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].trimStart().startsWith(">")) {
-        quoteLines.push(lines[i].replace(/^\s*>\s?/, ""));
-        i++;
-      }
-      blocks.push(
-        <blockquote key={key++} className="my-5 rounded-r-lg border-l-4 border-accent bg-amber-50/60 py-3 pl-5 pr-3 text-text-body italic dark:bg-amber-950/20">
-          {renderInline(quoteLines.join(" "), `q-${key}`)}
-        </blockquote>
-      );
-      continue;
-    }
-
-    // ── Unordered list ──
-    if (/^\s*[-*]\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
-        i++;
-      }
-      blocks.push(
-        <ul key={key++} className="my-4 space-y-2 pl-6 text-text-body" style={{ listStyleType: "none" }}>
-          {items.map((it, idx) => (
-            <li key={idx} className="relative pl-5 before:absolute before:left-0 before:top-[0.6em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
-              {renderInline(it, `ul-${key}-${idx}`)}
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // ── Ordered list ──
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const items: string[] = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
-        i++;
-      }
-      blocks.push(
-        <ol key={key++} className="my-4 list-decimal space-y-2 pl-6 text-text-body marker:font-bold marker:text-brand">
-          {items.map((it, idx) => (
-            <li key={idx} className="pl-1">{renderInline(it, `ol-${key}-${idx}`)}</li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // ── Blank line ──
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-
-    // ── Paragraph (gather consecutive non-blank, non-special lines) ──
-    const paraLines: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() !== "" &&
-      !lines[i].trimStart().startsWith("```") &&
-      !/^(#{1,6})\s+/.test(lines[i]) &&
-      !lines[i].trimStart().startsWith(">") &&
-      !/^\s*[-*]\s+/.test(lines[i]) &&
-      !/^\s*\d+\.\s+/.test(lines[i]) &&
-      !/^\s*(---|\*\*\*|___)\s*$/.test(lines[i]) &&
-      !/^\s*!\[[^\]]*\]\([^)]+\)\s*$/.test(lines[i])
-    ) {
-      paraLines.push(lines[i]);
-      i++;
-    }
-    blocks.push(
-      <p key={key++} className="text-text-body">
-        {renderInline(paraLines.join(" "), `p-${key}`)}
-      </p>
-    );
-  }
-
-  return <>{blocks}</>;
+  if (!content?.trim()) return null;
+  return <>{renderBlocks(parseDocument(content), "b")}</>;
 }

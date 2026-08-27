@@ -9,33 +9,46 @@ import {
   FileWarning,
   GraduationCap,
   LinkIcon,
-  Pencil,
   ShieldAlert,
   Sparkles,
   Wrench,
 } from "lucide-react";
 import {
-  getMetadataGaps,
-  getDataQualitySummary,
+  getMetadataQualityReport,
+  getFileHealthSummary,
   getBrokenFiles,
   getResourceStatsReconciliation,
   getCanonicalBackfillReconciliation,
   getSeoHealth,
 } from "@/app/actions/data-quality";
+import {
+  filterGaps,
+  TIER_ORDER,
+  type QualityRecordType,
+} from "@/lib/admin/metadata-quality-report";
+import type { MetadataQualityTier } from "@/lib/admin/thesis-metadata-quality";
 import ResourceCountAudit from "@/components/admin/ResourceCountAudit";
 import CanonicalBackfillAudit from "@/components/admin/CanonicalBackfillAudit";
 import SeoHealthAudit from "@/components/admin/SeoHealthAudit";
+import MetadataAnalysis from "@/components/admin/data-quality/MetadataAnalysis";
+import RepairQueue from "@/components/admin/data-quality/RepairQueue";
 import { PageHeader } from "@/components/admin/kit";
 
 export const dynamic = "force-dynamic";
 
+const BASE_PATH = "/admin/data-quality";
+const DEFAULT_PAGE_SIZE = 15;
+const PAGE_SIZES = [15, 30, 60];
+
 type T = (key: string, values?: Record<string, string | number>) => string;
 
-function completenessStyle(pct: number): string {
-  if (pct >= 80) return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (pct >= 50) return "border-amber-200 bg-amber-50 text-amber-800";
-  return "border-rose-200 bg-rose-50 text-rose-700";
-}
+type SP = {
+  page?: string;
+  size?: string;
+  type?: string;
+  tier?: string;
+  field?: string;
+};
 
 function timeAgo(iso: string | null, t: T): string {
   if (!iso) return t("time.never");
@@ -48,59 +61,98 @@ function timeAgo(iso: string | null, t: T): string {
   return new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC" });
 }
 
+/**
+ * A quiet divider naming the intent of the block below it, so the page reads
+ * as three jobs rather than one long scroll: what state is the collection in,
+ * what work is queued, and do the underlying numbers reconcile.
+ */
+function ZoneHeader({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+      <span className="h-3.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
+      <p className="text-[10.5px] font-bold uppercase tracking-[0.11em] text-[var(--ptec-accent-text)]">{label}</p>
+      <p className="text-[11.5px] leading-4 text-text-muted">{hint}</p>
+    </div>
+  );
+}
+
 function MetricCard({
   icon,
   label,
   value,
   detail,
+  tone = "neutral",
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   detail: string;
+  /** Only the two counters that can represent outstanding work take a tone. */
+  tone?: "neutral" | "warning" | "danger";
 }) {
+  const accent =
+    tone === "danger" ? "var(--ptec-danger)" : tone === "warning" ? "var(--ptec-amber)" : "var(--ptec-series-views)";
   return (
-    <div className="rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
+      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: accent, opacity: 0.9 }} aria-hidden="true" />
       <div className="flex items-center justify-between gap-3">
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">{label}</p>
-        <span className="text-brand">{icon}</span>
+        <span style={{ color: accent }}>{icon}</span>
       </div>
-      <p className="mt-3 text-[28px] font-bold tabular-nums text-text-heading">{value}</p>
+      {/* Proportional figures: a standalone value at 28px reads gappy with
+          equal-width digits. Tabular is for columns that must align. */}
+      <p className="mt-3 text-[28px] font-bold text-text-heading">{value}</p>
       <p className="mt-0.5 text-[11.5px] text-text-muted">{detail}</p>
     </div>
   );
 }
 
-export default async function DataQualityPage() {
-  const [t, summary, gaps, brokenFiles, resourceStats, backfill, seoHealth] = await Promise.all([
+export default async function DataQualityPage({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
+  const [t, metadata, fileHealth, brokenFiles, resourceStats, backfill, seoHealth] = await Promise.all([
     getTranslations("adminDataQuality"),
-    getDataQualitySummary(),
-    getMetadataGaps(),
+    getMetadataQualityReport(),
+    getFileHealthSummary(),
     getBrokenFiles(),
     getResourceStatsReconciliation(),
     getCanonicalBackfillReconciliation(),
     getSeoHealth(),
   ]);
 
-  const totalRecords = summary.totalBooks + summary.totalTheses;
-  const averageCompleteness = totalRecords > 0
-    ? Math.round(
-        (summary.avgBookCompleteness * summary.totalBooks
-          + summary.avgThesisCompleteness * summary.totalTheses) / totalRecords,
-      )
-    : 100;
-  const healthyFiles = Math.max(
-    0,
-    summary.checkedFileCount - summary.brokenFileCount - summary.unknownFileCount,
-  );
-  const percent = (count: number) => summary.checkedFileCount > 0
-    ? (count / summary.checkedFileCount) * 100
-    : 0;
-  const urgentCount = brokenFiles.length + gaps.filter((gap) => gap.completeness < 50).length;
-  const lastSweep = timeAgo(summary.fileHealthCheckedAt, t);
+  const report = metadata.report;
+
+  // ── URL state ──────────────────────────────────────────────────────────
+  const activeType: QualityRecordType | "all" =
+    sp.type === "book" || sp.type === "research" ? sp.type : "all";
+  const activeTier: MetadataQualityTier | "all" = TIER_ORDER.includes(sp.tier as MetadataQualityTier)
+    ? (sp.tier as MetadataQualityTier)
+    : "all";
+  const activeField = report.fields.some((field) => field.key === sp.field) ? sp.field : undefined;
+  const pageSize = PAGE_SIZES.includes(Number(sp.size)) ? Number(sp.size) : DEFAULT_PAGE_SIZE;
+
+  const filtered = filterGaps(report.gaps, { type: activeType, tier: activeTier, field: activeField });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // Clamp rather than 404: a filter change can shrink the set under the page
+  // number already in the URL, and dropping the reader on an empty page there
+  // looks like data loss.
+  const page = Math.min(Math.max(1, Number(sp.page ?? "1") || 1), totalPages);
+  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const activeFieldLabel = (() => {
+    const field = report.fields.find((entry) => entry.key === activeField);
+    if (!field) return undefined;
+    return t.has(`fields.${field.key}`) ? t(`fields.${field.key}`) : field.label;
+  })();
+
+  const percent = (count: number) =>
+    fileHealth.checkedFileCount > 0 ? (count / fileHealth.checkedFileCount) * 100 : 0;
+  const urgentCount =
+    brokenFiles.length + report.gaps.filter((gap) => gap.completeness < 50).length;
+  const lastSweep = timeAgo(fileHealth.checkedAt, t);
+  const searchParamsRecord = sp as Record<string, string | undefined>;
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-8">
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -118,217 +170,225 @@ export default async function DataQualityPage() {
         }
       />
 
-      {!summary.metadataAvailable && (
-        <div role="alert" className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
+      {!metadata.available && (
+        <div role="alert" className="flex items-start gap-3 rounded-xl border border-warning-line bg-warning-soft px-4 py-3 text-warning-text">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div>
             <p className="text-[12.5px] font-semibold">{t("alert.title")}</p>
-            <p className="mt-0.5 text-[11.5px] text-amber-800">{t("alert.body")}</p>
+            <p className="mt-0.5 text-[11.5px]">{t("alert.body")}</p>
           </div>
         </div>
       )}
 
-      <section aria-labelledby="collection-health-title" className="mb-6 overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="grid lg:grid-cols-[1.25fr_1fr]">
-          <div className="border-b border-divider p-5 lg:border-b-0 lg:border-r">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand">{t("health.eyebrow")}</p>
-                <h2 id="collection-health-title" className="mt-1 text-[18px] font-bold text-text-heading">
-                  {t("health.completeness", { percent: averageCompleteness })}
-                </h2>
-              </div>
-              <Sparkles className="h-5 w-5 text-amber-500" aria-hidden="true" />
-            </div>
-            <div className="mt-5 h-3 overflow-hidden rounded-full bg-paper" aria-label={t("health.barLabel", { percent: averageCompleteness })} role="img">
-              <div className="h-full rounded-full bg-brand transition-[width]" style={{ width: `${averageCompleteness}%` }} />
-            </div>
-            <div className="mt-3 flex flex-wrap justify-between gap-2 text-[11.5px] text-text-muted">
-              <span>{t("health.needMeta", { count: summary.metadataIssueCount, total: totalRecords })}</span>
-              <span>{t("health.complete", { count: totalRecords - summary.metadataIssueCount })}</span>
-            </div>
-          </div>
+      {/* ── Zone 1 · State of the collection ──────────────────────────── */}
+      <div className="space-y-4">
+        <ZoneHeader label={t("zones.stateLabel")} hint={t("zones.stateHint")} />
 
-          <div className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">{t("sweep.eyebrow")}</p>
-                <p className="mt-1 text-[14px] font-semibold text-text-heading">
-                  {summary.fileHealthAvailable
-                    ? t("sweep.checked", { count: summary.checkedFileCount })
-                    : t("sweep.unavailable")}
-                </p>
+        <section aria-labelledby="collection-health-title" className="overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
+          <div className="grid lg:grid-cols-[1.25fr_1fr]">
+            <div className="border-b border-divider p-5 lg:border-b-0 lg:border-r">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-brand">{t("health.eyebrow")}</p>
+                  <h2 id="collection-health-title" className="mt-1 text-[18px] font-bold text-text-heading">
+                    {t("health.completeness", { percent: report.averageCompleteness })}
+                  </h2>
+                </div>
+                <Sparkles className="h-5 w-5 text-accent" aria-hidden="true" />
               </div>
-              <span className="inline-flex items-center gap-1.5 text-[11.5px] text-text-muted">
-                <Clock3 className="h-3.5 w-3.5" aria-hidden="true" /> {lastSweep}
-              </span>
-            </div>
-            {summary.fileHealthAvailable && summary.checkedFileCount > 0 ? (
-              <>
+              <div
+                className="mt-5 h-3 overflow-hidden rounded-full bg-paper"
+                aria-label={t("health.barLabel", { percent: report.averageCompleteness })}
+                role="img"
+              >
                 <div
-                  className="mt-5 flex h-3 overflow-hidden rounded-full bg-paper"
-                  role="img"
-                  aria-label={t("sweep.barLabel", { healthy: healthyFiles, unknown: summary.unknownFileCount, broken: summary.brokenFileCount })}
-                >
-                  <div className="bg-emerald-500" style={{ width: `${percent(healthyFiles)}%` }} />
-                  <div className="bg-amber-400" style={{ width: `${percent(summary.unknownFileCount)}%` }} />
-                  <div className="bg-rose-500" style={{ width: `${percent(summary.brokenFileCount)}%` }} />
+                  className="h-full rounded-full transition-[width]"
+                  style={{ width: `${report.averageCompleteness}%`, background: "var(--ptec-brand)" }}
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap justify-between gap-2 text-[11.5px] text-text-muted">
+                <span>{t("health.needMeta", { count: report.gaps.length, total: report.scoredCount })}</span>
+                <span>{t("health.complete", { count: report.completeCount })}</span>
+              </div>
+            </div>
+
+            <div className="p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-text-muted">{t("sweep.eyebrow")}</p>
+                  <p className="mt-1 text-[14px] font-semibold text-text-heading">
+                    {fileHealth.available
+                      ? t("sweep.checked", { count: fileHealth.checkedFileCount })
+                      : t("sweep.unavailable")}
+                  </p>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-text-muted">
-                  <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-emerald-500" />{t("sweep.healthy", { count: healthyFiles })}</span>
-                  <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-amber-400" />{t("sweep.unknown", { count: summary.unknownFileCount })}</span>
-                  <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-rose-500" />{t("sweep.broken", { count: summary.brokenFileCount })}</span>
-                </div>
-              </>
-            ) : (
-              <p className="mt-4 rounded-xl bg-paper px-3 py-2.5 text-[12px] leading-5 text-text-muted">
-                {summary.fileHealthAvailable ? t("sweep.noBaseline") : t("sweep.applyMigration")}
-              </p>
-            )}
+                <span className="inline-flex items-center gap-1.5 text-[11.5px] text-text-muted">
+                  <Clock3 className="h-3.5 w-3.5" aria-hidden="true" /> {lastSweep}
+                </span>
+              </div>
+              {fileHealth.available && fileHealth.checkedFileCount > 0 ? (
+                <>
+                  <div
+                    className="mt-5 flex h-3 gap-px overflow-hidden rounded-full bg-paper"
+                    role="img"
+                    aria-label={t("sweep.barLabel", {
+                      healthy: fileHealth.healthyFileCount,
+                      unknown: fileHealth.unknownFileCount,
+                      broken: fileHealth.brokenFileCount,
+                    })}
+                  >
+                    <div style={{ width: `${percent(fileHealth.healthyFileCount)}%`, background: "var(--ptec-success)" }} />
+                    <div style={{ width: `${percent(fileHealth.unknownFileCount)}%`, background: "var(--ptec-amber)" }} />
+                    <div style={{ width: `${percent(fileHealth.brokenFileCount)}%`, background: "var(--ptec-danger)" }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-text-muted">
+                    <span className="inline-flex items-center gap-1.5">
+                      <i className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--ptec-success)" }} />
+                      {t("sweep.healthy", { count: fileHealth.healthyFileCount })}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <i className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--ptec-amber)" }} />
+                      {t("sweep.unknown", { count: fileHealth.unknownFileCount })}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <i className="inline-block h-2 w-2 rounded-full" style={{ background: "var(--ptec-danger)" }} />
+                      {t("sweep.broken", { count: fileHealth.brokenFileCount })}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="mt-4 rounded-xl bg-paper px-3 py-2.5 text-[12px] leading-5 text-text-muted">
+                  {fileHealth.available ? t("sweep.noBaseline") : t("sweep.applyMigration")}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section aria-label={t("metrics.aria")} className="mb-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={<BookOpen className="h-4 w-4" />} label={t("metrics.books")} value={`${summary.avgBookCompleteness}%`} detail={t("metrics.publishedRecords", { count: summary.totalBooks })} />
-        <MetricCard icon={<GraduationCap className="h-4 w-4" />} label={t("metrics.theses")} value={`${summary.avgThesisCompleteness}%`} detail={t("metrics.publishedRecords", { count: summary.totalTheses })} />
-        <MetricCard icon={<Wrench className="h-4 w-4" />} label={t("metrics.metadataQueue")} value={summary.metadataIssueCount} detail={t("metrics.needingEdits")} />
-        <MetricCard icon={<LinkIcon className="h-4 w-4" />} label={t("metrics.brokenLinks")} value={summary.brokenFileCount} detail={t("metrics.lastSweep", { time: lastSweep })} />
-      </section>
+        <section aria-label={t("metrics.aria")} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            icon={<BookOpen className="h-4 w-4" />}
+            label={t("metrics.books")}
+            value={`${report.byType.book.average}%`}
+            detail={t("metrics.publishedRecords", { count: report.byType.book.count })}
+          />
+          <MetricCard
+            icon={<GraduationCap className="h-4 w-4" />}
+            label={t("metrics.theses")}
+            value={`${report.byType.research.average}%`}
+            detail={t("metrics.publishedRecords", { count: report.byType.research.count })}
+          />
+          <MetricCard
+            icon={<Wrench className="h-4 w-4" />}
+            label={t("metrics.metadataQueue")}
+            value={report.gaps.length}
+            detail={t("metrics.needingEdits")}
+            tone={report.gaps.length > 0 ? "warning" : "neutral"}
+          />
+          <MetricCard
+            icon={<LinkIcon className="h-4 w-4" />}
+            label={t("metrics.brokenLinks")}
+            value={fileHealth.brokenFileCount}
+            detail={t("metrics.lastSweep", { time: lastSweep })}
+            tone={fileHealth.brokenFileCount > 0 ? "danger" : "neutral"}
+          />
+        </section>
 
-      {/* Resource-count reconciliation: canonical public totals vs the cache
-          vs the search index. Lives here rather than on the Overview because
-          it is a data-integrity check, not a KPI. */}
-      <div className="mb-8">
-        {/* Keyed on the reconciliation timestamp: the panel seeds client state
-            from this prop, so a fresh server fetch must remount it rather than
-            leave the previous result on screen. */}
-        <ResourceCountAudit
-          key={resourceStats.reconciliation.checkedAt}
-          initial={resourceStats}
+        <MetadataAnalysis
+          report={report}
+          activeField={activeField}
+          activeTier={activeTier === "all" ? undefined : activeTier}
+          basePath={BASE_PATH}
+          searchParams={searchParamsRecord}
         />
       </div>
 
-      {/* Canonical-model backfill integrity (migrations 0104–0109): legacy vs
-          canonical counts per domain. A data-integrity check, like the count
-          reconciliation above — not a KPI. */}
-      <div className="mb-8">
-        <CanonicalBackfillAudit data={backfill} />
-      </div>
+      {/* ── Zone 2 · Work queued ──────────────────────────────────────── */}
+      <div className="space-y-4">
+        <ZoneHeader label={t("zones.repairLabel")} hint={t("zones.repairHint")} />
 
-      {/* SEO health (§25): non-unique titles, missing social images, and the
-          Scholar-critical metadata gaps on theses/publications. Read-only. */}
-      <div className="mb-8">
-        <SeoHealthAudit data={seoHealth} />
-      </div>
+        <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          <RepairQueue
+            gaps={pageItems}
+            totalGaps={filtered.length}
+            page={page}
+            pageSize={pageSize}
+            activeType={activeType}
+            activeTier={activeTier}
+            activeField={activeField}
+            activeFieldLabel={activeFieldLabel}
+            basePath={BASE_PATH}
+            searchParams={searchParamsRecord}
+          />
 
-      <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-        <section aria-labelledby="metadata-gaps-title" className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-divider p-5">
-            <div>
-              <h2 id="metadata-gaps-title" className="text-[15px] font-bold text-text-heading">{t("gaps.title")}</h2>
-              <p className="mt-1 text-[12px] text-text-muted">{t("gaps.subtitle")}</p>
+          <aside aria-labelledby="broken-files-title" className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
+            <div className="border-b border-divider p-5">
+              <div className="flex items-center gap-2">
+                <FileWarning className={`h-4 w-4 ${brokenFiles.length ? "text-danger" : "text-success"}`} aria-hidden="true" />
+                <h2 id="broken-files-title" className="text-[15px] font-bold text-text-heading">{t("files.title")}</h2>
+              </div>
+              <p className="mt-1 text-[12px] text-text-muted">{t("files.subtitle")}</p>
             </div>
-            {summary.metadataIssueCount > 0 && (
-              <span className="rounded-full bg-paper px-2.5 py-1 text-[11px] font-semibold text-text-muted">
-                {t("gaps.showing", { shown: Math.min(gaps.length, 30), total: summary.metadataIssueCount })}
-              </span>
+
+            {brokenFiles.length === 0 ? (
+              <div className="px-5 py-10 text-center">
+                {fileHealth.available && fileHealth.checkedAt ? (
+                  <>
+                    <CheckCircle2 className="mx-auto h-7 w-7 text-success" aria-hidden="true" />
+                    <p className="mt-3 text-[14px] font-semibold text-text-heading">{t("files.noneTitle")}</p>
+                    <p className="mt-1 text-[12px] text-text-muted">{t("files.noneBody", { time: lastSweep })}</p>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="mx-auto h-7 w-7 text-warning" aria-hidden="true" />
+                    <p className="mt-3 text-[14px] font-semibold text-text-heading">{t("files.noBaselineTitle")}</p>
+                    <p className="mt-1 text-[12px] leading-5 text-text-muted">{t("files.noBaselineBody")}</p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <ul className="max-h-[640px] divide-y divide-divider overflow-y-auto">
+                {brokenFiles.map((file) => (
+                  <li key={`${file.recordType}-${file.recordId}-${file.field}`} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 rounded-lg bg-danger/5 p-2 text-danger"><FileWarning className="h-4 w-4" aria-hidden="true" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-text-heading" dir="auto">{file.title ?? t("files.deleted")}</p>
+                        <p className="mt-0.5 text-[11.5px] text-danger">
+                          {file.field === "file_url" ? t("files.pdf") : t("files.cover")} · {file.httpStatus ?? t("files.unreachable")}
+                        </p>
+                        <p className="mt-1 truncate text-[10.5px] text-text-muted" title={file.url}>{file.url}</p>
+                        <Link href={file.editUrl} className="mt-2 inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+                          {t("files.repair")} <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        </Link>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
 
-          {gaps.length === 0 ? (
-            <div className="px-5 py-14 text-center">
-              <CheckCircle2 className="mx-auto h-7 w-7 text-success" aria-hidden="true" />
-              <p className="mt-3 text-[14px] font-semibold text-text-heading">{t("gaps.completeTitle")}</p>
-              <p className="mt-1 text-[12px] text-text-muted">{t("gaps.completeBody")}</p>
+            <div className="border-t border-divider bg-paper/60 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("files.refresh")}</p>
+              <code className="mt-2 block overflow-x-auto rounded-lg border border-divider bg-bg-surface px-3 py-2 text-[10.5px] text-text-body">npx tsx scripts/check-file-health.ts</code>
             </div>
-          ) : (
-            <ol className="divide-y divide-divider">
-              {gaps.map((gap) => (
-                <li key={`${gap.type}-${gap.id}`} className="group p-4 transition hover:bg-paper/60 sm:p-5">
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-0.5 shrink-0 rounded-lg border px-2 py-1 text-[11px] font-bold tabular-nums ${completenessStyle(gap.completeness)}`}>
-                      {gap.completeness}%
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="min-w-0 truncate text-[13.5px] font-semibold text-text-heading">{gap.title}</p>
-                        <span className="text-[10.5px] font-bold uppercase tracking-wider text-text-muted">
-                          {gap.type === "book" ? t("gaps.typeBook") : t("gaps.typeThesis")}
-                        </span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {gap.missingFields.map((field) => (
-                          <span key={field} className="rounded-md bg-paper px-2 py-1 text-[11px] text-text-muted">{field}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <Link
-                      href={gap.editUrl}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 py-1.5 text-[12px] font-semibold text-text-body transition hover:border-brand/40 hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                      aria-label={t("gaps.editAria", { title: gap.title })}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> {t("gaps.edit")}
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+          </aside>
+        </div>
+      </div>
 
-        <aside aria-labelledby="broken-files-title" className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
-          <div className="border-b border-divider p-5">
-            <div className="flex items-center gap-2">
-              <FileWarning className={`h-4 w-4 ${brokenFiles.length ? "text-danger" : "text-success"}`} aria-hidden="true" />
-              <h2 id="broken-files-title" className="text-[15px] font-bold text-text-heading">{t("files.title")}</h2>
-            </div>
-            <p className="mt-1 text-[12px] text-text-muted">{t("files.subtitle")}</p>
-          </div>
+      {/* ── Zone 3 · Integrity checks ─────────────────────────────────────
+          Diagnostics, not KPIs: do the public totals, the canonical backfill
+          and the SEO metadata still reconcile with the records themselves?
+          They sit last because they are consulted, not worked through. */}
+      <div className="space-y-4">
+        <ZoneHeader label={t("zones.integrityLabel")} hint={t("zones.integrityHint")} />
 
-          {brokenFiles.length === 0 ? (
-            <div className="px-5 py-10 text-center">
-              {summary.fileHealthAvailable && summary.fileHealthCheckedAt ? (
-                <>
-                  <CheckCircle2 className="mx-auto h-7 w-7 text-success" aria-hidden="true" />
-                  <p className="mt-3 text-[14px] font-semibold text-text-heading">{t("files.noneTitle")}</p>
-                  <p className="mt-1 text-[12px] text-text-muted">{t("files.noneBody", { time: lastSweep })}</p>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="mx-auto h-7 w-7 text-warning" aria-hidden="true" />
-                  <p className="mt-3 text-[14px] font-semibold text-text-heading">{t("files.noBaselineTitle")}</p>
-                  <p className="mt-1 text-[12px] leading-5 text-text-muted">{t("files.noBaselineBody")}</p>
-                </>
-              )}
-            </div>
-          ) : (
-            <ul className="divide-y divide-divider">
-              {brokenFiles.map((file) => (
-                <li key={`${file.recordType}-${file.recordId}-${file.field}`} className="p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 rounded-lg bg-danger/5 p-2 text-danger"><FileWarning className="h-4 w-4" aria-hidden="true" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-text-heading">{file.title ?? t("files.deleted")}</p>
-                      <p className="mt-0.5 text-[11.5px] text-danger">
-                        {file.field === "file_url" ? t("files.pdf") : t("files.cover")} · {file.httpStatus ?? t("files.unreachable")}
-                      </p>
-                      <p className="mt-1 truncate text-[10.5px] text-text-muted" title={file.url}>{file.url}</p>
-                      <Link href={file.editUrl} className="mt-2 inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-                        {t("files.repair")} <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="border-t border-divider bg-paper/60 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{t("files.refresh")}</p>
-            <code className="mt-2 block overflow-x-auto rounded-lg border border-divider bg-bg-surface px-3 py-2 text-[10.5px] text-text-body">npx tsx scripts/check-file-health.ts</code>
-          </div>
-        </aside>
+        {/* Keyed on the reconciliation timestamp: the panel seeds client state
+            from this prop, so a fresh server fetch must remount it rather than
+            leave the previous result on screen. */}
+        <ResourceCountAudit key={resourceStats.reconciliation.checkedAt} initial={resourceStats} />
+        <CanonicalBackfillAudit data={backfill} />
+        <SeoHealthAudit data={seoHealth} />
       </div>
     </div>
   );

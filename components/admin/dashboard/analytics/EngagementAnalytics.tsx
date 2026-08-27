@@ -26,8 +26,8 @@ import {
   type AnalyticsPlotSeries,
 } from "./AnalyticsChartPlot";
 import SelectedBucketDetails from "./SelectedBucketDetails";
+import SeriesKey from "./SeriesKey";
 import { analyticsChartReducer, createAnalyticsChartState } from "./chart-state";
-import { METRIC_CHART_STYLE } from "./chart-tokens";
 import { useEngagementBreakdown } from "./useEngagementBreakdown";
 
 const METRICS: DashboardMetric[] = ["views", "visitors", "readerOpens", "downloads"];
@@ -290,11 +290,7 @@ export default function EngagementAnalytics({
                     onChange={() => dispatch({ type: "toggleSeries", metric: key })}
                     className="h-3.5 w-3.5 accent-[var(--ptec-brand)]"
                   />
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ background: METRIC_CHART_STYLE[key].stroke }}
-                    aria-hidden="true"
-                  />
+                  <SeriesKey metric={key} />
                   {t(`series.${key}`)}
                 </label>
               );
@@ -302,6 +298,23 @@ export default function EngagementAnalytics({
           </fieldset>
         )}
       </div>
+
+      {/* Identity for the previous-period overlay. In "compare metrics" mode
+          the checkboxes above already carry a line key each, so this would be
+          the same legend twice — each mode gets exactly one. */}
+      {state.comparison === "previous" && (
+        <ul
+          aria-label={t("legendLabel")}
+          className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1"
+        >
+          {plotSeries.map((item) => (
+            <li key={item.id} className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
+              <SeriesKey metric={item.metric} comparison={item.comparison} dashed={false} />
+              {item.label}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <p className="mt-2 min-h-5 text-[11.5px] text-text-muted" aria-live="polite">
         {collecting ? t("readerOpensCollecting") : summary}

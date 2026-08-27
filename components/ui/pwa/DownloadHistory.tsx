@@ -1,10 +1,12 @@
 // components/ui/DownloadHistory.tsx
-// Server component — fetch + render download history for the current user.
-// Drop this inside the dashboard page alongside the Saved/In-Progress sections.
+// Presentational — renders download history the caller already fetched.
+// The dashboard page fetches `getMyDownloadHistory()` once (in its
+// coordinated Promise.all) and reuses the same array here and for
+// RecentActivity, rather than each section querying download_logs itself.
 
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
-import { getMyDownloadHistory } from "@/app/actions/download";
+import type { DownloadHistoryItem } from "@/app/actions/download";
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -18,9 +20,7 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export default async function DownloadHistory() {
-  const history = await getMyDownloadHistory();
-
+export default function DownloadHistory({ history }: { history: DownloadHistoryItem[] }) {
   return (
     <div id="downloads" className="scroll-mt-6">
       <div className="mb-5 flex items-center justify-between">

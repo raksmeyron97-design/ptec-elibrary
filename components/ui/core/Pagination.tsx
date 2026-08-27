@@ -14,19 +14,26 @@ type PaginationProps = {
    */
   pageSizeOptions?: number[];
   pageSizeParam?: string;
+  /**
+   * URL parameter carrying the page number. Defaults to "page"; override it
+   * when one screen paginates two independent tables, so paging one does not
+   * reset the other (the Search Insights page uses "page" and "apage").
+   */
+  pageParam?: string;
 };
 
 /** Build a href preserving existing filters, overriding the page param. */
 function pageHref(
   searchParams: Record<string, string | undefined>,
   page: number,
-  basePath: string
+  basePath: string,
+  pageParam: string
 ): string {
   const p = new URLSearchParams();
   Object.entries(searchParams).forEach(([k, v]) => {
-    if (v && k !== "page") p.set(k, v);
+    if (v && k !== pageParam) p.set(k, v);
   });
-  if (page > 1) p.set("page", String(page));
+  if (page > 1) p.set(pageParam, String(page));
   const qs = p.toString();
   return `${basePath}${qs ? `?${qs}` : ""}`;
 }
@@ -108,6 +115,7 @@ export default function Pagination({
   basePath = "/books",
   pageSizeOptions,
   pageSizeParam = "size",
+  pageParam = "page",
 }: PaginationProps) {
   // useTranslations works in both Server and Client components — Pagination is
   // consumed from both (listing pages are RSC, admin UsersClient is client).
@@ -127,8 +135,8 @@ export default function Pagination({
   const hasNext = page < totalPages;
   const pages = pageRange(page, totalPages);
 
-  const prevHref = pageHref(searchParams, page - 1, basePath);
-  const nextHref = pageHref(searchParams, page + 1, basePath);
+  const prevHref = pageHref(searchParams, page - 1, basePath, pageParam);
+  const nextHref = pageHref(searchParams, page + 1, basePath, pageParam);
 
   return (
     <nav
@@ -202,7 +210,7 @@ export default function Pagination({
             ) : (
               <FilterLink
                 key={p}
-                href={pageHref(searchParams, p, basePath)}
+                href={pageHref(searchParams, p, basePath, pageParam)}
                 aria-label={t("goToPage", { page: p })}
                 className={`inline-flex h-10 min-w-10 items-center justify-center rounded-[10px] px-3 text-[13.5px] font-medium tabular-nums ${interactive}`}
               >

@@ -38,6 +38,7 @@ services:
     tmpfs:
       - /tmp
       - /app/.next/cache
+      - /app/.next/server
     security_opt:
       - no-new-privileges:true
     deploy:

@@ -5,6 +5,7 @@
 // on wide screens, in a focus-managed drawer below lg.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   BookMarked,
@@ -527,62 +528,67 @@ export default function ContentWorkspace({
     </>
   );
 
+  const fullscreenContainer = (
+    <div
+      ref={fullscreenTrapRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Focused writing"
+      className="fixed inset-0 z-[200] overflow-y-auto bg-bg-body p-4 sm:p-6"
+    >
+      <div className="mx-auto max-w-7xl">{workspaceBody}</div>
+    </div>
+  );
+
+  const drawerNode = drawer.mounted ? (
+    <div
+      className={`fixed inset-0 z-[210] bg-black/50 transition-opacity duration-200 motion-reduce:transition-none lg:hidden ${
+        drawer.shown ? "opacity-100" : "opacity-0"
+      }`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setDrawerOpen(false);
+      }}
+    >
+      <div
+        ref={drawerTrapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Citation manager"
+        className={`absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-bg-surface shadow-xl transition-transform duration-200 motion-reduce:transition-none ${
+          drawer.shown ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between border-b border-divider px-4 py-3">
+          <h3 className="flex items-center gap-1.5 text-sm font-bold text-text-heading">
+            <BookMarked className="h-4 w-4 text-accent" aria-hidden="true" />
+            References & citations
+          </h3>
+          <button
+            type="button"
+            onClick={() => {
+              setDrawerOpen(false);
+              editorRefs.current[activeLocale]?.focus();
+            }}
+            aria-label="Close citation manager"
+            className="cursor-pointer rounded-lg p-2 text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 p-3">{citationPanelNode("drawer")}</div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <section aria-label="Abstract and references">
-      {fullscreen ? (
-        <div
-          ref={fullscreenTrapRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Focused writing"
-          className="fixed inset-0 z-50 overflow-y-auto bg-bg-body p-4 sm:p-6"
-        >
-          <div className="mx-auto max-w-6xl">{workspaceBody}</div>
-        </div>
-      ) : (
-        workspaceBody
-      )}
+      {fullscreen && hydrated && typeof document !== "undefined"
+        ? createPortal(fullscreenContainer, document.body)
+        : workspaceBody}
 
-      {/* Citation drawer (below lg) */}
-      {drawer.mounted ? (
-        <div
-          className={`fixed inset-0 z-50 bg-black/50 transition-opacity duration-200 motion-reduce:transition-none lg:hidden ${
-            drawer.shown ? "opacity-100" : "opacity-0"
-          }`}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setDrawerOpen(false);
-          }}
-        >
-          <div
-            ref={drawerTrapRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Citation manager"
-            className={`absolute inset-y-0 right-0 flex w-full max-w-md flex-col bg-bg-surface shadow-xl transition-transform duration-200 motion-reduce:transition-none ${
-              drawer.shown ? "translate-x-0" : "translate-x-full"
-            }`}
-          >
-            <div className="flex items-center justify-between border-b border-divider px-4 py-3">
-              <h3 className="flex items-center gap-1.5 text-sm font-bold text-text-heading">
-                <BookMarked className="h-4 w-4 text-accent" aria-hidden="true" />
-                References & citations
-              </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setDrawerOpen(false);
-                  editorRefs.current[activeLocale]?.focus();
-                }}
-                aria-label="Close citation manager"
-                className="cursor-pointer rounded-lg p-2 text-text-muted transition-colors hover:bg-paper hover:text-text-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 p-3">{citationPanelNode("drawer")}</div>
-          </div>
-        </div>
-      ) : null}
+      {drawerNode && hydrated && typeof document !== "undefined"
+        ? createPortal(drawerNode, document.body)
+        : null}
 
       <PasteReferencesDialog
         open={pasteOpen}

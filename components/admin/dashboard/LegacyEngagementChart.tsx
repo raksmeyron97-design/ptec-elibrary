@@ -14,6 +14,7 @@ import {
 } from "@/lib/admin/dashboard-shared";
 import { useContainerWidth, formatBucket, niceMax4, AXIS_TEXT, ChartGrid } from "./chart-utils";
 import { useMetricSelection } from "./MetricSelection";
+import { deltaClass } from "./trend-style";
 
 /** Shape returned by /api/admin/dashboard/day-breakdown. */
 type DrillData = {
@@ -24,11 +25,13 @@ type DrillData = {
 
 type SeriesKey = DashboardMetric;
 
+/** The shared, validated series palette (app/admin.css) — the same hue a
+ *  metric wears on its KPI tile, in its sparkline and in the V2 graph. */
 const SERIES_COLOR: Record<SeriesKey, string> = {
-  views: "#1E3A8A",
-  visitors: "#0E7490",
-  readerOpens: "#7C3AED",
-  downloads: "#B45309",
+  views: "var(--ptec-series-views)",
+  visitors: "var(--ptec-series-visitors)",
+  readerOpens: "var(--ptec-series-reader)",
+  downloads: "var(--ptec-series-downloads)",
 };
 
 /** Dash patterns keep multi-series compare readable without colour alone. */
@@ -367,7 +370,7 @@ export default function LegacyEngagementChart({
                   type="checkbox"
                   checked={showAnnotations}
                   onChange={(e) => setShowAnnotations(e.target.checked)}
-                  className="h-3.5 w-3.5 cursor-pointer accent-[#DDB022]"
+                  className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-accent)]"
                 />
                 {t("annotationsToggle")}
               </label>
@@ -376,7 +379,7 @@ export default function LegacyEngagementChart({
                   type="checkbox"
                   checked={compareAll}
                   onChange={(e) => setCompareAll(e.target.checked)}
-                  className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand,#1E3A8A)]"
+                  className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand)]"
                 />
                 {t("compareMetrics")}
               </label>
@@ -429,7 +432,7 @@ export default function LegacyEngagementChart({
             <span className="ms-1.5">
               {t("summaryPrev", { value: prevTotal })}
               {deltaPct !== null && (
-                <span className={`ms-1 font-semibold ${deltaPct >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                <span className={`ms-1 font-semibold ${deltaClass(deltaPct)}`}>
                   ({deltaPct > 0 ? "+" : ""}
                   {deltaPct}%)
                 </span>
@@ -483,7 +486,7 @@ export default function LegacyEngagementChart({
                     y1={padTop}
                     x2={x(i)}
                     y2={padTop + innerH}
-                    stroke="#DDB022"
+                    stroke="var(--ptec-accent)"
                     strokeWidth="1"
                     strokeDasharray="3 3"
                   />
@@ -496,10 +499,10 @@ export default function LegacyEngagementChart({
                     cy={padTop}
                     r="7"
                     fill="none"
-                    stroke="#B45309"
+                    stroke="var(--ptec-series-downloads-ink)"
                     strokeWidth="1.5"
                   />
-                  <circle cx={x(i)} cy={padTop} r="3.5" fill="#DDB022" pointerEvents="none" />
+                  <circle cx={x(i)} cy={padTop} r="3.5" fill="var(--ptec-accent)" pointerEvents="none" />
                 </g>
               ) : null;
             })}
@@ -591,7 +594,7 @@ export default function LegacyEngagementChart({
               onKeyDown={(e) => {
                 if (e.key === "Escape") setEventBucket(null);
               }}
-              className="mt-2.5 rounded-xl border border-[color-mix(in_srgb,#DDB022_40%,transparent)] bg-[#FEFCF5] p-3"
+              className="dash-insight mt-2.5 p-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -671,7 +674,7 @@ export default function LegacyEngagementChart({
             </p>
           ) : drillErrorMessage ? (
             <div className="mt-2" role="alert">
-              <p className="text-[12px] font-medium text-rose-700">{drillErrorMessage}</p>
+              <p className="text-[12px] font-medium text-danger-text">{drillErrorMessage}</p>
               <button
                 type="button"
                 onClick={() => {
