@@ -8,6 +8,7 @@ import { Badge } from "@/components/admin/kit";
 import EbookActionsMenu from "@/components/admin/ebooks/EbookActionsMenu";
 import EbookQualityBadge from "@/components/admin/ebooks/EbookQualityBadge";
 import EbookFileHealthBadge from "@/components/admin/ebooks/EbookFileHealthBadge";
+import EbookVerificationBadge from "@/components/admin/ebooks/EbookVerificationBadge";
 import EbookCover from "@/components/admin/ebooks/EbookCover";
 import { EBOOK_STATUS_TONES, EBOOK_STATUS_LABELS, formatFileSize, type EbookListRow } from "@/lib/admin/ebooks-shared";
 import { withUpdatedParams } from "@/lib/admin/ebooks-url";
@@ -226,10 +227,16 @@ export default function EbooksTable({
                   {book.year ?? "—"}
                 </td>
 
+                {/* Two stacked badges, not one: publication and verification
+                    are independent axes, and "Live + not verified" is the
+                    state a librarian has to act on. */}
                 <td className="px-4 py-3 align-top">
-                  <Badge tone={EBOOK_STATUS_TONES[book.status]}>
-                    {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
-                  </Badge>
+                  <div className="flex flex-col items-start gap-1">
+                    <Badge tone={EBOOK_STATUS_TONES[book.status]}>
+                      {EBOOK_STATUS_LABELS[book.status] ? tStatus(book.status) : book.status}
+                    </Badge>
+                    <EbookVerificationBadge book={book} />
+                  </div>
                 </td>
 
                 {/* Views + downloads stacked — one column instead of two. */}

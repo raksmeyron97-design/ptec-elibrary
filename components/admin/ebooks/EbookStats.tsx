@@ -111,7 +111,7 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
         <StatCard
           label={t("live")}
           value={summary.live.toLocaleString()}
-          sub={summary.pendingReview > 0 ? t("awaitingReview", { count: summary.pendingReview }) : undefined}
+          sub={summary.unverifiedLive > 0 ? t("unverifiedSub", { count: summary.unverifiedLive }) : undefined}
           icon={CheckCircle2}
           iconClass="bg-success-soft text-success-text"
           href="/admin/manage?status=published"
@@ -140,6 +140,14 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
           label={t("needsReview")}
           count={summary.pendingReview}
           href="/admin/manage?status=pending_review"
+          attention
+        />
+        {/* Live but never checked — every one of these is showing readers the
+            "not yet verified by library staff" citation warning. */}
+        <BreakdownPill
+          label={t("unverifiedLive")}
+          count={summary.unverifiedLive}
+          href="/admin/manage?status=published&verification=unverified"
           attention
         />
         <BreakdownPill

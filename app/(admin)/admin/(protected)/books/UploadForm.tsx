@@ -66,9 +66,9 @@ function FieldLabel({
 
 // ── Multi-step progress indicator ─────────────────────────────
 const PHASE_STEPS = [
-  { id: "uploading-pdf",   color: "#4f46e5" },
-  { id: "uploading-cover", color: "#0e7490" },
-  { id: "saving",          color: "#0f9d6b" },
+  { id: "uploading-pdf",   labelKey: "uploadingPdf",   color: "#4f46e5" },
+  { id: "uploading-cover", labelKey: "uploadingCover", color: "#0e7490" },
+  { id: "saving",          labelKey: "saving",         color: "#0f9d6b" },
 ] as const;
 
 function PhaseStepper({ phase }: { phase: Phase }) {
@@ -113,7 +113,7 @@ function PhaseStepper({ phase }: { phase: Phase }) {
                     color: isActive ? step.color : isDone ? "#0f9d6b" : "#9CA3AF",
                   }}
                 >
-                  {t(step.id)}
+                  {t(step.labelKey)}
                 </span>
               </div>
             </Fragment>

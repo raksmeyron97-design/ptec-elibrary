@@ -1,16 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle, BookOpen, Check, CheckCheck, ClipboardCheck, Clock,
   ExternalLink, GraduationCap, History, Pencil, Quote, RotateCcw,
-  ShieldCheck, Undo2, X,
+  ShieldAlert, ShieldCheck, Undo2, X,
 } from "lucide-react";
 import {
   assignReviewer,
   transitionContent,
+  verifyReviewItem,
   type ReviewItem,
   type ReviewPerson,
 } from "@/app/actions/review";
@@ -29,12 +30,38 @@ const GRADE_STYLES: Record<string, string> = {
   D: "bg-red-100 text-red-800",
 };
 
+export type QueueTab = "pending" | "unverifiedLive";
+
 type Props = {
+  /** One page of the active queue — the server does the slicing. */
   items: ReviewItem[];
+  tab: QueueTab;
+  /** Canonical status, or "all". Only meaningful on the pending tab. */
+  statusFilter: string;
+  /** Counts over the whole pending queue, not the current page. */
+  statusCounts: { value: CanonicalStatus | "all"; count: number }[];
+  tabCounts: { pending: number; unverifiedLive: number };
+  /** Current ?size=, carried across tab/filter links so it survives them. */
+  size?: string;
+  unverifiedLiveCapped: boolean;
   reviewers: ReviewPerson[];
   viewerId: string;
   canRestore: boolean;
 };
+
+/**
+ * Queue links drop ?page= on purpose — switching tab or filter lands you on
+ * page 1 of the new list, never on a page number that only made sense for the
+ * previous one.
+ */
+function queueHref(opts: { tab: QueueTab; status?: string; size?: string }): string {
+  const params = new URLSearchParams();
+  if (opts.tab === "unverifiedLive") params.set("tab", "unverified");
+  if (opts.status && opts.status !== "all") params.set("status", opts.status);
+  if (opts.size) params.set("size", opts.size);
+  const qs = params.toString();
+  return qs ? `/admin/review?${qs}` : "/admin/review";
+}
 
 function QualityChecklist({ item }: { item: ReviewItem }) {
   const t = useTranslations("adminReview.details");
@@ -153,12 +180,14 @@ function VersionHistory({ item, canRestore }: { item: ReviewItem; canRestore: bo
 
 function ItemCard({
   item,
+  variant,
   reviewers,
   viewerId,
   canRestore,
   onChanged,
 }: {
   item: ReviewItem;
+  variant: QueueTab;
   reviewers: ReviewPerson[];
   viewerId: string;
   canRestore: boolean;
@@ -175,6 +204,8 @@ function ItemCard({
   const missing = item.quality.missingRequired;
   const isOwn = item.createdBy?.id === viewerId;
 
+  const isLiveQueue = variant === "unverifiedLive";
+
   async function move(to: CanonicalStatus, opts?: { note?: string }) {
     setBusy(true);
     const res = await transitionContent(item.type, item.id, to, opts);
@@ -186,7 +217,22 @@ function ItemCard({
     setNoteOpen(false);
     setNote("");
     toast.success(t("toasts.updated"));
-    onChanged(item.id, item.type, to === "published" || to === "archived" ? "removed" : to);
+    // Queue 2 holds exactly "published AND unverified", so any transition at
+    // all takes the record out of it.
+    const removed = isLiveQueue || to === "published" || to === "archived";
+    onChanged(item.id, item.type, removed ? "removed" : to);
+  }
+
+  async function verifyInPlace() {
+    setBusy(true);
+    const res = await verifyReviewItem(item.type, item.id);
+    setBusy(false);
+    if ("error" in res) {
+      toast.error(res.error || t("toasts.failed"));
+      return;
+    }
+    toast.success(t("toasts.verified"));
+    onChanged(item.id, item.type, "removed");
   }
 
   async function assign(reviewerId: string) {
@@ -239,8 +285,14 @@ function ItemCard({
           </p>
 
           {missing.length > 0 && (
-            <p className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-danger">
-              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> {t("missing", { fields: missing.join(", ") })}
+            <p
+              id={isLiveQueue ? `verify-blocked-${item.type}-${item.id}` : undefined}
+              className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-danger"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />{" "}
+              {isLiveQueue
+                ? t("verifyBlocked", { fields: missing.join(", ") })
+                : t("missing", { fields: missing.join(", ") })}
             </p>
           )}
           {item.reviewNote && (
@@ -267,12 +319,33 @@ function ItemCard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {(item.status === "needs_review" || item.status === "imported") && (
+            {isLiveQueue && (
+              <>
+                <button
+                  type="button"
+                  onClick={verifyInPlace}
+                  disabled={busy || missing.length > 0}
+                  aria-describedby={missing.length > 0 ? `verify-blocked-${item.type}-${item.id}` : undefined}
+                  className={`${btn} bg-emerald-700 text-white hover:bg-emerald-800`}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.verifyMetadata")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNoteOpen((v) => !v)}
+                  disabled={busy}
+                  className={`${btn} bg-orange-500 text-white hover:bg-orange-600`}
+                >
+                  <Undo2 className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.unpublishRequestChanges")}
+                </button>
+              </>
+            )}
+            {!isLiveQueue && (item.status === "needs_review" || item.status === "imported") && (
               <button type="button" onClick={() => move("in_review")} disabled={busy} className={`${btn} bg-info text-white hover:bg-info/90`}>
                 {t("actions.startReview")}
               </button>
             )}
-            {(item.status === "needs_review" || item.status === "in_review") && (
+            {!isLiveQueue && (item.status === "needs_review" || item.status === "in_review") && (
               <>
                 <button type="button" onClick={() => move("published")} disabled={busy} className={`${btn} bg-success text-white hover:bg-success/90`}>
                   <Check className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.approvePublish")}
@@ -285,7 +358,7 @@ function ItemCard({
                 </button>
               </>
             )}
-            {item.status === "changes_requested" && (
+            {!isLiveQueue && item.status === "changes_requested" && (
               <>
                 <button type="button" onClick={() => move("needs_review")} disabled={busy} className={`${btn} bg-info text-white hover:bg-info/90`}>
                   {t("actions.resubmit")}
@@ -295,12 +368,12 @@ function ItemCard({
                 </button>
               </>
             )}
-            {item.status === "verified" && (
+            {!isLiveQueue && item.status === "verified" && (
               <button type="button" onClick={() => move("published")} disabled={busy} className={`${btn} bg-success text-white hover:bg-success/90`}>
                 <Check className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.publishNow")}
               </button>
             )}
-            {item.status === "scheduled" && (
+            {!isLiveQueue && item.status === "scheduled" && (
               <>
                 <button type="button" onClick={() => move("published")} disabled={busy} className={`${btn} bg-success text-white hover:bg-success/90`}>
                   {t("actions.publishNow")}
@@ -330,11 +403,11 @@ function ItemCard({
           <div className="mt-2 flex gap-2">
             <button
               type="button"
-              onClick={() => move("changes_requested", { note })}
+              onClick={() => move(isLiveQueue ? "draft" : "changes_requested", { note })}
               disabled={busy || note.trim().length === 0}
               className={`${btn} bg-orange-600 text-white hover:bg-orange-700`}
             >
-              {t("noteBox.send")}
+              {isLiveQueue ? t("noteBox.sendUnpublish") : t("noteBox.send")}
             </button>
             <button type="button" onClick={() => setNoteOpen(false)} className={ghost}>
               {t("noteBox.cancel")}
@@ -394,19 +467,23 @@ function ItemCard({
   );
 }
 
-export default function ReviewQueueClient({ items: initial, reviewers, viewerId, canRestore }: Props) {
+export default function ReviewQueueClient({
+  items: initialItems,
+  tab,
+  statusFilter,
+  statusCounts,
+  tabCounts,
+  size,
+  unverifiedLiveCapped,
+  reviewers,
+  viewerId,
+  canRestore,
+}: Props) {
   const t = useTranslations("adminReview");
-  const [items, setItems] = useState(initial);
-  const [filter, setFilter] = useState<CanonicalStatus | "all">("all");
-
-  const filters = useMemo(() => {
-    const present = new Map<CanonicalStatus, number>();
-    for (const item of items) present.set(item.status, (present.get(item.status) ?? 0) + 1);
-    return [
-      { value: "all" as const, count: items.length },
-      ...[...present.entries()].map(([status, count]) => ({ value: status, count })),
-    ];
-  }, [items]);
+  // Optimistic state over this page's slice only: the server remounts this
+  // component on every navigation, so a removed card never reappears and a
+  // stale slice never outlives its URL.
+  const [items, setItems] = useState(initialItems);
 
   function handleChanged(id: string, type: string, status: CanonicalStatus | "removed") {
     setItems((prev) =>
@@ -416,41 +493,93 @@ export default function ReviewQueueClient({ items: initial, reviewers, viewerId,
     );
   }
 
-  const visible = filter === "all" ? items : items.filter((i) => i.status === filter);
+  const tabs: { value: QueueTab; label: string; count: number; attention: boolean }[] = [
+    { value: "pending", label: t("tabs.pending"), count: tabCounts.pending, attention: false },
+    {
+      value: "unverifiedLive",
+      label: t("tabs.unverifiedLive"),
+      count: tabCounts.unverifiedLive,
+      attention: tabCounts.unverifiedLive > 0,
+    },
+  ];
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap gap-2">
-        {filters.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setFilter(f.value)}
-            aria-pressed={filter === f.value}
-            className={`rounded-full px-4 py-1.5 text-[12.5px] font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
-              filter === f.value
-                ? "bg-brand text-white shadow-sm"
-                : "border border-divider bg-paper text-text-muted hover:border-brand/40 hover:text-text-body"
-            }`}
-          >
-            {f.value === "all" ? t("filters.all") : t(`status.${f.value}`)}
-            <span className="ml-1.5 text-[11px] opacity-70 tabular-nums">({f.count})</span>
-          </button>
-        ))}
+      {/* Queue switch. These are two different jobs — approving something not
+          yet public vs. checking something readers can already cite — so they
+          are tabs, not one list with a status filter. */}
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-divider" aria-label={t("tabs.label")}>
+        {tabs.map((tabDef) => {
+          const active = tab === tabDef.value;
+          return (
+            <Link
+              key={tabDef.value}
+              href={queueHref({ tab: tabDef.value, size })}
+              aria-current={active ? "page" : undefined}
+              className={`-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+                active
+                  ? "border-brand text-brand"
+                  : "border-transparent text-text-muted hover:text-text-body"
+              }`}
+            >
+              {tabDef.attention && (
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning-line" aria-hidden="true" />
+              )}
+              {tabDef.label}
+              <span className="tabular-nums text-[11px] opacity-70">({tabDef.count})</span>
+            </Link>
+          );
+        })}
       </div>
 
-      {visible.length === 0 ? (
+      {tab === "unverifiedLive" ? (
+        <p className="mb-4 flex items-start gap-2 rounded-xl border border-warning-line bg-warning-soft px-3 py-2.5 text-[12.5px] leading-relaxed text-warning-text">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            {t("unverifiedLiveHint")}
+            {unverifiedLiveCapped && ` ${t("unverifiedLiveCapped")}`}
+          </span>
+        </p>
+      ) : (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {statusCounts.map((f) => {
+            const active = statusFilter === f.value;
+            return (
+              <Link
+                key={f.value}
+                href={queueHref({ tab: "pending", status: f.value, size })}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-full px-4 py-1.5 text-[12.5px] font-semibold transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+                  active
+                    ? "bg-brand text-white shadow-sm"
+                    : "border border-divider bg-paper text-text-muted hover:border-brand/40 hover:text-text-body"
+                }`}
+              >
+                {f.value === "all" ? t("filters.all") : t(`status.${f.value}`)}
+                <span className="ml-1.5 text-[11px] opacity-70 tabular-nums">({f.count})</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {items.length === 0 ? (
         <EmptyState
-          icon={<ClipboardCheck className="h-6 w-6" />}
-          title={t("empty.title")}
-          description={t("empty.description")}
+          icon={
+            tab === "unverifiedLive" ? <ShieldCheck className="h-6 w-6" /> : <ClipboardCheck className="h-6 w-6" />
+          }
+          title={tab === "unverifiedLive" ? t("emptyUnverified.title") : t("empty.title")}
+          description={
+            tab === "unverifiedLive" ? t("emptyUnverified.description") : t("empty.description")
+          }
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {visible.map((item) => (
+          {items.map((item) => (
             <ItemCard
               key={`${item.type}-${item.id}`}
               item={item}
+              variant={tab}
               reviewers={reviewers}
               viewerId={viewerId}
               canRestore={canRestore}

@@ -3912,14 +3912,17 @@
       "resubmit": "Resubmit for review",
       "archive": "Archive",
       "publishNow": "Publish now",
-      "cancelSchedule": "Cancel schedule"
+      "cancelSchedule": "Cancel schedule",
+      "verifyMetadata": "Verify metadata",
+      "unpublishRequestChanges": "Unpublish & request changes"
     },
     "noteBox": {
       "label": "What needs to change?",
       "recorded": "(recorded and shown to the editor)",
       "placeholder": "e.g. Author name doesn't match the title page; publication year missing",
       "send": "Send back with note",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "sendUnpublish": "Unpublish with note"
     },
     "details": {
       "checklist": "Metadata checklist",
@@ -3950,7 +3953,20 @@
       "updated": "Status updated.",
       "reviewerUpdated": "Reviewer updated.",
       "restored": "Version restored.",
-      "failed": "Action failed — please try again."
+      "failed": "Action failed — please try again.",
+      "verified": "Metadata verified."
+    },
+    "tabs": {
+      "label": "Review queues",
+      "pending": "Submitted for review",
+      "unverifiedLive": "Published without review"
+    },
+    "unverifiedLiveHint": "These records are already public but their metadata was never checked — readers see a “not yet verified by library staff” warning on the citation box, and repository feeds skip them. Verifying stamps the record without changing its published status.",
+    "unverifiedLiveCapped": "Only the 200 most recent are listed; verify these and reload for more.",
+    "verifyBlocked": "Cannot verify until these are filled in: {fields}",
+    "emptyUnverified": {
+      "title": "Every published record has been verified",
+      "description": "Anything uploaded with “Publish immediately” shows up here until a librarian checks its metadata."
     }
   },
   "adminPaths": {
@@ -4220,39 +4236,114 @@
   "adminDuplicates": {
     "back": "Manage E-books",
     "title": "Duplicate Review",
-    "description": "Probable duplicate records, grouped by shared ISBN, PDF file identity, or matching title with a corroborating signal. Nothing is merged automatically — pick the record to keep, then retire the others. Retiring archives the duplicate (its reviews and analytics are preserved) and adds a permanent 301 redirect from its URL to the record you keep.",
+    "description": "Probable duplicate books, grouped by a shared ISBN, an identical PDF file, or a matching title with a corroborating signal. Nothing is merged automatically — choose the record to keep, then retire the others.",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "summary": {
+      "aria": "Duplicate queue overview",
+      "filterHint": "Filter the queue to these groups",
+      "groups": "Duplicate groups",
+      "groupsHint": "Awaiting review",
+      "high": "High confidence",
+      "highHint": "Same ISBN or same file",
+      "medium": "Medium confidence",
+      "mediumHint": "Title plus corroboration",
+      "low": "Low confidence",
+      "lowHint": "Verify manually",
+      "books": "Books affected",
+      "booksHint": "Records sitting in a group"
+    },
+    "filters": {
+      "aria": "Filter duplicate groups",
+      "searchLabel": "Search duplicates",
+      "searchPlaceholder": "Search title, author, ISBN or slug…",
+      "clearSearch": "Clear search",
+      "submit": "Search",
+      "confidence": "Confidence",
+      "confidenceAll": "All",
+      "signal": "Signal",
+      "signalAll": "Any signal",
+      "sort": "Sort by",
+      "clear": "Clear filters",
+      "showing": "Showing {shown} of {total} groups"
+    },
+    "sort": {
+      "confidence": "Highest confidence",
+      "records": "Most records",
+      "oldest": "Oldest records",
+      "title": "Title A–Z"
+    },
     "empty": {
-      "title": "No probable duplicates found",
-      "description": "No published books currently share an ISBN, PDF file, or a matching title with a corroborating signal."
+      "title": "Catalog looks clean",
+      "description": "No probable duplicate books were found. Every published book was checked against the duplicate detection rules — records that are not published are out of scope."
+    },
+    "noResults": {
+      "title": "No groups match these filters",
+      "description": "{total, plural, one {# duplicate group is} other {# duplicate groups are}} waiting for review. Widen or clear the filters to see them.",
+      "action": "Clear filters"
     },
     "confidence": {
       "high": "High confidence",
       "medium": "Medium confidence",
       "low": "Low confidence"
     },
-    "records": "{count} records",
-    "signals": {
-      "isbn": "same ISBN",
-      "content-hash": "identical PDF file",
-      "file-size": "same file size",
-      "title": "same title",
-      "author": "same author",
-      "year": "same year",
-      "title-prefix": "one title extends the other"
+    "confidenceShort": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
     },
-    "keep": "Keep",
-    "keepThis": "Keep this record",
-    "view": "View",
-    "retire": "Retire → keep selected",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "evidence": {
+      "title": "Why these records match",
+      "identity": "Identity match",
+      "supporting": "Supporting evidence",
+      "manualReview": "Manual review recommended",
+      "manualReviewHint": "A shared or extended title is also how genuinely separate editions look. Open both records before retiring either one."
+    },
+    "signals": {
+      "isbn": "Same ISBN",
+      "content-hash": "Same PDF file",
+      "file-size": "Same file size",
+      "title": "Same title",
+      "author": "Same author",
+      "year": "Same publication year",
+      "title-prefix": "One title extends the other"
+    },
+    "canonical": {
+      "legend": "Choose the record to keep",
+      "keepThis": "Keep “{title}” as the record to survive",
+      "badge": "Keep",
+      "duplicate": "Duplicate",
+      "suggested": "Suggested — oldest record in this group",
+      "hint": "The record you keep stays published. Every other record in the group can then be retired onto it, one at a time."
+    },
+    "meta": {
+      "isbn": "ISBN {value}",
+      "noIsbn": "No ISBN",
+      "pages": "{count} pp.",
+      "size": "{size} KB",
+      "added": "Added {date}",
+      "hashed": "File fingerprinted",
+      "noHash": "No file fingerprint"
+    },
+    "view": "View book",
+    "edit": "Edit",
+    "retire": "Retire duplicate",
     "retireDialog": {
       "title": "Retire this duplicate?",
-      "description": "“{title}” will be archived and its URL will permanently redirect to the record you keep. Reviews and analytics are preserved.",
+      "lead": "“{title}” will be archived. The record stays in the database with everything attached to it.",
+      "from": "Retiring",
+      "to": "Redirects to",
+      "effectArchive": "Archived and removed from the public catalog, listings and sitemap.",
+      "effectRedirect": "Its URL permanently redirects (301) to the record you keep.",
+      "effectPreserve": "Reviews, reading lists, downloads and analytics stay attached to it.",
+      "effectAudit": "The change is written to the admin audit log.",
       "confirm": "Retire duplicate",
       "busy": "Retiring…"
     },
     "toasts": {
-      "retired": "Retired /books/{from} → /books/{to}",
-      "failed": "Could not retire the record — please try again."
+      "retired": "Retired — /books/{from} now redirects to /books/{to}",
+      "failed": "Could not retire the record — refresh the page and review the group again."
     }
   },
   "adminDataQuality": {
@@ -5048,7 +5139,6 @@
       "total": "Total E-books",
       "archived": "{count} archived",
       "live": "Live",
-      "awaitingReview": "{count} awaiting review",
       "drafts": "Drafts",
       "missingCovers": "Missing Covers",
       "missingPdfs": "Missing PDFs",
@@ -5060,7 +5150,9 @@
       "needsReview": "Needs review",
       "brokenFiles": "Broken files",
       "archivedLabel": "Archived",
-      "breakdown": "E-book breakdown"
+      "breakdown": "E-book breakdown",
+      "unverifiedLive": "Unverified live",
+      "unverifiedSub": "{count} not verified"
     },
     "toolbar": {
       "searchLabel": "Search e-books",
@@ -5138,7 +5230,10 @@
       "metadataQuality": "Metadata quality",
       "anyQuality": "Any quality",
       "clearThese": "Clear these",
-      "apply": "Apply"
+      "apply": "Apply",
+      "verificationChip": "Verification: {label}",
+      "verificationLabel": "Verification",
+      "anyVerification": "Any verification"
     },
     "actions": {
       "menuFor": "Actions for {title}",
@@ -5270,6 +5365,12 @@
       "noResultsTitle": "No e-books found",
       "noResultsBody": "Try changing your search or filters.",
       "clearFilters": "Clear filters"
+    },
+    "verification": {
+      "verified": "Verified",
+      "unverified": "Not verified",
+      "verifiedTitle": "A librarian has checked this record's metadata.",
+      "unverifiedTitle": "Live but unchecked — readers see the “not yet verified” citation warning."
     }
   },
   "adminTheses": {
@@ -6521,7 +6622,9 @@
       "phaseStep": {
         "uploadingPdf": "Uploading PDF…",
         "uploadingCover": "Uploading cover…",
-        "saving": "Saving record"
+        "saving": "Saving record",
+        "uploading-pdf": "Uploading PDF…",
+        "uploading-cover": "Uploading cover…"
       },
       "chooseFirst": "Choose a PDF first.",
       "err": {
