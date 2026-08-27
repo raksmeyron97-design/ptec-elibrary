@@ -20,14 +20,21 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, Clock, FileText } from "lucide-react";
 import AbstractReaderDialog from "@/components/ui/publications/AbstractReaderDialog";
 import AcademicText from "@/components/ui/publications/AcademicText";
+import SectionHeading from "@/components/ui/detail/SectionHeading";
 import ReaderToolbar from "@/components/ui/reader/ReaderToolbar";
 import { useReaderPreferences } from "@/components/ui/reader/useReaderPreferences";
 import type { PublicationReference } from "@/lib/publications";
 import { academicTextToPlainText } from "@/lib/publications/citations";
 
 const WORDS_PER_MINUTE = 200;
-// ~6 clipped lines at the block's own 1.8 line-height.
-const COLLAPSED_MAX_HEIGHT = "10.8em";
+// ~14 clipped lines at the block's own 1.8 line-height.
+//
+// This was 6 lines, which clipped essentially every abstract in the
+// collection: a scholarly abstract runs 150-300 words, so the one block the
+// page exists to deliver arrived behind a "Show more" while six generated FAQ
+// accordions sat open below it. At 14 lines a normal abstract renders whole
+// and only a genuinely long one still offers the control.
+const COLLAPSED_MAX_HEIGHT = "25.2em";
 
 type ReaderScaleStyle = CSSProperties & { "--reader-scale": number };
 
@@ -227,8 +234,32 @@ export default function PublicationAbstractSection({
 
   return (
     <article className="max-w-[70ch]">
+      {/* Heading first, then the reading cost. The word count used to sit
+          above the heading, so the section opened on "6 min read · 1,166
+          words" and only then said what was being read. */}
+      <SectionHeading
+        id="abstract-heading"
+        className="mb-2"
+        aside={
+          <ReaderToolbar
+            textSize={textSize}
+            canDecrease={canDecrease}
+            canIncrease={canIncrease}
+            onDecrease={decreaseTextSize}
+            onIncrease={increaseTextSize}
+            onReset={resetTextSize}
+            mode="inline"
+            onOpen={() => setReaderOpen(true)}
+            announce={!readerOpen}
+            actionButtonRef={openReaderButtonRef}
+          />
+        }
+      >
+        {heading}
+      </SectionHeading>
+
       {words > 0 && (
-        <header className="mb-4 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
+        <p className="mb-4 flex flex-wrap items-center gap-3 text-[12px] text-text-muted">
           <span className="inline-flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             {t("abstractMinRead", { count: readingMinutes })}
@@ -237,26 +268,8 @@ export default function PublicationAbstractSection({
             <FileText className="h-3.5 w-3.5" aria-hidden="true" />
             {t("abstractWordCount", { count: words })}
           </span>
-        </header>
+        </p>
       )}
-
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <h2 id="abstract-heading" className="text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-          {heading}
-        </h2>
-        <ReaderToolbar
-          textSize={textSize}
-          canDecrease={canDecrease}
-          canIncrease={canIncrease}
-          onDecrease={decreaseTextSize}
-          onIncrease={increaseTextSize}
-          onReset={resetTextSize}
-          mode="inline"
-          onOpen={() => setReaderOpen(true)}
-          announce={!readerOpen}
-          actionButtonRef={openReaderButtonRef}
-        />
-      </div>
 
       <div className="mt-3">
         {khmerFirst ? (

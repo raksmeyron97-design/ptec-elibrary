@@ -1,5 +1,6 @@
+import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { CalendarDays, ScrollText, Scale } from "lucide-react";
+import { CalendarDays, ScrollText, Scale, FileText } from "lucide-react";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import AuthorAffiliationPanel from "@/components/ui/publications/AuthorAffiliationPanel";
 import PublicationMetricsRow from "@/components/ui/publications/PublicationMetricsRow";
@@ -48,22 +49,60 @@ export default async function PublicationHero({
 }) {
   const t = await getTranslations("publicationDetail");
   return (
-    <header className="gradient-top-border fade-rise-in mb-7 rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9">
-      <div className="flex flex-col gap-6">
+    <header
+      id="publication-masthead"
+      className="gradient-top-border fade-rise-in mb-7 rounded-[28px] border border-divider bg-bg-surface p-5 shadow-sm sm:p-7 md:p-9"
+    >
+      {/* Cover beside the title, not adrift in the rail.
+          It previously lived at the top of the sidebar, which on desktop put
+          it level with the abstract and on mobile dropped it below the FAQ —
+          an image of the work, six thousand pixels from the work's name. It is
+          decorative here (the title states the same thing), so it is hidden
+          from assistive tech and from the narrowest screens, where it would
+          cost a third of the first viewport. */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:gap-7">
+        <div
+          aria-hidden="true"
+          className="hidden shrink-0 sm:block sm:w-[108px] md:w-[132px]"
+        >
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-divider/70 bg-paper shadow-sm">
+            {pub.cover_url ? (
+              <Image
+                src={pub.cover_url}
+                alt=""
+                fill
+                sizes="132px"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-brand/5 to-brand/10">
+                <FileText className="h-8 w-8 text-brand/25" strokeWidth={1.5} />
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Content */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand">
-                <span className="h-1.5 w-1.5 rounded-full bg-brand/60" />
-                {pub.journal_name ?? TYPE_LABELS[pub.article_type] ?? "Article"}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {/* The journal name wraps rather than truncates: it is the
+                  record's primary identifier after the title, and "Journal of
+                  Chemical Educa…" identifies nothing. */}
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-left text-[11px] font-bold uppercase leading-5 tracking-[0.14em] text-brand">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
+                <span className="min-w-0">
+                  {pub.journal_name ?? TYPE_LABELS[pub.article_type] ?? "Article"}
+                </span>
                 {pub.journal_name && (
-                  <span className="ml-1 rounded-full bg-brand/10 px-2 py-px text-[9.5px] normal-case tracking-normal">
+                  <span className="shrink-0 rounded-full bg-brand/10 px-2 py-px text-[9.5px] normal-case tracking-normal">
                     {TYPE_LABELS[pub.article_type] ?? pub.article_type}
                   </span>
                 )}
               </span>
-              {/* Derived from the record's licence — never asserted by default. */}
+              {/* Derived from the record's licence — never asserted by default.
+                  The only rights claim on the page: the cover used to carry a
+                  second copy of this same badge. */}
               <AccessBadge
                 license={pub.license}
                 labels={{
@@ -146,7 +185,10 @@ export default async function PublicationHero({
             )}
           </div>
 
-          {/* Actions */}
+          {/* Actions — the page's only action set. The sidebar used to carry a
+              "Quick Actions" recap of these same four controls; the sticky
+              section nav now surfaces Download once the masthead scrolls away,
+              which is the moment the recap actually existed for. */}
           <div className="mt-6">
             <ActionButtons
               id={pub.id}
@@ -168,24 +210,24 @@ export default async function PublicationHero({
               }}
             />
           </div>
-
-          {/* Metrics strip */}
-          {/* One derivation, shared with the sidebar rail — the two blocks
-              read the same object and cannot disagree. */}
-          <PublicationMetricsRow
-            metrics={metrics}
-            labels={{
-              views: t("views"),
-              downloads: t("downloads"),
-              references: t("sectionReferences"),
-              year: t("fieldYear"),
-              srViews: t("srViews", { count: metrics.views ?? 0 }),
-              srDownloads: t("srDownloads", { count: metrics.downloads ?? 0 }),
-              srReferences: t("srReferences", { count: metrics.referenceCount ?? 0 }),
-            }}
-          />
         </div>
       </div>
+
+      {/* Metrics strip — full masthead width, and the page's only one. The
+          sidebar's emerald/amber MetricsPanel repeated these same two figures
+          in a third visual language 700px lower. */}
+      <PublicationMetricsRow
+        metrics={metrics}
+        labels={{
+          views: t("views"),
+          downloads: t("downloads"),
+          references: t("sectionReferences"),
+          year: t("fieldYear"),
+          srViews: t("srViews", { count: metrics.views ?? 0 }),
+          srDownloads: t("srDownloads", { count: metrics.downloads ?? 0 }),
+          srReferences: t("srReferences", { count: metrics.referenceCount ?? 0 }),
+        }}
+      />
     </header>
   );
 }

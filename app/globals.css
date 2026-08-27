@@ -892,6 +892,30 @@ h1.khmer, h2.khmer, h3.khmer, h4.khmer {
 }
 
 
+/* ── Quick-nav scroller (publication / detail section nav) ───────── */
+/* The chip row overflows on narrow viewports. Without an edge fade a row
+   clipped at the container edge reads as a row that simply ends, so readers
+   never discover the sections past the cut. The mask is applied only while the
+   row can actually scroll (scroll-driven custom property is not widely
+   supported yet, so both edges fade unconditionally and the 12px inset keeps
+   the first chip legible at rest). The scrollbar itself is hidden: it would
+   sit over the chips inside a 47px-tall sticky bar. */
+.quicknav-scroller {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%);
+  padding-inline: 2px;
+}
+.quicknav-scroller::-webkit-scrollbar { display: none; }
+/* A masked box clips the focus ring of the chip at either edge, so keyboard
+   users get the ring back by dropping the mask while focus is inside. */
+.quicknav-scroller:focus-within {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 /* ── Quick-nav pill links (book detail page) ────────────────────── */
 .qlink {
   display: inline-block;

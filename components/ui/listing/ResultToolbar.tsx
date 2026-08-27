@@ -3,7 +3,14 @@ import { LayoutGrid, List, Rows3 } from "lucide-react";
 import { FilterLink } from "@/components/ui/books/ClientNavWrapper";
 import { SortSelect, RowsPerPageSelect } from "@/components/ui/books/ClientNavWrapper";
 
-const SORT_OPTIONS = [
+// Not exported: nothing outside this file consumes either name — each
+// listing page passes its own translated sortOptions, and this is only the
+// fallback for one that doesn't. A component file that also exports a plain
+// const/type invites the const to grow its own unrelated importers over time.
+type SortOption = { value: string; label: string };
+
+/** The order a scholarly listing defaults to when the caller names none. */
+const DEFAULT_SORT_OPTIONS: SortOption[] = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
   { value: "views", label: "Most Viewed" },
@@ -39,6 +46,10 @@ export default function ResultToolbar({
   pageSizeOptions,
   summaryLabel,
   basePath = "/theses",
+  sortOptions = DEFAULT_SORT_OPTIONS,
+  sortDefaultLabel = "Newest",
+  pageSizeId = "listing-page-size",
+  viewLabels = { group: "View mode", list: "List view", grid: "Grid view" },
 }: {
   /** Pre-resolved, translated count text from the server page — e.g.
    *  "12 theses" or "3 of 12 theses". Built once by the page via
@@ -54,6 +65,14 @@ export default function ResultToolbar({
   pageSizeOptions: number[];
   summaryLabel?: string;
   basePath?: string;
+  /** Sort choices for this collection. Publications and theses do not sort by
+   *  the same things, so the set is a prop rather than a module constant. */
+  sortOptions?: SortOption[];
+  sortDefaultLabel?: string;
+  /** Unique id for the rows-per-page control — two listings can be rendered
+   *  in one test run, and a duplicated id breaks label association. */
+  pageSizeId?: string;
+  viewLabels?: { group: string; list: string; grid: string };
 }) {
   return (
     // No card and no rule: the toolbar sits on the page ground between the
@@ -69,23 +88,23 @@ export default function ResultToolbar({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Items per page */}
-        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id="theses-page-size" />
+        <RowsPerPageSelect value={pageSize} options={pageSizeOptions} basePath={basePath} id={pageSizeId} />
 
         {/* Sort */}
         <SortSelect
           value={sort}
-          options={SORT_OPTIONS}
-          defaultLabel="Newest"
+          options={sortOptions}
+          defaultLabel={sortDefaultLabel}
           paramKey="sort"
           basePath={basePath}
         />
 
         {/* View toggle */}
-        <div role="group" aria-label="View mode" className="flex items-center overflow-hidden rounded-lg border border-divider [&>*+*]:border-l [&>*+*]:border-divider">
+        <div role="group" aria-label={viewLabels.group} className="flex items-center overflow-hidden rounded-lg border border-divider [&>*+*]:border-l [&>*+*]:border-divider">
           <FilterLink
             href={buildHref(basePath, params, { view: undefined })}
             className={viewBtnClass(!isGrid)}
-            aria-label="List view"
+            aria-label={viewLabels.list}
             aria-current={!isGrid ? "true" : undefined}
           >
             <Rows3 className="h-4 w-4" />
@@ -93,7 +112,7 @@ export default function ResultToolbar({
           <FilterLink
             href={buildHref(basePath, params, { view: "grid" })}
             className={viewBtnClass(isGrid)}
-            aria-label="Grid view"
+            aria-label={viewLabels.grid}
             aria-current={isGrid ? "true" : undefined}
           >
             <LayoutGrid className="h-4 w-4" />
