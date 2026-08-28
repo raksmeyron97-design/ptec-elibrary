@@ -66,8 +66,8 @@ export function pathLocalizedDescription(path: LearningPathSeoInput, locale: str
   if (own) return own;
   const title = pathLocalizedTitle(path, locale);
   return locale === "km"
-    ? `${title} — ផ្លូវសិក្សាដែលបានរៀបចំពីធនធានក្នុងបណ្ណាល័យឌីជីថល វ.គ.ភ សម្រាប់គ្រូបង្រៀន និងនិស្សិតគរុកោសល្យ។`
-    : `${title} — a curated learning path from the PTEC Digital Library's own collection for teacher trainees and in-service teachers.`;
+    ? `${title} — ផ្លូវសិក្សាដែលបានរៀបចំពីធនធានក្នុងបណ្ណាល័យ វ.គ.ភ សម្រាប់គ្រូបង្រៀន និងនិស្សិតគរុកោសល្យ។`
+    : `${title} — a curated learning path from the PTEC Library's own collection for teacher trainees and in-service teachers.`;
 }
 
 // ── Canonical URLs ───────────────────────────────────────────────────────────

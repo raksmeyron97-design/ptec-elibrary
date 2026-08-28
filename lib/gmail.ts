@@ -133,7 +133,7 @@ function base64url(input: string): string {
  * Client Component.
  */
 export async function sendGmail(input: SendGmailInput): Promise<SendGmailResult> {
-  const fromName = process.env.CONTACT_FROM_NAME || "PTEC Digital Library";
+  const fromName = process.env.CONTACT_FROM_NAME || "PTEC Library";
   const fromAddress = requiredEnv("ADMIN_GMAIL_ADDRESS");
   const from = `${encodeHeader(fromName)} <${fromAddress}>`;
 

@@ -21,11 +21,18 @@ import type {
   SeoSettings,
 } from "./types";
 
+// BRAND NAMING RULE (see supabase/migrations/0121_ptec_library_brand.sql).
+// The library brand is "PTEC Library" / "បណ្ណាល័យ វ.គ.ភ" — one name, used for
+// the wordmark, og:site_name, the PWA name and the title suffix. "PTEC Digital
+// Library" is retired: "digital library" describes what the service is, it is
+// not a brand, so it may appear in prose but never as a name.
+// `name` is the INSTITUTION and must match www.ptec.edu.kh exactly
+// ("Phnom Penh Teacher Education College" / "វិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ").
 export const DEFAULT_ORGANIZATION: OrganizationSettings = {
   name: { ...PTEC.name },
   libraryName: {
     en: "PTEC Library",
-    km: "បណ្ណាល័យវិទ្យាស្ថានគរុកោសល្យរាជធានីភ្នំពេញ",
+    km: "បណ្ណាល័យ វ.គ.ភ",
   },
 };
 
@@ -65,10 +72,10 @@ export const DEFAULT_LINKS: LinksSettings = {
 // Mirrors app/root-metadata.ts. Khmer description is deliberately empty (no
 // approved Khmer copy existed at migration time); the mapper falls back to en.
 export const DEFAULT_SEO: SeoSettings = {
-  siteTitle: "PTEC Digital Library",
+  siteTitle: "PTEC Library",
   titleTemplate: "%s · PTEC Library",
   // Product/site name used by JSON-LD, Open Graph and email branding.
-  siteName: "PTEC Digital Library",
+  siteName: "PTEC Library",
   siteDescription: {
     en: "Access free teaching resources, books, and educational materials from the Phnom Penh Teacher Education College (PTEC).",
     km: "",

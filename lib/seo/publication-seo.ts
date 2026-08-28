@@ -117,11 +117,11 @@ export function publicationFallbackDescription(pub: PublicationSeoInput, locale:
   if (locale === "km") {
     const byline = authors.length > 0 ? ` ដោយ ${authors.join(", ")}` : "";
     const journalPart = journal ? ` បោះពុម្ពក្នុងទស្សនាវដ្តី ${journal}។` : "";
-    return `${title}${byline} — អត្ថបទសិក្សាក្នុងបណ្ណាល័យឌីជីថល វ.គ.ភ។${journalPart} អានអត្ថបទសង្ខេប ឯកសារយោង និងវិធីស្រង់សម្រង់។`;
+    return `${title}${byline} — អត្ថបទសិក្សាក្នុងបណ្ណាល័យ វ.គ.ភ។${journalPart} អានអត្ថបទសង្ខេប ឯកសារយោង និងវិធីស្រង់សម្រង់។`;
   }
   const byline = authors.length > 0 ? ` by ${authors.join(", ")}` : "";
   const journalPart = journal ? ` Published in ${journal}.` : "";
-  return `${title}${byline} — an academic article in the PTEC Digital Library.${journalPart} Read the abstract, references, and citation details.`;
+  return `${title}${byline} — an academic article in the PTEC Library.${journalPart} Read the abstract, references, and citation details.`;
 }
 
 export function publicationMetaDescription(pub: PublicationSeoInput, locale: string): string {
