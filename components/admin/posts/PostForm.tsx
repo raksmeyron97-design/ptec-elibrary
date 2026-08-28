@@ -24,6 +24,7 @@ import { FileText, Globe, Image as ImageIcon, Search, type LucideIcon } from "lu
 import PostPreviewModal from "@/components/admin/posts/PostPreviewModal";
 import { SITE_URL } from "@/lib/seo/site";
 import { slugify } from "@/lib/admin/posts-shared";
+import { asciiSlug } from "@/lib/slug";
 import { validatePost, firstValidationError, type PostValidationErrors } from "@/lib/admin/post-validation";
 import type { PostCategory, PostStatus, PostVisibility } from "@/lib/admin/posts-shared";
 
@@ -331,7 +332,10 @@ export default function PostForm({
       if (newItems.length > 0) {
         setPhase("uploading");
         const uid = Date.now().toString(36).slice(-6);
-        const folder = `posts/${finalSlug}-${uid}`;
+        // Storage folder must be ASCII — Khmer slugs in the x-folder HTTP
+        // header crash with "Cannot convert argument to a ByteString".
+        const safeFolder = asciiSlug(title) || "post";
+        const folder = `posts/${safeFolder}-${uid}`;
         for (let i = 0; i < newItems.length; i++) {
           setUploadProgress(t("uploadingImage", { current: i + 1, total: newItems.length }));
           const { file } = newItems[i];

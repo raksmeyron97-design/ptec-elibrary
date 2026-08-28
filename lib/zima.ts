@@ -49,7 +49,10 @@ export async function zimaUpload(
     method: "POST",
     headers: {
       "x-api-key": apiKey,
-      "x-folder": folder,
+      // HTTP headers are ByteStrings (chars 0-255 only). Non-ASCII folder
+      // names (e.g. Khmer slugs) would crash fetch(). Percent-encode them
+      // as a safety net — callers should already pass ASCII-only paths.
+      "x-folder": /[^\x00-\xff]/.test(folder) ? encodeURIComponent(folder) : folder,
     },
     body: form,
   });
