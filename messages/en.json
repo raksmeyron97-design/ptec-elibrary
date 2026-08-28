@@ -1013,6 +1013,7 @@
     "copy": "Copy",
     "copied": "Copied!",
     "moreFromJournal": "More From This Journal",
+    "browseJournal": "Browse all articles in {journal}",
     "moreFromAuthor": "More From This Author",
     "browseAll": "Browse all",
     "keepReading": "Keep Reading",

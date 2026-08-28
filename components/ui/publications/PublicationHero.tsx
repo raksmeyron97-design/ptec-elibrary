@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { CalendarDays, ScrollText, Scale, FileText } from "lucide-react";
+import { Link } from "@/i18n/navigation";
+import { slugify } from "@/lib/book-utils";
 import ActionButtons from "@/components/ui/detail/ActionButtons";
 import AuthorAffiliationPanel from "@/components/ui/publications/AuthorAffiliationPanel";
 import PublicationMetricsRow from "@/components/ui/publications/PublicationMetricsRow";
@@ -48,6 +50,27 @@ export default async function PublicationHero({
   metrics: PublicationMetrics;
 }) {
   const t = await getTranslations("publicationDetail");
+
+  // The journal is the article's home shelf, so the badge is a filter link
+  // into the listing rather than inert text. Falls back to a plain span when
+  // the record has no journal — there is nothing to browse to.
+  const journalHref = pub.journal_name
+    ? `/publications?journal=${encodeURIComponent(pub.journal_name)}`
+    : null;
+  const badgeClass =
+    "inline-flex items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-brand";
+  const badgeInner = (
+    <>
+      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand/60" />
+      {pub.journal_name ?? TYPE_LABELS[pub.article_type] ?? "Article"}
+      {pub.journal_name && (
+        <span className="ml-1 rounded-full bg-brand/10 px-2 py-px text-[9.5px] normal-case tracking-normal">
+          {TYPE_LABELS[pub.article_type] ?? pub.article_type}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <header
       id="publication-masthead"
@@ -89,17 +112,17 @@ export default async function PublicationHero({
               {/* The journal name wraps rather than truncates: it is the
                   record's primary identifier after the title, and "Journal of
                   Chemical Educa…" identifies nothing. */}
-              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-brand/20 bg-brand/8 px-3 py-1 text-left text-[11px] font-bold uppercase leading-5 tracking-[0.14em] text-brand">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand/60" />
-                <span className="min-w-0">
-                  {pub.journal_name ?? TYPE_LABELS[pub.article_type] ?? "Article"}
-                </span>
-                {pub.journal_name && (
-                  <span className="shrink-0 rounded-full bg-brand/10 px-2 py-px text-[9.5px] normal-case tracking-normal">
-                    {TYPE_LABELS[pub.article_type] ?? pub.article_type}
-                  </span>
-                )}
-              </span>
+              {journalHref ? (
+                <Link
+                  href={journalHref}
+                  aria-label={t("browseJournal", { journal: pub.journal_name as string })}
+                  className={`${badgeClass} cursor-pointer transition-colors duration-150 hover:border-brand/40 hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50`}
+                >
+                  {badgeInner}
+                </Link>
+              ) : (
+                <span className={badgeClass}>{badgeInner}</span>
+              )}
               {/* Derived from the record's licence — never asserted by default.
                   The only rights claim on the page: the cover used to carry a
                   second copy of this same badge. */}
@@ -144,7 +167,19 @@ export default async function PublicationHero({
             <p className="mt-4 text-[15px] leading-7 text-text-body sm:text-[16.5px]">
               {authorships.map((a, i) => (
                 <span key={a.author.id}>
-                  <span className="font-semibold text-text-heading">{a.author.full_name}</span>
+                  {/* The name links to the author's own page; the superscript
+                      markers stay OUTSIDE the link, so the anchor text is the
+                      name a reader would search for and not "Sok Dara1,2*". */}
+                  {a.author.full_name.trim() ? (
+                    <Link
+                      href={`/authors/${slugify(a.author.full_name)}`}
+                      className="rounded-sm font-semibold text-text-heading underline-offset-4 transition-colors duration-150 hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
+                    >
+                      {a.author.full_name}
+                    </Link>
+                  ) : (
+                    <span className="font-semibold text-text-heading">{a.author.full_name}</span>
+                  )}
                   {a.affiliation_ids.length > 0 && (
                     <sup className="ml-0.5 text-[11px] text-text-muted">
                       {a.affiliation_ids.map((id) => markerFor.get(id)).filter(Boolean).join(",")}

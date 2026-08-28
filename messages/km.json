@@ -1018,6 +1018,7 @@
     "copy": "ចម្លង",
     "copied": "បានចម្លង!",
     "moreFromJournal": "អត្ថបទផ្សេងទៀតពីទស្សនាវដ្ដីនេះ",
+    "browseJournal": "រកមើលអត្ថបទទាំងអស់ក្នុង {journal}",
     "moreFromAuthor": "អត្ថបទផ្សេងទៀតពីអ្នកនិពន្ធនេះ",
     "browseAll": "មើលទាំងអស់",
     "keepReading": "អានបន្ត",

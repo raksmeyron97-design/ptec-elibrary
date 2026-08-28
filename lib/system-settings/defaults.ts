@@ -21,7 +21,7 @@ import type {
   SeoSettings,
 } from "./types";
 
-// BRAND NAMING RULE (see supabase/migrations/0121_ptec_library_brand.sql).
+// BRAND NAMING RULE (see supabase/migrations/0122_ptec_library_brand.sql).
 // The library brand is "PTEC Library" / "បណ្ណាល័យ វ.គ.ភ" — one name, used for
 // the wordmark, og:site_name, the PWA name and the title suffix. "PTEC Digital
 // Library" is retired: "digital library" describes what the service is, it is

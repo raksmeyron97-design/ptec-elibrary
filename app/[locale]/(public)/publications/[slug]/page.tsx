@@ -280,9 +280,19 @@ export default async function PublicationDetailPage({ params }: PageProps) {
         }
       : null;
 
+  // Mirrors the visible trail, journal level included. The journal is only
+  // hidden by CSS on narrow screens — it is still part of the hierarchy.
   const pubBreadcrumbSchema = breadcrumbSchema([
     { name: "Home", path: "/" },
     { name: "Publications", path: "/publications" },
+    ...(pub.journal_name
+      ? [
+          {
+            name: pub.journal_name,
+            path: `/publications?journal=${encodeURIComponent(pub.journal_name)}`,
+          },
+        ]
+      : []),
     { name: pub.title },
   ]);
 
@@ -303,6 +313,21 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             <Link href="/" className="transition-colors hover:text-brand">{t("breadcrumbHome")}</Link>
             <Icon name="chevron-right" className="text-[16px] text-divider" />
             <Link href="/publications" className="transition-colors hover:text-brand">{t("breadcrumbPublications")}</Link>
+            {/* The journal is a real level of the hierarchy, but it is the
+                first thing worth dropping on a narrow screen — the title must
+                keep its room. Hidden below sm, chevron and all. */}
+            {pub.journal_name && (
+              <span className="hidden items-center gap-1.5 sm:inline-flex sm:gap-2">
+                <Icon name="chevron-right" className="text-[16px] text-divider" />
+                <Link
+                  href={`/publications?journal=${encodeURIComponent(pub.journal_name)}`}
+                  className="max-w-[220px] truncate transition-colors hover:text-brand"
+                  title={pub.journal_name}
+                >
+                  {pub.journal_name}
+                </Link>
+              </span>
+            )}
             <Icon name="chevron-right" className="text-[16px] text-divider" />
             <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[340px]" title={pub.title}>
               {pub.title}
