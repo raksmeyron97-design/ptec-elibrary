@@ -33,7 +33,7 @@ describe("encodeHeader", () => {
 
 describe("buildRawMessage", () => {
   const base = {
-    from: "PTEC Digital Library <library@example.com>",
+    from: "PTEC Library <library@example.com>",
     to: "user@example.com",
     subject: "Test subject",
     html: "<p>Hi</p>",
@@ -42,7 +42,7 @@ describe("buildRawMessage", () => {
 
   it("includes all required MIME headers", () => {
     const raw = buildRawMessage(base);
-    expect(raw).toContain("From: PTEC Digital Library <library@example.com>");
+    expect(raw).toContain("From: PTEC Library <library@example.com>");
     expect(raw).toContain("To: user@example.com");
     expect(raw).toContain("Subject: Test subject");
     expect(raw).toContain("MIME-Version: 1.0");

@@ -62,10 +62,30 @@ export function rowToInput(row: any): AnnouncementInput {
     audience: { type: normalizeAudienceType(row.audience_type), roles: row.audience_roles ?? [], userIds: row.audience_user_ids ?? [] },
     pinned: row.pinned,
     dismissible: row.dismissible,
+    // `mode` is deliberately "now" here: this shape is also what the publish
+    // action and the cron sweep validate, and a "schedule" mode would make
+    // validateScheduleStep() reject a row whose scheduled time has just
+    // arrived. The composer needs the real mode — see rowToComposerInput().
     schedule: { mode: "now", scheduledAt: row.scheduled_at, expiresAt: row.expires_at },
   };
 }
 
 export function channelsSummary(row: any) {
   return { inApp: row.channel_in_app, banner: row.channel_banner, push: row.channel_push };
+}
+
+/**
+ * Same mapping, but with the schedule mode the COMPOSER should open in.
+ *
+ * `rowToInput()` always reports "now" because it doubles as the publish-time
+ * validation shape. Loading a scheduled announcement into the editor with that
+ * value silently switched it to immediate publishing — the review step offered
+ * "Publish now" and the chosen date disappeared from the schedule step.
+ */
+export function rowToComposerInput(row: any): AnnouncementInput {
+  const input = rowToInput(row);
+  if (row.status === "scheduled" && row.scheduled_at) {
+    input.schedule = { ...input.schedule, mode: "schedule" };
+  }
+  return input;
 }

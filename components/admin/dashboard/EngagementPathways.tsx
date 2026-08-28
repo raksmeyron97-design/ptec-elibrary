@@ -4,6 +4,7 @@ import type { DiscoveryRates, DiscoveryVolumes } from "@/lib/admin/dashboard-sha
 import InfoTip from "./InfoTip";
 import { numberFormat } from "./formatters";
 import { deriveRateComparison } from "./engagement-insights";
+import { deltaClass } from "./trend-style";
 
 export type ConversionSummary = {
   valuePct: number | null;
@@ -98,7 +99,7 @@ export default async function EngagementPathways({
             <p className="text-[10px] tabular-nums text-text-muted">
               {t("prevPct", { pct: previous.pct })}
               {comparison.delta !== null && comparison.delta !== 0 && (
-                <span className={`ms-1 font-semibold ${comparison.delta > 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                <span className={`ms-1 font-semibold ${deltaClass(comparison.delta)}`}>
                   {comparison.delta > 0 ? "+" : ""}{comparison.delta}
                 </span>
               )}

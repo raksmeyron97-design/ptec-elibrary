@@ -8,6 +8,8 @@ import { ArrowRight, Info, X } from "lucide-react";
 import type { TrendPoint } from "@/lib/admin/dashboard";
 import type { DashboardMetric } from "@/lib/admin/dashboard-shared";
 import { useMetricSelection } from "./MetricSelection";
+import { ANALYTICS_CHART_TOKENS, METRIC_CHART_STYLE } from "./analytics/chart-tokens";
+import { TREND_STYLE } from "./trend-style";
 
 export type DrawerTopRow = {
   key: string;
@@ -52,8 +54,24 @@ const LEVEL_DOT: Record<string, string> = {
   unknown: "bg-slate-300",
 };
 
-/** Current period solid, previous period dashed — plus a zero baseline. */
-function DrawerTrend({ series, prevSeries }: { series: TrendPoint[]; prevSeries: TrendPoint[] | null }) {
+/**
+ * Current period solid, previous period dashed — plus a zero baseline.
+ *
+ * Both lines wear the metric's own colour from the shared series palette, and
+ * the comparison uses the same dash and opacity as the main graph. Opening the
+ * Downloads drawer used to show an amber card with a navy trend line inside
+ * it, and a grey previous-period line that matched nothing on the page.
+ */
+function DrawerTrend({
+  metric,
+  series,
+  prevSeries,
+}: {
+  metric: DashboardMetric;
+  series: TrendPoint[];
+  prevSeries: TrendPoint[] | null;
+}) {
+  const stroke = METRIC_CHART_STYLE[metric].stroke;
   const w = 320;
   const h = 84;
   const values = [...series.map((p) => p.value), ...(prevSeries ?? []).map((p) => p.value)];
@@ -78,9 +96,24 @@ function DrawerTrend({ series, prevSeries }: { series: TrendPoint[]; prevSeries:
     >
       <line x1="0" y1={h - 2} x2={w} y2={h - 2} stroke="currentColor" strokeOpacity=".12" strokeWidth="1" />
       {prevSeries && prevSeries.length > 1 && (
-        <path d={path(prevSeries)} fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="4 4" />
+        <path
+          d={path(prevSeries)}
+          fill="none"
+          stroke={stroke}
+          strokeOpacity={ANALYTICS_CHART_TOKENS.comparisonOpacity}
+          strokeWidth={ANALYTICS_CHART_TOKENS.comparisonLineWidth}
+          strokeDasharray={ANALYTICS_CHART_TOKENS.comparisonDash}
+        />
       )}
-      {series.length > 1 && <path d={path(series)} fill="none" stroke="#1E3A8A" strokeWidth="2" strokeLinejoin="round" />}
+      {series.length > 1 && (
+        <path
+          d={path(series)}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={ANALYTICS_CHART_TOKENS.lineWidth}
+          strokeLinejoin="round"
+        />
+      )}
     </svg>
   );
 }
@@ -260,11 +293,9 @@ export default function MetricDetailsDrawer({
                   <dt className="text-[11px] font-medium text-text-muted">{t("change")}</dt>
                   <dd
                     className={`text-[22px] font-bold leading-tight tabular-nums ${
-                      payload.changeDirection === "up"
-                        ? "text-emerald-700"
-                        : payload.changeDirection === "down"
-                          ? "text-rose-700"
-                          : "text-text-muted"
+                      payload.changeDirection
+                        ? TREND_STYLE[payload.changeDirection].className
+                        : "text-text-muted"
                     }`}
                   >
                     {payload.change ?? "—"}
@@ -274,7 +305,7 @@ export default function MetricDetailsDrawer({
 
               <div className="mt-4">
                 <h3 className="text-[12px] font-bold text-text-heading">{t("trendHeading")}</h3>
-                <DrawerTrend series={payload.series} prevSeries={payload.prevSeries} />
+                <DrawerTrend metric={details as DashboardMetric} series={payload.series} prevSeries={payload.prevSeries} />
                 <p className="text-[11px] text-text-muted">{t("trendLegend")}</p>
               </div>
 

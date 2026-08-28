@@ -42,6 +42,7 @@ import {
   type ResumptionState,
 } from "@/lib/oai/xml";
 import { computeEarliestDatestamp, fetchOaiRecords, getOaiRecord } from "@/lib/oai/records";
+import { clientIp } from "@/lib/client-ip";
 
 export const dynamic = "force-dynamic";
 
@@ -67,11 +68,7 @@ const VERB_ARGS: Record<string, { required: string[]; optional: string[] }> = {
 };
 
 function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-real-ip")?.trim() ??
-    req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ??
-    "unknown"
-  );
+  return clientIp(req.headers);
 }
 
 /** Extracts request args, rejecting any argument that appears more than once. */

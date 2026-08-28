@@ -7,6 +7,7 @@ import { validateContactInput, type ContactInput } from "@/lib/contact/validate"
 import { sendGmail, GmailSendError } from "@/lib/gmail";
 import { adminNotificationEmail, userConfirmationEmail } from "@/lib/email/contact-templates";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { clientIp } from "@/lib/client-ip";
 
 // Bots that auto-fill every field trip the honeypot; bots that submit the
 // instant the page loads trip the fill-time floor. Real users need several
@@ -18,19 +19,7 @@ const MAX_PER_HOUR = 3;
 const HOUR_MS = 60 * 60 * 1000;
 
 function getClientIP(req: NextRequest): string {
-  // Prefer x-real-ip: the platform/proxy (Vercel) sets this to the true client
-  // IP and the client cannot override it. The LEFT-most x-forwarded-for value is
-  // client-controlled and must not be trusted for rate limiting; fall back to the
-  // RIGHT-most entry (added by the closest trusted hop) only if x-real-ip is absent.
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return "unknown";
+  return clientIp(req.headers);
 }
 
 // Verify a Cloudflare Turnstile token. If TURNSTILE_SECRET_KEY is not configured,

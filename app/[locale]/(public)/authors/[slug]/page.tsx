@@ -104,7 +104,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!author) return { title: "Author not found" };
 
   const title = `${author.name} | Author`;
-  const description = truncate(author.bio, 155) || `Browse PTEC Digital Library resources by ${author.name}.`;
+  const description = truncate(author.bio, 155) || `Browse PTEC Library resources by ${author.name}.`;
   const alternates = localeAlternates(`/authors/${author.slug}`, locale);
   const canonical = alternates.canonical;
 

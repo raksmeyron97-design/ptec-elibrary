@@ -2,18 +2,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 function getClientIP(req: NextRequest): string {
-  // Prefer x-real-ip (set by the platform, unspoofable); the left-most
-  // x-forwarded-for value is client-controlled and must not gate rate limits.
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return "unknown";
+  return clientIp(req.headers);
 }
 
 export async function GET(req: NextRequest) {

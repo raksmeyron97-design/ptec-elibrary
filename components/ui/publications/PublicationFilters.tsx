@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "@/i18n/navigation";
-import { SlidersHorizontal, X } from "lucide-react";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 
 export type PublicationFilterValues = {
@@ -17,6 +16,29 @@ export type PublicationFilterValues = {
  * Slim filter toolbar shown under the hero. Free-text search lives in the
  * hero form; this bar only manages the structured facets.
  */
+
+/** Label above a facet control, associated by wrapping the control. */
+function Facet({
+  label,
+  htmlFor,
+  width = "sm:w-[180px]",
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  width?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`flex min-w-0 flex-col gap-1 ${width}`}>
+      <span id={`${htmlFor}-label`} className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-text-muted">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 export default function PublicationFilters({
   filters,
   journals,
@@ -33,6 +55,10 @@ export default function PublicationFilters({
     allYears: string;
     allLanguages: string;
     clear: string;
+    typeLabel: string;
+    journalLabel: string;
+    yearLabel: string;
+    languageLabel: string;
     types: Record<string, string>;
   };
 }) {
@@ -49,15 +75,16 @@ export default function PublicationFilters({
     router.push(`/publications?${params.toString()}`);
   };
 
-  const hasFilters = !!(filters.q || filters.type || filters.journal || filters.year || filters.language || filters.keyword);
-
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-text-muted">
-        <SlidersHorizontal className="h-3.5 w-3.5" />
-      </span>
-
-      <div className="w-[180px]">
+    // Each facet is labelled. The bar was four visually identical dropdowns
+    // behind a lone slider icon — "All types", "All journals", "All years",
+    // "All languages" only tell you which is which once one is *set*, and a
+    // reader looking for "2014" had to open three of them to find the year.
+    // Two even columns on a phone, intrinsic widths from `sm` up. Free-flowing
+    // flex-wrap left the last facet stranded on its own row at 390px because
+    // the four controls have three different widths.
+    <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:flex sm:flex-wrap">
+      <Facet label={labels.typeLabel} htmlFor="pub-filter-type">
         <SearchableSelect
           name="type"
           value={filters.type}
@@ -66,12 +93,12 @@ export default function PublicationFilters({
             { value: "", label: labels.allTypes },
             ...Object.entries(labels.types).map(([value, label]) => ({ value, label }))
           ]}
-          ariaLabel={labels.allTypes}
+          ariaLabel={labels.typeLabel}
         />
-      </div>
+      </Facet>
 
       {journals.length > 0 && (
-        <div className="w-[180px]">
+        <Facet label={labels.journalLabel} htmlFor="pub-filter-journal">
           <SearchableSelect
             name="journal"
             value={filters.journal}
@@ -80,13 +107,13 @@ export default function PublicationFilters({
               { value: "", label: labels.allJournals },
               ...journals.map((j) => ({ value: j, label: j }))
             ]}
-            ariaLabel={labels.allJournals}
+            ariaLabel={labels.journalLabel}
           />
-        </div>
+        </Facet>
       )}
 
       {years.length > 0 && (
-        <div className="w-[150px]">
+        <Facet label={labels.yearLabel} htmlFor="pub-filter-year" width="sm:w-[140px]">
           <SearchableSelect
             name="year"
             value={filters.year}
@@ -95,12 +122,12 @@ export default function PublicationFilters({
               { value: "", label: labels.allYears },
               ...years.map((y) => ({ value: y, label: y }))
             ]}
-            ariaLabel={labels.allYears}
+            ariaLabel={labels.yearLabel}
           />
-        </div>
+        </Facet>
       )}
 
-      <div className="w-[150px]">
+      <Facet label={labels.languageLabel} htmlFor="pub-filter-language" width="sm:w-[140px]">
         <SearchableSelect
           name="language"
           value={filters.language}
@@ -110,20 +137,14 @@ export default function PublicationFilters({
             { value: "en", label: "English" },
             { value: "km", label: "ខ្មែរ" }
           ]}
-          ariaLabel={labels.allLanguages}
+          ariaLabel={labels.languageLabel}
         />
-      </div>
+      </Facet>
 
-      {hasFilters && (
-        <button
-          type="button"
-          onClick={() => router.push("/publications")}
-          className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-dashed border-divider px-3 text-[13px] font-medium text-text-muted transition-colors hover:border-danger/40 hover:text-danger"
-        >
-          <X className="h-3.5 w-3.5" />
-          {labels.clear}
-        </button>
-      )}
+      {/* No "Clear filters" button here any more: <AppliedFilters> renders
+          directly below, names every active facet and carries its own
+          "Clear all". Two clear-everything controls one line apart was the
+          same defect the theses toolbar already fixed. */}
     </div>
   );
 }

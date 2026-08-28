@@ -222,7 +222,7 @@
     "researchLabel": "Research & publications",
     "researchBody": "Read PTEC's research bulletin and reports by our own lecturers and student teachers.",
     "researchLink": "View research",
-    "aboutSectionLabel": "PTEC E-Library",
+    "aboutSectionLabel": "PTEC Library",
     "aboutLede": "The Heart of Learning and Research for Excellence in 21st Century Teacher Education",
     "aboutSupport": "The Department of Educational Research and Library at PTEC provides quality information resources, library services, and learning spaces — supporting Cambodia’s educators in teaching, research, and innovation since 2017.",
     "aboutCatalogueLabel": "Collection at a glance",
@@ -281,7 +281,7 @@
     "faqTitle": "Frequently Asked Questions",
     "faqLearnMore": "Learn more",
     "faqQ1": "Is the library free to use?",
-    "faqA1": "Yes. The PTEC Digital Library is a free public library — reading and downloading digital resources costs nothing, and no payment is ever required.",
+    "faqA1": "Yes. PTEC Library is a free public library — reading and downloading digital resources costs nothing, and no payment is ever required.",
     "faqQ2": "Can I download books to read offline?",
     "faqA2": "Yes. Books with a PDF can be saved to your device and read without an internet connection. Your saved books are listed on the Offline books page.",
     "faqQ3": "Do I need an account?",
@@ -476,7 +476,7 @@
     "tags": "Topics",
     "physicalCopies": "Physical Copies",
     "aboutHeading": "What is this book about?",
-    "defaultSummary": "{title} is a public resource in the PTEC Digital Library collection.",
+    "defaultSummary": "{title} is a public resource in the PTEC Library collection.",
     "openFullReader": "Open full-screen reader"
   },
   "physical": {
@@ -782,7 +782,7 @@
     "statEducators": "Users",
     "copyright": "© {year} {institution}",
     "loginTitle": "Welcome back",
-    "loginSubtitle": "Sign in to access the PTEC digital library.",
+    "loginSubtitle": "Sign in to access PTEC Library.",
     "continueGoogle": "Continue with Google",
     "redirecting": "Redirecting…",
     "orSignInEmail": "or sign in with email",
@@ -796,7 +796,7 @@
     "noAccount": "Don't have an account?",
     "createFree": "Create one free",
     "signupTitle": "Create your account",
-    "signupSubtitle": "Join PTEC e-Library — free for all educators and students.",
+    "signupSubtitle": "Join PTEC Library — free for all educators and students.",
     "orSignUpEmail": "or sign up with email",
     "fullNameLabel": "Full name",
     "fullNamePlaceholder": "Your full name",
@@ -804,23 +804,46 @@
     "createAccount": "Create account",
     "creatingAccount": "Creating account…",
     "alreadyHaveAccount": "Already have an account?",
-    "checkEmailTitle": "Check your email!",
-    "checkEmailSent": "We've sent a confirmation link to ",
-    "checkEmailClick": ". Click it to activate your account.",
+    "brandTagline": "A digital learning hub for students, teachers and researchers.",
+    "trustPoint1": "Free educational resources",
+    "trustPoint2": "Open access learning materials",
+    "trustPoint3": "Built for teacher education",
+    "copyrightShort": "© {year} PTEC e-Library",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "passwordRequirementsTitle": "Password must contain:",
+    "pwReqLength": "At least 8 characters",
+    "pwReqLetter": "One letter",
+    "pwReqNumber": "One number",
+    "pwReqMet": "met",
+    "pwReqUnmet": "not yet met",
+    "passwordsMatch": "Passwords match",
+    "signInInstead": "Sign in instead",
+    "verifyingLoading": "Loading verification…",
+    "checkEmailTitle": "Check your email",
+    "checkEmailSentTo": "We sent a verification link to",
+    "checkEmailInstructions": "Click the link in the email to finish creating your account.",
     "checkEmailSpam": "Didn't receive it? Check your spam folder.",
+    "didntReceiveEmail": "Didn't receive the email?",
+    "resendVerification": "Resend verification email",
+    "resendSending": "Sending…",
+    "resendSent": "Verification email sent",
+    "resendCooldown": "Resend available in {seconds}s",
     "errInvalidLogin": "Incorrect email or password. Please try again.",
     "errEmailNotConfirmed": "Please check your email and confirm your account before signing in.",
     "errTooManyRequests": "Too many attempts. Please wait and try again.",
     "errNetwork": "Network error. Please check your connection.",
     "errDefault": "An error occurred. Please try again.",
-    "errUserExists": "An account with this email already exists. Try signing in instead.",
+    "errUserExists": "An account with this email already exists.",
     "errReservedDomain": "This email domain is reserved for library staff. Please sign up with a personal email, or contact the library if you are a staff member.",
     "errPasswordLength": "Password must be at least 8 characters.",
+    "errPasswordWeak": "Password must include at least one letter and one number.",
     "errEmailInvalid": "Please enter a valid email address.",
     "errNameRequired": "Full name is required.",
     "errEmailRequired": "Email address is required.",
     "errPasswordRequired": "Password is required.",
     "errPasswordMismatch": "Passwords do not match.",
+    "errCaptchaRequired": "Please complete the verification below to continue.",
     "errAdminBlocked": "This email domain is reserved for administrators. Please contact the admin team.",
     "resetPasswordTitle": "Reset your password",
     "resetPasswordSubtitle": "Enter your email address and we'll send you a link to reset your password.",
@@ -905,12 +928,30 @@
     "statDownloads": "Downloads",
     "growingNote": "This repository is growing — more academic works will be added soon.",
     "seoTitle": "Academic Publications & Journal Articles",
-    "seoDescription": "Browse {count} academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
-    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in the PTEC Digital Library. Search by journal, year, keyword, and article type.",
-    "collectionName": "Academic Publications — PTEC Digital Library",
-    "collectionDescription": "Academic journal articles and scholarly publications in the PTEC Digital Library.",
+    "seoDescription": "Browse {count} academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
+    "seoDescriptionEvergreen": "Browse academic journal articles and scholarly publications in PTEC Library. Search by journal, year, keyword, and article type.",
+    "collectionName": "Academic Publications — PTEC Library",
+    "collectionDescription": "Academic journal articles and scholarly publications in PTEC Library.",
     "pageLabel": "Page",
-    "resultCountFiltered": "{count} of {total} publications"
+    "resultCountFiltered": "{count} of {total} publications",
+    "typeLabel": "Type",
+    "journalLabel": "Journal",
+    "yearLabel": "Year",
+    "languageLabel": "Language",
+    "keywordLabel": "Keyword",
+    "searchLabel": "Search",
+    "resultsHeading": "Publications",
+    "filteredBy": "Filtered by",
+    "clearAll": "Clear all",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "sortTitle": "Title (A–Z)",
+    "sortViews": "Most viewed",
+    "sortDownloads": "Most downloaded",
+    "viewMode": "View mode",
+    "viewList": "List view",
+    "viewGrid": "Grid view",
+    "subjectLabel": "Subject"
   },
   "publicationDetail": {
     "breadcrumbHome": "Home",
@@ -1073,7 +1114,70 @@
     "linkBrowseLibrary": "Browse Library",
     "linkTheses": "Theses",
     "linkAdminPanel": "Admin Panel",
-    "recentDownloads": "Recent Downloads"
+    "recentDownloads": "Recent Downloads",
+    "headerSubtitle": "Continue your learning journey with PTEC e-Library.",
+    "searchPlaceholder": "Search books, theses, publications…",
+    "searchButton": "Search",
+    "quickActionsLabel": "Quick actions",
+    "quickSearch": "Search library",
+    "quickBrowse": "Browse books",
+    "quickSaved": "Saved resources",
+    "quickRequest": "Request a book",
+    "greetingMorning": "Good morning, {name}",
+    "greetingAfternoon": "Good afternoon, {name}",
+    "greetingEvening": "Good evening, {name}",
+    "startJourneyTitle": "Start your learning journey",
+    "startJourneyDesc": "Explore the PTEC e-Library collection and find resources for your next lesson, research project, or study session.",
+    "exploreTheses": "Explore Theses",
+    "lastOpened": "Last opened {time}",
+    "progressLabel": "Reading progress",
+    "progressPct": "{pct}%",
+    "continueButton": "Continue reading",
+    "myLibrary": "My Library",
+    "statDownloads": "Downloads",
+    "viewAll": "View all",
+    "intentHeading": "What are you working on?",
+    "intentLessonTitle": "Prepare a lesson",
+    "intentLessonDesc": "Find teaching materials and lesson resources.",
+    "intentThesisTitle": "Write a thesis",
+    "intentThesisDesc": "Research methods, theses, and references.",
+    "intentResearchTitle": "Improve research skills",
+    "intentResearchDesc": "Methods, statistics, and academic publications.",
+    "intentExploreTitle": "Explore new topics",
+    "intentExploreDesc": "Discover learning paths across the library.",
+    "recentActivity": "Recent Activity",
+    "noActivityDesc": "Your recent activity will appear here after you start exploring the library.",
+    "activityOpened": "Opened",
+    "activitySaved": "Saved",
+    "activityDownloaded": "Downloaded",
+    "justNow": "Just now",
+    "minutesAgo": "{minutes}m ago",
+    "hoursAgo": "{hours}h ago",
+    "daysAgo": "{days}d ago",
+    "weeksAgo": "{weeks}w ago",
+    "myRequests": "My Requests",
+    "requestTypeAcquisition": "Book request",
+    "requestTypeDeposit": "Thesis submission",
+    "requestStatusPending": "Under review",
+    "requestStatusApproved": "Approved",
+    "requestStatusAdded": "Added to library",
+    "requestStatusRejected": "Not accepted",
+    "noRequestsTitle": "No requests yet",
+    "noRequestsDesc": "Need a resource we don't have? Let us know.",
+    "requestABook": "Request a book",
+    "statsSubtitle": "See how your learning activity is progressing.",
+    "statBooksRead": "Books read",
+    "statCurrentStreak": "Current streak",
+    "statInProgressShort": "In progress",
+    "readingProgressHeading": "Reading Progress",
+    "completionRateLabel": "completion rate",
+    "subjectsHeading": "Subjects you're exploring",
+    "streakHeading": "Learning streak",
+    "streakDescription": "{count, plural, one {You've been learning # day in a row.} other {You've been learning # days in a row.}}",
+    "streakDescriptionZero": "Read something today to start a new streak.",
+    "activeDayLabel": "active",
+    "inactiveDayLabel": "inactive",
+    "statsEmptyDesc": "Your reading statistics will appear here once you begin exploring the library."
   },
   "metrics": {
     "views": "{count, plural, one {# view} other {# views}}",
@@ -1318,7 +1422,7 @@
       "title": "Privacy Policy",
       "description": "Learn how PTEC Library collects, uses, stores and protects personal information, and how you can manage your privacy or delete your account.",
       "ogTitle": "Privacy Policy | PTEC Library",
-      "ogDescription": "What personal data the PTEC e-Library collects, how it is protected, and how to manage or delete your account."
+      "ogDescription": "What personal data PTEC Library collects, how it is protected, and how to manage or delete your account."
     },
     "breadcrumb": {
       "home": "Home",
@@ -1327,7 +1431,7 @@
     "hero": {
       "eyebrow": "Privacy & Data Protection",
       "title": "Privacy Policy",
-      "description": "The PTEC e-Library is a free digital library run by the Phnom Penh Teacher Education College. We collect only the data needed to run the library, we never sell it, and you can delete your account at any time.",
+      "description": "PTEC Library is a free digital library run by the Phnom Penh Teacher Education College. We collect only the data needed to run the library, we never sell it, and you can delete your account at any time.",
       "lastUpdatedLabel": "Last updated",
       "versionLabel": "Version",
       "languageNote": "Available in English and Khmer."
@@ -1364,7 +1468,7 @@
       "overview": {
         "title": "Overview",
         "body": [
-          "This policy explains what personal information the PTEC e-Library collects, why we collect it, where it is stored, who can see it, and the choices you have. It describes how the service actually works today — not a generic template.",
+          "This policy explains what personal information PTEC Library collects, why we collect it, where it is stored, who can see it, and the choices you have. It describes how the service actually works today — not a generic template.",
           "It applies to the public library website and its progressive web app. It does not cover other websites we link to, such as the main PTEC website or Google."
         ]
       },
@@ -1501,7 +1605,7 @@
       }
     },
     "table": {
-      "caption": "What the PTEC e-Library collects, why, and how long it is kept",
+      "caption": "What PTEC Library collects, why, and how long it is kept",
       "columns": {
         "category": "Data",
         "examples": "Examples",
@@ -1675,7 +1779,7 @@
     "seoTitle": "Student Theses & Research Reports",
     "seoDescription": "Browse {count} student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, and keyword.",
     "seoDescriptionEvergreen": "Browse student theses and research reports from Phnom Penh Teacher Education College. Search by program, cohort, year, author, advisor, and keyword.",
-    "collectionName": "Student Theses — PTEC Digital Library",
+    "collectionName": "Student Theses — PTEC Library",
     "collectionDescription": "Student theses and research reports from Phnom Penh Teacher Education College.",
     "pageLabel": "Page",
     "resultCountFiltered": "{count} of {total} theses",
@@ -2583,8 +2687,8 @@
     "intro": "Curated, ordered reading paths built from the library's own collection — designed around real PTEC teacher-training topics, from foundational pedagogy to classroom action research.",
     "seoTitle": "Teacher Learning Paths",
     "seoDescription": "Curated reading paths for PTEC trainees and in-service teachers — ordered sequences of books, theses, and resources organised around teacher-training topics.",
-    "collectionName": "Teacher Learning Paths — PTEC Digital Library",
-    "collectionDescription": "Curated, ordered learning paths built from the PTEC Digital Library's own collection.",
+    "collectionName": "Teacher Learning Paths — PTEC Library",
+    "collectionDescription": "Curated, ordered learning paths built from the PTEC Library's own collection.",
     "emptyTitle": "No learning paths published yet",
     "emptyHint": "Check back soon — librarians are curating these now.",
     "steps": "{count, plural, =1 {# step} other {# steps}}",
@@ -3465,6 +3569,7 @@
       "view": "View",
       "edit": "Edit",
       "duplicate": "Duplicate",
+      "reviewApproval": "Review approval",
       "reviewAndPublish": "Review & publish",
       "requestApproval": "Request approval",
       "cancelSchedule": "Cancel schedule",
@@ -3539,10 +3644,12 @@
         },
         "image": "Image (optional)",
         "removeImage": "Remove image",
+        "replaceImage": "Replace image",
+        "imageBadType": "That file type is not supported. Choose a JPEG, PNG, WebP, or AVIF image — iPhone HEIC photos need to be exported as JPEG first.",
+        "imageTooLarge": "Image must be 5 MB or smaller. Try exporting it at a smaller size.",
+        "imageUploadFailed": "Upload failed: {error}",
         "chooseImage": "Choose image",
         "uploading": "Uploading…",
-        "imageBadType": "Please choose a JPEG, PNG, WebP, or AVIF image.",
-        "imageTooLarge": "Image must be 5 MB or smaller.",
         "bilingualLegend": "Bilingual content",
         "languageTabs": "Content language",
         "english": "English",
@@ -3637,6 +3744,10 @@
         "warningsHeading": "Before you publish",
         "previewInApp": "In-app notification",
         "previewBanner": "Website banner",
+        "channelInApp": "In-app",
+        "channelBanner": "Banner",
+        "channelPush": "Push",
+        "previewImageAlt": "Announcement image",
         "previewDesktopPush": "Desktop push",
         "previewMobilePush": "Mobile push",
         "untitled": "(untitled)",
@@ -3683,6 +3794,7 @@
       "resendFailed": "Resend failed",
       "archive": "Archive",
       "contentHeading": "Content",
+      "imageAlt": "Announcement image",
       "noKhmerContent": "No Khmer translation yet.",
       "ctaLabel": "Call to action",
       "deliveryHeading": "Delivery report",
@@ -3699,6 +3811,9 @@
       "noHistory": "No status changes recorded yet.",
       "configHeading": "Configuration",
       "channels": "Channels",
+      "channelInApp": "In-app",
+      "channelBanner": "Banner",
+      "channelPush": "Push",
       "audience": "Audience",
       "pinned": "Pinned",
       "dismissible": "Dismissible",
@@ -3798,14 +3913,17 @@
       "resubmit": "Resubmit for review",
       "archive": "Archive",
       "publishNow": "Publish now",
-      "cancelSchedule": "Cancel schedule"
+      "cancelSchedule": "Cancel schedule",
+      "verifyMetadata": "Verify metadata",
+      "unpublishRequestChanges": "Unpublish & request changes"
     },
     "noteBox": {
       "label": "What needs to change?",
       "recorded": "(recorded and shown to the editor)",
       "placeholder": "e.g. Author name doesn't match the title page; publication year missing",
       "send": "Send back with note",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "sendUnpublish": "Unpublish with note"
     },
     "details": {
       "checklist": "Metadata checklist",
@@ -3836,7 +3954,20 @@
       "updated": "Status updated.",
       "reviewerUpdated": "Reviewer updated.",
       "restored": "Version restored.",
-      "failed": "Action failed — please try again."
+      "failed": "Action failed — please try again.",
+      "verified": "Metadata verified."
+    },
+    "tabs": {
+      "label": "Review queues",
+      "pending": "Submitted for review",
+      "unverifiedLive": "Published without review"
+    },
+    "unverifiedLiveHint": "These records are already public but their metadata was never checked — readers see a “not yet verified by library staff” warning on the citation box, and repository feeds skip them. Verifying stamps the record without changing its published status.",
+    "unverifiedLiveCapped": "Only the 200 most recent are listed; verify these and reload for more.",
+    "verifyBlocked": "Cannot verify until these are filled in: {fields}",
+    "emptyUnverified": {
+      "title": "Every published record has been verified",
+      "description": "Anything uploaded with “Publish immediately” shows up here until a librarian checks its metadata."
     }
   },
   "adminPaths": {
@@ -4106,39 +4237,114 @@
   "adminDuplicates": {
     "back": "Manage E-books",
     "title": "Duplicate Review",
-    "description": "Probable duplicate records, grouped by shared ISBN, PDF file identity, or matching title with a corroborating signal. Nothing is merged automatically — pick the record to keep, then retire the others. Retiring archives the duplicate (its reviews and analytics are preserved) and adds a permanent 301 redirect from its URL to the record you keep.",
+    "description": "Probable duplicate books, grouped by a shared ISBN, an identical PDF file, or a matching title with a corroborating signal. Nothing is merged automatically — choose the record to keep, then retire the others.",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "summary": {
+      "aria": "Duplicate queue overview",
+      "filterHint": "Filter the queue to these groups",
+      "groups": "Duplicate groups",
+      "groupsHint": "Awaiting review",
+      "high": "High confidence",
+      "highHint": "Same ISBN or same file",
+      "medium": "Medium confidence",
+      "mediumHint": "Title plus corroboration",
+      "low": "Low confidence",
+      "lowHint": "Verify manually",
+      "books": "Books affected",
+      "booksHint": "Records sitting in a group"
+    },
+    "filters": {
+      "aria": "Filter duplicate groups",
+      "searchLabel": "Search duplicates",
+      "searchPlaceholder": "Search title, author, ISBN or slug…",
+      "clearSearch": "Clear search",
+      "submit": "Search",
+      "confidence": "Confidence",
+      "confidenceAll": "All",
+      "signal": "Signal",
+      "signalAll": "Any signal",
+      "sort": "Sort by",
+      "clear": "Clear filters",
+      "showing": "Showing {shown} of {total} groups"
+    },
+    "sort": {
+      "confidence": "Highest confidence",
+      "records": "Most records",
+      "oldest": "Oldest records",
+      "title": "Title A–Z"
+    },
     "empty": {
-      "title": "No probable duplicates found",
-      "description": "No published books currently share an ISBN, PDF file, or a matching title with a corroborating signal."
+      "title": "Catalog looks clean",
+      "description": "No probable duplicate books were found. Every published book was checked against the duplicate detection rules — records that are not published are out of scope."
+    },
+    "noResults": {
+      "title": "No groups match these filters",
+      "description": "{total, plural, one {# duplicate group is} other {# duplicate groups are}} waiting for review. Widen or clear the filters to see them.",
+      "action": "Clear filters"
     },
     "confidence": {
       "high": "High confidence",
       "medium": "Medium confidence",
       "low": "Low confidence"
     },
-    "records": "{count} records",
-    "signals": {
-      "isbn": "same ISBN",
-      "content-hash": "identical PDF file",
-      "file-size": "same file size",
-      "title": "same title",
-      "author": "same author",
-      "year": "same year",
-      "title-prefix": "one title extends the other"
+    "confidenceShort": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
     },
-    "keep": "Keep",
-    "keepThis": "Keep this record",
-    "view": "View",
-    "retire": "Retire → keep selected",
+    "records": "{count, plural, one {# record} other {# records}}",
+    "evidence": {
+      "title": "Why these records match",
+      "identity": "Identity match",
+      "supporting": "Supporting evidence",
+      "manualReview": "Manual review recommended",
+      "manualReviewHint": "A shared or extended title is also how genuinely separate editions look. Open both records before retiring either one."
+    },
+    "signals": {
+      "isbn": "Same ISBN",
+      "content-hash": "Same PDF file",
+      "file-size": "Same file size",
+      "title": "Same title",
+      "author": "Same author",
+      "year": "Same publication year",
+      "title-prefix": "One title extends the other"
+    },
+    "canonical": {
+      "legend": "Choose the record to keep",
+      "keepThis": "Keep “{title}” as the record to survive",
+      "badge": "Keep",
+      "duplicate": "Duplicate",
+      "suggested": "Suggested — oldest record in this group",
+      "hint": "The record you keep stays published. Every other record in the group can then be retired onto it, one at a time."
+    },
+    "meta": {
+      "isbn": "ISBN {value}",
+      "noIsbn": "No ISBN",
+      "pages": "{count} pp.",
+      "size": "{size} KB",
+      "added": "Added {date}",
+      "hashed": "File fingerprinted",
+      "noHash": "No file fingerprint"
+    },
+    "view": "View book",
+    "edit": "Edit",
+    "retire": "Retire duplicate",
     "retireDialog": {
       "title": "Retire this duplicate?",
-      "description": "“{title}” will be archived and its URL will permanently redirect to the record you keep. Reviews and analytics are preserved.",
+      "lead": "“{title}” will be archived. The record stays in the database with everything attached to it.",
+      "from": "Retiring",
+      "to": "Redirects to",
+      "effectArchive": "Archived and removed from the public catalog, listings and sitemap.",
+      "effectRedirect": "Its URL permanently redirects (301) to the record you keep.",
+      "effectPreserve": "Reviews, reading lists, downloads and analytics stay attached to it.",
+      "effectAudit": "The change is written to the admin audit log.",
       "confirm": "Retire duplicate",
       "busy": "Retiring…"
     },
     "toasts": {
-      "retired": "Retired /books/{from} → /books/{to}",
-      "failed": "Could not retire the record — please try again."
+      "retired": "Retired — /books/{from} now redirects to /books/{to}",
+      "failed": "Could not retire the record — refresh the page and review the group again."
     }
   },
   "adminDataQuality": {
@@ -4181,13 +4387,18 @@
     "gaps": {
       "title": "Metadata repair queue",
       "subtitle": "Lowest completeness first, so high-impact edits stay at the top.",
-      "showing": "Showing {shown} of {total}",
       "completeTitle": "Published metadata is complete",
       "completeBody": "New gaps will appear here automatically.",
       "typeBook": "E-book",
       "typeThesis": "Thesis",
       "edit": "Edit",
-      "editAria": "Edit metadata for {title}"
+      "editAria": "Edit metadata for {title}",
+      "countLabel": "{count} records",
+      "filterType": "Filter by record type",
+      "typeAll": "All types",
+      "missingField": "Missing: {field}",
+      "noMatchTitle": "No records match these filters",
+      "noMatchBody": "Clear one of the filters to widen the queue."
     },
     "files": {
       "title": "File repairs",
@@ -4247,84 +4458,267 @@
         "catalog": "Catalog",
         "post": "Post"
       }
+    },
+    "zones": {
+      "stateLabel": "State of the collection",
+      "stateHint": "What the published records look like right now",
+      "repairLabel": "Queued work",
+      "repairHint": "Records and files waiting on an edit",
+      "integrityLabel": "Integrity checks",
+      "integrityHint": "Do the stored totals still reconcile with the records?"
+    },
+    "analysis": {
+      "title": "Where the gaps are",
+      "subtitle": "Ranked by effect on average completeness rather than by how often a field is missing — a 3-point field missing from 90 records matters less than a 15-point one missing from 25. Select a bar to scope the repair queue below.",
+      "fieldsTitle": "Missing fields by impact",
+      "fieldsHint": "Bar and bold figure: points of average completeness at stake. Grey: records missing the field.",
+      "fieldsEmpty": "Every scored field is present on every published record.",
+      "fieldsMore": "{count} more fields account for {records} further gaps.",
+      "impactPoints": "+{points} pts",
+      "topFix": "Filling {field} everywhere would lift average completeness from {percent}% to about {target}% — more than any other single field.",
+      "tiersTitle": "Completeness distribution",
+      "tiersHint": "{count} published records scored",
+      "tierAria": "{label}: {count} records",
+      "recordCount": "{count} records",
+      "clearFilters": "Clear filters"
+    },
+    "tier": {
+      "complete": "Complete",
+      "good": "Good",
+      "needs_review": "Needs review",
+      "incomplete": "Incomplete"
+    },
+    "fields": {
+      "title": "Title",
+      "author": "Author",
+      "authors": "Author(s)",
+      "advisor": "Advisor",
+      "department": "Department",
+      "category": "Category",
+      "year": "Year",
+      "language": "Language",
+      "description": "Description",
+      "tags": "Keywords/tags",
+      "cover": "Cover image",
+      "pdf": "PDF file",
+      "license": "License",
+      "publisher": "Publisher",
+      "slug": "Slug",
+      "program": "Program",
+      "cohort": "Cohort",
+      "academicYear": "Academic year",
+      "publicationDate": "Publication date",
+      "abstract": "Abstract",
+      "keywords": "Keywords",
+      "references": "References"
+    },
+    "reconcile": {
+      "title": "Resource count reconciliation",
+      "description": "Public totals are recalculated from canonical records — never stored and never edited by hand. “Digital resources” is published e-books + theses + publications; the physical catalog and learning paths are counted separately and are not part of that total.",
+      "recalculate": "Recalculate and verify",
+      "recalculating": "Recalculating…",
+      "recalculateFailed": "Recalculation failed",
+      "viewUnavailable": "The canonical statistics view could not be read. Public surfaces are omitting their resource figures rather than showing a wrong one.",
+      "cacheMatches": "Cache matches the database on every metric.",
+      "driftCount": "{count, plural, =1 {1 metric differs} other {# metrics differ}} from the cached value",
+      "driftRow": "{metric}: cache {cached} → database {actual}",
+      "driftHint": "Use “Recalculate and verify” to drop the cache; the next public render will recount.",
+      "figures": {
+        "digital": "Digital resources",
+        "books": "E-books",
+        "theses": "Theses",
+        "publications": "Publications",
+        "catalog": "Physical catalog",
+        "paths": "Learning paths"
+      },
+      "status": {
+        "title": "By status",
+        "hint": "Admin view. Only the “Published” column is a public figure.",
+        "type": "Type",
+        "published": "Published",
+        "draft": "Draft",
+        "inReview": "In review",
+        "scheduled": "Scheduled",
+        "archived": "Archived",
+        "all": "All records"
+      },
+      "type": {
+        "book": "E-books",
+        "thesis": "Theses",
+        "publication": "Publications",
+        "learning_path": "Learning paths",
+        "physical_catalog": "Physical catalog"
+      },
+      "search": {
+        "title": "Search index",
+        "unavailable": "Search-health view unavailable (migration 0103 not applied yet).",
+        "hint": "Published records carrying a semantic-search embedding. Records without one are still reachable through keyword search; run {command} to close the gap.",
+        "chip": "{type}: {embedded} / {published} indexed",
+        "chipMissing": "{count} missing",
+        "searchable": "Searchable digital resources: {searchable} of {total}. This is reported separately and is never shown publicly as the resource total."
+      },
+      "duplicates": {
+        "title": "Possible duplicate records ({count})",
+        "hint": "Published records sharing a title within the same type. They are each counted once (counts are per row, with no joins), so these do not inflate any total — but two editions of the same work may be worth merging or distinguishing.",
+        "row": "{count, plural, =1 {1 record} other {# records}} ({type})"
+      },
+      "lastReconciled": "Last reconciled {time} UTC"
     }
   },
   "adminSearchInsights": {
-    "title": "Search Analytics",
-    "description": "Search behavior from the last 30 days: what people look for, where search fails, which results earn clicks, and how Khmer and English usage compares.",
-    "metrics": {
-      "totalSearches": "Total searches",
-      "hintTotal": "All logged global-search queries",
-      "noResults": "No results",
-      "hintNoResults": "Useful acquisition signals",
+    "title": "Search Intelligence",
+    "description": "Understand what readers search for, what they cannot find, and where the library can improve discovery.",
+    "aggregatesPending": "Showing a capped sample: apply migration 0121 to aggregate these figures in the database. Totals above 5,000 searches in the window are under-reported until then.",
+    "zones": {
+      "activityLabel": "Search activity",
+      "activityHint": "How much readers search, and how well it works",
+      "zeroLabel": "Zero-result intelligence",
+      "zeroHint": "Failed searches, and what was done about them",
+      "logLabel": "Detailed search activity",
+      "logHint": "The raw log, for the question a chart cannot answer"
+    },
+    "toolbar": {
+      "rangeLabel": "Time range",
+      "range": {
+        "today": "Today",
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days",
+        "6m": "6 months",
+        "custom": "Custom"
+      },
+      "compare": "Compare",
+      "refresh": "Refresh",
+      "justNow": "Updated just now",
+      "minutesAgo": "Updated {count} min ago"
+    },
+    "kpi": {
+      "aria": "Search key figures",
+      "searches": "Searches",
+      "searchesHint": "Logged global-search requests",
+      "successRate": "Success rate",
+      "successHint": "Searches that returned at least one result",
+      "zeroRate": "Zero-result rate",
+      "zeroHint": "Searches that returned nothing",
       "clickRate": "Click rate",
-      "hintClickRate": "Recorded result clicks per search",
-      "languageSplit": "Language split",
-      "hintLanguage": "Khmer / English search usage"
+      "clickHint": "Recorded result clicks per search — a search can produce several",
+      "perDay": "Searches / day",
+      "perDayHint": "Average across {days} days",
+      "vsPrevious": "vs previous {days} days",
+      "selectedPeriod": "Selected period",
+      "unmeasured": "{count} searches predate result logging and are excluded"
     },
-    "lists": {
-      "topKeywords": "Top searched keywords",
-      "emptyTop": "No search activity recorded yet.",
-      "noResultTerms": "Searches with no results",
-      "emptyNoResult": "No zero-result searches recorded.",
-      "missingRequests": "Missing book requests",
-      "emptyMissing": "No failed searches to review yet.",
-      "successful": "Successful search terms",
-      "emptySuccessful": "No successful searches recorded yet."
+    "chart": {
+      "title": "Search activity",
+      "subtitle": "Searches, failures and result clicks over the selected window.",
+      "chartLabel": "Search activity over time",
+      "legend": "Chart series",
+      "series": {
+        "searches": "Searches",
+        "noResults": "No results",
+        "clicks": "Clicks"
+      },
+      "summary": "{searches} searches, {noResults} with no results and {clicks} result clicks across {buckets} {unit}.",
+      "unitDay": "days",
+      "unitWeek": "weeks",
+      "unitMonth": "months",
+      "empty": "No search activity was recorded in this period.",
+      "showTable": "Show data table",
+      "hideTable": "Hide data table",
+      "tableCaption": "Search activity per bucket",
+      "colDate": "Date"
     },
-    "clicked": {
-      "title": "Most clicked results",
-      "empty": "No clicked search results recorded yet. New clicks appear after migration 0080 is applied.",
-      "caption": "Most clicked search results",
-      "colResult": "Result",
-      "colType": "Type",
-      "colClicks": "Clicks"
-    },
-    "trends": {
-      "daily": "Daily trend · 14 days",
-      "weekly": "Weekly trend · 30 days",
-      "monthly": "Monthly trend · 6 months",
-      "barAria": "{title} search volume",
-      "pointSr": "{label}: {count} searches, {noResults} with no results."
+    "quality": {
+      "title": "Search quality",
+      "subtitle": "How often a search works, and how often it leads somewhere.",
+      "successLabel": "Search success",
+      "successHint": "Share of measurable searches that returned results",
+      "zeroLabel": "Zero-result rate",
+      "zeroHint": "Share of measurable searches that returned nothing",
+      "clickLabel": "Click rate",
+      "clickHint": "Result clicks per search; can exceed 100%",
+      "unmeasuredNote": "{count} searches were logged before result counts existed and are excluded from both rates."
     },
     "language": {
-      "title": "Khmer vs English usage",
-      "khmer": "Khmer",
-      "english": "English",
+      "title": "Language distribution",
+      "subtitle": "Which language readers search in.",
+      "km": "Khmer",
+      "en": "English",
       "other": "Other",
-      "pctOfSearches": "{pct}% of searches"
+      "empty": "No searches recorded in this period.",
+      "aria": "{language}: {pct}%"
     },
-    "time": {
-      "recently": "recently",
-      "today": "today",
-      "yesterday": "yesterday",
-      "daysAgo": "{count} days ago"
+    "popular": {
+      "topTitle": "Popular searches",
+      "topSubtitle": "Most-searched terms that returned results.",
+      "zeroTitle": "Most-failed searches",
+      "zeroSubtitle": "Most-searched terms that returned nothing.",
+      "viewAll": "View all",
+      "emptyTitle": "No search activity yet",
+      "emptyBody": "There are no search events in the selected period. Try a wider date range.",
+      "lastSearched": "last searched {when}",
+      "share": "{pct}% of searches"
     },
-    "actionCenter": {
-      "title": "Zero-result action center",
-      "open": "{count} open",
-      "showHandled": "Show handled",
-      "description": "Failed searches grouped by spelling. Resolve each one: map a synonym, pin a curated result, raise an acquisition request, or dismiss bot noise.",
-      "emptyNone": "No zero-result searches in this window.",
-      "emptyHandled": "Everything has been handled — nice.",
-      "last": "last {time}",
+    "zero": {
+      "title": "Zero-result searches",
+      "subtitle": "Queries readers searched for but could not find. Resolve each one: map a synonym, pin a curated result, raise an acquisition request, or dismiss it as noise.",
+      "needsReviewCount": "{count} need review",
+      "total": "{count} terms",
+      "truncated": "Only the most-searched terms in this window are shown. Narrow the date range to reach the rest.",
+      "caption": "Zero-result search terms and their review status",
+      "emptyTitle": "No zero-result searches",
+      "emptyBody": "Readers are finding results for their searches in this period.",
+      "noMatchTitle": "No terms match these filters",
+      "noMatchBody": "Clear a filter to widen the list.",
+      "searchPlaceholder": "Search terms…",
+      "searchLabel": "Filter zero-result terms",
+      "clearSearch": "Clear search",
+      "statusLabel": "Status",
+      "languageLabel": "Language",
+      "sortLabel": "Sort",
+      "rowsLabel": "Rows per page",
+      "rowsPerPage": "{count} / page",
       "spellings": "{count} spellings",
-      "filtersUsed": "filters used",
-      "possibleMatch": "Possible match: {matches}",
-      "actions": {
-        "synonym": "Synonym",
-        "curate": "Curate",
-        "acquire": "Acquire",
-        "reviewed": "Reviewed",
-        "spam": "Spam"
+      "filtersUsed": "filters were active",
+      "closePanel": "Close panel",
+      "col": {
+        "query": "Query",
+        "searches": "Searches",
+        "lastSearched": "Last searched",
+        "language": "Language",
+        "suggested": "Suggested match",
+        "status": "Status",
+        "actions": "Actions"
       },
-      "actionLabels": {
+      "status": {
+        "all": "All statuses",
+        "needsReview": "Needs review",
         "reviewed": "Reviewed",
-        "ignored": "Ignored (spam/bot)",
-        "acquisition": "Acquisition requested",
-        "synonym": "Synonym added",
-        "curated": "Curated result",
-        "redirect": "Redirect"
+        "acquisition": "Acquisition",
+        "synonym": "Synonym",
+        "curated": "Curated",
+        "ignored": "Ignored"
+      },
+      "language": {
+        "all": "All languages",
+        "km": "Khmer",
+        "en": "English",
+        "other": "Other"
+      },
+      "sort": {
+        "count": "Most searched",
+        "recent": "Most recent",
+        "term": "A–Z"
+      },
+      "actions": {
+        "review": "Review",
+        "more": "More actions for {term}",
+        "menuLabel": "Term actions",
+        "synonym": "Add synonym",
+        "curate": "Curate result",
+        "acquire": "Create acquisition request",
+        "reviewed": "Mark reviewed",
+        "spam": "Ignore as spam"
       },
       "synonymPanel": {
         "aria": "Synonyms for {term}",
@@ -4344,9 +4738,60 @@
         "ignored": "Dismissed as spam.",
         "acquisition": "Acquisition request created.",
         "synonym": "Synonym saved.",
-        "curated": "Result pinned.",
-        "failed": "Action failed. Please try again."
+        "curated": "Curated result pinned.",
+        "failed": "Action failed."
       }
+    },
+    "activity": {
+      "title": "Detailed search activity",
+      "subtitle": "Every logged search in the selected window, newest first.",
+      "count": "{count} searches",
+      "caption": "Logged search requests",
+      "emptyTitle": "No searches match",
+      "emptyBody": "No logged search in this window matches the current filters.",
+      "searchPlaceholder": "Filter by term…",
+      "searchLabel": "Filter search log by term",
+      "statusLabel": "Result status",
+      "languageLabel": "Language",
+      "typeLabel": "Resource type",
+      "allTypes": "All resource types",
+      "rowsLabel": "Rows per page",
+      "rowsPerPage": "{count} / page",
+      "noResults": "No results",
+      "unknownResults": "Logged before result counts existed",
+      "exportCsv": "Export CSV",
+      "exporting": "Exporting…",
+      "exportDone": "CSV downloaded",
+      "exportEmpty": "No rows match the current filters",
+      "exportError": "Export failed — please retry",
+      "col": {
+        "query": "Query",
+        "results": "Results",
+        "language": "Language",
+        "type": "Resource type",
+        "searchedAt": "Searched at"
+      },
+      "resultStatus": {
+        "all": "All searches",
+        "results": "Results found",
+        "noResults": "No results"
+      },
+      "language": {
+        "all": "All languages",
+        "km": "Khmer",
+        "en": "English",
+        "other": "Other"
+      }
+    },
+    "clicked": {
+      "title": "Most clicked results",
+      "subtitle": "Which results readers actually opened from search.",
+      "caption": "Most clicked search results",
+      "colResult": "Result",
+      "colType": "Type",
+      "colClicks": "Clicks",
+      "emptyTitle": "No result clicks recorded",
+      "emptyBody": "Clicks appear once readers open results from the search page."
     }
   },
   "adminUsers": {
@@ -4695,7 +5140,6 @@
       "total": "Total E-books",
       "archived": "{count} archived",
       "live": "Live",
-      "awaitingReview": "{count} awaiting review",
       "drafts": "Drafts",
       "missingCovers": "Missing Covers",
       "missingPdfs": "Missing PDFs",
@@ -4707,7 +5151,9 @@
       "needsReview": "Needs review",
       "brokenFiles": "Broken files",
       "archivedLabel": "Archived",
-      "breakdown": "E-book breakdown"
+      "breakdown": "E-book breakdown",
+      "unverifiedLive": "Unverified live",
+      "unverifiedSub": "{count} not verified"
     },
     "toolbar": {
       "searchLabel": "Search e-books",
@@ -4785,7 +5231,10 @@
       "metadataQuality": "Metadata quality",
       "anyQuality": "Any quality",
       "clearThese": "Clear these",
-      "apply": "Apply"
+      "apply": "Apply",
+      "verificationChip": "Verification: {label}",
+      "verificationLabel": "Verification",
+      "anyVerification": "Any verification"
     },
     "actions": {
       "menuFor": "Actions for {title}",
@@ -4917,6 +5366,12 @@
       "noResultsTitle": "No e-books found",
       "noResultsBody": "Try changing your search or filters.",
       "clearFilters": "Clear filters"
+    },
+    "verification": {
+      "verified": "Verified",
+      "unverified": "Not verified",
+      "verifiedTitle": "A librarian has checked this record's metadata.",
+      "unverifiedTitle": "Live but unchecked — readers see the “not yet verified” citation warning."
     }
   },
   "adminTheses": {
@@ -6168,7 +6623,9 @@
       "phaseStep": {
         "uploadingPdf": "Uploading PDF…",
         "uploadingCover": "Uploading cover…",
-        "saving": "Saving record"
+        "saving": "Saving record",
+        "uploading-pdf": "Uploading PDF…",
+        "uploading-cover": "Uploading cover…"
       },
       "chooseFirst": "Choose a PDF first.",
       "err": {

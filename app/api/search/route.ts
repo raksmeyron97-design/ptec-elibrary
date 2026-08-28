@@ -17,6 +17,7 @@ import { logAppEvent } from "@/lib/analytics/events";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { clientIp } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,14 +34,7 @@ const DAILY_AI_LIMIT = 1000; // global Gemini summary calls/day (denial-of-walle
 const SEARCH_SENTINEL = "00000000-0000-0000-0000-000000000002";
 
 function getClientIP(req: Request): string {
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return "unknown";
+  return clientIp(req.headers);
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────

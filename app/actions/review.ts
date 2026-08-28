@@ -31,6 +31,8 @@ import { evaluateQuality, type QualityReport } from "@/lib/metadata-quality";
 import { apa } from "@/lib/citations";
 import { SITE_URL } from "@/lib/seo/site";
 import { checkBookPublishReady, checkThesisPublishReady } from "@/lib/publish-readiness";
+import { verifyEbook } from "@/app/actions/ebooks";
+import { verifyThesis } from "@/app/actions/theses";
 
 export type ReviewItemType = "book" | "research";
 
@@ -109,6 +111,34 @@ async function fetchQueueRows(db: Db, table: string, baseCols: string): Promise<
   return { rows: basic.data ?? [], hasWorkflowCols: false };
 }
 
+/**
+ * Queue 2: records that are already public but were never checked.
+ *
+ * "Publish immediately" writes status = 'published' with verified_at = null,
+ * which QUEUE_STATUSES deliberately does not contain — so those rows had no
+ * queue at all, while their public pages carried the "not yet verified by
+ * library staff" citation warning. This is that queue.
+ *
+ * Capped: a library that predates the workflow can have every published row
+ * unverified, and the card list is not a paginated table. Pre-0062 stacks
+ * have no verified_at column at all — those return empty rather than throw,
+ * matching this file's other legacy fallbacks.
+ */
+const UNVERIFIED_LIVE_CAP = 200;
+
+async function fetchUnverifiedLiveRows(db: Db, table: string, baseCols: string): Promise<Row[]> {
+  const res = await db
+    .from(table)
+    .select(`${baseCols}, ${WORKFLOW_COLS}`)
+    .eq("status", "published")
+    .is("verified_at", null)
+    .order("created_at", { ascending: false })
+    .limit(UNVERIFIED_LIVE_CAP);
+  if (!res.error) return res.data ?? [];
+  if (isMissingColumn(res.error)) return [];
+  throw new Error(res.error.message);
+}
+
 async function fetchPeople(db: Db, ids: string[]): Promise<Map<string, ReviewPerson>> {
   const unique = [...new Set(ids.filter(Boolean))];
   if (unique.length === 0) return new Map();
@@ -159,24 +189,50 @@ function toItem(type: ReviewItemType, row: Row, people: Map<string, ReviewPerson
   };
 }
 
-export async function getReviewQueue(): Promise<ReviewItem[]> {
+export type ReviewQueues = {
+  /** Submitted for approval, not yet public. */
+  pending: ReviewItem[];
+  /** Already public, metadata never verified (published straight from upload). */
+  unverifiedLive: ReviewItem[];
+  /** True when the unverified-live scan hit UNVERIFIED_LIVE_CAP. */
+  unverifiedLiveCapped: boolean;
+};
+
+/** Both review queues in one pass — they share the profiles lookup. */
+export async function getReviewQueues(): Promise<ReviewQueues> {
   const { supabase } = await requireLibrarian();
 
-  const [books, research] = await Promise.all([
+  const [books, research, liveBooks, liveResearch] = await Promise.all([
     fetchQueueRows(supabase, "books", BOOK_BASE_COLS),
     fetchQueueRows(supabase, "research_reports", RESEARCH_BASE_COLS),
+    fetchUnverifiedLiveRows(supabase, "books", BOOK_BASE_COLS),
+    fetchUnverifiedLiveRows(supabase, "research_reports", RESEARCH_BASE_COLS),
   ]);
 
-  const personIds = [...books.rows, ...research.rows].flatMap((r) =>
+  const personIds = [...books.rows, ...research.rows, ...liveBooks, ...liveResearch].flatMap((r) =>
     [r.created_by, r.assigned_reviewer].filter(Boolean),
   ) as string[];
   const people = await fetchPeople(supabase, personIds);
 
-  const items = [
-    ...books.rows.map((r) => toItem("book", r, people)),
-    ...research.rows.map((r) => toItem("research", r, people)),
-  ];
-  return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const byNewest = (a: ReviewItem, b: ReviewItem) => b.createdAt.localeCompare(a.createdAt);
+
+  return {
+    pending: [
+      ...books.rows.map((r) => toItem("book", r, people)),
+      ...research.rows.map((r) => toItem("research", r, people)),
+    ].sort(byNewest),
+    unverifiedLive: [
+      ...liveBooks.map((r) => toItem("book", r, people)),
+      ...liveResearch.map((r) => toItem("research", r, people)),
+    ].sort(byNewest),
+    unverifiedLiveCapped:
+      liveBooks.length >= UNVERIFIED_LIVE_CAP || liveResearch.length >= UNVERIFIED_LIVE_CAP,
+  };
+}
+
+/** Pending queue only — kept for call sites that predate the second queue. */
+export async function getReviewQueue(): Promise<ReviewItem[]> {
+  return (await getReviewQueues()).pending;
 }
 
 /** Reviewer candidates for the assign dropdown (librarian and above). */
@@ -386,4 +442,21 @@ export async function rejectContent(type: ReviewItemType, id: string, note?: str
   return transitionContent(type, id, "changes_requested", {
     note: note ?? "Rejected without a stated reason (legacy action)",
   });
+}
+
+/**
+ * Queue 2's one-click action: stamp the metadata as checked without touching
+ * the record's status.
+ *
+ * transitionContent() cannot express this — canTransition() returns false for
+ * from === to, and 'published' is exactly where these rows already sit. The
+ * per-type actions already carry the full contract (reviewer-gated,
+ * quality-gated, audit-logged, reversible), so this only delegates and then
+ * refreshes the queue itself.
+ */
+export async function verifyReviewItem(type: ReviewItemType, id: string): Promise<ActionResult> {
+  const res = type === "book" ? await verifyEbook(id) : await verifyThesis(id);
+  if (!res.success) return { error: res.error ?? "Verification failed" };
+  revalidatePath("/admin/review");
+  return { success: true };
 }

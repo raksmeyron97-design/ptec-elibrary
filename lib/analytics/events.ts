@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { anonymousSessionHash, isLikelyBot } from "@/lib/search/analytics";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 /**
  * Shared analytics event writers for the admin intelligence dashboard.
@@ -29,10 +30,7 @@ export type ViewerContext = {
 export async function getViewerContext(): Promise<ViewerContext> {
   const h = await headers();
   const ua = h.get("user-agent");
-  const ip =
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    h.get("x-real-ip") ||
-    "unknown";
+  const ip = clientIp(h);
   const isBot = isLikelyBot(ua);
 
   const localeHeader = h.get("x-locale");
@@ -186,8 +184,7 @@ export async function logDownloadAttempt(input: {
   try {
     const h = await headers();
     const ua = h.get("user-agent");
-    const ip =
-      h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+    const ip = clientIp(h);
     const requestId = h.get("x-request-id") ?? null;
     const localeHeader = h.get("x-locale");
     const locale = localeHeader === "km" || localeHeader === "en" ? localeHeader : null;

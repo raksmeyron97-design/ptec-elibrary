@@ -149,6 +149,52 @@
   --dash-ink-3: #64748B;               /* 4.8:1 — tertiary / label text   */
   --dash-ink-decorative: #94A3B8;      /* 2.8:1 — NON-TEXT marks only     */
 
+  /* ── Metric series palette ───────────────────────────────────────────
+     ONE categorical palette for the four engagement measures. A metric
+     wears the same hue everywhere it appears — KPI tile, sparkline, chart
+     line, legend key — so "the teal card" and "the teal line" are always
+     the same measure. Before this they disagreed: the KPI row said
+     cyan / navy / violet / amber while the V2 chart drew three navies and
+     a gold, so the card you selected and the line you were reading did
+     not match.
+
+     Validated as a categorical palette (OKLCH lightness band, chroma
+     floor, protan/deutan ΔE, normal-vision floor, ≥3:1 against the white
+     card) under ALL PAIRS, not just neighbours — the chart can draw any
+     subset of three series, so any two of these can end up side by side.
+     The previous set failed that: #1E3A8A vs #7C3AED collapse to ΔE 0.4
+     under deuteranopia, i.e. the same colour for ~5% of male readers.
+     Re-derive with the same checks before changing any value here.
+
+     Colour is never the only channel — each series also owns a dash
+     pattern and a marker shape (analytics/chart-tokens.ts), so identity
+     survives greyscale print and forced-colors as well.
+
+     No dark redefinition on purpose: the admin panel is always light
+     (AdminThemeEnforcer), so this is one mode with one validated set. */
+  --ptec-series-views:     #2563EB;
+  --ptec-series-visitors:  #0D9488;
+  --ptec-series-reader:    #A21CAF;
+  --ptec-series-downloads: #D97706;
+
+  /* AA-on-white steps of the same four hues, for a glyph or label that has
+     to be READ as text rather than seen as a mark. */
+  --ptec-series-views-ink:     #1D4ED8;   /* 6.7:1 */
+  --ptec-series-visitors-ink:  #0F766E;   /* 5.5:1 */
+  --ptec-series-reader-ink:    #86198F;   /* 8.2:1 */
+  --ptec-series-downloads-ink: #B45309;   /* 5.0:1 */
+
+  /* ── Chart chrome ────────────────────────────────────────────────────
+     The grid and the axis are the two things a chart must not shout with.
+     Hairline and SOLID: a dashed grid reads as a threshold or a forecast
+     when it is only a ruler. Axis type comes off the AA ramp — the charts
+     used to set #94A3B8, which is 2.8:1 and is declared above as a
+     non-text mark colour. */
+  --dash-chart-grid:      #E8ECF2;
+  --dash-chart-baseline:  #D3DAE5;
+  --dash-chart-axis:      var(--dash-ink-3);
+  --dash-chart-crosshair: #A8B6CE;
+
   /* ── Radius scale ── */
   --dash-r-sm: .5rem;
   --dash-r-md: .75rem;
@@ -417,30 +463,39 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-tab:focus-visible { outline: 2px solid var(--dash-blue); outline-offset: 2px; }
 
 /* ── Icon tiles: royal-blue container by default, per-metric tints ──── */
+/* One tile recipe, two variables. A variant only names its hue (the mark
+   colour) and its ink (the AA-on-white step of the same hue); the wash and
+   the inset hairline are derived, so a variant can never drift out of the
+   family the way eight hand-written triplets did. */
 .dash-ico {
   display: grid;
   place-items: center;
   flex: none;
   border-radius: 11px;
-  color: var(--dash-blue);
-  background: color-mix(in srgb, var(--dash-blue) 11%, #fff);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 12%, transparent);
+  color: var(--dash-ico-ink, var(--dash-blue));
+  background: color-mix(in srgb, var(--dash-ico-hue, var(--dash-blue)) 11%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-ico-hue, var(--dash-blue)) 14%, transparent);
 }
-/* Explicit alias for the default royal-blue tile, so `.dash-ico--brand`
-   (used across the Pulse, activity and system panels) is a defined variant
-   like every other tint rather than relying on the base rule. */
-.dash-ico--brand { color: var(--dash-blue); background: color-mix(in srgb, var(--dash-blue) 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 12%, transparent); }
 .dash-ico--sm { width: 30px; height: 30px; }
 .dash-ico--md { width: 38px; height: 38px; }
 .dash-ico--lg { width: 44px; height: 44px; }
-.dash-ico--visitors { color: #0E7490; background: color-mix(in srgb, #0E7490 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #0E7490 14%, transparent); }
-.dash-ico--views    { color: var(--dash-blue); background: color-mix(in srgb, var(--dash-blue) 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-blue) 13%, transparent); }
-.dash-ico--reader   { color: #6D28D9; background: color-mix(in srgb, #6D28D9 10%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #6D28D9 13%, transparent); }
-.dash-ico--downloads{ color: #B45309; background: color-mix(in srgb, #D97706 12%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #D97706 16%, transparent); }
-.dash-ico--gold     { color: var(--dash-gold-ink); background: color-mix(in srgb, var(--dash-gold) 16%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-gold) 26%, transparent); }
-.dash-ico--emerald  { color: #047857; background: color-mix(in srgb, #059669 11%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, #059669 14%, transparent); }
+/* Explicit alias for the default royal-blue tile, so `.dash-ico--brand`
+   (used across the Pulse, activity and system panels) is a defined variant
+   like every other tint rather than relying on the base rule. */
+.dash-ico--brand    { --dash-ico-hue: var(--dash-blue);               --dash-ico-ink: var(--dash-blue); }
+.dash-ico--visitors { --dash-ico-hue: var(--ptec-series-visitors);    --dash-ico-ink: var(--ptec-series-visitors-ink); }
+.dash-ico--views    { --dash-ico-hue: var(--ptec-series-views);       --dash-ico-ink: var(--ptec-series-views-ink); }
+.dash-ico--reader   { --dash-ico-hue: var(--ptec-series-reader);      --dash-ico-ink: var(--ptec-series-reader-ink); }
+.dash-ico--downloads{ --dash-ico-hue: var(--ptec-series-downloads);   --dash-ico-ink: var(--ptec-series-downloads-ink); }
+.dash-ico--gold     { --dash-ico-hue: var(--dash-gold);               --dash-ico-ink: var(--dash-gold-ink); }
+.dash-ico--emerald  { --dash-ico-hue: var(--ptec-success);            --dash-ico-ink: var(--ptec-success); }
 
-/* Per-metric top accent strip on supporting KPI cards. */
+/* Per-metric top accent strip on supporting KPI cards.
+
+   Flat, not a gradient. A gradient strip is decoration that happens to be
+   near data: it puts two colours on a mark whose whole job is to say "this
+   card is that series", and the lighter end drifts out of the validated
+   palette. One token, full width. */
 .dash-kpi { position: relative; overflow: hidden; }
 .dash-kpi::before {
   content: "";
@@ -448,12 +503,13 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   inset: 0 0 auto 0;
   height: 3px;
   background: var(--dash-kpi-accent, transparent);
-  opacity: .85;
+  opacity: .9;
+  transition: opacity .16s ease, height .16s ease;
 }
-.dash-kpi--visitors  { --dash-kpi-accent: linear-gradient(90deg, #22D3EE, #0E7490); }
-.dash-kpi--views     { --dash-kpi-accent: linear-gradient(90deg, #5B7FD6, var(--dash-blue)); }
-.dash-kpi--reader    { --dash-kpi-accent: linear-gradient(90deg, #A78BFA, #6D28D9); }
-.dash-kpi--downloads { --dash-kpi-accent: linear-gradient(90deg, #FBBF24, #B45309); }
+.dash-kpi--visitors  { --dash-kpi-accent: var(--ptec-series-visitors); }
+.dash-kpi--views     { --dash-kpi-accent: var(--ptec-series-views); }
+.dash-kpi--reader    { --dash-kpi-accent: var(--ptec-series-reader); }
+.dash-kpi--downloads { --dash-kpi-accent: var(--ptec-series-downloads); }
 
 /* ── Hero KPI: blue-tinted institutional surface ─────────────────────── */
 .dash-hero {
@@ -476,10 +532,10 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 }
 
 /* Health card strips reuse semantic status colours rather than a metric hue. */
-.dash-kpi--ok      { --dash-kpi-accent: linear-gradient(90deg, #34D399, #047857); }
-.dash-kpi--warn    { --dash-kpi-accent: linear-gradient(90deg, #FBBF24, #B45309); }
-.dash-kpi--crit    { --dash-kpi-accent: linear-gradient(90deg, #FB7185, #BE123C); }
-.dash-kpi--unknown { --dash-kpi-accent: linear-gradient(90deg, #CBD5E1, #94A3B8); }
+.dash-kpi--ok      { --dash-kpi-accent: var(--ptec-success); }
+.dash-kpi--warn    { --dash-kpi-accent: var(--ptec-amber); }
+.dash-kpi--crit    { --dash-kpi-accent: var(--ptec-danger); }
+.dash-kpi--unknown { --dash-kpi-accent: var(--dash-ink-decorative); }
 
 /* ── Interactive metric card ─────────────────────────────────────────────
    The whole card is a control: selecting it drives the chart below. Selection
@@ -500,6 +556,12 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   border-color: color-mix(in srgb, var(--dash-blue) 42%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--dash-blue) 34%, transparent), var(--dash-elev-2);
 }
+/* Unselected metric cards keep their strip at half strength; the selected
+   one is the only card wearing its series colour at full weight, so the row
+   reads as "one of these is charted below" at a glance. Selection is also
+   carried by the ring, the "Charted" chip and aria-pressed — never by
+   colour alone. */
+.dash-metric-card::before { opacity: .45; }
 .dash-metric-card.is-selected::before { opacity: 1; height: 4px; }
 
 /* ── Shared popover surface (definitions, menus) ─────────────────────────── */
@@ -566,10 +628,10 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   border-radius: 3px;
   background: var(--dash-sev-color, transparent);
 }
-.dash-sev--critical { --dash-sev-color: #DC2626; }
-.dash-sev--warning  { --dash-sev-color: #D97706; }
-.dash-sev--pending  { --dash-sev-color: #2A47A6; }
-.dash-sev--info     { --dash-sev-color: #94A3B8; }
+.dash-sev--critical { --dash-sev-color: var(--ptec-danger); }
+.dash-sev--warning  { --dash-sev-color: var(--ptec-amber); }
+.dash-sev--pending  { --dash-sev-color: var(--ptec-info); }
+.dash-sev--info     { --dash-sev-color: var(--dash-ink-decorative); }
 
 /* ── Insight surface: warm gold / ivory — distinct from red/amber alerts ─ */
 .dash-insight-panel {

@@ -21,6 +21,7 @@ type SP = {
   fileStatus?: string;
   coverStatus?: string;
   quality?: string;
+  verification?: string;
   sort?: string;
   page?: string;
 };
@@ -45,6 +46,7 @@ export default async function ManageEbooksPage({
       fileStatus: sp.fileStatus,
       coverStatus: sp.coverStatus,
       quality: sp.quality,
+      verification: sp.verification,
       sort: sp.sort,
       page,
       pageSize: PAGE_SIZE,
@@ -55,7 +57,7 @@ export default async function ManageEbooksPage({
 
   const totalPages = Math.max(1, Math.ceil(ebooksResult.total / PAGE_SIZE));
   const hasActiveFilters = Boolean(
-    sp.q || sp.status || sp.dept || sp.category || sp.year || sp.language || sp.fileStatus || sp.coverStatus || sp.quality,
+    sp.q || sp.status || sp.dept || sp.category || sp.year || sp.language || sp.fileStatus || sp.coverStatus || sp.quality || sp.verification,
   );
 
   const filtersValue = {
@@ -67,6 +69,7 @@ export default async function ManageEbooksPage({
     fileStatus: sp.fileStatus ?? "",
     coverStatus: sp.coverStatus ?? "",
     quality: sp.quality ?? "",
+    verification: sp.verification ?? "",
     sort: sp.sort ?? "newest",
   };
 

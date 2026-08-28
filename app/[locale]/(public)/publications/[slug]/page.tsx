@@ -36,6 +36,7 @@ import { publicationMetrics } from "@/lib/publications/integrity";
 import { reviewsEnabled, aggregateRatingAllowed } from "@/lib/reviews/policy";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/SectionQuickNav";
+import SectionHeading from "@/components/ui/detail/SectionHeading";
 import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbSchema } from "@/lib/seo/schema";
@@ -48,7 +49,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/seo/site";
-import { Pencil } from "lucide-react";
+import { Download, Pencil } from "lucide-react";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 
 /** Adapt a Publication row into the typed, browser-safe SEO input. */
@@ -236,8 +237,12 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     ...(has.authors ? [{ id: "authors", label: t("sectionAuthors") }] : []),
     ...(has.reviews ? [{ id: "reviews", label: t("sectionReviews") }] : []),
     ...(has.faq ? [{ id: "faq", label: t("sectionFaq") }] : []),
-    { id: "details", label: t("sectionDetails"), track: false },
-    { id: "cite-panel", label: t("sectionCitation"), track: false },
+    // "Details" and "Citation" are deliberately absent. Both pointed into the
+    // record rail, which on desktop is already on screen beside the text and
+    // on mobile now sits directly under the abstract — so the links jumped
+    // either nowhere or past everything. Dropping them takes the bar from
+    // eleven chips to nine, which is what makes it fit without scrolling on a
+    // laptop.
     ...(has.related ? [{ id: "related", label: t("sectionRelated") }] : []),
   ];
 
@@ -353,12 +358,43 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           metrics={metrics}
         />
 
-        {/* ── Sticky section nav ── */}
-        <SectionQuickNav sections={sections} label={t("sectionNavLabel")} />
+        {/* ── Sticky section nav ──────────────────────────────────────────
+            Carries Download as a trailing action, revealed only once the
+            masthead has scrolled out of view. That is what the sidebar's
+            "Quick Actions" card was for, except the card sat permanently
+            beside the buttons it duplicated. */}
+        <SectionQuickNav
+          sections={sections}
+          label={t("sectionNavLabel")}
+          revealActionAfterId="publication-masthead"
+          action={
+            pub.pdf_url ? (
+              <a
+                href={`${fileHref}?download=1`}
+                className="btn-brand-gradient inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t("downloadPdf")}
+              </a>
+            ) : null
+          }
+        />
 
-        {/* ── Body: stacked sections + sidebar ── */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-          <div className="min-w-0 space-y-10">
+        {/* ── Body: article column + record rail ───────────────────────────
+            Explicit grid placement, because source order and reading order
+            differ here. The rail used to be a single grid child after the
+            whole article, which on a phone dropped the journal, volume, pages,
+            DOI, publisher, licence and the citation builder roughly six
+            thousand pixels down — below six FAQ accordions. Splitting the
+            article into "abstract" and "the rest" lets the rail sit directly
+            under the abstract on mobile (judge the work, then check its facts,
+            then dig in) while staying a right-hand column on desktop.
+
+            The rail is stretched across both rows and holds its own sticky
+            inner box: a grid item sized to its content has no travel for
+            position: sticky. */}
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-x-8 lg:items-start">
+          <div className="min-w-0 space-y-10 lg:col-start-1 lg:row-start-1">
             {/* Says plainly that the full text is not in the reader's
                 language, instead of leaving them to assume a broken page. */}
             <ContentLanguageNotice contentLanguage={pub.language} locale={locale} />
@@ -375,21 +411,26 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 />
               </section>
             )}
+          </div>
 
+          {/* Record rail: the facts, the citation, the subject links out. */}
+          <aside className="min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch">
+            <div className="lg:sticky lg:top-[128px]">
+              <PublicationSidebar pub={pub} publishedOn={publishedOn} year={year} />
+            </div>
+          </aside>
+
+          <div className="min-w-0 space-y-10 lg:col-start-1 lg:row-start-2">
             {has.toc && (
               <section id="toc" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="toc-heading">
-                <h2 id="toc-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                  {t("sectionToc")}
-                </h2>
+                <SectionHeading id="toc-heading">{t("sectionToc")}</SectionHeading>
                 <TableOfContentsSection entries={pub.table_of_contents} />
               </section>
             )}
 
             {has.outcomes && (
               <section id="outcomes" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="outcomes-heading">
-                <h2 id="outcomes-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                  {t("sectionOutcomes")}
-                </h2>
+                <SectionHeading id="outcomes-heading">{t("sectionOutcomes")}</SectionHeading>
                 <LearningOutcomesSection outcomes={pub.learning_outcomes} intro={t("outcomesIntro")} />
               </section>
             )}
@@ -399,9 +440,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                 carry that message. */}
             {has.fulltext && (
               <section id="fulltext" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="fulltext-heading">
-                <h2 id="fulltext-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                  {t("sectionFullText")}
-                </h2>
+                <SectionHeading id="fulltext-heading">{t("sectionFullText")}</SectionHeading>
                 <PDFPreviewSection
                   title={pub.title}
                   pdfUrl={fileHref}
@@ -415,35 +454,28 @@ export default async function PublicationDetailPage({ params }: PageProps) {
 
             {has.references && (
               <section id="references" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="references-heading">
-                <h2 id="references-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                <SectionHeading id="references-heading" count={pub.references.length}>
                   {t("sectionReferences")}
-                  <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
-                    {pub.references.length}
-                  </span>
-                </h2>
+                </SectionHeading>
                 <ReferencesSection references={pub.references} occurrences={citationOccurrences} />
               </section>
             )}
 
             {has.authors && (
               <section id="authors" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="authors-heading">
-                <h2 id="authors-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                  {t("sectionAuthors")}
-                </h2>
+                <SectionHeading id="authors-heading">{t("sectionAuthors")}</SectionHeading>
                 <AuthorBiosSection authorships={authorships} affiliations={affiliations} />
               </section>
             )}
 
             {has.reviews && (
               <section id="reviews" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="reviews-heading">
-                <h2 id="reviews-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
+                <SectionHeading
+                  id="reviews-heading"
+                  count={ratingStats.count > 0 ? `${ratingStats.average.toFixed(1)} ★ · ${ratingStats.count}` : undefined}
+                >
                   {t("sectionReviews")}
-                  {ratingStats.count > 0 && (
-                    <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold normal-case tracking-normal text-brand">
-                      {ratingStats.average.toFixed(1)} ★ · {ratingStats.count}
-                    </span>
-                  )}
-                </h2>
+                </SectionHeading>
                 <Suspense
                   fallback={
                     <div className="h-48 animate-pulse rounded-2xl border border-divider bg-bg-surface" />
@@ -456,24 +488,11 @@ export default async function PublicationDetailPage({ params }: PageProps) {
 
             {has.faq && (
               <section id="faq" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="faq-heading">
-                <h2 id="faq-heading" className="mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-text-muted">
-                  {t("sectionFaq")}
-                </h2>
+                <SectionHeading id="faq-heading">{t("sectionFaq")}</SectionHeading>
                 <PublicationFAQ faqs={pub.faqs} />
               </section>
             )}
           </div>
-
-          {/* Sidebar rail: metrics, cite, access, subjects. On mobile it
-              follows the article body in source order. */}
-          <PublicationSidebar
-            pub={pub}
-            fileHref={fileHref}
-            shareUrl={shareUrl}
-            publishedOn={publishedOn}
-            year={year}
-            metrics={metrics}
-          />
         </div>
 
         {/* ── More from this journal / author ── */}

@@ -15,13 +15,21 @@ import {
   normalizeSearchTerm,
   suggestCorrections,
 } from "@/lib/search/analytics";
+import { buildCsv } from "@/lib/admin/activity-log-shared";
+import {
+  computeKpis,
+  languageOf,
+  paginate,
+  rangeBounds,
+  resolveRangeWindow,
+  EMPTY_SUMMARY,
+  MAX_ZERO_RESULT_GROUPS,
+  type PaginatedResult,
+  type SearchInsightsFilters,
+  type SearchKpis,
+  type SearchSummaryCounts,
+} from "@/lib/admin/search-insights-shared";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
-
-export interface ZeroResultQuery {
-  term: string;
-  count: number;
-  lastSearchedAt: string;
-}
 
 export interface SearchAnalyticsTerm {
   term: string;
@@ -30,26 +38,28 @@ export interface SearchAnalyticsTerm {
 }
 
 export interface SearchTrendPoint {
-  label: string;
-  count: number;
+  /** Bucket start, YYYY-MM-DD. */
+  date: string;
+  searches: number;
   noResults: number;
+  clicks: number;
 }
 
-export interface SearchAnalytics {
-  totalSearches: number;
-  totalNoResultSearches: number;
-  conversionRate: number;
-  topKeywords: SearchAnalyticsTerm[];
-  noResultKeywords: SearchAnalyticsTerm[];
+export interface SearchInsightsOverview {
+  kpis: SearchKpis;
+  /** Same shape over the immediately preceding window, or null when off. */
+  previousKpis: SearchKpis | null;
+  trend: SearchTrendPoint[];
+  bucketDays: number;
+  topTerms: SearchAnalyticsTerm[];
+  zeroResultTerms: SearchAnalyticsTerm[];
   clickedResults: Array<SearchAnalyticsTerm & { url: string; type: string }>;
-  popularSubjects: SearchAnalyticsTerm[];
-  missingBookRequests: SearchAnalyticsTerm[];
   languageUsage: { km: number; en: number; other: number };
-  trends: {
-    daily: SearchTrendPoint[];
-    weekly: SearchTrendPoint[];
-    monthly: SearchTrendPoint[];
-  };
+  /** Window actually used, so the UI can state the period it is describing. */
+  window: { since: string; until: string; days: number };
+  generatedAt: string;
+  /** False when migration 0121 has not been applied — the page says so. */
+  aggregatesAvailable: boolean;
 }
 
 type SearchRow = {
@@ -61,209 +71,239 @@ type SearchRow = {
   resource_type?: string | null;
 };
 
-type ClickRow = {
-  term: string;
-  normalized_term?: string | null;
-  result_type: string;
-  result_url: string;
-  result_title: string | null;
-  clicked_at: string;
-};
+type Supabase = Awaited<ReturnType<typeof requireLibrarian>>["supabase"];
 
-function hasKhmer(text: string): boolean {
-  return /[\u1780-\u17ff]/.test(text);
+/** PostgREST codes meaning "this function/table/column is not deployed yet". */
+const MISSING_CODES = new Set(["42883", "42P01", "42703", "PGRST202", "PGRST204"]);
+
+function isMissing(error: { code?: string } | null): boolean {
+  return Boolean(error?.code && MISSING_CODES.has(error.code));
 }
 
-function keyOf(row: { term: string; normalized_term?: string | null }) {
-  return row.normalized_term || normalizeSearchTerm(row.term);
-}
+/**
+ * Fallback scan, used only when migration 0121 is not applied yet.
+ *
+ * This is the OLD behaviour, kept deliberately so an un-migrated environment
+ * still renders a dashboard instead of an error — but it is capped, and the
+ * cap is now reported to the UI rather than being silently presented as a
+ * total. Everything above this line prefers the SQL aggregates.
+ */
+const FALLBACK_SCAN_LIMIT = 5000;
 
-function topTerms(rows: SearchRow[], limit = 10, predicate: (row: SearchRow) => boolean = () => true): SearchAnalyticsTerm[] {
-  const byTerm = new Map<string, { term: string; count: number; lastSearchedAt: string }>();
-  for (const row of rows) {
-    if (!predicate(row)) continue;
-    const key = keyOf(row);
-    const existing = byTerm.get(key);
-    if (existing) {
-      existing.count += 1;
-      if (row.searched_at > existing.lastSearchedAt) existing.lastSearchedAt = row.searched_at;
-    } else {
-      byTerm.set(key, { term: row.term, count: 1, lastSearchedAt: row.searched_at });
-    }
+async function fallbackRows(supabase: Supabase, since: string, until: string): Promise<SearchRow[]> {
+  const columns = [
+    "term, normalized_term, searched_at, result_count, query_language, resource_type",
+    "term, normalized_term, searched_at, result_count",
+    "term, normalized_term, searched_at",
+  ];
+  for (const select of columns) {
+    const { data, error } = await supabase
+      .from("search_queries")
+      .select(select)
+      .gte("searched_at", since)
+      .lt("searched_at", until)
+      .order("searched_at", { ascending: false })
+      .limit(FALLBACK_SCAN_LIMIT);
+    if (!error) return (data ?? []) as unknown as SearchRow[];
+    if (error.code !== "42703") break;
   }
-  return [...byTerm.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+  return [];
 }
 
-function startOfDay(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function bucketTrend(rows: SearchRow[], daysBack: number, stepDays: number): SearchTrendPoint[] {
-  const now = new Date();
-  const bucketCount = Math.ceil(daysBack / stepDays);
-  const buckets: SearchTrendPoint[] = Array.from({ length: bucketCount }, (_, index) => {
-    const daysAgo = (bucketCount - 1 - index) * stepDays;
-    const start = new Date(now);
-    start.setUTCDate(now.getUTCDate() - daysAgo);
-    const label = stepDays === 1
-      ? startOfDay(start)
-      : `${startOfDay(start)}-${stepDays}d`;
-    return { label, count: 0, noResults: 0 };
-  });
-
-  for (const row of rows) {
-    const date = new Date(row.searched_at);
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
-    if (diffDays < 0 || diffDays >= daysBack) continue;
-    const idx = bucketCount - 1 - Math.floor(diffDays / stepDays);
-    const bucket = buckets[idx];
-    if (!bucket) continue;
-    bucket.count += 1;
-    if (row.result_count === 0) bucket.noResults += 1;
-  }
-  return buckets;
-}
-
-async function fetchSearchRows(supabase: Awaited<ReturnType<typeof requireLibrarian>>["supabase"], since: string): Promise<SearchRow[]> {
-  const rich = await supabase
-    .from("search_queries")
-    .select("term, normalized_term, searched_at, result_count, query_language, resource_type")
-    .gte("searched_at", since)
-    .order("searched_at", { ascending: false })
-    .limit(5000);
-  if (!rich.error) return (rich.data ?? []) as SearchRow[];
-
-  const basic = await supabase
-    .from("search_queries")
-    .select("term, normalized_term, searched_at, result_count")
-    .gte("searched_at", since)
-    .order("searched_at", { ascending: false })
-    .limit(5000);
-  if (!basic.error) return (basic.data ?? []) as SearchRow[];
-
-  const earliest = await supabase
-    .from("search_queries")
-    .select("term, normalized_term, searched_at")
-    .gte("searched_at", since)
-    .order("searched_at", { ascending: false })
-    .limit(5000);
-  return (earliest.data ?? []) as SearchRow[];
-}
-
-async function fetchClickRows(supabase: Awaited<ReturnType<typeof requireLibrarian>>["supabase"], since: string): Promise<ClickRow[]> {
+async function summaryFor(
+  supabase: Supabase,
+  since: string,
+  until: string,
+): Promise<{ counts: SearchSummaryCounts; viaAggregate: boolean }> {
   const { data, error } = await supabase
+    .rpc("search_analytics_summary", { p_since: since, p_until: until })
+    .maybeSingle<{
+      total_searches: number;
+      zero_result_searches: number;
+      unknown_result_searches: number;
+      clicks: number;
+      km_searches: number;
+      en_searches: number;
+      other_searches: number;
+    }>();
+
+  if (!error && data) {
+    return {
+      viaAggregate: true,
+      counts: {
+        totalSearches: Number(data.total_searches ?? 0),
+        zeroResultSearches: Number(data.zero_result_searches ?? 0),
+        unknownResultSearches: Number(data.unknown_result_searches ?? 0),
+        clicks: Number(data.clicks ?? 0),
+        km: Number(data.km_searches ?? 0),
+        en: Number(data.en_searches ?? 0),
+        other: Number(data.other_searches ?? 0),
+      },
+    };
+  }
+  if (error && !isMissing(error)) console.error("[search_analytics_summary]", error.message);
+
+  const rows = await fallbackRows(supabase, since, until);
+  const counts = { ...EMPTY_SUMMARY, totalSearches: rows.length };
+  for (const row of rows) {
+    if (row.result_count === 0) counts.zeroResultSearches += 1;
+    else if (row.result_count === null || row.result_count === undefined) counts.unknownResultSearches += 1;
+    counts[languageOf(row.query_language, row.term)] += 1;
+  }
+  const { count } = await supabase
     .from("search_result_clicks")
-    .select("term, normalized_term, result_type, result_url, result_title, clicked_at")
+    .select("id", { count: "exact", head: true })
     .gte("clicked_at", since)
-    .order("clicked_at", { ascending: false })
-    .limit(5000);
-  if (error) {
-    if (error.code !== "42P01" && error.code !== "42703" && error.code !== "PGRST204") {
-      console.error("[fetchClickRows]", error.message);
-    }
-    return [];
-  }
-  return (data ?? []) as ClickRow[];
+    .lt("clicked_at", until);
+  counts.clicks = count ?? 0;
+  return { counts, viaAggregate: false };
 }
 
-/** Zero-result search terms from the last `days` days, most frequent first. */
-export async function getZeroResultSearches(days = 30, limit = 50): Promise<ZeroResultQuery[]> {
-  const { supabase } = await requireLibrarian();
-
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from("search_queries")
-    .select("term, normalized_term, searched_at")
-    .eq("result_count", 0)
-    .gte("searched_at", since)
-    .order("searched_at", { ascending: false });
-
-  if (error) {
-    // 42703 = result_count column doesn't exist yet (migration 0064 not applied)
-    if (error.code !== "42703") console.error("[getZeroResultSearches]", error.message);
-    return [];
+async function trendFor(
+  supabase: Supabase,
+  since: string,
+  until: string,
+  bucketDays: number,
+): Promise<SearchTrendPoint[]> {
+  const { data, error } = await supabase.rpc("search_analytics_trend", {
+    p_since: since,
+    p_until: until,
+    p_bucket_days: bucketDays,
+  });
+  if (!error && Array.isArray(data)) {
+    return (data as Array<{ bucket: string; searches: number; zero_results: number; clicks: number }>).map((row) => ({
+      date: row.bucket,
+      searches: Number(row.searches ?? 0),
+      noResults: Number(row.zero_results ?? 0),
+      clicks: Number(row.clicks ?? 0),
+    }));
   }
+  if (error && !isMissing(error)) console.error("[search_analytics_trend]", error.message);
 
-  const byTerm = new Map<string, { term: string; count: number; lastSearchedAt: string }>();
-  for (const row of data ?? []) {
+  // Fallback: bucket the capped scan in Node.
+  const rows = await fallbackRows(supabase, since, until);
+  const buckets = new Map<string, SearchTrendPoint>();
+  const startMs = Date.parse(since);
+  for (const row of rows) {
+    const offset = Math.floor((Date.parse(row.searched_at) - startMs) / 86_400_000 / bucketDays) * bucketDays;
+    const key = new Date(startMs + offset * 86_400_000).toISOString().slice(0, 10);
+    const bucket = buckets.get(key) ?? { date: key, searches: 0, noResults: 0, clicks: 0 };
+    bucket.searches += 1;
+    if (row.result_count === 0) bucket.noResults += 1;
+    buckets.set(key, bucket);
+  }
+  return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function topTermsFor(
+  supabase: Supabase,
+  since: string,
+  until: string,
+  onlyZero: boolean,
+  limit: number,
+): Promise<SearchAnalyticsTerm[]> {
+  const { data, error } = await supabase.rpc("search_analytics_top_terms", {
+    p_since: since,
+    p_until: until,
+    p_only_zero: onlyZero,
+    p_limit: limit,
+  });
+  if (!error && Array.isArray(data)) {
+    return (data as Array<{ term: string; searches: number; last_searched_at: string }>).map((row) => ({
+      term: row.term,
+      count: Number(row.searches ?? 0),
+      lastSearchedAt: row.last_searched_at,
+    }));
+  }
+  if (error && !isMissing(error)) console.error("[search_analytics_top_terms]", error.message);
+
+  const rows = await fallbackRows(supabase, since, until);
+  const byTerm = new Map<string, SearchAnalyticsTerm>();
+  for (const row of rows) {
+    const measurable = row.result_count ?? 1;
+    if (onlyZero ? measurable !== 0 : measurable <= 0) continue;
     const key = row.normalized_term || normalizeSearchTerm(row.term);
     if (!key) continue;
     const existing = byTerm.get(key);
     if (existing) {
       existing.count += 1;
+      if (!existing.lastSearchedAt || row.searched_at > existing.lastSearchedAt) {
+        existing.lastSearchedAt = row.searched_at;
+      }
     } else {
       byTerm.set(key, { term: row.term, count: 1, lastSearchedAt: row.searched_at });
     }
   }
-
   return [...byTerm.values()].sort((a, b) => b.count - a.count).slice(0, limit);
 }
 
-/** Full admin search analytics dashboard model. */
-export async function getSearchAnalytics(days = 30): Promise<SearchAnalytics> {
-  const { supabase } = await requireLibrarian();
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const trendSince = new Date(Date.now() - Math.max(days, 180) * 24 * 60 * 60 * 1000).toISOString();
+async function clickedResultsFor(
+  supabase: Supabase,
+  since: string,
+  until: string,
+  limit: number,
+): Promise<Array<SearchAnalyticsTerm & { url: string; type: string }>> {
+  const { data, error } = await supabase.rpc("search_analytics_clicked_results", {
+    p_since: since,
+    p_until: until,
+    p_limit: limit,
+  });
+  if (!error && Array.isArray(data)) {
+    return (data as Array<{ result_url: string; result_type: string; result_title: string | null; clicks: number; last_clicked_at: string }>)
+      .map((row) => ({
+        term: row.result_title || row.result_url,
+        url: row.result_url,
+        type: row.result_type,
+        count: Number(row.clicks ?? 0),
+        lastSearchedAt: row.last_clicked_at,
+      }));
+  }
+  if (error && !isMissing(error)) console.error("[search_analytics_clicked_results]", error.message);
+  return [];
+}
 
-  const [rows, trendRows, clicks] = await Promise.all([
-    fetchSearchRows(supabase, since),
-    fetchSearchRows(supabase, trendSince),
-    fetchClickRows(supabase, since),
+/**
+ * Everything above the tables: KPIs, the comparison window, the activity
+ * trend, the ranked term lists and the language split.
+ *
+ * One window drives all of it (lib/admin/search-insights-shared.ts), which is
+ * the behavioural change from the previous version — that one ran the KPIs
+ * over the selected period but the monthly trend over a separate hard-coded
+ * 180 days, so a card and the chart beneath it described different periods.
+ */
+export async function getSearchInsightsOverview(
+  filters: SearchInsightsFilters,
+): Promise<SearchInsightsOverview> {
+  const { supabase } = await requireLibrarian();
+  const window = resolveRangeWindow(filters);
+
+  const [current, trend, topTerms, zeroResultTerms, clickedResults, previous] = await Promise.all([
+    summaryFor(supabase, window.since, window.until),
+    trendFor(supabase, window.since, window.until, window.bucketDays),
+    topTermsFor(supabase, window.since, window.until, false, 10),
+    topTermsFor(supabase, window.since, window.until, true, 10),
+    clickedResultsFor(supabase, window.since, window.until, 10),
+    filters.compare
+      ? summaryFor(supabase, window.previousSince, window.previousUntil)
+      : Promise.resolve(null),
   ]);
 
-  const noResultRows = rows.filter((row) => row.result_count === 0);
-  const languageUsage = rows.reduce(
-    (acc, row) => {
-      const lang = row.query_language || (hasKhmer(row.term) ? "km" : "en");
-      if (lang === "km") acc.km += 1;
-      else if (lang === "en") acc.en += 1;
-      else acc.other += 1;
-      return acc;
-    },
-    { km: 0, en: 0, other: 0 },
-  );
-
-  const clickedByResult = new Map<string, { term: string; url: string; type: string; count: number; lastSearchedAt: string }>();
-  for (const click of clicks) {
-    const key = `${click.result_type}:${click.result_url}`;
-    const existing = clickedByResult.get(key);
-    if (existing) {
-      existing.count += 1;
-      if (click.clicked_at > existing.lastSearchedAt) existing.lastSearchedAt = click.clicked_at;
-    } else {
-      clickedByResult.set(key, {
-        term: click.result_title || click.result_url,
-        url: click.result_url,
-        type: click.result_type,
-        count: 1,
-        lastSearchedAt: click.clicked_at,
-      });
-    }
-  }
-
-  const clickedResults = [...clickedByResult.values()]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-
   return {
-    totalSearches: rows.length,
-    totalNoResultSearches: noResultRows.length,
-    conversionRate: rows.length > 0 ? Math.round((clicks.length / rows.length) * 1000) / 10 : 0,
-    topKeywords: topTerms(rows, 12),
-    noResultKeywords: topTerms(noResultRows, 12),
+    kpis: computeKpis(current.counts, window.days),
+    previousKpis: previous ? computeKpis(previous.counts, window.days) : null,
+    trend,
+    bucketDays: window.bucketDays,
+    topTerms,
+    zeroResultTerms,
     clickedResults,
-    popularSubjects: topTerms(rows, 10, (row) => (row.result_count ?? 1) > 0),
-    missingBookRequests: topTerms(noResultRows, 10),
-    languageUsage,
-    trends: {
-      daily: bucketTrend(rows, Math.min(days, 14), 1),
-      weekly: bucketTrend(rows, Math.min(days, 35), 7),
-      monthly: bucketTrend(trendRows, 180, 30),
-    },
+    languageUsage: { km: current.counts.km, en: current.counts.en, other: current.counts.other },
+    window: { since: window.since, until: window.until, days: window.days },
+    generatedAt: new Date().toISOString(),
+    aggregatesAvailable: current.viaAggregate,
   };
 }
 
-// ── Zero-result action center (0087) ─────────────────────────────────────
+// ── Zero-result workspace ────────────────────────────────────────────────────
 
 export type TermActionKind =
   | "reviewed"
@@ -282,7 +322,7 @@ export interface ZeroResultEntry {
   variants: string[];
   count: number;
   lastSearchedAt: string;
-  language: "km" | "en";
+  language: "km" | "en" | "other";
   /** Share of the group's searches that had filters active. */
   withFilters: boolean;
   /** Existing librarian action on this term, if any. */
@@ -293,7 +333,14 @@ export interface ZeroResultEntry {
   synonyms: string[];
 }
 
-async function fetchVocabulary(supabase: Awaited<ReturnType<typeof requireLibrarian>>["supabase"]): Promise<string[]> {
+export interface ZeroResultWorkspace extends PaginatedResult<ZeroResultEntry> {
+  /** Counts per status across the whole window, for the filter chips. */
+  statusCounts: Record<"all" | "needsReview" | TermActionKind, number>;
+  /** True when the window produced more groups than we hydrate at once. */
+  truncated: boolean;
+}
+
+async function fetchVocabulary(supabase: Supabase): Promise<string[]> {
   const [books, theses, categories] = await Promise.all([
     supabase.from("books").select("title").eq("is_published", true).limit(400),
     supabase.from("research_reports").select("title").eq("is_published", true).limit(300),
@@ -306,51 +353,77 @@ async function fetchVocabulary(supabase: Awaited<ReturnType<typeof requireLibrar
   ].filter(Boolean);
 }
 
-/** Zero-result terms grouped, annotated with actions/synonyms/suggestions. */
-export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroResultEntry[]> {
-  const { supabase } = await requireLibrarian();
-  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+type ZeroGroup = { normalized_term: string; term: string; searches: number; filtered_searches: number; last_searched_at: string };
 
-  const { data, error } = await supabase
+async function zeroResultGroups(supabase: Supabase, since: string, until: string): Promise<ZeroGroup[]> {
+  const { data, error } = await supabase.rpc("search_analytics_zero_result_groups", {
+    p_since: since,
+    p_until: until,
+    p_limit: MAX_ZERO_RESULT_GROUPS,
+  });
+  if (!error && Array.isArray(data)) return data as ZeroGroup[];
+  if (error && !isMissing(error)) console.error("[search_analytics_zero_result_groups]", error.message);
+
+  // Fallback: collapse the capped scan in Node (the pre-0121 behaviour).
+  const { data: rows } = await supabase
     .from("search_queries")
     .select("term, normalized_term, searched_at, resource_type, sort")
     .eq("result_count", 0)
     .gte("searched_at", since)
+    .lt("searched_at", until)
     .order("searched_at", { ascending: false })
     .limit(4000);
-  if (error) {
-    if (error.code !== "42703") console.error("[getZeroResultReport]", error.message);
-    return [];
-  }
-
-  // Collapse raw rows per normalized term first, then fold typo-variants.
-  const byNorm = new Map<string, { term: string; count: number; last: string; filtered: number }>();
-  for (const row of data ?? []) {
+  const byNorm = new Map<string, ZeroGroup>();
+  for (const row of (rows ?? []) as Array<{ term: string; normalized_term: string | null; searched_at: string; resource_type: string | null; sort: string | null }>) {
     const key = row.normalized_term || normalizeSearchTerm(row.term);
     if (!key) continue;
-    const hasFilters = Boolean(
-      (row.resource_type && row.resource_type !== "all") ||
-      (row.sort && row.sort !== "relevance"),
+    const filtered = Boolean(
+      (row.resource_type && row.resource_type !== "all") || (row.sort && row.sort !== "relevance"),
     );
-    const cur = byNorm.get(key);
-    if (cur) {
-      cur.count += 1;
-      if (hasFilters) cur.filtered += 1;
-      if (row.searched_at > cur.last) cur.last = row.searched_at;
+    const current = byNorm.get(key);
+    if (current) {
+      current.searches += 1;
+      if (filtered) current.filtered_searches += 1;
+      if (row.searched_at > current.last_searched_at) current.last_searched_at = row.searched_at;
     } else {
-      byNorm.set(key, { term: row.term, count: 1, last: row.searched_at, filtered: hasFilters ? 1 : 0 });
+      byNorm.set(key, {
+        normalized_term: key,
+        term: row.term,
+        searches: 1,
+        filtered_searches: filtered ? 1 : 0,
+        last_searched_at: row.searched_at,
+      });
     }
   }
-  const groups = groupEquivalentTerms(
-    [...byNorm.entries()].map(([, v]) => ({ term: v.term, count: v.count })),
-  );
+  return [...byNorm.values()].sort((a, b) => b.searches - a.searches);
+}
+
+/**
+ * The zero-result workspace: grouped, annotated, filtered, sorted, paginated.
+ *
+ * The database collapses potentially tens of thousands of raw rows into a few
+ * hundred distinct terms (the expensive half). Typo-variant folding, the
+ * status/language/text filters and pagination then run over that small set —
+ * `groupEquivalentTerms` is edit-distance work that has no SQL equivalent
+ * here, and at a few hundred groups it is cheap.
+ */
+export async function getZeroResultWorkspace(
+  filters: SearchInsightsFilters,
+): Promise<ZeroResultWorkspace> {
+  const { supabase } = await requireLibrarian();
+  const window = resolveRangeWindow(filters);
+
+  const raw = await zeroResultGroups(supabase, window.since, window.until);
+  const byNorm = new Map(raw.map((group) => [group.normalized_term, group]));
+
+  const grouped = groupEquivalentTerms(raw.map((group) => ({ term: group.term, count: group.searches })));
 
   const [actionsRes, synonymsRes, vocabulary] = await Promise.all([
     supabase.from("search_term_actions").select("normalized_term, action, note, acted_at"),
     supabase.from("search_synonyms").select("term, synonyms").eq("is_active", true),
     fetchVocabulary(supabase),
   ]);
-  // 42P01 = tables not created yet (0087 pending) — report still renders.
+  // 42P01 = governance tables not created yet (0087 pending) — still renders.
   const actions = new Map(
     (actionsRes.data ?? []).map((a: { normalized_term: string; action: TermActionKind; note: string | null; acted_at: string }) => [
       a.normalized_term,
@@ -362,23 +435,23 @@ export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroRe
   );
 
   const entries: ZeroResultEntry[] = [];
-  for (const [normKey, group] of groups) {
+  for (const [normKey, group] of grouped) {
     const meta = byNorm.get(normKey) ?? byNorm.get(normalizeSearchTerm(group.terms[0]));
     const filtered = group.terms.reduce(
-      (sum, term) => sum + (byNorm.get(normalizeSearchTerm(term))?.filtered ?? 0),
+      (sum, term) => sum + (byNorm.get(normalizeSearchTerm(term))?.filtered_searches ?? 0),
       0,
     );
     const last = group.terms
-      .map((t) => byNorm.get(normalizeSearchTerm(t))?.last ?? "")
+      .map((term) => byNorm.get(normalizeSearchTerm(term))?.last_searched_at ?? "")
       .sort()
-      .pop() ?? meta?.last ?? "";
+      .pop() || meta?.last_searched_at || "";
     entries.push({
       term: group.terms[0],
       normalizedTerm: normKey,
       variants: group.terms,
       count: group.count,
       lastSearchedAt: last,
-      language: /[ក-៿]/.test(normKey) ? "km" : "en",
+      language: languageOf(null, normKey),
       withFilters: filtered > 0,
       action: actions.get(normKey) ?? null,
       suggestions: suggestCorrections(normKey, vocabulary).map((s) => s.suggestion),
@@ -386,8 +459,213 @@ export async function getZeroResultReport(days = 30, limit = 40): Promise<ZeroRe
     });
   }
 
-  return entries.sort((a, b) => b.count - a.count).slice(0, limit);
+  const statusCounts = {
+    all: entries.length,
+    needsReview: 0,
+    reviewed: 0,
+    ignored: 0,
+    acquisition: 0,
+    synonym: 0,
+    curated: 0,
+    redirect: 0,
+  };
+  for (const entry of entries) {
+    if (entry.action) statusCounts[entry.action.kind] += 1;
+    else statusCounts.needsReview += 1;
+  }
+
+  const needle = filters.q.toLowerCase();
+  const filteredEntries = entries.filter((entry) => {
+    if (filters.lang !== "all" && entry.language !== filters.lang) return false;
+    if (filters.status === "needsReview" && entry.action) return false;
+    if (filters.status !== "all" && filters.status !== "needsReview" && entry.action?.kind !== filters.status) return false;
+    if (needle && !entry.term.toLowerCase().includes(needle)
+      && !entry.variants.some((variant) => variant.toLowerCase().includes(needle))) return false;
+    return true;
+  });
+
+  const sorted = [...filteredEntries].sort((a, b) => {
+    if (filters.sort === "recent") return b.lastSearchedAt.localeCompare(a.lastSearchedAt);
+    if (filters.sort === "term") return a.term.localeCompare(b.term);
+    return b.count - a.count || b.lastSearchedAt.localeCompare(a.lastSearchedAt);
+  });
+
+  return {
+    ...paginate(sorted, filters.page, filters.size),
+    statusCounts,
+    truncated: raw.length >= MAX_ZERO_RESULT_GROUPS,
+  };
 }
+
+// ── Detailed search activity ─────────────────────────────────────────────────
+
+export interface SearchActivityRow {
+  id: string;
+  term: string;
+  resultCount: number | null;
+  language: "km" | "en" | "other";
+  resourceType: string | null;
+  searchedAt: string;
+}
+
+/**
+ * Row-level search log, paginated IN THE DATABASE.
+ *
+ * PostgREST's `range()` plus an exact count gives true server-side paging, so
+ * page 40 costs the same as page 1 and the browser never holds more than one
+ * page. Nothing here reads a `.limit(5000)` and slices it afterwards.
+ */
+export async function getSearchActivityPage(
+  filters: SearchInsightsFilters,
+): Promise<PaginatedResult<SearchActivityRow> & { available: boolean }> {
+  const { supabase } = await requireLibrarian();
+  const window = resolveRangeWindow(filters);
+  const { from, to } = rangeBounds(filters.apage, filters.asize);
+
+  let query = supabase
+    .from("search_queries")
+    .select("id, term, result_count, query_language, resource_type, searched_at", { count: "exact" })
+    .gte("searched_at", window.since)
+    .lt("searched_at", window.until);
+
+  if (filters.astatus === "noResults") query = query.eq("result_count", 0);
+  if (filters.astatus === "results") query = query.gt("result_count", 0);
+  if (filters.alang === "km" || filters.alang === "en") query = query.eq("query_language", filters.alang);
+  if (filters.alang === "other") query = query.not("query_language", "in", "(km,en)");
+  if (filters.atype !== "all") query = query.eq("resource_type", filters.atype);
+  // Strip LIKE metacharacters rather than escaping them: PostgREST gives no
+  // ESCAPE clause, and a stray "%" from the search box would otherwise turn a
+  // term filter into a full-table wildcard.
+  const termNeedle = filters.aq.replace(/[%_]/g, " ").trim();
+  if (termNeedle) query = query.ilike("term", "%" + termNeedle + "%");
+
+  const { data, error, count } = await query
+    .order("searched_at", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    if (!isMissing(error)) console.error("[getSearchActivityPage]", error.message);
+    return { items: [], page: 1, pageSize: filters.asize, total: 0, totalPages: 1, available: false };
+  }
+
+  const total = count ?? 0;
+  const rows = (data ?? []) as Array<{
+    id: string;
+    term: string;
+    result_count: number | null;
+    query_language: string | null;
+    resource_type: string | null;
+    searched_at: string;
+  }>;
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      term: row.term,
+      resultCount: row.result_count,
+      language: languageOf(row.query_language, row.term),
+      resourceType: row.resource_type,
+      searchedAt: row.searched_at,
+    })),
+    page: Math.max(1, filters.apage),
+    pageSize: filters.asize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / filters.asize)),
+    available: true,
+  };
+}
+
+export type ExportSearchActivityInput = Pick<
+  SearchInsightsFilters,
+  "range" | "from" | "to" | "aq" | "alang" | "astatus" | "atype"
+>;
+
+/** Rows a single export may contain — a spreadsheet, not a data-warehouse dump. */
+const EXPORT_ROW_LIMIT = 5000;
+
+/**
+ * CSV of the detailed search log matching the CURRENT filters — export ==
+ * what's on screen, minus pagination. Server-generated (never a client-side
+ * dump of a large `.limit()` fetch) and capped at `EXPORT_ROW_LIMIT`; a
+ * truncated export says so in its own row rather than silently under-counting.
+ */
+export async function exportSearchActivity(
+  filters: ExportSearchActivityInput,
+): Promise<{ ok: true; csv: string; filename: string; rows: number } | { ok: false; error: string }> {
+  const { supabase, user } = await requireLibrarian();
+  const window = resolveRangeWindow({ ...filters, compare: false, q: "", lang: "all", status: "all", sort: "count", page: 1, size: 10, apage: 1, asize: 10 });
+
+  let query = supabase
+    .from("search_queries")
+    .select("term, result_count, query_language, resource_type, searched_at")
+    .gte("searched_at", window.since)
+    .lt("searched_at", window.until);
+
+  if (filters.astatus === "noResults") query = query.eq("result_count", 0);
+  if (filters.astatus === "results") query = query.gt("result_count", 0);
+  if (filters.alang === "km" || filters.alang === "en") query = query.eq("query_language", filters.alang);
+  if (filters.alang === "other") query = query.not("query_language", "in", "(km,en)");
+  if (filters.atype !== "all") query = query.eq("resource_type", filters.atype);
+  const termNeedle = filters.aq.replace(/[%_]/g, " ").trim();
+  if (termNeedle) query = query.ilike("term", "%" + termNeedle + "%");
+
+  const { data, error } = await query
+    .order("searched_at", { ascending: false })
+    .limit(EXPORT_ROW_LIMIT);
+
+  if (error) return { ok: false, error: isMissing(error) ? "empty" : error.message };
+
+  const rows = (data ?? []) as Array<{
+    term: string;
+    result_count: number | null;
+    query_language: string | null;
+    resource_type: string | null;
+    searched_at: string;
+  }>;
+  if (rows.length === 0) return { ok: false, error: "empty" };
+
+  const headers = ["Query", "Results", "Language", "Resource type", "Searched at (UTC)"];
+  const csv = buildCsv(
+    headers,
+    rows.map((row) => [
+      row.term,
+      row.result_count ?? "",
+      languageOf(row.query_language, row.term),
+      row.resource_type ?? "",
+      row.searched_at,
+    ]),
+  );
+  const filename = `ptec-search-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  await logAdminAction(user.id, "search_insights.export", "search_queries", undefined, {
+    rows: rows.length,
+    range: filters.range,
+    truncated: rows.length >= EXPORT_ROW_LIMIT,
+  });
+
+  return { ok: true, csv, filename, rows: rows.length };
+}
+
+/** Distinct resource-type values actually present, for the type filter. */
+export async function getSearchResourceTypes(): Promise<string[]> {
+  const { supabase } = await requireLibrarian();
+  const { data, error } = await supabase
+    .from("search_queries")
+    .select("resource_type")
+    .not("resource_type", "is", null)
+    .limit(1000);
+  if (error) return [];
+  const seen = new Set<string>();
+  for (const row of (data ?? []) as Array<{ resource_type: string | null }>) {
+    if (row.resource_type && row.resource_type !== "all") seen.add(row.resource_type);
+  }
+  return [...seen].sort();
+}
+
+// ── Zero-result action center (0087) ─────────────────────────────────────
+
+// Mutations below. The zero-result *report* now lives above in
+// getZeroResultWorkspace(); these are the librarian responses to it.
 
 type ActionResult = { success: true } | { error: string };
 

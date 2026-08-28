@@ -1,0 +1,103 @@
+# Scheduled jobs for the self-hosted deployment.
+#
+# These used to be Vercel Cron entries in vercel.json. The app now runs as a
+# Docker container on ZimaOS, where nothing schedules anything — so without
+# this workflow `scheduled` posts/theses/books/paths never flip to
+# `published`, and the rate_limit table grows forever. The routes themselves
+# did not need to change: both are plain GETs guarded by
+# `Authorization: Bearer $CRON_SECRET`, which any scheduler can send.
+#
+# GitHub Actions is the scheduler of record because it is the one component
+# that keeps working when the college's network or the box itself is down —
+# a failed run emails the repo owner, which is the alert. The alternative
+# (a cron container in docker-compose.yml) is documented in
+# docs/ZIMAOS-DEPLOYMENT.md for sites that would rather not depend on GitHub;
+# run one OR the other, not both — the sweeps are idempotent, but two
+# schedulers means two sets of logs to reconcile during an incident.
+#
+# Required repo secret: CRON_SECRET — the SAME value as in the box's .env.
+# Rotating it means changing both, in the same maintenance window.
+name: Scheduled Jobs
+
+on:
+  schedule:
+    # Publish sweep every 15 minutes: the finest granularity an editor can
+    # meaningfully schedule to, and cheap (four small UPDATEs).
+    - cron: "3/15 * * * *"
+    # Retention cleanup once a day at 20:00 UTC = 03:00 Asia/Phnom_Penh.
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which sweep to run
+        required: true
+        default: publish-scheduled
+        type: choice
+        options: [publish-scheduled, cleanup, both]
+
+permissions: {}
+
+env:
+  SITE_URL: https://library.ptec.edu.kh
+
+jobs:
+  publish-scheduled:
+    # Skip on the daily cleanup tick; run on the 15-minute tick and on a manual
+    # dispatch that asked for it.
+    if: >-
+      github.event.schedule == '3/15 * * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.job == 'publish-scheduled' || inputs.job == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Flip scheduled content to published
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          # Two attempts: a single cold start or tunnel blip must not page.
+          for attempt in 1 2; do
+            code=$(curl -sS --max-time 60 -o /tmp/body.json -w '%{http_code}' \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$SITE_URL/api/cron/publish-scheduled") && [ "$code" = "200" ] && {
+                cat /tmp/body.json; echo; exit 0; }
+            echo "attempt $attempt: HTTP ${code:-no-response}"
+            cat /tmp/body.json 2>/dev/null || true
+            [ "$attempt" -lt 2 ] && sleep 20
+          done
+          echo "::error title=Publish sweep failed::/api/cron/publish-scheduled did not return 200 — see docs/RUNBOOKS.md"
+          exit 1
+
+  cleanup:
+    if: >-
+      github.event.schedule == '0 20 * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.job == 'cleanup' || inputs.job == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Purge stale rate-limit rows
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          for attempt in 1 2; do
+            code=$(curl -sS --max-time 60 -o /tmp/body.json -w '%{http_code}' \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$SITE_URL/api/cron/cleanup") && [ "$code" = "200" ] && {
+                cat /tmp/body.json; echo; exit 0; }
+            echo "attempt $attempt: HTTP ${code:-no-response}"
+            cat /tmp/body.json 2>/dev/null || true
+            [ "$attempt" -lt 2 ] && sleep 20
+          done
+          echo "::error title=Cleanup sweep failed::/api/cron/cleanup did not return 200 — see docs/RUNBOOKS.md"
+          exit 1

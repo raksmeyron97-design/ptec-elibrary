@@ -55,6 +55,25 @@ function buildChecks(b: EbookQualityInput): Check[] {
   ];
 }
 
+const EMPTY_EBOOK: EbookQualityInput = {
+  title: null, author: null, department: null, category: null, year: null,
+  language: null, description: null, tags: null, coverUrl: null, fileUrl: null,
+  license: null, publisher: null,
+};
+
+/** Field key → its share of the total score, in percentage points (sums to
+ *  100). Same derivation and same reason as `thesisFieldWeights()`. */
+export function ebookFieldWeights(): Record<string, number> {
+  const checks = buildChecks(EMPTY_EBOOK);
+  const total = checks.reduce((sum, check) => sum + check.weight, 0);
+  return Object.fromEntries(checks.map((check) => [check.key, (check.weight / total) * 100]));
+}
+
+/** Field key → its human label, from the same checklist. */
+export function ebookFieldLabels(): Record<string, string> {
+  return Object.fromEntries(buildChecks(EMPTY_EBOOK).map((check) => [check.key, check.label]));
+}
+
 export function scoreEbookQuality(b: EbookQualityInput): {
   score: number;
   tier: MetadataQualityTier;

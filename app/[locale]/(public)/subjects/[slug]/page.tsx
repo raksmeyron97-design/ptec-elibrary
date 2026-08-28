@@ -98,7 +98,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!bundle) return { title: "Subject not found" };
 
   const title = `${bundle.category.name} Resources`;
-  const description = `Browse PTEC Digital Library books, theses, publications, and catalog records about ${bundle.category.name}.`;
+  const description = `Browse PTEC Library books, theses, publications, and catalog records about ${bundle.category.name}.`;
   const alternates = localeAlternates(`/subjects/${bundle.category.slug}`, locale);
   const canonical = alternates.canonical;
 
@@ -152,7 +152,7 @@ export default async function SubjectPage({ params }: PageProps) {
           <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand">Subject</p>
           <h1 className="mt-2 text-3xl font-bold text-text-heading sm:text-4xl">{bundle.category.name}</h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-muted">
-            Public resources in the PTEC Digital Library connected to this subject.
+            Public resources in the PTEC Library connected to this subject.
           </p>
         </header>
 

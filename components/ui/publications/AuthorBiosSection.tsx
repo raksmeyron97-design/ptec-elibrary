@@ -73,18 +73,19 @@ export default async function AuthorBiosSection({
                     {secondaryValue(author.full_name, author.full_name_km)}
                   </p>
                 )}
-                {authorAffiliations.length > 0 ? (
+                {/* A missing affiliation is left blank, not announced. The
+                    invariant that matters is unchanged — a value is never
+                    substituted from a neighbouring field, which is how a staff
+                    account name once reached an author's institutional
+                    affiliation. But printing "Affiliation not recorded" in
+                    italics under four of five authors turned that restraint
+                    into the loudest text in the section; the recorded
+                    affiliations are listed in the masthead panel either way. */}
+                {authorAffiliations.length > 0 && (
                   <p className="mt-1 text-[12.5px] leading-5 text-text-muted">
                     {authorAffiliations
                       .map((a) => [a.name, a.city, a.country].filter(Boolean).join(", "))
                       .join(" · ")}
-                  </p>
-                ) : (
-                  // Stated plainly. Never substituted from a neighbouring
-                  // field — that is how a staff account name reached an
-                  // author's institutional affiliation in the first place.
-                  <p className="mt-1 text-[12.5px] italic leading-5 text-text-muted/70">
-                    {t("affiliationNotRecorded")}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3">

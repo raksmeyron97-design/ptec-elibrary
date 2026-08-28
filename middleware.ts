@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { AuthApiError } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { AUTH_COOKIE_OPTIONS } from "@/lib/supabase/cookie-options";
+import { canonicalHostRedirect } from "@/lib/canonical-host";
 import { gateBookSlug } from "@/lib/book-slug-gate";
 import { gateResourceSlug, RESOURCE_GATES } from "@/lib/resource-slug-gate";
 import {
@@ -43,6 +45,21 @@ const UUID_SLUG_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function middleware(request: NextRequest) {
+  // ── One host, always ───────────────────────────────────────────────────
+  // The Cloudflare Tunnel publishes this same container on both the canonical
+  // domain and the connector's fallback hostname. Collapse them here, before
+  // anything reads cookies or builds a URL: session cookies are per-host, so
+  // serving both is how a signed-in student ends up looking signed out. LAN
+  // and container hostnames are deliberately exempt — see lib/canonical-host.ts.
+  const canonicalHost = canonicalHostRedirect(request.headers.get("host"));
+  if (canonicalHost) {
+    const target = new URL(request.url);
+    target.protocol = "https:";
+    target.host = canonicalHost;
+    // 308, not 307/302: the method must be preserved and the move is permanent.
+    return NextResponse.redirect(target, 308);
+  }
+
   // Correlation id for log lines: reuse the edge/CDN id when present
   // (Cloudflare cf-ray) so app logs join up with WAF logs, else mint one.
   // Propagated to route handlers via the request header and echoed on the
@@ -127,10 +144,13 @@ export async function middleware(request: NextRequest) {
   // ── Admin / auth / API: entirely outside the locale-prefixed route tree ──
   // (admin) and (auth) route groups are not localized — no rewrite, no /km,
   // behavior here is unchanged from before locale routing was introduced.
-  const isAdminOrAuthOrApi =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/api");
+  // Match on a whole path SEGMENT, not a bare string prefix. `startsWith("/auth")`
+  // also swallowed /authors/<slug> — a public, locale-routed page — so English
+  // requests for it skipped the /en rewrite below and 404'd at the file router
+  // while /km/authors/<slug> worked. Same trap waits for /admin* and /api*.
+  const isAdminOrAuthOrApi = ["/admin", "/auth", "/api"].some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 
   if (isAdminOrAuthOrApi) {
     const needsAuthCheck =
@@ -148,6 +168,7 @@ export async function middleware(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        cookieOptions: AUTH_COOKIE_OPTIONS,
         cookies: {
           getAll() {
             return request.cookies.getAll();
@@ -470,6 +491,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: AUTH_COOKIE_OPTIONS,
       cookies: {
         getAll() {
           return request.cookies.getAll();

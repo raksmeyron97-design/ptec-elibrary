@@ -138,6 +138,12 @@ export default function AnnouncementDetailClient({ detail, canWrite, canPush }: 
                 <button type="button" onClick={() => setLocale("km")} className={`rounded-md px-3 py-1 text-xs font-semibold ${locale === "km" ? "bg-brand text-white" : "text-text-muted"}`}>KM</button>
               </div>
             </div>
+            {row.image_url && (
+              // The composer lets an editor attach an image; without this it was
+              // stored and then never shown anywhere, which read as a broken upload.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={row.image_url} alt={t("imageAlt")} className="mb-3 aspect-video w-full max-w-md rounded-lg border border-divider object-cover" />
+            )}
             {locale === "en" ? (
               <div className="space-y-2">
                 <p className="font-semibold text-text-heading">{row.title_en}</p>

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Users, Loader2, X } from "lucide-react";
 import { AUDIENCE_TYPES, TARGETABLE_ROLES } from "@/lib/admin/announcements/shared";
 import type { AnnouncementInput, FieldErrors } from "@/lib/admin/announcements/validation";
-import { searchUsersForAudience } from "@/app/(admin)/admin/(protected)/announcements/actions";
+import { searchUsersForAudience, getAudienceUsersByIds } from "@/app/(admin)/admin/(protected)/announcements/actions";
 import type { AudienceEstimate } from "./AnnouncementComposer";
 
 export default function StepAudience({
@@ -109,6 +109,25 @@ function IndividualPicker({
   const [selectedMeta, setSelectedMeta] = useState<Record<string, string>>({});
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialIds = useRef(value.audience.userIds);
+
+  // Names were only ever learned as a side effect of searching, so an
+  // already-saved selection rendered as raw UUID chips when the announcement
+  // was reopened. Resolve the ids we start with, once.
+  useEffect(() => {
+    const ids = initialIds.current;
+    if (ids.length === 0) return;
+    let cancelled = false;
+    getAudienceUsersByIds(ids)
+      .then((users) => {
+        if (cancelled) return;
+        setSelectedMeta((prev) => ({ ...Object.fromEntries(users.map((u) => [u.id, u.name])), ...prev }));
+      })
+      .catch(() => {
+        // A failed lookup just leaves the id showing — never block the step.
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

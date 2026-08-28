@@ -70,6 +70,39 @@ export function scoreMetadataQuality(t: MetadataQualityInput): {
   return { score, tier, missing };
 }
 
+/**
+ * Field key → the share of the total score that field carries, in percentage
+ * points (they sum to 100).
+ *
+ * Derived from the same `buildChecks` table the scorer walks, with an empty
+ * record: weights never depend on the values, only on the checklist. That is
+ * the point — a weight here can never drift from the score it produces, which
+ * a second hand-maintained table would do on the first checklist edit.
+ *
+ * The Data Quality report uses this to rank gaps by IMPACT rather than by
+ * count: 40 records missing a 6-point field matter less than 25 missing a
+ * 15-point one, and the raw counts alone say the opposite.
+ */
+export function thesisFieldWeights(): Record<string, number> {
+  const checks = buildChecks({
+    title: null, slug: null, authorNames: null, advisorName: null, program: null,
+    cohort: null, academicYear: null, publishedAt: null, abstract: null,
+    keywords: null, references: null, coverUrl: null, fileUrl: null, license: null,
+  });
+  const total = checks.reduce((sum, check) => sum + check.weight, 0);
+  return Object.fromEntries(checks.map((check) => [check.key, (check.weight / total) * 100]));
+}
+
+/** Field key → its human label, from the same checklist. */
+export function thesisFieldLabels(): Record<string, string> {
+  const checks = buildChecks({
+    title: null, slug: null, authorNames: null, advisorName: null, program: null,
+    cohort: null, academicYear: null, publishedAt: null, abstract: null,
+    keywords: null, references: null, coverUrl: null, fileUrl: null, license: null,
+  });
+  return Object.fromEntries(checks.map((check) => [check.key, check.label]));
+}
+
 export const METADATA_TIER_LABELS: Record<MetadataQualityTier, string> = {
   complete: "Complete",
   good: "Good",

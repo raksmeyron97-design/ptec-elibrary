@@ -32,6 +32,7 @@ import {
   pathModuleCount,
   pathStepCount,
 } from "@/lib/search/learning-paths";
+import { clientIp } from "@/lib/client-ip";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -244,14 +245,7 @@ function hasKhmer(text: string): boolean {
 }
 
 function getClientIP(req: Request): string {
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return "unknown";
+  return clientIp(req.headers);
 }
 
 async function logSearchQuery(

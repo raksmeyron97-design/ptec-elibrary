@@ -1,216 +1,134 @@
-import {
-  Activity,
-  BarChart3,
-  Languages,
-  MousePointerClick,
-  SearchX,
-} from "lucide-react";
-import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
-import { getSearchAnalytics, getZeroResultReport } from "@/app/actions/search-insights";
+import { LineChart } from "lucide-react";
+import {
+  getSearchInsightsOverview,
+  getSearchActivityPage,
+  getSearchResourceTypes,
+  getZeroResultWorkspace,
+} from "@/app/actions/search-insights";
+import {
+  parseSearchInsightsFilters,
+  serializeSearchInsightsFilters,
+  type SearchInsightsFilters,
+} from "@/lib/admin/search-insights-shared";
 import { PageHeader } from "@/components/admin/kit";
-import ZeroResultActionCenter from "./_components/ZeroResultActionCenter";
+import InsightsToolbar from "./_components/InsightsToolbar";
+import KpiGrid from "./_components/KpiGrid";
+import SearchActivityChart from "./_components/SearchActivityChart";
+import SearchQualityCard from "./_components/SearchQualityCard";
+import LanguageDistribution from "./_components/LanguageDistribution";
+import PopularSearches from "./_components/PopularSearches";
+import ZeroResultWorkspace from "./_components/ZeroResultWorkspace";
+import SearchActivityTable from "./_components/SearchActivityTable";
+import { ChartSkeleton, KpiSkeleton, PanelSkeleton, TableSkeleton } from "./_components/Skeletons";
 
 export const dynamic = "force-dynamic";
 
-type T = (key: string, values?: Record<string, string | number>) => string;
+const BASE_PATH = "/admin/search-insights";
 
-function timeAgo(iso: string | undefined, t: T): string {
-  if (!iso) return t("time.recently");
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (days === 0) return t("time.today");
-  if (days === 1) return t("time.yesterday");
-  if (days < 30) return t("time.daysAgo", { count: days });
-  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "UTC" });
-}
-
-function MetricCard({
-  label,
-  value,
-  hint,
-  icon,
-}: {
-  label: string;
-  value: string | number;
-  hint: string;
-  icon: ReactNode;
-}) {
+/**
+ * A quiet divider naming the question the block below answers, so the page
+ * reads as an ordered enquiry rather than a stack of analytics sections.
+ */
+function ZoneHeader({ label, hint }: { label: string; hint: string }) {
   return (
-    <div className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
-        {icon}
-      </div>
-      <p className="text-[12px] font-bold uppercase tracking-wide text-text-muted">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-text-heading">{value}</p>
-      <p className="mt-1 text-[12.5px] text-text-muted">{hint}</p>
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+      <span className="h-3.5 w-[3px] shrink-0 rounded-full bg-accent" aria-hidden="true" />
+      <h2 className="text-[10.5px] font-bold uppercase tracking-[0.11em] text-[var(--ptec-accent-text)]">{label}</h2>
+      <p className="text-[11.5px] leading-4 text-text-muted">{hint}</p>
     </div>
   );
 }
 
-function TermList({
-  title,
-  items,
-  empty,
-  t,
-}: {
-  title: string;
-  items: { term: string; count: number; lastSearchedAt?: string }[];
-  empty: string;
-  t: T;
-}) {
-  return (
-    <section className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-      <h2 className="text-[15px] font-bold text-text-heading">{title}</h2>
-      {items.length === 0 ? (
-        <p className="mt-5 rounded-xl bg-paper px-4 py-6 text-center text-[13px] text-text-muted">{empty}</p>
-      ) : (
-        <div className="mt-4 space-y-2">
-          {items.map((item) => (
-            <div key={item.term} className="flex items-center justify-between gap-3 rounded-xl bg-paper px-3 py-2.5">
-              <div className="min-w-0">
-                <p className="truncate text-[13.5px] font-semibold text-text-heading">{item.term}</p>
-                {item.lastSearchedAt && (
-                  <p className="text-[11.5px] text-text-muted">{timeAgo(item.lastSearchedAt, t)}</p>
-                )}
-              </div>
-              <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[12px] font-bold text-brand">
-                {item.count}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function TrendBars({
-  title,
-  points,
-  t,
-}: {
-  title: string;
-  points: { label: string; count: number; noResults: number }[];
-  t: T;
-}) {
-  const max = Math.max(1, ...points.map((p) => p.count));
-  return (
-    <section className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-      <h2 className="text-[15px] font-bold text-text-heading">{title}</h2>
-      <div className="mt-4 flex h-40 items-end gap-2" role="img" aria-label={t("trends.barAria", { title })}>
-        {points.map((point) => {
-          const height = point.count === 0 ? 3 : Math.max(8, Math.round((point.count / max) * 100));
-          return (
-            <div key={point.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-              <div className="flex min-h-0 w-full flex-1 items-end justify-center">
-                <div
-                  className="w-full max-w-12 rounded-t-md bg-brand"
-                  style={{ height: `${height}%`, opacity: point.count ? 0.95 : 0.18 }}
-                  title={t("trends.pointSr", { label: point.label, count: point.count, noResults: point.noResults })}
-                  aria-hidden="true"
-                />
-              </div>
-              <span className="max-w-full truncate text-[10px] font-medium text-text-muted" title={point.label}>
-                {point.count}
-              </span>
-              <span className="sr-only">
-                {t("trends.pointSr", { label: point.label, count: point.count, noResults: point.noResults })}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-export default async function SearchInsightsPage() {
-  const [t, analytics, zeroResultReport] = await Promise.all([
+/** Zone 1 — how much, and how well. Streams as one unit: the KPI row and the
+ *  chart share a query and should never disagree about the window. */
+async function ActivityZone({ filters }: { filters: SearchInsightsFilters }) {
+  const [t, overview] = await Promise.all([
     getTranslations("adminSearchInsights"),
-    getSearchAnalytics(),
-    getZeroResultReport(),
+    getSearchInsightsOverview(filters),
   ]);
-  const languageTotal = analytics.languageUsage.km + analytics.languageUsage.en + analytics.languageUsage.other || 1;
-  const kmPct = Math.round((analytics.languageUsage.km / languageTotal) * 100);
-  const enPct = Math.round((analytics.languageUsage.en / languageTotal) * 100);
+  const qs = serializeSearchInsightsFilters(filters);
+  const activityHref = `${BASE_PATH}${qs ? `?${qs}` : ""}#search-activity`;
 
   return (
-    <div className="w-full space-y-6">
-      <PageHeader title={t("title")} description={t("description")} />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label={t("metrics.totalSearches")}
-          value={analytics.totalSearches}
-          hint={t("metrics.hintTotal")}
-          icon={<BarChart3 className="h-5 w-5" />}
-        />
-        <MetricCard
-          label={t("metrics.noResults")}
-          value={analytics.totalNoResultSearches}
-          hint={t("metrics.hintNoResults")}
-          icon={<SearchX className="h-5 w-5" />}
-        />
-        <MetricCard
-          label={t("metrics.clickRate")}
-          value={`${analytics.conversionRate}%`}
-          hint={t("metrics.hintClickRate")}
-          icon={<MousePointerClick className="h-5 w-5" />}
-        />
-        <MetricCard
-          label={t("metrics.languageSplit")}
-          value={`${kmPct}% / ${enPct}%`}
-          hint={t("metrics.hintLanguage")}
-          icon={<Languages className="h-5 w-5" />}
-        />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <ZoneHeader label={t("zones.activityLabel")} hint={t("zones.activityHint")} />
+        <InsightsToolbar range={filters.range} compare={filters.compare} generatedAt={overview.generatedAt} />
       </div>
 
-      <div className="mt-6">
-        <ZeroResultActionCenter entries={zeroResultReport} />
+      {!overview.aggregatesAvailable && (
+        <p role="status" className="rounded-xl border border-warning-line bg-warning-soft px-4 py-2.5 text-[11.5px] leading-4 text-warning-text">
+          {t("aggregatesPending")}
+        </p>
+      )}
+
+      <KpiGrid kpis={overview.kpis} previous={overview.previousKpis} days={overview.window.days} />
+
+      <section aria-labelledby="activity-chart-title" className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
+        <h3 id="activity-chart-title" className="flex items-center gap-2 text-[15px] font-bold text-text-heading">
+          <LineChart className="h-4 w-4 text-brand" aria-hidden="true" />
+          {t("chart.title")}
+        </h3>
+        <p className="mb-3 mt-1 text-[12px] text-text-muted">{t("chart.subtitle")}</p>
+        <SearchActivityChart points={overview.trend} bucketDays={overview.bucketDays} />
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,1fr)]">
+        <PopularSearches
+          items={overview.topTerms}
+          totalSearches={overview.kpis.searches}
+          viewAllHref={activityHref}
+        />
+        <div className="grid gap-4">
+          <SearchQualityCard kpis={overview.kpis} />
+          <LanguageDistribution usage={overview.languageUsage} />
+        </div>
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <TermList title={t("lists.topKeywords")} items={analytics.topKeywords} empty={t("lists.emptyTop")} t={t} />
-        <TermList title={t("lists.noResultTerms")} items={analytics.noResultKeywords} empty={t("lists.emptyNoResult")} t={t} />
-        <TermList title={t("lists.missingRequests")} items={analytics.missingBookRequests} empty={t("lists.emptyMissing")} t={t} />
-      </div>
-
-      <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <section className="rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <MousePointerClick className="h-4 w-4 text-brand" aria-hidden="true" />
-            <h2 className="text-[15px] font-bold text-text-heading">{t("clicked.title")}</h2>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <PopularSearches
+          items={overview.zeroResultTerms}
+          totalSearches={overview.kpis.searches}
+          viewAllHref={`${BASE_PATH}?${new URLSearchParams({ ...Object.fromEntries(new URLSearchParams(qs)), astatus: "noResults" }).toString()}#search-activity`}
+          variant="zero"
+        />
+        <section aria-labelledby="clicked-results-title" className="rounded-2xl border border-divider bg-bg-surface shadow-sm">
+          <div className="border-b border-divider p-5">
+            <h3 id="clicked-results-title" className="text-[15px] font-bold text-text-heading">{t("clicked.title")}</h3>
+            <p className="mt-1 text-[12px] text-text-muted">{t("clicked.subtitle")}</p>
           </div>
-          {analytics.clickedResults.length === 0 ? (
-            <p className="mt-5 rounded-xl bg-paper px-4 py-6 text-center text-[13px] text-text-muted">
-              {t("clicked.empty")}
-            </p>
+          {overview.clickedResults.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-[13.5px] font-semibold text-text-heading">{t("clicked.emptyTitle")}</p>
+              <p className="mt-1 text-[12px] text-text-muted">{t("clicked.emptyBody")}</p>
+            </div>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-xl border border-divider">
-              <table className="w-full text-left text-[13px]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-left">
                 <caption className="sr-only">{t("clicked.caption")}</caption>
-                <thead>
-                  <tr className="border-b border-divider bg-paper text-[11px] font-bold uppercase tracking-wide text-text-muted">
-                    <th scope="col" className="px-3 py-2">{t("clicked.colResult")}</th>
-                    <th scope="col" className="px-3 py-2">{t("clicked.colType")}</th>
-                    <th scope="col" className="px-3 py-2">{t("clicked.colClicks")}</th>
+                <thead className="bg-paper text-[11px] font-bold uppercase tracking-wide text-text-muted">
+                  <tr>
+                    <th scope="col" className="px-4 py-2.5">{t("clicked.colResult")}</th>
+                    <th scope="col" className="px-4 py-2.5">{t("clicked.colType")}</th>
+                    <th scope="col" className="px-4 py-2.5 text-end">{t("clicked.colClicks")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {analytics.clickedResults.map((item) => (
-                    <tr key={item.url} className="border-b border-divider/60 last:border-0">
-                      <td className="max-w-[340px] px-3 py-2">
-                        <a href={item.url} className="line-clamp-1 font-semibold text-text-heading hover:text-brand">
+                  {overview.clickedResults.map((item) => (
+                    <tr key={item.url} className="border-t border-divider transition hover:bg-paper/50">
+                      <td className="px-4 py-2">
+                        <a
+                          href={item.url}
+                          className="line-clamp-1 text-[13px] font-semibold text-text-heading hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          dir="auto"
+                        >
                           {item.term}
                         </a>
                       </td>
-                      <td className="px-3 py-2 text-text-muted">{item.type}</td>
-                      <td className="px-3 py-2">
-                        <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-[12px] font-bold text-brand">
-                          {item.count}
-                        </span>
-                      </td>
+                      <td className="px-4 py-2 text-[12px] text-text-muted">{item.type}</td>
+                      <td className="px-4 py-2 text-end text-[13px] font-bold tabular-nums text-text-heading">{item.count}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -218,38 +136,123 @@ export default async function SearchInsightsPage() {
             </div>
           )}
         </section>
-
-        <TermList title={t("lists.successful")} items={analytics.popularSubjects} empty={t("lists.emptySuccessful")} t={t} />
       </div>
+    </div>
+  );
+}
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <TrendBars title={t("trends.daily")} points={analytics.trends.daily} t={t} />
-        <TrendBars title={t("trends.weekly")} points={analytics.trends.weekly} t={t} />
-        <TrendBars title={t("trends.monthly")} points={analytics.trends.monthly} t={t} />
-      </div>
+/** Zone 2 — what failed, and what was done about it. */
+async function ZeroResultZone({
+  filters,
+  searchParams,
+}: {
+  filters: SearchInsightsFilters;
+  searchParams: Record<string, string | undefined>;
+}) {
+  const [t, data] = await Promise.all([
+    getTranslations("adminSearchInsights"),
+    getZeroResultWorkspace(filters),
+  ]);
+  return (
+    <div className="space-y-4">
+      <ZoneHeader label={t("zones.zeroLabel")} hint={t("zones.zeroHint")} />
+      <ZeroResultWorkspace data={data} filters={filters} searchParams={searchParams} basePath={BASE_PATH} />
+    </div>
+  );
+}
 
-      <div className="mt-6 rounded-2xl border border-divider bg-bg-surface p-5 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Activity className="h-4 w-4 text-brand" aria-hidden="true" />
-          <h2 className="text-[15px] font-bold text-text-heading">{t("language.title")}</h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {([
-            [t("language.khmer"), analytics.languageUsage.km, kmPct],
-            [t("language.english"), analytics.languageUsage.en, enPct],
-            [t("language.other"), analytics.languageUsage.other, Math.round((analytics.languageUsage.other / languageTotal) * 100)],
-          ] as [string, number, number][]).map(([label, count, pct]) => (
-            <div key={label} className="rounded-xl bg-paper p-4">
-              <p className="text-[12px] font-bold uppercase tracking-wide text-text-muted">{label}</p>
-              <p className="mt-1 text-2xl font-bold text-text-heading">{count}</p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-divider">
-                <div className="h-full rounded-full bg-brand" style={{ width: `${pct}%` }} />
-              </div>
-              <p className="mt-1 text-[11.5px] text-text-muted">{t("language.pctOfSearches", { pct })}</p>
+/** Zone 3 — the raw log, for the question a chart cannot answer. */
+async function ActivityLogZone({
+  filters,
+  searchParams,
+}: {
+  filters: SearchInsightsFilters;
+  searchParams: Record<string, string | undefined>;
+}) {
+  const [t, page, resourceTypes] = await Promise.all([
+    getTranslations("adminSearchInsights"),
+    getSearchActivityPage(filters),
+    getSearchResourceTypes(),
+  ]);
+  return (
+    <div className="space-y-4">
+      <ZoneHeader label={t("zones.logLabel")} hint={t("zones.logHint")} />
+      <SearchActivityTable
+        page={page}
+        filters={{
+          aq: filters.aq,
+          alang: filters.alang,
+          astatus: filters.astatus,
+          atype: filters.atype,
+          asize: filters.asize,
+        }}
+        exportFilters={{
+          range: filters.range,
+          from: filters.from,
+          to: filters.to,
+          aq: filters.aq,
+          alang: filters.alang,
+          astatus: filters.astatus,
+          atype: filters.atype,
+        }}
+        resourceTypes={resourceTypes}
+        searchParams={searchParams}
+        basePath={BASE_PATH}
+      />
+    </div>
+  );
+}
+
+/**
+ * Search Intelligence.
+ *
+ * All page state lives in the URL and is parsed through one whitelisting
+ * parser (lib/admin/search-insights-shared.ts), so a filtered view is
+ * shareable and nothing from the query string reaches a query unvalidated.
+ * Every section is scoped by the SAME window — the previous page had no date
+ * control at all and each block carried its own hard-coded period.
+ *
+ * The three zones stream independently: a slow zero-result hydration can no
+ * longer hold up the KPI row, and each has a layout-stable skeleton.
+ */
+export default async function SearchInsightsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
+  const filters = parseSearchInsightsFilters(raw);
+  const t = await getTranslations("adminSearchInsights");
+  const flat = Object.fromEntries(
+    Object.entries(raw).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]),
+  ) as Record<string, string | undefined>;
+
+  return (
+    <div className="w-full space-y-8">
+      <PageHeader title={t("title")} description={t("description")} />
+
+      <Suspense
+        fallback={
+          <div className="space-y-4">
+            <KpiSkeleton />
+            <ChartSkeleton />
+            <div className="grid gap-4 xl:grid-cols-2">
+              <PanelSkeleton />
+              <PanelSkeleton />
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
+        }
+      >
+        <ActivityZone filters={filters} />
+      </Suspense>
+
+      <Suspense fallback={<TableSkeleton rows={10} />}>
+        <ZeroResultZone filters={filters} searchParams={flat} />
+      </Suspense>
+
+      <Suspense fallback={<TableSkeleton rows={10} />}>
+        <ActivityLogZone filters={filters} searchParams={flat} />
+      </Suspense>
     </div>
   );
 }

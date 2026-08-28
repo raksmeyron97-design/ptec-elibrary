@@ -5,20 +5,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
 
 const WINDOW_DAYS = 30;
 const ROW_LIMIT = 2000; // recent rows scanned for in-memory aggregation
 const RESULT_LIMIT = 8;
 
 function getClientIP(req: NextRequest): string {
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return "unknown";
+  return clientIp(req.headers);
 }
 
 export async function GET(req: NextRequest) {

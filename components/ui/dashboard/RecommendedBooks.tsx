@@ -67,7 +67,7 @@ function BookCard({ item }: { item: Recommendation }) {
   );
 }
 
-export default function RecommendedBooks() {
+export default function RecommendedBooks({ viewAllHref = "/books" }: { viewAllHref?: string }) {
   const t = useTranslations("dashboard");
   const [data, setData] = useState<RecommendationsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,13 +92,18 @@ export default function RecommendedBooks() {
   if (!data || data.items.length === 0) return null;
 
   return (
-    <section aria-label={t("recommendedForYou")} className="mt-6">
-      <div className="flex items-center gap-2 mb-3">
-        <Sparkles className="h-4 w-4 text-amber-500 flex-none" aria-hidden="true" />
-        <p className="text-[13px] font-bold text-text-heading">{t("recommendedForYou")}</p>
-        {data.basedOn && (
-          <span className="hidden sm:block text-[11px] text-text-muted">· {t("basedOn", { name: data.basedOn })}</span>
-        )}
+    <section aria-label={t("recommendedForYou")}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-amber-500 flex-none" aria-hidden="true" />
+          <h2 className="text-[15px] font-bold text-text-heading">{t("recommendedForYou")}</h2>
+          {data.basedOn && (
+            <span className="hidden sm:block text-[11px] text-text-muted">· {t("basedOn", { name: data.basedOn })}</span>
+          )}
+        </div>
+        <Link href={viewAllHref} className="focus-field shrink-0 rounded text-[12.5px] font-semibold text-brand hover:underline">
+          {t("viewAll")} →
+        </Link>
       </div>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {data.items.map(item => <BookCard key={item.id} item={item} />)}

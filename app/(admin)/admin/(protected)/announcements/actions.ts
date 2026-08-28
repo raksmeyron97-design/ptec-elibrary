@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { requirePermission, requireStaff } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { revalidateLocalizedPath as revalidatePath, revalidatePublicPath, revalidateAnnouncementBanner } from "@/lib/cache/revalidate";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendPush } from "@/lib/push";
@@ -16,18 +16,21 @@ import { getOrCreateDeliveryJob, processAnnouncementDeliveryJob, retryFailedDeli
 import { logAnnouncementActivity, recordStatusHistory } from "@/lib/admin/announcements/audit";
 import { inputToRow, rowToInput, channelsSummary } from "@/lib/admin/announcements/mapping";
 import { bridgeToNotifications, unbridgeNotification } from "@/lib/admin/announcements/notifications-bridge";
+import { clientIpOrUndefined } from "@/lib/client-ip";
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
 async function requestMeta(): Promise<{ ip?: string; userAgent?: string }> {
   try {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || undefined;
+    const ip = clientIpOrUndefined(h);
     return { ip, userAgent: h.get("user-agent") ?? undefined };
   } catch {
     return {};
   }
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function enforceRateLimit(userId: string) {
   const { success } = await rateLimit(`announcement-mutate:${userId}`, 30, 60_000);
@@ -169,6 +172,18 @@ export async function searchUsersForAudience(query: string): Promise<{ id: strin
   return (data ?? []).map((p) => ({ id: p.id, name: p.full_name || p.email || p.id, email: p.email }));
 }
 
+/** Resolve already-selected audience ids back to display names. The composer
+ *  only learned names as a side effect of searching, so reopening a saved
+ *  "individually selected users" announcement showed bare UUID chips. */
+export async function getAudienceUsersByIds(ids: string[]): Promise<{ id: string; name: string; email: string | null }[]> {
+  const { supabase } = await requirePermission("announcements", "read");
+  const unique = [...new Set(ids)].filter((id) => UUID_RE.test(id)).slice(0, 200);
+  if (unique.length === 0) return [];
+
+  const { data } = await supabase.from("profiles").select("id, full_name, email").in("id", unique);
+  return (data ?? []).map((p) => ({ id: p.id, name: p.full_name || p.email || p.id, email: p.email }));
+}
+
 // ── Test push ──────────────────────────────────────────────────────────────
 
 export async function sendTestAnnouncementPush(input: { title: string; body: string; url: string }): Promise<{ sent: number; expired: number; failed: number }> {
@@ -176,7 +191,11 @@ export async function sendTestAnnouncementPush(input: { title: string; body: str
   const limited = await rateLimit(`announcement-test-push:${user.id}`, 3, 10 * 60_000);
   if (!limited.success) throw new Error("Too many test notifications — try again in a few minutes.");
 
-  const title = (input.title || "PTEC Library").trim().slice(0, 120);
+  // validatePushPayload (lib/push-utils.ts) rejects a title over 120 chars and
+  // sendPush swallows that into a generic failure — so budget for the prefix
+  // here rather than letting a long title fail with an unexplained error.
+  const TEST_PREFIX = "[Test] ";
+  const title = (input.title || "PTEC Library").trim().slice(0, 120 - TEST_PREFIX.length);
   const body = (input.body || "This is a test notification.").trim().slice(0, 400);
   const urlCheck = checkDestinationUrl(input.url || "/");
   const url = urlCheck.ok ? urlCheck.url : "/";
@@ -196,7 +215,7 @@ export async function sendTestAnnouncementPush(input: { title: string; body: str
     subs.map(async (sub) => {
       const result = await sendPush(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth_key } },
-        { type: "TEST", title: `[Test] ${title}`, body, url, tag: `ann-test-${user.id}`, eventId: `ann-test-${user.id}-${Date.now()}` },
+        { type: "TEST", title: `${TEST_PREFIX}${title}`, body, url, tag: `ann-test-${user.id}`, eventId: `ann-test-${user.id}-${Date.now()}` },
       );
       if (result.ok) {
         sent += 1;
@@ -278,7 +297,9 @@ export async function cancelScheduledAnnouncement(id: string): Promise<{ success
   assertTransition(status, "draft");
   if (status !== "scheduled") throw new Error("Only a scheduled announcement can be cancelled this way.");
 
-  await supabase.from("announcements").update({ status: "draft", scheduled_at: null, updated_by: user.id }).eq("id", id);
+  // Clearing the idempotency key matters: it is what lets a later publish mint
+  // a NEW delivery job instead of resolving to the cancelled one.
+  await supabase.from("announcements").update({ status: "draft", scheduled_at: null, publish_idempotency_key: null, updated_by: user.id }).eq("id", id);
   await recordStatusHistory({ announcementId: id, fromStatus: status, toStatus: "draft", actorId: user.id, reason: "schedule cancelled" });
   await logAnnouncementActivity({ actorId: user.id, announcementId: id, action: "cancel_schedule" });
   revalidateAnnouncementSurfaces();
@@ -292,7 +313,9 @@ export async function pauseAnnouncement(id: string): Promise<{ success: true }> 
   const status = normalizeStatus(row.status);
   assertTransition(status, "draft");
 
-  await supabase.from("announcements").update({ status: "draft", updated_by: user.id }).eq("id", id);
+  // Same reason as cancelScheduledAnnouncement: without dropping the key, the
+  // next publish reuses the completed delivery job and delivers nothing.
+  await supabase.from("announcements").update({ status: "draft", publish_idempotency_key: null, updated_by: user.id }).eq("id", id);
   await unbridgeNotification(supabase, id);
   await recordStatusHistory({ announcementId: id, fromStatus: status, toStatus: "draft", actorId: user.id, reason: "paused" });
   await logAnnouncementActivity({ actorId: user.id, announcementId: id, action: "pause" });
@@ -388,9 +411,15 @@ export async function publishAnnouncement(id: string, opts: PublishOptions): Pro
     userIds: announcement.audience_user_ids ?? [],
   });
 
-  // Idempotency: reuse an existing in-flight key if this announcement is
-  // already mid-publish (double click / retry / refresh); otherwise mint one.
-  const idemKey: string = announcement.publish_idempotency_key ?? `${id}:${randomUUID()}`;
+  // Idempotency: reuse the existing key ONLY while this announcement is still
+  // mid-publish (double click / retry / refresh). Reusing it after a finished
+  // publish resolved to the SAME, already-completed delivery job, so a second
+  // broadcast (pause → publish again, or a re-publish after archiving) queued
+  // nothing and silently sent zero notifications.
+  const idemKey: string =
+    currentStatus === "publishing" && announcement.publish_idempotency_key
+      ? announcement.publish_idempotency_key
+      : `${id}:${randomUUID()}`;
   const nowIso = new Date().toISOString();
 
   await supabase
@@ -456,7 +485,9 @@ export async function publishAnnouncement(id: string, opts: PublishOptions): Pro
 export type BulkAnnouncementAction = "archive" | "delete";
 
 export async function bulkUpdateAnnouncements(ids: string[], action: BulkAnnouncementAction): Promise<{ success: number; failed: number }> {
-  const { user } = await requireStaff();
+  // requireStaff() let a librarian (announcements: read) through to a loop that
+  // then failed on every single row — an honest 403 up front is clearer.
+  const { user } = await requirePermission("announcements", "write");
   if (!ids.length) return { success: 0, failed: 0 };
 
   let success = 0, failed = 0;

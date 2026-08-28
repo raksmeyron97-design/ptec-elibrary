@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifySignup } from "@/app/actions/auth";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { safeReturnTo } from "@/lib/security/return-to";
+import { canonicalOrigin } from "@/lib/site-origin";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 // The PKCE `code` path runs on every OAuth sign-in, so guard the "new user"
@@ -15,7 +16,15 @@ function isFreshSignup(createdAt?: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+
+  // NOT `new URL(request.url).origin`. Behind Cloudflare Tunnel the same
+  // container answers on the canonical domain, on the tunnel's fallback
+  // hostname, and on a plain-http LAN address — and this redirect is what
+  // carries a freshly minted session cookie. Sending it to whichever origin
+  // the callback happened to land on drops the user on a host that does not
+  // hold their session (or on http, where the cookie is refused outright).
+  const origin = canonicalOrigin(request.url);
 
   const code = searchParams.get("code");
   const token_hash = searchParams.get("token_hash");
