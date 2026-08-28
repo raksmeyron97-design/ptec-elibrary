@@ -37,25 +37,21 @@ export function asciiSlug(value: string): string {
 }
 
 /**
- * Unicode-aware URL slug. Prefers the ASCII slug; when a title has no real
- * Latin content, keeps its letters/digits in any script. Zero-width spaces
- * (Khmer word boundaries) and whitespace become hyphens. May return "".
+ * Unicode-aware URL slug. Generates URL-friendly slugs for any script
+ * (Khmer, English, or mixed bilingual titles).
+ * Keeps letters (\p{L}), combining marks (\p{M}), and digits (\p{N}).
+ * Replaces spaces, zero-width spaces, and punctuation with hyphens.
+ * May return "".
  */
 export function unicodeSlug(value: string): string {
-  const ascii = asciiSlug(value);
-  if (ascii.length >= 3) return ascii;
   const unicode = value
     .toLowerCase()
     .trim()
-    .replace(/[\u200B\s_]+/g, "-")
-    // \p{M} keeps combining marks — Khmer dependent vowels and the coeng
-    // subscript marker are category M, and dropping them corrupts the word.
-    .replace(/[^\p{L}\p{M}\p{N}-]+/gu, "")
-    .replace(/-+/g, "-")
+    .replace(/[^\p{L}\p{M}\p{N}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
   // A digits-and-hyphens-only remnant of a stripped title ("-2") is worse
   // than empty — let callers hit their explicit fallback instead.
-  if (!/\p{L}/u.test(unicode) && unicode.length < 3) return ascii;
+  if (!/\p{L}/u.test(unicode) && unicode.length < 3) return "";
   return unicode;
 }
 

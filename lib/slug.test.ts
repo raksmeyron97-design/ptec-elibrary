@@ -17,8 +17,10 @@ describe("unicodeSlug", () => {
     expect(unicodeSlug("The Great Gatsby")).toBe("the-great-gatsby");
   });
 
-  it("keeps a partial Latin slug for mixed titles when it is meaningful", () => {
-    expect(unicodeSlug("តេស្ត PISA D វិទ្យាសាស្ត្រ")).toBe("pisa-d");
+  it("preserves both Khmer and English for bilingual mixed titles", () => {
+    expect(unicodeSlug("តេស្ត PISA D វិទ្យាសាស្ត្រ")).toBe("តេស្ត-pisa-d-វិទ្យាសាស្ត្រ");
+    expect(unicodeSlug("សៀវភៅភាសាអង់គ្លេស English Book")).toBe("សៀវភៅភាសាអង់គ្លេស-english-book");
+    expect(unicodeSlug("Java Programming ភាសាខ្មែរ")).toBe("java-programming-ភាសាខ្មែរ");
   });
 
   it("keeps Khmer script for Khmer-only titles", () => {
