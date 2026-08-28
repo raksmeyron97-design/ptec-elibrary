@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
+import { isAdminAuthError, requireLibrarian } from "@/lib/auth/requireAdmin";
 import { validateMimeType, detectMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
@@ -23,7 +23,7 @@ function presetsForFolder(key: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    await requireLibrarian();
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
