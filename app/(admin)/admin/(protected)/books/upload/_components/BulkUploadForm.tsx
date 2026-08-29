@@ -1,19 +1,15 @@
-"use client"
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
- 
-;
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
+"use client";
 
 import { useTranslations } from "next-intl";
 import { useState, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
 import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
 import { getPdfPageCount } from "@/lib/pdf-client-utils";
+import { FormSection, BTN_PRIMARY, BTN_SECONDARY } from "@/components/admin/kit/form";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
+import Link from "next/link";
 import {
-  FileSpreadsheet, FolderOpen, Image as ImageIcon, Upload as UploadIcon,
+  FileSpreadsheet, Image as ImageIcon, Upload as UploadIcon,
   CheckCircle, AlertCircle, RotateCcw, FileText,
 } from "lucide-react";
 
@@ -182,7 +178,10 @@ async function uploadBook(
     });
     if (result && "error" in result) throw new Error(result.error);
 
-    onStatus("done", { slug: (result as any)?.slug });
+    // `result` is a discriminated union; the error branch is thrown above, so
+    // the success branch's slug is reachable without an `as any` cast — which
+    // is all the file-level no-explicit-any suppression was hiding here.
+    onStatus("done", { slug: result && "slug" in result ? result.slug : undefined });
   } catch (err) {
     onStatus("error", { error: err instanceof Error ? err.message : "Unknown error" });
   }
@@ -211,13 +210,18 @@ async function runQueue(
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
+/* Row status on the status triplets rather than six raw Tailwind ramps
+   (slate/blue/cyan/amber/emerald/red). The three in-flight states share one
+   "working" tone on purpose — which byte is currently moving is not something
+   the operator can act on, and a hue each made a running batch read as six
+   kinds of outcome. The spinner carries the in-flight signal. */
 const STATUS_META: Record<RowStatus, { cls: string }> = {
-  pending:          { cls: "bg-slate-100 text-slate-500" },
-  "uploading-pdf":  { cls: "bg-blue-100 text-blue-600" },
-  "uploading-cover":{ cls: "bg-cyan-100 text-cyan-600" },
-  saving:           { cls: "bg-amber-100 text-amber-600" },
-  done:             { cls: "bg-emerald-100 text-emerald-700" },
-  error:            { cls: "bg-red-100 text-red-600" },
+  pending:           { cls: "border border-divider bg-paper text-text-muted" },
+  "uploading-pdf":   { cls: "border border-info-line bg-info-soft text-info-text" },
+  "uploading-cover": { cls: "border border-info-line bg-info-soft text-info-text" },
+  saving:            { cls: "border border-info-line bg-info-soft text-info-text" },
+  done:              { cls: "border border-success-line bg-success-soft text-success-text" },
+  error:             { cls: "border border-danger-line bg-danger-soft text-danger-text" },
 };
 
 function StatusBadge({ status }: { status: RowStatus }) {
@@ -226,17 +230,59 @@ function StatusBadge({ status }: { status: RowStatus }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ${cls}`}>
       {(status === "uploading-pdf" || status === "uploading-cover" || status === "saving") && (
-        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
       )}
       {t(status)}
     </span>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+/**
+ * File-picker tile for the three folder inputs.
+ *
+ * Declared at module scope, not inside BulkUploadForm's render: a component
+ * defined during render is a new type on every pass, so React unmounts and
+ * remounts its subtree each time — which is what the react-hooks lint rule was
+ * reporting here. Nothing in it is stateful today, so the bug was latent, but
+ * the remount cost was real on every re-render of a 500-row batch.
+ */
+function DropZoneDisplay({
+  ready,
+  readyLabel,
+  idleLabel,
+  icon,
+  checkedIcon,
+}: {
+  ready: boolean;
+  readyLabel: string;
+  idleLabel: string;
+  icon: React.ReactNode;
+  checkedIcon: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-colors duration-150 ${
+        ready
+          ? "border-success-line bg-success-soft text-success-text"
+          : "border-divider bg-paper text-text-muted hover:border-border-strong"
+      }`}
+    >
+      <span
+        className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+          ready ? "bg-bg-surface" : "bg-surface-brand-soft"
+        }`}
+        aria-hidden="true"
+      >
+        {ready ? checkedIcon : icon}
+      </span>
+      <span className="text-xs font-semibold">{ready ? readyLabel : idleLabel}</span>
+    </div>
+  );
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function BulkUploadForm() {
-  const router = useRouter();
 
   // File inputs
   const csvInputRef  = useRef<HTMLInputElement>(null);
@@ -345,53 +391,17 @@ export default function BulkUploadForm() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
-  // ── File drop zone helper ─────────────────────────────────────
-  type DropZoneProps = {
-    ready: boolean;
-    readyLabel: string;
-    idleLabel: string;
-    icon: React.ReactNode;
-    checkedIcon: React.ReactNode;
-  };
-
-  function DropZoneDisplay({ ready, readyLabel, idleLabel, icon, checkedIcon }: DropZoneProps) {
-    return (
-      <div
-        className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed transition-all"
-        style={
-          ready
-            ? { borderColor: "#0f9d6b", background: "rgba(15,157,107,0.05)", color: "#0f9d6b" }
-            : { borderColor: "var(--ptec-divider)", background: "var(--ptec-paper)", color: "var(--ptec-text-muted)" }
-        }
-      >
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{
-          background: ready ? "rgba(15,157,107,0.12)" : "rgba(30,58,138,0.08)",
-        }}>
-          {ready ? checkedIcon : icon}
-        </span>
-        <span className="text-xs font-semibold">{ready ? readyLabel : idleLabel}</span>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
 
-      {/* ── Step 1: CSV Template ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
-          <span className="sec-chip sec-chip--files">
-            <FileSpreadsheet className="h-[18px] w-[18px]" />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-text-heading">{t("step1")}</h2>
-            <p className="text-xs text-text-muted">
-              {t.rich("step1Sub", { code: (c) => <code className="rounded bg-paper px-1 py-0.5 font-mono">{c}</code> })}
-            </p>
-          </div>
-        </div>
-
-        <div className="p-6">
+      {/* ── Step 1: CSV template ── */}
+      <FormSection
+        title={t("step1")}
+        description={t.rich("step1Sub", {
+          code: (c) => <code className="rounded bg-paper px-1 py-0.5 font-mono">{c}</code>,
+        })}
+      >
+        <div>
           <div className="overflow-x-auto rounded-xl border border-divider bg-paper">
             <table className="w-full text-xs">
               <thead>
@@ -419,37 +429,31 @@ export default function BulkUploadForm() {
               </tbody>
             </table>
           </div>
-          <p className="mt-2.5 text-[11px] text-text-muted">
-            {t.rich("requiredNote", { star: (c) => <span className="text-rose-500">{c}</span>, code: (c) => <code className="font-mono">{c}</code> })}
+          <p className="mt-2.5 text-xs text-text-muted">
+            {t.rich("requiredNote", {
+              star: (c) => <span className="text-danger">{c}</span>,
+              code: (c) => <code className="font-mono">{c}</code>,
+            })}
           </p>
         </div>
-      </div>
+      </FormSection>
 
       {/* ── Step 2: Select files ── */}
-      <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-        <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
-          <span className="sec-chip sec-chip--details">
-            <FolderOpen className="h-[18px] w-[18px]" />
-          </span>
-          <div>
-            <h2 className="text-sm font-bold text-text-heading">{t("step2")}</h2>
-            <p className="text-xs text-text-muted">{t("step2Sub")}</p>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-4">
+      <FormSection title={t("step2")} description={t("step2Sub")}>
+        <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             {/* CSV */}
             <label className="flex flex-col gap-2 cursor-pointer">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                CSV file <span className="text-rose-500">*</span>
+              <span className="mb-1.5 block text-sm font-medium text-text-body">
+                CSV file
+                <span className="ms-0.5 font-normal text-danger" aria-hidden="true">*</span>
               </span>
               <DropZoneDisplay
                 ready={csvReady}
                 readyLabel={t("csvReady", { count: csvRows.length })}
                 idleLabel={t("selectCsv")}
-                icon={<FileSpreadsheet className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
-                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+                icon={<FileSpreadsheet className="h-4 w-4 text-brand" />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-success" />}
               />
               <input
                 ref={csvInputRef}
@@ -463,15 +467,16 @@ export default function BulkUploadForm() {
 
             {/* PDFs */}
             <label className="flex flex-col gap-2 cursor-pointer">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                PDF files <span className="text-rose-500">*</span>
+              <span className="mb-1.5 block text-sm font-medium text-text-body">
+                PDF files
+                <span className="ms-0.5 font-normal text-danger" aria-hidden="true">*</span>
               </span>
               <DropZoneDisplay
                 ready={pdfReady}
                 readyLabel={t("pdfReady", { count: pdfIndex.size })}
                 idleLabel={t("selectPdfs")}
-                icon={<FileText className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
-                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+                icon={<FileText className="h-4 w-4 text-brand" />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-success" />}
               />
               <input
                 ref={pdfInputRef}
@@ -487,16 +492,13 @@ export default function BulkUploadForm() {
 
             {/* Covers */}
             <label className="flex flex-col gap-2 cursor-pointer">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
-                Cover files{" "}
-                <span className="font-normal normal-case tracking-normal text-text-muted">(optional)</span>
-              </span>
+              <span className="mb-1.5 block text-sm font-medium text-text-body">Cover files</span>
               <DropZoneDisplay
                 ready={coverIndex.size > 0}
                 readyLabel={t("coversReady", { count: coverIndex.size })}
                 idleLabel={t("selectCovers")}
-                icon={<ImageIcon className="h-4 w-4" style={{ color: "var(--ptec-brand)" }} />}
-                checkedIcon={<CheckCircle className="h-4 w-4 text-[#0f9d6b]" />}
+                icon={<ImageIcon className="h-4 w-4 text-brand" />}
+                checkedIcon={<CheckCircle className="h-4 w-4 text-success" />}
               />
               <input
                 ref={coverInputRef}
@@ -512,58 +514,57 @@ export default function BulkUploadForm() {
           </div>
 
           {parseError && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-              <p className="text-sm text-red-700">{parseError}</p>
+            <div
+              role="alert"
+              className="flex items-start gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3"
+            >
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" aria-hidden="true" />
+              <p className="text-sm text-danger-text">{parseError}</p>
             </div>
           )}
 
           {canPreview && !started && (
-            <button
-              type="button"
-              onClick={handlePreview}
-              className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-divider bg-paper px-4 text-sm font-semibold text-text-body transition-all hover:border-brand hover:bg-bg-surface hover:text-brand"
-            >
-              Preview file matches
+            <button type="button" onClick={handlePreview} className={BTN_SECONDARY}>
+              {t("preview")}
             </button>
           )}
         </div>
-      </div>
+      </FormSection>
 
       {/* ── Step 3: Review & Upload ── */}
       {jobs.length > 0 && (
         <div className="form-card-accent overflow-hidden rounded-2xl border border-divider bg-bg-surface shadow-sm">
-          <div className="flex items-center justify-between gap-4 border-b border-divider bg-paper/60 px-6 py-4">
-            <div className="flex items-center gap-3.5">
-              <span className="sec-chip sec-chip--summary">
-                <UploadIcon className="h-[18px] w-[18px]" />
-              </span>
-              <div>
-                <h2 className="text-sm font-bold text-text-heading">{t("step3")}</h2>
-                <p className="text-xs text-text-muted">
-                  {t("summary", { total, done, errors })}
-                  {missing > 0 && (
-                    <span style={{ color: "#d97706" }}> · {t("pdfMissing", { count: missing })}</span>
-                  )}
-                </p>
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-divider bg-paper px-5 py-4 sm:px-6">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-text-heading">{t("step3")}</h3>
+              <p className="mt-0.5 text-xs text-text-muted">
+                {t("summary", { total, done, errors })}
+                {missing > 0 && (
+                  <span className="text-warning-text"> · {t("pdfMissing", { count: missing })}</span>
+                )}
+              </p>
             </div>
 
-            {/* Progress bar */}
+            {/* Genuinely determinate, unlike the single upload's phase stepper:
+                the queue knows how many rows have finished. */}
             {started && total > 0 && (
-              <div className="flex shrink-0 items-center gap-3">
-                <div className="h-2 w-36 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="flex shrink-0 items-center gap-3"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={done + errors}
+                aria-label={t("step3")}
+              >
+                <div className="h-2 w-36 overflow-hidden rounded-full bg-paper ring-1 ring-divider">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${((done + errors) / total) * 100}%`,
-                      background: errors > 0
-                        ? "linear-gradient(90deg,#0f9d6b,#d97706)"
-                        : "#0f9d6b",
-                    }}
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      errors > 0 ? "bg-warning" : "bg-success"
+                    }`}
+                    style={{ width: `${((done + errors) / total) * 100}%` }}
                   />
                 </div>
-                <span className="text-xs font-bold" style={{ color: "#0f9d6b" }}>
+                <span className="text-xs font-bold tabular-nums text-text-body">
                   {Math.round(((done + errors) / total) * 100)}%
                 </span>
               </div>
@@ -574,10 +575,7 @@ export default function BulkUploadForm() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr
-                  className="border-b border-divider text-[11px] font-bold uppercase tracking-wider text-text-muted"
-                  style={{ background: "var(--ptec-paper)" }}
-                >
+                <tr className="border-b border-divider bg-paper/70 text-[11px] font-bold uppercase tracking-wider text-text-muted">
                   <th scope="col" className="px-4 py-2.5 text-left">#</th>
                   <th scope="col" className="px-4 py-2.5 text-left">{t("col.title")}</th>
                   <th scope="col" className="px-4 py-2.5 text-left">{t("col.author")}</th>
@@ -590,14 +588,13 @@ export default function BulkUploadForm() {
                 {jobs.map((job, i) => (
                   <tr
                     key={job.id}
-                    className="transition-colors"
-                    style={
+                    className={`transition-colors duration-150 ${
                       job.status === "done"
-                        ? { background: "rgba(15,157,107,0.04)" }
+                        ? "bg-success-soft/40"
                         : job.status === "error"
-                        ? { background: "rgba(239,68,68,0.04)" }
-                        : undefined
-                    }
+                          ? "bg-danger-soft/40"
+                          : ""
+                    }`}
                   >
                     <td className="px-4 py-3 text-xs text-text-muted">{i + 1}</td>
                     <td className="max-w-[200px] px-4 py-3">
@@ -607,23 +604,23 @@ export default function BulkUploadForm() {
                     <td className="px-4 py-3 text-xs text-text-muted">{job.row.author}</td>
                     <td className="px-4 py-3">
                       {job.pdfFile ? (
-                        <span className="text-xs font-medium text-[#0f9d6b]">✓ {job.row.pdf_file}</span>
+                        <span className="text-xs font-medium text-success-text">✓ {job.row.pdf_file}</span>
                       ) : (
-                        <span className="text-xs font-semibold text-red-500">✗ {job.row.pdf_file}</span>
+                        <span className="text-xs font-semibold text-danger-text">✗ {job.row.pdf_file}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {job.row.cover_file
                         ? job.coverFile
-                          ? <span className="text-[#0f9d6b]">✓ {job.row.cover_file}</span>
-                          : <span style={{ color: "#d97706" }}>✗ {job.row.cover_file}</span>
+                          ? <span className="text-success-text">✓ {job.row.cover_file}</span>
+                          : <span className="text-warning-text">✗ {job.row.cover_file}</span>
                         : <span className="text-text-muted">—</span>
                       }
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <StatusBadge status={job.status} />
-                        {job.error && <p className="text-xs text-red-600">{job.error}</p>}
+                        {job.error && <p className="text-xs text-danger-text">{job.error}</p>}
                         {job.slug && (
                           <a
                             href={`/books/${job.slug}`}
@@ -643,33 +640,41 @@ export default function BulkUploadForm() {
           </div>
 
           {/* Footer actions */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-divider px-6 py-4">
+          <div className="flex flex-wrap items-center gap-3 border-t border-divider px-5 py-4 sm:px-6">
             {!started ? (
               <>
                 {missing > 0 && (
-                  <p className="text-xs" style={{ color: "#d97706" }}>
-                    {missing} book(s) missing PDF files will be skipped.
+                  <p className="text-xs text-warning-text">
+                    {t("missingSkipped", { count: missing })}
                   </p>
                 )}
                 <button
                   type="button"
                   onClick={handleStart}
                   disabled={!canStart}
-                  className="btn-brand-gradient inline-flex cursor-pointer items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`${BTN_PRIMARY} ml-auto`}
                 >
-                  <UploadIcon className="h-4 w-4" />
+                  <UploadIcon className="h-4 w-4" aria-hidden="true" />
                   {t("startUpload", { count: jobs.filter((j) => j.pdfFile).length })}
                 </button>
               </>
             ) : running ? (
-              <div className="flex items-center gap-2 text-sm text-text-muted">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <div
+                className="flex items-center gap-2 text-sm text-text-muted"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
                 {t("uploadingParallel", { count: concurrency })}
               </div>
             ) : (
-              <div className="flex items-center gap-4">
-                <p className="text-sm font-semibold" style={{ color: "#0f9d6b" }}>
-                  {t("completed", { done })}{errors > 0 ? t("completedFailed", { errors }) : ""}
+              <div className="flex w-full flex-wrap items-center gap-3" role="status" aria-live="polite">
+                <p className="text-sm font-semibold text-success-text">
+                  {t("completed", { done })}
+                  {errors > 0 ? t("completedFailed", { errors }) : ""}
                 </p>
                 {errors > 0 && (
                   <button
@@ -679,11 +684,19 @@ export default function BulkUploadForm() {
                       setRunning(true);
                       runQueue(retryJobs, concurrency, updateJob).then(() => setRunning(false));
                     }}
-                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+                    className={BTN_SECONDARY}
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     {t("retryFailed", { errors })}
                   </button>
+                )}
+                {/* A finished batch otherwise has nowhere to go. The single
+                    upload lands on the collection; this offers the same exit
+                    rather than leaving the operator on a spent form. */}
+                {done > 0 && (
+                  <Link href={EBOOKS_BASE_PATH} className={`${BTN_PRIMARY} ml-auto`}>
+                    {t("viewCollection")}
+                  </Link>
                 )}
               </div>
             )}

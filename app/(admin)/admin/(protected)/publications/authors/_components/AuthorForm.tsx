@@ -367,7 +367,7 @@ export default function AuthorForm({
                 {...p}
                 value={form.affiliation_name}
                 onChange={(e) => set("affiliation_name", e.target.value)}
-                placeholder="e.g. Phnom Penh Teacher Education College"
+                placeholder="e.g. Royal University of Phnom Penh"
               />
             )}
           </Field>

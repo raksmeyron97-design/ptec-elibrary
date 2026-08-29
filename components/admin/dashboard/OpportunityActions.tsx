@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { BookPlus, Check, EyeOff, Loader2 } from "lucide-react";
 import { actOnSearchTerm } from "@/app/actions/search-insights";
 import type { SearchOpportunity } from "@/lib/admin/dashboard-shared";
+import { ebookUploadUrl } from "@/lib/admin/ebooks-url";
 
 /**
  * The fixes for one search opportunity, attached to the evidence that
@@ -68,7 +69,7 @@ export default function OpportunityActions({
         </span>
       )}
       <Link
-        href={`/admin/upload?title=${encodeURIComponent(term)}`}
+        href={ebookUploadUrl(term)}
         className={`${btn} border border-brand/25 bg-brand/5 text-brand hover:bg-brand/10`}
       >
         <BookPlus className="h-3.5 w-3.5" aria-hidden="true" />

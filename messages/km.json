@@ -5465,13 +5465,22 @@
       "uploadCta": "បញ្ចូលសៀវភៅ",
       "noResultsTitle": "រកមិនឃើញសៀវភៅទេ",
       "noResultsBody": "សាកល្បងផ្លាស់ប្ដូរការស្វែងរក ឬតម្រងរបស់អ្នក។",
-      "clearFilters": "សម្អាតតម្រង"
+      "clearFilters": "សម្អាតតម្រង",
+      "loadFailedTitle": "មិនអាចផ្ទុកបណ្ដុំសៀវភៅបានទេ",
+      "loadFailedBody": "មិនអាចទាញបញ្ជីសៀវភៅឌីជីថលបានទេ។ ជាធម្មតាបញ្ហានេះកើតឡើងបណ្ដោះអាសន្ន។",
+      "retry": "ព្យាយាមម្ដងទៀត"
     },
     "verification": {
       "verified": "បានផ្ទៀងផ្ទាត់",
       "unverified": "មិនទាន់ផ្ទៀងផ្ទាត់",
       "verifiedTitle": "បណ្ណារក្សបានពិនិត្យព័ត៌មានលម្អិតនៃកំណត់ត្រានេះរួចហើយ។",
       "unverifiedTitle": "បានផ្សាយ ប៉ុន្តែមិនទាន់ពិនិត្យ — អ្នកអានឃើញការព្រមាន «មិនទាន់បានផ្ទៀងផ្ទាត់» នៅលើប្រអប់ដកស្រង់។"
+    },
+    "workspace": {
+      "label": "ការគ្រប់គ្រងសៀវភៅ",
+      "manage": "បណ្ដុំសៀវភៅ",
+      "upload": "បញ្ចូល",
+      "duplicates": "ស្ទួន"
     }
   },
   "adminTheses": {
@@ -6734,7 +6743,8 @@
         "coverType": "គម្របត្រូវតែជា JPEG, PNG, WebP ឬ AVIF",
         "coverSize": "រូបគម្របត្រូវតែតូចជាង 5 MB",
         "titleRequired": "តម្រូវឱ្យមានចំណងជើង",
-        "uploadFailed": "ការបញ្ចូលបរាជ័យ"
+        "uploadFailed": "ការបញ្ចូលបរាជ័យ",
+        "pdfTooLarge": "ឯកសារនោះមានទំហំ {size}។ ដែនកំណត់គឺ {limit}។"
       },
       "files": "ឯកសារ",
       "filesSub": "PDF (ត្រូវការ) · រូបគម្រប (ស្រេចចិត្ត)",
@@ -6771,7 +6781,8 @@
         "summary": "សេចក្ដីសង្ខេប",
         "summaryPlaceholder": "ការពិពណ៌នាខ្លីសម្រាប់អ្នកអាន…",
         "keywords": "ពាក្យគន្លឹះ / ស្លាក",
-        "keywordsPlaceholder": "ឧ. គណិតវិទ្យា, algebra, textbook…"
+        "keywordsPlaceholder": "ឧ. គណិតវិទ្យា, algebra, textbook…",
+        "keywordsHint": "ចុច Enter ឬ , ដើម្បីបន្ថែមស្លាកនីមួយៗ។"
       },
       "visibility": "ភាពមើលឃើញ",
       "publishNow": "បោះពុម្ពផ្សាយភ្លាមៗ",
@@ -6780,7 +6791,37 @@
       "submitPublish": "បញ្ចូល និងបោះពុម្ពផ្សាយ",
       "submitForReview": "បញ្ចូលសម្រាប់ត្រួតពិនិត្យ",
       "detectingPages": "កំពុងរាប់ទំព័រ…",
-      "detectedPages": "ចាប់បាន {count} ទំព័រ"
+      "detectedPages": "ចាប់បាន {count} ទំព័រ",
+      "publication": "ការបោះពុម្ពផ្សាយ",
+      "publicationSub": "កន្លែងដែលសៀវភៅនេះនឹងទៅ បន្ទាប់ពីរក្សាទុក។",
+      "publishNowHint": "មើលឃើញនៅក្នុងបណ្ណាល័យសាធារណៈភ្លាមៗបន្ទាប់ពីរក្សាទុក។",
+      "submitReviewHint": "លាក់ពីអ្នកអាន ហើយផ្ញើទៅជួរត្រួតពិនិត្យ ដើម្បីឱ្យបណ្ណារក្សអនុម័ត។",
+      "statusWillPublish": "នឹងបោះពុម្ពផ្សាយពេលរក្សាទុក",
+      "statusWillQueue": "នឹងផ្ញើទៅជួរត្រួតពិនិត្យ",
+      "cancel": "បោះបង់",
+      "clickSelectCover": "ចុច ឬទម្លាក់រូបគម្រប",
+      "coverConstraints": "JPEG, PNG, WebP ឬ AVIF · អតិបរមា ៥ MB",
+      "coverPreviewAlt": "រូបគម្របដែលបានជ្រើស",
+      "noCover": "គ្មានគម្រប",
+      "pdfConstraints": "តែ PDF ប៉ុណ្ណោះ · អតិបរមា {limit}",
+      "pdfSizeAdvice": "ឯកសារ PDF ធំៗផ្ទុកយឺតសម្រាប់និស្សិត។ ក្រោម ២៥ MB ជាការល្អបំផុត — សូមបង្រួមឯកសារស្កេនមុនបញ្ចូល។",
+      "largeFileWarning": "ឯកសារធំ — និស្សិតប្រើទូរសព្ទនឹងរង់ចាំយូរ។",
+      "recentUploadsSub": "សៀវភៅ ៥ ក្បាលចុងក្រោយដែលបានបន្ថែម",
+      "editRecent": "កែសម្រួល",
+      "noAuthor": "គ្មានអ្នកនិពន្ធ",
+      "ai": {
+        "title": "ជំនួយការព័ត៌មាន AI",
+        "action": "អាន PDF",
+        "draftedTitle": "បានព្រាងពី PDF",
+        "reviewNotice": "ទាំងនេះគ្រាន់តែជាការណែនាំ។ អ្នកគឺជាអ្នកត្រួតពិនិត្យ — សូមពិនិត្យរាល់តម្លៃមុនរក្សាទុក។"
+      },
+      "success": {
+        "title": "បានបន្ថែមសៀវភៅដោយជោគជ័យ",
+        "published": "សៀវភៅនេះឥឡូវនៅក្នុងបណ្ណាល័យសាធារណៈហើយ។",
+        "pending": "សៀវភៅនេះត្រូវបានផ្ញើទៅជួរត្រួតពិនិត្យ។",
+        "redirectBooks": "កំពុងបើកបណ្ដុំសៀវភៅ…",
+        "redirectReview": "កំពុងបើកជួរត្រួតពិនិត្យ…"
+      }
     },
     "bulk": {
       "rowStatus": {
@@ -6816,8 +6857,15 @@
       "uploadingParallel": "កំពុងបញ្ចូល {count} សៀវភៅស្របគ្នា…",
       "completed": "បានបញ្ចប់៖ {done} បានបញ្ចូល",
       "completedFailed": ", {errors} បរាជ័យ",
-      "retryFailed": "ព្យាយាម {errors} ដែលបរាជ័យឡើងវិញ"
-    }
+      "retryFailed": "ព្យាយាម {errors} ដែលបរាជ័យឡើងវិញ",
+      "preview": "មើលការផ្គូផ្គងឯកសារ",
+      "missingSkipped": "{count, plural, other {សៀវភៅ # ក្បាលគ្មានឯកសារ PDF ត្រូវគ្នា ហើយនឹងត្រូវរំលង}}",
+      "viewCollection": "ទៅកាន់បណ្ដុំសៀវភៅ"
+    },
+    "title": "បញ្ចូលសៀវភៅ",
+    "description": "បន្ថែមសៀវភៅមួយក្បាលជាមួយព័ត៌មានពេញលេញ ឬនាំចូលច្រើនក្បាលក្នុងពេលតែមួយពី CSV។",
+    "modeLabel": "របៀបបញ្ចូល",
+    "loadFailedBody": "មិនអាចផ្ទុកទម្រង់បញ្ចូលបានទេ។ ឯកសាររបស់អ្នកមិនត្រូវបានផ្ញើទេ។"
   },
   "announcementBanner": {
     "regionLabel": "សេចក្តីប្រកាសគេហទំព័រ",
@@ -7288,5 +7336,11 @@
     "linkScholar": "ប្រវត្តិរូប Google Scholar",
     "linkResearchgate": "ប្រវត្តិរូប ResearchGate",
     "metaDescription": "ស្នាដៃរបស់ {name} ក្នុងបណ្ណាល័យ វ.គ.ភ។"
+  },
+  "adminErrors": {
+    "title": "មានបញ្ហាកើតឡើង",
+    "body": "ទំព័រនេះមិនអាចផ្ទុកបានទេ។ បញ្ហានេះត្រូវបានកត់ត្រាទុក។",
+    "reference": "លេខយោង៖ {digest}",
+    "retry": "ព្យាយាមម្ដងទៀត"
   }
 }

@@ -5460,13 +5460,22 @@
       "uploadCta": "Upload E-book",
       "noResultsTitle": "No e-books found",
       "noResultsBody": "Try changing your search or filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "loadFailedTitle": "Could not load the collection",
+      "loadFailedBody": "The e-book list could not be fetched. This is usually temporary.",
+      "retry": "Try again"
     },
     "verification": {
       "verified": "Verified",
       "unverified": "Not verified",
       "verifiedTitle": "A librarian has checked this record's metadata.",
       "unverifiedTitle": "Live but unchecked — readers see the “not yet verified” citation warning."
+    },
+    "workspace": {
+      "label": "Book management",
+      "manage": "Collection",
+      "upload": "Upload",
+      "duplicates": "Duplicates"
     }
   },
   "adminTheses": {
@@ -6729,7 +6738,8 @@
         "coverType": "Cover must be JPEG, PNG, WebP, or AVIF",
         "coverSize": "Cover image must be under 5 MB",
         "titleRequired": "Title is required",
-        "uploadFailed": "Upload failed"
+        "uploadFailed": "Upload failed",
+        "pdfTooLarge": "That file is {size}. The limit is {limit}."
       },
       "files": "Files",
       "filesSub": "PDF (required) · Cover image (optional)",
@@ -6766,7 +6776,8 @@
         "summary": "Summary",
         "summaryPlaceholder": "Short description for readers…",
         "keywords": "Keywords / Tags",
-        "keywordsPlaceholder": "e.g. គណិតវិទ្យា, algebra, textbook…"
+        "keywordsPlaceholder": "e.g. គណិតវិទ្យា, algebra, textbook…",
+        "keywordsHint": "Press Enter or comma to add each tag."
       },
       "visibility": "Visibility",
       "publishNow": "Publish immediately",
@@ -6775,7 +6786,37 @@
       "submitPublish": "Upload and publish",
       "submitForReview": "Upload for review",
       "detectingPages": "Detecting pages…",
-      "detectedPages": "Detected {count} pages"
+      "detectedPages": "Detected {count} pages",
+      "publication": "Publication",
+      "publicationSub": "Where this book goes once it is saved.",
+      "publishNowHint": "Visible in the public library immediately after saving.",
+      "submitReviewHint": "Hidden from readers and sent to the review queue for a librarian to approve.",
+      "statusWillPublish": "Will be published on save",
+      "statusWillQueue": "Will be sent to the review queue",
+      "cancel": "Cancel",
+      "clickSelectCover": "Click or drop a cover image",
+      "coverConstraints": "JPEG, PNG, WebP or AVIF · max 5 MB",
+      "coverPreviewAlt": "Selected cover preview",
+      "noCover": "No cover",
+      "pdfConstraints": "PDF only · max {limit}",
+      "pdfSizeAdvice": "Large PDFs load slowly for students. Under 25 MB is best — compress scanned files before uploading.",
+      "largeFileWarning": "Large file — students on mobile will wait for this.",
+      "recentUploadsSub": "The last 5 books added",
+      "editRecent": "Edit",
+      "noAuthor": "No author",
+      "ai": {
+        "title": "AI metadata assistant",
+        "action": "Read the PDF",
+        "draftedTitle": "Drafted from the PDF",
+        "reviewNotice": "These are suggestions. You are the reviewer — check every value before saving."
+      },
+      "success": {
+        "title": "Book added successfully",
+        "published": "The book is now in the public library.",
+        "pending": "The book has been sent to the review queue.",
+        "redirectBooks": "Opening the collection…",
+        "redirectReview": "Opening the review queue…"
+      }
     },
     "bulk": {
       "rowStatus": {
@@ -6811,8 +6852,15 @@
       "uploadingParallel": "Uploading {count} books in parallel…",
       "completed": "Completed: {done} uploaded",
       "completedFailed": ", {errors} failed",
-      "retryFailed": "Retry {errors} failed"
-    }
+      "retryFailed": "Retry {errors} failed",
+      "preview": "Preview file matches",
+      "missingSkipped": "{count, plural, one {# book has no matching PDF and will be skipped} other {# books have no matching PDF and will be skipped}}",
+      "viewCollection": "Go to the collection"
+    },
+    "title": "Upload books",
+    "description": "Add a single book with full metadata, or import many at once from a CSV.",
+    "modeLabel": "Upload mode",
+    "loadFailedBody": "The upload form could not be loaded. Your files were not sent."
   },
   "announcementBanner": {
     "regionLabel": "Site announcements",
@@ -7283,5 +7331,11 @@
     "linkScholar": "Google Scholar profile",
     "linkResearchgate": "ResearchGate profile",
     "metaDescription": "Works by {name} in the PTEC Library."
+  },
+  "adminErrors": {
+    "title": "Something went wrong",
+    "body": "This page could not be loaded. The problem has been logged.",
+    "reference": "Reference: {digest}",
+    "retry": "Try again"
   }
 }

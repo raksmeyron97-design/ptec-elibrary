@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, use
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search, CornerDownLeft, ExternalLink } from "lucide-react";
+import { ebooksFilterUrl } from "@/lib/admin/ebooks-url";
 
 type CmdIcon = React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 
@@ -91,7 +92,7 @@ const AdminCommandPalette = forwardRef<AdminCommandPaletteHandle, { commands: Ad
         id: "__search",
         label: t("searchEbooksFor", { query: query.trim() }),
         group: t("search"),
-        href: `/admin/manage?q=${encodeURIComponent(query.trim())}`,
+        href: ebooksFilterUrl({ q: query.trim() }),
         icon: Search,
       },
     ];

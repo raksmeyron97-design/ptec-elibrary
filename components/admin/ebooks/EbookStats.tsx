@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatFileSize, type EbooksSummary } from "@/lib/admin/ebooks-shared";
+import { EBOOKS_BASE_PATH, ebooksFilterUrl } from "@/lib/admin/ebooks-url";
 
 /**
  * Manage E-books KPI zone: four neutral cards for the numbers a librarian
@@ -106,7 +107,7 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
           sub={summary.archived > 0 ? t("archived", { count: summary.archived }) : undefined}
           icon={BookOpen}
           iconClass="bg-surface-brand-soft text-brand"
-          href="/admin/manage"
+          href={EBOOKS_BASE_PATH}
         />
         <StatCard
           label={t("live")}
@@ -114,7 +115,7 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
           sub={summary.unverifiedLive > 0 ? t("unverifiedSub", { count: summary.unverifiedLive }) : undefined}
           icon={CheckCircle2}
           iconClass="bg-success-soft text-success-text"
-          href="/admin/manage?status=published"
+          href={ebooksFilterUrl({ status: "published" })}
         />
         <StatCard
           label={t("downloads")}
@@ -135,11 +136,11 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
         className="no-scrollbar -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1"
         aria-label={t("breakdown")}
       >
-        <BreakdownPill label={t("drafts")} count={summary.drafts} href="/admin/manage?status=draft" />
+        <BreakdownPill label={t("drafts")} count={summary.drafts} href={ebooksFilterUrl({ status: "draft" })} />
         <BreakdownPill
           label={t("needsReview")}
           count={summary.pendingReview}
-          href="/admin/manage?status=pending_review"
+          href={ebooksFilterUrl({ status: "pending_review" })}
           attention
         />
         {/* Live but never checked — every one of these is showing readers the
@@ -147,34 +148,34 @@ export default function EbookStats({ summary }: { summary: EbooksSummary }) {
         <BreakdownPill
           label={t("unverifiedLive")}
           count={summary.unverifiedLive}
-          href="/admin/manage?status=published&verification=unverified"
+          href={ebooksFilterUrl({ status: "published", verification: "unverified" })}
           attention
         />
         <BreakdownPill
           label={t("missingCovers")}
           count={summary.missingCovers}
-          href="/admin/manage?coverStatus=missing_cover"
+          href={ebooksFilterUrl({ coverStatus: "missing_cover" })}
           attention
         />
         <BreakdownPill
           label={t("missingPdfs")}
           count={summary.missingPdfs}
-          href="/admin/manage?fileStatus=missing_pdf"
+          href={ebooksFilterUrl({ fileStatus: "missing_pdf" })}
           attention
         />
         <BreakdownPill
           label={t("brokenFiles")}
           count={summary.brokenFiles}
-          href="/admin/manage?fileStatus=broken_file"
+          href={ebooksFilterUrl({ fileStatus: "broken_file" })}
           attention
         />
         <BreakdownPill
           label={t("weakMetadata")}
           count={summary.missingMetadata}
-          href="/admin/manage?quality=incomplete"
+          href={ebooksFilterUrl({ quality: "incomplete" })}
           attention
         />
-        <BreakdownPill label={t("archivedLabel")} count={summary.archived} href="/admin/manage?status=archived" />
+        <BreakdownPill label={t("archivedLabel")} count={summary.archived} href={ebooksFilterUrl({ status: "archived" })} />
       </div>
     </div>
   );

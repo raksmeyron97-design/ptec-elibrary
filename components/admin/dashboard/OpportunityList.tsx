@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { BookPlus, EyeOff, Loader2 } from "lucide-react";
 import { actOnSearchTerm } from "@/app/actions/search-insights";
+import { ebookUploadUrl } from "@/lib/admin/ebooks-url";
 
 export type OpportunityItem = {
   kind: "zeroResult" | "lowCoverage";
@@ -72,7 +73,7 @@ export default function OpportunityList({ items: initial }: { items: Opportunity
             </span>
             <span className="flex shrink-0 items-center gap-0.5">
               <Link
-                href={`/admin/upload?title=${encodeURIComponent(o.term)}`}
+                href={ebookUploadUrl(o.term)}
                 aria-label={t("addBookFor", { term: o.term })}
                 title={t("addBookFor", { term: o.term })}
                 className={actionBtn}

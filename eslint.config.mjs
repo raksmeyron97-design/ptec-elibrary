@@ -18,6 +18,7 @@ const eslintConfig = defineConfig([
     "public/**/*.min.mjs",
     "public/pdf/**",
     "ds-bundle/**",
+    "supabase/.temp/**",
   ]),
   {
     // These rules flag patterns that are either intentional (dynamic Supabase

@@ -6,7 +6,7 @@ describe("isAdminPath", () => {
     expect(isAdminPath("/admin")).toBe(true);
     expect(isAdminPath("/admin/")).toBe(true);
     expect(isAdminPath("/admin/login")).toBe(true);
-    expect(isAdminPath("/admin/manage/duplicates")).toBe(true);
+    expect(isAdminPath("/admin/books/duplicates")).toBe(true);
   });
 
   it("does not match public routes", () => {

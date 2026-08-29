@@ -24,9 +24,10 @@ import { requirePermission } from "@/lib/auth/requireAdmin";
 import { logAdminAction } from "@/app/actions/audit";
 import { rateLimit } from "@/lib/rate-limit";
 import { clientIpOrUndefined } from "@/lib/client-ip";
+import { EBOOKS_BASE_PATH, EBOOKS_DUPLICATES_PATH } from "@/lib/admin/ebooks-url";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const REVALIDATE_PATHS = ["/admin/manage", "/admin/manage/duplicates", "/admin", "/books", "/"];
+const REVALIDATE_PATHS = [EBOOKS_BASE_PATH, EBOOKS_DUPLICATES_PATH, "/admin", "/books", "/"];
 
 type RetireResult = { success: true; redirectFrom: string; redirectTo: string } | { success: false; error: string };
 

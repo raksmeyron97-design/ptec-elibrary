@@ -33,6 +33,7 @@ import {
   type TrendInfo,
 } from "./dashboard-shared";
 import { generateInsights, type Insight } from "./insights";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
 /**
  * Per-view data loaders for the Admin Intelligence Dashboard.
@@ -1081,7 +1082,7 @@ export type AdminActivityEntry = {
 
 /** Audit tables an admin can be linked straight into. */
 const AUDIT_TARGET_HREF: Record<string, string> = {
-  books: "/admin/books",
+  books: EBOOKS_BASE_PATH,
   research_reports: "/admin/theses",
   publications: "/admin/publications",
   posts: "/admin/posts",

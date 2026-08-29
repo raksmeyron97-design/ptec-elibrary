@@ -111,7 +111,7 @@ export default function AffiliationsPanel({
                   {...p}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Phnom Penh Teacher Education College"
+                  placeholder="e.g. Royal University of Phnom Penh"
                 />
               )}
             </Field>

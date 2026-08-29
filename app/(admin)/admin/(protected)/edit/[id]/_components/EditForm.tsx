@@ -14,6 +14,7 @@ import {
   LICENSE_OPTIONS,
 } from "@/lib/book-utils";
 import { formatFileSize } from "@/lib/admin/ebooks-shared";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
@@ -533,7 +534,7 @@ export default function EditForm({
 
   return (
     <FormShell
-      backHref="/admin/books"
+      backHref={EBOOKS_BASE_PATH}
       backLabel="Back to e-books"
       title={pageTitle}
       description={pageDescription}

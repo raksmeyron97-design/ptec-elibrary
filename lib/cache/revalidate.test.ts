@@ -41,8 +41,8 @@ describe("revalidateLocalizedPath", () => {
   });
 
   it("passes admin paths through un-prefixed", () => {
-    revalidateLocalizedPath("/admin/manage");
-    expect(paths()).toEqual(["/admin/manage"]);
+    revalidateLocalizedPath("/admin/books");
+    expect(paths()).toEqual(["/admin/books"]);
   });
 });
 
