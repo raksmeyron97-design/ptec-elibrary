@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { signInSeededReader } from './utils/auth';
 
 // WCAG 2.1 A/AA regression gate. Scans the core discovery loop — a user
 // searching, opening a book, and reading a thesis — plus the homepage as the
@@ -81,6 +82,11 @@ test.describe('Accessibility (axe-core, WCAG 2.1 A/AA)', () => {
 
   test('PDF reader', async ({ page }) => {
     test.slow(); // pdf.js needs to fetch + render the document
+    // Reading is auth-gated (the file API requires a signed-in user), so the
+    // reader page redirects anonymous visitors to login. Sign in first; skip
+    // (don't fail) if login can't complete in this environment.
+    const signedIn = await signInSeededReader(page, { next: '/books' });
+    test.skip(!signedIn, 'Could not sign in a seeded reader in this environment');
     await page.goto('/books');
     const firstBook = page.locator('a[href^="/books/"]').first();
     if ((await firstBook.count()) === 0) test.skip(true, 'No books in this environment');

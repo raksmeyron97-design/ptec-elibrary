@@ -6,6 +6,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_ROLES, ADMIN_PANEL_ROLES, LIBRARIAN_ROLES } from "@/lib/types/roles";
 import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
 import { logSecurityEvent } from "@/lib/security-log";
+import { isLockedDown } from "@/lib/security/lockdown";
 
 /** A signed-in user tried an action above their role — worth flagging. */
 function forbidden(where: string, userId: string): AdminAuthError {
@@ -75,7 +76,35 @@ async function verifyAuthAndMFA(): Promise<{
   const role = (profile?.role ?? "reader") as AppRole;
   const isSuperAdmin = (profile?.is_super_admin ?? false) as boolean;
 
-  // MFA / AAL2 check — required for any admin-panel role
+  // MFA / AAL2 check — required for any admin-panel role. Enforced HERE (not
+  // only in the (protected) layout) because a Server Action can be POSTed to
+  // any route without the layout ever running: the layout is a navigation
+  // control, this is the authorization control. Non-panel users skip the MFA
+  // gate and fall through to their guard's own role check (a plain reader must
+  // get a 403, not an enroll redirect).
+  const isPanelUser = ADMIN_PANEL_ROLES.includes(role) || isSuperAdmin;
+
+  // Emergency lockdown (incident containment): while LOCKDOWN_ADMIN_MUTATIONS
+  // is on, every guarded admin operation fails for panel roles below
+  // super_admin — a suspected-compromised staff/librarian/admin account is
+  // contained, while the operator (super admin) keeps access to run the
+  // incident. Enforced here so every Server Action and admin API route is
+  // covered by one switch; see lib/security/lockdown.ts.
+  if (
+    isPanelUser &&
+    role !== "super_admin" &&
+    !isSuperAdmin &&
+    isLockedDown("admin_mutations")
+  ) {
+    logSecurityEvent({
+      type: "lockdown_blocked",
+      where: "verifyAuthAndMFA",
+      userId: user.id,
+      detail: "admin_mutations",
+    });
+    throw new AdminAuthError("Admin operations are temporarily locked down", 403);
+  }
+
   const { data: aalData, error: aalError } =
     await authClient.auth.mfa.getAuthenticatorAssuranceLevel();
 
@@ -83,11 +112,27 @@ async function verifyAuthAndMFA(): Promise<{
     throw new AdminAuthError("Unable to verify MFA status", 500);
   }
 
-  if (aalData) {
+  if (isPanelUser) {
+    // Fail closed if AAL data is missing (matches the layout, which redirects
+    // to /admin/login on the same condition).
+    if (!aalData) {
+      throw new AdminAuthError("Unable to verify MFA status", 500);
+    }
+
     const hasEnrolledFactors =
       aalData.nextLevel === "aal2" || aalData.currentLevel === "aal2";
 
-    if (hasEnrolledFactors && aalData.currentLevel !== "aal2") {
+    // A privileged user who has not enrolled a second factor must not be able
+    // to perform admin work at AAL1 — force enrollment.
+    if (!hasEnrolledFactors) {
+      throw new AdminAuthError(
+        "MFA enrollment required",
+        403,
+        MFA_ENROLL_PATH,
+      );
+    }
+
+    if (aalData.currentLevel !== "aal2") {
       throw new AdminAuthError(
         "MFA verification required",
         403,

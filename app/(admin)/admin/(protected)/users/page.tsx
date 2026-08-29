@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/kit";
 import UsersClient from "./_components/UsersClient";
@@ -19,6 +20,12 @@ function str(v: string | string[] | undefined): string {
 }
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<SP> }) {
+  // This page reads the full user directory (emails, phones, roles) via the
+  // service-role client. The (protected) layout only checks ADMIN_PANEL_ROLES,
+  // which admits staff/librarian — both of whom have `users: none`. Guard the
+  // read here so the sidebar-hidden link isn't the only control.
+  await requireAdmin();
+
   const params = await searchParams;
 
   const page = Math.max(1, parseInt(str(params.page) || "1", 10) || 1);
@@ -45,7 +52,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         .single();
       return {
         id: user?.id ?? "",
-        role: (profile?.role ?? "admin") as AppRole,
+        role: (profile?.role ?? "reader") as AppRole,
         isSuperAdmin: Boolean(profile?.is_super_admin) || profile?.role === "super_admin",
       };
     })(),

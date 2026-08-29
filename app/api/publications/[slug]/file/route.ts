@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { resolveDownloadAccess } from "@/lib/publications/access";
 import { doiUrl } from "@/lib/seo/identifiers";
 import { clientIp } from "@/lib/client-ip";
@@ -33,6 +34,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const locked = lockdownResponse("downloads", "/api/publications/[slug]/file");
+  if (locked) return locked;
+
   const ip = clientIp(request.headers);
   const { limit, windowMs } = ratePolicy("fileRead");
   const rl = await rateLimit(`publication-file:${ip}`, limit, windowMs);

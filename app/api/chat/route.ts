@@ -18,6 +18,7 @@ import { AIRequestError, validateMessages, type AILocale } from "@/lib/ai";
 import { checkCooldown, consumeQuota } from "@/lib/ai/limits";
 import { runAssistant, streamAssistant } from "@/lib/ai/router";
 import { recordAiRequest } from "@/lib/ai/telemetry";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { enforceGrounding } from "@/lib/ai/guardrails";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
@@ -43,6 +44,9 @@ function toInbound(messages: UIMessage[]): Array<{ role: "user" | "model"; text:
 }
 
 export async function POST(req: Request) {
+  const locked = lockdownResponse("ai", "/api/chat");
+  if (locked) return locked;
+
   const supabase = await createClient();
   const {
     data: { user },

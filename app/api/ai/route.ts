@@ -21,6 +21,7 @@ import {
 import { checkCooldown, consumeQuota } from "@/lib/ai/limits";
 import { runAssistant, streamAssistant } from "@/lib/ai/router";
 import { recordAiRequest } from "@/lib/ai/telemetry";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { enforceGrounding } from "@/lib/ai/guardrails";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
@@ -76,6 +77,9 @@ async function admit(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const locked = lockdownResponse("ai", "/api/ai");
+  if (locked) return locked;
+
   let admitted: Awaited<ReturnType<typeof admit>>;
   try {
     admitted = await admit(req);

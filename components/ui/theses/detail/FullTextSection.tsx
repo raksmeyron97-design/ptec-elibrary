@@ -20,6 +20,7 @@
 // separate component rather than a reuse of it.
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { BookOpen, FileText, Loader2 } from "lucide-react";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
@@ -32,17 +33,25 @@ export default function FullTextSection({
   fileHref,
   reportEmail,
   language,
+  isLoggedIn = false,
 }: {
   reportId: string;
   title: string;
   fileHref: string;
   reportEmail?: string | null;
   language?: string | null;
+  /** Inline viewing now requires auth (the file API is gated). When the reader
+   *  is anonymous, prompt sign-in instead of mounting a viewer that would 401. */
+  isLoggedIn?: boolean;
 }) {
   const t = useTranslations("reader");
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const openReader = useCallback(() => {
+    // Gated: an anonymous reader can't fetch the file. Don't mount a viewer that
+    // would 401 (this also fires from the header "Preview PDF" bus event).
+    if (!isLoggedIn) return;
     setOpen(true);
     // One "reader opened" event per thesis per tab session, matching the
     // funnel the books reader records.
@@ -54,7 +63,7 @@ export default function FullTextSection({
       // Private mode — ping anyway.
     }
     recordReaderOpen("research_report", reportId).catch(() => {});
-  }, [reportId]);
+  }, [reportId, isLoggedIn]);
 
   useEffect(() => onThesisReaderOpen(openReader), [openReader]);
 
@@ -94,16 +103,28 @@ export default function FullTextSection({
           The complete document is available as a PDF
           {language ? <span className="font-normal text-text-muted"> · {language}</span> : null}
         </p>
-        <p className="mt-1 text-[13.5px] leading-[1.6] text-text-muted">{t("readerLoadHint")}</p>
+        <p className="mt-1 text-[13.5px] leading-[1.6] text-text-muted">
+          {isLoggedIn ? t("readerLoadHint") : t("signInToReadHint")}
+        </p>
       </div>
-      <button
-        type="button"
-        onClick={openReader}
-        className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-brand px-5 text-[14px] font-bold text-brand-contrast transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
-      >
-        <BookOpen className="h-4 w-4" aria-hidden="true" />
-        {t("openReader")}
-      </button>
+      {isLoggedIn ? (
+        <button
+          type="button"
+          onClick={openReader}
+          className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-brand px-5 text-[14px] font-bold text-brand-contrast transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+        >
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          {t("openReader")}
+        </button>
+      ) : (
+        <a
+          href={`/auth/login?callbackUrl=${encodeURIComponent(pathname)}`}
+          className="inline-flex min-h-[44px] shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-brand px-5 text-[14px] font-bold text-brand-contrast transition-colors duration-150 hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+        >
+          <BookOpen className="h-4 w-4" aria-hidden="true" />
+          {t("signInToRead")}
+        </a>
+      )}
     </div>
   );
 }

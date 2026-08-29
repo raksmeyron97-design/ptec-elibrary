@@ -186,12 +186,16 @@ export default async function ThesisDetailPage({ params }: PageProps) {
       ? { ...report, author_names: canonicalAuthors.join(", ") }
       : report;
 
-  // Admin-only edit link — best-effort, non-blocking
+  // Admin-only edit link — best-effort, non-blocking. Also resolves whether the
+  // reader is signed in, which gates inline full-text viewing (the file API
+  // requires auth).
   let isAdmin = false;
+  let isLoggedIn = false;
   try {
     const authClient = await createClient();
     const { data: { user } } = await authClient.auth.getUser();
     if (user) {
+      isLoggedIn = true;
       const { data: profile } = await authClient
         .from("profiles")
         .select("role")
@@ -431,6 +435,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
                       fileHref={fileHref}
                       reportEmail={siteConfig.email}
                       language={getLanguageLabel(report)}
+                      isLoggedIn={isLoggedIn}
                     />
                   ) : (
                     <div className="flex items-start gap-3 rounded-2xl bg-bg-app p-5">

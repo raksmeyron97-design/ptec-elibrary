@@ -68,7 +68,10 @@ const fetchCatalogBooks = unstable_cache(
   const from     = (page - 1) * pageSize;
   const to       = from + pageSize - 1;
   const rawQ = params.q?.trim();
-  const q = rawQ ? rawQ.replace(/[(),.\\]/g, " ").replace(/\s+/g, " ").trim() : undefined;
+  // Strip PostgREST `.or()` structure chars AND the ILIKE wildcards `%`/`_`,
+  // so a query can't inject an expensive all-rows pattern match. Matches the
+  // sanitizer used by books-data.ts / the suggestions route.
+  const q = rawQ ? rawQ.replace(/[(),.\\%_]/g, " ").replace(/\s+/g, " ").trim() : undefined;
   const avail  = params.availability;
 
   const sortMap: Record<string, { column: string; asc: boolean }> = {

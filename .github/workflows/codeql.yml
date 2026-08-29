@@ -1,0 +1,58 @@
+# Static code scanning (CodeQL) — Phase 30/31 of the defense-in-depth plan.
+#
+# Threat: a vulnerable code pattern (injection sink, unsafe deserialization,
+# tainted flow into a sensitive API) merges without any static analysis pass.
+# Enforcement point: CI on PRs + main + a weekly sweep so newly added CodeQL
+# queries retroactively cover existing code.
+# Failure mode: findings surface in the repo's Security tab / PR checks; the
+# workflow itself never blocks deploys on informational findings — triage
+# happens through code-scanning alerts, not a hard CI gate (see
+# docs/SECURITY_DEFENSE_IN_DEPTH.md → CI security gates).
+#
+# security-events: write is required to upload SARIF results; everything else
+# stays read-only, matching the repo's minimal-permissions convention.
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 2 * * 1" # Mondays 02:23 UTC — off the busy on-the-hour slots
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      # Required by github/codeql-action on private repos; harmless on public.
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-extended adds queries with lower confidence; start with
+          # the default suite to keep alerts high-signal, widen deliberately.
+          queries: security-and-quality
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

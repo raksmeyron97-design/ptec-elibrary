@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
+import { verifyBearer } from "@/lib/security/bearer";
 
 // This route writes books.embedding, which is READ by lib/ai/retrieval.ts and
 // /api/search with gemini-embedding-001 / RETRIEVAL_QUERY vectors. It used to
@@ -10,12 +11,13 @@ import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
 
 export const runtime = "nodejs";
 
-// Requires ADMIN_SECRET_KEY in env
+// Requires ADMIN_SECRET_KEY in env (a long random string, e.g.
+// `openssl rand -hex 32`). Invoked out-of-band by a maintenance script, not via
+// an admin session, so it uses a bearer token rather than requireAdmin().
 export async function POST(req: Request) {
-  const authHeader = req.headers.get("authorization");
   const adminKey = process.env.ADMIN_SECRET_KEY;
-  
-  if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
+
+  if (!verifyBearer(req.headers.get("authorization"), adminKey)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

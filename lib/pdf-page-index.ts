@@ -19,6 +19,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { isAllowedStorageUrl } from "@/lib/zima";
 
 export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-4k chars
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
@@ -114,6 +115,10 @@ export async function indexPdfPages(opts: {
 
   const url = await resolvePdfUrl(opts.fileUrl);
   if (!url) return { indexed: false, reason: "unresolvable-url" };
+
+  // SSRF guard: `fileUrl` is a DB-sourced value; only fetch allow-listed
+  // storage hosts (R2 presigned URLs and Zima/public URLs both qualify).
+  if (!isAllowedStorageUrl(url)) return { indexed: false, reason: "unresolvable-url" };
 
   const res = await fetch(url);
   if (!res.ok) return { indexed: false, reason: "fetch-failed", detail: `HTTP ${res.status}` };
