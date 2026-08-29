@@ -17,6 +17,7 @@ import { AIRequestError, isDuplicateTurn, validateMessages, type AILocale } from
 import { checkCooldown, consumeQuota } from "@/lib/ai/limits";
 import { runAssistant } from "@/lib/ai/router";
 import { recordAiRequest } from "@/lib/ai/telemetry";
+import { lockdownResponse } from "@/lib/security/lockdown";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -32,6 +33,9 @@ interface LegacyBook {
 }
 
 export async function POST(req: Request) {
+  const locked = lockdownResponse("ai", "/api/ask");
+  if (locked) return locked;
+
   const supabase = await createClient();
   const {
     data: { user },

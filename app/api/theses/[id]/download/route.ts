@@ -18,6 +18,7 @@ import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { logDownloadAttempt } from "@/lib/analytics/events";
 import { zimaFetch } from "@/lib/zima";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
 
 const s3 = new S3Client({
@@ -40,6 +41,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const locked = lockdownResponse("downloads", "/api/theses/[id]/download");
+  if (locked) return locked;
+
   const { id } = await params;
 
   // 1. Authentication — anonymous downloads are never allowed.

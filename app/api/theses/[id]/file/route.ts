@@ -8,6 +8,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
 import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
@@ -33,6 +34,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const locked = lockdownResponse("downloads", "/api/theses/[id]/file");
+  if (locked) return locked;
+
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";

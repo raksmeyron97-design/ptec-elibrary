@@ -6,6 +6,7 @@ import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_ROLES, ADMIN_PANEL_ROLES, LIBRARIAN_ROLES } from "@/lib/types/roles";
 import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
 import { logSecurityEvent } from "@/lib/security-log";
+import { isLockedDown } from "@/lib/security/lockdown";
 
 /** A signed-in user tried an action above their role — worth flagging. */
 function forbidden(where: string, userId: string): AdminAuthError {
@@ -82,6 +83,27 @@ async function verifyAuthAndMFA(): Promise<{
   // gate and fall through to their guard's own role check (a plain reader must
   // get a 403, not an enroll redirect).
   const isPanelUser = ADMIN_PANEL_ROLES.includes(role) || isSuperAdmin;
+
+  // Emergency lockdown (incident containment): while LOCKDOWN_ADMIN_MUTATIONS
+  // is on, every guarded admin operation fails for panel roles below
+  // super_admin — a suspected-compromised staff/librarian/admin account is
+  // contained, while the operator (super admin) keeps access to run the
+  // incident. Enforced here so every Server Action and admin API route is
+  // covered by one switch; see lib/security/lockdown.ts.
+  if (
+    isPanelUser &&
+    role !== "super_admin" &&
+    !isSuperAdmin &&
+    isLockedDown("admin_mutations")
+  ) {
+    logSecurityEvent({
+      type: "lockdown_blocked",
+      where: "verifyAuthAndMFA",
+      userId: user.id,
+      detail: "admin_mutations",
+    });
+    throw new AdminAuthError("Admin operations are temporarily locked down", 403);
+  }
 
   const { data: aalData, error: aalError } =
     await authClient.auth.mfa.getAuthenticatorAssuranceLevel();

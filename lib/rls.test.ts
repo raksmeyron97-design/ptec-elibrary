@@ -93,6 +93,19 @@ const ANON_WRITE_DENIED = [
   "profiles",
   "categories",
   "departments",
+  // Canonical resource model (0104–0108) — public SELECT is intentional
+  // (published-scoped policies + explicit grants), so these belong here, not in
+  // ANON_ZERO_TABLES: the invariant is that anon can never WRITE them.
+  "organizations",
+  "contributors",
+  "resource_contributors",
+  "storage_objects",
+  "resource_files",
+  "subjects",
+  "resource_keywords",
+  "resource_references",
+  // 0085/0125 — public read of published figures; writes are admin-only.
+  "publication_figures",
 ];
 
 describe.skipIf(!RUN)("RLS behavioral probes (live PostgREST)", () => {

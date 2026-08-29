@@ -65,6 +65,9 @@ owner, **DIR** = library director._
 | csp-novel-violation | New injection vector or regression | `/api/csp-report` distinct directive+URI | first occurrence of a new pair | 4 | WL | known-noisy extensions list | — | SECURITY-HEADERS.md | triaged |
 | dependency-vuln | Vulnerable prod dependency | CI `npm audit` + dependency-review | high/critical | 3 | WL | accepted-risk list (documented) | — | §M5 | CI green |
 | secret-in-history | Committed secret | gitleaks CI | any | 1 | WL | none | rotate first, then rewrite | §I10 | rotated + scan clean |
+| security-spike | One event type bursting (stuffing, scraping) | `evt:security` `security_spike` (in-process detector, `lib/security-log.ts`) | any (detector already thresholds at 20/min/type; `SECURITY_SPIKE_THRESHOLD` tunes) | 2 | WL | announced load test | matching playbook for the underlying type | §I8/§I13 | no spike events 2 h |
+| rate-limiter-degraded | DB rate limiter erroring — limits running on in-memory fallback | `evt:security` `rate_limiter_degraded` (1/min heartbeat per instance) | any sustained (2+ in 10 min) | 2 | WL | during a declared db incident (child of dependency-degraded) | Supabase support | §I2 | none for 30 min |
+| lockdown-active | Emergency lockdown refusing requests | `evt:security` `lockdown_blocked` | any (info while a lockdown is declared; Sev 1 if NO lockdown was declared — switch set unexpectedly) | 3 / 1 | WL | declared incident window | DIR if undeclared | SECURITY_DEFENSE_IN_DEPTH.md §Lockdown | switches cleared |
 
 ## Hygiene rules (anti-fatigue)
 

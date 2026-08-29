@@ -7,6 +7,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
+import { lockdownResponse } from "@/lib/security/lockdown";
 import { getViewerContext, logAppEvent, logDownloadAttempt } from "@/lib/analytics/events";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
@@ -25,6 +26,9 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const locked = lockdownResponse("downloads", "/api/books/[slug]/download");
+  if (locked) return locked;
+
   const { slug } = await params;
 
   const authClient = await createClient();

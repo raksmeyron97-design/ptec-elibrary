@@ -9,6 +9,7 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
 import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
+import { lockdownResponse } from "@/lib/security/lockdown";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -33,6 +34,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const locked = lockdownResponse("downloads", "/api/books/[slug]/file");
+  if (locked) return locked;
+
   const { slug } = await params;
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";
