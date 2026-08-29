@@ -31,6 +31,17 @@ export default defineConfig({
     // robots). Local/CI servers are non-indexable by default (opt-in policy,
     // lib/seo/indexing.ts), so force the indexable branch for the suite; the
     // non-indexable defaults are covered by lib/seo/indexing.test.ts.
-    env: { ...(process.env as Record<string, string>), SEO_INDEXING: 'on' },
+    //
+    // Cloudflare's "always passes" Turnstile TEST site key so the login form's
+    // captcha auto-succeeds under Playwright — this is the documented CI key,
+    // not a secret, and the local Supabase GoTrue has captcha disabled so the
+    // token is accepted. Lets e2e exercise the real authenticated path (e.g.
+    // the auth-gated PDF reader) without a bespoke session-cookie hack.
+    env: {
+      ...(process.env as Record<string, string>),
+      SEO_INDEXING: 'on',
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY:
+        process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
+    },
   },
 });
