@@ -24,6 +24,7 @@
   --ptec-plate: #172554;
   --ptec-brand-hover: #182E6E;
   --ptec-brand-contrast: #FFFFFF;
+  --ptec-danger-contrast: #FFFFFF;   /* on --ptec-danger #B91C1C — 7.4:1 */
   --ptec-accent: #DDB022;
   --ptec-accent-text: #806211;
   --ptec-accent-line: #DDB022;
@@ -190,6 +191,10 @@
   --ptec-brand: #8AA4E4;
   --ptec-brand-hover: #B3C5EF;
   --ptec-brand-contrast: #0B1530;
+  /* Dark --ptec-danger is a LIGHT red (#FF6568), so white text on it is
+     2.4:1. A red-tinted near-black is the pairing that works — 6.4:1 —
+     exactly as --ptec-brand-contrast flips for the light brand. */
+  --ptec-danger-contrast: #2A0A0B;
   --ptec-accent: #F4DE8A;
   --ptec-accent-text: #FAEFC4;
   --ptec-accent-line: #F4DE8A;
@@ -286,6 +291,7 @@
   --color-success: var(--ptec-success);
   --color-warning: var(--ptec-warning);
   --color-danger: var(--ptec-danger);
+  --color-danger-contrast: var(--ptec-danger-contrast);
   --color-info: var(--ptec-info);
 
   /* Status surfaces → bg-success-soft / border-success-line /

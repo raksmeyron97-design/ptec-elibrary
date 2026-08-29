@@ -61,7 +61,7 @@ export default function AnnouncementBanner({ announcements }: { announcements: P
         return (
           <div
             key={a.id}
-            className={`flex items-center gap-3 px-4 py-2.5 text-sm ${isUrgent ? "bg-danger text-white" : "bg-brand text-white"}`}
+            className={`flex items-center gap-3 px-4 py-2.5 text-sm ${isUrgent ? "bg-danger text-danger-contrast" : "bg-brand text-brand-contrast"}`}
           >
             {isUrgent ? <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" /> : <Megaphone className="h-4 w-4 shrink-0" aria-hidden="true" />}
             <p className="min-w-0 flex-1 truncate">

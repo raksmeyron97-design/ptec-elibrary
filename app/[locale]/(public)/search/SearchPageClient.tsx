@@ -102,7 +102,10 @@ const COVER_PLACEHOLDER_COLORS: Record<SearchResultType, string> = {
   book: "bg-blue-600",
   research: "bg-green-700",
   publication: "bg-cyan-700",
-  catalog: "bg-amber-600",
+  // amber-600 is the odd one out: white on it is 3.19:1, below AA. The
+  // other five -600 ramps clear 4.8-5.2:1 against white, so only this one
+  // steps down a shade.
+  catalog: "bg-amber-700",
   learning_path: "bg-rose-600",
   post: "bg-purple-600",
 };
