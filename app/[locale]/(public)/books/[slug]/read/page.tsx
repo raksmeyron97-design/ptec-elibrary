@@ -58,7 +58,10 @@ export async function generateMetadata({ params }: ReadPageProps): Promise<Metad
 }
 
 export default async function BookReadPage({ params }: ReadPageProps) {
-  const [{ slug }, t] = await Promise.all([params, getTranslations("bookDetail")]);
+  const [{ slug: rawSlug }, t] = await Promise.all([params, getTranslations("bookDetail")]);
+  // generateMetadata receives decoded params while the page body gets them
+  // encoded — decodeSlugParam is idempotent, so normalize in both places.
+  const slug = decodeSlugParam(rawSlug);
   const book = await getReadableBook(slug);
   if (!book || !book.pdfUrl) notFound();
 

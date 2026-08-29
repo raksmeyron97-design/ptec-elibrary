@@ -3,9 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
-
-// Must match DAILY_USER_LIMIT in app/api/ask/route.ts and app/api/chat/route.ts.
-const DAILY_USER_LIMIT = 10;
+// Single source of truth, shared with /api/ai, /api/ask and /api/chat. This
+// constant used to be re-declared here and in both routes, so the badge could
+// disagree with the limit that was actually enforced (audit 3).
+import { DAILY_USER_LIMIT } from "@/lib/ai/limits";
 
 /**
  * Returns the user's remaining AI quota for today (Asia/Phnom_Penh date),

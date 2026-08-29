@@ -1,5 +1,7 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
+import { slugify } from "@/lib/book-utils";
 import type { PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
 import { orcidUrl } from "@/lib/seo/identifiers";
 import { secondaryValue } from "@/lib/publications/integrity";
@@ -61,7 +63,17 @@ export default async function AuthorBiosSection({
               )}
               <div className="min-w-0">
                 <h3 className="text-[15px] font-bold leading-snug text-text-heading">
-                  {author.full_name}
+                  {/* The name is the way into the author's profile — the same
+                      destination the masthead byline points at, resolved the
+                      same way (stored slug from 0125, name-derived fallback).
+                      A reader who wants "everything else by this person"
+                      should not have to go back to the byline to find it. */}
+                  <Link
+                    href={`/authors/${author.slug || slugify(author.full_name)}`}
+                    className="focus-field rounded-sm underline-offset-4 transition-colors hover:text-brand hover:underline"
+                  >
+                    {author.full_name}
+                  </Link>
                   {is_corresponding && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-brand/10 px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wide text-brand">
                       {t("correspondingAuthor")}
@@ -73,6 +85,16 @@ export default async function AuthorBiosSection({
                     {secondaryValue(author.full_name, author.full_name_km)}
                   </p>
                 )}
+                {/* The author's own academic position (0125), when recorded.
+                    Distinct from the per-publication affiliation below: a
+                    position belongs to the person, an affiliation belongs to
+                    their authorship of THIS article, and they can differ when
+                    someone has since moved institution. */}
+                {author.position_title?.trim() && (
+                  <p className="mt-1 text-[12.5px] font-semibold leading-5 text-text-body">
+                    {author.position_title}
+                  </p>
+                )}
                 {/* A missing affiliation is left blank, not announced. The
                     invariant that matters is unchanged — a value is never
                     substituted from a neighbouring field, which is how a staff
@@ -81,12 +103,18 @@ export default async function AuthorBiosSection({
                     italics under four of five authors turned that restraint
                     into the loudest text in the section; the recorded
                     affiliations are listed in the masthead panel either way. */}
-                {authorAffiliations.length > 0 && (
+                {authorAffiliations.length > 0 ? (
                   <p className="mt-1 text-[12.5px] leading-5 text-text-muted">
                     {authorAffiliations
                       .map((a) => [a.name, a.city, a.country].filter(Boolean).join(", "))
                       .join(" · ")}
                   </p>
+                ) : (
+                  author.affiliation_name?.trim() && (
+                    <p className="mt-1 text-[12.5px] leading-5 text-text-muted">
+                      {author.affiliation_name}
+                    </p>
+                  )
                 )}
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   {orcidUrl(author.orcid) && (

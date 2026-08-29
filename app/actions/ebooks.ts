@@ -1,6 +1,6 @@
 "use server";
 
-// Row/bulk mutations for the admin Manage E-books page (/admin/manage).
+// Row/bulk mutations for the admin Book Management workspace (/admin/books).
 // Create/update/delete live in app/(admin)/admin/(protected)/books/actions.ts —
 // this file only adds the status transitions and bulk operations the list
 // page needs, following app/actions/theses.ts conventions (books:write
@@ -21,8 +21,9 @@ import { evaluateQuality } from "@/lib/metadata-quality";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { shouldNotifyPublishedTransition } from "@/lib/push-utils";
 import { clientIpOrUndefined } from "@/lib/client-ip";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
-const REVALIDATE_PATHS = ["/admin/manage", "/admin", "/books", "/"];
+const REVALIDATE_PATHS = [EBOOKS_BASE_PATH, "/admin", "/books", "/"];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

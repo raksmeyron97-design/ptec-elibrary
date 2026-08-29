@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Upload, ExternalLink } from "lucide-react";
 import type { DashboardView } from "@/lib/admin/dashboard-shared";
+import { EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
 import HeaderMenu, { type HeaderMenuItem } from "./HeaderMenu";
 
 const APP_TZ = "Asia/Phnom_Penh";
@@ -110,7 +111,7 @@ export default async function DashboardHeader({
       <div className="flex flex-wrap items-center gap-1.5">
         {can("addBook") && (
           <Link
-            href="/admin/upload"
+            href={EBOOKS_UPLOAD_PATH}
             className="flex h-10 items-center gap-1.5 rounded-[10px] bg-brand px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-hover"
           >
             <Upload className="h-4 w-4" aria-hidden="true" />

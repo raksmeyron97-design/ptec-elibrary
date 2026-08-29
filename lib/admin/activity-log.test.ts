@@ -6,8 +6,13 @@ import {
   maskEmail,
   resolveRange,
   tabForEvent,
+  pickTimelineBucket,
+  floorToBucket,
+  timelineBucketStarts,
+  BUCKET_MS,
   type ActivityEvent,
 } from "./activity-log-shared";
+import { pageWindow } from "@/app/(admin)/admin/(protected)/logs/_components/LogsPagination";
 
 const baseEvent = (over: Partial<ActivityEvent>): ActivityEvent => ({
   id: "x",
@@ -114,5 +119,73 @@ describe("tabForEvent — denied downloads never count as downloads", () => {
   });
   it("routes views to Views", () => {
     expect(tabForEvent(baseEvent({ eventType: "view", eventStatus: "success" }))).toBe("views");
+  });
+});
+
+describe("timeline bucketing — ADMIN_TZ day boundaries without a tz library", () => {
+  it("widens the bucket instead of narrowing the window", () => {
+    const day = 86_400_000;
+    expect(pickTimelineBucket(0, 24 * 3_600_000)).toBe("hour");
+    expect(pickTimelineBucket(0, 48 * 3_600_000)).toBe("hour");
+    // Just past 48h the hourly ladder would start producing unreadable counts.
+    expect(pickTimelineBucket(0, 49 * 3_600_000)).toBe("day");
+    expect(pickTimelineBucket(0, 90 * day)).toBe("day");
+    // A multi-year custom range must never fall back to thousands of buckets.
+    expect(pickTimelineBucket(0, 3 * 365 * day)).toBe("week");
+  });
+
+  it("floors a day to local midnight in Phnom Penh, not to UTC midnight", () => {
+    // 2026-08-28T02:00:00Z is 09:00 on the 28th locally — same local day.
+    const morning = Date.parse("2026-08-28T02:00:00Z");
+    // 2026-08-28T20:00:00Z is 03:00 on the 29th locally — the NEXT local day.
+    const evening = Date.parse("2026-08-28T20:00:00Z");
+    expect(new Date(floorToBucket(morning, "day")).toISOString()).toBe("2026-08-27T17:00:00.000Z");
+    expect(new Date(floorToBucket(evening, "day")).toISOString()).toBe("2026-08-28T17:00:00.000Z");
+    expect(floorToBucket(morning, "day")).not.toBe(floorToBucket(evening, "day"));
+  });
+
+  it("starts weeks on Monday, not on the epoch's Thursday", () => {
+    // 2026-08-28 is a Friday in Phnom Penh; its week starts Monday 2026-08-24.
+    const friday = Date.parse("2026-08-28T05:00:00Z");
+    const start = floorToBucket(friday, "week");
+    // 17:00Z the previous day == 00:00 local.
+    expect(new Date(start).toISOString()).toBe("2026-08-23T17:00:00.000Z");
+  });
+
+  it("emits every bucket in the window, including the empty ones", () => {
+    const start = Date.parse("2026-08-28T00:00:00Z");
+    const end = start + 5 * 3_600_000;
+    const buckets = timelineBucketStarts(start, end, "hour");
+    expect(buckets).toHaveLength(6);
+    for (let i = 1; i < buckets.length; i++) {
+      expect(buckets[i] - buckets[i - 1]).toBe(BUCKET_MS.hour);
+    }
+  });
+
+  it("returns nothing for an inverted or unparseable window", () => {
+    expect(timelineBucketStarts(100, 0, "day")).toEqual([]);
+    expect(timelineBucketStarts(NaN, 0, "day")).toEqual([]);
+  });
+});
+
+describe("pageWindow — page numbers stay a fixed width", () => {
+  it("lists every page when they fit", () => {
+    expect(pageWindow(0, 1)).toEqual([0]);
+    expect(pageWindow(3, 7)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it("keeps the first and last page reachable from anywhere", () => {
+    for (const page of [0, 5, 11, 21]) {
+      const window = pageWindow(page, 22);
+      expect(window[0]).toBe(0);
+      expect(window[window.length - 1]).toBe(21);
+      expect(window).toContain(page);
+    }
+  });
+
+  it("never grows past the widest case, so the control does not reflow", () => {
+    for (let page = 0; page < 40; page++) {
+      expect(pageWindow(page, 40).length).toBeLessThanOrEqual(7);
+    }
   });
 });

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Plus, Search, X } from "lucide-react";
-import { withUpdatedParams } from "@/lib/admin/ebooks-url";
+import { EBOOKS_UPLOAD_PATH, withUpdatedParams } from "@/lib/admin/ebooks-url";
 
 /**
  * The command bar: search, filters, and the one primary action, in a single
@@ -72,7 +72,7 @@ export default function EbookToolbar({
         {filters}
 
         <Link
-          href="/admin/upload"
+          href={EBOOKS_UPLOAD_PATH}
           className="ml-auto inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />

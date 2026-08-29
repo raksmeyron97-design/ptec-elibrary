@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations, getLocale } from "next-intl/server";
 import { Library, PlusCircle, BookOpen, GraduationCap, BookMarked, FileText, ShieldAlert, type LucideIcon } from "lucide-react";
 import type { CollectionHealthData } from "@/lib/admin/intelligence";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
 /**
  * Lifetime inventory + gap counts. Deliberately separated from the period
@@ -15,7 +16,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
   const nf = new Intl.NumberFormat(locale === "km" ? "km-KH" : "en-US");
 
   const totals: { key: string; value: number; href: string; icon: LucideIcon; tint: string }[] = [
-    { key: "books", value: health.totals.books, href: "/admin/manage", icon: BookOpen, tint: "dash-ico--views" },
+    { key: "books", value: health.totals.books, href: EBOOKS_BASE_PATH, icon: BookOpen, tint: "dash-ico--views" },
     { key: "theses", value: health.totals.theses, href: "/admin/theses", icon: GraduationCap, tint: "dash-ico--reader" },
     { key: "publications", value: health.totals.publications, href: "/admin/publications", icon: BookMarked, tint: "dash-ico--visitors" },
     { key: "posts", value: health.totals.posts, href: "/admin/posts", icon: FileText, tint: "dash-ico--downloads" },

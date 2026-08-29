@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
-import { isFreelyAccessible } from "@/lib/seo/publication-seo";
+import { resolveDownloadAccess } from "@/lib/publications/access";
 import { doiUrl } from "@/lib/seo/identifiers";
 import { clientIp } from "@/lib/client-ip";
 
@@ -49,9 +49,13 @@ export async function GET(
   const download = searchParams.get("download") === "1";
 
   const supabase = createServiceClient();
+
+  // `select *` rather than a column list so this keeps working whether or not
+  // 0125 has been applied — resolveDownloadAccess() treats an absent
+  // allow_download as "allowed", which is the column's default.
   const { data: publication, error } = await supabase
     .from("publications")
-    .select("id, title, pdf_url, doi, publisher, license")
+    .select("*")
     .eq("slug", slug)
     .eq("is_published", true)
     .single();
@@ -60,37 +64,52 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
-  // ── Full-text redistribution gate ────────────────────────────────────────
-  // A third-party © article with no verified redistributable license is
-  // citation-only: the bibliographic landing page + DOI stay public, but we do
-  // NOT hand out the hosted PDF as a download. An authorized admin can override
-  // per record by setting fulltext_redistributable=true (column from 0092;
-  // the read is best-effort so this works before the migration lands).
-  if (download) {
-    let redistributable = isFreelyAccessible({
-      slug,
-      title: publication.title,
-      publisher: publication.publisher,
-      license: publication.license,
-    });
-    const { data: rights } = await supabase
-      .from("publications")
-      .select("fulltext_redistributable")
-      .eq("id", publication.id)
-      .maybeSingle();
-    if (rights?.fulltext_redistributable === true) redistributable = true;
+  // ── The access gate ──────────────────────────────────────────────────────
+  //
+  // THIS is the enforcement point. The detail page hides the Download button
+  // when access is denied, but a hidden button is a courtesy, not a control:
+  // this route is reachable by typing the URL, and it is what actually decides
+  // whether the bytes leave the server.
+  //
+  // Two independent refusals, resolved by lib/publications/access.ts — the
+  // same module the page reads, so the button and the route can never disagree:
+  //   * "policy" — the library switched downloads off for this record (0125).
+  //   * "rights" — no verified right to redistribute a third party's full text
+  //     (0092 + the licence heuristic). The landing page and DOI stay public.
+  //
+  // Neither refusal touches inline reading: a read-online-only record is still
+  // streamed to the in-page viewer below, which is the entire point of the
+  // distinction.
+  const access = resolveDownloadAccess({
+    slug,
+    title: publication.title,
+    publisher: publication.publisher ?? null,
+    license: publication.license ?? null,
+    allow_download: publication.allow_download,
+    download_disabled_reason: publication.download_disabled_reason,
+    fulltext_redistributable: publication.fulltext_redistributable,
+    pdf_url: publication.pdf_url,
+  });
 
-    if (!redistributable) {
-      const link = doiUrl(publication.doi);
-      logSecurityEvent({ type: "rights_blocked", where: "/api/publications/[slug]/file?download", ip });
-      return NextResponse.json(
-        {
-          error: "This publication is a citation-only bibliographic record. Full-text redistribution is not authorized.",
-          ...(link ? { doi: link } : {}),
-        },
-        { status: 403 },
-      );
-    }
+  if (download && !access.canDownload) {
+    const link = doiUrl(publication.doi);
+    logSecurityEvent({
+      type: access.reason === "policy" ? "download_blocked" : "rights_blocked",
+      where: "/api/publications/[slug]/file?download",
+      ip,
+    });
+    return NextResponse.json(
+      {
+        error:
+          access.reason === "policy"
+            ? access.message ??
+              "This publication is available for online reading only. Downloads are disabled for this record."
+            : "This publication is a citation-only bibliographic record. Full-text redistribution is not authorized.",
+        reason: access.reason,
+        ...(link ? { doi: link } : {}),
+      },
+      { status: 403 },
+    );
   }
 
   // Count explicit downloads (inline viewer reads are counted as views instead)
@@ -128,17 +147,35 @@ export async function GET(
   }
 
   // ── Legacy: bare R2 object key ─────────────────────────────────
-  const key = r2ObjectKey(fileUrl);
-  const command = new GetObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME!,
-    Key: key,
-  });
-  const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+  //
+  // R2 is the legacy fallback — Zima is primary — so a deployment can quite
+  // reasonably have no R2 credentials at all. Presigning without them throws,
+  // and the throw escaped as an unhandled 500 with a stack trace, which is
+  // both an unhelpful answer and a worse one than the truth: this route cannot
+  // produce the file. Everything below resolves to the same honest 404 the
+  // Zima branch already returns when storage does not have the object.
+  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_BUCKET_NAME || !process.env.R2_ACCESS_KEY_ID) {
+    console.warn(`[publications/file] legacy R2 key "${fileUrl}" but R2 is not configured`);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
 
   const fetchHeaders: HeadersInit = {};
   if (rangeHeader) fetchHeaders["Range"] = rangeHeader;
 
-  const r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  let r2Res: Response;
+  try {
+    const key = r2ObjectKey(fileUrl);
+    const command = new GetObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME,
+      Key: key,
+    });
+    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+    r2Res = await fetch(presignedUrl, { headers: fetchHeaders });
+  } catch (storageError) {
+    console.error("[publications/file] legacy R2 read failed:", storageError);
+    return new NextResponse("File not found in storage", { status: 404 });
+  }
+
   if (!r2Res.ok && r2Res.status !== 206) {
     return new NextResponse("File not found in storage", { status: 404 });
   }

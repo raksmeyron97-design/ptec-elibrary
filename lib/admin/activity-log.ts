@@ -35,8 +35,14 @@ import {
   type ResourceType,
   type RangePreset,
   type DenialReason,
+  type TimelineBucket,
   resolveRange,
   tabForEvent,
+  pickTimelineBucket,
+  timelineBucketStarts,
+  floorToBucket,
+  BUCKET_MS,
+  RESOURCE_TYPES,
 } from "./activity-log-shared";
 
 /** Hard cap per source table so a runaway range can never load unbounded rows. */
@@ -66,11 +72,66 @@ export interface ActivitySummary {
   securityAlerts: number;
 }
 
+/** One point on the activity timeline. Empty buckets are present — a quiet
+ *  hour is a fact about the library, not a gap to be collapsed. */
+export interface ActivityTimelinePoint {
+  /** ISO start of the bucket, UTC. Labelled in ADMIN_TZ by the client. */
+  start: string;
+  views: number;
+  /** AUTHORIZED downloads only, matching the summary card. */
+  downloads: number;
+  /** Denied + failed downloads + explicit security events. */
+  security: number;
+}
+
+/** Where engagement is concentrated, per resource type. */
+export interface ActivityResourceRow {
+  resourceType: ResourceType;
+  views: number;
+  downloads: number;
+  security: number;
+  total: number;
+}
+
+/** The security tab, decomposed. `total` always equals tabCounts.security. */
+export interface ActivitySecurityBreakdown {
+  total: number;
+  deniedDownloads: number;
+  failedDownloads: number;
+  /** Security events that are neither a denied nor a failed download. */
+  otherSecurity: number;
+  /** Denial reasons present in the range, most frequent first. */
+  reasons: Array<{ reason: DenialReason; count: number }>;
+  /** Denied/failed events that carry no recorded reason. */
+  unspecified: number;
+}
+
+/**
+ * Aggregates for the overview strip. Deliberately a SEPARATE object rather
+ * than extra fields on ActivityEvent: these are properties of the range, not
+ * of any row, and inflating every row with them would ship the same numbers
+ * `pageSize` times.
+ *
+ * Scope note: analytics are computed from the same `scoped` set as the summary
+ * cards — range + resource + search, but NOT tab/status. The overview must
+ * keep describing the whole period while you drill into one tab below it;
+ * scoping it to the tab would make the chart change every time you clicked a
+ * tab that is itself drawn from the chart.
+ */
+export interface ActivityAnalytics {
+  bucket: TimelineBucket;
+  timeline: ActivityTimelinePoint[];
+  /** Non-empty resource types only, busiest first. */
+  byResource: ActivityResourceRow[];
+  security: ActivitySecurityBreakdown;
+}
+
 export interface ActivityResult {
   events: ActivityEvent[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
   summary: ActivitySummary;
   tabCounts: Record<Exclude<ActivityTab, "all">, number> & { all: number };
+  analytics: ActivityAnalytics;
   appliedRange: { start: string; end: string; timezone: string };
 }
 
@@ -88,7 +149,7 @@ function isMissingObject(code?: string | null): boolean {
 
 export async function queryActivity(filters: ActivityFilters): Promise<ActivityResult> {
   const db = createServiceClient();
-  const { start, end } = resolveRange(filters.range, filters.now, filters.customStart, filters.customEnd);
+  const { start, end, startMs, endMs } = resolveRange(filters.range, filters.now, filters.customStart, filters.customEnd);
 
   // 1. Pull each source within the date window (indexed time-column push-down).
   const [dlRes, rrdRes, vlRes, aeRes] = await Promise.all([
@@ -223,7 +284,11 @@ export async function queryActivity(filters: ActivityFilters): Promise<ActivityR
     return true;
   });
 
-  // 6. Summary + tab counts from the scoped set (range + resourceType + search).
+  // 6. Summary + tab counts + analytics from the scoped set
+  //    (range + resourceType + search). ONE pass over `scoped` produces all
+  //    three: the aggregates the overview needs are cheap folds over a set we
+  //    have already materialized, so the analytics section costs no extra
+  //    query and no second scan.
   const summary: ActivitySummary = {
     authorizedDownloads: 0,
     deniedDownloads: 0,
@@ -235,20 +300,102 @@ export async function queryActivity(filters: ActivityFilters): Promise<ActivityR
   };
   const activeUserSet = new Set<string>();
   const tabCounts = { all: scoped.length, downloads: 0, views: 0, security: 0, account: 0, admin: 0 };
+
+  const bucket = pickTimelineBucket(startMs, endMs);
+  const bucketStarts = timelineBucketStarts(startMs, endMs, bucket);
+  const bucketSize = BUCKET_MS[bucket];
+  const firstBucket = bucketStarts[0] ?? startMs;
+  const timeline: ActivityTimelinePoint[] = bucketStarts.map((ms) => ({
+    start: new Date(ms).toISOString(),
+    views: 0,
+    downloads: 0,
+    security: 0,
+  }));
+
+  const byResource = new Map<ResourceType, ActivityResourceRow>();
+  const reasonCounts = new Map<DenialReason, number>();
+  const security: ActivitySecurityBreakdown = {
+    total: 0,
+    deniedDownloads: 0,
+    failedDownloads: 0,
+    otherSecurity: 0,
+    reasons: [],
+    unspecified: 0,
+  };
+
   for (const e of scoped) {
     if (e.userId) activeUserSet.add(e.userId);
+
+    const t = tabForEvent(e);
+    tabCounts[t]++;
+
+    const isView = e.eventType === "view";
+    const isAuthorizedDownload = e.eventType === "download" && e.eventStatus === "authorized";
+    const isSecurity = t === "security";
+
     if (e.eventType === "download") {
       if (e.eventStatus === "authorized") summary.authorizedDownloads++;
       else if (e.eventStatus === "denied") summary.deniedDownloads++;
       else if (e.eventStatus === "failed") summary.failedDownloads++;
-    } else if (e.eventType === "view") {
+    } else if (isView) {
       summary.pageViews++;
     }
-    const t = tabForEvent(e);
-    tabCounts[t]++;
+
+    // Timeline. Index arithmetic rather than a lookup: buckets are uniform, so
+    // the slot is derivable. Events can only fall outside the array when a
+    // source row sits a hair outside the range bounds — clamped, never dropped
+    // silently into the wrong bucket.
+    if (timeline.length > 0) {
+      const at = floorToBucket(new Date(e.occurredAt).getTime(), bucket);
+      const slot = Math.round((at - firstBucket) / bucketSize);
+      if (slot >= 0 && slot < timeline.length) {
+        if (isView) timeline[slot].views++;
+        else if (isAuthorizedDownload) timeline[slot].downloads++;
+        if (isSecurity) timeline[slot].security++;
+      }
+    }
+
+    // Resource distribution.
+    let row = byResource.get(e.resourceType);
+    if (!row) {
+      row = { resourceType: e.resourceType, views: 0, downloads: 0, security: 0, total: 0 };
+      byResource.set(e.resourceType, row);
+    }
+    row.total++;
+    if (isView) row.views++;
+    else if (isAuthorizedDownload) row.downloads++;
+    if (isSecurity) row.security++;
+
+    // Security decomposition — mirrors tabForEvent so the parts always sum to
+    // the Security tab's own count.
+    if (isSecurity) {
+      security.total++;
+      if (e.eventType === "download" && e.eventStatus === "denied") security.deniedDownloads++;
+      else if (e.eventType === "download" && e.eventStatus === "failed") security.failedDownloads++;
+      else security.otherSecurity++;
+      if (e.denialReason) reasonCounts.set(e.denialReason, (reasonCounts.get(e.denialReason) ?? 0) + 1);
+      else security.unspecified++;
+    }
   }
   summary.activeUsers = activeUserSet.size;
   summary.securityAlerts = tabCounts.security;
+
+  security.reasons = [...reasonCounts.entries()]
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
+
+  const analytics: ActivityAnalytics = {
+    bucket,
+    timeline,
+    // Stable ordering: busiest first, then the canonical taxonomy order, so a
+    // tie doesn't make the list jump between refreshes.
+    byResource: [...byResource.values()].sort(
+      (a, b) =>
+        b.total - a.total ||
+        RESOURCE_TYPES.indexOf(a.resourceType) - RESOURCE_TYPES.indexOf(b.resourceType),
+    ),
+    security,
+  };
 
   // 7. Table rows: apply tab + status, then paginate.
   const tableFiltered = scoped.filter((e) => {
@@ -267,6 +414,7 @@ export async function queryActivity(filters: ActivityFilters): Promise<ActivityR
     pagination: { page, pageSize, total, totalPages },
     summary,
     tabCounts,
+    analytics,
     appliedRange: { start, end, timezone: ADMIN_TZ },
   };
 }

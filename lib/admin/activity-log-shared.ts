@@ -181,3 +181,67 @@ export function buildCsv(headers: string[], rows: (unknown[])[]): string {
   const body = rows.map((r) => r.map(csvEscape).join(",")).join("\r\n");
   return "﻿" + headerLine + "\r\n" + body + "\r\n";
 }
+
+// ── Timeline bucketing (pure) ────────────────────────────────────────────────
+//
+// Asia/Phnom_Penh is UTC+7 all year — Cambodia has never observed DST — so a
+// local day boundary is a FIXED offset from UTC and bucketing is plain
+// arithmetic. That is why there is no tz library here: `Intl` would be correct
+// too, but it costs a formatter call per event, and this runs over every event
+// in the range.
+
+/** Fixed UTC offset of ADMIN_TZ (Asia/Phnom_Penh, UTC+7, no DST). */
+export const ADMIN_TZ_OFFSET_MS = 7 * 3_600_000;
+
+export type TimelineBucket = "hour" | "day" | "week";
+
+export const BUCKET_MS: Record<TimelineBucket, number> = {
+  hour: 3_600_000,
+  day: 86_400_000,
+  week: 7 * 86_400_000,
+};
+
+/**
+ * Pick the bucket size that keeps a range readable as a chart.
+ *
+ * The ladder is bounded on purpose: a custom range of several years must not
+ * produce thousands of buckets (an unreadable plot AND a large payload), and
+ * silently truncating the range instead would be dishonest — so the bucket
+ * widens rather than the window shrinking.
+ */
+export function pickTimelineBucket(startMs: number, endMs: number): TimelineBucket {
+  const span = Math.max(0, endMs - startMs);
+  if (span <= 48 * BUCKET_MS.hour) return "hour";
+  if (span <= 120 * BUCKET_MS.day) return "day";
+  return "week";
+}
+
+/** Floor a UTC instant to the start of its bucket, in ADMIN_TZ local time.
+ *  Weeks start Monday (ISO), not on the epoch's Thursday. */
+export function floorToBucket(ms: number, bucket: TimelineBucket): number {
+  const local = ms + ADMIN_TZ_OFFSET_MS;
+  if (bucket === "week") {
+    const day = Math.floor(local / BUCKET_MS.day) * BUCKET_MS.day;
+    // 1970-01-01 was a Thursday, so shift by 3 days to make Monday index 0.
+    const weekday = Math.floor((day / BUCKET_MS.day + 3) % 7);
+    return day - weekday * BUCKET_MS.day - ADMIN_TZ_OFFSET_MS;
+  }
+  const size = BUCKET_MS[bucket];
+  return Math.floor(local / size) * size - ADMIN_TZ_OFFSET_MS;
+}
+
+/** Every bucket start (UTC ms) spanning [startMs, endMs], oldest first.
+ *  Empty buckets are included — a gap in activity IS information. */
+export function timelineBucketStarts(
+  startMs: number,
+  endMs: number,
+  bucket: TimelineBucket,
+): number[] {
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return [];
+  const size = BUCKET_MS[bucket];
+  const first = floorToBucket(startMs, bucket);
+  const last = floorToBucket(endMs, bucket);
+  const out: number[] = [];
+  for (let t = first; t <= last; t += size) out.push(t);
+  return out;
+}

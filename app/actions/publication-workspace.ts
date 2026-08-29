@@ -114,6 +114,15 @@ function buildRpcPayload(data: PublicationData, references: unknown): Record<str
     cover_url: data.cover_url ?? null,
     pdf_url: data.pdf_url ?? null,
     references,
+    // Library download policy (0125). Only sent when the caller actually
+    // expressed one: the RPC coalesces an absent key to the record's current
+    // value on update, so omitting it is how "don't touch this" is spelled.
+    ...(typeof data.allow_download === "boolean"
+      ? { allow_download: data.allow_download }
+      : {}),
+    ...(data.download_disabled_reason !== undefined
+      ? { download_disabled_reason: data.download_disabled_reason }
+      : {}),
   };
 }
 

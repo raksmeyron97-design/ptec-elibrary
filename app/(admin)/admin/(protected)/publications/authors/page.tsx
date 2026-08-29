@@ -1,42 +1,52 @@
-import { createServiceClient } from "@/lib/supabase/server";
-import AuthorsClient from "./_components/AuthorsClient";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import type { PublicationAuthor, PublicationAffiliation } from "@/lib/publications";
 
+import { listPublicationAuthors } from "@/app/actions/authors";
+import { getPublicationAffiliations } from "@/app/actions/publications";
+import { PageHeader } from "@/components/admin/kit";
+import AuthorsClient from "./_components/AuthorsClient";
+import AffiliationsPanel from "./_components/AffiliationsPanel";
+
+/**
+ * Author and institution management.
+ *
+ * Both lists are fetched here, on the server, and handed down whole: they are a
+ * few hundred rows between them, the client filters in memory, and the page is
+ * dynamic anyway (every admin route is). listPublicationAuthors() also returns
+ * the publication counts and duplicate flags, which is the part that needed a
+ * server round trip.
+ */
 export default async function PublicationAuthorsPage() {
-  const supabase = createServiceClient();
-
-  const [{ data: authors }, { data: affiliations }] = await Promise.all([
-    supabase
-      .from("publication_authors")
-      .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
-      .order("full_name", { ascending: true }),
-    supabase
-      .from("publication_affiliations")
-      .select("id, name, name_km, city, country")
-      .order("name", { ascending: true }),
+  const [{ data: authors, error }, { data: affiliations }] = await Promise.all([
+    listPublicationAuthors(),
+    getPublicationAffiliations(),
   ]);
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/publications"
-          className="p-2 hover:bg-black/5 rounded-full transition-colors text-text-muted hover:text-text-heading"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-text-heading">Authors & Affiliations</h1>
-          <p className="text-text-muted text-sm mt-1">Shared author records reused across publications</p>
-        </div>
-      </div>
-
-      <AuthorsClient
-        initialAuthors={(authors ?? []) as PublicationAuthor[]}
-        initialAffiliations={(affiliations ?? []) as PublicationAffiliation[]}
+    <div className="w-full space-y-8">
+      <PageHeader
+        breadcrumb={
+          <Link
+            href="/admin/publications"
+            className="focus-field inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-text-muted transition-colors hover:text-brand"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Publications
+          </Link>
+        }
+        title="Authors & institutions"
+        description="Author records are shared across every publication, and each one has a public academic profile at /authors/…"
       />
+
+      {error ? (
+        <p role="alert" className="rounded-lg border border-danger/40 bg-danger/5 px-4 py-3 text-sm text-danger">
+          {error}
+        </p>
+      ) : (
+        <AuthorsClient authors={authors} />
+      )}
+
+      <AffiliationsPanel affiliations={affiliations ?? []} />
     </div>
   );
 }

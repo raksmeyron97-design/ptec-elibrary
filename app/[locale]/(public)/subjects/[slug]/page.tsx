@@ -7,6 +7,7 @@ import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { createServiceClient } from "@/lib/supabase/server";
+import { decodeSlugParam } from "@/lib/slug";
 
 export const revalidate = 3600;
 
@@ -93,8 +94,8 @@ async function getSubjectBundle(slug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { slug, locale } = await params;
-  const bundle = await getSubjectBundle(slug);
+  const { slug: rawSlug, locale } = await params;
+  const bundle = await getSubjectBundle(decodeSlugParam(rawSlug));
   if (!bundle) return { title: "Subject not found" };
 
   const title = `${bundle.category.name} Resources`;
@@ -118,8 +119,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function SubjectPage({ params }: PageProps) {
-  const [{ slug }, org] = await Promise.all([params, getOrgIdentity()]);
-  const bundle = await getSubjectBundle(slug);
+  const [{ slug: rawSlug }, org] = await Promise.all([params, getOrgIdentity()]);
+  // Next delivers non-ASCII segments percent-encoded to the page body (and
+  // decoded to generateMetadata) — Khmer subject slugs never match otherwise.
+  const bundle = await getSubjectBundle(decodeSlugParam(rawSlug));
   if (!bundle) notFound();
 
   const subjectUrl = `${SITE_URL}/subjects/${bundle.category.slug}`;

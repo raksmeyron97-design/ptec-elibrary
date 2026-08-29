@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
-import SecurityLogsClient from "./_components/SecurityLogsClient";
+import SecurityLogsClient, { type ClientFilters } from "./_components/SecurityLogsClient";
 import { queryActivity, type ActivityFilters } from "@/lib/admin/activity-log";
 import {
   RESOURCE_TYPES,
@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 // Logs are session-dependent + contain personal data: never prerender or cache.
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Activity & Security Logs - PTEC Library",
+  title: "Activity & Security - PTEC Library",
   robots: { index: false, follow: false },
 };
 
@@ -60,19 +60,15 @@ export default async function AdminLogsPage({
     result.events = result.events.map((e) => ({ ...e, actorEmail: maskEmail(e.actorEmail) }));
   }
 
-  return (
-    <SecurityLogsClient
-      result={result}
-      filters={{
-        range: filters.range,
-        tab: filters.tab,
-        resourceType: filters.resourceType,
-        status: filters.status,
-        search: filters.search,
-        customStart: filters.customStart ?? null,
-        customEnd: filters.customEnd ?? null,
-      }}
-      canSeePersonal={canSeePersonal}
-    />
-  );
+  const clientFilters: ClientFilters = {
+    range: filters.range,
+    tab: filters.tab,
+    resourceType: filters.resourceType,
+    status: filters.status,
+    search: filters.search,
+    customStart: filters.customStart ?? null,
+    customEnd: filters.customEnd ?? null,
+  };
+
+  return <SecurityLogsClient result={result} filters={clientFilters} canSeePersonal={canSeePersonal} />;
 }

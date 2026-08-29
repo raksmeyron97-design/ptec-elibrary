@@ -44,6 +44,12 @@ import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
 // Client-safe half only — lib/admin/sidebar-badges.ts is `server-only`.
 import { EMPTY_SIDEBAR_BADGES, type SidebarBadges } from "@/lib/admin/sidebar-badges-shared";
+import {
+  EBOOKS_BASE_PATH,
+  EBOOKS_DUPLICATES_PATH,
+  EBOOKS_UPLOAD_PATH,
+} from "@/lib/admin/ebooks-url";
+import { makeIsActive } from "@/lib/admin/nav-active";
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Avatar from "@/components/ui/Avatar";
@@ -144,10 +150,10 @@ function getNavTree(
   const crit = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "critical" } : undefined);
 
   const books: NavChild[] = [];
-  if (perm(p, "books",   "write")) books.push({ name: t("uploadBook"),   href: "/admin/upload",        icon: Upload         });
+  if (perm(p, "books",   "write")) books.push({ name: t("uploadBook"),   href: EBOOKS_UPLOAD_PATH,     icon: Upload         });
   if (perm(p, "books",   "write")) books.push({ name: t("reviewQueue"),  href: "/admin/review",        icon: ClipboardCheck, badge: attn(badges.review) });
-  if (perm(p, "books",   "read"))  books.push({ name: t("manageEbooks"), href: "/admin/manage",        icon: BookCopy       });
-  if (perm(p, "books",   "write")) books.push({ name: t("duplicates"),   href: "/admin/manage/duplicates", icon: Copy       });
+  if (perm(p, "books",   "read"))  books.push({ name: t("manageEbooks"), href: EBOOKS_BASE_PATH,       icon: BookCopy       });
+  if (perm(p, "books",   "write")) books.push({ name: t("duplicates"),   href: EBOOKS_DUPLICATES_PATH, icon: Copy       });
   if (perm(p, "catalog", "read"))  books.push({ name: t("catalog"),      href: "/admin/catalogs",      icon: Library        });
   if (perm(p, "books",   "read"))  books.push({ name: t("bookRequests"), href: "/admin/book-requests", icon: BookPlus, badge: attn(badges.bookRequests) });
 
@@ -518,7 +524,7 @@ export default function AdminSidebar({
     const actions = tPalette("actions");
     const goTo = tPalette("goTo");
 
-    if (canWrite("books")) list.push({ id: "act-upload", label: tPalette("addEbook"), group: actions, href: "/admin/upload", icon: Upload, keywords: "new create book pdf" });
+    if (canWrite("books")) list.push({ id: "act-upload", label: tPalette("addEbook"), group: actions, href: EBOOKS_UPLOAD_PATH, icon: Upload, keywords: "new create book pdf" });
     if (canWrite("research")) list.push({ id: "act-thesis", label: tPalette("addThesis"), group: actions, href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
     if (canWrite("publications")) list.push({ id: "act-pub", label: tPalette("addPublication"), group: actions, href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
     if (canWrite("posts")) list.push({ id: "act-post", label: tPalette("createPost"), group: actions, href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
@@ -540,8 +546,19 @@ export default function AdminSidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role, isSuperAdmin, userPermissions, badges, publicSiteUrl, tPalette]);
 
-  const isActive = (href: string) =>
-    !pathname ? false : (href === "/admin" ? pathname === "/admin" : pathname.startsWith(href));
+  // Longest-match over every href in the tree. /admin/books, /admin/books/upload
+  // and /admin/books/duplicates are nested, so the old `pathname.startsWith(href)`
+  // marked two entries current at once on a child route. The parent group still
+  // highlights, because a group asks whether ANY of its children is active.
+  // See lib/admin/nav-active.ts.
+  const navHrefs = useMemo(
+    () =>
+      navTree.flatMap((node) =>
+        node.type === "link" ? [node.href] : node.children.map((child) => child.href),
+      ),
+    [navTree],
+  );
+  const isActive = makeIsActive(pathname, navHrefs, { exact: ["/admin"] });
 
   // Stable, locale-independent group key — the persisted open-state must not
   // change when the UI language does.

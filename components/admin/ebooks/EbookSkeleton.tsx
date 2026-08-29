@@ -1,5 +1,6 @@
-/** Skeletons mirror the real zones of /admin/manage so nothing jumps when the
- *  data lands: four KPI cards, a pill row, the command bar, then the table. */
+/** Skeletons mirror the real zones of the collection workspace (/admin/books)
+ *  so nothing jumps when the data lands: four KPI cards, a pill row, the
+ *  command bar, then the table. */
 
 export function EbookStatsSkeleton() {
   return (

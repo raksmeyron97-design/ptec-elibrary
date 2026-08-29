@@ -65,6 +65,34 @@ async function fetchAllRows<T>(
   return rows;
 }
 
+/**
+ * Author rows, with the 0125 `slug` column when the database has it.
+ *
+ * Two attempts, not one: naming a column that does not exist makes PostgREST
+ * fail the whole query, and fetchAllRows reports that as "no rows" — which for
+ * the author tables would quietly delete a few hundred URLs from the sitemap
+ * during the window between a deploy and its migration. The retry drops the
+ * column and returns exactly what this file returned before 0125.
+ */
+async function fetchAuthorRows<T>(
+  supabase: ReturnType<typeof createServiceClient>,
+  table: 'authors' | 'publication_authors',
+  nameColumn: 'name' | 'full_name',
+): Promise<T[]> {
+  const load = (columns: string) =>
+    fetchAllRows<T>((from, to) =>
+      supabase
+        .from(table)
+        .select(columns)
+        .order(nameColumn, { ascending: true })
+        .range(from, to) as unknown as PromiseLike<{ data: T[] | null }>,
+    );
+
+  const withSlug = await load(`${nameColumn}, slug, created_at`);
+  if (withSlug.length > 0) return withSlug;
+  return load(`${nameColumn}, created_at`);
+}
+
 // The sitemap protocol caps a single file at 50,000 URLs. The library is
 // nowhere near that (a few hundred entries today), and `generateSitemaps()`
 // would move this route from /sitemap.xml to /sitemap/0.xml — breaking the
@@ -154,21 +182,20 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
           .order('name', { ascending: true })
           .range(from, to),
     ),
-    fetchAllRows<{ name: string; created_at: string | null }>(
-      (from, to) =>
-        supabase
-          .from('authors')
-          .select('name, created_at')
-          .order('name', { ascending: true })
-          .range(from, to),
+    // `slug` is optional in the select on purpose. Before migration 0125 the
+    // column does not exist and the query errors, which fetchAllRows turns into
+    // [] — and an empty author list would silently drop every profile URL from
+    // the sitemap. fetchAuthorRows() retries without it, so the worst case is
+    // the pre-0125 behaviour (slugs derived from names) rather than no entries.
+    fetchAuthorRows<{ name: string; slug?: string | null; created_at: string | null }>(
+      supabase,
+      'authors',
+      'name',
     ),
-    fetchAllRows<{ full_name: string; created_at: string | null }>(
-      (from, to) =>
-        supabase
-          .from('publication_authors')
-          .select('full_name, created_at')
-          .order('full_name', { ascending: true })
-          .range(from, to),
+    fetchAuthorRows<{ full_name: string; slug?: string | null; created_at: string | null }>(
+      supabase,
+      'publication_authors',
+      'full_name',
     ),
     // The privacy-enforcing view already restricts this to published members
     // in active sections. Before migration 0114 the `slug` column does not
@@ -270,13 +297,16 @@ async function buildEntries(): Promise<MetadataRoute.Sitemap> {
     }),
   );
 
+  // The stored profile slug wins over the name-derived one: an admin who
+  // corrects an author's slug must not have the sitemap keep advertising the
+  // URL that no longer resolves.
   const authorSlugSet = new Map<string, string | null>();
   for (const a of authors) {
-    const slug = slugify(a.name);
+    const slug = a.slug || slugify(a.name);
     if (slug) authorSlugSet.set(slug, a.created_at ?? null);
   }
   for (const a of publicationAuthors) {
-    const slug = slugify(a.full_name);
+    const slug = a.slug || slugify(a.full_name);
     if (slug && !authorSlugSet.has(slug)) authorSlugSet.set(slug, a.created_at ?? null);
   }
   const authorUrls: MetadataRoute.Sitemap = [...authorSlugSet.entries()].map(([slug, createdAt]) =>

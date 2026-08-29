@@ -1,34 +1,16 @@
-import { createServiceClient } from "@/lib/supabase/server";
-import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/components/admin/kit";
-import UploadPageClient from "./_components/UploadPageClient";
+import { redirect } from "next/navigation";
+import { EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
+import { withForwardedQuery } from "@/lib/admin/legacy-redirect";
 
-export default async function AdminUploadPage({
+/**
+ * Legacy route → /admin/books/upload, carrying the query string so the
+ * dashboard's `?title=` prefill (add the book readers searched for and did not
+ * find) still arrives at the form.
+ */
+export default async function LegacyUploadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ title?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const supabase = createServiceClient();
-  // "Add book from search gap" prefill (dashboard collection opportunities).
-  const rawTitle = (await searchParams).title;
-  const initialTitle = typeof rawTitle === "string" ? rawTitle.trim().slice(0, 200) : "";
-
-  const { data: recentBooks } = await supabase
-    .from("books")
-    .select(`id, title, slug, published_at, created_at, authors(name), book_files(file_size_kb)`)
-    // Most recently *uploaded* — published_at is NULL for undated imports.
-    .order("created_at", { ascending: false })
-    .limit(5);
-
-  const t = await getTranslations("adminShell.nav");
-
-  return (
-    <div className="w-full space-y-8">
-      <div className="flex flex-col gap-8">
-        <PageHeader title={t("uploadBook")} className="mb-0" />
-        {/* ── Client Component with Tab Switcher ── */}
-        <UploadPageClient recentBooks={recentBooks || []} initialTitle={initialTitle} />
-      </div>
-    </div>
-  );
+  redirect(withForwardedQuery(EBOOKS_UPLOAD_PATH, await searchParams));
 }

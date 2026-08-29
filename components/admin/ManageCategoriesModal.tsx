@@ -117,8 +117,11 @@ export default function ManageCategoriesModal() {
 
   return (
     <>
+      {/* Secondary, not filled: this is a taxonomy utility on a page whose one
+          primary action is "Upload and publish". Two filled brand buttons above
+          the form made the real primary the third-loudest control on screen. */}
       <button type="button" onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold bg-brand text-white shadow-sm hover:bg-brand-hover rounded-lg transition-all"
+        className="focus-field inline-flex h-9 items-center gap-1.5 rounded-lg border border-divider bg-bg-surface px-3 text-sm font-semibold text-text-body shadow-sm transition-colors duration-150 hover:bg-paper"
       >
         <Plus className="w-4 h-4" /> Manage Categories
       </button>
@@ -137,7 +140,7 @@ export default function ManageCategoriesModal() {
 
             <div className="p-5 flex-1 overflow-y-auto">
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                <div role="alert" className="mb-4 rounded-lg border border-danger-line bg-danger-soft p-3 text-sm text-danger-text">
                   {error}
                 </div>
               )}
@@ -211,7 +214,7 @@ export default function ManageCategoriesModal() {
                               <Edit2 className="w-4 h-4" />
                             </button>
                             <button type="button" onClick={() => setDeleteTarget(cat)}
-                              className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="focus-field rounded p-1.5 text-text-muted transition-colors hover:bg-danger-soft hover:text-danger-text"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />

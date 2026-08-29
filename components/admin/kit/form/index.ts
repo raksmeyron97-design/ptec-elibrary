@@ -33,4 +33,5 @@ export type { ReviewTone, ReviewFinding } from "./ReviewDashboard";
 export { useWideContext, SPLIT_BREAKPOINT } from "./use-wide-context";
 export { default as FieldEmptyState } from "./FieldEmptyState";
 export { default as SlugField } from "./SlugField";
+export { default as Switch } from "./Switch";
 export type { SlugFieldLabels } from "./SlugField";

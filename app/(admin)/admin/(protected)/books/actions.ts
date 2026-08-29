@@ -11,6 +11,7 @@ import { logAdminAction } from "@/app/actions/audit";
 import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { notifyNewBookPublished } from "@/lib/push-events";
+import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -329,7 +330,7 @@ export async function deleteBook(bookId: string) {
   // serving a page for a record that no longer exists.
   revalidateBook(bookData?.slug, { affectsHome: true });
   revalidatePath("/admin");
-  revalidatePath("/admin/manage");
+  revalidatePath(EBOOKS_BASE_PATH);
 }
 
 // ── updateBook — handles cover URL update ────────────────────────
@@ -468,7 +469,7 @@ export async function updateBook(bookId: string, formData: FormData) {
 
   revalidateBook(book.slug, { affectsHome: true });
   revalidatePath("/admin");
-  revalidatePath("/admin/manage");
+  revalidatePath(EBOOKS_BASE_PATH);
   redirect(`/books/${book.slug}`);
 }
 

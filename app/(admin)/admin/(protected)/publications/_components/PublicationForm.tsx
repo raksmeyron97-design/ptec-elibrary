@@ -49,6 +49,8 @@ import CoverDropzone from "../../theses/_components/CoverDropzone";
 import { LABEL_CLASS } from "../../theses/_components/form-styles";
 import {
   Field,
+  FormSection,
+  Switch,
   FormShell,
   FormTabs,
   MONO_INPUT_CLASS,
@@ -63,6 +65,7 @@ import { ConfirmDialog } from "@/components/admin/kit";
 import { slugify, makeUid } from "@/lib/book-utils";
 import { SITE_URL } from "@/lib/seo/site";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
+import FiguresEditor from "./FiguresEditor";
 import PublicationContext from "./workspace/PublicationContext";
 import ContentWorkspace from "./workspace/ContentWorkspace";
 import SaveBar, { type AutosaveState } from "./workspace/SaveBar";
@@ -259,6 +262,15 @@ export default function PublicationForm({
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverRemoved, setCoverRemoved] = useState(false);
+
+  // Library download policy (migration 0125). Controlled state rather than an
+  // uncontrolled FormData field: the switch's consequence text is rendered from
+  // it, and `undefined` on a pre-0125 record must read as "allowed" — which is
+  // the column default and what every existing article already does.
+  const [allowDownload, setAllowDownload] = useState<boolean>(initial?.allow_download ?? true);
+  const [downloadReason, setDownloadReason] = useState<string>(
+    initial?.download_disabled_reason ?? "",
+  );
   const [existingSiFiles, setExistingSiFiles] = useState<PublicationFile[]>(initial?.files ?? []);
   const [newSiFiles, setNewSiFiles] = useState<NewSiFile[]>([]);
   const [pdfUrl, setPdfUrl] = useState<string | null>(initial?.pdf_url ?? null);
@@ -335,9 +347,14 @@ export default function PublicationForm({
       language: scalars.language || "en",
       cover_url: uploaded.coverUrl,
       pdf_url: uploaded.pdfUrl,
+      allow_download: allowDownload,
+      // Only meaningful while downloads are off. Clearing it when they are on
+      // stops a stale explanation from reappearing if the switch is flipped
+      // back months later.
+      download_disabled_reason: allowDownload ? null : downloadReason.trim() || null,
       references: referenceRows.filter((r) => r.text.trim() || r.doi || r.url),
     }),
-    [title, slug, abstract, abstractKm, referenceRows],
+    [title, slug, abstract, abstractKm, referenceRows, allowDownload, downloadReason],
   );
 
   // ── Live review (drives step states, save-bar chips, review panel) ─────
@@ -1422,7 +1439,79 @@ export default function PublicationForm({
                   />
                 </label>
               </div>
-            </div>
+
+            {/* ── Access & file ────────────────────────────────────────────
+                Sits with the file it governs, not in a settings screen: the
+                question "may readers download this?" is only askable once you
+                know what "this" is, and the person attaching the PDF is the
+                person who knows the answer.
+
+                This is a LIBRARY POLICY switch. It is independent of the
+                rights gate in lib/publications/access.ts — a third party's
+                copyrighted full text stays undownloadable regardless of what
+                is set here, and turning this on cannot override that. */}
+            <FormSection
+              title="Access & file"
+              description="Who may take the PDF away. Online reading is unaffected by this setting."
+            >
+              <Switch
+                tone="success"
+                checked={allowDownload}
+                onChange={(next) => {
+                  setAllowDownload(next);
+                  markDirty();
+                }}
+                label="Download permission"
+                description="Allow readers to download this resource."
+                onDescription={
+                  <ul className="space-y-1">
+                    <li>&#10003; Read online</li>
+                    <li>&#10003; Download PDF</li>
+                  </ul>
+                }
+                offDescription={
+                  <ul className="space-y-1">
+                    <li>&#10003; Read online</li>
+                    <li>&#10007; Download PDF &mdash; the server refuses the file, not just the button</li>
+                  </ul>
+                }
+              />
+
+              {/* Only asked for when it applies. A restriction message on a
+                  freely downloadable record has nowhere to appear. */}
+              {!allowDownload && (
+                <Field
+                  label="Restriction message"
+                  htmlFor="pf-field-download_reason"
+                  hint="Shown to readers in place of the download button. Leave blank for the standard wording."
+                >
+                  {(p) => (
+                    <input
+                      {...p}
+                      value={downloadReason}
+                      onChange={(e) => {
+                        setDownloadReason(e.target.value);
+                        markDirty();
+                      }}
+                      maxLength={200}
+                      placeholder="This publication is available for online reading only."
+                    />
+                  )}
+                </Field>
+              )}
+            </FormSection>
+
+            {/* ── Figures ─────────────────────────────────────────────────
+                Saves through its own action — see FiguresEditor for why the
+                workspace's optimistic-concurrency save is deliberately not in
+                that path. */}
+            <FormSection
+              title="Figures"
+              description="Charts, diagrams and photographs from the article. Each is numbered and captioned on the public page."
+            >
+              <FiguresEditor publicationId={publicationId} slug={slugify(slug || title)} />
+            </FormSection>
+          </div>
 
             <div id="pub-panel-review" role="tabpanel" aria-labelledby="pub-tab-review" tabIndex={-1} hidden={activeStep !== "review"}>
               <ReviewPublishPanel

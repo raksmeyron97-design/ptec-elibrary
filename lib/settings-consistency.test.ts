@@ -102,6 +102,13 @@ describe("no second source of truth for the organization name", () => {
       "lib/about/content.ts",
       "app/[locale]/(public)/about/committee/page.tsx",
       "app/[locale]/(public)/about/page.tsx",
+      // Measurement harness, not a rendered surface. It carries an ORG fixture
+      // so the benchmark runs without a database, and it reproduces the
+      // pre-2.0 prompts VERBATIM — their byte size is the thing being
+      // measured, so resolving the name through getOrgIdentity() would change
+      // the number the benchmark exists to report. Same reasoning as the
+      // .test.ts exemption below: fixtures asserting concrete output.
+      "scripts/ai-benchmark.ts",
       SELF,
     ];
     const offenders = grepSource(PTEC.name.en).filter(

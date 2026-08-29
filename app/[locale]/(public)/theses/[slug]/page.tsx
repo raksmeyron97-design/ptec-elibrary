@@ -71,11 +71,14 @@ type PageProps = { params: Promise<{ slug: string; locale: string }> };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const [{ slug, locale }, supabase, org] = await Promise.all([
+  const [{ slug: rawSlug, locale }, supabase, org] = await Promise.all([
     params,
     createClient(),
     getOrgIdentity(),
   ]);
+  // decodeSlugParam is idempotent — normalize in both entry points so the
+  // metadata and the body can never resolve to different records.
+  const slug = decodeSlugParam(rawSlug);
   // seo_title/seo_description/og_image (migration 0076) are selected HERE, in
   // the row we are already fetching, rather than in a follow-up query keyed on
   // report.id. That second round-trip was pure latency — same table, same row —
