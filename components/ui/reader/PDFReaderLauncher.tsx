@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
+import { usePathname } from "next/navigation";
 import { BookOpen, ExternalLink, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import PDFViewer from "@/components/ui/reader/PDFViewerClient";
@@ -19,6 +20,9 @@ type PDFReaderLauncherProps = {
   fullReaderHref?: string;
   /** Published support address for the broken-file report link. */
   reportEmail?: string | null;
+  /** When true, an anonymous reader is prompted to sign in instead of opening
+   *  the viewer — the file API for this resource requires authentication. */
+  requireAuthToView?: boolean;
 };
 
 export default function PDFReaderLauncher({
@@ -32,10 +36,13 @@ export default function PDFReaderLauncher({
   isLoggedIn = false,
   fullReaderHref,
   reportEmail,
+  requireAuthToView = false,
 }: PDFReaderLauncherProps) {
   const t = useTranslations("reader");
   const bookT = useTranslations("bookDetail");
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const gated = requireAuthToView && !isLoggedIn;
 
   // Funnel analytics: one "reader opened" event per book per tab session.
   const openReader = () => {
@@ -102,20 +109,32 @@ export default function PDFReaderLauncher({
       </span>
       <h2 className="mt-4 text-base font-bold text-text-heading">{t("readOnline")}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">
-        {initialProgressPct > 0
-          ? `${initialProgressPct}% ${bookT("complete")}`
-          : t("readerLoadHint")}
+        {gated
+          ? t("signInToReadHint")
+          : initialProgressPct > 0
+            ? `${initialProgressPct}% ${bookT("complete")}`
+            : t("readerLoadHint")}
       </p>
       <div className="mt-5 flex flex-col items-center justify-center gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={openReader}
-          disabled={!pdfUrl}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-        >
-          {pdfUrl ? <BookOpen className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
-          {t("openReader")}
-        </button>
+        {gated ? (
+          <a
+            href={`/auth/login?callbackUrl=${encodeURIComponent(pathname)}`}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring sm:w-auto"
+          >
+            <BookOpen className="h-4 w-4" />
+            {t("signInToRead")}
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={openReader}
+            disabled={!pdfUrl}
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-bold text-brand-contrast transition hover:bg-brand-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {pdfUrl ? <BookOpen className="h-4 w-4" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+            {t("openReader")}
+          </button>
+        )}
         {fullReaderHref && (
           <Link
             href={fullReaderHref}

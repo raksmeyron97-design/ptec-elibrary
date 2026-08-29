@@ -5,6 +5,7 @@ import {
   getCollectionStats,
   type PublicCollectionStats,
 } from "@/lib/collection-stats";
+import { verifyBearer } from "@/lib/security/bearer";
 
 /**
  * Liveness + dependency health for uptime monitors and the Docker
@@ -105,7 +106,7 @@ async function reconcileCollectionStats(): Promise<StatsReconciliation> {
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  const deep = Boolean(secret) && request.headers.get("authorization") === `Bearer ${secret}`;
+  const deep = verifyBearer(request.headers.get("authorization"), secret);
 
   const t0 = Date.now();
   let dbMs = -1;

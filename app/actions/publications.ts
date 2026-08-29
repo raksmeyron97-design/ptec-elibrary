@@ -357,6 +357,24 @@ export async function getPublicationForAdmin(id: string): Promise<{
  */
 export async function getPublicationFigures(publicationId: string): Promise<PublicationFigure[]> {
   const supabase = createServiceClient();
+
+  // The public detail page only ever passes an already-published id; the admin
+  // editor passes drafts. Probing an arbitrary draft id must not leak its
+  // figures, so a draft's figures require the publications read permission.
+  const { data: parent } = await supabase
+    .from("publications")
+    .select("is_published")
+    .eq("id", publicationId)
+    .maybeSingle();
+  if (!parent) return [];
+  if (!parent.is_published) {
+    try {
+      await requirePermission("publications", "read");
+    } catch {
+      return [];
+    }
+  }
+
   const { data, error } = await supabase
     .from("publication_figures")
     .select("id, image_url, caption, caption_km, alt_text, credit, sort_order")

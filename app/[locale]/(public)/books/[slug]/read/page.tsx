@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { decodeSlugParam } from "@/lib/slug";
 import { Link } from "@/i18n/navigation";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
@@ -58,18 +58,24 @@ export async function generateMetadata({ params }: ReadPageProps): Promise<Metad
 }
 
 export default async function BookReadPage({ params }: ReadPageProps) {
-  const [{ slug: rawSlug }, t] = await Promise.all([params, getTranslations("bookDetail")]);
+  const [{ slug: rawSlug, locale }, t] = await Promise.all([params, getTranslations("bookDetail")]);
   // generateMetadata receives decoded params while the page body gets them
   // encoded — decodeSlugParam is idempotent, so normalize in both places.
   const slug = decodeSlugParam(rawSlug);
   const book = await getReadableBook(slug);
   if (!book || !book.pdfUrl) notFound();
 
+  // Reading is gated: the file API now requires an authenticated reader, so send
+  // anonymous visitors to sign in (and back here) instead of rendering a viewer
+  // whose PDF fetch would 401.
+  const user = await getSessionUser();
+  if (!user) {
+    const prefix = locale === "km" ? "/km" : "";
+    redirect(`/auth/login?callbackUrl=${encodeURIComponent(`${prefix}/books/${slug}/read`)}`);
+  }
+
   const fileSrc = `/api/books/${book.dbId}/file`;
-  const [user, savedProgress] = await Promise.all([
-    getSessionUser(),
-    getReadingProgress(book.dbId),
-  ]);
+  const savedProgress = await getReadingProgress(book.dbId);
 
   return (
     <div className="min-h-screen bg-bg-body">

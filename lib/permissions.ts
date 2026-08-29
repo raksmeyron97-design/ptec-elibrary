@@ -14,9 +14,25 @@ export const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PermLevel>> = {
   super_admin: { books: "write", catalog: "write", research: "write", publications: "write", posts: "write", announcements: "write", announcements_push: "write", learning_paths: "write",  homepage_photos: "write", users: "write", roles: "write", contact: "write", settings: "write", storage: "write", storage_manage: "write" },
 };
 
+/** Every known resource set to "none" — the fail-closed permission map. */
+function denyAllPermissions(): Record<string, PermLevel> {
+  const perms: Record<string, PermLevel> = {};
+  for (const resource of Object.keys(DEFAULT_PERMISSIONS.super_admin)) {
+    perms[resource] = "none";
+  }
+  return perms;
+}
+
 /**
  * Fetch the permissions for a role from the `role_permissions` table.
- * Falls back to DEFAULT_PERMISSIONS if the table doesn't exist or has no rows.
+ *
+ * Fail-closed: if the query ERRORS (table missing, RLS change, connection
+ * failure) we deny everything rather than fall back to defaults — a broken
+ * authorization data source must never silently restore write access. Super
+ * admins are unaffected because `requirePermission` short-circuits for them, so
+ * an outage can't lock the whole panel out. A successful query that returns NO
+ * rows is the legitimate "not yet configured" case (migrations seed this
+ * table), so there we still use the hardcoded defaults.
  */
 export async function getPermissionsForRole(
   role: AppRole,
@@ -28,7 +44,15 @@ export async function getPermissionsForRole(
       .select("resource, level")
       .eq("role", role);
 
-    if (error || !data?.length) {
+    if (error) {
+      console.error(
+        `[permissions] role_permissions query failed for role "${role}"; failing closed (deny-all):`,
+        error.message ?? error,
+      );
+      return denyAllPermissions();
+    }
+
+    if (!data?.length) {
       return { ...DEFAULT_PERMISSIONS[role] };
     }
 
@@ -38,8 +62,12 @@ export async function getPermissionsForRole(
       perms[row.resource] = row.level as PermLevel;
     }
     return perms;
-  } catch {
-    return { ...DEFAULT_PERMISSIONS[role] };
+  } catch (e) {
+    console.error(
+      `[permissions] unexpected error resolving permissions for role "${role}"; failing closed (deny-all):`,
+      e,
+    );
+    return denyAllPermissions();
   }
 }
 

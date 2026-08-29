@@ -8,6 +8,7 @@ import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
+import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -50,8 +51,17 @@ export async function GET(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (download && !user) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  // Both inline viewing and downloading require a signed-in reader, so access
+  // to book PDFs is tied to a user (tracking). The one exception is a
+  // DNS-verified Google crawler: published books are public content, and the
+  // Google Scholar `citation_pdf_url` must resolve for full-text indexing.
+  // A spoofed User-Agent can't pass isVerifiedGoogleCrawler (rDNS + forward
+  // confirm), so this is not a gate bypass for ordinary anonymous callers.
+  if (!user) {
+    const verifiedCrawler = await isVerifiedGoogleCrawler(ip, request.headers.get("user-agent"));
+    if (!verifiedCrawler) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
   }
 
   const supabaseAdmin = createServiceClient();

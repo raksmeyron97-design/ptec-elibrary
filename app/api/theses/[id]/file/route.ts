@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { clientIp } from "@/lib/client-ip";
+import { isVerifiedGoogleCrawler } from "@/lib/security/crawler";
+import { evaluateThesisDownload, type ThesisPolicyRow } from "@/lib/theses/download-permission";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -35,25 +37,41 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";
 
-  // SECURITY: this route serves the PUBLIC inline reader preview ONLY. It is not
-  // an authorization boundary — reading a thesis is allowed, but *downloading*
-  // one is gated (auth + complete Download Profile + Top-10/admin policy). Any
-  // `?download=1` request is therefore funnelled to the single authoritative
-  // gated route, which re-evaluates the permission engine server-side and
-  // streams with `private, no-store`. This closes the bypass where a listing
-  // card / search result linked straight at `/file?download=1` and handed out a
-  // "protected" thesis with no checks. Redirect happens before any DB/storage/
-  // rate-limit work so an unauthorized request never touches the file (the gated
-  // route enforces its own per-user rate limit).
+  // Any `?download=1` request is funnelled to the single authoritative gated
+  // route, which enforces auth + complete Download Profile + Top-10/admin
+  // policy and streams with `private, no-store`.
   if (download) {
     return NextResponse.redirect(new URL(`/api/theses/${id}/download`, request.url), 307);
   }
 
+  // SECURITY: inline viewing is now gated too. It requires an authenticated
+  // reader (so access is tied to a user), and enforces the SAME content
+  // restriction as the download route — a Top-10 or admin-blocked thesis is not
+  // viewable either, not merely non-downloadable. (Download-Profile completeness
+  // remains a download-only gate; a signed-in reader may still open an
+  // unrestricted thesis in the reader without completing it.)
+  //
+  // Exception: a DNS-verified Google crawler is allowed through so Google
+  // Scholar can index the full text (citation_pdf_url). It still passes the
+  // permission engine below, so a restricted (Top-10 / admin-blocked) thesis is
+  // never served to it — only published, unrestricted ones. A spoofed
+  // User-Agent cannot pass isVerifiedGoogleCrawler.
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
   const ip = clientIp(request.headers);
+
+  if (!user) {
+    const verifiedCrawler = await isVerifiedGoogleCrawler(ip, request.headers.get("user-agent"));
+    if (!verifiedCrawler) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+  }
+
+  const rlId = user ? user.id : `crawler:${ip}`;
   const { limit, windowMs } = ratePolicy("fileRead");
-  const rl = await rateLimit(`thesis-file:${ip}`, limit, windowMs);
+  const rl = await rateLimit(`thesis-file:${rlId}`, limit, windowMs);
   if (!rl.success) {
-    logSecurityEvent({ type: "rate_limited", where: "/api/theses/[id]/file", ip });
+    logSecurityEvent({ type: "rate_limited", where: "/api/theses/[id]/file", userId: user?.id, ip });
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
       { status: 429 },
@@ -63,13 +81,27 @@ export async function GET(
   const supabase = createServiceClient();
   const { data: report, error } = await supabase
     .from("research_reports")
-    .select("title, file_url")
+    .select("*")
     .eq("id", id)
-    .eq("is_published", true)
-    .single();
+    .maybeSingle();
 
   if (error || !report?.file_url) {
     return new NextResponse("Not found", { status: 404 });
+  }
+
+  // Re-evaluate the shared permission engine server-side. Block viewing when the
+  // thesis is unpublished, or content-restricted (Top-10 / admin-block).
+  const decision = await evaluateThesisDownload({
+    service: supabase,
+    report: report as ThesisPolicyRow,
+    userId: user?.id ?? null,
+  });
+  if (decision.reason === "THESIS_UNPUBLISHED") {
+    return new NextResponse("Not found", { status: 404 });
+  }
+  if (decision.effectivePolicy === "blocked") {
+    logSecurityEvent({ type: "auth_forbidden", where: "/api/theses/[id]/file", userId: user?.id });
+    return new NextResponse("This thesis is restricted", { status: 403 });
   }
 
   const fileUrl = report.file_url as string;
@@ -114,7 +146,7 @@ export async function GET(
   const headers = new Headers();
   headers.set("Content-Type", "application/pdf");
   headers.set("Content-Disposition", disposition);
-  headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+  headers.set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate");
   headers.set("Accept-Ranges", "bytes");
   const contentLength = r2Res.headers.get("content-length");
   if (contentLength) headers.set("Content-Length", contentLength);

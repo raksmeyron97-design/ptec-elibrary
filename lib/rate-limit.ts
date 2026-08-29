@@ -2,6 +2,7 @@
 // Distributed sliding-window rate limiter backed by Supabase Postgres.
 // State is shared across serverless instances and survives cold starts.
 
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 // Use the service-role client directly (no Next.js cookies needed here —

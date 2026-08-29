@@ -148,7 +148,10 @@ export async function setUserStatus(
 // ── PASSWORD RESET (real — emails the user a recovery link) ───────────────────
 export async function sendPasswordReset(targetUserId: string): Promise<ActionResult> {
   try {
-    const { supabase, audit } = await adminContext();
+    const { supabase, user, callerIsSuperAdmin, audit } = await adminContext();
+    // Same target protection as every other user-management action: an ordinary
+    // admin must not be able to trigger a recovery email to a super admin.
+    await assertCanManageTarget(supabase, targetUserId, callerIsSuperAdmin, user.id);
     const { data: target } = await supabase.from("profiles").select("email").eq("id", targetUserId).single();
     if (!target?.email) return { success: false, error: "This user has no email on file" };
 

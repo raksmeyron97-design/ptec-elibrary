@@ -613,6 +613,7 @@ async function ReaderSection({
       initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
       allowDownload={true}
       isLoggedIn={!!user}
+      requireAuthToView
       reportEmail={(await getSiteConfig()).email}
       fullReaderHref={`/books/${book.slug}/read`}
     />

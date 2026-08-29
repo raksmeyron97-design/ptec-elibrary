@@ -9,8 +9,13 @@ import { logSecurityEvent } from "@/lib/security-log";
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications", "announcements"];
 
 function validateFolder(folder: string): void {
-  const topLevel = folder.split("/")[0];
-  if (!ALLOWED_FOLDERS.includes(topLevel ?? "")) {
+  // Reject traversal/absolute/odd segments outright — checking only the top
+  // segment let `books/../../secret` through, since its first segment is a
+  // valid folder. The destination must be `<allowed>` optionally followed by
+  // `/`-separated slug-safe segments only.
+  const ALLOWED = ALLOWED_FOLDERS.map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const re = new RegExp(`^(?:${ALLOWED})(?:/[a-z0-9._-]+)*$`);
+  if (folder.includes("..") || !re.test(folder)) {
     throw new Error(
       `Folder must start with one of: ${ALLOWED_FOLDERS.join(", ")}`,
     );

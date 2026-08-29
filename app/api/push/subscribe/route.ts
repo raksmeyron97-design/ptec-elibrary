@@ -28,6 +28,34 @@ export async function POST(req: NextRequest) {
   }
 
   const db = createServiceClient();
+
+  // Anti-hijack: `endpoint` is the unique key, so an upsert would silently
+  // reassign a subscription to whoever POSTs its endpoint. A push endpoint is
+  // per-browser, so a legitimate device handoff (user A signs out, user B signs
+  // in on the same browser) presents the SAME endpoint AND the SAME crypto keys
+  // — the browser hands back its one subscription. A hijack attempt (someone who
+  // only learned the endpoint string, e.g. from a log) cannot reproduce those
+  // keys. So we only allow claiming an endpoint owned by another user when the
+  // submitted keys match what is stored; otherwise we refuse.
+  const { data: existing } = await db
+    .from("push_subscriptions")
+    .select("user_id, p256dh, auth_key")
+    .eq("endpoint", parsed.data.endpoint)
+    .maybeSingle();
+
+  if (existing && existing.user_id !== auth.user.id) {
+    const sameDevice =
+      existing.p256dh === parsed.data.keys.p256dh &&
+      existing.auth_key === parsed.data.keys.auth;
+    if (!sameDevice) {
+      return pushError(
+        "This subscription is registered to another account.",
+        403,
+        PUSH_ERROR_CODES.UNAUTHORIZED,
+      );
+    }
+  }
+
   const meta = clientMetadata(req);
   const now = new Date().toISOString();
   const { error } = await db.from("push_subscriptions").upsert({

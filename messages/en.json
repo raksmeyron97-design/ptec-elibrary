@@ -92,7 +92,9 @@
     "rotationAnnounce": "Page rotated {degrees} degrees",
     "pagesTab": "Pages",
     "sidebar": "Sidebar",
-    "notesTab": "Notes"
+    "notesTab": "Notes",
+    "signInToRead": "Sign in to read",
+    "signInToReadHint": "This document is available to signed-in readers. Signing in is free and takes a minute."
   },
   "nav": {
     "home": "Home",

@@ -12,20 +12,85 @@ function zimaConfig(): { apiUrl: string; apiKey: string } {
   return { apiUrl, apiKey };
 }
 
+/** The Zima API host and its cdn./base variants, derived from ZIMA_API_URL. */
+function zimaBaseHosts(): string[] {
+  const apiUrl = process.env.ZIMA_API_URL;
+  if (!apiUrl) return [];
+  try {
+    const apiHost = new URL(apiUrl).hostname.toLowerCase();
+    const baseHost = apiHost.replace(/^api\./, "");
+    return [apiHost, `cdn.${baseHost}`, baseHost];
+  } catch {
+    return [];
+  }
+}
+
 /** Returns true if the given URL is served by the Zima CDN / API. */
 export function isZimaUrl(fileUrl: string): boolean {
-  const apiUrl = process.env.ZIMA_API_URL;
-  if (!apiUrl) return false;
+  if (!process.env.ZIMA_API_URL) return false;
   if (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://")) return false;
   try {
-    const apiHost = new URL(apiUrl).hostname;
-    const cdnHost = apiHost.replace(/^api\./, "cdn.");
-    const baseHost = apiHost.replace(/^api\./, "");
-    const fileHost = new URL(fileUrl).hostname;
-    return fileHost === apiHost || fileHost === cdnHost || fileHost === baseHost;
+    const fileHost = new URL(fileUrl).hostname.toLowerCase();
+    return zimaBaseHosts().includes(fileHost);
   } catch {
     return false;
   }
+}
+
+// Host suffixes for the storage backends this app legitimately proxies files
+// from. This is an ALLOW-LIST, and that is the SSRF control: `file_url` values
+// come from DB rows an admin/librarian can set to an arbitrary string, so a
+// server-side fetch of one must never reach an internal target. IP literals,
+// `localhost`, `*.local`, and cloud metadata endpoints (169.254.169.254) match
+// nothing here and are refused. Mirrors the storage hosts already trusted by
+// the CSP (lib/csp.ts) and next.config images.remotePatterns.
+const STORAGE_HOST_SUFFIXES = [
+  ".r2.dev",
+  ".r2.cloudflarestorage.com",
+  ".blob.vercel-storage.com",
+  ".supabase.co",
+  ".googleusercontent.com",
+];
+const STORAGE_HOSTS_EXACT = ["drive.google.com"];
+
+/**
+ * True if `fileUrl` is a full http(s) URL pointing at an allow-listed storage
+ * host. Only the configured Zima host may be plain http (the documented LAN /
+ * tunnel case where the container speaks http internally); every other host
+ * must be https. Everything else — internal IPs, localhost, unknown hosts — is
+ * rejected. Used to gate every server-side file proxy against SSRF.
+ */
+export function isAllowedStorageUrl(fileUrl: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(fileUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  const host = u.hostname.toLowerCase();
+  const zimaHosts = zimaBaseHosts();
+  if (u.protocol === "http:" && !zimaHosts.includes(host)) return false;
+  if (zimaHosts.includes(host)) return true;
+  if (STORAGE_HOSTS_EXACT.includes(host)) return true;
+  return STORAGE_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
+}
+
+/**
+ * Sanitize a filename before it becomes a storage object name: strip any path
+ * component (so `../../x` and `a/b/c` can't traverse the destination folder),
+ * drop control characters and null bytes, and collapse whitespace. Falls back
+ * to a safe default if nothing usable remains.
+ */
+export function sanitizeUploadName(name: string): string {
+  // Take the basename only, on both separators.
+  const base = name.split(/[/\\]/).pop() ?? "";
+  const cleaned = base
+    .replace(/[\u0000-\u001f\u007f]/g, "") // strip control chars incl. NUL
+    .replace(/\s+/g, " ")
+    .replace(/^\.+/, "") // no leading dots ("." / ".." / dotfiles)
+    .trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 200) : "upload";
 }
 
 /**
@@ -42,7 +107,8 @@ export async function zimaUpload(
   const { apiUrl, apiKey } = zimaConfig();
 
   const form = new FormData();
-  const name = filename ?? (file instanceof File ? file.name : "upload");
+  const rawName = filename ?? (file instanceof File ? file.name : "upload");
+  const name = sanitizeUploadName(rawName);
   form.append("file", new File([file], name, { type: file.type }));
 
   const res = await fetch(`${apiUrl}/api/upload`, {
@@ -132,6 +198,14 @@ export async function zimaDelete(fileUrl: string): Promise<void> {
  * Returns the raw fetch Response so the caller can stream it.
  */
 export async function zimaFetch(fileUrl: string, rangeHeader?: string | null): Promise<Response> {
+  // SSRF guard: `fileUrl` originates from a DB row an admin can set to an
+  // arbitrary string. Never let the server fetch a non-storage host (internal
+  // services, cloud metadata, localhost). Callers treat a non-ok Response as
+  // "file unavailable" and return 404, so a blocked URL degrades cleanly.
+  if (!isAllowedStorageUrl(fileUrl)) {
+    console.warn(`[zima] refused to proxy non-allowlisted URL host`);
+    return new Response("Blocked", { status: 502 });
+  }
   const headers: HeadersInit = {};
   if (rangeHeader) headers["Range"] = rangeHeader;
   return fetch(fileUrl, { headers });

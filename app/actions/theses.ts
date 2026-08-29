@@ -114,6 +114,10 @@ async function uniqueThesisSlug(supabase: ReturnType<typeof createServiceClient>
 
 /** Server Action wrapper for the client-side live-availability check. */
 export async function checkThesisSlugAvailable(slug: string, ignoreId?: string): Promise<boolean> {
+  // Guard: this is an admin-form helper. Without it, an anonymous caller could
+  // probe which thesis slugs exist (including unpublished drafts). Mirrors
+  // checkPublicationSlugAvailable in publications.ts.
+  await requirePermission("research", "read");
   const clean = slugify(slug);
   if (!clean) return false;
   const supabase = createServiceClient();

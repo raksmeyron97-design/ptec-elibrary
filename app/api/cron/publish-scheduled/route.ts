@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logSecurityEvent } from "@/lib/security-log";
 import { runAnnouncementSweep } from "@/lib/admin/announcements/cron";
+import { verifyBearer } from "@/lib/security/bearer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${secret}`) {
+  if (!verifyBearer(authHeader, secret)) {
     logSecurityEvent({ type: "cron_auth_failed", where: "/api/cron/publish-scheduled" });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
