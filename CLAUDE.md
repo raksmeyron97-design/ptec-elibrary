@@ -102,15 +102,21 @@ There is deliberately **no `app/layout.tsx`**. Three root layouts each own `<htm
 - Book covers: Zima CDN URLs stored directly, or legacy R2 keys prefixed with `NEXT_PUBLIC_R2_COVERS_URL`.
 - User avatars go to Zima Storage too (`app/actions/profile.ts` → `zimaUpload(..., "avatars")`). Vercel Blob is gone: the dependency was dropped with the move to self-hosting, since its SDK reads a Vercel-issued token this deployment does not hold. Legacy `*.blob.vercel-storage.com` URLs still in old rows are served by the generic HTTP proxy in `/api/books/[slug]/file` and stay allow-listed in the CSP and `images.remotePatterns`.
 
-### AI Features (Gemini)
+### AI Features (Gemini) — one core, three entry points
 
-All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`). Every AI route enforces cost controls: per-user daily quota, a global daily circuit breaker (tracked in the `ai_usage` table using sentinel UUIDs), and an in-memory per-user cooldown.
+All Gemini calls are server-side only (`GEMINI_API_KEY` — never `NEXT_PUBLIC_`). **Everything AI lives in `lib/ai/*`; route handlers hold no AI logic.** Full picture: `docs/AI_ASSISTANT_ARCHITECTURE.md` (audit + measured effect in `docs/AI_ASSISTANT_AUDIT.md` and `docs/AI_ASSISTANT_BENCHMARK.md`).
 
-- `/api/search` — public semantic search. Hybrid retrieval: pgvector similarity (768-dim `gemini-embedding-001`, migration `0029_pgvector_search.sql`) with keyword fallback, plus a one-shot Gemini summary. Requires an embeddings backfill via `scripts/embed-library.ts`.
-- `/api/ask` — auth-gated assistant using a Gemini function-calling tool loop (non-streaming). Library facts come from `lib/library-info.ts`.
-- `/api/chat` — streaming RAG assistant built on the Vercel AI SDK (`@ai-sdk/google`), hardened to mirror `/api/ask`.
-- `/api/recommendations` — book recommendations.
-- `lib/gemini-embeddings.ts` — shared embedding helper.
+- **`/api/ai` is canonical.** `/api/ask` (legacy `{answer, books, remaining}` for `AskWidget`) and `/api/chat` (AI-SDK stream) are thin compatibility adapters over the same core. Adding AI behaviour means editing `lib/ai/*`, never a route.
+- **The model is the last resort.** Every request is classified deterministically (`lib/ai/intent.ts`) before anything expensive runs, and `deterministicAnswer()` in `lib/ai/plan.ts` answers library facts, catalog searches, book details and related-books from the database plus a bilingual template — no model call at all (85 of 100 benchmark questions). Don't add an LLM call to a path the database already settles.
+- **Retrieved text is data, never instruction.** Evidence goes in a *user*-role message inside a labelled fence (`lib/ai/context.ts`), after `defangCorpusText()`. Putting corpus text in the system prompt is what let an instruction inside a scanned PDF page inherit system authority.
+- **Citations are verified, not trusted.** `enforceGrounding()` deletes any `(Title, p. N)` whose title+page the retrieval set doesn't contain. Only survivors become `AIResponse.sources`.
+- **`lib/ai/models.ts` owns every model id**, including `EMBEDDING_MODEL`/`EMBEDDING_DIM` for *both* sides of every vector search. `books.embedding` previously held vectors from two different models because a backfill route used a different embedder than `scripts/embed-library.ts` — semantic search over those rows was noise. Changing those constants requires re-embedding every table.
+- **`lib/ai/limits.ts` owns every quota**: per-user daily limit, global circuit breaker (sentinel UUIDs in `ai_usage`), and ONE shared cooldown map across all entry points. `app/actions/ai-usage.ts` reads the same constant, so the badge can't disagree with what's enforced.
+- **`lib/ai/telemetry.ts` writes one `app_events` row per request** with intent, tier, model, token counts, latency split, DB query count, cache hit and fallback — counts and enums only, never message content. `AIPerformanceContract` in that file documents the SQL for each dashboard metric.
+- Pure modules (`intent`, `plan`, `context`, `conversation`, `citations`, `guardrails`, `prompts`, `token-budget`, `templates`, `models`) have no server-only imports **on purpose**: `scripts/ai-benchmark.ts` (`npm run ai:benchmark`) and the unit tests exercise the real decision functions offline, so the benchmark can't drift from what it measures.
+- `/api/search` — public semantic search, no auth. Hybrid pgvector + keyword, and a Gemini summary only when it would add something the result list doesn't already say. Shares the core's embedder, sanitizer, budgets and telemetry.
+- `/api/recommendations` — deterministic, no model.
+- `components/ui/chat/FloatingChat.tsx` is imported by nothing, so `/api/chat` has no first-party caller; it's kept alive behind the same auth+quota gate and is the next thing to delete.
 
 ### Search (the `/search` page is not `/api/search`)
 

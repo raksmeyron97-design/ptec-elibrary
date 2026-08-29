@@ -1,5 +1,12 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { generateEmbedding } from "@/lib/gemini-embeddings";
+import { generateDocumentEmbedding } from "@/lib/gemini-embeddings";
+
+// This route writes books.embedding, which is READ by lib/ai/retrieval.ts and
+// /api/search with gemini-embedding-001 / RETRIEVAL_QUERY vectors. It used to
+// call generateEmbedding() (text-embedding-004, unnormalized), so every row it
+// backfilled landed in a different vector space from the rows written by
+// scripts/embed-library.ts — and cosine similarity across two models is noise.
+// It must stay on generateDocumentEmbedding; see docs/AI_ASSISTANT_AUDIT.md 2.1.
 
 export const runtime = "nodejs";
 
@@ -40,8 +47,7 @@ export async function POST(req: Request) {
       
       if (!textToEmbed) continue;
 
-      // Rate limiting handled by Gemini API naturally, but might need delay if quota is strict
-      const embedding = await generateEmbedding(textToEmbed);
+      const embedding = await generateDocumentEmbedding(textToEmbed);
 
       const { error: updateError } = await db
         .from("books")

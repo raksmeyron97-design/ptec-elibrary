@@ -155,3 +155,56 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     );
   });
 });
+// ── Every [slug] page body must normalize its route param ─────────────────
+//
+// Next delivers a non-ASCII path segment PERCENT-ENCODED to the page
+// component, while generateMetadata receives it decoded. A page that queries
+// with the raw param therefore renders a <title> from the real record and a
+// "not found" body for the same URL — a soft 404 that only ever hits
+// Khmer-slugged records, and that returns HTTP 200 so no monitor sees it.
+// That is exactly how /books/<khmer-slug>/read 404'd in production while the
+// detail page beside it worked. decodeSlugParam() is idempotent, so the rule
+// is simply: if a file reads a `slug` route param, every function that does
+// must run it through decodeSlugParam.
+describe("[slug] route params are decoded before any lookup", () => {
+  const PUBLIC_DIR = path.join(__dirname, "..", "app/[locale]/(public)");
+
+  function slugPages(dir: string, found: string[] = []): string[] {
+    if (!fs.existsSync(dir)) return found;
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) slugPages(full, found);
+      else if (entry.name === "page.tsx" && dir.includes("[slug]")) found.push(full);
+    }
+    return found;
+  }
+
+  const pages = slugPages(PUBLIC_DIR);
+
+  it("finds the [slug] pages to check", () => {
+    expect(pages.length).toBeGreaterThan(5);
+  });
+
+  it.each(pages.map((p) => [path.relative(PUBLIC_DIR, p), p]))(
+    "%s decodes the slug param everywhere it destructures one",
+    (_rel, file) => {
+      const src = fs.readFileSync(file, "utf8");
+      // Count the places this file pulls `slug` out of params. Each one is a
+      // separate entry point (generateMetadata, the default export, …) and
+      // each needs its own decode.
+      const destructures = src.match(/\bslug(?:\s*:\s*\w+)?\s*[,}]/g) ?? [];
+      if (destructures.length === 0) return;
+      const decodes = src.match(/decodeSlugParam\s*\(/g) ?? [];
+      expect(
+        decodes.length,
+        `${path.basename(path.dirname(file))} reads a slug route param but calls ` +
+          `decodeSlugParam ${decodes.length} time(s) — a page body that skips it ` +
+          `soft-404s every non-ASCII slug`,
+      ).toBeGreaterThan(0);
+      // Both entry points must decode, not just one.
+      expect(src.includes("export async function generateMetadata") && decodes.length >= 2).toBe(
+        true,
+      );
+    },
+  );
+});

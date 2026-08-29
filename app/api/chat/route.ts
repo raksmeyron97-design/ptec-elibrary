@@ -1,78 +1,55 @@
 // app/api/chat/route.ts
-// PTEC Library AI assistant (streaming, RAG over books + research).
-// Hardened to mirror /api/ask: auth-gated, per-user daily quota, global
-// circuit breaker, cooldown, sanitized search, and generic error responses.
-// GEMINI_API_KEY is read from the environment only — never from disk.
+// COMPATIBILITY ADAPTER over the canonical AI service (app/api/ai + lib/ai).
+//
+// Speaks the AI-SDK `useChat` protocol: it takes `UIMessage[]` and returns a
+// UI message stream. That is the only thing this file knows how to do —
+// retrieval, prompting, budgets, grounding and cost control all live in
+// lib/ai/*, shared with /api/ai and /api/ask.
+//
+// NOTE: as of the 2.0 rework this endpoint has no first-party caller —
+// components/ui/chat/FloatingChat.tsx is not mounted anywhere (audit §5). It is
+// kept working, and kept behind the same auth + quota gate, so that any client
+// still pointed at it does not break; it is the first thing to delete once
+// that is confirmed.
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
-import type { AppRole } from "@/lib/types/roles";
-import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
-import { logAppEvent } from "@/lib/analytics/events";
-import { getOrgIdentity } from "@/lib/system-settings/config";
+import { createClient } from "@/lib/supabase/server";
+import type { UIMessage } from "ai";
+import { AIRequestError, validateMessages, type AILocale } from "@/lib/ai";
+import { checkCooldown, consumeQuota } from "@/lib/ai/limits";
+import { runAssistant, streamAssistant } from "@/lib/ai/router";
+import { recordAiRequest } from "@/lib/ai/telemetry";
+import { enforceGrounding } from "@/lib/ai/guardrails";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-// ── Cost-control constants (kept in step with /api/ask) ─────────────────────────
-const DAILY_USER_LIMIT = 10; // per-user messages/day (Asia/Phnom_Penh date)
-const DAILY_GLOBAL_LIMIT = 500; // total messages/day across all users
-const COOLDOWN_MS = 5_000; // min ms between accepted requests per user
-const MAX_OUTPUT_TOKENS = 700; // hard cap on model response length
-const MAX_TURNS = 10; // max conversation turns accepted from the client
-const MAX_TEXT_LEN = 500; // max chars per message
-
-const MODEL = "gemini-3.5-flash";
-
-// Page-level passage retrieval (book_chunks, migration 0082).
-const MAX_PASSAGES = 6; // chunks fed to the model as citable context
-const PASSAGE_MIN_SIMILARITY = 0.3;
-const PASSAGE_TEXT_LEN = 700; // chars per chunk in the prompt (bounds input tokens)
-
-// Sentinel UUID for the global circuit breaker row in ai_usage (not a real user).
-const GLOBAL_SENTINEL = "00000000-0000-0000-0000-000000000000";
-
-// In-memory per-user cooldown (resets on cold start — daily quota lives in the DB).
-const cooldownMap = new Map<string, number>();
-
-// Strip PostgREST filter metacharacters so user input can't break out of the
-// `.or(...)` filter string (comma/paren/percent/backslash/asterisk).
-function sanitizeSearchTerm(input: string): string {
-  return input
-    .replace(/[%,()\\*]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 200);
-}
-
-function lastUserText(messages: UIMessage[]): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== "user") continue;
-    const parts = Array.isArray(m.parts) ? m.parts : [];
-    return parts
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((p: any) => p?.type === "text" && typeof p.text === "string")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((p: any) => p.text as string)
-      .join("");
-  }
-  return "";
+/** Flatten the AI-SDK UI message shape into the core's `{role,text}` wire. */
+function toInbound(messages: UIMessage[]): Array<{ role: "user" | "model"; text: string }> {
+  return messages
+    .map((m) => {
+      const parts = Array.isArray(m.parts) ? m.parts : [];
+      const text = parts
+        .filter((p): p is { type: "text"; text: string } => p?.type === "text" && typeof (p as { text?: unknown }).text === "string")
+        .map((p) => p.text)
+        .join("")
+        .trim();
+      return { role: m.role === "user" ? ("user" as const) : ("model" as const), text };
+    })
+    .filter((m) => m.text.length > 0)
+    // The core caps message length; oversized turns are truncated rather than
+    // rejected here so an old client with a long transcript still works.
+    .map((m) => ({ ...m, text: m.text.slice(0, 500) }));
 }
 
 export async function POST(req: Request) {
-  // ── 1. Auth ───────────────────────────────────────────────────────────────────
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return Response.json({ error: "auth" }, { status: 401 });
-  }
-  const userId = user.id;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: "auth" }, { status: 401 });
 
-  // ── 2. Body validation ─────────────────────────────────────────────────────────
-  let body: { messages?: unknown };
+  let body: { messages?: unknown; locale?: string };
   try {
     body = await req.json();
   } catch {
@@ -81,168 +58,81 @@ export async function POST(req: Request) {
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return Response.json({ error: "messages must be a non-empty array." }, { status: 400 });
   }
-  if (body.messages.length > MAX_TURNS) {
-    return Response.json({ error: `messages array exceeds ${MAX_TURNS} turns.` }, { status: 400 });
-  }
 
-  const messages = body.messages as UIMessage[];
-  const query = sanitizeSearchTerm(lastUserText(messages));
-  if (!query) {
-    return Response.json({ error: "Empty message." }, { status: 400 });
-  }
-  if (query.length > MAX_TEXT_LEN) {
-    return Response.json({ error: "Message too long." }, { status: 400 });
-  }
+  // Keep the most recent turns only — the core compresses further, but this
+  // bounds the work done on a hostile body.
+  const inbound = toInbound(body.messages as UIMessage[]).slice(-10);
+  const validated = validateMessages(inbound);
+  if (!validated.ok) return Response.json({ error: validated.error }, { status: 400 });
 
-  // ── 3. Cooldown (in-memory, per-user) ────────────────────────────────────────────
-  const now = Date.now();
-  if (now - (cooldownMap.get(userId) ?? 0) < COOLDOWN_MS) {
-    return Response.json({ error: "cooldown" }, { status: 429 });
-  }
-  cooldownMap.set(userId, now);
+  if (!checkCooldown(user.id)) return Response.json({ error: "cooldown" }, { status: 429 });
 
-  // ── 4. Role check (admins skip quota) ────────────────────────────────────────────
-  const db = createServiceClient();
-  const { data: profile } = await db
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  const isAdmin = ADMIN_PANEL_ROLES.includes((profile?.role ?? "reader") as AppRole);
-
-  // ── 5. Per-user daily quota ──────────────────────────────────────────────────────
-  if (!isAdmin) {
-    const { data: quota, error: quotaErr } = await db.rpc("increment_ai_usage", {
-      p_user_id: userId,
-      p_limit: DAILY_USER_LIMIT,
-    });
-    if (quotaErr) {
-      console.error("[/api/chat] quota RPC error:", quotaErr.message ?? quotaErr);
-      return Response.json({ error: "db_error" }, { status: 503 });
-    }
-    if ((quota as number) === -1) {
-      logAppEvent({ kind: "ai_request", status: "quota", route: "/api/chat" });
-      return Response.json({ error: "quota" }, { status: 429 });
-    }
-  }
-
-  // ── 6. Global daily circuit breaker ──────────────────────────────────────────────
-  const { data: globalResult, error: globalErr } = await db.rpc("increment_ai_usage", {
-    p_user_id: GLOBAL_SENTINEL,
-    p_limit: DAILY_GLOBAL_LIMIT,
-  });
-  if (globalErr) {
-    console.error("[/api/chat] global RPC error:", globalErr.message ?? globalErr);
-    return Response.json({ error: "db_error" }, { status: 503 });
-  }
-  if ((globalResult as number) === -1) {
-    return Response.json({ error: "global_limit" }, { status: 503 });
-  }
-
-  // ── 7. RAG search (anon client → RLS restricts to published rows) ─────────────────
-  const { data: books } = await supabase
-    .from("books")
-    .select("title, author:authors(name), description, departments(name)")
-    .eq("is_published", true)
-    .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
-    .limit(3);
-
-  const { data: research } = await supabase
-    .from("research_reports")
-    .select("title, abstract, author_names, departments(name)")
-    .or(`title.ilike.%${query}%,abstract.ilike.%${query}%`)
-    .limit(2);
-
-  // ── 7b. Page-level passages (semantic, match_book_chunks — best-effort) ──────────
-  // Publish state is re-checked inside the RPC. Any failure (no embeddings
-  // backfilled yet, Gemini hiccup) degrades to metadata-only context.
-  type Passage = { title: string; author: string; page: number; text: string };
-  let passages: Passage[] = [];
+  let remaining: number | null = null;
   try {
-    const vec = await generateQueryEmbedding(query);
-    const { data: chunks, error: chunksErr } = await db.rpc("match_book_chunks", {
-      query_embedding: vec,
-      match_count: MAX_PASSAGES,
-      min_similarity: PASSAGE_MIN_SIMILARITY,
-    });
-    if (chunksErr) throw new Error(chunksErr.message);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    passages = ((chunks ?? []) as any[]).map((c) => ({
-      title: c.title as string,
-      author: (c.author as string) ?? "Unknown",
-      page: c.page_no as number,
-      text: ((c.content as string) ?? "").slice(0, PASSAGE_TEXT_LEN),
-    }));
+    ({ remaining } = await consumeQuota(user.id));
   } catch (err) {
-    console.error("[/api/chat] passage retrieval skipped:", err instanceof Error ? err.message : err);
+    if (err instanceof AIRequestError) {
+      if (err.code === "quota") {
+        recordAiRequest("/api/chat", "quota", { intent: "unsupported" });
+        return Response.json({ error: "quota" }, { status: 429 });
+      }
+      return err.toResponse();
+    }
+    throw err;
   }
 
-  const passageBlock = passages.length
-    ? `Passages found inside library PDFs (each with its source page):\n${passages
-        .map((p, i) => `${i + 1}. "${p.title}" (${p.author}), p. ${p.page}: ${p.text}`)
-        .join("\n")}`
-    : "No PDF passages matched this question.";
+  const locale = body.locale === "km" || body.locale === "en" ? (body.locale as AILocale) : undefined;
 
-  const libraryContext = `
-Library Search Results for "${query}":
-Books: ${JSON.stringify(books ?? [])}
-Theses: ${JSON.stringify(research ?? [])}
-${passageBlock}
-`;
-
-  // ── 8. Stream the model response ─────────────────────────────────────────────────
-  const apiKey = process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) {
-    console.error("[/api/chat] GEMINI_API_KEY is not configured.");
-    return Response.json({ error: "unavailable" }, { status: 503 });
-  }
-
-  const aiStarted = Date.now();
   try {
-    const google = createGoogleGenerativeAI({ apiKey });
-    const chatOrg = await getOrgIdentity();
-    const result = streamText({
-      onFinish: () => {
-        logAppEvent({
-          kind: "ai_request",
-          status: "ok",
-          route: "/api/chat",
-          latencyMs: Date.now() - aiStarted,
-        });
-      },
-      onError: () => {
-        logAppEvent({
-          kind: "ai_request",
-          status: "error",
-          route: "/api/chat",
-          latencyMs: Date.now() - aiStarted,
-        });
-      },
-      model: google(MODEL),
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      // Same as /api/search: don't let thinking tokens eat the output cap.
-      providerOptions: { google: { thinkingConfig: { thinkingBudget: 0 } } },
-      system: `You are a helpful, polite, and knowledgeable library assistant for ${chatOrg.siteName} (${chatOrg.institutionName}).
-You MUST ONLY recommend books or research materials that actually exist in the library context provided below.
-If no results are found in the context, tell the user politely that you couldn't find any related materials in the library.
-If results are found, summarize them nicely with their title, author, and description.
-When your answer draws on one of the PDF passages below, cite its source page inline, e.g. (Book Title, p. 42) — in Khmer replies use (ចំណងជើង, ទំព័រ 42). Only cite page numbers that appear in the passages; never invent them.
-Do NOT write essays, homework, or assignments for students; politely decline such requests.
-Keep responses concise. Reply in Khmer (ភាសាខ្មែរ) when the user writes in Khmer, otherwise reply in English.
+    const plan = await streamAssistant({ messages: validated.messages, locale, remaining });
 
-${libraryContext}`,
-      messages: await convertToModelMessages(messages),
-    });
+    if (!plan.streamed) {
+      const { response, telemetry } = plan.result;
+      recordAiRequest("/api/chat", "ok", telemetry);
+      const stream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: "text-start", id: "0" });
+          writer.write({ type: "text-delta", id: "0", delta: response.answer });
+          writer.write({ type: "text-end", id: "0" });
+        },
+      });
+      return createUIMessageStreamResponse({ stream });
+    }
+
+    const started = Date.now();
+    const { stream: result, telemetry, sources } = plan;
+    void Promise.resolve(result.text)
+      .then((text) => {
+        const grounded = enforceGrounding(text ?? "", sources);
+        recordAiRequest("/api/chat", "ok", {
+          ...telemetry,
+          latencyMs: telemetry.latencyMs + (Date.now() - started),
+          outputTokens: Math.round((text ?? "").length / 4),
+          totalTokens: telemetry.inputTokens + Math.round((text ?? "").length / 4),
+          fallback: grounded.hallucinated.length ? "error" : telemetry.fallback,
+        });
+      })
+      .catch(() => recordAiRequest("/api/chat", "error", telemetry));
 
     return result.toUIMessageStreamResponse();
   } catch (err) {
-    console.error("[/api/chat] stream error:", err);
-    logAppEvent({
-      kind: "ai_request",
-      status: "error",
-      route: "/api/chat",
-      latencyMs: Date.now() - aiStarted,
-    });
-    return Response.json({ error: "unavailable" }, { status: 503 });
+    if (err instanceof AIRequestError) return err.toResponse();
+    console.error("[/api/chat] failed:", err);
+    // Last resort: answer without streaming rather than returning nothing.
+    try {
+      const { response, telemetry } = await runAssistant({ messages: validated.messages, locale, remaining });
+      recordAiRequest("/api/chat", "fallback", telemetry);
+      const stream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: "text-start", id: "0" });
+          writer.write({ type: "text-delta", id: "0", delta: response.answer });
+          writer.write({ type: "text-end", id: "0" });
+        },
+      });
+      return createUIMessageStreamResponse({ stream });
+    } catch {
+      recordAiRequest("/api/chat", "error", { intent: "general_knowledge" });
+      return Response.json({ error: "unavailable" }, { status: 503 });
+    }
   }
 }
