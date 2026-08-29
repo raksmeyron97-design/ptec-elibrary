@@ -7,6 +7,8 @@ import ActionButtons from "@/components/ui/detail/ActionButtons";
 import AuthorAffiliationPanel from "@/components/ui/publications/AuthorAffiliationPanel";
 import PublicationMetricsRow from "@/components/ui/publications/PublicationMetricsRow";
 import AccessBadge from "@/components/ui/publications/AccessBadge";
+import PublicationAccessNotice from "@/components/ui/publications/PublicationAccessNotice";
+import type { DownloadAccess } from "@/lib/publications/access";
 import type { Publication, PublicationAffiliation, PublicationAuthorship } from "@/lib/publications";
 import { secondaryValue, type PublicationMetrics } from "@/lib/publications/integrity";
 
@@ -37,6 +39,7 @@ export default async function PublicationHero({
   fileHref,
   shareUrl,
   metrics,
+  access,
 }: {
   pub: Publication;
   authorships: PublicationAuthorship[];
@@ -48,6 +51,12 @@ export default async function PublicationHero({
   fileHref: string;
   shareUrl: string;
   metrics: PublicationMetrics;
+  /**
+   * Resolved by lib/publications/access.ts — the SAME call the download route
+   * makes. The button below is drawn from this, so what the page offers and
+   * what the server will actually serve cannot drift apart.
+   */
+  access: DownloadAccess;
 }) {
   const t = await getTranslations("publicationDetail");
 
@@ -172,7 +181,13 @@ export default async function PublicationHero({
                       name a reader would search for and not "Sok Dara1,2*". */}
                   {a.author.full_name.trim() ? (
                     <Link
-                      href={`/authors/${slugify(a.author.full_name)}`}
+                      // The stored profile slug when the record has one
+                      // (migration 0125) — an admin who corrects an author's
+                      // slug must not leave every byline pointing at the old
+                      // name-derived URL. Falls back to the derived form for a
+                      // row the backfill has not reached, which is what this
+                      // always did.
+                      href={`/authors/${a.author.slug || slugify(a.author.full_name)}`}
                       className="rounded-sm font-semibold text-text-heading underline-offset-4 transition-colors duration-150 hover:text-brand hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring/50"
                     >
                       {a.author.full_name}
@@ -233,6 +248,12 @@ export default async function PublicationHero({
               hasFile={!!pub.pdf_url}
               shareUrl={shareUrl}
               variant="full"
+              // No download button at all when access is refused — and the
+              // reason is stated underneath rather than left as an absence.
+              // `null` (not undefined) is what removes it: undefined means
+              // "use the built-in button".
+              {...(access.canDownload ? {} : { downloadSlot: null })}
+              emphasizePreview={!access.canDownload}
               labels={{
                 download: t("downloadPdf"),
                 pdfUnavailable: t("pdfUnavailable"),
@@ -242,6 +263,16 @@ export default async function PublicationHero({
                 share: t("share"),
                 copyLink: t("copyLink"),
                 exportCitation: t("exportCitation"),
+              }}
+            />
+            <PublicationAccessNotice
+              access={access}
+              labels={{
+                unavailableHeading: t("downloadUnavailable"),
+                readOnlyBody: t("downloadReadOnlyBody"),
+                rightsBody: t("downloadRightsBody"),
+                noFileHeading: t("noFileHeading"),
+                noFileBody: t("noFileBody"),
               }}
             />
           </div>

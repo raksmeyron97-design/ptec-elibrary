@@ -8,6 +8,7 @@ import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import { resolveDownloadAccess } from "@/lib/publications/access";
 import {
   academicTextToPlainText,
   normalizePublicationReferences,
@@ -661,7 +662,11 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
   let query: any = db
     .from("publications_with_stats")
     .select(
-      "id, slug, title, title_km, cover_url, abstract, abstract_km, references, author_names, journal_name, article_type, language, keywords, subjects, publisher, isbn, view_count, download_count, publication_date, published_at, created_at, pdf_url",
+      // `*` rather than a column list: the access resolution below needs
+      // allow_download / download_disabled_reason / fulltext_redistributable,
+      // and naming a column a pre-0125 database has not got would fail the
+      // whole publications leg of the search.
+      "*",
       { count: "exact" },
     )
     .eq("is_published", true)
@@ -710,7 +715,21 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       actions: {
         view: `/publications/${p.slug}`,
         read: p.pdf_url ? `/publications/${p.slug}#fulltext` : undefined,
-        download: p.pdf_url ? `/api/publications/${p.slug}/file?download=1` : undefined,
+        // Offered only when the server would actually serve it. A search
+        // result that links straight at ?download=1 for a read-online-only
+        // record hands the reader a 403 — the same resolution the detail page
+        // and the download route use decides it here too.
+        download: resolveDownloadAccess({
+          slug: p.slug,
+          title: p.title,
+          publisher: p.publisher ?? null,
+          license: p.license ?? null,
+          allow_download: p.allow_download,
+          fulltext_redistributable: p.fulltext_redistributable,
+          pdf_url: p.pdf_url,
+        }).canDownload
+          ? `/api/publications/${p.slug}/file?download=1`
+          : undefined,
         cite: `/publications/${p.slug}#cite-panel`,
         save: `/publications/${p.slug}#save`,
       },

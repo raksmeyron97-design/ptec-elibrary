@@ -7,7 +7,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
-import { getPublicationBySlug } from "@/app/actions/publications";
+import { getPublicationBySlug, getPublicationFigures } from "@/app/actions/publications";
+import { resolveDownloadAccess } from "@/lib/publications/access";
 import type { PublicationAffiliation } from "@/lib/publications";
 import { toCitationLine, citationYear, authorList } from "@/lib/citations";
 import PublicationViewPing from "@/components/ui/publications/PublicationViewPing";
@@ -23,6 +24,7 @@ import TableOfContentsSection from "@/components/ui/publications/TableOfContents
 import LearningOutcomesSection from "@/components/ui/publications/LearningOutcomesSection";
 import AuthorBiosSection from "@/components/ui/publications/AuthorBiosSection";
 import PublicationFAQ from "@/components/ui/publications/PublicationFAQ";
+import PublicationFigures from "@/components/ui/publications/PublicationFigures";
 import SimilarBooks from "@/components/ui/publications/SimilarBooks";
 import PublicationReviewsSection from "@/components/ui/publications/PublicationReviewsSection";
 import { getPublicationRatingStats } from "@/app/actions/publication-reviews";
@@ -135,7 +137,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
 
   // Admin check, affiliations, rating stats and related content are all
   // independent — run them concurrently instead of stacking round-trips.
-  const [isAdmin, affiliations, ratingStats, relatedItems, libraryBooks] = await Promise.all([
+  const [isAdmin, affiliations, ratingStats, relatedItems, libraryBooks, figures] = await Promise.all([
     // Admin-only edit link — best-effort, non-blocking
     (async () => {
       try {
@@ -173,6 +175,11 @@ export default async function PublicationDetailPage({ params }: PageProps) {
       firstAuthorId: (pub.authorships ?? [])[0]?.author.id ?? null,
     }),
     getLibraryFallbackBooks({ keywords: pub.keywords, subjects: pub.subjects }),
+    // Its own query rather than an embed in PUBLICATION_DETAIL_SELECT (see
+    // getPublicationFigures for why), but concurrent with the rest — it costs
+    // no extra wall-clock time. Returns [] rather than throwing when the table
+    // is not there yet, so the section simply does not render.
+    getPublicationFigures(pub.id),
   ]);
 
   // Stable superscript numbering: order of first appearance in the byline
@@ -190,6 +197,21 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const citationLine = toCitationLine(pub);
   const publishedOn = formatDate(pub.publication_date ?? pub.published_at);
   const fileHref = `/api/publications/${slug}/file`;
+
+  // ONE resolution of "may this reader have the file", shared with the API
+  // route that enforces it. The masthead draws its buttons from this, so the
+  // page can never advertise a download the server is going to refuse — and
+  // never hide one it would have allowed.
+  const access = resolveDownloadAccess({
+    slug: pub.slug,
+    title: pub.title,
+    publisher: pub.publisher,
+    license: pub.license,
+    allow_download: pub.allow_download,
+    download_disabled_reason: pub.download_disabled_reason,
+    fulltext_redistributable: pub.fulltext_redistributable,
+    pdf_url: pub.pdf_url,
+  });
   const shareUrl = `${SITE_URL}/publications/${slug}`;
   const year = citationYear(pub);
 
@@ -218,6 +240,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     toc: pub.table_of_contents.length > 0,
     outcomes: pub.learning_outcomes.length > 0,
     fulltext: !!pub.pdf_url,
+    figures: figures.length > 0,
     references: pub.references.length > 0,
     authors: authorships.length > 0,
     reviews: showReviews,
@@ -233,6 +256,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
     ...(has.toc ? [{ id: "toc", label: t("sectionToc") }] : []),
     ...(has.outcomes ? [{ id: "outcomes", label: t("sectionOutcomes") }] : []),
     ...(has.fulltext ? [{ id: "fulltext", label: t("sectionFullText") }] : []),
+    ...(has.figures ? [{ id: "figures", label: t("sectionFigures") }] : []),
     ...(has.references ? [{ id: "references", label: t("sectionReferences") }] : []),
     ...(has.authors ? [{ id: "authors", label: t("sectionAuthors") }] : []),
     ...(has.reviews ? [{ id: "reviews", label: t("sectionReviews") }] : []),
@@ -356,6 +380,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           fileHref={fileHref}
           shareUrl={shareUrl}
           metrics={metrics}
+          access={access}
         />
 
         {/* ── Sticky section nav ──────────────────────────────────────────
@@ -368,7 +393,7 @@ export default async function PublicationDetailPage({ params }: PageProps) {
           label={t("sectionNavLabel")}
           revealActionAfterId="publication-masthead"
           action={
-            pub.pdf_url ? (
+            access.canDownload ? (
               <a
                 href={`${fileHref}?download=1`}
                 className="btn-brand-gradient inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
@@ -448,6 +473,31 @@ export default async function PublicationDetailPage({ params }: PageProps) {
                   publicationId={pub.id}
                   hasFile
                   reportEmail={(await getSiteConfig()).email}
+                />
+              </section>
+            )}
+
+            {/* Visual content. Placed after the full text and before the
+                references, which is where a reader looking for "the figure
+                from that paper" goes hunting. Absent entirely when the record
+                has none — no empty gallery frame. */}
+            {has.figures && (
+              <section id="figures" className="scroll-mt-24 lg:scroll-mt-36" aria-labelledby="figures-heading">
+                <SectionHeading id="figures-heading" count={figures.length}>
+                  {t("sectionFigures")}
+                </SectionHeading>
+                <PublicationFigures
+                  figures={figures}
+                  locale={locale}
+                  labels={{
+                    figureLabel: t("figureLabel", { n: "{n}" }),
+                    enlarge: t("figureEnlarge", { n: "{n}" }),
+                    close: t("figureClose"),
+                    previous: t("figurePrevious"),
+                    next: t("figureNext"),
+                    position: t("figurePosition", { n: "{n}", total: "{total}" }),
+                    credit: t("figureCredit"),
+                  }}
                 />
               </section>
             )}

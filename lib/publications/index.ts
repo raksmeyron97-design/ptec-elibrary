@@ -16,6 +16,20 @@ export interface PublicationAuthor {
   bio: string | null;
   bio_km: string | null;
   photo_url: string | null;
+  /**
+   * Academic profile fields (migration 0125). All optional in the TYPE as well
+   * as in the data: a query written before 0125 — or a select that deliberately
+   * asks for less — simply omits them, and every consumer treats absent as
+   * "not recorded" rather than crashing.
+   */
+  slug?: string | null;
+  position_title?: string | null;
+  affiliation_name?: string | null;
+  website_url?: string | null;
+  google_scholar_url?: string | null;
+  research_gate_url?: string | null;
+  research_interests?: string[];
+  is_published?: boolean;
 }
 
 export interface PublicationAffiliation {
@@ -39,6 +53,24 @@ export interface PublicationFile {
   file_url: string;
   file_type: string | null;
   size_bytes: number | null;
+  sort_order: number;
+}
+
+/**
+ * One figure from the article's visual content (migration 0125).
+ *
+ * `caption` and `alt_text` are separate because they do different jobs:
+ * the caption is the printed "Figure 1. …" line every reader sees, the alt
+ * text is what a screen reader announces in place of the image. A caption read
+ * aloud as alt text describes the figure's role, not its content.
+ */
+export interface PublicationFigure {
+  id: string;
+  image_url: string;
+  caption: string | null;
+  caption_km: string | null;
+  alt_text: string | null;
+  credit: string | null;
   sort_order: number;
 }
 
@@ -100,6 +132,20 @@ export interface Publication {
   language: string;
   cover_url: string | null;
   pdf_url: string | null;
+  /**
+   * Library-policy download switch (migration 0125). Optional in the type
+   * because a row read before the migration has no such column; every reader
+   * must treat `undefined` as "allowed", which is the column's default and the
+   * behaviour every existing record already had.
+   */
+  allow_download?: boolean;
+  download_disabled_reason?: string | null;
+  /**
+   * Rights flag from 0092 — whether we may redistribute the full text at all.
+   * Distinct from allow_download; a download needs both. Carried on the type so
+   * the page can resolve access without a second query.
+   */
+  fulltext_redistributable?: boolean;
   /** Admin SEO overrides (migration 0112). Null → auto-generated metadata. */
   seo_title: string | null;
   seo_description: string | null;
@@ -121,6 +167,11 @@ export interface Publication {
   authorships?: PublicationAuthorship[];
   /** Present only when the query embedded publication_files. */
   files?: PublicationFile[];
+  /**
+   * Present only when the caller loaded them (getPublicationFigures). Kept OUT
+   * of PUBLICATION_DETAIL_SELECT on purpose — see the note on that constant.
+   */
+  figures?: PublicationFigure[];
 }
 
 function mapAuthorship(row: any): PublicationAuthorship {
@@ -135,6 +186,15 @@ function mapAuthorship(row: any): PublicationAuthorship {
       bio: a.bio ?? null,
       bio_km: a.bio_km ?? null,
       photo_url: a.photo_url ?? null,
+      // Spread only what the select actually returned: a pre-0125 query has no
+      // `slug` key at all, and writing `slug: null` there would tell callers
+      // "this author has no slug" when the truth is "we did not ask".
+      ...("slug" in a ? { slug: a.slug ?? null } : {}),
+      ...("position_title" in a ? { position_title: a.position_title ?? null } : {}),
+      ...("affiliation_name" in a ? { affiliation_name: a.affiliation_name ?? null } : {}),
+      ...("website_url" in a ? { website_url: a.website_url ?? null } : {}),
+      ...("google_scholar_url" in a ? { google_scholar_url: a.google_scholar_url ?? null } : {}),
+      ...("research_gate_url" in a ? { research_gate_url: a.research_gate_url ?? null } : {}),
     },
     author_order: row.author_order ?? 1,
     is_corresponding: row.is_corresponding ?? false,
@@ -206,6 +266,14 @@ export function mapRowToPublication(row: any): Publication {
     language: row.language ?? "en",
     cover_url: row.cover_url ?? null,
     pdf_url: row.pdf_url ?? null,
+    // Same rule as the author profile fields: only carry what was selected.
+    ...(typeof row.allow_download === "boolean" ? { allow_download: row.allow_download } : {}),
+    ...("download_disabled_reason" in row
+      ? { download_disabled_reason: row.download_disabled_reason ?? null }
+      : {}),
+    ...(typeof row.fulltext_redistributable === "boolean"
+      ? { fulltext_redistributable: row.fulltext_redistributable }
+      : {}),
     seo_title: row.seo_title ?? null,
     seo_description: row.seo_description ?? null,
     og_image: row.og_image ?? null,
@@ -228,8 +296,63 @@ export function mapRowToPublication(row: any): Publication {
   };
 }
 
-/** Embedded select fragment for detail queries (authors + files in one round trip). */
+/**
+ * Embedded select fragment for detail queries (authors + files in one round
+ * trip).
+ *
+ * `*` on the parent picks up 0125's allow_download / download_disabled_reason
+ * automatically. The AUTHOR columns from 0125 are named explicitly and are
+ * therefore the one thing here that can fail against a database where the
+ * migration has not landed yet — getPublicationBySlug retries with
+ * PUBLICATION_DETAIL_SELECT_LEGACY when that happens, so a deploy that reaches
+ * the box before the migration does degrades to the old byline instead of
+ * 404ing every article.
+ *
+ * publication_figures is deliberately NOT embedded: it is needed by exactly one
+ * section of one page, and a failed embed would take the whole record with it.
+ * getPublicationFigures() fetches it separately and returns [] on error.
+ */
 export const PUBLICATION_DETAIL_SELECT = `*,
+  publication_authorships(author_order, is_corresponding, affiliation_ids,
+    publication_authors(id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url,
+      slug, position_title, affiliation_name, website_url, google_scholar_url,
+      research_gate_url, research_interests, is_published)),
+  publication_files(id, label, file_url, file_type, size_bytes, sort_order)`;
+
+/** The pre-0125 shape, used only as the retry when the enriched select fails. */
+export const PUBLICATION_DETAIL_SELECT_LEGACY = `*,
   publication_authorships(author_order, is_corresponding, affiliation_ids,
     publication_authors(id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url)),
   publication_files(id, label, file_url, file_type, size_bytes, sort_order)`;
+
+/** publication_authors columns as they existed before migration 0125. */
+export const AUTHOR_SELECT_LEGACY =
+  "id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url";
+
+/** …and the same plus 0125's academic-profile columns. */
+export const AUTHOR_SELECT_FULL =
+  `${AUTHOR_SELECT_LEGACY}, slug, position_title, affiliation_name, website_url, ` +
+  "google_scholar_url, research_gate_url, research_interests, is_published";
+
+/**
+ * True when a PostgREST error is "you named a column this database has not
+ * got". Every enriched select in this codebase pairs with a legacy retry on
+ * this predicate, so a deploy that lands before its migration degrades instead
+ * of erroring.
+ */
+export function isMissingColumnError(error: { message?: string } | null | undefined): boolean {
+  return !!error && /column|does not exist|schema cache/i.test(error.message ?? "");
+}
+
+/** Normalise a publication_figures row. */
+export function mapRowToFigure(row: any): PublicationFigure {
+  return {
+    id: row.id,
+    image_url: row.image_url,
+    caption: row.caption ?? null,
+    caption_km: row.caption_km ?? null,
+    alt_text: row.alt_text ?? null,
+    credit: row.credit ?? null,
+    sort_order: row.sort_order ?? 0,
+  };
+}

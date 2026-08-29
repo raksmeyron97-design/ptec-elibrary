@@ -1,112 +1,49 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+
 import { Link } from "@/i18n/navigation";
 import { decodeSlugParam } from "@/lib/slug";
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
+import Icon from "@/components/ui/core/Icon";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { localeAlternates } from "@/lib/seo/alternates";
-import { slugify } from "@/lib/books";
-import { createServiceClient } from "@/lib/supabase/server";
+
+import { getAuthorProfile } from "@/lib/authors/profile";
+import { authorStats } from "@/lib/authors/stats";
+import { authorLinks } from "@/lib/authors/links";
+import AuthorHero from "@/components/ui/authors/AuthorHero";
+import AuthorAbout from "@/components/ui/authors/AuthorAbout";
+import ResearchInterests from "@/components/ui/authors/ResearchInterests";
+import AuthorWorksList from "@/components/ui/authors/AuthorWorksList";
 
 export const revalidate = 3600;
 
 type PageProps = { params: Promise<{ slug: string; locale: string }> };
 
-function truncate(text: string | null | undefined, max = 155) {
+function truncate(text: string | null | undefined, max = 155): string {
   const clean = text?.replace(/\s+/g, " ").trim() ?? "";
-  return clean.length > max ? `${clean.slice(0, max)}...` : clean;
-}
-
-async function resolveAuthor(slug: string) {
-  const supabase = createServiceClient();
-  const [{ data: bookAuthors }, { data: publicationAuthors }] = await Promise.all([
-    supabase.from("authors").select("id, name, bio").order("name", { ascending: true }).limit(1000),
-    supabase.from("publication_authors").select("id, full_name, full_name_km, bio, bio_km").order("full_name", { ascending: true }).limit(1000),
-  ]);
-
-  const bookAuthor = (bookAuthors ?? []).find((a) => slugify(a.name) === slug);
-  const publicationAuthor = (publicationAuthors ?? []).find((a) => slugify(a.full_name) === slug || (a.full_name_km && slugify(a.full_name_km) === slug));
-  const name = bookAuthor?.name ?? publicationAuthor?.full_name ?? publicationAuthor?.full_name_km ?? null;
-  if (!name) return null;
-
-  const [{ data: books }, { data: publications }, { data: theses }, { data: catalog }] = await Promise.all([
-    bookAuthor
-      ? supabase
-          .from("books")
-          .select("id, slug, title, description")
-          .eq("is_published", true)
-          .eq("author_id", bookAuthor.id)
-          .order("download_count", { ascending: false })
-          .limit(16)
-      : Promise.resolve({ data: [] as any[] }),
-    supabase
-      .from("publications_with_stats")
-      .select("id, slug, title, abstract, author_names")
-      .eq("is_published", true)
-      .ilike("author_names", `%${name}%`)
-      .order("view_count", { ascending: false })
-      .limit(16),
-    supabase
-      .from("research_reports")
-      .select("id, slug, title, abstract, author_names")
-      .eq("is_published", true)
-      .ilike("author_names", `%${name}%`)
-      .order("view_count", { ascending: false })
-      .limit(16),
-    supabase
-      .from("catalog_books")
-      .select("id, slug, title, description, author")
-      .eq("is_active", true)
-      .ilike("author", `%${name}%`)
-      .order("title", { ascending: true })
-      .limit(16),
-  ]);
-
-  return {
-    name,
-    bio: bookAuthor?.bio ?? publicationAuthor?.bio ?? publicationAuthor?.bio_km ?? null,
-    slug,
-    items: [
-      ...(books ?? []).map((item: any) => ({
-        type: "E-book",
-        title: item.title,
-        href: `/books/${item.slug}`,
-        excerpt: item.description,
-      })),
-      ...(publications ?? []).map((item: any) => ({
-        type: "Publication",
-        title: item.title,
-        href: `/publications/${item.slug}`,
-        excerpt: item.abstract,
-      })),
-      ...(theses ?? []).map((item: any) => ({
-        type: "Thesis",
-        title: item.title,
-        href: `/theses/${item.slug ?? item.id}`,
-        excerpt: item.abstract,
-      })),
-      ...(catalog ?? []).map((item: any) => ({
-        type: "Physical book",
-        title: item.title,
-        href: `/catalogs/${item.slug ?? item.id}`,
-        excerpt: item.description,
-      })),
-    ],
-  };
+  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
-  const author = await resolveAuthor(slug);
-  if (!author) return { title: "Author not found" };
+  const [author, t] = await Promise.all([
+    getAuthorProfile(slug),
+    getTranslations({ locale, namespace: "authors" }),
+  ]);
+  if (!author) return { title: t("notFoundTitle"), robots: { index: false, follow: true } };
 
-  const title = `${author.name} | Author`;
-  const description = truncate(author.bio, 155) || `Browse PTEC Library resources by ${author.name}.`;
+  const org = await getOrgIdentity();
+  const title = `${author.name} — ${t("eyebrow")}`;
+  // The biography when there is one; otherwise a factual sentence, never an
+  // invented description of who this person is.
+  const description =
+    truncate(author.bio) || t("metaDescription", { name: author.name });
   const alternates = localeAlternates(`/authors/${author.slug}`, locale);
-  const canonical = alternates.canonical;
 
   return {
     title,
@@ -116,77 +53,187 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       type: "profile",
-      url: canonical,
-      siteName: (await getOrgIdentity()).siteName,
+      url: alternates.canonical,
+      siteName: org.siteName,
+      ...(author.photoUrl ? { images: [{ url: author.photoUrl, alt: author.name }] } : {}),
     },
-    twitter: { card: "summary", title, description },
+    twitter: {
+      // "summary" either way: a portrait is a square thumbnail, not a
+      // large_image hero, and a profile with no photo has nothing to enlarge.
+      card: "summary",
+      title,
+      description,
+      ...(author.photoUrl ? { images: [author.photoUrl] } : {}),
+    },
   };
 }
 
 export default async function AuthorPage({ params }: PageProps) {
-  const { slug: rawSlug } = await params;
+  const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
-  const author = await resolveAuthor(slug);
+
+  const [author, t] = await Promise.all([
+    getAuthorProfile(slug),
+    getTranslations("authors"),
+  ]);
   if (!author) notFound();
 
-  const authorUrl = `${SITE_URL}/authors/${author.slug}`;
+  const stats = authorStats(author.works);
+  const links = authorLinks({
+    orcid: author.orcid,
+    websiteUrl: author.websiteUrl,
+    googleScholarUrl: author.googleScholarUrl,
+    researchGateUrl: author.researchGateUrl,
+  });
+
+  const canonical =
+    locale === "km"
+      ? `${SITE_URL}/km/authors/${author.slug}`
+      : `${SITE_URL}/authors/${author.slug}`;
+
+  // ── Person structured data ────────────────────────────────────────────────
+  //
+  // Every property is omitted rather than guessed. `sameAs` carries only the
+  // external profiles that passed URL validation (lib/authors/links.ts), so a
+  // malformed ORCID or a librarian's note typed into the website field never
+  // becomes a machine-readable claim about who this person is. `knowsAbout`
+  // comes from the author's own stated interests, never from their works'
+  // keywords — that would be an inference, and Google treats structured data
+  // as an assertion.
+  const personSchema = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    url: canonical,
+    mainEntity: {
+      "@type": "Person",
+      "@id": `${canonical}#person`,
+      name: author.name,
+      ...(author.bio ? { description: truncate(author.bio, 300) } : {}),
+      ...(author.photoUrl ? { image: author.photoUrl } : {}),
+      ...(author.positionTitle ? { jobTitle: author.positionTitle } : {}),
+      ...(author.affiliation
+        ? { affiliation: { "@type": "Organization", name: author.affiliation } }
+        : {}),
+      ...(links.length > 0 ? { sameAs: links.map((l) => l.href) } : {}),
+      ...(author.researchInterests.length > 0
+        ? { knowsAbout: author.researchInterests }
+        : {}),
+    },
+  };
+
   const breadcrumbs = breadcrumbSchema([
-    { name: "Home", path: "/" },
-    { name: "Authors", path: "/books" },
+    { name: t("breadcrumbHome"), path: "/" },
+    { name: t("breadcrumbAuthors"), path: "/publications" },
     { name: author.name },
   ]);
 
-  return (
-    <main className="min-h-screen bg-bg-body px-4 py-10 sm:px-6 md:px-12">
-      <JsonLd data={breadcrumbs} />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ProfilePage",
-          name: `${author.name} resources`,
-          url: authorUrl,
-          mainEntity: {
-            "@type": "Person",
-            name: author.name,
-            description: truncate(author.bio, 300) || undefined,
-          },
-        }}
-      />
-      <div className="mx-auto max-w-5xl">
-        <nav className="mb-5 text-[13px] font-medium text-text-muted">
-          <Link href="/" className="hover:text-brand">Home</Link>
-          <span className="mx-2">/</span>
-          <Link href="/books" className="hover:text-brand">Authors</Link>
-        </nav>
-        <header className="mb-8">
-          <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-brand">Author</p>
-          <h1 className="mt-2 text-3xl font-bold text-text-heading sm:text-4xl">{author.name}</h1>
-          {author.bio && (
-            <p className="mt-3 max-w-2xl text-[15px] leading-7 text-text-muted">{author.bio}</p>
-          )}
-        </header>
+  const hasAside = !!(author.bio || author.bioKm) || author.researchInterests.length > 0;
 
-        {author.items.length === 0 ? (
-          <div className="rounded-2xl border border-divider bg-bg-surface p-8 text-center text-text-muted">
-            No public resources are attached to this author yet.
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {author.items.map((item) => (
-              <Link
-                key={`${item.type}-${item.href}`}
-                href={item.href}
-                className="rounded-xl border border-divider bg-bg-surface p-4 transition-colors hover:border-brand/40"
-              >
-                <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand">
-                  {item.type}
-                </span>
-                <h2 className="mt-2 line-clamp-2 text-[15px] font-bold text-text-heading">{item.title}</h2>
-                {item.excerpt && <p className="mt-2 line-clamp-2 text-[12.5px] leading-5 text-text-body">{truncate(item.excerpt, 130)}</p>}
-              </Link>
-            ))}
+  return (
+    <main className="min-h-screen bg-bg-body px-4 py-8 sm:px-6 sm:py-10 md:px-12">
+      <JsonLd data={personSchema} />
+      <JsonLd data={breadcrumbs} />
+
+      <div className="mx-auto max-w-5xl">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-6 flex flex-wrap items-center gap-1.5 text-[13px] font-medium text-text-muted sm:gap-2"
+        >
+          <Link href="/" className="focus-field rounded-sm transition-colors hover:text-brand">
+            {t("breadcrumbHome")}
+          </Link>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          {/* Authors are discovered through the publications collection —
+              there is no /authors index, so the trail points at the listing
+              this person's work actually lives in rather than at a 404. */}
+          <Link
+            href="/publications"
+            className="focus-field rounded-sm transition-colors hover:text-brand"
+          >
+            {t("breadcrumbAuthors")}
+          </Link>
+          <Icon name="chevron-right" className="text-[16px] text-divider" />
+          <span className="max-w-[220px] truncate font-semibold text-text-heading sm:max-w-none">
+            {author.name}
+          </span>
+        </nav>
+
+        <AuthorHero
+          author={author}
+          stats={stats}
+          labels={{
+            eyebrow: t("eyebrow"),
+            stats: {
+              works: t("statWorks"),
+              span: t("statSpan"),
+              types: t("statTypes"),
+            },
+            links: {
+              orcid: t("linkOrcid"),
+              website: t("linkWebsite"),
+              scholar: t("linkScholar"),
+              researchgate: t("linkResearchgate"),
+            },
+          }}
+        />
+
+        {/* The narrative half of the profile. Absent entirely for an author
+            the library knows only as a name — no empty "About" heading, no
+            placeholder biography. */}
+        {hasAside && (
+          <div className="mb-12 space-y-8 border-t border-divider pt-8">
+            <AuthorAbout
+              heading={t("about")}
+              bio={author.bio}
+              bioKm={author.bioKm}
+              labels={{ more: t("readMore"), less: t("readLess") }}
+            />
+            <ResearchInterests
+              heading={t("researchInterests")}
+              interests={author.researchInterests}
+              searchLabel={(topic) => t("searchTopic", { topic })}
+            />
           </div>
         )}
+
+        {/* The main body: what this person wrote. */}
+        <section aria-labelledby="author-works-heading" className="border-t border-divider pt-8">
+          <h2
+            id="author-works-heading"
+            className="mb-6 text-[20px] font-bold tracking-tight text-text-heading sm:text-[22px]"
+          >
+            {t("worksHeading")}
+          </h2>
+
+          <AuthorWorksList
+            works={author.works}
+            counts={stats.byType}
+            labels={{
+              searchPlaceholder: t("worksSearchPlaceholder"),
+              searchLabel: t("worksSearchLabel"),
+              clearSearch: t("worksClearSearch"),
+              filterLabel: t("worksFilterLabel"),
+              all: t("worksAll"),
+              types: {
+                publication: t("typePublication"),
+                thesis: t("typeThesis"),
+                ebook: t("typeEbook"),
+                catalog: t("typeCatalog"),
+              },
+              noResults: t("worksNoResults"),
+              noResultsHint: t("worksNoResultsHint"),
+              empty: t("worksEmpty"),
+              undated: t("worksUndated"),
+              downloadable: t("accessDownloadable"),
+              readOnly: t("accessReadOnly"),
+              // The count is client state, so the live number cannot be
+              // formatted here. Passing the literal "{count}" through ICU
+              // yields the translated sentence with its placeholder intact,
+              // which the list substitutes once it knows the figure.
+              resultCount: t("worksResultCount", { count: "{count}" }),
+            }}
+          />
+        </section>
       </div>
     </main>
   );

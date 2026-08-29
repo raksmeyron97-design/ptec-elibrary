@@ -1,7 +1,11 @@
 "use server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { revalidateLocalizedPath as revalidatePath, revalidatePublication } from "@/lib/cache/revalidate";
+import {
+  revalidateLocalizedPath as revalidatePath,
+  revalidatePublication,
+  revalidateAuthorProfile,
+} from "@/lib/cache/revalidate";
 import { after } from "next/server";
 import { zimaDelete } from "@/lib/zima";
 import { createAdminNotification } from "@/lib/admin-notifications";
@@ -15,18 +19,27 @@ import {
 } from "@/lib/publications/admin-side-effects";
 import {
   mapRowToPublication,
+  mapRowToFigure,
   PUBLICATION_DETAIL_SELECT,
+  PUBLICATION_DETAIL_SELECT_LEGACY,
+  AUTHOR_SELECT_FULL,
+  AUTHOR_SELECT_LEGACY,
+  isMissingColumnError,
   type Publication,
   type PublicationAuthor,
   type PublicationAffiliation,
   type PublicationReference,
   type PublicationTocEntry,
   type PublicationFaq,
+  type PublicationFigure,
 } from "@/lib/publications";
 import {
   upgradeLegacyCitationTokens,
   validatePublicationCitations,
 } from "@/lib/publications/citations";
+import { isValidOrcid, normalizeOrcid } from "@/lib/seo/identifiers";
+import { safeExternalUrl } from "@/lib/authors/links";
+import { slugify as slugifyValue } from "@/lib/book-utils";
 
 const REVALIDATE_PATHS = ["/admin/publications", "/publications"];
 
@@ -101,6 +114,9 @@ export interface PublicationData {
   pdf_url?: string | null;
   references?: PublicationReference[];
   is_published?: boolean;
+  /** Library-policy download switch (0125). Omitted → column default (true). */
+  allow_download?: boolean;
+  download_disabled_reason?: string | null;
 }
 
 // Server actions accept arbitrary JSON at runtime — whitelist columns so
@@ -112,7 +128,7 @@ const PUBLICATION_FIELDS = [
   "publication_date", "abstract", "abstract_km", "keywords", "publisher",
   "isbn", "subjects", "table_of_contents", "learning_outcomes", "faqs",
   "license", "copyright", "language", "cover_url", "pdf_url", "references",
-  "is_published",
+  "is_published", "allow_download", "download_disabled_reason",
 ] as const satisfies readonly (keyof PublicationData)[];
 
 function pickAuthorship(a: AuthorshipInput) {
@@ -245,12 +261,25 @@ export async function getPublicationBySlug(slug: string): Promise<{
 }> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("publications")
-    .select(PUBLICATION_DETAIL_SELECT)
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .single();
+  const detail = async (select: string) =>
+    supabase
+      .from("publications")
+      .select(select)
+      .eq("slug", slug)
+      .eq("is_published", true)
+      .single();
+
+  let { data, error } = await detail(PUBLICATION_DETAIL_SELECT);
+
+  // The enriched select names 0125's author-profile columns explicitly, so it
+  // fails outright against a database where the migration has not landed —
+  // which is exactly the window between a deploy and the migrate workflow.
+  // Retry with the pre-0125 shape rather than 404ing every article: the byline
+  // then falls back to name-derived author links, which is what it did before.
+  if (error && /column|does not exist|schema cache/i.test(error.message ?? "")) {
+    console.warn("[publications] enriched detail select failed, retrying legacy:", error.message);
+    ({ data, error } = await detail(PUBLICATION_DETAIL_SELECT_LEGACY));
+  }
 
   if (error || !data) {
     return { data: null, error: error?.message ?? "Not found" };
@@ -301,16 +330,112 @@ export async function getPublicationForAdmin(id: string): Promise<{
     return { data: null, error: errorMessage(error) };
   }
 
-  const { data, error } = await admin.supabase
-    .from("publications")
-    .select(PUBLICATION_DETAIL_SELECT)
-    .eq("id", id)
-    .single();
+  const detail = async (select: string) =>
+    admin.supabase.from("publications").select(select).eq("id", id).single();
+
+  let { data, error } = await detail(PUBLICATION_DETAIL_SELECT);
+  if (error && /column|does not exist|schema cache/i.test(error.message ?? "")) {
+    ({ data, error } = await detail(PUBLICATION_DETAIL_SELECT_LEGACY));
+  }
 
   if (error || !data) {
     return { data: null, error: error?.message ?? "Not found" };
   }
   return { data: mapRowToPublication(data), error: null };
+}
+
+// ── Figures (visual content, migration 0125) ─────────────────────────────────
+
+/**
+ * A publication's figures, in display order.
+ *
+ * Its own query rather than an embed in PUBLICATION_DETAIL_SELECT: the figures
+ * feed exactly one section of one page, and an embed that fails (before 0125
+ * lands, say) would take the entire article record down with it. Returns [] on
+ * any error, which renders as "this article has no figures" — the honest
+ * degradation.
+ */
+export async function getPublicationFigures(publicationId: string): Promise<PublicationFigure[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("publication_figures")
+    .select("id, image_url, caption, caption_km, alt_text, credit, sort_order")
+    .eq("publication_id", publicationId)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.warn("[publications] figures unavailable:", error.message);
+    return [];
+  }
+  return (data ?? []).map(mapRowToFigure);
+}
+
+export interface PublicationFigureInput {
+  image_url: string;
+  caption?: string | null;
+  caption_km?: string | null;
+  alt_text?: string | null;
+  credit?: string | null;
+}
+
+/**
+ * Replace a publication's figure set.
+ *
+ * Replace-all, like authorships and supporting files: the rows are small link
+ * records and the alternative (diffing ids across a client form) buys nothing
+ * but the chance to get it wrong. Order is the array's order.
+ *
+ * Deliberately its OWN action rather than a limb of savePublicationWorkspace:
+ * that save carries optimistic-concurrency, autosave-draft and publish-gate
+ * machinery, and a figure caption edit has no business re-entering it.
+ */
+export async function savePublicationFigures(
+  publicationId: string,
+  figures: PublicationFigureInput[],
+): Promise<{ success: boolean; error?: string }> {
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
+  try {
+    admin = await requirePermission("publications", "write");
+  } catch (error) {
+    return { success: false, error: errorMessage(error) };
+  }
+  const { supabase, userId } = admin;
+
+  const rows = figures
+    .filter((f) => f.image_url?.trim())
+    .slice(0, 40)
+    .map((f, i) => ({
+      publication_id: publicationId,
+      image_url: f.image_url.trim(),
+      caption: f.caption?.trim() || null,
+      caption_km: f.caption_km?.trim() || null,
+      alt_text: f.alt_text?.trim() || null,
+      credit: f.credit?.trim() || null,
+      sort_order: i,
+    }));
+
+  const { error: delErr } = await supabase
+    .from("publication_figures")
+    .delete()
+    .eq("publication_id", publicationId);
+  if (delErr) return { success: false, error: delErr.message };
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("publication_figures").insert(rows);
+    if (error) return { success: false, error: error.message };
+  }
+
+  const { data: pub } = await supabase
+    .from("publications")
+    .select("slug")
+    .eq("id", publicationId)
+    .maybeSingle();
+
+  await logAdminAction(userId, "publication.figures.save", "publications", publicationId, {
+    count: rows.length,
+  });
+  revalidateAll((pub?.slug as string | undefined) ?? null);
+  return { success: true };
 }
 
 // ── Publication mutations ──────────────────────────────────────────────────────
@@ -552,20 +677,24 @@ export async function searchPublicationAuthors(q: string): Promise<{
 }> {
   const supabase = await createClient();
 
-  let query = supabase
-    .from("publication_authors")
-    .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
-    .order("full_name", { ascending: true })
-    .limit(20);
+  const run = (select: string) => {
+    let query = supabase
+      .from("publication_authors")
+      .select(select)
+      .order("full_name", { ascending: true })
+      .limit(20);
+    const term = sanitizeSearchTerm(q ?? "");
+    if (term) {
+      query = query.or(`full_name.ilike.%${term}%,full_name_km.ilike.%${term}%`);
+    }
+    return query;
+  };
 
-  const term = sanitizeSearchTerm(q ?? "");
-  if (term) {
-    query = query.or(`full_name.ilike.%${term}%,full_name_km.ilike.%${term}%`);
-  }
+  let { data, error } = await run(AUTHOR_SELECT_FULL);
+  if (isMissingColumnError(error)) ({ data, error } = await run(AUTHOR_SELECT_LEGACY));
 
-  const { data, error } = await query;
   if (error) return { data: null, error: error.message };
-  return { data: (data ?? []) as PublicationAuthor[], error: null };
+  return { data: (data ?? []) as unknown as PublicationAuthor[], error: null };
 }
 
 export async function upsertPublicationAuthor(author: {
@@ -577,6 +706,15 @@ export async function upsertPublicationAuthor(author: {
   bio?: string | null;
   bio_km?: string | null;
   photo_url?: string | null;
+  /** Academic profile (migration 0125). Omitted keys are left untouched. */
+  slug?: string | null;
+  position_title?: string | null;
+  affiliation_name?: string | null;
+  website_url?: string | null;
+  google_scholar_url?: string | null;
+  research_gate_url?: string | null;
+  research_interests?: string[];
+  is_published?: boolean;
 }): Promise<{ data: PublicationAuthor | null; error: string | null }> {
   let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
@@ -589,33 +727,102 @@ export async function upsertPublicationAuthor(author: {
   const full_name = author.full_name?.trim();
   if (!full_name) return { data: null, error: "Author name is required" };
 
-  const payload = {
+  // Validate before writing. An invalid ORCID or a "see my website" typed into
+  // a URL field must be refused at the boundary, not published to a profile
+  // page that then has to defend itself — lib/authors/links.ts drops bad
+  // values at render, and a value that is silently dropped looks to the
+  // librarian like the field did not save.
+  if (author.orcid?.trim() && !isValidOrcid(author.orcid)) {
+    return { data: null, error: "ORCID must look like 0000-0002-1825-0097." };
+  }
+  for (const [label, value] of [
+    ["Website", author.website_url],
+    ["Google Scholar", author.google_scholar_url],
+    ["ResearchGate", author.research_gate_url],
+  ] as const) {
+    if (value?.trim() && !safeExternalUrl(value)) {
+      return { data: null, error: `${label} must be a full http(s) address.` };
+    }
+  }
+
+  const slug = author.slug?.trim() ? slugifyValue(author.slug) : slugifyValue(full_name);
+  if (!slug) {
+    return { data: null, error: "This name produces no usable profile address. Set a slug by hand." };
+  }
+
+  const legacyPayload = {
     full_name,
     full_name_km: author.full_name_km?.trim() || null,
-    orcid: author.orcid?.trim() || null,
+    orcid: normalizeOrcid(author.orcid) ?? null,
     email: author.email?.trim() || null,
     bio: author.bio?.trim() || null,
     bio_km: author.bio_km?.trim() || null,
     photo_url: author.photo_url?.trim() || null,
   };
 
-  const query = author.id
-    ? supabase.from("publication_authors").update(payload).eq("id", author.id)
-    : supabase.from("publication_authors").insert(payload);
+  const fullPayload = {
+    ...legacyPayload,
+    slug,
+    position_title: author.position_title?.trim() || null,
+    affiliation_name: author.affiliation_name?.trim() || null,
+    website_url: safeExternalUrl(author.website_url),
+    google_scholar_url: safeExternalUrl(author.google_scholar_url),
+    research_gate_url: safeExternalUrl(author.research_gate_url),
+    research_interests: (author.research_interests ?? [])
+      .map((i) => i.trim())
+      .filter(Boolean)
+      .slice(0, 12),
+    is_published: author.is_published ?? true,
+  };
 
-  const { data, error } = await query
-    .select("id, full_name, full_name_km, orcid, email, bio, bio_km, photo_url")
-    .single();
-  if (error) return { data: null, error: error.message };
+  const write = (payload: Record<string, unknown>, select: string) =>
+    (author.id
+      ? supabase.from("publication_authors").update(payload).eq("id", author.id)
+      : supabase.from("publication_authors").insert(payload)
+    )
+      .select(select)
+      .single();
+
+  let { data, error } = await write(fullPayload, AUTHOR_SELECT_FULL);
+
+  // Pre-0125 database: fall back to the columns it does have, so author
+  // management keeps working during the deploy/migrate window.
+  if (isMissingColumnError(error)) {
+    ({ data, error } = await write(legacyPayload, AUTHOR_SELECT_LEGACY));
+  }
+
+  if (error) {
+    // The partial unique index on slug. Two authors genuinely can share a
+    // name, so this is a prompt to disambiguate, not a bug.
+    if (error.code === "23505") {
+      return {
+        data: null,
+        error: `The profile address "${slug}" is already taken by another author. Give this one a different slug.`,
+      };
+    }
+    return { data: null, error: error.message };
+  }
 
   await logAdminAction(
     userId,
     author.id ? "publication_author.update" : "publication_author.create",
     "publication_authors",
-    (data as PublicationAuthor).id,
+    (data as unknown as PublicationAuthor).id,
     { full_name },
   );
-  return { data: data as PublicationAuthor, error: null };
+
+  // /authors/[slug] is ISR'd for an hour, so without this a biography edit
+  // stays invisible long enough for the librarian to assume it did not save.
+  // The record's PREVIOUS slug is busted too: on a rename it still resolves
+  // (the profile resolver falls back to name matching) and would keep serving
+  // the pre-rename page.
+  const savedSlug = (data as unknown as PublicationAuthor).slug ?? slug;
+  revalidateAuthorProfile(savedSlug, author.slug?.trim() || null);
+  // The byline on every article they are credited on renders their name and
+  // links to this slug.
+  revalidatePublication(null);
+
+  return { data: data as unknown as PublicationAuthor, error: null };
 }
 
 export async function deletePublicationAuthor(id: string): Promise<{ success: boolean; error?: string }> {
@@ -627,10 +834,40 @@ export async function deletePublicationAuthor(id: string): Promise<{ success: bo
   }
   const { supabase, userId } = admin;
 
+  // Refuse to delete an author who is credited on something.
+  //
+  // publication_authorships cascades on delete, so removing this row would
+  // silently strip this person from the byline of every article they wrote —
+  // and the librarian doing it would see only "author deleted". Merging is the
+  // safe way to remove a duplicate (mergePublicationAuthors moves the credits
+  // first); an author with no credits is genuinely spare and deletes freely.
+  const { count } = await supabase
+    .from("publication_authorships")
+    .select("author_id", { count: "exact", head: true })
+    .eq("author_id", id);
+
+  if ((count ?? 0) > 0) {
+    return {
+      success: false,
+      error:
+        `This author is credited on ${count} publication${count === 1 ? "" : "s"}. ` +
+        "Deleting them would remove their name from those bylines. Merge them into " +
+        "another author record instead, or remove them from each publication first.",
+    };
+  }
+
+  const { data: before } = await supabase
+    .from("publication_authors")
+    .select("slug")
+    .eq("id", id)
+    .maybeSingle();
+
   const { error } = await supabase.from("publication_authors").delete().eq("id", id);
   if (error) return { success: false, error: error.message };
 
   await logAdminAction(userId, "publication_author.delete", "publication_authors", id);
+  // The profile page must stop being served, not linger for the ISR window.
+  revalidateAuthorProfile((before as { slug?: string | null } | null)?.slug ?? null);
   return { success: true };
 }
 

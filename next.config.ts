@@ -40,6 +40,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  reactStrictMode: false,
   // Metadata goes in <head>, for everyone — i.e. streaming metadata off.
   //
   // Next 16 resolves generateMetadata WITHOUT blocking the shell and emits the

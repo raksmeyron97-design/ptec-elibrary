@@ -100,6 +100,20 @@ export const RESOURCE_GATES = {
   // fetch 400s and the gate fails open, exactly the intended deploy-window
   // behaviour.
   "about/team": { table: "team_members_public", publishedColumn: "is_published" },
+  // Author profiles resolve across TWO tables — publication_authors (academic
+  // profiles) and authors (e-book authors) — which this gate's one-table shape
+  // cannot express. Migration 0126 collapses them into a slug-existence view,
+  // the same move `about/team` makes above, and `is_published` is likewise a
+  // constant-true column that exists for the filter to bind to.
+  //
+  // The view deliberately includes profiles whose publication_authors.is_published
+  // is false: that flag withholds the biography and links, it does not remove
+  // the page, so those URLs are live and must not be gated away.
+  //
+  // Before 0126 the view does not exist, the fetch 400s and the gate fails open
+  // — i.e. the previous soft-404 behaviour, which is the correct deploy-window
+  // outcome.
+  authors: { table: "author_profiles_public", publishedColumn: "is_published" },
 } as const satisfies Record<string, ResourceGateConfig>;
 
 /** Pure resolution against a snapshot — unit-tested. */

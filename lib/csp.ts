@@ -108,6 +108,10 @@ export function needsEval(pathname: string): boolean {
   return EVAL_PATH_PATTERNS.some((re) => re.test(pathname));
 }
 
+const IS_DEV = process.env.NODE_ENV === "development";
+const LOCAL_IMGS = IS_DEV ? " http://127.0.0.1:* http://localhost:*" : "";
+const LOCAL_CONNS = IS_DEV ? " http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*" : "";
+
 // Directives that do not vary between the two policies. These carry most of
 // the actual hardening (no plugins, no base-tag hijack, no framing, form posts
 // stay same-origin) and are what keeps the public policy meaningful without a
@@ -115,10 +119,10 @@ export function needsEval(pathname: string): boolean {
 const SHARED_DIRECTIVES = [
   "default-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online",
+  `img-src 'self' data: blob: https://lh3.googleusercontent.com https://avatars.googleusercontent.com https://avatars.githubusercontent.com https://covers.openlibrary.org https://images-na.ssl-images-amazon.com https://*.r2.dev https://*.public.blob.vercel-storage.com https://*.supabase.co https://drive.google.com https://*.gstatic.com https://encrypted-tbn0.gstatic.com https://*.storage-ptec.online https://storage-ptec.online${LOCAL_IMGS}`,
   "font-src 'self' data: https://fonts.gstatic.com",
   // blob: is load-bearing — offline PDF reading fetches from blob URLs.
-  "connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online",
+  `connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://*.public.blob.vercel-storage.com https://*.r2.dev https://*.r2.cloudflarestorage.com https://accounts.google.com https://challenges.cloudflare.com https://api.storage-ptec.online${LOCAL_CONNS}`,
   "frame-src https://challenges.cloudflare.com https://www.google.com",
   "frame-ancestors 'none'",
   "object-src 'none'",

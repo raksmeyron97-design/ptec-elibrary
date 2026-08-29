@@ -97,6 +97,17 @@ describe("RESOURCE_GATES config maps each type to its real table + public column
     expect(withRedirects).toEqual(["catalogs"]);
   });
 
+  it("authors gate reads the author_profiles_public VIEW — a profile resolves across publication_authors AND authors, which this gate's one-table shape cannot express, so 0126 unions them", () => {
+    expect(RESOURCE_GATES.authors).toEqual({
+      table: "author_profiles_public",
+      publishedColumn: "is_published",
+    });
+  });
+
+  it("authors declare no redirect map — an author slug change retires the old URL rather than 301ing it", () => {
+    expect(RESOURCE_GATES.authors).not.toHaveProperty("redirectTable");
+  });
+
   it("team profiles gate reads the team_members_public VIEW — anon reads of the base table were closed in 0071, so gating team_members itself would 401 at the edge and permanently fail open", () => {
     expect(RESOURCE_GATES["about/team"]).toEqual({
       table: "team_members_public",

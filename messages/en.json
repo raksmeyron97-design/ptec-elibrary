@@ -1051,7 +1051,20 @@
     "relatedFromLibrarySubtitle": "Books in the PTEC collection that share this article's subjects and keywords.",
     "moreFromLibrary": "More from the library",
     "moreFromLibrarySubtitle": "Widely read titles from the PTEC collection.",
-    "sectionNavLabel": "Article sections"
+    "sectionNavLabel": "Article sections",
+    "sectionFigures": "Figures",
+    "figureLabel": "Figure {n}",
+    "figureEnlarge": "Enlarge figure {n}",
+    "figureClose": "Close",
+    "figurePrevious": "Previous",
+    "figureNext": "Next",
+    "figurePosition": "Figure {n} of {total}",
+    "figureCredit": "Credit",
+    "downloadUnavailable": "Download unavailable",
+    "downloadReadOnlyBody": "This resource is available for online reading only.",
+    "downloadRightsBody": "The full text is under third-party copyright with no verified redistribution licence. Read it online here, or follow the DOI to the publisher.",
+    "noFileHeading": "No file attached",
+    "noFileBody": "This record is bibliographic only — no full text has been uploaded to the library yet."
   },
   "dashboard": {
     "admin": "Admin",
@@ -2914,24 +2927,38 @@
     }
   },
   "adminLogs": {
-    "title": "Activity & Security Logs",
-    "subtitle": "Monitor downloads, page views, account activity and security events across the platform.",
+    "eyebrow": "Audit & security",
+    "title": "Activity & Security",
+    "subtitle": "Monitor library activity, usage patterns and security events across the platform.",
+    "showingRange": "Showing activity from {range}",
     "refresh": "Refresh",
+    "refreshing": "Refreshing…",
     "exportCsv": "Export CSV",
     "exporting": "Exporting…",
-    "exportDone": "CSV downloaded",
-    "exportEmpty": "No rows match the current filters",
-    "exportError": "Export failed — please retry",
-    "autoRefresh": "Auto-refresh on",
-    "updated": "Updated {time}",
-    "showingRange": "Showing activity from {range}",
+    "exportDone": "Export complete",
+    "exportEmpty": "No events to export",
+    "exportError": "Export failed",
+    "exportRetry": "Try again",
+    "exportScopeHint": "The export contains the events matching the filters currently applied, with the same privacy rules as the table.",
+    "state": {
+      "updated": "Updated {time}",
+      "updating": "Updating…",
+      "manual": "Manual refresh"
+    },
     "range": {
       "label": "Date range",
       "last24h": "Last 24 hours",
       "last7d": "Last 7 days",
       "last30d": "Last 30 days",
       "last90d": "Last 90 days",
-      "custom": "Custom range"
+      "custom": "Custom",
+      "customTitle": "Custom date range",
+      "customApplied": "{start} – {end}",
+      "start": "Start date",
+      "end": "End date",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "invalid": "The start date must be on or before the end date."
     },
     "filters": {
       "resourceType": "Resource",
@@ -2939,9 +2966,72 @@
       "allResources": "All resources",
       "allStatuses": "All statuses",
       "search": "Search",
-      "searchPlaceholder": "Search user, resource, email or institution…",
-      "clear": "Clear filters",
-      "resultCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+      "searchPlaceholder": "Search users, resources, IDs…",
+      "searchHint": "Searches reader name, email where your role permits, resource title, resource ID, event ID, institution type and role.",
+      "searchChip": "Search: {term}",
+      "activeCount": "{count, plural, one {# filter active} other {# filters active}}",
+      "remove": "Remove filter: {label}",
+      "clearAll": "Clear all"
+    },
+    "overview": {
+      "heading": "Overview"
+    },
+    "activity": {
+      "heading": "Activity"
+    },
+    "kpi": {
+      "contextRange": "In {range}",
+      "needsReview": "Needs review",
+      "allClear": "Nothing to review",
+      "downloadsMeaning": "Delivery authorized and started",
+      "viewsMeaning": "Detail page and reader opens",
+      "readersMeaning": "Distinct signed-in readers",
+      "securityMeaning": "Denied or failed events"
+    },
+    "cards": {
+      "authorizedDownloads": "Authorized downloads",
+      "pageViews": "Page views",
+      "activeReaders": "Active readers",
+      "securityAlerts": "Security alerts",
+      "srAuthorizedDownloads": "{count} authorized downloads in the selected range",
+      "srPageViews": "{count} page views in the selected range",
+      "srActiveReaders": "{count} active readers in the selected range",
+      "srSecurityAlerts": "{count} security alerts in the selected range"
+    },
+    "chart": {
+      "title": "Activity over time",
+      "subtitle": "{bucket} totals across {range}",
+      "bucket": {
+        "hour": "Hourly",
+        "day": "Daily",
+        "week": "Weekly"
+      },
+      "legendViews": "Views",
+      "legendDownloads": "Downloads",
+      "legendSecurity": "Security",
+      "empty": "No activity to chart in the selected period.",
+      "readout": "{views} views · {downloads} downloads · {security} security",
+      "peakHint": "busiest in range",
+      "srSummary": "Activity over {range}, in {bucket} intervals across {buckets} points: {views} views, {downloads} authorized downloads and {security} security events in total."
+    },
+    "security": {
+      "title": "Security summary",
+      "totalAlerts": "{count, plural, one {# alert in this range} other {# alerts in this range}}",
+      "allClear": "No alerts in this range",
+      "emptyBody": "No downloads were denied and no deliveries failed in the selected period.",
+      "denied": "Denied downloads",
+      "failed": "Failed deliveries",
+      "other": "Other security events",
+      "reasons": "Reasons recorded",
+      "unspecified": "No reason recorded",
+      "drillLabel": "{label}: {count}. Filter the activity list to these events."
+    },
+    "resources": {
+      "title": "Resource activity",
+      "subtitle": "Events by resource type",
+      "empty": "No resource activity in the selected period.",
+      "split": "{views} views · {downloads} downloads",
+      "drillLabel": "{resource}: {total} events, {views} views and {downloads} downloads. Filter the activity list to this resource type."
     },
     "tabs": {
       "all": "All activity",
@@ -2951,28 +3041,35 @@
       "account": "Account",
       "admin": "Admin"
     },
-    "cards": {
-      "authorizedDownloads": "Authorized downloads",
-      "pageViews": "Page views",
-      "activeReaders": "Active readers",
-      "securityAlerts": "Security alerts",
-      "totalEvents": "Total events",
-      "deniedAttempts": "Denied attempts",
-      "srAuthorizedDownloads": "{count} authorized downloads in the selected range",
-      "srPageViews": "{count} page views in the selected range",
-      "srActiveReaders": "{count} active readers in the selected range",
-      "srSecurityAlerts": "{count} security alerts in the selected range"
-    },
     "table": {
-      "event": "Event",
-      "reader": "Reader",
-      "resource": "Resource",
-      "institution": "Institution",
-      "status": "Status",
       "time": "Time",
-      "actions": "Actions",
+      "actor": "Actor",
+      "action": "Action",
+      "resource": "Resource",
+      "status": "Status",
+      "details": "Details",
       "viewDetails": "View details",
-      "caption": "Platform activity events, newest first"
+      "caption": "Platform activity events, newest first",
+      "rowLabel": "{action} by {actor} on {resource}, {time}. View details."
+    },
+    "action": {
+      "viewed": "Viewed",
+      "downloaded": "Downloaded",
+      "blocked": "Blocked",
+      "failed": "Failed",
+      "account": "Account activity",
+      "admin": "Admin action",
+      "security": "Security event"
+    },
+    "headline": {
+      "download_authorized": "Download authorized",
+      "download_success": "Download authorized",
+      "download_denied": "Download blocked",
+      "download_failed": "Delivery failed",
+      "view": "Resource viewed",
+      "account": "Account activity",
+      "admin": "Administrative action",
+      "security": "Security event"
     },
     "resource": {
       "book": "Book",
@@ -2997,6 +3094,10 @@
       "failed": "Failed",
       "success": "Viewed"
     },
+    "permissionSource": {
+      "automatic-ranking": "Automatic ranking",
+      "admin-override": "Admin override"
+    },
     "reason": {
       "AUTHENTICATION_REQUIRED": "Sign-in required",
       "PROFILE_INCOMPLETE": "Download profile incomplete",
@@ -3008,63 +3109,57 @@
       "STORAGE_ERROR": "Storage error"
     },
     "anon": "Anonymous reader",
-    "notProvided": "Not provided",
+    "time": {
+      "justNow": "Just now"
+    },
     "drawer": {
       "title": "Event details",
       "close": "Close",
+      "when": "When",
+      "actor": "Actor",
+      "resourceInfo": "Resource",
+      "decision": "Decision",
+      "context": "Context",
+      "system": "System",
+      "source": "Source",
+      "eventId": "Event ID",
       "copyEventId": "Copy event ID",
       "copied": "Copied",
-      "eventSummary": "Event summary",
-      "readerInfo": "Reader information",
-      "institutionInfo": "Institution",
-      "resourceInfo": "Resource",
-      "downloadDecision": "Download access decision",
-      "intendedUse": "Intended use",
-      "technical": "Technical & security context",
-      "eventType": "Event type",
-      "eventAction": "Action",
       "statusLabel": "Status",
-      "dateTime": "Date & time",
-      "eventId": "Event ID",
-      "requestId": "Request ID",
-      "permissionSource": "Permission source",
+      "permissionSource": "Decision source",
       "permissionReason": "Reason",
-      "fullName": "Full name",
-      "verifiedEmail": "Verified email",
+      "rankAtEvent": "Rank at event",
+      "institutionType": "Institution type",
+      "role": "Role",
+      "purpose": "Purpose",
+      "locale": "Locale",
       "phone": "Phone",
       "gender": "Gender",
-      "role": "Role",
-      "country": "Country",
-      "institutionName": "Institution name",
-      "institutionType": "Institution type",
       "faculty": "Faculty / department",
-      "provinceCity": "Province / city",
-      "resourceTitle": "Title",
-      "resourceType": "Type",
-      "rank": "Current rank",
-      "rankAtEvent": "Rank at download time",
-      "purpose": "Download purpose",
-      "deviceType": "Device",
-      "browser": "Browser",
-      "os": "Operating system",
-      "locale": "Locale",
-      "reveal": "Reveal",
-      "hide": "Hide",
-      "masked": "Masked for your role",
-      "openAdmin": "Open in admin",
-      "openPublic": "Open public page",
-      "notAvailable": "—",
-      "revealHint": "Personal data is masked. Reveal requires elevated permission."
+      "country": "Country",
+      "reveal": "Reveal contact details",
+      "revealing": "Revealing…",
+      "revealHint": "Personal data is masked for your role. Revealing it requires elevated permission.",
+      "notAvailable": "—"
     },
     "empty": {
-      "title": "No activity in this range",
-      "body": "No events match the selected filters. Try widening the date range or clearing filters.",
-      "clear": "Clear filters"
+      "noneTitle": "No activity found",
+      "noneBody": "There are no events in the selected period.",
+      "filteredTitle": "No matching activity",
+      "filteredBody": "Try removing a filter or choosing a wider date range.",
+      "secureTitle": "No security alerts",
+      "secureBody": "Everything looks clear for the selected period.",
+      "clear": "Clear all filters"
     },
     "pagination": {
+      "label": "Activity pages",
       "prev": "Previous",
       "next": "Next",
-      "summary": "Page {page} of {pages} · {total} events"
+      "showing": "Showing {from}–{to} of {total} events",
+      "showingShort": "{from}–{to} of {total}",
+      "pageOf": "{page} / {pages}",
+      "gotoPage": "Go to page {page}",
+      "totalOnly": "{count, plural, =0 {No events} one {# event} other {# events}}"
     }
   },
   "adminShell": {
@@ -7150,5 +7245,43 @@
     "statActive": "Visible",
     "statHidden": "Hidden",
     "statInHero": "In the mosaic"
+  },
+  "authors": {
+    "eyebrow": "Author",
+    "breadcrumbHome": "Home",
+    "breadcrumbAuthors": "Authors",
+    "notFoundTitle": "Author not found",
+    "notFoundBody": "We could not find an author with this address. They may have been removed, or the link may be mistyped.",
+    "browseLibrary": "Browse the library",
+    "about": "About",
+    "readMore": "Read more",
+    "readLess": "Read less",
+    "researchInterests": "Research interests",
+    "searchTopic": "Search the library for {topic}",
+    "statWorks": "Works in this library",
+    "statSpan": "Publication span",
+    "statTypes": "Types of work",
+    "worksHeading": "Publications & works",
+    "worksSearchPlaceholder": "Search these works…",
+    "worksSearchLabel": "Search this author's works",
+    "worksClearSearch": "Clear search",
+    "worksFilterLabel": "Filter works by type",
+    "worksAll": "All",
+    "worksNoResults": "No works match your search",
+    "worksNoResultsHint": "Try a different word, or clear the filters to see everything.",
+    "worksEmpty": "The library holds no public works by this author yet.",
+    "worksUndated": "Undated",
+    "worksResultCount": "{count} works shown",
+    "typePublication": "Article",
+    "typeThesis": "Thesis",
+    "typeEbook": "E-book",
+    "typeCatalog": "Physical book",
+    "accessDownloadable": "Downloadable",
+    "accessReadOnly": "Online reading only",
+    "linkOrcid": "ORCID profile",
+    "linkWebsite": "Personal website",
+    "linkScholar": "Google Scholar profile",
+    "linkResearchgate": "ResearchGate profile",
+    "metaDescription": "Works by {name} in the PTEC Library."
   }
 }

@@ -60,6 +60,7 @@ export default function ActionButtons({
   variant = "full",
   labels,
   downloadSlot,
+  emphasizePreview = false,
 }: {
   id: string;
   contentType: "thesis" | "publication";
@@ -70,8 +71,18 @@ export default function ActionButtons({
   variant?: "full" | "compact";
   labels?: Labels;
   /** Replaces the built-in download button (e.g. the gated thesis download).
-   *  When provided, permission/state handling lives entirely in the slot. */
+   *  When provided, permission/state handling lives entirely in the slot.
+   *  Pass `null` to remove the download action entirely. */
   downloadSlot?: React.ReactNode;
+  /**
+   * Promote "Preview PDF" to the primary button.
+   *
+   * For a record whose download is refused — a read-online-only publication —
+   * reading online IS the primary action, and leaving it in secondary styling
+   * with nothing beside it makes the row read as though the page is missing
+   * its main button. Ignored unless there is a file to preview.
+   */
+  emphasizePreview?: boolean;
 }) {
   const compact = variant === "compact";
   const t = { ...DEFAULT_LABELS, ...labels };
@@ -122,13 +133,23 @@ export default function ActionButtons({
     );
   }
 
+  const previewPrimary = emphasizePreview && !downloadBtn;
+
   return (
     <div className="space-y-3">
       {/* Tier 1 — content actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {downloadBtn}
         {hasFile && (
-          <button type="button" onClick={onPreview} className={contentActionClass}>
+          <button
+            type="button"
+            onClick={onPreview}
+            className={
+              previewPrimary
+                ? "btn-brand-gradient inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-[14px] px-6 py-2.5 text-[15px] font-bold text-white transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+                : contentActionClass
+            }
+          >
             <FileSearch className="h-4 w-4" />
             {t.previewPdf}
           </button>

@@ -1,38 +1,42 @@
 "use client";
 
-// Activity & Security Logs — resource-agnostic, filter-driven admin console.
+// Activity & Security — the admin audit console.
 //
-// Filter state lives in the URL (?range&tab&resource&status&q&page); every
-// change navigates so the SERVER re-runs lib/admin/activity-log.queryActivity —
-// cards, tab badges, table and CSV all read the SAME range + filters, which is
-// what fixes the old "cards say 0, tab says 13" inconsistency.
+// ARCHITECTURE (unchanged, and load-bearing): filter state lives in the URL
+// (?range&start&end&tab&resource&status&q&page). Every control writes params
+// and navigates, so the SERVER re-runs lib/admin/activity-log.queryActivity and
+// the KPI cards, the analytics, the tab badges, the table and the CSV export
+// all read the SAME range and filters. That is what fixes the class of bug
+// where the cards said 0 while a tab badge said 13. There is exactly one filter
+// state, and it is the URL — nothing here keeps a private copy.
 //
-// This page is /admin (NOT locale-routed) so navigation uses plain
-// next/navigation, never i18n/navigation (per CLAUDE.md).
+// The page is three levels, top to bottom: what is happening (KPIs) → what the
+// shape of it is (timeline, security, resources) → which events exactly
+// (tabs + table) → why this one (drawer). The analytics are not decoration:
+// selecting a security row or a resource bar drives the list below it.
+//
+// This route is under /admin, which is NOT locale-prefixed, so navigation uses
+// plain next/navigation and never i18n/navigation (per CLAUDE.md).
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import Avatar from "@/components/ui/Avatar";
-import {
-  type ActivityEvent,
-  type ActivityTab,
-  type EventStatus,
-  type RangePreset,
-  type ResourceType,
-} from "@/lib/admin/activity-log-shared";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import type { ActivityResult } from "@/lib/admin/activity-log";
-import { exportActivityLogs, revealReaderContact, type ExportFilterInput } from "../actions";
+import type { ActivityEvent, ActivityTab, EventStatus, RangePreset, ResourceType } from "@/lib/admin/activity-log-shared";
+import { exportActivityLogs, type ExportFilterInput } from "../actions";
+import ActivityDetailDrawer from "./ActivityDetailDrawer";
+import ActivityTable, { type EmptyKind } from "./ActivityTable";
+import ActivityTimeline from "./ActivityTimeline";
+import LogsFilters, { type FilterChip } from "./LogsFilters";
+import LogsHeader, { type ExportState } from "./LogsHeader";
+import LogsKpiGrid from "./LogsKpiGrid";
+import LogsPagination from "./LogsPagination";
+import ResourceActivity from "./ResourceActivity";
+import SecurityOverview, { type SecurityDrill } from "./SecurityOverview";
+import { FONT, INK, INK2, INK3, LINE, eyebrow } from "./logs-ui";
+import { createTimeFormatter, formatClock } from "./time";
 
-// ── shared style tokens (admin panel is light-mode only) ─────────────────────
-const FONT = "'Inter Tight', 'Inter', system-ui, sans-serif";
-const CARD = "#fff";
-const BORDER = "#e9ebf0";
-const INK = "#13151b";
-const MUTED = "#6b7280";
-const FAINT = "#9aa1ad";
-
-type ClientFilters = {
+export type ClientFilters = {
   range: RangePreset;
   tab: ActivityTab;
   resourceType: ResourceType | "all";
@@ -42,24 +46,7 @@ type ClientFilters = {
   customEnd: string | null;
 };
 
-const TZ = "Asia/Phnom_Penh";
-
-// Semantic colors keyed to status/event (never color-only — always paired text).
-const STATUS_STYLE: Record<string, { bg: string; fg: string }> = {
-  authorized: { bg: "#eef2ff", fg: "#4338ca" },
-  success: { bg: "#f0f9f4", fg: "#15803d" },
-  denied: { bg: "#fff7ed", fg: "#b45309" },
-  failed: { bg: "#fef2f2", fg: "#b91c1c" },
-};
-const RESOURCE_STYLE: Record<string, { bg: string; fg: string }> = {
-  book: { bg: "#eef2ff", fg: "#4338ca" },
-  thesis: { bg: "#ecfeff", fg: "#0e7490" },
-  publication: { bg: "#f5f3ff", fg: "#6d28d9" },
-  post: { bg: "#f0fdf4", fg: "#15803d" },
-  announcement: { bg: "#fff7ed", fg: "#c2410c" },
-  account: { bg: "#f3f4f6", fg: "#374151" },
-  system: { bg: "#f3f4f6", fg: "#374151" },
-};
+const RANGE_KEY: Record<RangePreset, string> = { "24h": "last24h", "7d": "last7d", "30d": "last30d", "90d": "last90d", custom: "custom" };
 
 export default function SecurityLogsClient({
   result,
@@ -71,50 +58,49 @@ export default function SecurityLogsClient({
   canSeePersonal: boolean;
 }) {
   const t = useTranslations("adminLogs");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
-  const [search, setSearch] = useState(filters.search);
   const [selected, setSelected] = useState<ActivityEvent | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
-  const [exportState, setExportState] = useState<"idle" | "busy" | "done" | "empty" | "error">("idle");
+  const [exportState, setExportState] = useState<ExportState>("idle");
 
-  // Stamp the "updated" clock each time fresh server data arrives. This is a
-  // display-only sync of an external signal (a new server response) into state.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setLastRefreshed(new Date()), [result]);
-
-  // ── URL param helpers (server-driven filtering) ────────────────────────────
+  // ── URL writer — the single mutation point for filter state ───────────────
   const setParams = useCallback(
     (updates: Record<string, string | null>) => {
       const next = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(updates)) {
-        if (v == null || v === "" || v === "all") next.delete(k);
-        else next.set(k, v);
+      for (const [key, value] of Object.entries(updates)) {
+        if (value == null || value === "" || value === "all") next.delete(key);
+        else next.set(key, value);
       }
-      if (!("page" in updates)) next.delete("page"); // any filter change resets page
-      startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
+      // Any change that is not itself a page change returns to page 1 —
+      // otherwise a narrower filter can land you on a page that no longer
+      // exists and the table looks empty for the wrong reason.
+      if (!("page" in updates)) next.delete("page");
+      const query = next.toString();
+      startTransition(() => router.push(query ? `${pathname}?${query}` : pathname, { scroll: false }));
     },
     [router, pathname, searchParams],
   );
 
-  // Debounced search → URL.
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onSearchChange = (v: string) => {
-    setSearch(v);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setParams({ q: v || null }), 400);
-  };
-
-  const clearAll = () => {
-    setSearch("");
+  const clearAll = useCallback(() => {
     startTransition(() => router.push(pathname, { scroll: false }));
-  };
+  }, [router, pathname]);
 
-  const refresh = () => startTransition(() => router.refresh());
+  const refresh = useCallback(() => startTransition(() => router.refresh()), [router]);
 
+  // Debounced search. The input is uncontrolled (defaultValue) so a slow
+  // navigation can never yank a character back out from under the typist.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSearchInput = useCallback((value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setParams({ q: value || null }), 400);
+  }, [setParams]);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  // ── Export ────────────────────────────────────────────────────────────────
   const exportInput: ExportFilterInput = useMemo(
     () => ({
       range: filters.range,
@@ -128,397 +114,190 @@ export default function SecurityLogsClient({
     [filters],
   );
 
-  const doExport = () => {
+  const doExport = useCallback(() => {
     setExportState("busy");
     startTransition(async () => {
       try {
+        // The server action re-checks authorization and re-applies the same
+        // masking rules as the table — the CSV can never contain a column the
+        // caller is not allowed to read on screen.
         const res = await exportActivityLogs(exportInput);
-        if (!res.ok) {
-          setExportState(res.error === "empty" ? "empty" : "error");
-          return;
-        }
+        if (!res.ok) { setExportState(res.error === "empty" ? "empty" : "error"); return; }
         const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = res.filename;
-        a.click();
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = res.filename;
+        anchor.click();
         URL.revokeObjectURL(url);
         setExportState("done");
-        setTimeout(() => setExportState("idle"), 2500);
+        setTimeout(() => setExportState("idle"), 3000);
       } catch {
         setExportState("error");
       }
     });
-  };
+  }, [exportInput]);
 
-  const rangeKey = filters.range === "24h" ? "last24h" : filters.range === "7d" ? "last7d" : filters.range === "30d" ? "last30d" : filters.range === "90d" ? "last90d" : "custom";
-  const rangeLabel = t(`range.${rangeKey}`);
+  // ── Derived labels ────────────────────────────────────────────────────────
+  const rangeLabel = useMemo(() => {
+    if (filters.range !== "custom") return t(`range.${RANGE_KEY[filters.range]}`);
+    const dateOnly = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Phnom_Penh" });
+    const start = filters.customStart ? dateOnly.format(new Date(filters.customStart)) : "";
+    const end = filters.customEnd ? dateOnly.format(new Date(filters.customEnd)) : "";
+    return start && end ? t("range.customApplied", { start, end }) : t("range.custom");
+  }, [filters.range, filters.customStart, filters.customEnd, locale, t]);
 
-  // ── Summary cards (selected range) ─────────────────────────────────────────
-  const cards = [
-    { key: "authorizedDownloads", sr: "srAuthorizedDownloads", value: result.summary.authorizedDownloads, style: STATUS_STYLE.authorized, icon: <DownloadIcon /> },
-    { key: "pageViews", sr: "srPageViews", value: result.summary.pageViews, style: RESOURCE_STYLE.book, icon: <EyeIcon /> },
-    { key: "activeReaders", sr: "srActiveReaders", value: result.summary.activeUsers, style: RESOURCE_STYLE.post, icon: <UsersIcon /> },
-    { key: "securityAlerts", sr: "srSecurityAlerts", value: result.summary.securityAlerts, style: result.summary.securityAlerts > 0 ? STATUS_STYLE.failed : RESOURCE_STYLE.account, icon: <ShieldIcon alert={result.summary.securityAlerts > 0} /> },
-  ] as const;
+  // Anchored to the SERVER's query bound, not Date.now() — see ./time.ts.
+  const fmt = useMemo(
+    () => createTimeFormatter(locale, result.appliedRange.end, t("time.justNow")),
+    [locale, result.appliedRange.end, t],
+  );
+  const updatedAt = useMemo(() => formatClock(locale, result.appliedRange.end), [locale, result.appliedRange.end]);
 
-  const TABS: ActivityTab[] = ["all", "downloads", "views", "security"];
-  if (result.tabCounts.account > 0) TABS.push("account");
-  if (result.tabCounts.admin > 0) TABS.push("admin");
+  // ── Active filter chips ───────────────────────────────────────────────────
+  const chips: FilterChip[] = useMemo(() => {
+    const out: FilterChip[] = [];
+    // The default range is not a "filter" — showing a chip for the state the
+    // page opens in would mean it is never unfiltered.
+    if (filters.range !== "24h") out.push({ key: "range", label: rangeLabel, clear: { range: null, start: null, end: null } });
+    if (filters.tab !== "all") out.push({ key: "tab", label: t(`tabs.${filters.tab}`), clear: { tab: null } });
+    if (filters.resourceType !== "all") out.push({ key: "resource", label: t(`resource.${filters.resourceType}`), clear: { resource: null } });
+    if (filters.status !== "all") out.push({ key: "status", label: t(`status.${filters.status}`), clear: { status: null } });
+    if (filters.search) out.push({ key: "q", label: t("filters.searchChip", { term: filters.search }), clear: { q: null } });
+    return out;
+  }, [filters, rangeLabel, t]);
 
-  const hasActiveFilters = filters.range !== "24h" || filters.resourceType !== "all" || filters.status !== "all" || !!filters.search || filters.tab !== "all";
+  // ── Tabs. Account/Admin appear only when the range actually contains them,
+  //    so the rail does not advertise five empty destinations — but a tab the
+  //    URL currently selects is always shown, or clearing it becomes
+  //    impossible.
+  const tabs: ActivityTab[] = useMemo(() => {
+    const base: ActivityTab[] = ["all", "downloads", "views", "security"];
+    for (const extra of ["account", "admin"] as const) {
+      if (result.tabCounts[extra] > 0 || filters.tab === extra) base.push(extra);
+    }
+    return base;
+  }, [result.tabCounts, filters.tab]);
+
+  const emptyKind: EmptyKind = useMemo(() => {
+    if (filters.tab === "security" && result.tabCounts.security === 0 && chips.length <= 1) return "secure";
+    return chips.length > 0 ? "filtered" : "none";
+  }, [filters.tab, result.tabCounts.security, chips.length]);
+
+  // ── Drill-downs: the analytics drive the list ─────────────────────────────
+  const onSecurityDrill = useCallback((drill: SecurityDrill) => {
+    setParams({ tab: drill.tab, status: drill.status ?? null });
+    document.getElementById("logs-activity")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [setParams]);
+
+  const onResourceDrill = useCallback((resourceType: ResourceType) => {
+    setParams({ resource: filters.resourceType === resourceType ? null : resourceType });
+  }, [setParams, filters.resourceType]);
 
   return (
-    <div style={{ fontFamily: FONT, color: INK, display: "flex", flexDirection: "column", gap: 22 }}>
-      {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 240 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap" }}>
-            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: INK }}>{t("title")}</h1>
-            <span aria-live="polite" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "3px 10px", background: "#f3f4f6", border: `1px solid ${BORDER}`, borderRadius: 99, fontSize: 11.5, fontWeight: 600, color: MUTED }}>
-              <span style={{ width: 6, height: 6, borderRadius: 99, background: isPending ? "#f59e0b" : "#22c55e", display: "inline-block" }} />
-              {t("autoRefresh")}
-            </span>
+    <div style={{ fontFamily: FONT, color: INK, display: "flex", flexDirection: "column", gap: 18 }}>
+      <LogsHeader
+        rangeLabel={rangeLabel}
+        updatedAt={updatedAt}
+        pending={isPending}
+        exportState={exportState}
+        onRefresh={refresh}
+        onExport={doExport}
+      />
+
+      <LogsFilters
+        range={filters.range}
+        resourceType={filters.resourceType}
+        status={filters.status}
+        search={filters.search}
+        customStart={filters.customStart}
+        customEnd={filters.customEnd}
+        chips={chips}
+        onParams={setParams}
+        onClearAll={clearAll}
+        onSearchInput={onSearchInput}
+        pending={isPending}
+      />
+
+      <section aria-labelledby="logs-overview" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <h2 id="logs-overview" style={eyebrow}>{t("overview.heading")}</h2>
+        <LogsKpiGrid
+          summary={result.summary}
+          rangeLabel={rangeLabel}
+          onSecurityDrill={() => onSecurityDrill({ tab: "security", status: null })}
+        />
+        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+          <div style={{ gridColumn: "1 / -1", minWidth: 0 }}>
+            <ActivityTimeline analytics={result.analytics} locale={locale} rangeLabel={rangeLabel} />
           </div>
-          <p style={{ fontSize: 13.5, color: MUTED, maxWidth: 640 }}>{t("subtitle")}</p>
-          <p style={{ fontSize: 12.5, color: FAINT }}>
-            {t("showingRange", { range: rangeLabel })}{lastRefreshed ? ` · ${t("updated", { time: lastRefreshed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ }) })}` : ""}
-          </p>
+          <SecurityOverview security={result.analytics.security} onDrill={onSecurityDrill} />
+          <ResourceActivity rows={result.analytics.byResource} onDrill={onResourceDrill} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={refresh} disabled={isPending} style={btnSecondary}>
-            <RefreshIcon /> {t("refresh")}
-          </button>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-            <button onClick={doExport} disabled={exportState === "busy" || isPending} style={btnPrimary}>
-              <ExportIcon /> {exportState === "busy" ? t("exporting") : t("exportCsv")}
-            </button>
-            {exportState === "done" && <span style={{ fontSize: 11, color: "#15803d" }}>{t("exportDone")}</span>}
-            {exportState === "empty" && <span style={{ fontSize: 11, color: "#b45309" }}>{t("exportEmpty")}</span>}
-            {exportState === "error" && <span style={{ fontSize: 11, color: "#b91c1c" }}>{t("exportError")}</span>}
-          </div>
-        </div>
-      </div>
+      </section>
 
-      {/* ── Filter bar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "12px 14px" }}>
-        <Select label={t("range.label")} value={filters.range} onChange={(v) => setParams({ range: v })}
-          options={[["24h", t("range.last24h")], ["7d", t("range.last7d")], ["30d", t("range.last30d")], ["90d", t("range.last90d")]]} />
-        <Select label={t("filters.resourceType")} value={filters.resourceType} onChange={(v) => setParams({ resource: v })}
-          options={[["all", t("filters.allResources")], ["book", t("resource.book")], ["thesis", t("resource.thesis")], ["publication", t("resource.publication")], ["post", t("resource.post")], ["announcement", t("resource.announcement")]]} />
-        <Select label={t("filters.status")} value={filters.status} onChange={(v) => setParams({ status: v })}
-          options={[["all", t("filters.allStatuses")], ["authorized", t("status.authorized")], ["denied", t("status.denied")], ["failed", t("status.failed")], ["success", t("status.success")]]} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", background: "#f7f8fa", border: `1px solid ${BORDER}`, borderRadius: 9, flex: "1 1 240px", minWidth: 200 }}>
-          <SearchIcon />
-          <input
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder={t("filters.searchPlaceholder")}
-            aria-label={t("filters.search")}
-            style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontFamily: "inherit", fontSize: 13.5, color: INK, minWidth: 0 }}
-          />
-        </div>
-        {hasActiveFilters && (
-          <button onClick={clearAll} style={{ ...btnSecondary, height: 36 }}>{t("filters.clear")}</button>
-        )}
-      </div>
-
-      {/* ── Summary cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-        {cards.map((c) => (
-          <div key={c.key} style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, boxShadow: "0 1px 2px rgba(16,24,40,.04)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12.5, fontWeight: 500, color: MUTED }}>{t(`cards.${c.key}`)}</span>
-              <span style={{ width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", background: c.style.bg, color: c.style.fg }}>{c.icon}</span>
-            </div>
-            <span style={{ position: "relative", fontSize: 28, fontWeight: 700, letterSpacing: "-.02em", color: INK, lineHeight: 1 }}>
-              {c.value.toLocaleString()}
-              <span style={srOnly}>{t(`cards.${c.sr}`, { count: c.value })}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Activity panel ── */}
-      <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 2px rgba(16,24,40,.04)" }}>
-        {/* Tabs */}
-        <div role="tablist" aria-label={t("title")} style={{ display: "flex", gap: 4, padding: "12px 14px", borderBottom: `1px solid #eef0f4`, overflowX: "auto", background: "#f3f4f7" }}>
-          {TABS.map((tab) => {
-            const active = filters.tab === tab;
-            const count = tab === "all" ? result.tabCounts.all : result.tabCounts[tab as Exclude<ActivityTab, "all">];
-            return (
-              <button key={tab} role="tab" aria-selected={active} onClick={() => setParams({ tab: tab === "all" ? null : tab })}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 32, padding: "0 13px", border: "none", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", background: active ? "#fff" : "transparent", color: active ? INK : MUTED, boxShadow: active ? "0 1px 2px rgba(16,24,40,.10)" : "none" }}>
-                {t(`tabs.${tab}`)}
-                <span style={{ fontSize: 11, fontWeight: 600, padding: "1px 7px", borderRadius: 99, background: active ? INK : "#e3e5ea", color: active ? "#fff" : MUTED }}>{count.toLocaleString()}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Table */}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
-            <caption style={srOnly}>{t("table.caption")}</caption>
-            <thead>
-              <tr style={{ background: "#fafbfc", borderBottom: `1px solid #eef0f4` }}>
-                {["event", "reader", "resource", "institution", "status", "time", "actions"].map((h) => (
-                  <th key={h} scope="col" style={{ textAlign: h === "time" || h === "actions" ? "right" : "left", fontSize: 11, fontWeight: 600, color: FAINT, letterSpacing: ".06em", textTransform: "uppercase", padding: "10px 16px" }}>{t(`table.${h}`)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {result.events.length === 0 ? (
-                <tr>
-                  <td colSpan={7} style={{ padding: "56px 20px", textAlign: "center" }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: INK, marginBottom: 6 }}>{t("empty.title")}</div>
-                    <div style={{ fontSize: 13, color: MUTED, maxWidth: 420, margin: "0 auto 14px" }}>{t("empty.body")}</div>
-                    <button onClick={clearAll} style={btnSecondary}>{t("empty.clear")}</button>
-                  </td>
-                </tr>
-              ) : (
-                result.events.map((e) => (
-                  <Row key={e.id} e={e} t={t} onOpen={() => setSelected(e)} />
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {result.pagination.totalPages > 1 && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 16px", borderTop: `1px solid #eef0f4` }}>
-            <span style={{ fontSize: 12.5, color: MUTED }}>{t("pagination.summary", { page: result.pagination.page + 1, pages: result.pagination.totalPages, total: result.pagination.total })}</span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button disabled={result.pagination.page <= 0} onClick={() => setParams({ page: String(result.pagination.page - 1) })} style={{ ...btnSecondary, opacity: result.pagination.page <= 0 ? 0.5 : 1 }}>{t("pagination.prev")}</button>
-              <button disabled={result.pagination.page + 1 >= result.pagination.totalPages} onClick={() => setParams({ page: String(result.pagination.page + 1) })} style={{ ...btnSecondary, opacity: result.pagination.page + 1 >= result.pagination.totalPages ? 0.5 : 1 }}>{t("pagination.next")}</button>
+      <section id="logs-activity" className="dash-card" style={{ overflow: "hidden", scrollMarginTop: 16 }} aria-labelledby="logs-activity-heading">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "13px 14px 12px", borderBottom: `1px solid ${LINE}` }}>
+          <h2 id="logs-activity-heading" style={{ ...eyebrow, color: INK3 }}>{t("activity.heading")}</h2>
+          <div className="dash-scroll-x" style={{ maxWidth: "100%" }}>
+            <div className="dash-tabrail" role="tablist" aria-label={t("activity.heading")}>
+              {tabs.map((tab) => {
+                const active = filters.tab === tab;
+                const count = tab === "all" ? result.tabCounts.all : result.tabCounts[tab as Exclude<ActivityTab, "all">];
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-current={active ? "page" : undefined}
+                    onClick={() => setParams({ tab: tab === "all" ? null : tab })}
+                    className="dash-tab"
+                  >
+                    {t(`tabs.${tab}`)}
+                    <span
+                      style={{
+                        fontSize: 11, fontWeight: 700, padding: "1px 6px", borderRadius: 99,
+                        fontVariantNumeric: "tabular-nums",
+                        background: active ? "var(--dash-blue)" : "var(--dash-line-subtle)",
+                        color: active ? "#fff" : INK2,
+                      }}
+                    >
+                      {count.toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-        )}
-      </div>
-
-      {selected && <EventDrawer e={selected} t={t} canSeePersonal={canSeePersonal} onClose={() => setSelected(null)} />}
-    </div>
-  );
-}
-
-// ── Table row ────────────────────────────────────────────────────────────────
-function Row({ e, t, onOpen }: { e: ActivityEvent; t: ReturnType<typeof useTranslations>; onOpen: () => void }) {
-  const rs = RESOURCE_STYLE[e.resourceType] ?? RESOURCE_STYLE.system;
-  const ss = STATUS_STYLE[e.eventStatus] ?? STATUS_STYLE.success;
-  const time = fmtTime(e.occurredAt);
-  const rowLabel = e.isAnon
-    ? `${t(`event.${e.eventType}`)} · ${t("anon")} · ${e.resourceTitle ?? t("resource.unknown")} · ${time.rel}`
-    : `${t(`event.${e.eventType}`)} ${t(`status.${e.eventStatus}`)} · ${e.actorName ?? ""} · ${e.resourceTitle ?? t("resource.unknown")} · ${time.rel}`;
-  return (
-    <tr style={{ borderBottom: `1px solid #f1f2f5` }}>
-      <td style={td}>
-        <EventBadge type={e.eventType} status={e.eventStatus} label={t(`event.${e.eventType}`)} />
-      </td>
-      <td style={td}>
-        {e.isAnon ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span style={{ width: 30, height: 30, borderRadius: 99, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", color: FAINT, fontSize: 12 }} aria-hidden>?</span>
-            <span style={{ fontSize: 13, color: MUTED, fontStyle: "italic" }}>{t("anon")}</span>
-          </div>
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
-            <Avatar url={e.actorAvatar} name={e.actorName} email={e.actorEmail ?? ""} size={30} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{e.actorName ?? t("resource.unknown")}</div>
-              <div style={{ fontSize: 11.5, color: FAINT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{e.actorEmail ?? ""}</div>
-            </div>
-          </div>
-        )}
-      </td>
-      <td style={td}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-          <span style={{ fontSize: 13, color: INK, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", maxWidth: 260 }}>{e.resourceTitle ?? t("resource.unknown")}</span>
-          <span style={{ alignSelf: "flex-start", fontSize: 10.5, fontWeight: 600, padding: "1px 7px", borderRadius: 5, background: rs.bg, color: rs.fg }}>{t(`resource.${e.resourceType}`)}</span>
-        </div>
-      </td>
-      <td style={td}>
-        <span style={{ fontSize: 12.5, color: e.institutionType ? MUTED : FAINT }}>{e.institutionType ?? t("notProvided")}</span>
-      </td>
-      <td style={td}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 6, background: ss.bg, color: ss.fg }}>
-          <span style={{ width: 6, height: 6, borderRadius: 99, background: ss.fg }} aria-hidden />
-          {t(`status.${e.eventStatus}`)}
-        </span>
-      </td>
-      <td style={{ ...td, textAlign: "right" }}>
-        <span title={time.exact} style={{ fontSize: 12.5, color: MUTED }}>{time.rel}</span>
-      </td>
-      <td style={{ ...td, textAlign: "right" }}>
-        <button onClick={onOpen} aria-label={`${t("table.viewDetails")}: ${rowLabel}`} style={{ fontSize: 12.5, fontWeight: 600, color: "#4338ca", background: "transparent", border: "none", cursor: "pointer", padding: "4px 6px" }}>
-          {t("table.viewDetails")}
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-// ── Event details drawer ─────────────────────────────────────────────────────
-function EventDrawer({ e, t, canSeePersonal, onClose }: { e: ActivityEvent; t: ReturnType<typeof useTranslations>; canSeePersonal: boolean; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
-  const [revealed, setRevealed] = useState<Awaited<ReturnType<typeof revealReaderContact>> | null>(null);
-  const [revealing, setRevealing] = useState(false);
-  const time = fmtTime(e.occurredAt);
-
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => { if (ev.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    const prev = document.activeElement as HTMLElement | null;
-    ref.current?.focus();
-    return () => { document.removeEventListener("keydown", onKey); prev?.focus?.(); };
-  }, [onClose]);
-
-  const copyId = () => { navigator.clipboard?.writeText(e.id); setCopied(true); setTimeout(() => setCopied(false), 1500); };
-  const doReveal = async () => {
-    if (!e.userId) return;
-    setRevealing(true);
-    try { setRevealed(await revealReaderContact(e.userId)); } finally { setRevealing(false); }
-  };
-  const rev = revealed && revealed.ok ? revealed : null;
-
-  return (
-    <div role="dialog" aria-modal="true" aria-label={t("drawer.title")} style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
-      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(16,24,40,.35)" }} />
-      <div ref={ref} tabIndex={-1} style={{ position: "relative", width: "min(460px, 100%)", height: "100%", background: "#fff", boxShadow: "-8px 0 30px rgba(16,24,40,.18)", overflowY: "auto", outline: "none", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "sticky", top: 0, background: "#fff", borderBottom: `1px solid ${BORDER}`, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <EventBadge type={e.eventType} status={e.eventStatus} label={t(`event.${e.eventType}`)} />
-            <span style={{ fontSize: 15, fontWeight: 700, color: INK }}>{t("drawer.title")}</span>
-          </div>
-          <button onClick={onClose} aria-label={t("drawer.close")} style={{ border: "none", background: "#f3f4f6", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: MUTED }}>×</button>
         </div>
 
-        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 18 }}>
-          <Section title={t("drawer.eventSummary")}>
-            <Field label={t("drawer.eventType")} value={t(`event.${e.eventType}`)} />
-            <Field label={t("drawer.statusLabel")} value={t(`status.${e.eventStatus}`)} />
-            <Field label={t("drawer.dateTime")} value={`${time.exact} (${TZ})`} />
-            <Field label={t("drawer.eventId")} value={
-              <button onClick={copyId} style={{ fontFamily: "monospace", fontSize: 11.5, color: MUTED, background: "#f7f8fa", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "2px 8px", cursor: "pointer" }}>
-                {copied ? t("drawer.copied") : `${e.id.slice(0, 26)}…`}
-              </button>
-            } />
-            {e.permissionSource && <Field label={t("drawer.permissionSource")} value={e.permissionSource} />}
-          </Section>
+        <ActivityTable
+          events={result.events}
+          emptyKind={emptyKind}
+          onOpen={setSelected}
+          onClearFilters={clearAll}
+          fmt={fmt}
+          pending={isPending}
+        />
 
-          {!e.isAnon && (
-            <Section title={t("drawer.readerInfo")}>
-              <Field label={t("drawer.fullName")} value={rev?.fullName ?? e.actorName ?? t("drawer.notAvailable")} />
-              <Field label={t("drawer.verifiedEmail")} value={rev?.email ?? e.actorEmail ?? t("drawer.notAvailable")} />
-              <Field label={t("drawer.phone")} value={rev ? (rev.phone ?? t("drawer.notAvailable")) : (canSeePersonal ? "•••" : t("drawer.masked"))} />
-              {rev && <Field label={t("drawer.gender")} value={rev.gender ?? t("drawer.notAvailable")} />}
-              {rev?.faculty && <Field label={t("drawer.faculty")} value={rev.faculty} />}
-              <Field label={t("drawer.country")} value={rev?.country ?? t("drawer.notAvailable")} />
-              {canSeePersonal && e.userId && (
-                <button onClick={doReveal} disabled={revealing || !!rev} style={{ ...btnSecondary, height: 32, marginTop: 4 }}>
-                  {rev ? t("drawer.hide") : revealing ? "…" : t("drawer.reveal")}
-                </button>
-              )}
-              {!canSeePersonal && <p style={{ fontSize: 11.5, color: FAINT }}>{t("drawer.revealHint")}</p>}
-            </Section>
-          )}
+        <LogsPagination
+          page={result.pagination.page}
+          pageSize={result.pagination.pageSize}
+          total={result.pagination.total}
+          totalPages={result.pagination.totalPages}
+          onPage={(page) => setParams({ page: page === 0 ? null : String(page) })}
+          pending={isPending}
+        />
+      </section>
 
-          {(e.institutionType || e.role) && (
-            <Section title={t("drawer.institutionInfo")}>
-              <Field label={t("drawer.institutionType")} value={e.institutionType ?? t("notProvided")} />
-              <Field label={t("drawer.role")} value={e.role ?? t("notProvided")} />
-            </Section>
-          )}
-
-          <Section title={t("drawer.resourceInfo")}>
-            <Field label={t("drawer.resourceTitle")} value={e.resourceTitle ?? t("resource.unknown")} />
-            <Field label={t("drawer.resourceType")} value={t(`resource.${e.resourceType}`)} />
-          </Section>
-
-          {e.eventType === "download" && (
-            <Section title={t("drawer.downloadDecision")}>
-              <Field label={t("drawer.statusLabel")} value={t(`status.${e.eventStatus}`)} />
-              {e.permissionSource && <Field label={t("drawer.permissionSource")} value={e.permissionSource} />}
-              {e.denialReason && <Field label={t("drawer.permissionReason")} value={t(`reason.${e.denialReason}`)} />}
-              {e.rankAtEvent != null && <Field label={t("drawer.rankAtEvent")} value={`#${e.rankAtEvent}`} />}
-            </Section>
-          )}
-
-          {e.purpose && (
-            <Section title={t("drawer.intendedUse")}>
-              <Field label={t("drawer.purpose")} value={e.purpose} />
-            </Section>
-          )}
-
-          {e.locale && (
-            <Section title={t("drawer.technical")}>
-              <Field label={t("drawer.locale")} value={e.locale} />
-            </Section>
-          )}
-        </div>
-      </div>
+      {selected && (
+        <ActivityDetailDrawer
+          event={selected}
+          canSeePersonal={canSeePersonal}
+          onClose={() => setSelected(null)}
+          fmt={fmt}
+        />
+      )}
     </div>
   );
 }
-
-// ── small presentational helpers ─────────────────────────────────────────────
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 style={{ fontSize: 11, fontWeight: 700, color: FAINT, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>{title}</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>{children}</div>
-    </div>
-  );
-}
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-      <span style={{ fontSize: 12.5, color: MUTED, flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: 13, color: INK, textAlign: "right", wordBreak: "break-word" }}>{value}</span>
-    </div>
-  );
-}
-function EventBadge({ type, status, label }: { type: string; status: string; label: string }) {
-  const s = type === "download" ? (STATUS_STYLE[status] ?? STATUS_STYLE.authorized) : type === "view" ? RESOURCE_STYLE.book : RESOURCE_STYLE.account;
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 600, padding: "3px 9px", borderRadius: 6, background: s.bg, color: s.fg }}>{type === "download" ? <DownloadIcon size={12} /> : type === "view" ? <EyeIcon size={12} /> : <ShieldIcon size={12} />}{label}</span>;
-}
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: [string, string][] }) {
-  return (
-    <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: MUTED }}>
-      <span style={{ whiteSpace: "nowrap" }}>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={{ height: 36, padding: "0 26px 0 10px", background: "#f7f8fa", border: `1px solid ${BORDER}`, borderRadius: 9, fontFamily: FONT, fontSize: 13, color: INK, cursor: "pointer" }}>
-        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
-    </label>
-  );
-}
-
-const srOnly: React.CSSProperties = { position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 };
-const td: React.CSSProperties = { padding: "11px 16px", verticalAlign: "middle" };
-const btnBase: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 8, height: 38, padding: "0 15px", borderRadius: 9, fontFamily: FONT, fontSize: 13.5, fontWeight: 600, cursor: "pointer" };
-const btnSecondary: React.CSSProperties = { ...btnBase, background: "#fff", border: `1px solid #e1e4ea`, color: "#374151" };
-const btnPrimary: React.CSSProperties = { ...btnBase, background: INK, border: `1px solid ${INK}`, color: "#fff" };
-
-// ── time formatting (Asia/Phnom_Penh presentation) ───────────────────────────
-function fmtTime(iso: string): { rel: string; exact: string } {
-  const d = new Date(iso);
-  const diff = (Date.now() - d.getTime()) / 1000;
-  let rel: string;
-  if (diff < 60) rel = "just now";
-  else if (diff < 3600) rel = `${Math.floor(diff / 60)} min ago`;
-  else if (diff < 86400) rel = `${Math.floor(diff / 3600)} hr ago`;
-  else rel = `${Math.floor(diff / 86400)} d ago`;
-  const exact = d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "medium", timeZone: TZ });
-  return { rel, exact };
-}
-
-// ── icons ────────────────────────────────────────────────────────────────────
-function DownloadIcon({ size = 14 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></svg>; }
-function EyeIcon({ size = 14 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>; }
-function UsersIcon({ size = 14 }: { size?: number }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /></svg>; }
-function ShieldIcon({ size = 14, alert = false }: { size?: number; alert?: boolean }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />{alert ? <path d="M12 8v4M12 16h.01" /> : <path d="m9 12 2 2 4-4" />}</svg>; }
-function RefreshIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></svg>; }
-function ExportIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="m8 11 4 4 4-4" /><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>; }
-function SearchIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>; }

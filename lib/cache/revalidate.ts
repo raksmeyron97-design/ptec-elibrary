@@ -225,6 +225,23 @@ export function revalidatePublication(slug?: string | null) {
   revalidateCollectionStats();
 }
 
+/**
+ * An author's public profile page changed.
+ *
+ * /authors/[slug] is ISR'd with `revalidate = 3600`, so without this an edit to
+ * a biography, photo or external link stays invisible for up to an hour — long
+ * enough for a librarian to conclude the save did not work and do it again.
+ *
+ * Both slugs are revalidated on a rename: the new URL so it starts serving, and
+ * the old one because it still resolves (the profile resolver falls back to
+ * name matching) and would otherwise keep serving the pre-rename page.
+ */
+export function revalidateAuthorProfile(...slugs: (string | null | undefined)[]) {
+  for (const slug of slugs) {
+    if (slug) revalidatePublicPath(`/authors/${slug}`);
+  }
+}
+
 export function revalidatePost(slug?: string | null) {
   revalidateTag(TAGS.posts, "max");
   if (slug) {
