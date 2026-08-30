@@ -2823,7 +2823,8 @@
     "searching": "កំពុងស្វែងរក",
     "removeFilter": "ដកតម្រង៖ {label}",
     "filterSearchLabel": "ស្វែងរក៖ «{query}»",
-    "activeFilters": "តម្រង៖"
+    "activeFilters": "តម្រង៖",
+    "filterBarLabel": "កែសម្រួលការស្វែងរកផ្លូវសិក្សា"
   },
   "downloadProfile": {
     "title": "ប្រវត្តិរូបសម្រាប់សិទ្ធិទាញយក",

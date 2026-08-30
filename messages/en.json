@@ -2818,7 +2818,8 @@
     "searching": "Searching",
     "removeFilter": "Remove filter: {label}",
     "filterSearchLabel": "Search: “{query}”",
-    "activeFilters": "Filters:"
+    "activeFilters": "Filters:",
+    "filterBarLabel": "Refine learning paths"
   },
   "downloadProfile": {
     "title": "Download Access Profile",
