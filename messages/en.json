@@ -5088,9 +5088,7 @@
       "by": "by",
       "defaultMatrix": "Using the default permission matrix",
       "manageUserRoles": "Manage user roles",
-      "usersShort": "Users",
-      "editing": "Editing",
-      "editPermissions": "Edit permissions"
+      "usersShort": "Users"
     },
     "workspace": {
       "savedChanges": "{count, plural, one {Saved # change} other {Saved # changes}}",
@@ -5098,21 +5096,25 @@
       "conflict": "{count} of these were changed by someone else — reload to see the latest values.",
       "saveFailed": "Could not save changes",
       "matrixAria": "Permission matrix",
-      "permissions": "Permissions",
-      "hintEdit": "Set each role’s access level per feature",
-      "hintView": "What each role can do across the system"
+      "nothingLeftToSave": "Nothing left to save — every change was resolved in the other editor’s favour.",
+      "discardTitle": "Discard unsaved changes?",
+      "discardBody": "{count, plural, one {# permission change will be lost.} other {# permission changes will be lost.}}",
+      "discardConfirm": "Discard changes",
+      "discardHint": "Nothing has been written yet — the saved permissions are unaffected.",
+      "leaveTitle": "Leave without saving?",
+      "leaveBody": "{count, plural, one {# permission change has not been saved yet.} other {# permission changes have not been saved yet.}}",
+      "leaveConfirm": "Leave and discard",
+      "keepEditing": "Stay here",
+      "bulkBody": "This will change {count} of {total} permissions for {role}.",
+      "bulkHint": "Applied to your draft — nothing is saved until you review the changes.",
+      "bulkConfirm": "Apply to draft",
+      "bulkCancel": "Cancel",
+      "bulkNoChange": "That role already has exactly these permissions — nothing to apply."
     },
     "overview": {
-      "aria": "Role overview",
-      "heading": "Roles",
-      "clearFocus": "Clear focus",
       "userCount": "{count, plural, one {# user} other {# users}}",
       "fullCount": "{count} full",
-      "readCount": "{count} read",
-      "shareOfTotal": "{pct}% of total",
-      "noAssignments": "No active assignments",
-      "assignUsers": "Assign users",
-      "focusRole": "Focus the permission matrix on {role}"
+      "readCount": "{count} read"
     },
     "toolbar": {
       "searchLabel": "Search features",
@@ -5120,27 +5122,25 @@
       "clearSearch": "Clear search",
       "category": "Category",
       "allCategories": "All categories",
-      "role": "Role",
-      "allRoles": "All roles",
       "differences": "Differences",
       "collapse": "Collapse",
       "expand": "Expand",
-      "reset": "Reset"
+      "reset": "Reset",
+      "filters": "Filters",
+      "showing": "Showing {shown} of {total} features",
+      "differingCount": "{count, plural, one {# differs across roles} other {# differ across roles}}"
     },
     "matrix": {
       "noMatchesTitle": "No features match your search",
       "noMatchesBody": "Try adjusting your search or filters.",
       "clearSearch": "Clear search",
-      "diffSummary": "Showing {shown} of {total} features with differing permissions",
       "caption": "Permissions by role and feature",
       "feature": "Feature",
       "permFor": "{feature} permission for {role}",
-      "legend": "Legend",
       "legendWrite": "Create, edit & delete",
       "legendRead": "View only",
       "legendNone": "No access",
       "legendLocked": "Super Admin is always full access",
-      "viewingRole": "Viewing role",
       "alwaysFull": "Always full access"
     },
     "levels": {
@@ -5210,11 +5210,10 @@
       "conflictShort": "Someone else changed these permissions",
       "unsaved": "{count, plural, one {# unsaved change} other {# unsaved changes}}",
       "noChanges": "No changes yet",
-      "review": "Review",
-      "cancel": "Cancel",
       "savingShort": "Saving…",
-      "save": "Save",
-      "saveChanges": "Save changes"
+      "discard": "Discard",
+      "exitEditing": "Done",
+      "reviewAndSave": "Review & save"
     },
     "review": {
       "title": "Review changes",
@@ -5222,7 +5221,65 @@
       "close": "Close",
       "keepEditing": "Keep editing",
       "saving": "Saving…",
-      "confirmSave": "Confirm & save"
+      "confirmSave": "Confirm & save",
+      "roleCount": "{count, plural, one {# change} other {# changes}}"
+    },
+    "rail": {
+      "aria": "Choose a role or compare all roles",
+      "heading": "Roles",
+      "compare": "Compare all roles",
+      "compareHint": "Every role, side by side",
+      "noUsers": "No one assigned",
+      "assignUsers": "Assign users to roles"
+    },
+    "pane": {
+      "editAccess": "Edit access",
+      "noneCount": "{count} no access",
+      "wasLevel": "was {level}",
+      "viewUsers": "View users",
+      "protectedTitle": "Protected system role.",
+      "protectedBody": "Its permissions are fixed at full access and cannot be changed here — the server rejects any attempt, whatever this page shows."
+    },
+    "compare": {
+      "title": "All roles",
+      "subtitle": "Read-only. Choose a role to change its access.",
+      "edit": "Edit",
+      "openRole": "Open {role} to edit its access",
+      "openLocked": "{role} always has full access",
+      "backTo": "Back to {role}"
+    },
+    "bulk": {
+      "menu": "Bulk actions",
+      "setAll": "Set all",
+      "setGroupTo": "Set every feature in {group} to {level}",
+      "copyFrom": "Copy access from",
+      "resetDefaults": "Reset to default access",
+      "clearAll": "Remove all access",
+      "fullAccess": "full access",
+      "draftOnly": "Applied to your draft — nothing is saved until you review.",
+      "copyFromRole": "Copy access from {role}?"
+    },
+    "conflict": {
+      "title": "Someone else changed these permissions",
+      "summary": "{count, plural, one {# permission was changed while you were editing.} other {# permissions were changed while you were editing.}}",
+      "close": "Close",
+      "explain": "Your other changes are safe and will still be saved. Choose what to do with each one below, then save again.",
+      "applyToAll": "For all:",
+      "allMine": "Keep mine",
+      "allTheirs": "Take theirs",
+      "keepMine": "Keep mine",
+      "takeTheirs": "Take theirs",
+      "startedFrom": "You started from {level}.",
+      "choiceFor": "Resolve {feature} for {role}",
+      "backToEditing": "Back to editing",
+      "saveAgain": "Save again",
+      "saving": "Saving…"
+    },
+    "stats": {
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "users": "Users",
+      "lastUpdated": "Last updated"
     }
   },
   "adminEbooks": {
