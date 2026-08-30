@@ -36,9 +36,12 @@ services:
     networks: [web]
     read_only: true
     tmpfs:
+      # NOT /app/.next/server — that path holds the built server manifests
+      # (pages-manifest.json et al) that COPY --from=builder puts in the image.
+      # An empty tmpfs over it hides them and `node server.js` crash-loops with
+      # ENOENT on pages-manifest.json. Only genuinely-written paths belong here.
       - /tmp
       - /app/.next/cache
-      - /app/.next/server
     security_opt:
       - no-new-privileges:true
     deploy:

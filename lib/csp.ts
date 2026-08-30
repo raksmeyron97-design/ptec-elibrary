@@ -109,8 +109,35 @@ export function needsEval(pathname: string): boolean {
 }
 
 const IS_DEV = process.env.NODE_ENV === "development";
-const LOCAL_IMGS = IS_DEV ? " http://127.0.0.1:* http://localhost:*" : "";
-const LOCAL_CONNS = IS_DEV ? " http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*" : "";
+
+// A *production* build pointed at a LOCAL Supabase stack — i.e. the Docker
+// image run on a developer machine — talks to it over plain http on a loopback
+// or LAN address, which none of the directives below cover. The browser then
+// blocks the sign-in fetch and the admin login reports "Failed to fetch" while
+// every server-rendered page still works, because only the client-side call is
+// refused.
+//
+// The allowance is derived from the configured URL rather than gated on an env
+// flag on purpose: production points NEXT_PUBLIC_SUPABASE_URL at
+// https://<project>.supabase.co, so the https check fails, both constants
+// expand to "" and the emitted policy is byte-identical to before.
+const LOCAL_SUPABASE = (() => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  if (!raw.startsWith("http://")) return { http: "", ws: "" };
+  try {
+    const url = new URL(raw);
+    return { http: ` ${url.origin}`, ws: ` ws://${url.host}` };
+  } catch {
+    return { http: "", ws: "" };
+  }
+})();
+
+const LOCAL_IMGS =
+  (IS_DEV ? " http://127.0.0.1:* http://localhost:*" : "") + LOCAL_SUPABASE.http;
+const LOCAL_CONNS =
+  (IS_DEV ? " http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*" : "") +
+  LOCAL_SUPABASE.http +
+  LOCAL_SUPABASE.ws;
 
 // Directives that do not vary between the two policies. These carry most of
 // the actual hardening (no plugins, no base-tag hijack, no framing, form posts
