@@ -5,7 +5,7 @@ import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 import { logSecurityEvent } from "@/lib/security-log";
-import { checkFileHashReputation } from "@/lib/virus-scan";
+import { checkFileHashReputation, isVirusScanFailClosed } from "@/lib/virus-scan";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Malware reputation check (hash lookup, fails open — see lib/virus-scan.ts) ──
+    // ── Malware reputation check (hash lookup; failure posture is a switch — see lib/virus-scan.ts) ──
     const fileHash = sha256Hex(bytes);
     const scan = await checkFileHashReputation(fileHash);
     if (scan.verdict === "malicious") {
@@ -87,6 +87,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "This file was flagged as malicious by security scanning and cannot be uploaded." },
         { status: 400 },
+      );
+    }
+    if (!scan.scanned && isVirusScanFailClosed()) {
+      // Skips/errors are already logged inside checkFileHashReputation; a 404
+      // "hash unknown" counts as scanned and never lands here.
+      return NextResponse.json(
+        { error: "Malware scanning is unavailable and this deployment requires it (FAIL_CLOSED_VIRUS_SCAN). Try again shortly or contact the administrator." },
+        { status: 503 },
       );
     }
 

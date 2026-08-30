@@ -189,6 +189,30 @@ Cloudflare — makes the tunnel work natively and costs nothing, but moves
 authoritative DNS for the whole school domain, email included. It is the bigger
 ask; the CNAME is deliberately the smaller one.
 
+### The settled architecture: dual-path (decided 2026-08-29)
+
+The ambiguity ("is the box production or is Vercel?") is now resolved as a
+**dual-path** design, and both paths are kept warm on purpose:
+
+- **Primary production path**: `library.ptec.edu.kh` → CNAME to the
+  `storage-ptec.online` public hostname → Cloudflare Custom Hostname
+  (Cloudflare for SaaS) → tunnel → the ZimaOS box. All traffic, all PDFs.
+- **Warm standby path**: the Vercel deployment of the same repo, left
+  connected to `main` so it redeploys on every merge and never goes stale.
+  Its env vars mirror production (per `SECRET-REGISTRY.md`); the only thing
+  it lacks is Zima Storage locality — PDFs 404 while it serves, everything
+  else works.
+- **Failover = one CNAME edit** (§7.2). TTL on the `library` record is kept
+  at **5 minutes** so a repoint propagates in minutes, not hours.
+
+Until the professor actions `DNS-HANDOFF.md`, the paths are simply reversed
+(Vercel is live, the box is the proven-but-unaddressed path) — the cutover
+swaps their roles without rebuilding either. Two prerequisites remain before
+sending the handoff: confirm the Cloudflare-for-SaaS Custom Hostname cost on
+the current plan (free allowance covers the first 100 on most plans —
+verify, don't assume), and run stage 3 end-to-end so the fallback hostname
+serves the site today.
+
 Finally: delete every router port-forward that previously pointed at the box
 (80/443/3000/anything). The tunnel replaces them all. If Vercel or another host
 served the domain before, keep it until stage 4 is verified, then remove it.
@@ -304,6 +328,11 @@ blocks anonymous traffic before it ever reaches the login form.
 
 ## 4. "Is my origin hidden?" checklist
 
+Run end-to-end after the Stage 4 cutover, then re-run at the §M15 quarterly
+Cloudflare/tunnel review. Tick with a date (`[x] 2026-09-…`) — an undated
+tick is treated as unverified. Note: until the cutover, the first item
+correctly shows Vercel targets — that is the dual-path standby, not a leak.
+
 - [ ] `dig library.ptec.edu.kh` returns Cloudflare IPs (104.x / 172.6x) — not the
       school's IP, and no longer Vercel's (`*.vercel-dns-*.com`, 216.198.x / 64.29.x).
 - [ ] Old public IP: `curl -m 5 http://<old-public-ip>` times out or refuses.
@@ -325,11 +354,14 @@ blocks anonymous traffic before it ever reaches the login form.
 - `NEXT_PUBLIC_*` build args are compile-time public values by definition;
   every real secret (service-role key, API keys) stays runtime-only.
 
-Ongoing:
+Ongoing (BO owns; re-check at the §M4 quarterly review — tick with a date,
+an undated tick is treated as unverified):
 - [ ] ZimaOS itself needs updating; the app image updates itself via the deploy timer.
 - [ ] Strong unique ZimaOS admin password (+ MFA if the ZimaOS version supports it).
 - [ ] Disable ZimaOS services not in use (media servers, remote-access helpers).
 - [ ] UPS for the box if possible — PDFs are served from Zima Storage on this hardware.
+- [ ] Storage-backup timer enabled and `.last-ok` fresh
+      (`systemctl list-timers ptec-storage-backup.timer` — BACKUP-DR.md §3).
 
 ## 6. ZimaOS backup reality check
 
@@ -353,10 +385,18 @@ Tunnel or box dies and you need the site back fast:
 1. **Tunnel broken, box fine**: `docker compose restart cloudflared`; check
    Zero Trust → Tunnels status. Tunnel tokens don't expire; re-paste into
    `.env` if it was rotated.
-2. **Box down entirely**: deploy the same repo to Vercel (it remains fully
-   Vercel-compatible — `output: standalone` is ignored there), set env vars,
-   point Cloudflare DNS at the Vercel deployment. PDFs on Zima Storage will
-   404 until the box returns, but browsing/search/auth/covers-on-R2 keep working.
+2. **Box down entirely — fail over to the warm standby (§2a Stage 4,
+   "dual-path")**: the Vercel deployment already exists, tracks `main`, and
+   holds current env — do not deploy anything. Repoint the `library` CNAME
+   at the Vercel target (`f201dfbcd9bfb9ee.vercel-dns-017.com`, or the
+   current value shown in the Vercel dashboard → Domains): before the
+   Stage 4 cutover that means asking the professor to revert per
+   `DNS-HANDOFF.md`; after nameserver-free cutover it is the same one-record
+   edit in reverse. With the record's 5-minute TTL the site is back in
+   minutes. PDFs on Zima Storage will 404 until the box returns, but
+   browsing/search/auth/covers-on-R2 keep working. When the box recovers,
+   repoint the CNAME back — the deploy timer will have kept its image
+   current.
 3. **Roll back a bad app deploy**: `deploy.sh` already rolls back on its own
    when a new image fails its healthcheck. To undo a deploy that *is* healthy
    but wrong, set `IMAGE_TAG=sha-<last-good-40-char-sha>` in `.env` and run

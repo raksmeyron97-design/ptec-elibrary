@@ -1,8 +1,12 @@
 # Deployment & Rollback Plan — Reliability & Governance Phase
 
-_Created 2026-07-12. Covers migrations 0086–0088 and the code shipped in the
-30–60-day reliability/governance phase. Read `RUNBOOKS.md` §M6/§M7/§M8 for
-the generic procedures; this doc is the phase-specific sequence._
+_Created 2026-07-12; status updated 2026-08-29: **this phase shipped** —
+migrations 0086–0088 are applied (the chain is now well past them) and both
+pipelines are automated since this plan was written: migrations apply via
+`.github/workflows/migrate.yml` on merge (never the SQL editor) and box
+deploys are pull-based with auto-rollback (`deploy/deploy.sh`). Read
+`RUNBOOKS.md` §M6/§M7/§M8 for the **current** procedures; the step list below
+is kept as the historical record of the phase sequence._
 
 ## What ships
 
@@ -27,9 +31,10 @@ rich-select→legacy-select fallback (proven by the 0062 precedent). So:
    - `/api/health` deep probe returns `backupAgeHours: null` (unknown).
    - Backup scripts run and warn that `ops_events` isn't recorded.
 2. **Back up first**: `node scripts/backup/backup-db.mjs` (RUNBOOKS §M6.2).
-3. **Apply migrations in order** on the hosted SQL editor: 0086 → 0087 →
-   0088. Each has rollback notes in its header. Paste output into the deploy
-   record.
+3. **Apply migrations in order**: 0086 → 0087 → 0088. Each has rollback
+   notes in its header. _(Done — and how this works has since changed:
+   merging a PR that touches `supabase/migrations/**` now applies them via
+   `migrate.yml`; the SQL editor is no longer part of the procedure.)_
 4. **Post-migration verify**:
    - `/admin/review`: new status filters + quality grades + version history
      load; submit → verify → publish a test record; confirm a librarian
@@ -39,10 +44,12 @@ rich-select→legacy-select fallback (proven by the 0062 precedent). So:
    - `curl /api/export/theses?format=dc-xml | head` returns records.
    - Deep `/api/health` now returns a numeric `backupAgeHours`.
    - Run `node scripts/backup/restore-drill.mjs` → PASS.
-5. **Wire cron** (if not already): `/api/cron/cleanup` now also runs the two
-   retention purges; nightly `backup-db.mjs` + `verify-backup.mjs`.
-6. **Configure alerts** from `ALERT-CATALOG.md` (at minimum: site-down,
-   dependency-degraded, backup-stale, admin-auth-anomaly).
+5. **Wire cron** — done: `.github/workflows/cron.yml` is the scheduler of
+   record (publish sweep + cleanup), and the nightly backup/verify runs on
+   the box.
+6. **Configure alerts** — done 2026-08-29: Telegram is the active Sev 1/2
+   channel (`ALERT-CATALOG.md` §Delivery channels); site-down and cron
+   failures alert from the workflows, backup failures from the box jobs.
 
 ## Rollback
 
@@ -65,9 +72,14 @@ rich-select→legacy-select fallback (proven by the 0062 precedent). So:
 
 See `OPERATIONS-AUDIT.md` §7 (register) and `TABLETOP-EXERCISES.md` open
 follow-ups. The load-bearing ones:
-- **F1 (priority)**: only one admin-capable account exists — create a sealed
-  break-glass second admin.
-- **F2**: evidence the Zima file-snapshot cron is actually running.
-- **F6**: apply 0086–0088 (this plan).
+- **F1**: ~~only one admin-capable account exists~~ — tooling + procedure
+  shipped 2026-08-29 (`scripts/ops/create-breakglass-admin.mjs`,
+  `BREAK-GLASS-PROCEDURE.md`); **run it once and seal the envelope** to
+  close this for real.
+- **F2**: ~~evidence the Zima file-snapshot cron is running~~ — replaced by
+  an in-repo systemd timer with `.last-ok` + Telegram-on-failure
+  (`BACKUP-DR.md` §3); remaining action is enabling it on the box.
+- **F6**: ~~apply 0086–0088~~ — applied; migrations are now CI-applied on
+  merge (`RUNBOOKS.md` §M6).
 - Hard deletes aren't versioned (TT-5) — the workflow steers to "archive";
   nightly archive is the deletion recovery layer until an optional 0089.

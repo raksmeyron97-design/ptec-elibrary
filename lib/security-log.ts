@@ -16,7 +16,8 @@ export type SecurityEventType =
   | "cron_auth_failed" // /api/cron/* called with a bad or missing secret
   | "upload_rejected" // file failed MIME/size/path validation
   | "virus_scan_blocked" // a file's hash matched known malware on VirusTotal
-  | "virus_scan_error" // the VirusTotal lookup itself failed (fails open — logged, not blocking)
+  | "virus_scan_error" // the VirusTotal lookup itself failed (default fails open — logged; FAIL_CLOSED_VIRUS_SCAN=true rejects instead)
+  | "virus_scan_skipped" // no VIRUSTOTAL_API_KEY configured — the upload was not scanned at all
   | "suspicious_input" // input rejected at a trust boundary
   | "rights_blocked" // full-text redistribution not authorized (citation-only record)
   | "download_blocked" // the library disabled downloads for this record (allow_download = false)

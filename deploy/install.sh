@@ -76,10 +76,25 @@ fi
 log "Installing systemd units"
 install -m 644 "$SRC/deploy/ptec-elibrary-deploy.service" "$UNIT_DIR/"
 install -m 644 "$SRC/deploy/ptec-elibrary-deploy.timer"   "$UNIT_DIR/"
+install -m 644 "$SRC/deploy/ptec-storage-backup.service"  "$UNIT_DIR/"
+install -m 644 "$SRC/deploy/ptec-storage-backup.timer"    "$UNIT_DIR/"
 chmod +x "$SRC/deploy/deploy.sh"
 systemctl daemon-reload
 systemctl enable --now ptec-elibrary-deploy.timer
-echo "    timer enabled"
+echo "    deploy timer enabled"
+
+# The nightly file backup only makes sense once its paths are configured —
+# enabling it unconfigured would fail every night at 02:00.
+if grep -qE '^STORAGE_BACKUP_SOURCE=.+' "$SRC/.env" && grep -qE '^STORAGE_BACKUP_TARGET=.+' "$SRC/.env"; then
+  command -v node >/dev/null || warn "node not found on the box — the storage-backup timer needs it"
+  systemctl enable --now ptec-storage-backup.timer
+  echo "    storage-backup timer enabled (nightly 02:00, docs/BACKUP-DR.md §files)"
+else
+  warn "STORAGE_BACKUP_SOURCE / STORAGE_BACKUP_TARGET not set in .env —"
+  warn "storage-backup timer installed but NOT enabled. Every PDF has a single"
+  warn "copy until it runs: set both paths, then"
+  warn "  sudo systemctl enable --now ptec-storage-backup.timer"
+fi
 
 log "Starting the stack"
 cd "$SRC"

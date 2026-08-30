@@ -135,7 +135,9 @@ flags a real gap); no row can ever be created.
 
 ### Minting a probe JWT (authenticated-reader tests)
 
-On a **staging/local** instance, or with a throwaway account on production:
+On the **local stack** (`supabase start`), an **ephemeral staging project**
+(there is no permanent staging environment — see RUNBOOKS.md §M6 for when to
+spin one up), or with a throwaway account on production:
 1. `POST {SUPABASE_URL}/auth/v1/admin/generate_link` (service key) with
    `{"type":"magiclink","email":"<probe user>"}` → returns `token_hash`.
 2. `POST {SUPABASE_URL}/auth/v1/verify` (anon key) with
@@ -143,9 +145,9 @@ On a **staging/local** instance, or with a throwaway account on production:
 3. Export it as `RLS_PROBE_USER_JWT`. Delete the throwaway user afterwards.
 
 Role-differentiated cases (staff/librarian/admin/suspended) exercise the
-same policies through `is_*()` helpers; test them on staging by setting the
-probe user's `profiles.role` and re-running — never mutate roles on
-production for testing.
+same policies through `is_*()` helpers; test them on the local stack or an
+ephemeral staging project by setting the probe user's `profiles.role` and
+re-running — never mutate roles on production for testing.
 
 ### Canonical resource tables (migrations 0104–0109)
 

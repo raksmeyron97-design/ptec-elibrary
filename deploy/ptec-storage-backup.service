@@ -1,0 +1,25 @@
+# PTEC e-Library — nightly Zima Storage file backup (the byte-copy leg of
+# docs/BACKUP-DR.md §files). Scheduled by ptec-storage-backup.timer; installed
+# by deploy/install.sh.
+#
+# Reads STORAGE_BACKUP_SOURCE / STORAGE_BACKUP_TARGET (and optionally
+# BACKUP_PASSPHRASE, TELEGRAM_*) from the repo's .env — the script loads it
+# itself, so no Environment= lines here to drift out of step.
+
+[Unit]
+Description=PTEC e-Library storage file backup
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/DATA/AppData/ptec-elibrary/app
+ExecStart=/usr/bin/env node scripts/backup/backup-storage-files.mjs
+# Backups yield to the site: this box also serves every PDF.
+Nice=10
+IOSchedulingClass=idle
+# A full first copy of the collection can legitimately take a while.
+TimeoutStartSec=4h
+
+[Install]
+WantedBy=multi-user.target

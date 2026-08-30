@@ -30,12 +30,31 @@ dependency-health endpoint.
 The Docker `HEALTHCHECK` already probes `/home` from inside the box; probe 2
 adds dependency depth and an outside-in view.
 
+**UptimeRobot setup** (free tier, the external monitor of record):
+
+1. Create two monitors — HTTP(s) `https://library.ptec.edu.kh/api/health`
+   (keyword optional; a 503 body means degraded) and HTTP(s)
+   `https://library.ptec.edu.kh/` with keyword `PTEC` — both at the 5-minute
+   interval. Probe `/`, never `/home` (it 308-redirects and false-alarms on
+   monitors that don't follow redirects).
+2. Alert contacts: the WL email **and** UptimeRobot's Telegram integration
+   pointed at the same chat as `TELEGRAM_CHAT_ID` (one channel, two senders —
+   see `ALERT-CATALOG.md` §Delivery channels).
+3. Alert on 2 consecutive failures (matches the site-down threshold), and set
+   maintenance windows in the monitor before planned work.
+
+**Active alerting** (added 2026-08-29): Telegram is the primary Sev 1/Sev 2
+channel. `uptime.yml` and `cron.yml` send directly on failure (repo secrets
+`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` — same values as the box's `.env`);
+box-side jobs call `scripts/ops/alert-telegram.mjs`. Test end-to-end with
+`node scripts/ops/alert-telegram.mjs --test`.
+
 **Backstop** (added 2026-07-16): `.github/workflows/uptime.yml` runs probes
 1 & 2 every 15 minutes from GitHub Actions and fails the workflow on sustained
-failure (3 attempts, 30s apart) — GitHub emails the repo owner on failure. It
-is a safety net; the external monitor above remains the primary alert. (Repo
-is public, so Actions minutes are free; loosen to hourly if it ever goes
-private again.)
+failure (3 attempts, 30s apart) — GitHub emails the repo owner on failure, and
+the workflow now also pushes a Sev 1 Telegram alert. It is a safety net; the
+external monitor above remains the primary alert. (Repo is public, so Actions
+minutes are free; loosen to hourly if it ever goes private again.)
 
 ## Log-based alerts
 

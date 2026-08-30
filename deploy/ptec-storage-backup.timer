@@ -1,0 +1,16 @@
+# Nightly trigger for ptec-storage-backup.service.
+#
+# 02:00 box-local time (the box runs Asia/Phnom_Penh) — off-peak, and an hour
+# before the 03:00-local retention cleanup sweep so the two never contend.
+# Persistent=true: a run missed because the box was off fires on next boot.
+
+[Unit]
+Description=Nightly PTEC storage file backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

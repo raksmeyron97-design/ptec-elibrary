@@ -237,7 +237,7 @@ Required variables (see `.env.example`):
 - `ZIMA_API_URL`, `ZIMA_API_KEY` (primary file storage)
 - `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `NEXT_PUBLIC_R2_PUBLIC_URL`, `R2_PUBLIC_BUCKET_NAME`, `NEXT_PUBLIC_R2_COVERS_URL` (legacy R2)
 - `GEMINI_API_KEY` (server-side only — never `NEXT_PUBLIC_`)
-- `VIRUSTOTAL_API_KEY` (optional — hash-reputation malware check on admin uploads, `lib/virus-scan.ts`; fails open if unset)
+- `VIRUSTOTAL_API_KEY` (optional — hash-reputation malware check on admin uploads, `lib/virus-scan.ts`; fails open if unset and logs `virus_scan_skipped`; set `FAIL_CLOSED_VIRUS_SCAN=true` to reject uploads whose scan cannot complete)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (Cloudflare Turnstile CAPTCHA)
 - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (contact-form delivery)
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (web push)

@@ -61,8 +61,10 @@ AI output and retrieved text never carry authority.
    push protection, Dependabot — dashboard-side.
 3. **Run the RLS probe suite on a schedule** (`RLS_PROBE=1` against the e2e
    local stack) so DB-policy regressions surface without manual runs.
-4. **Drill the lockdown runbook once** (staging): flip each switch, confirm
-   503s + `lockdown_blocked` events, clear, confirm recovery.
+4. **Drill the lockdown runbook once** — on the local stack or an ephemeral
+   staging project (there is no permanent staging environment; RUNBOOKS.md
+   §M6 documents the staging strategy): flip each switch, confirm 503s +
+   `lockdown_blocked` events, clear, confirm recovery.
 5. Longer-term hardening tracked in the scorecard: step-up auth for
    destructive super-admin ops, SHA-pinned actions, SBOM, cross-site negative
    suite, static-hash CSP for public paths.

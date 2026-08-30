@@ -120,7 +120,10 @@ async function main() {
   if (dead.length) console.error(`  ✗ ${dead.length}/${sample.length} sampled files unreachable!`);
   else console.log(`  ✓ ${sample.length}/${sample.length} sampled files reachable`);
 
-  await recordOpsEvent(env, "backup_files", dead.length ? "warn" : "ok", {
+  // Distinct kind from the byte-copy job (backup-storage-files.mjs, kind
+  // "backup_files") — an inventory succeeding must never make a dead file
+  // sync look fresh in kind-based ops_events queries.
+  await recordOpsEvent(env, "storage_inventory", dead.length ? "warn" : "ok", {
     fileRefs: entries.length,
     ...byKind,
     sampled: sample.length,

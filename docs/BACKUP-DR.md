@@ -51,12 +51,19 @@ crontab in the box's own docs):
 # Weekly config fingerprint (Sun 04:00)
 0 4 * * 0 cd /path/to/e-library-ptec && node scripts/backup/backup-config.mjs
 
-# Nightly file snapshot on the Zima box (04:10) — second disk
-10 4 * * * rsync -a --delete /zima/data/ /mnt/backup-disk/zima-mirror/ && date > /mnt/backup-disk/zima-mirror/.last-ok
-
 # Quarterly restore drill (also run before any risky migration)
 # node scripts/backup/restore-drill.mjs
 ```
+
+**File snapshots are no longer a hand-run rsync** (automated 2026-08-29):
+`deploy/ptec-storage-backup.timer` runs
+`scripts/backup/backup-storage-files.mjs` nightly at 02:00 box-local —
+incremental mirror (never deletes on the target), `.last-ok` freshness marker,
+`ops_events` kind `backup_files`, and a Sev 2 Telegram alert on failure.
+Configure `STORAGE_BACKUP_SOURCE`/`STORAGE_BACKUP_TARGET` in the box's `.env`;
+`deploy/install.sh` installs and enables the timer. Off-site leg: point a
+second run at a mounted remote target with `--encrypt`
+(AES-256-GCM via `BACKUP_PASSPHRASE`).
 
 Retention pruning: keep the newest 7 daily dirs, first-of-week for 4 weeks,
 first-of-month for 6 months; delete the rest (`ls ~/ptec-backups/db`).
@@ -144,9 +151,13 @@ Order: DB (6.2) → storage (6.3) → env/deploy → DNS → validation.
 
 ## 8. Known gaps / follow-ups
 
-- Zima box rsync + off-site restic legs are **procedures on the box**, not
-  yet evidenced in-repo — add the `.last-ok` marker check to the weekly
-  checklist until confirmed running.
+- ~~Zima box rsync + off-site restic legs are procedures on the box, not
+  yet evidenced in-repo~~ — **closed 2026-08-29**: the second-disk leg is
+  `scripts/backup/backup-storage-files.mjs` + `deploy/ptec-storage-backup.timer`
+  (in-repo, installed by `install.sh`, `.last-ok` marker + `ops_events` +
+  Telegram-on-failure). Still open: enable the timer on the box with real
+  `STORAGE_BACKUP_*` paths, and stand up the weekly **off-site** encrypted leg
+  (`--encrypt` against a remote mount or restic to R2).
 - Supabase managed-backup existence depends on plan; verify monthly
   (dashboard → Database → Backups) — do not assume PITR.
 - `auth.users` is unreachable via PostgREST: account recovery depends on
