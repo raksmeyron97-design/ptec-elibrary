@@ -94,7 +94,7 @@ flowchart TD
     end
     DB -->|Supabase daily backups<br/>plan-dependent, unverified| B1[Supabase-managed copy]
     DB -->|NEW scripts/backup/backup-db.mjs<br/>PostgREST JSONL + sha256| B2[Local + off-site copy]
-    FILES -->|recommended rsync/restic<br/>NOT YET AUTOMATED| B3[Second disk]
+    FILES -->|backup-storage-files.mjs<br/>nightly systemd timer, .last-ok| B3[Second disk]
     R2L -->|bucket versioning<br/>UNVERIFIED| B4[R2 versions]
     ENV -->|password-manager copy<br/>+ NEW name/hash inventory| B5[Offline copy]
     INFRA -->|documented in ZIMAOS-DEPLOYMENT.md| B6[Docs]
@@ -142,14 +142,14 @@ responder), **library director** (communications, policy approval),
 
 | # | Risk | Likelihood | Impact | Current control | Mitigation (this phase) | Owner |
 |---|---|---|---|---|---|---|
-| R1 | Zima Storage box loss → all primary PDFs/covers gone | Medium | Critical | None automated (single copy) | rsync/restic job on box (BACKUP-DR.md §3), file inventory in DB backup, drill validates re-linking | Box owner |
+| R1 | Zima Storage box loss → all primary PDFs/covers gone | Medium | Critical | Nightly automated mirror to second disk (`backup-storage-files.mjs` + systemd timer, 2026-08-29) — off-site leg still pending | Enable timer with real paths on the box; weekly `--encrypt` off-site leg; file inventory in DB backup; drill validates re-linking | Box owner |
 | R2 | Supabase project loss/pause (free-tier pause, billing, region incident) | Medium | Critical | Supabase managed backups (plan-dependent, **unverified**) | Independent scripted JSONL backups + verified restore drill; verify dashboard backups monthly | Web lead |
 | R3 | Bad metadata published (wrong author/title/license) harms institutional credibility | High | Medium | Single-step approve; no history | Verification workflow, quality checklist, version rollback, verified-only exports | Librarian |
 | R4 | Admin account compromise (password reuse) | Low | Critical | MFA AAL2, security log, audit log | Runbook §admin-compromise + quarterly access review; alert on auth anomalies | Web lead |
-| R5 | Silent backup failure discovered only at restore time | High | High | None | `ops_events` heartbeat + health `backup_age` + failed-backup alert | Web lead |
+| R5 | Silent backup failure discovered only at restore time | High | High | `ops_events` heartbeat + `.last-ok` markers + Sev 2 Telegram alert on backup failure (2026-08-29) | Quarterly PGlite drill + per-semester full-fidelity drill (SUPABASE-RESTORE-GUIDE.md) keep proving the copies restore | Web lead |
 | R6 | Secret leak (env in commit/doc/log) | Low | High | gitleaks CI, no-secrets logging contract | Secret-rotation runbook; config fingerprint stores names+hashes only | Web lead |
 | R7 | Search analytics accumulate user-typed terms indefinitely (privacy) | Medium | Medium | RLS service-only (0084) | Retention purge (default 365 d) via cron + governance policy | Web lead |
-| R8 | Broken migration on hosted DB (no staging) | Medium | High | Sequential files, manual apply | Migration procedure runbook (backup-first, rollback notes per migration); drill restores prove backups usable | Web lead |
+| R8 | Broken migration on hosted DB (no permanent staging) | Medium | High | Automated pipeline (`migrate.yml`): PR **dry-run** against hosted DB + clean-slate apply in the e2e job, then `supabase db push` on merge | Backup-first habit before risky migrations; rollback notes per migration; ephemeral staging project for high-risk schema changes (RUNBOOKS.md §M6) | Web lead |
 | R9 | Gmail App-Password revocation → silent auth/contact mail failure | Medium | Medium | Weekly log check (manual) | Contact-email runbook + weekly checklist item; alert on `/api/contact` 5xx | Web lead |
 | R10 | Single-person team (bus factor 1) | High | High | Docs in repo | RUNBOOKS.md written to be followable by a non-author; staff onboarding checklist | Director |
 | R11 | Disk exhaustion (box: uploads/docker; Supabase: book_pages/chunks) | Medium | High | Manual df checks | Disk runbook + 80/90 % alerts; derived-tables purge guidance | Box owner |
@@ -157,8 +157,10 @@ responder), **library director** (communications, policy approval),
 
 ## 8. Constraints honored by this phase
 
-- Hosted DB migrations are applied **manually by the maintainer** — all new
-  code degrades gracefully until 0086–0088 are applied (established
+- Hosted DB migrations were applied manually by the maintainer at the time of
+  this audit; **since then `.github/workflows/migrate.yml` applies them
+  automatically on merge to main** (dry-run on PRs — see RUNBOOKS.md §M6).
+  All new code degrades gracefully until its migration lands (established
   fallback pattern; see `trust-fields` precedent).
 - Restore drills never touch production: PGlite (embedded Postgres) target.
 - No secrets in docs/scripts; backup config inventory stores **names +

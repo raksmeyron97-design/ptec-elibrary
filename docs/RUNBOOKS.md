@@ -41,8 +41,10 @@ original runbooks this file supersedes and extends); backup/DR detail in
 - [ ] `/admin/search-insights`: work the zero-result action center
 - [ ] `/admin/data-quality`: new broken files → §I4
 - [ ] Supabase Auth logs: email delivery errors → §I5 early warning
-- [ ] Cron endpoints ran (cleanup, publish-scheduled) — check pinger
-- [ ] Zima snapshot marker `.last-ok` < 8 days (BO)
+- [ ] Cron sweeps green — `cron.yml` alerts on failure (Telegram + GitHub
+      email); weekly, glance at the Actions history for silent skips
+- [ ] Storage-backup marker `<STORAGE_BACKUP_TARGET>/.last-ok` < 8 days old
+      (BO; written by `ptec-storage-backup.timer`)
 - [ ] Contact inbox: nothing unanswered > 5 working days
 
 ### M3 Monthly (1 h, WL)
@@ -60,6 +62,9 @@ original runbooks this file supersedes and extends); backup/DR detail in
 - [ ] Cloudflare/tunnel review (§M15); cert expiries (§M14)
 - [ ] Re-read SECURITY-OPS.md dashboard checklist for drift
 - [ ] RLS probe suite: `RLS_PROBE=1 npx vitest run lib/rls.test.ts`
+- [ ] Break-glass health: `node scripts/ops/create-breakglass-admin.mjs
+      --email <sealed address>` → ready, dormant, seal intact
+      (BREAK-GLASS-PROCEDURE.md §4)
 
 ### M5 Dependency updates
 1. Branch. `npm outdated`; take patch/minor batches, majors individually.
@@ -68,30 +73,62 @@ original runbooks this file supersedes and extends); backup/DR detail in
    coupling (webpack build flag, SW generation, worker assets).
 4. Deploy via §M7; watch elevated-5xx alert for 24 h.
 
-### M6 Database migration procedure
+### M6 Database migration procedure (automated — updated 2026-08-29)
+Migrations are applied by CI, **never by hand in the dashboard SQL editor**
+(hand-applying desyncs `supabase_migrations.schema_migrations`, which the
+pipeline trusts — see `supabase/MIGRATIONS.md`).
 1. Migration file is sequential, reviewed, and states its **rollback notes**
    in the header (mandatory since 0086).
-2. `node scripts/backup/backup-db.mjs` immediately before applying.
-3. Apply on hosted SQL editor in order; paste output into the PR/commit.
-4. Verify: the feature's smoke check + `SELECT` the new objects; run
-   `restore-drill.mjs` if the migration touched critical tables.
-5. If broken → §I16.
+2. Open a PR touching `supabase/migrations/**`. CI validates it twice:
+   `migrate.yml` **dry-runs** the pending chain against the hosted DB, and
+   the e2e job applies the whole chain from scratch on a local stack.
+3. For risky migrations (destructive, data-rewriting, critical tables):
+   `node scripts/backup/backup-db.mjs` immediately before merging.
+4. Merge to main → `migrate.yml` applies pending migrations via
+   `supabase db push` (Session pooler). Verify the workflow run is green —
+   it prints the final migration history.
+5. Verify the feature's smoke check; run `restore-drill.mjs` if critical
+   tables changed. If broken → §I16.
 
-### M7 Deployment
-1. CI green (typecheck, lint, unit, e2e, audit, gitleaks).
+**Staging strategy** — there is no permanent staging server, deliberately, at
+this scale. The layers that replace it: the PR dry-run (step 2), the
+clean-slate e2e stack, Vercel preview deployments for app-code changes, and
+`supabase start` locally. For a high-risk **breaking** schema change
+(drop/rename of in-use columns, large-table rewrites, RLS overhauls), spin up
+an **ephemeral** free-tier Supabase project: `supabase db push --include-all
+--db-url <ephemeral>` for the full chain, load a sample of the newest backup
+(SUPABASE-RESTORE-GUIDE.md §3), point a local dev server at it, exercise the
+affected feature plus `RLS_PROBE=1 npx vitest run lib/rls.test.ts`, then
+delete the project. ~30 minutes; use it whenever the rollback notes alone
+would not confidently undo the change.
+
+### M7 Deployment (automated — updated 2026-08-29)
+1. Merge to main with CI green. That is the deploy: `docker-publish.yml`
+   re-runs the full CI suite, builds, and pushes to GHCR; the box's systemd
+   timer (`deploy/deploy.sh`) installs the new image within ~5 minutes and
+   **rolls back automatically** if the container fails its healthcheck.
 2. Build uses `next build --webpack` (Turbopack silently drops the service
    worker — hard constraint from the 0081 incident).
-3. Deploy box image (ZIMAOS-DEPLOYMENT.md), keep previous image tag.
-4. Post-deploy: `/api/health` 200, homepage, one book page, one PDF read,
-   admin login. Watch logs 15 min.
+3. Post-deploy: `/api/health` 200, homepage, one book page, one PDF read,
+   admin login. Watch `journalctl -u ptec-elibrary-deploy` + app logs 15 min.
+4. Manual levers: deploy now with `sudo ./deploy/deploy.sh --force`; pause
+   automatic deploys with `sudo systemctl disable --now
+   ptec-elibrary-deploy.timer` (ZIMAOS-DEPLOYMENT.md §2b).
 
-### M8 Rollback
-- Box: redeploy previous image tag (ZIMAOS-DEPLOYMENT.md §rollback). Vercel:
-  promote previous deployment.
-- DB migrations are **not** auto-reverted: use the migration's rollback
-  notes; restore data from the pre-migration backup only if data was
-  damaged (§I14/§I16).
-- Roll back code before data, then re-validate §M7 step 4.
+### M8 Rollback (updated 2026-08-29)
+- **Unhealthy new image**: nothing to do — `deploy.sh` already rolled back
+  and recorded the bad digest in `/var/lib/ptec-elibrary-deploy/failed-image`
+  so the timer won't reinstall it.
+- **Healthy-but-wrong deploy (box)**: pin the last good build — set
+  `IMAGE_TAG=sha-<last-good-full-40-char-sha>` in the box's `.env`, then
+  `sudo ./deploy/deploy.sh --force`. Return to tracking main by removing
+  `IMAGE_TAG` and running `--force` again. Vercel: promote the previous
+  deployment from its dashboard.
+- DB migrations are **not** auto-reverted: apply the migration's rollback
+  notes (via a new down-migration PR when time permits; SQL editor only in a
+  live Sev 1, and then record what was run); restore data from the
+  pre-migration backup only if data was damaged (§I14/§I16).
+- Roll back code before data, then re-validate §M7 step 3.
 
 ### M9 Backup verification — nightly automated
 (`verify-backup.mjs` chained after backup); monthly manual: open the newest
@@ -128,15 +165,20 @@ Tunnel version + uptime; WAF rules still match DDOS-PROTECTION.md; DNS
 records inventory unchanged (export a screenshot); Access policies (if any)
 still least-privilege; API tokens scoped + < 12 months.
 
-### M16 Secret rotation
-- Inventory = `.env.example` + `backup-config.mjs` fingerprint.
+### M16 Secret rotation (updated 2026-08-29)
+- Inventory = `SECRET-REGISTRY.md` — one row per secret with **every**
+  location it lives in, cadence, impact, and a dated rotation log
+  (`.env.example` + the `backup-config.mjs` fingerprint back it up).
 - Rotate on: staff departure with access (§M17), any suspected exposure
-  (§I10), or 12-month age for: `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`,
-  `ADMIN_SECRET_KEY`, SMTP app password, Zima API key, VAPID keys (note:
-  VAPID rotation invalidates push subscriptions — announce), R2 keys.
-- Procedure per secret: generate new → update password manager → update
-  Vercel/box env → redeploy → verify feature → revoke old. Never revoke
-  before the new one is proven.
+  (§I10), or 12-month age — the registry's log is the age record; anything
+  older than 12 months (or with no log row) is a §M4 finding.
+- Procedure per secret: `node scripts/ops/rotate-secret.mjs <NAME>` prints
+  the ordered, per-location commands (and generates the value for
+  `CRON_SECRET` / `ADMIN_SECRET_KEY` / `BACKUP_PASSPHRASE`). The invariant
+  it encodes: **new value everywhere → verify each consumer → revoke old
+  LAST**, in one sitting — multi-location secrets (`CRON_SECRET` ×2,
+  `SUPABASE_SERVICE_ROLE_KEY` ×4) half-rotated are outages.
+- Finish every rotation with a row in the registry's Rotation log.
 
 ### M17 Staff onboarding / offboarding
 **On**: account with correct role (least privilege — start `staff`), MFA
@@ -155,13 +197,17 @@ Validate · Communicate/Escalate · Evidence · Rollback · Follow-up. Shared
 conventions (top of file) always apply.
 
 ### I1 Website unavailable — Sev 1
-- **Trigger**: site-down alert; user reports.
+- **Trigger**: site-down Telegram alert (uptime.yml / UptimeRobot); user
+  reports.
 - **Contain**: none needed (already down) — start comms clock.
-- **Diagnose** (outside-in): `curl -I https://library.ptec.edu.kh/home` →
-  Cloudflare status page → tunnel (`docker logs cloudflared`; 530s = dead
-  tunnel) → app (`docker ps`, `docker logs app --tail 200`) → `/api/health`.
-- **Recover**: restart tunnel/app containers; if box dead → flip DNS to the
-  Vercel fallback deployment (ZIMAOS-DEPLOYMENT.md §rollback).
+- **Diagnose** (outside-in): `curl -I https://library.ptec.edu.kh/` (never
+  `/home` — it 308s and hides the real status) → Cloudflare status page →
+  tunnel (`docker logs ptec-tunnel`; 530s = dead tunnel) → app
+  (`docker ps`, `docker logs ptec-elibrary --tail 200`; a deploy in the last
+  minutes? `journalctl -u ptec-elibrary-deploy -n 50`) → `/api/health`.
+- **Recover**: restart tunnel/app containers; a bad deploy usually rolled
+  itself back already (§M8); if box dead → flip DNS to the Vercel warm
+  standby (ZIMAOS-DEPLOYMENT.md §7.2).
 - **Validate**: probes 1–2 green 5 min; test from mobile network.
 - **Escalate**: BO (box), DIR (> 2 h, public note).
 - **Evidence**: container logs, Cloudflare analytics window.
@@ -251,7 +297,9 @@ conventions (top of file) always apply.
 - **Contain (in order, minutes matter)**: sign out all sessions →
   `profiles.role='reader'` for the account → remove unknown MFA factors →
   if super_admin: rotate `SUPABASE_SERVICE_ROLE_KEY` + `ADMIN_SECRET_KEY`
-  (§M16) and redeploy.
+  (§M16) and redeploy. If the compromised account is the only working
+  admin, activate break-glass first (BREAK-GLASS-PROCEDURE.md §3) so
+  containment doesn't lock you out too.
 - **Diagnose**: full `admin_audit_log` review for the account's window;
   `content_versions` diff for every touched record; role_permissions and
   user-role changes; push_broadcast abuse.

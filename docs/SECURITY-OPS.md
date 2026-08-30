@@ -3,34 +3,29 @@
 Operational security tasks that live **outside the codebase** (Supabase Dashboard,
 Vercel, storage hosts). Companion to `SECURITY.md` (architecture, in Khmer).
 
-Last reviewed: 2026-07-07.
+Last reviewed: 2026-08-29. (§3–§5's backup sketch is superseded by
+`BACKUP-DR.md`; monitoring delivery now runs through Telegram —
+`ALERT-CATALOG.md` §Delivery channels.)
 
 ---
 
 ## 1. Supabase Auth hardening (one-time dashboard steps)
 
 These settings cannot be set from code — they must be enabled in the
-**hosted** Supabase project (Dashboard → Authentication):
+**hosted** Supabase project (Dashboard → Authentication). Repo state cannot
+prove dashboard state, so each row carries a **Verified on / by** cell:
+fill it when you check the live setting (and re-verify at the §M4 quarterly
+review — the RUNBOOKS.md §M4 checklist points here). An empty cell means
+*unverified*, not *off*.
 
-- [ ] **Leaked-password protection** — Authentication → Passwords →
-      "Prevent use of leaked passwords" (HaveIBeenPwned check; requires Pro plan).
-- [ ] **Password strength** — set minimum length **8** and require
-      **letters + digits**, mirroring `supabase/config.toml`
-      (`minimum_password_length = 8`, `password_requirements = "letters_digits"`).
-      Local dev and production must match or passwords accepted locally will fail
-      in production (or vice versa).
-- [ ] **Secure password change** — require recent login to change password
-      (mirrors `secure_password_change = true` in config.toml).
-- [ ] **Turnstile CAPTCHA** — Authentication → Attack protection → confirm the
-      Turnstile secret is set (this is what rate-limits and bot-protects
-      login/signup server-side).
-- [ ] **OAuth redirect allowlist** — Authentication → URL Configuration:
-      Site URL `https://library.ptec.edu.kh`, and only known redirect URLs
-      (production domain + `http://localhost:3000` for dev). No wildcards.
-- [ ] **Before-user-created enforcement** — apply migration
-      `0068_reserved_domain_signup_guard.sql` (see below), which enforces the
-      reserved-admin-domain rule at the database layer instead of trusting the
-      client to call `verifySignup()`.
+| Setting | Where / target state | Verified on / by |
+|---|---|---|
+| **Leaked-password protection** | Authentication → Passwords → "Prevent use of leaked passwords" (HaveIBeenPwned; requires Pro plan — if on the free plan, record "n/a (plan)" here) | |
+| **Password strength** | Minimum length **8**, require **letters + digits** — must mirror `supabase/config.toml` (`minimum_password_length = 8`, `password_requirements = "letters_digits"`) or passwords accepted locally fail in production | |
+| **Secure password change** | Require recent login to change password (mirrors `secure_password_change = true`) | |
+| **Turnstile CAPTCHA** | Authentication → Attack protection → Turnstile secret set (server-side bot protection for login/signup) | |
+| **OAuth redirect allowlist** | URL Configuration: Site URL `https://library.ptec.edu.kh`; only known redirect URLs (production + `http://localhost:3000` for dev); no wildcards | |
+| **Before-user-created enforcement** | Migration `0068_reserved_domain_signup_guard.sql` — in the applied chain (CI-applied; confirm via `supabase migration list`), enforcing the reserved-admin-domain rule at the DB layer | applied via migration chain |
 
 ## 2. Security monitoring & alerting
 
@@ -41,15 +36,31 @@ JSON lines on stderr/warn:
 {"evt":"security","ts":"…","type":"auth_forbidden","where":"requireAdmin","userId":"…"}
 ```
 
-Event types: `auth_forbidden`, `mfa_required`, `rate_limited`, `captcha_failed`,
-`cron_auth_failed`, `upload_rejected`, `suspicious_input`.
+Event types: the full current list is the `SecurityEventType` union in
+`lib/security-log.ts` (includes `virus_scan_blocked` / `virus_scan_error` /
+`virus_scan_skipped`, `rate_limiter_degraded`, `lockdown_blocked`,
+`security_spike`, …).
 
-Setup (pick one):
+**Delivery, as configured (2026-08-29)**: active Sev 1/2 alerting runs
+through Telegram (`ALERT-CATALOG.md` §Delivery channels — workflow failure
+steps + `scripts/ops/alert-telegram.mjs`), with UptimeRobot as the external
+probe monitor and GitHub failure email as backstop. Log-*filter* alerts
+(the table below) still need a log sink; until one is chosen, the weekly
+review greps `docker logs ptec-elibrary` for `evt:"security"` (§M2).
+Optional upgrades, pick one:
 
 1. **Vercel Log Drain** (Team settings → Log Drains) → Logtail / Datadog /
    Axiom. Filter on `evt:"security"`.
 2. **Sentry** — add `@sentry/nextjs` for error monitoring; keep security events
    in the log drain (Sentry is for exceptions, not audit trails).
+
+**Upload malware scanning posture** (`lib/virus-scan.ts`): VirusTotal hash
+lookup on every admin upload. Default **fails open** — a scan that cannot
+complete logs `virus_scan_skipped` (no API key) or `virus_scan_error` and
+the upload proceeds. Set `FAIL_CLOSED_VIRUS_SCAN=true` in the box `.env` to
+reject such uploads with a 503 instead (a VT "hash unknown" answer is a
+*completed* scan and always passes). Either way, alert on any
+`virus_scan_skipped` in production — it means the key is missing/expired.
 
 Recommended alerts:
 

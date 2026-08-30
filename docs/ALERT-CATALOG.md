@@ -10,16 +10,41 @@ owner, **DIR** = library director._
 
 | Sev | Meaning | Response | Channel |
 |---|---|---|---|
-| **1** | Critical outage or confirmed compromise (site down, DB down, admin account breached) | Act immediately, any hour | Phone/push to WL |
-| **2** | Major degradation or high security risk (storage down, auth failures spike, backups failing) | Same working day | Push/email to WL |
+| **1** | Critical outage or confirmed compromise (site down, DB down, admin account breached) | Act immediately, any hour | Telegram (push to WL's phone) |
+| **2** | Major degradation or high security risk (storage down, auth failures spike, backups failing) | Same working day | Telegram + GitHub email |
 | **3** | Partial degradation or operational issue (one route erroring, disk 80 %, noisy captcha) | Next working day / ticket | Email |
 | **4** | Warning or maintenance item (CSP novelty, cert < 30 d, drift) | Weekly review | Dashboard/digest |
+
+## Delivery channels (what actually fires, 2026-08-29)
+
+Telegram is the **primary active channel** for Sev 1 and Sev 2. It reuses the
+contact-form bot (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` — already in the
+box's `.env`; also set as GitHub Actions repo secrets), so there is no extra
+account to lapse. Three senders exist:
+
+1. **GitHub Actions** — `uptime.yml` (probe failure → Sev 1) and `cron.yml`
+   (sweep failure → Sev 2) send directly via the Bot API on `failure()`,
+   on top of GitHub's own failure email. Missing secrets degrade to a
+   workflow warning, never a masked probe result.
+2. **Box jobs** — `scripts/ops/alert-telegram.mjs` is the CLI any script or
+   systemd unit calls (`--severity 1-4 --title … --message … --runbook …`);
+   the storage backup job uses it on failure. Verify wiring any time with
+   `node scripts/ops/alert-telegram.mjs --test`.
+3. **External monitor** — UptimeRobot (free tier) probes
+   `https://library.ptec.edu.kh/api/health` and `GET /` at 5-min intervals;
+   configure its alert contact as email + the UptimeRobot Telegram
+   integration to the same chat. Configuration checklist in
+   `MONITORING.md` §Uptime probes.
+
+GitHub's "workflow failed" email to the repo owner remains the backstop when
+Telegram itself is down. Sev 3/4 stay email/digest — do not push them to
+Telegram, or rule 5 (baseline reviews) will be retuning it within a month.
 
 ## Availability & infrastructure
 
 | Alert | Purpose | Source | Threshold | Sev | Owner | Suppression | Escalation | Runbook | Recovery |
 |---|---|---|---|---|---|---|---|---|---|
-| site-down | Homepage unreachable | External probe `GET /home` | 2 consecutive failures (≈2–10 min) | 1 | WL | Maintenance window flag in monitor | BO if tunnel/box; DIR if > 2 h (comms) | RUNBOOKS §I1 | probe green 5 min |
+| site-down | Homepage unreachable | External probe `GET /` (`/home` 308-redirects — probing it false-alarms on monitors that don't follow redirects) | 2 consecutive failures (≈2–10 min) | 1 | WL | Maintenance window flag in monitor | BO if tunnel/box; DIR if > 2 h (comms) | RUNBOOKS §I1 | probe green 5 min |
 | dependency-degraded | DB or storage failing behind a live app | Probe `GET /api/health` returns 503 | 2 consecutive | 1 (db) / 2 (storage) | WL | during site-down (dedupe: child of it) | Supabase support / BO | §I2, §I3 | health 200 |
 | dns-broken | Domain not resolving | External DNS check on `library.ptec.edu.kh` | any NXDOMAIN/SERVFAIL | 1 | WL | none | Registrar/Cloudflare support | §I1 step DNS | resolves from 2 networks |
 | tls-expiry | Cert about to lapse | Monitor cert check (site + `api.storage-ptec.online`) | < 21 days | 4 → 2 at < 7 days | WL/BO | none | — | §M14 | cert > 30 d |

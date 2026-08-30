@@ -73,6 +73,28 @@ jobs:
           echo "::error title=Publish sweep failed::/api/cron/publish-scheduled did not return 200 — see docs/RUNBOOKS.md"
           exit 1
 
+      # Active alert on top of the GitHub failure email (docs/ALERT-CATALOG.md
+      # cron-missed — Sev 2). Missing secrets degrade to a warning.
+      - name: Telegram alert (Sev 2)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — alert NOT sent (GitHub email only)"
+            exit 0
+          fi
+          text="⚠️ SEV 2 — <b>Publish sweep failed</b>
+          Service: <code>/api/cron/publish-scheduled</code>
+          Scheduled content is not flipping to published.
+          Runbook: docs/RUNBOOKS.md §M2 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
+          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
+            --data-urlencode text="$text" \
+            || echo "::warning::Telegram alert could not be delivered"
+
   cleanup:
     if: >-
       github.event.schedule == '0 20 * * *' ||
@@ -101,3 +123,23 @@ jobs:
           done
           echo "::error title=Cleanup sweep failed::/api/cron/cleanup did not return 200 — see docs/RUNBOOKS.md"
           exit 1
+
+      - name: Telegram alert (Sev 2)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — alert NOT sent (GitHub email only)"
+            exit 0
+          fi
+          text="⚠️ SEV 2 — <b>Cleanup sweep failed</b>
+          Service: <code>/api/cron/cleanup</code>
+          Retention deletes are not running; the rate_limit table will grow.
+          Runbook: docs/RUNBOOKS.md §M2 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
+          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
+            --data-urlencode text="$text" \
+            || echo "::warning::Telegram alert could not be delivered"

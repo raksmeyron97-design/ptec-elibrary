@@ -27,6 +27,18 @@ connections; nothing from the internet connects to it directly.
 Nothing else changes: no A record, no MX record, no nameservers. Email, the
 main `ptec.edu.kh` website and every other subdomain are unaffected.
 
+### Checklist (copy-paste)
+
+- [ ] Wait for the student's go-ahead + the exact new CNAME target
+- [ ] In cPanel/Namecheap DNS for `ptec.edu.kh`, open the `library` CNAME
+- [ ] Set **TTL to 5 minutes** first (if it isn't already), save
+- [ ] Change the **value** to the target the student sent
+      (ends in `.storage-ptec.online`) — record type stays CNAME
+- [ ] Tell the student it's done; they verify within ~10 minutes
+- [ ] Keep the TTL at 5 minutes — it is what makes the undo (below) fast,
+      and it stays the emergency lever afterwards
+- [ ] Keep this document; the old value below is the rollback
+
 ## Please read before making the change
 
 **This switches a service that is currently live.** The moment the record

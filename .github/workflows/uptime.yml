@@ -52,3 +52,28 @@ jobs:
           check "GET /api/health (DB + storage reachability)" "https://library.ptec.edu.kh/api/health" || fail=1
           check "GET / (homepage, tunnel, app process)" "https://library.ptec.edu.kh/" "PTEC" || fail=1
           exit "$fail"
+
+      # Active alert on top of the GitHub failure email (docs/ALERT-CATALOG.md
+      # site-down / dependency-degraded — Sev 1). Inline curl on purpose: no
+      # checkout, no permissions, nothing extra on the 96 green runs a day.
+      # Missing secrets degrade to a warning — the probe result must never be
+      # masked by a broken alert path.
+      - name: Telegram alert (Sev 1)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — Sev 1 alert NOT sent (GitHub email only)"
+            exit 0
+          fi
+          text="🚨 SEV 1 — <b>Uptime probe failed</b>
+          Service: <code>library.ptec.edu.kh</code>
+          /api/health or / unhealthy after 3 attempts.
+          Runbook: docs/RUNBOOKS.md §I1 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
+          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
+            --data-urlencode text="$text" \
+            || echo "::warning::Telegram alert could not be delivered"
