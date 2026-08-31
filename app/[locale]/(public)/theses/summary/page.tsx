@@ -325,7 +325,7 @@ export default async function ThesesSummaryPage({
     { name: tNav("home"), path: "/" },
     { name: tNav("theses"), path: "/theses" },
     { name: tNav("summaryIndex") },
-  ]);
+  ], { locale });
   const collectionSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",

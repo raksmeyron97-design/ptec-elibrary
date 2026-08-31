@@ -25,6 +25,7 @@ import UpdateAvailable from "@/components/pwa/UpdateAvailable";
 import { iosLaunchLinks } from "@/lib/pwa/launch";
 import { THEME_INIT_SCRIPT } from "@/lib/csp";
 import { SITE_URL } from "@/lib/seo/site";
+import { LIBRARY_ID, ORGANIZATION_ID, WEBSITE_ID, ref } from "@/lib/seo/entity-ids";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import type { SiteConfig } from "@/lib/system-settings/types";
 
@@ -54,6 +55,11 @@ import type { SiteConfig } from "@/lib/system-settings/types";
 // WebSite node — duplicates with diverging names/URLs read as conflicting
 // entities to search engines (the home page used to).
 //
+// The anchors come from lib/seo/entity-ids.ts so the resource builders in
+// lib/seo/* can POINT AT these nodes instead of re-declaring them. They used
+// to re-declare them, anonymously and with the wrong organization url — see
+// docs/SEO-V3-AUDIT.md D-2.
+//
 // Values come from the PUBLISHED system settings (cached under "site-config"
 // — no cookies/headers, so the public tree keeps prerendering).
 function buildSiteGraph(cfg: SiteConfig) {
@@ -69,7 +75,7 @@ function buildSiteGraph(cfg: SiteConfig) {
     "@graph": [
       {
         "@type": "EducationalOrganization",
-        "@id": `${SITE_URL}/#organization`,
+        "@id": ORGANIZATION_ID,
         name: cfg.name.en,
         alternateName: cfg.name.short,
         url: cfg.links.website,
@@ -82,7 +88,7 @@ function buildSiteGraph(cfg: SiteConfig) {
       },
       {
         "@type": "Library",
-        "@id": `${SITE_URL}/#library`,
+        "@id": LIBRARY_ID,
         name: cfg.seo.siteName,
         url: SITE_URL,
         image: `${SITE_URL}/logo.png`,
@@ -95,15 +101,15 @@ function buildSiteGraph(cfg: SiteConfig) {
         isAccessibleForFree: true,
         openingHours: cfg.hours.openingHoursSpec,
         address,
-        parentOrganization: { "@id": `${SITE_URL}/#organization` },
+        parentOrganization: ref(ORGANIZATION_ID),
       },
       {
         "@type": "WebSite",
-        "@id": `${SITE_URL}/#website`,
+        "@id": WEBSITE_ID,
         name: cfg.seo.siteName,
         url: SITE_URL,
         inLanguage: ["km", "en"],
-        publisher: { "@id": `${SITE_URL}/#organization` },
+        publisher: ref(ORGANIZATION_ID),
         potentialAction: {
           "@type": "SearchAction",
           target: `${SITE_URL}/search?q={search_term_string}`,

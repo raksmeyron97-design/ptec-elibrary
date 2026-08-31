@@ -237,7 +237,7 @@ export default async function CatalogBookPage({
     { name: "Home", path: "/" },
     { name: "Books In Library", path: "/catalogs" },
     { name: b.title },
-  ]);
+  ], { locale, pageUrl: canonicalUrl });
 
   return (
     <div className="min-h-screen bg-paper">

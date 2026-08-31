@@ -75,7 +75,7 @@ export default async function SubjectsHubPage({ params }: PageProps) {
   const breadcrumbs = breadcrumbSchema([
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbSubjects") },
-  ]);
+  ], { locale });
 
   // CollectionPage + ItemList naming every subject that has resources. The
   // ItemList is the machine-readable form of the link graph this page creates:

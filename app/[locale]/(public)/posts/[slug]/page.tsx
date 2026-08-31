@@ -337,7 +337,7 @@ export default async function PostDetailPage({
     { name: tNav("home"), path: "/" },
     { name: t("title"), path: "/posts" },
     { name: post.title },
-  ]);
+  ], { locale, pageUrl: canonicalUrl });
 
   // An Event-category post is described by schema.org/Event; everything else
   // stays a schema.org/Article. Only one primary node is emitted.

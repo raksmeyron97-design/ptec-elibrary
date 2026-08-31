@@ -67,7 +67,7 @@ export default async function AuthorsHubPage({ params }: PageProps) {
   const breadcrumbs = breadcrumbSchema([
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbAuthors") },
-  ]);
+  ], { locale });
 
   // ItemList of Person nodes carrying ONLY name and url. A directory knows a
   // person's name and where their page is; it does not know their job title or

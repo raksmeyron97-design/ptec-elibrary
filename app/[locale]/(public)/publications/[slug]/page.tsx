@@ -310,16 +310,14 @@ export default async function PublicationDetailPage({ params }: PageProps) {
   const pubBreadcrumbSchema = breadcrumbSchema([
     { name: "Home", path: "/" },
     { name: "Publications", path: "/publications" },
-    ...(pub.journal_name
-      ? [
-          {
-            name: pub.journal_name,
-            path: `/publications?journal=${encodeURIComponent(pub.journal_name)}`,
-          },
-        ]
-      : []),
+    // The journal crumb used to link `/publications?journal=…` — a filtered
+    // listing this site serves as `noindex, follow` and canonicalises to
+    // `/publications` (docs/SEO-V3-AUDIT.md D-5). A journal has no landing
+    // page, so the crumb is dropped rather than pointed at a URL crawlers are
+    // told to ignore. The journal is still stated on the page and in the
+    // ScholarlyArticle `isPartOf`.
     { name: pub.title },
-  ]);
+  ], { locale });
 
   return (
     <section className="min-h-screen bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12">

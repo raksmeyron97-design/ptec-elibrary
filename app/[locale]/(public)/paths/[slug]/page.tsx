@@ -90,7 +90,7 @@ export default async function LearningPathDetailPage({ params }: PageProps) {
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbPaths"), path: "/paths" },
     { name: title },
-  ]);
+  ], { locale });
   const courseSchema = pathCourseJsonLd(seoInput, locale, await getOrgIdentity());
 
   return (

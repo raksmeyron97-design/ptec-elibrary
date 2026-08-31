@@ -36,6 +36,7 @@ import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildBookMetadata, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
 import ResourceConnections from "@/components/seo/ResourceConnections";
+import { resolveSubjectLinks } from "@/lib/resources/connections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
 import BookNotes from "@/components/ui/books/BookNotes";
@@ -226,7 +227,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
 
   // Locale-correct canonical + breadcrumb URLs (Khmer under /km) so the
   // structured data matches the visible breadcrumbs and the page's canonical.
-  const localePrefix = locale === "km" ? "/km" : "";
+  const canonicalUrl = bookCanonicalUrl(slug, locale);
   // Prefer canonical contributor credits; fall back to the legacy single author
   // when they are absent (pre-migration) or empty. Output is byte-identical to
   // before until a book actually gains multiple contributors.
@@ -255,12 +256,22 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
     avgRating > 0 ? { ratingValue: avgRating.toFixed(1), reviewCount } : null,
     await getOrgIdentity(),
   );
-  const bookBreadcrumbSchema = breadcrumbSchema([
-    { name: t("home"), path: `${localePrefix}/home` },
-    { name: t("books"), path: `${localePrefix}/books` },
-    { name: book.department, path: `${localePrefix}/books?dept=${encodeURIComponent(book.department)}` },
-    { name: book.title },
-  ]);
+  // The third crumb used to be the department, linked to `/books?dept=…` — a
+  // URL this site serves as `noindex, follow` and canonicalises to `/books`
+  // (docs/SEO-V3-AUDIT.md D-5). The subject hub is the real, indexable topic
+  // page for a book, so it is the truthful waypoint when the book's category
+  // resolves to a subject that actually has resources; otherwise the crumb is
+  // omitted rather than pointed somewhere it does not belong.
+  const [subjectCrumb] = await resolveSubjectLinks([book.category, book.department]);
+  const bookBreadcrumbSchema = breadcrumbSchema(
+    [
+      { name: t("home"), path: "/" },
+      { name: t("books"), path: "/books" },
+      ...(subjectCrumb ? [{ name: subjectCrumb.name, path: subjectCrumb.href }] : []),
+      { name: book.title },
+    ],
+    { locale, pageUrl: canonicalUrl },
+  );
 
   return (
     <article className="bg-bg-body px-4 py-6 sm:px-6 sm:py-10 md:px-12 min-h-screen">
@@ -279,8 +290,15 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <Link href="/books" className="hover:text-brand transition-colors">{t("books")}</Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
-          <Link href={`/books?dept=${encodeURIComponent(book.department)}`} className="whitespace-nowrap hover:text-brand transition-colors">
-            {book.department}
+          {/* Same target as the JSON-LD crumb whenever a subject resolves, so the
+              visible trail and the structured data cannot disagree. The
+              department filter stays as the fallback: it has no landing page to
+              link to, but it is still a useful affordance for a reader. */}
+          <Link
+            href={subjectCrumb ? subjectCrumb.href : `/books?dept=${encodeURIComponent(book.department)}`}
+            className="whitespace-nowrap hover:text-brand transition-colors"
+          >
+            {subjectCrumb ? subjectCrumb.name : book.department}
           </Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
           <span className="max-w-[200px] truncate font-semibold text-text-heading sm:max-w-[300px]" title={book.title}>
