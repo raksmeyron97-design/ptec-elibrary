@@ -324,19 +324,27 @@ it now also contradicts V3's AI-surface intent.
 
 ---
 
-### D-9 · P2 · A sitemap URL the listing does not show
+### D-9 · P2 · `/posts` tells readers there are no posts while showing one
 
-`sitemap.xml` advertises
-`/posts/សិក្ខាសាលាស្តីពី-ការផ្សារភ្ជាប់រវាងការស្រាវជ្រាវអប់រំ-និងសហគមន៍` (returns
-**200**), while `/posts` renders *"Showing 1–0 of 0 results"*.
+Initially recorded here as a sitemap/listing filter divergence. **That
+diagnosis was wrong** and is corrected: both filters are identical
+(`is_published = true AND visibility = 'public'`), on `main` and on this
+branch. The real cause was found by re-reading the rendered page.
 
-The sitemap filters `is_published = true AND visibility = 'public'`; the
-listing applies at least one further condition. Either the post is
-`unlisted`/scheduled and should not be in the sitemap, or it is public and the
-listing is dropping it. Both are defects; which one requires reading the row.
+`app/[locale]/(public)/posts/page.tsx:115` passes `excludeId: featured.id` so
+the featured story is not shown twice. With exactly **one** published post, the
+featured plate renders it and the grid below is legitimately empty — and prints
+*"No posts found — Check back soon, new posts are on the way."* directly beneath
+the post it is claiming does not exist. `Showing 1–0 of 0 results` appears on
+the same screen as a working link to that post.
 
-**Fix:** reconcile the two filters behind one helper so they cannot diverge.
-→ P2, needs a DB read to classify.
+Not an SEO defect: the sitemap is correct, the URL is correct, and the post is
+reachable and linked. It is a **content-quality/empty-state defect** of exactly
+the kind §27 asks to detect — a page whose own text contradicts its content.
+
+**Fix:** suppress the grid's empty state when the featured plate is showing the
+only post, or word it as "no further posts". → P2, UI change, no SEO surface
+involved.
 
 ---
 
@@ -402,7 +410,7 @@ Stated plainly, with the reason, per §67 and §68:
 | D-6 | P1 | `departments` too thin for a page | **document + gate** |
 | D-7 | P1 | "faculty" vocabulary conflict | **document + assert** |
 | D-8 | P1 | Cloudflare robots.txt override | **owner action** (unchanged) |
-| D-9 | P2 | sitemap/listing filter divergence | fix behind one helper |
+| D-9 | P2 | `/posts` empty state contradicts its own content | UI fix (diagnosis corrected — not a sitemap defect) |
 | D-10 | P2 | anonymous `BreadcrumbList`/`FAQPage` | **fix** — Phase 1 |
 | D-11 | P3 | canonical model invisible in HTML | tracked in CANONICAL-RESOURCES.md |
 | D-12 | P3 | no Search Console data layer | opportunity |

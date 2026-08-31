@@ -264,26 +264,35 @@ export default async function ThesesPage({
   // Education (12+4)", not "bed12_4". `q` is included because a search term
   // narrows the list exactly as a facet does, and a reader who wants to widen
   // it should not have to find and clear the search box separately.
+  //
+  // Labels are translated: these were hardcoded English on a bilingual public
+  // page, so a Khmer reader saw Khmer facets with English chips above them.
+  // "Faculty" specifically is hedged to "Faculty / Major" (KM: "មហាវិទ្យាល័យ /
+  // ជំនាញ") because `research_faculties` holds programme TRACKS, while PTEC's
+  // own site uses "Faculty" for its three academic units — labelling these
+  // "Faculty" states something about the institution that its own site
+  // contradicts. See docs/PTEC-ENTITY-MAPPING.md §3.
+  const tFilters = await getTranslations({ locale, namespace: "theses.appliedFilters" });
   const appliedFilters: AppliedFilter[] = [
-    params.q ? { key: "q", label: "Search", value: params.q } : null,
+    params.q ? { key: "q", label: tFilters("search"), value: params.q } : null,
     params.program
       ? {
           key: "program",
-          label: "Program",
+          label: tFilters("program"),
           value: programNames.get(params.program) ?? params.program,
         }
       : null,
     params.faculty
       ? {
           key: "faculty",
-          label: "Faculty",
+          label: tFilters("faculty"),
           value: facultyNames.get(params.faculty) ?? params.faculty,
         }
       : null,
     params.cohort
       ? {
           key: "cohort",
-          label: "Cohort",
+          label: tFilters("cohort"),
           // The cohorts table carries a display label (often Khmer, e.g.
           // "ជំនាន់ទី៣ បឋម"); the chip shows the same string the facet rail
           // does, so the two never name the same filter differently.
@@ -292,10 +301,10 @@ export default async function ThesesPage({
             params.cohort,
         }
       : null,
-    params.year ? { key: "year", label: "Year", value: params.year } : null,
-    params.author ? { key: "author", label: "Author", value: params.author } : null,
-    params.advisor ? { key: "advisor", label: "Advisor", value: params.advisor } : null,
-    params.keyword ? { key: "keyword", label: "Keyword", value: params.keyword } : null,
+    params.year ? { key: "year", label: tFilters("year"), value: params.year } : null,
+    params.author ? { key: "author", label: tFilters("author"), value: params.author } : null,
+    params.advisor ? { key: "advisor", label: tFilters("advisor"), value: params.advisor } : null,
+    params.keyword ? { key: "keyword", label: tFilters("keyword"), value: params.keyword } : null,
   ].filter((f): f is AppliedFilter => f != null);
 
   // Locale-aware CollectionPage + ItemList — schema URL matches the page's

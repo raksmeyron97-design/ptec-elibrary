@@ -34,7 +34,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
-import { buildBookMetadata, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
+import { buildBookMetadata, bookCanonicalUrl, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
 import ResourceConnections from "@/components/seo/ResourceConnections";
 import { resolveSubjectLinks } from "@/lib/resources/connections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";

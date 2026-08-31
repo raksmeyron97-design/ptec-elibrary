@@ -168,7 +168,7 @@ export default async function CatalogBookPage({
 }: {
   params: Promise<{ slug: string; locale: string }>;
 }) {
-  const { slug: rawSlug } = await params;
+  const { slug: rawSlug, locale } = await params;
   const slug = decodeSlugParam(rawSlug);
   const [record, t] = await Promise.all([
     fetchCatalogRecord(slug),
@@ -237,7 +237,7 @@ export default async function CatalogBookPage({
     { name: "Home", path: "/" },
     { name: "Books In Library", path: "/catalogs" },
     { name: b.title },
-  ], { locale, pageUrl: canonicalUrl });
+  ], { locale, pageUrl: `${SITE_URL}${locale === "km" ? "/km" : ""}/catalogs/${b.slug}` });
 
   return (
     <div className="min-h-screen bg-paper">

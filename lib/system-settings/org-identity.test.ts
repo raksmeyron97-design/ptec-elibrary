@@ -16,6 +16,7 @@ import {
 import { DEFAULT_SECTION_DOCS } from "./defaults";
 import { buildSiteConfig } from "./map";
 import { libraryNode, organizationNode } from "@/lib/seo/org-nodes";
+import { LIBRARY_ID, ORGANIZATION_ID } from "@/lib/seo/entity-ids";
 import { bookJsonLd, buildBookMetadata } from "@/lib/seo/book-seo";
 import { buildListingMetadata } from "@/lib/seo/listing-metadata";
 import { thesisScholarMeta } from "@/lib/seo/citation";
@@ -108,7 +109,10 @@ describe("published identity propagates to the SEO builders", () => {
   it("schema.org org/library nodes carry the published names", () => {
     expect(organizationNode(org).name).toBe("Kandal Teacher Academy");
     expect(libraryNode(org).name).toBe("KTA Digital Library");
-    expect(libraryNode(org).parentOrganization.name).toBe("Kandal Teacher Academy");
+    // parentOrganization is now a bare @id reference into the site graph — the
+    // institution is described once, by RootShell, not re-declared here.
+    // See lib/seo/org-nodes.ts / docs/SEO-V3-AUDIT.md D-2.
+    expect(libraryNode(org).parentOrganization).toEqual({ "@id": ORGANIZATION_ID });
   });
 
   it("book Open Graph siteName and JSON-LD provider follow the settings", () => {
@@ -116,10 +120,19 @@ describe("published identity propagates to the SEO builders", () => {
     expect(meta.openGraph?.siteName).toBe("KTA Digital Library");
 
     const jsonLd = bookJsonLd(book, "en", null, org) as {
-      provider: { name: string; parentOrganization: { name: string } };
+      provider: {
+        "@id": string;
+        name: string;
+        parentOrganization: { "@id": string };
+      };
     };
     expect(jsonLd.provider.name).toBe("KTA Digital Library");
-    expect(jsonLd.provider.parentOrganization.name).toBe("Kandal Teacher Academy");
+    expect(jsonLd.provider["@id"]).toBe(LIBRARY_ID);
+    // The institution is referenced, not re-declared. It used to be an inline
+    // anonymous copy whose `url` was the LIBRARY origin while the site graph
+    // gave the same organization its real url — one document, one institution,
+    // two URLs (docs/SEO-V3-AUDIT.md D-2).
+    expect(jsonLd.provider.parentOrganization).toEqual({ "@id": ORGANIZATION_ID });
   });
 
   it("listing metadata uses the published library + site names", () => {

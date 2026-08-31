@@ -306,7 +306,7 @@ export default async function AboutPageShell({
           { name: "Home", path: "/" },
           { name: "About", path: "/about" },
           { name: currentLabel },
-        ])}
+        ], { locale })}
       />
 
       <AboutHero

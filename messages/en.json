@@ -1801,7 +1801,17 @@
     "pageLabel": "Page",
     "resultCountFiltered": "{count} of {total} theses",
     "resultCount": "{count, plural, one {# thesis} other {# theses}}",
-    "noResults": "No theses found"
+    "noResults": "No theses found",
+    "appliedFilters": {
+      "search": "Search",
+      "program": "Program",
+      "faculty": "Faculty / Major",
+      "cohort": "Cohort",
+      "year": "Year",
+      "author": "Author",
+      "advisor": "Advisor",
+      "keyword": "Keyword"
+    }
   },
   "adminDashboard": {
     "header": {
