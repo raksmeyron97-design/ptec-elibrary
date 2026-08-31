@@ -42,6 +42,29 @@ Every P0 that SEO V2 closed is **still live**. No amount of V3 work changes
 that: the fix is a merge and a deploy, and it is worth more than the entire
 rest of this document.
 
+> ### RESOLVED, same day — and the diagnosis was half wrong
+>
+> The measurement above was accurate when taken. The *cause* was not: SEO V2
+> had in fact been **squash-merged** into `main` by PR #103, so `7d95a78` is
+> not an ancestor of `main` while its content is. `git branch --contains` was
+> the wrong instrument — content, not ancestry, decides what ships.
+>
+> What was real was the **deploy lag**: `.github/workflows/docker-publish.yml`
+> publishes to GHCR on every push to `main`, and the ZimaOS box polls GHCR on
+> a 5-minute systemd timer. That pipeline had not yet delivered #103 when the
+> audit ran. It has since. Re-verified live:
+>
+> | Check | At audit time | After the deploy landed |
+> |---|---|---|
+> | `GET /subjects` | 404 | **200** |
+> | `GET /authors` | 404 | **200** |
+> | Empty `book-<epoch>` subjects in `sitemap.xml` | 10 | **0** |
+> | `robots.txt` Khmer private paths | absent | **present** |
+>
+> SEO V3 merged as PR #106. **Nothing here requires manual deployment** — the
+> lesson is to check the deploy pipeline's own lag before concluding that work
+> is unmerged.
+
 ### 0.2 Content, not architecture, is still the binding constraint
 
 Measured on production, 2026-08-31:
@@ -402,7 +425,7 @@ Stated plainly, with the reason, per §67 and §68:
 
 | ID | Sev | Finding | Disposition |
 |---|---|---|---|
-| D-1 | P0 | SEO V2 unmerged/undeployed | **owner action** — merge + deploy |
+| D-1 | P0 | SEO V2 not live | **RESOLVED** — it was squash-merged all along; the real cause was deploy lag, since cleared |
 | D-2 | P0 | duplicate contradictory Organization entity | **fix** — Phase 1 |
 | D-3 | P1 | breadcrumb locale leakage | **fix** — Phase 1 |
 | D-4 | P1 | breadcrumb → redirecting `/home` | **fix** — Phase 1 |
