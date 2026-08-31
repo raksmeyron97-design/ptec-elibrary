@@ -5,6 +5,10 @@ import {
   isPrivateSurfacePath,
   NOINDEX_ROBOTS,
   seoEnvironment,
+  PRIVATE_PATH_PREFIXES,
+  getPrivateSeoPaths,
+  getLocalizedPrivateSeoPaths,
+  URL_LOCALE_PREFIXES,
 } from "@/lib/seo/indexing";
 
 afterEach(() => {
@@ -154,4 +158,55 @@ describe("isPrivateSurfacePath", () => {
       expect(isPrivateSurfacePath(path)).toBe(false);
     },
   );
+});
+
+describe("private-path derivation (single source of truth)", () => {
+  it("getPrivateSeoPaths() returns exactly PRIVATE_PATH_PREFIXES", () => {
+    expect(getPrivateSeoPaths()).toEqual([...PRIVATE_PATH_PREFIXES]);
+  });
+
+  it("covers every prefix in both locale forms", () => {
+    const paths = getLocalizedPrivateSeoPaths();
+    for (const prefix of PRIVATE_PATH_PREFIXES) {
+      expect(paths).toContain(prefix);
+      expect(paths).toContain(`${prefix}/`);
+      expect(paths).toContain(`/km${prefix}`);
+      expect(paths).toContain(`/km${prefix}/`);
+    }
+  });
+
+  it("emits no duplicates", () => {
+    const paths = getLocalizedPrivateSeoPaths();
+    expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  it("every derived path classifies as private once its locale prefix is stripped", () => {
+    for (const path of getLocalizedPrivateSeoPaths()) {
+      const stripped = path.startsWith("/km") ? path.slice(3) : path;
+      // Trailing-slash forms are the descendant rule; compare the bare segment.
+      const bare = stripped.endsWith("/") ? stripped.slice(0, -1) : stripped;
+      expect(isPrivateSurfacePath(bare), path).toBe(true);
+    }
+  });
+
+  it("advertises no path that is not actually private (no dead rules)", () => {
+    // `/login` was disallowed in robots.txt for a route that does not exist,
+    // while /km/auth and /km/admin were missing entirely. Deriving the list
+    // makes both classes of drift impossible — this pins that.
+    for (const path of getLocalizedPrivateSeoPaths()) {
+      const stripped = path.startsWith("/km") ? path.slice(3) : path;
+      const bare = stripped.endsWith("/") ? stripped.slice(0, -1) : stripped;
+      expect(PRIVATE_PATH_PREFIXES as readonly string[]).toContain(bare);
+    }
+  });
+
+  it("URL_LOCALE_PREFIXES matches the non-default locales in i18n/routing.ts", async () => {
+    // Hard-coded in indexing.ts so next.config.ts's transpiler never has to
+    // resolve next-intl. This is the guard that keeps the copy honest.
+    const { routing } = await import("@/i18n/routing");
+    const expected = routing.locales
+      .filter((l) => l !== routing.defaultLocale)
+      .map((l) => `/${l}`);
+    expect([...URL_LOCALE_PREFIXES]).toEqual(expected);
+  });
 });

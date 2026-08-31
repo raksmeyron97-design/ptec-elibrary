@@ -69,9 +69,9 @@ Telegram, or rule 5 (baseline reviews) will be retuning it within a month.
 
 | Alert | Purpose | Source | Threshold | Sev | Owner | Suppression | Escalation | Runbook | Recovery |
 |---|---|---|---|---|---|---|---|---|---|
-| backup-failed | Nightly backup errored | Cron wrapper exit ≠ 0 → mail/webhook; `ops_events` status=fail | any | 2 | WL | none | — | §I17 | next run ok |
+| backup-failed | Nightly backup errored | `backup-db.mjs` / `backup-storage-files.mjs` push the alert themselves on failure; `ops_events` status=fail | any | 2 | WL | none | — | §I17 | next run ok |
 | backup-stale | Backups silently not happening | `/api/health` deep `backupAgeHours` (monitor with bearer) | > 30 h or null | 2 | WL | announced backup-host downtime | — | §I17 | age < 24 h |
-| backup-integrity | Archive corrupt | `verify-backup.mjs` failure (chained after backup) | any | 2 | WL | none | re-run from source | §I17 | verify OK |
+| backup-integrity | Archive corrupt | `--verify` chained inside the nightly `backup-db.mjs` run → `ops_events` kind=backup_verify status=fail (and backup_db=fail, so a corrupt archive never reads as a fresh restore point) | any | 2 | WL | none | re-run from source | §I17 | verify OK |
 | file-snapshot-stale | Zima rsync leg dead | `.last-ok` marker age (box cron) | > 8 days | 2 | BO | none | WL | BACKUP-DR §3 | marker fresh |
 | drill-overdue | No restore drill this quarter | Calendar / `ops_events` kind=restore_drill | > 100 days | 4 | WL | none | DIR | BACKUP-DR §7 | drill PASS recorded |
 | data-quality-broken-files | Rot in stored file links | `/admin/data-quality` sweep results | new broken > 3 | 3 | WL | none | — | data-quality dashboard | sweep clean |

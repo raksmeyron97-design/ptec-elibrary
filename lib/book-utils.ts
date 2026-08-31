@@ -24,7 +24,12 @@ export type Book = {
   summary: string;
   cover: string;
   pdfUrl?: string | null;
-  uploadedAt?: string;
+  /** The book's real publication date (books.published_at), NOT an upload
+    *  timestamp. Named `uploadedAt` until V2, which is why the detail page's
+    *  `publishedAt: book.uploadedAt` line read like the exact bug it was not
+    *  (docs/SEO-V2-AUDIT.md F-9). It feeds `datePublished` in JSON-LD and
+    *  `og:published_time`; undefined when the record has no date. */
+  publicationDate?: string;
   tags: string[];
   coverUrl?: string | null;
   downloadCount?: number;

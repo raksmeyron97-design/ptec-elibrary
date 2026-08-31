@@ -31,19 +31,32 @@ export default async function AdminRolesPage() {
 
   const supabase = createServiceClient();
 
-  const [profilesResult, permsResult] = await Promise.all([
-    supabase.from("profiles").select("role"),
+  // ── Role counts ───────────────────────────────────────────────────────────
+  // Counted in the database rather than by fetching every profile's `role` and
+  // tallying it here. The page only ever renders six integers, and the reader
+  // role is the one that grows without bound — pulling one row per account to
+  // produce them made the cost of this page scale with the size of the user
+  // base for no gain. `head: true` returns the count with no rows at all.
+  //
+  // The total is its own unfiltered count rather than the sum of the five, so a
+  // profile carrying an unrecognised role still shows up in "Users" instead of
+  // silently vanishing from the tally.
+  const countProfiles = (role?: AppRole) => {
+    const query = supabase.from("profiles").select("role", { count: "exact", head: true });
+    return role ? query.eq("role", role) : query;
+  };
+
+  // Nested Promise.all rather than a spread, so this stays a 3-tuple and each
+  // result keeps its own type instead of collapsing into a union.
+  const [totalResult, permsResult, roleResults] = await Promise.all([
+    countProfiles(),
     supabase.from("role_permissions").select("role, resource, level, updated_at, updated_by"),
+    Promise.all(ALL_ROLES.map((role) => countProfiles(role))),
   ]);
 
-  // ── Role counts ───────────────────────────────────────────────────────────
-  const roleCounts: Record<AppRole, number> = {
-    reader: 0, staff: 0, librarian: 0, admin: 0, super_admin: 0,
-  };
-  for (const p of profilesResult.data ?? []) {
-    const r = p.role as AppRole;
-    if (r in roleCounts) roleCounts[r]++;
-  }
+  const roleCounts = Object.fromEntries(
+    ALL_ROLES.map((role, index) => [role, roleResults[index]?.count ?? 0]),
+  ) as Record<AppRole, number>;
 
   // ── Effective permission matrix ─────────────────────────────────────────────
   // Seed from the hardcoded defaults so resources that were never persisted
@@ -78,8 +91,9 @@ export default async function AdminRolesPage() {
     <RolesWorkspace
       allRoles={ALL_ROLES}
       roleCounts={roleCounts}
-      totalUsers={(profilesResult.data ?? []).length}
+      totalUsers={totalResult.count ?? 0}
       initialMatrix={matrix}
+      defaultMatrix={DEFAULT_PERMISSIONS}
       lastUpdatedLabel={lastUpdatedLabel}
       lastUpdatedBy={lastUpdatedBy}
     />

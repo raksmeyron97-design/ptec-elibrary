@@ -35,6 +35,7 @@ import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import JsonLd from "@/components/seo/JsonLd";
 import { buildBookMetadata, bookJsonLd, type BookSeoInput } from "@/lib/seo/book-seo";
+import ResourceConnections from "@/components/seo/ResourceConnections";
 import RelatedBooks from "@/components/ui/books/RelatedBooks";
 import CiteBook from "@/components/ui/books/CiteBook";
 import BookNotes from "@/components/ui/books/BookNotes";
@@ -243,7 +244,7 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
       language: book.language,
       publisher: book.publisher,
       isbn: book.isbn,
-      publishedAt: book.uploadedAt ?? null,
+      publishedAt: book.publicationDate ?? null,
       pages: book.pages,
       authors: bookAuthors,
       department: book.department,
@@ -450,6 +451,18 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             <ReviewsSection book={book} />
           </Suspense>
         )}
+
+        {/* Subject + author hubs. Streamed because both resolvers read cached
+            indexes rather than this request's data, so they must not hold up
+            the book itself. Renders nothing when neither name resolves to a
+            hub that has resources on it. */}
+        <Suspense fallback={null}>
+          <ResourceConnections
+            locale={locale}
+            subjectNames={[book.category]}
+            authorNames={bookAuthors}
+          />
+        </Suspense>
 
         {/* Related Books — self-fetching; stream after the main content */}
         <Suspense fallback={null}>

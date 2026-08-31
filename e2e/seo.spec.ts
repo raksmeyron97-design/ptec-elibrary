@@ -130,3 +130,99 @@ test.describe("robots.txt and sitemap", () => {
     expect(body).not.toContain("/auth/");
   });
 });
+
+// ── SEO V2: topic + entity hubs ──────────────────────────────────────────────
+//
+// Before V2, /subjects/* and /authors/* were advertised in sitemap.xml with no
+// internal link path from anywhere on the site, and their breadcrumbs pointed
+// at /books and /publications while reading "Subjects" and "Authors"
+// (docs/SEO-V2-AUDIT.md F-4, F-5). These pin the fix.
+
+test.describe("subject and author hubs", () => {
+  for (const path of ["/subjects", "/authors"]) {
+    test(`${path} is a real page with one H1 and reciprocal hreflang`, async ({ page }) => {
+      const en = `${PROD}${path}`;
+      const km = `${PROD}/km${path}`;
+
+      const res = await page.goto(path);
+      expect(res?.status()).toBe(200);
+
+      expect(await page.locator("h1").count()).toBe(1);
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", en);
+      await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute("href", en);
+      await expect(page.locator('link[rel="alternate"][hreflang="km"]')).toHaveAttribute("href", km);
+      await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+        "href",
+        en,
+      );
+
+      // Indexable: a hub is a destination, not a filter view.
+      const robots = await page.locator('meta[name="robots"]').getAttribute("content");
+      if (robots) expect(robots).not.toContain("noindex");
+    });
+  }
+
+  test("the Khmer hubs resolve and declare lang=km", async ({ page }) => {
+    for (const path of ["/km/subjects", "/km/authors"]) {
+      const res = await page.goto(path);
+      expect(res?.status(), path).toBe(200);
+      await expect(page.locator("html")).toHaveAttribute("lang", "km");
+    }
+  });
+
+  test("both hubs are reachable from every page's footer", async ({ page }) => {
+    await page.goto("/");
+    for (const href of ["/subjects", "/authors"]) {
+      await expect(
+        page.locator(`footer a[href="${href}"]`).first(),
+        `footer link to ${href}`,
+      ).toHaveCount(1);
+    }
+  });
+
+  test("a subject page's breadcrumb points at the subject hub, in nav and JSON-LD", async ({
+    page,
+    request,
+  }) => {
+    // Take a real subject from the sitemap rather than assuming a slug.
+    const sitemap = await (await request.get("/sitemap.xml")).text();
+    const match = sitemap.match(new RegExp(`<loc>${PROD}(/subjects/[^<]+)</loc>`));
+    test.skip(!match, "no subject URLs in the sitemap for this dataset");
+
+    await page.goto(decodeURIComponent(match![1]));
+
+    // Visible breadcrumb links to /subjects — it used to link to /books.
+    await expect(page.locator('nav[aria-label="Breadcrumb"] a[href$="/subjects"]')).toHaveCount(1);
+
+    // …and the emitted BreadcrumbList agrees with it.
+    const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+    const crumbs = blocks
+      .map((b) => JSON.parse(b))
+      .find((d) => d["@type"] === "BreadcrumbList");
+    expect(crumbs, "BreadcrumbList JSON-LD").toBeTruthy();
+    const items: string[] = crumbs.itemListElement.map((i: { item?: string }) => i.item ?? "");
+    expect(items).toContain(`${PROD}/subjects`);
+    expect(items).not.toContain(`${PROD}/books`);
+  });
+
+  test("every subject in the sitemap renders resources, not an empty page", async ({
+    request,
+  }) => {
+    // The soft-404 rule: getIndexableSubjects() filters empty subjects out of
+    // the sitemap, so anything still listed must have content.
+    const sitemap = await (await request.get("/sitemap.xml")).text();
+    const urls = [...sitemap.matchAll(new RegExp(`<loc>(${PROD}/subjects/[^<]+)</loc>`, "g"))].map(
+      (m) => m[1],
+    );
+    test.skip(urls.length === 0, "no subject URLs in the sitemap for this dataset");
+
+    for (const url of urls.slice(0, 8)) {
+      const res = await request.get(new URL(url).pathname);
+      expect(res.status(), url).toBe(200);
+      const html = await res.text();
+      expect(html, `${url} is indexable, so it must not be noindex`).not.toMatch(
+        /<meta name="robots" content="[^"]*noindex/,
+      );
+    }
+  });
+});

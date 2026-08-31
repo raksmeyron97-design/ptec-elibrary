@@ -200,3 +200,188 @@ export function rowDiffersAcrossRoles(
 export function isLockedRole(role: AppRole): boolean {
   return role === "super_admin";
 }
+
+// ── Bulk operations ─────────────────────────────────────────────────────────
+// The workspace edits one role at a time, so every bulk helper is scoped to a
+// single role and returns a NEW matrix. They live here, pure and free of React,
+// because "reset this role to the shipped defaults" is a rule about permissions
+// — not about a dropdown — and `lib/admin/roles-bulk.test.ts` pins the rules
+// without rendering anything.
+
+/** Resource keys belonging to one group, in catalog order. */
+export function groupResourceKeys(groupId: string): string[] {
+  return PERMISSION_GROUPS.find((g) => g.id === groupId)?.resources.map((r) => r.key) ?? [];
+}
+
+/** Overwrite one role's levels for the given resource keys. Locked roles are inert. */
+export function setLevels(
+  matrix: PermMatrix,
+  role: AppRole,
+  resources: string[],
+  level: PermLevel,
+): PermMatrix {
+  if (isLockedRole(role)) return matrix;
+  const row = { ...(matrix[role] ?? {}) };
+  for (const key of resources) row[key] = level;
+  return { ...matrix, [role]: row };
+}
+
+/**
+ * The level a whole group sits at for one role, or `"mixed"` when its
+ * resources disagree. Drives the pressed state of the group's Set-all buttons,
+ * so "everything here is already Read" is visible without opening the group.
+ */
+export function groupLevel(
+  matrix: PermMatrix,
+  role: AppRole,
+  resources: string[],
+): PermLevel | "mixed" {
+  if (resources.length === 0) return "none";
+  const first = levelAt(matrix, role, resources[0]);
+  return resources.every((key) => levelAt(matrix, role, key) === first) ? first : "mixed";
+}
+
+/** Copy every resource level from one role onto another. */
+export function copyRoleLevels(matrix: PermMatrix, from: AppRole, to: AppRole): PermMatrix {
+  if (isLockedRole(to) || from === to) return matrix;
+  const source = matrix[from] ?? {};
+  const row = { ...(matrix[to] ?? {}) };
+  for (const key of ALL_RESOURCE_KEYS) row[key] = source[key] ?? "none";
+  return { ...matrix, [to]: row };
+}
+
+/**
+ * Restore one role to a reference row — in practice `DEFAULT_PERMISSIONS`,
+ * handed down from the server so this module stays free of the `server-only`
+ * import that `lib/permissions.ts` carries.
+ */
+export function applyReferenceRow(
+  matrix: PermMatrix,
+  role: AppRole,
+  reference: Record<string, PermLevel> | undefined,
+): PermMatrix {
+  if (isLockedRole(role) || !reference) return matrix;
+  const row = { ...(matrix[role] ?? {}) };
+  for (const key of ALL_RESOURCE_KEYS) row[key] = reference[key] ?? "none";
+  return { ...matrix, [role]: row };
+}
+
+/** How many resources a role can write, read, or not reach at all. */
+export function accessSummary(matrix: PermMatrix, role: AppRole) {
+  let write = 0;
+  let read = 0;
+  for (const key of ALL_RESOURCE_KEYS) {
+    const level = levelAt(matrix, role, key);
+    if (level === "write") write++;
+    else if (level === "read") read++;
+  }
+  return { write, read, none: ALL_RESOURCE_KEYS.length - write - read, total: ALL_RESOURCE_KEYS.length };
+}
+
+/** Pending changes bucketed per role, in `roles` order — the review sheet's shape. */
+export function changesByRole(
+  changes: PermChange[],
+  roles: AppRole[],
+): { role: AppRole; changes: PermChange[] }[] {
+  return roles
+    .map((role) => ({ role, changes: changes.filter((c) => c.role === role) }))
+    .filter((bucket) => bucket.changes.length > 0);
+}
+
+// ── Conflict resolution ─────────────────────────────────────────────────────
+
+/** What to do with a cell someone else changed while this editor was working. */
+export type ConflictChoice = "mine" | "theirs";
+
+/**
+ * A conflict as the UI needs it: what the editor started from, what they set,
+ * and what the row actually holds now. The server returns the last of these in
+ * `from`; `was` is what this session believed, which only the client still has.
+ */
+export type ConflictItem = {
+  role: AppRole;
+  resource: string;
+  /** The level this editor started from. */
+  was: PermLevel;
+  /** The level this editor set. */
+  mine: PermLevel;
+  /** The level the database holds now, written by someone else. */
+  theirs: PermLevel;
+};
+
+export function toConflictItems(
+  serverConflicts: PermChange[],
+  baseline: PermMatrix,
+): ConflictItem[] {
+  return serverConflicts.map((c) => ({
+    role: c.role,
+    resource: c.resource,
+    was: levelAt(baseline, c.role, c.resource),
+    mine: c.to,
+    theirs: c.from,
+  }));
+}
+
+/**
+ * Pending changes bucketed by role and then by permission group.
+ *
+ * The review sheet asks "is this what you meant?", and for a change set that
+ * spans several groups a flat list of nineteen rows cannot be checked against
+ * that question — "Posts" and "Users" moving are very different kinds of edit,
+ * and the category is what tells them apart at a glance.
+ */
+export function groupedChanges(
+  changes: PermChange[],
+  roles: AppRole[],
+): { role: AppRole; groups: { id: string; changes: PermChange[] }[] }[] {
+  return changesByRole(changes, roles).map(({ role, changes: roleChanges }) => ({
+    role,
+    groups: PERMISSION_GROUPS.map((group) => ({
+      id: group.id,
+      changes: roleChanges.filter((c) => RESOURCE_GROUP[c.resource] === group.id),
+    })).filter((group) => group.changes.length > 0),
+  }));
+}
+
+// ── Bulk previews ───────────────────────────────────────────────────────────
+
+/** A whole-role bulk edit, before it is applied. */
+export type BulkIntent =
+  | { kind: "copy"; source: AppRole }
+  | { kind: "defaults" }
+  | { kind: "clear" };
+
+/**
+ * The matrix a bulk action *would* produce, without applying it.
+ *
+ * Separating the preview from the write is what lets the workspace tell an
+ * editor "this will change 9 of 13 permissions" before anything moves. A bulk
+ * action that silently rewrites a role's entire row is the one operation on
+ * this page that can quietly widen access across every resource at once.
+ */
+export function previewBulk(
+  matrix: PermMatrix,
+  role: AppRole,
+  intent: BulkIntent,
+  reference: Record<AppRole, Record<string, PermLevel>>,
+): PermMatrix {
+  switch (intent.kind) {
+    case "copy":
+      return copyRoleLevels(matrix, intent.source, role);
+    case "defaults":
+      return applyReferenceRow(matrix, role, reference[role]);
+    case "clear":
+      return setLevels(matrix, role, ALL_RESOURCE_KEYS, "none");
+  }
+}
+
+/** How many of a role's resources a bulk action would move. */
+export function countRoleChanges(
+  before: PermMatrix,
+  after: PermMatrix,
+  role: AppRole,
+): number {
+  return ALL_RESOURCE_KEYS.filter(
+    (key) => levelAt(before, role, key) !== levelAt(after, role, key),
+  ).length;
+}

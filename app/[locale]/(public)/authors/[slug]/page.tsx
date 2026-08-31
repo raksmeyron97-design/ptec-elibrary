@@ -121,9 +121,14 @@ export default async function AuthorPage({ params }: PageProps) {
     },
   };
 
+  // Points at the author hub now that one exists. It used to point at
+  // /publications while the crumb read "Authors" — in the visible nav AND in
+  // the emitted BreadcrumbList, which made it a machine-readable claim that
+  // this profile lived in the publications collection
+  // (docs/SEO-V2-AUDIT.md F-5).
   const breadcrumbs = breadcrumbSchema([
     { name: t("breadcrumbHome"), path: "/" },
-    { name: t("breadcrumbAuthors"), path: "/publications" },
+    { name: t("breadcrumbAuthors"), path: "/authors" },
     { name: author.name },
   ]);
 
@@ -143,11 +148,8 @@ export default async function AuthorPage({ params }: PageProps) {
             {t("breadcrumbHome")}
           </Link>
           <Icon name="chevron-right" className="text-[16px] text-divider" />
-          {/* Authors are discovered through the publications collection —
-              there is no /authors index, so the trail points at the listing
-              this person's work actually lives in rather than at a 404. */}
           <Link
-            href="/publications"
+            href="/authors"
             className="focus-field rounded-sm transition-colors hover:text-brand"
           >
             {t("breadcrumbAuthors")}

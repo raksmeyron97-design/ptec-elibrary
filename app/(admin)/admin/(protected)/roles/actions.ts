@@ -2,6 +2,7 @@
 
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requireSuperAdmin } from "@/lib/auth/requireAdmin";
+import { logAdminAction } from "@/app/actions/audit";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ALL_RESOURCE_KEYS, type PermChange } from "@/lib/admin/roles-shared";
 
@@ -42,6 +43,14 @@ export async function saveRolePermissions(changes: PermChange[]): Promise<SaveRe
   // ── Conflict detection ──────────────────────────────────────────────────
   // Fetch current DB rows for the affected roles, then compare each changed
   // cell against the `from` the editor believed was current.
+  //
+  // Note what "current" means for a resource that has never been persisted:
+  // its effective level comes from DEFAULT_PERMISSIONS, and the absence of a
+  // row is not evidence that anyone changed it. But the moment another editor
+  // saves that cell a row DOES appear, so a second editor who started from the
+  // default still collides — `dbLevel` is then their value, not the default,
+  // and the comparison below catches it. Treating "no row" as a conflict
+  // instead would make every first-ever edit of a defaulted resource fail.
   const affectedRoles = Array.from(new Set(changes.map((c) => c.role)));
   const { data: currentRows, error: readErr } = await supabase
     .from("role_permissions")
@@ -82,6 +91,18 @@ export async function saveRolePermissions(changes: PermChange[]): Promise<SaveRe
     .upsert(rows, { onConflict: "role,resource" });
 
   if (error) return { status: "error", message: `Failed to save: ${error.message}` };
+
+  // ── Audit ───────────────────────────────────────────────────────────────
+  // Role permissions are the panel's highest-privilege mutation and were the
+  // one admin write with no trail: `admin_audit_log` recorded book edits and
+  // contact replies but not "who granted Staff write access to Users". One row
+  // per save, carrying every cell's before/after, so the log answers that
+  // without needing a diff of the table's own history.
+  await logAdminAction(user.id, "roles.permissions_update", "role_permissions", undefined, {
+    changeCount: changes.length,
+    roles: Array.from(new Set(changes.map((c) => c.role))),
+    changes: changes.map((c) => ({ role: c.role, resource: c.resource, from: c.from, to: c.to })),
+  });
 
   revalidatePath("/admin/roles");
   return { status: "ok", savedAt };

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "@/i18n/navigation";
 
@@ -31,13 +31,32 @@ import { usePathname } from "@/i18n/navigation";
  * Do not "simplify" this back to an early `if (reduceMotion)` return: that is
  * the exact shape that broke, and a production build will not catch it — the
  * mismatch only appears when a browser hydrates the page.
+ *
+ * ── Why the `isFirstRender` ref ──────────────────────────────────────────────
+ * When `mounted` flips to true the component swaps from bare `children` to
+ * `<motion.div initial={{ opacity: 0 }}>`. Framer Motion treats that swap as
+ * an "enter" animation and briefly hides the content — the white-flash the user
+ * sees on every first page load. Passing `initial={false}` to `motion.div` on
+ * that first render skips the enter animation while leaving the cross-fade
+ * intact for every subsequent route change.
  */
 export default function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
+  const isFirstRender = useRef(true);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // After mount, the first render of motion.div should not animate in.
+  // Clear the flag so subsequent route changes DO animate.
+  useEffect(() => {
+    if (mounted) {
+      isFirstRender.current = false;
+    }
+  }, [mounted]);
 
   // Server and first client render agree: no wrapper, no inline animation style.
   if (!mounted || reduceMotion) return <>{children}</>;
@@ -46,7 +65,7 @@ export default function PageTransition({ children }: { children: ReactNode }) {
     <AnimatePresence mode="wait">
       <motion.div
         key={pathname}
-        initial={{ opacity: 0, y: 10, scale: 0.995 }}
+        initial={isFirstRender.current ? false : { opacity: 0, y: 10, scale: 0.995 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -10, scale: 0.995 }}
         transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}

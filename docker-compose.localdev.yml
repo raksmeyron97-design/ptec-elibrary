@@ -1,0 +1,17 @@
+# Local-machine override — run the production image against the LOCAL Supabase
+# stack (supabase start, API on 54331) instead of the hosted project.
+#
+#   docker compose --env-file .env.docker \
+#     -f docker-compose.yml -f docker-compose.build.yml -f docker-compose.localdev.yml \
+#     up -d --build
+#
+# Why a separate env file: docker-compose.yml hardcodes `env_file: .env`, which
+# on this machine is deliberately empty (production values live in
+# .env.production.root.backup). .env.docker is .env.local with every
+# host-loopback URL rewritten to the Mac's LAN IP — 127.0.0.1 inside the
+# container is the container, not the host, and NEXT_PUBLIC_SUPABASE_URL is
+# baked into the client bundle, so it has to be one address that resolves the
+# same from the browser AND from inside the container.
+services:
+  app:
+    env_file: .env.docker
