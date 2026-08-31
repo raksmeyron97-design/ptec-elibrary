@@ -1,0 +1,21 @@
+# Nightly trigger for ptec-db-backup.service.
+#
+# 03:10 box-local (the box runs Asia/Phnom_Penh), the time docs/BACKUP-DR.md §3
+# has always specified — after the 02:00 storage file backup and after the
+# 03:00 retention cleanup sweep, so the three never contend for the disk.
+# Persistent=true: a run missed because the box was off fires on next boot.
+#
+# Cadence is load-bearing, not taste: the backup-stale alert fires at
+# backupAgeHours > 30 h (docs/ALERT-CATALOG.md §Backups & data), which only
+# leaves headroom for a nightly schedule.
+
+[Unit]
+Description=Nightly PTEC database backup
+
+[Timer]
+OnCalendar=*-*-* 03:10:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

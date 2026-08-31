@@ -1,0 +1,31 @@
+# PTEC e-Library — nightly database backup (docs/BACKUP-DR.md §3). Dumps every
+# base table to per-table gzipped JSONL + manifest under ~/ptec-backups/db/,
+# verifies the archive's hashes in the same run, and records the ops_events
+# heartbeat the admin "Backups" card and the backup-stale alert read.
+#
+# This is the leg that was previously a hand-written crontab line, which meant
+# in practice that nothing ran: only the file backup was automated, so
+# backupAgeHours stayed null and the dashboard read "Not configured".
+#
+# Reads NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (and optionally
+# BACKUP_PASSPHRASE, TELEGRAM_*) from the repo's .env — the script loads it
+# itself, so no Environment= lines here to drift out of step.
+
+[Unit]
+Description=PTEC e-Library database backup
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/DATA/AppData/ptec-elibrary/app
+# --verify chains the integrity check over the directory just written, so a
+# corrupt archive records backup_db=fail instead of a misleading fresh "ok".
+ExecStart=/usr/bin/env node scripts/backup/backup-db.mjs --verify
+# Backups yield to the site: this box also serves every PDF.
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=1h
+
+[Install]
+WantedBy=multi-user.target

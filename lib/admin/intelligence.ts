@@ -2182,7 +2182,7 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
   const now = new Date();
   const win = buildWindow({ range: filters.range, from: filters.from, to: filters.to }, now);
 
-  const [eventsRes, opsRes, brokenRes, healthLatestRes, auditRes] = await Promise.all([
+  const [eventsRes, opsRes, backupRes, brokenRes, healthLatestRes, auditRes] = await Promise.all([
     supabase
       .from("app_events")
       .select("kind, status, latency_ms")
@@ -2190,6 +2190,18 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
       .lte("created_at", win.end.toISOString())
       .limit(10000),
     supabase.from("ops_events").select("kind, status, detail, created_at").order("created_at", { ascending: false }).limit(10),
+    // Backup age needs its own filtered query. The list above is a 10-row
+    // window across ALL kinds, so the newest backup_db row drops out of it as
+    // soon as ten newer ops events exist — nightly backup_files alone does
+    // that in ten days — and the card would read "not configured" while
+    // backups were running fine. Same shape as getHealthPulse and /api/health.
+    supabase
+      .from("ops_events")
+      .select("created_at")
+      .eq("kind", "backup_db")
+      .eq("status", "ok")
+      .order("created_at", { ascending: false })
+      .limit(1),
     supabase.from("file_health").select("record_type, record_id", { count: "exact" }).eq("status", "broken").limit(2),
     supabase.from("file_health").select("checked_at").order("checked_at", { ascending: false }).limit(1),
     supabase
@@ -2219,9 +2231,9 @@ export async function getSystemData(filters: DashboardFilters): Promise<SystemDa
 
   type OpsRow = { kind: string; status: string; detail: Record<string, unknown>; created_at: string };
   const ops = (opsRes.data ?? []) as OpsRow[];
-  const lastBackup = ops.find((o) => o.kind === "backup_db" && o.status === "ok");
-  const backupAgeHours = lastBackup
-    ? Math.round((now.getTime() - new Date(lastBackup.created_at).getTime()) / 3_600_000)
+  const lastBackupAt = ((backupRes.data ?? []) as { created_at: string }[])[0]?.created_at ?? null;
+  const backupAgeHours = lastBackupAt
+    ? Math.round((now.getTime() - new Date(lastBackupAt).getTime()) / 3_600_000)
     : null;
 
   type AuditRow = {

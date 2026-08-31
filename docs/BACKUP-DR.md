@@ -34,17 +34,29 @@ and caches are ephemeral.
 | **Retention** | 7 daily + 4 weekly + 6 monthly | prune script/manual (§3) |
 | **Ownership** | Web-team lead (DB/config), box owner (file snapshots), director (policy sign-off) | see OPERATIONS-AUDIT.md §5 |
 
-## 3. Schedules (cron)
+## 3. Schedules
 
-On the operator machine or ZimaOS box (values illustrative — keep the real
-crontab in the box's own docs):
+**The database backup is a systemd timer, not a crontab line** (automated
+2026-08-31): `deploy/ptec-db-backup.timer` runs
+`scripts/backup/backup-db.mjs --verify` nightly at 03:10 box-local — dump,
+in-process integrity verify, `ops_events` kinds `backup_db` + `backup_verify`,
+and a Sev 2 Telegram alert on failure. `deploy/install.sh` installs and enables
+it; it needs no configuration beyond the Supabase URL + service key that
+install already requires.
+
+It was a documented-but-manual crontab entry until 2026-08-31, and in practice
+nobody had added it on the box: only the file backup was automated, so
+`backupAgeHours` stayed null and the admin dashboard read **"Backups: Not
+configured"** — an accurate report of having no verified database restore
+point. If that card ever says that again, this timer is the thing to check
+first (`systemctl list-timers ptec-db-backup.timer`).
+
+Retention pruning is still manual — see the note below.
+
+Still on cron, on the operator machine or the box (values illustrative — keep
+the real crontab in the box's own docs):
 
 ```cron
-# Nightly DB backup + integrity verify (03:10 local, off-peak)
-10 3 * * * cd /path/to/e-library-ptec && node scripts/backup/backup-db.mjs \
-  && node scripts/backup/verify-backup.mjs "$(ls -d ~/ptec-backups/db/*/ | tail -1)" \
-  || echo "PTEC BACKUP FAILED" | mail -s "PTEC backup failure" <ops-email>
-
 # Nightly storage inventory + reachability sample (03:40)
 40 3 * * * cd /path/to/e-library-ptec && node scripts/backup/backup-storage-inventory.mjs
 
@@ -66,7 +78,9 @@ second run at a mounted remote target with `--encrypt`
 (AES-256-GCM via `BACKUP_PASSPHRASE`).
 
 Retention pruning: keep the newest 7 daily dirs, first-of-week for 4 weeks,
-first-of-month for 6 months; delete the rest (`ls ~/ptec-backups/db`).
+first-of-month for 6 months; delete the rest (`ls ~/ptec-backups/db`). This is
+the one leg still done by hand, and the nightly timer now grows that directory
+unattended — check it during §M13 (monthly storage capacity review).
 
 ## 4. Security posture
 
@@ -89,6 +103,15 @@ first-of-month for 6 months; delete the rest (`ls ~/ptec-backups/db`).
 - Every script writes an `ops_events` row (migration 0088): `backup_db`,
   `backup_verify`, `backup_files`, `backup_config`, `restore_drill`, each
   `ok|warn|fail` with counts — no file contents, no secrets.
+- **`backup_db` is the only signal the app accepts as "the database is backed
+  up."** Supabase's own managed backups and any hand-run `pg_dump` are
+  invisible to `/api/health` and to the admin dashboard, because neither
+  leaves a row behind. A backup taken by other means still has to record one
+  (a single authenticated POST to `ops_events`) or the app will keep — quite
+  correctly — reporting that it cannot see a restore point.
+- A backup that fails its integrity check records `backup_db` **fail**, not
+  `ok`: `backupAgeHours` means "age of the newest archive we could actually
+  restore from", never "age of the newest run".
 - `GET /api/health` with `Authorization: Bearer $CRON_SECRET` returns
   `backupAgeHours` from the latest good `backup_db` event. External monitor
   rule: **alert when > 30 h** (one missed nightly) — see `ALERT-CATALOG.md`

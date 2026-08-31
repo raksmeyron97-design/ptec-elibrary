@@ -29,28 +29,46 @@ _បានបង្កើតនៅថ្ងៃទី ១២ ខែកក្ក�
 | **ការរក្សាទុក (Retention)** | ៧ ថ្ងៃ + ៤ សប្តាហ៍ + ៦ ខែ | លុបចោលតាម Script (§3) |
 | **ម្ចាស់ការ** | WL (DB/config), BO (ឯកសារ), នាយក (អនុម័តគោលការណ៍) | សូមមើល OPERATIONS-AUDIT.md §5 |
 
-## 3. ការកំណត់កាលវិភាគ (Schedules - cron)
+## 3. ការកំណត់កាលវិភាគ (Schedules)
 
-នៅលើម៉ាស៊ីន (ZimaOS box):
+### ស្វ័យប្រវត្តិ (systemd timers — `deploy/install.sh` ដំឡើង និងបើកឲ្យ)
+
+| Timer | ម៉ោង (box-local) | ធ្វើអ្វី | `ops_events` |
+|---|---|---|---|
+| `ptec-storage-backup.timer` | ០២:០០ | ចម្លងឯកសារ (PDF/រូបក្រប) ទៅ disk ទីពីរ | `backup_files` |
+| `ptec-db-backup.timer` | ០៣:១០ | Dump មូលដ្ឋានទិន្នន័យ + ពិនិត្យភាពត្រឹមត្រូវក្នុងរត់តែមួយ | `backup_db`, `backup_verify` |
+
+ទាំងពីរផ្ញើ Telegram alert (Sev 2) ពេលបរាជ័យ — timer គ្មាន cron MTA ដើម្បីផ្ញើ
+អ៊ីមែលទេ ដូច្នេះ alert នោះ **ជា**ឆានែលជូនដំណឹងតែមួយគត់។
+
+**DB backup ទើបតែក្លាយជាស្វ័យប្រវត្តិនៅថ្ងៃទី ៣១ សីហា ២០២៦។** មុននេះវាជា crontab
+ដែលត្រូវបញ្ចូលដោយដៃ ហើយតាមពិតគ្មាននរណាបានបញ្ចូលវានៅលើ box ទេ៖ មានតែ backup
+ឯកសារប៉ុណ្ណោះដែលដំណើរការស្វ័យប្រវត្តិ ដូច្នេះ `backupAgeHours` នៅតែ null ហើយ
+ផ្ទាំង admin បង្ហាញ **"Backups: Not configured"** — ដែលជារបាយការណ៍ត្រឹមត្រូវថា
+យើងគ្មានចំណុចស្តារឡើងវិញសម្រាប់មូលដ្ឋានទិន្នន័យទេ។ បើផ្ទាំងនោះបង្ហាញដូច្នេះ
+ម្តងទៀត ត្រូវពិនិត្យ timer នេះជាមុន៖
+
+```bash
+systemctl list-timers ptec-db-backup.timer
+```
+
+### នៅតែជា cron (ត្រូវបញ្ចូលដោយដៃលើ box)
 
 ```cron
-# Backup DB រាល់យប់ + ពិនិត្យភាពត្រឹមត្រូវ (ម៉ោង ០៣:១០)
-10 3 * * * cd /path/to/e-library-ptec && node scripts/backup/backup-db.mjs \
-  && node scripts/backup/verify-backup.mjs "$(ls -d ~/ptec-backups/db/*/ | tail -1)" \
-  || echo "PTEC BACKUP FAILED" | mail -s "PTEC backup failure" <ops-email>
-
 # ស្តុក Storage រាល់យប់ + ពិនិត្យការតភ្ជាប់ (ម៉ោង ០៣:៤០)
 40 3 * * * cd /path/to/e-library-ptec && node scripts/backup/backup-storage-inventory.mjs
 
 # Fingerprint ការកំណត់រាល់សប្តាហ៍ (ថ្ងៃអាទិត្យ ម៉ោង ០៤:០០)
 0 4 * * 0 cd /path/to/e-library-ptec && node scripts/backup/backup-config.mjs
 
-# Backup ឯកសាររាល់យប់នៅលើ Zima box (ម៉ោង ០៤:១០) — disk ទី២
-10 4 * * * rsync -a --delete /zima/data/ /mnt/backup-disk/zima-mirror/ && date > /mnt/backup-disk/zima-mirror/.last-ok
-
 # ការធ្វើតេស្តសាកល្បងរាល់ត្រីមាស
 # node scripts/backup/restore-drill.mjs
 ```
+
+ការលុបចោលតាមគោលការណ៍រក្សាទុក (retention pruning) នៅតែធ្វើដោយដៃ៖ រក្សា ៧ ថត
+ចុងក្រោយ + ថតដើមសប្តាហ៍ ៤ សប្តាហ៍ + ថតដើមខែ ៦ ខែ។ Timer រាល់យប់ធ្វើឲ្យថត
+`~/ptec-backups/db` រីកធំឡើងដោយគ្មានអ្នកមើល — ត្រូវពិនិត្យក្នុង §M13 (ការត្រួតពិនិត្យ
+ទំហំផ្ទុកប្រចាំខែ)។
 
 ## 4. ស្ថានភាពសុវត្ថិភាព (Security posture)
 

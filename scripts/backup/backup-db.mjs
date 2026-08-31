@@ -5,7 +5,7 @@
 // (docs/BACKUP-DR.md; risk R2/R5 in docs/OPERATIONS-AUDIT.md).
 //
 // Usage:
-//   node scripts/backup/backup-db.mjs [--out DIR] [--full]
+//   node scripts/backup/backup-db.mjs [--out DIR] [--full] [--verify]
 //
 //   --out DIR   destination root (default ~/ptec-backups). A timestamped
 //               subdirectory is created per run: DIR/db/<UTC-timestamp>/
@@ -13,13 +13,22 @@
 //               book_chunks). Default skips them: they are rebuilt from the
 //               PDFs (scripts/extract-pdf-text.ts, scripts/embed-library.ts)
 //               and would dominate the archive size.
+//   --verify    chain the integrity check over the directory just written
+//               (same work as verify-backup.mjs, in-process). Used by the
+//               scheduled unit so it stays a single ExecStart with no shell
+//               glue guessing which directory the run produced.
 //
 // Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (.env/.env.local)
 //      BACKUP_PASSPHRASE (optional) — AES-256-GCM encrypts every artifact.
 //
-// Writes a heartbeat row into ops_events (0088) so /api/health's deep probe
-// and the failed-backup alert can see when the last good backup happened.
-// Exit code is non-zero on any failure — cron wrappers must alert on that.
+// Writes a heartbeat row into ops_events (0088) so /api/health's deep probe,
+// the admin System & Operations card and the failed-backup alert can see when
+// the last good backup happened. Nothing else on that card counts as a
+// database backup: Supabase's own managed backups and a hand-run pg_dump are
+// invisible to the app, because neither leaves a backup_db row behind.
+//
+// Exit code is non-zero on any failure, and a failure also pushes a Sev 2
+// Telegram alert — deploy/ptec-db-backup.timer has no cron MTA to mail.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -28,6 +37,8 @@ import {
   discoverTables, dumpTable, encrypt, gzip, loadEnv, recordOpsEvent,
   requireEnv, sha256, timestampSlug, toJsonl,
 } from "./lib.mjs";
+import { verifyBackupDir } from "./verify-backup.mjs";
+import { sendTelegramAlert } from "../ops/alert-telegram.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -44,6 +55,7 @@ async function main() {
     ? args[args.indexOf("--out") + 1]
     : path.join(process.env.HOME ?? ".", "ptec-backups");
   const full = args.includes("--full");
+  const verify = args.includes("--verify");
 
   const env = loadEnv(REPO_ROOT);
   requireEnv(env, ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]);
@@ -121,16 +133,57 @@ async function main() {
   const tableCount = Object.keys(manifestTables).length;
   console.log(`\n${failed ? "COMPLETED WITH ERRORS" : "OK"}: ${tableCount} tables, ${totalRows} rows, ${((finishedAt - startedAt) / 1000).toFixed(1)}s`);
 
-  await recordOpsEvent(env, "backup_db", failed ? "fail" : "ok", {
+  // Verify BEFORE the heartbeat, deliberately: backupAgeHours answers "how old
+  // is the newest backup we could actually restore from", so an archive that
+  // fails its hashes must never register as a good one.
+  let verifyFailures = [];
+  if (verify && !failed) {
+    try {
+      const result = verifyBackupDir(dir, passphrase);
+      verifyFailures = result.failures;
+      for (const f of verifyFailures) console.error(`  ✗ ${f}`);
+      console.log(`verify ${verifyFailures.length ? "FAIL" : "OK"}: ${result.tables} tables, ${result.rows} rows`);
+      await recordOpsEvent(env, "backup_verify", verifyFailures.length ? "fail" : "ok", {
+        dir: path.basename(dir),
+        tables: result.tables,
+        rows: result.rows,
+        failures: verifyFailures.length,
+      });
+    } catch (e) {
+      // An unreadable manifest or a missing passphrase is itself a failed
+      // verification — never a silent pass.
+      verifyFailures = [e.message];
+      console.error(`  ✗ verify could not run: ${e.message}`);
+      await recordOpsEvent(env, "backup_verify", "fail", {
+        dir: path.basename(dir),
+        error: String(e.message).slice(0, 300),
+      });
+    }
+  }
+
+  const ok = !failed && verifyFailures.length === 0;
+  await recordOpsEvent(env, "backup_db", ok ? "ok" : "fail", {
     dir: path.basename(dir),
     tables: tableCount,
     rows: totalRows,
     durationMs: manifest.durationMs,
     encrypted: manifest.encrypted,
     full,
+    verified: verify ? verifyFailures.length === 0 : null,
   });
 
-  if (failed) process.exit(1);
+  if (!ok) {
+    await sendTelegramAlert(env, {
+      severity: 2,
+      title: failed ? "Database backup failed" : "Database backup failed its integrity check",
+      service: "backup-db",
+      message: failed
+        ? `${Object.values(manifestTables).filter((m) => m.error).length}/${tableCount} tables failed to dump into ${path.basename(dir)}.`
+        : `${verifyFailures.length} integrity failure(s) in ${path.basename(dir)}. First: ${verifyFailures[0]}`,
+      runbook: "docs/BACKUP-DR.md §3 · docs/RUNBOOKS.md §I17",
+    });
+    process.exit(1);
+  }
 }
 
 main().catch(async (e) => {
@@ -138,6 +191,13 @@ main().catch(async (e) => {
   try {
     const env = loadEnv(REPO_ROOT);
     await recordOpsEvent(env, "backup_db", "fail", { error: String(e.message).slice(0, 300) });
-  } catch { /* heartbeat is best-effort */ }
+    await sendTelegramAlert(env, {
+      severity: 2,
+      title: "Database backup crashed",
+      service: "backup-db",
+      message: e.message,
+      runbook: "docs/BACKUP-DR.md §3 · docs/RUNBOOKS.md §I17",
+    });
+  } catch { /* the heartbeat and the alert must never mask the original failure */ }
   process.exit(1);
 });

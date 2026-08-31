@@ -78,6 +78,8 @@ install -m 644 "$SRC/deploy/ptec-elibrary-deploy.service" "$UNIT_DIR/"
 install -m 644 "$SRC/deploy/ptec-elibrary-deploy.timer"   "$UNIT_DIR/"
 install -m 644 "$SRC/deploy/ptec-storage-backup.service"  "$UNIT_DIR/"
 install -m 644 "$SRC/deploy/ptec-storage-backup.timer"    "$UNIT_DIR/"
+install -m 644 "$SRC/deploy/ptec-db-backup.service"       "$UNIT_DIR/"
+install -m 644 "$SRC/deploy/ptec-db-backup.timer"         "$UNIT_DIR/"
 chmod +x "$SRC/deploy/deploy.sh"
 systemctl daemon-reload
 systemctl enable --now ptec-elibrary-deploy.timer
@@ -94,6 +96,21 @@ else
   warn "storage-backup timer installed but NOT enabled. Every PDF has a single"
   warn "copy until it runs: set both paths, then"
   warn "  sudo systemctl enable --now ptec-storage-backup.timer"
+fi
+
+# The DB backup needs no configuration the checks above have not already
+# enforced (Supabase URL + service key), so it is enabled unconditionally.
+# Leaving it off is what produced "Backups: Not configured" on the admin
+# dashboard: nothing else in this deployment writes a backup_db heartbeat.
+if command -v node >/dev/null; then
+  systemctl enable --now ptec-db-backup.timer
+  echo "    db-backup timer enabled (nightly 03:10, docs/BACKUP-DR.md §3)"
+  grep -qE '^BACKUP_PASSPHRASE=.+' "$SRC/.env" \
+    || warn "BACKUP_PASSPHRASE not set — DB archives will be written UNENCRYPTED"
+else
+  warn "node not found on the box — db-backup timer installed but NOT enabled."
+  warn "Without it there is no verified restore point for the database:"
+  warn "  install node, then sudo systemctl enable --now ptec-db-backup.timer"
 fi
 
 log "Starting the stack"
