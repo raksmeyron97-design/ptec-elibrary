@@ -328,7 +328,7 @@ test, not as a data migration. → PTEC-ENTITY-MAPPING.md §3.
 
 ---
 
-### D-8 · P1 · Cloudflare injects a contradictory `robots.txt`
+### D-8 · **P0** · Cloudflare's injected `robots.txt` costs 8 SEO points on every page and fails CI on every merge
 
 Live `robots.txt` is `[Cloudflare managed block] + [app output]`. The managed
 block emits `Disallow: /` for `GPTBot`, `ClaudeBot`, `CCBot`, `Google-Extended`,
@@ -342,8 +342,49 @@ longest-match rules rather than on a decision anyone made.
 
 Already tracked (`docs/SEO-V2-FINAL-REPORT.md` §7, memory
 `cloudflare-robots-override`). **Owner action in the Cloudflare dashboard**;
-the app is the decided source of truth. Unchanged by V3, restated here because
-it now also contradicts V3's AI-surface intent.
+the app is the decided source of truth.
+
+#### Re-rated P1 → P0, because it is measurably breaking things
+
+The original entry treated this as a *policy* contradiction. That under-rated
+it. The injected block also carries `Content-Signal:`, which is **not a valid
+robots.txt directive**, and it is the ONLY invalid line in the served file —
+`app/robots.ts` emits nothing but `User-Agent` / `Allow` / `Disallow` /
+`Sitemap`.
+
+Measured, not inferred. Lighthouse run against production
+(`lighthouse@12 --only-categories=seo`):
+
+```
+SEO score: 0.92
+FAIL  robots-txt   score=0  weight=1   "1 error found"
+```
+
+`robots-txt` is the **only** failing SEO audit, and its weight of 1 is exactly
+the 0.08 the category loses. That matches the CI runs precisely: every URL
+scores **0.92, with zero variance** (`0.92, 0.92, 0.92, 0.92` across repeat
+runs) — the signature of one site-wide audit failing, not per-page content.
+
+Consequences:
+
+1. **Every public page loses 8 SEO points** in Lighthouse.
+2. **`lighthouse.yml` fails on every push to `main`.** `a11y ≥ 0.95` and
+   `best-practices ≥ 0.9` are errors by design, and the SEO matrix asserts
+   `≥ 0.95` — so the workflow has gone red on every merge since at least
+   2026-08-29 (#101, #102, #103, #105, #106, #107). A permanently red check
+   trains people to stop reading it, which is how the *next*, real regression
+   gets missed.
+
+`Content-Signal` is a real emerging standard and Lighthouse is arguably wrong
+to reject it — but the cost is real and the remedy is the one already recorded:
+disable Cloudflare's managed `robots.txt` so the app's own output is served.
+That single dashboard change fixes the score, the CI failure, and the policy
+contradiction together.
+
+**Deliberately NOT fixed by loosening `lighthouserc.json`.** The threshold is
+reporting a true fact about the served file; suppressing it would hide a real
+signal, and this repository already has a documented rule against disabling
+Lighthouse audits without reading why they exist.
 
 ---
 
@@ -432,7 +473,7 @@ Stated plainly, with the reason, per §67 and §68:
 | D-5 | P1 | breadcrumb → `noindex` query URLs | **fix** — Phase 1 |
 | D-6 | P1 | `departments` too thin for a page | **document + gate** |
 | D-7 | P1 | "faculty" vocabulary conflict | **document + assert** |
-| D-8 | P1 | Cloudflare robots.txt override | **owner action** (unchanged) |
+| D-8 | **P0** | Cloudflare `robots.txt` — invalid `Content-Signal` line costs 8 SEO pts/page and reds CI on every merge | **owner action**, Cloudflare dashboard |
 | D-9 | P2 | `/posts` empty state contradicts its own content | UI fix (diagnosis corrected — not a sitemap defect) |
 | D-10 | P2 | anonymous `BreadcrumbList`/`FAQPage` | **fix** — Phase 1 |
 | D-11 | P3 | canonical model invisible in HTML | tracked in CANONICAL-RESOURCES.md |

@@ -43,6 +43,13 @@ enforced by tests. Read these before proposing any SEO change:
    and obvious in one `curl` of the rendered HTML. Fetch the page. Parse the
    JSON-LD. Check the headers.
 
+   **And check what runs AFTER the merge.** Green PR checks are not the whole
+   story here: `lighthouse.yml` runs only on push to `main`, and it had been red
+   on every merge for days because of a single invalid `robots.txt` line
+   injected at the CDN (audit D-8). `gh run list --workflow=lighthouse.yml`.
+   A uniform score across every URL, with no variance, means ONE site-wide
+   audit — not per-page content.
+
 2. **One entity, declared once, referenced by `@id`.** `RootShell.buildSiteGraph()`
    is the only place that may declare `EducationalOrganization`, `Library` or
    `WebSite`. Everything else references them via `lib/seo/org-nodes.ts`.
