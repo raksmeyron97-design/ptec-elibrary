@@ -32,6 +32,7 @@ import AuthorCard from "@/components/ui/theses/detail/AuthorCard";
 import ReadingProgress from "@/components/ui/detail/ReadingProgress";
 import { getTranslations } from "next-intl/server";
 import JsonLd from "@/components/seo/JsonLd";
+import ResourceConnections from "@/components/seo/ResourceConnections";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getPublicResourceAuthors } from "@/lib/resources/public-contributors";
 import {
@@ -524,6 +525,15 @@ export default async function ThesisDetailPage({ params }: PageProps) {
             </div>
           </aside>
         </div>
+
+        {/* Subject + author hubs. `subject` is the thesis's own taxonomy
+            column; the byline is the display author list, so a thesis credits
+            the same people its citation does. */}
+        <ResourceConnections
+          locale={locale}
+          subjectNames={[report.subject]}
+          authorNames={splitAuthors(displayReport.author_names)}
+        />
 
         <RelatedTheses
           currentId={id}

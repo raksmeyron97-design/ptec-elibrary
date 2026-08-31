@@ -141,3 +141,53 @@ export function isPrivateSurfacePath(localeStrippedPath: string): boolean {
       localeStrippedPath === prefix || localeStrippedPath.startsWith(`${prefix}/`),
   );
 }
+
+/**
+ * Locale prefixes that appear in real URLs. English is unprefixed
+ * (`localePrefix: "as-needed"` in i18n/routing.ts), so only Khmer contributes
+ * a prefix.
+ *
+ * Hard-coded rather than imported from i18n/routing.ts on purpose: this module
+ * is imported by next.config.ts through a RELATIVE path, and everything it
+ * pulls in is loaded by the Next config transpiler — which must not be made to
+ * resolve next-intl. lib/seo/indexing.test.ts pins this list against
+ * `routing.locales` so the two cannot drift.
+ */
+export const URL_LOCALE_PREFIXES = ["/km"] as const;
+
+/**
+ * Every private path prefix, locale-stripped — the same list the runtime
+ * `X-Robots-Tag` and the metadata robots decide from.
+ *
+ * This is the ONE source of truth brief §7 asks for. `app/robots.ts` used to
+ * hand-maintain a second copy, and the two had already drifted: robots.txt
+ * disallowed a `/login` route that does not exist while omitting the Khmer
+ * `/km/auth` and `/km/admin` prefixes entirely.
+ */
+export function getPrivateSeoPaths(): string[] {
+  return [...PRIVATE_PATH_PREFIXES];
+}
+
+/**
+ * `getPrivateSeoPaths()` expanded across every locale prefix, formatted as
+ * robots.txt `Disallow` values.
+ *
+ * Both the bare prefix and its trailing-slash form are emitted: the bare form
+ * covers the segment root under every robots.txt parser, and the slash form
+ * states the descendant intent explicitly rather than relying on prefix
+ * matching that would also catch an unrelated sibling.
+ *
+ * The locale cross-product mirrors middleware exactly. Middleware strips a
+ * `/km` prefix from ANY path before calling isPrivateSurfacePath(), so
+ * `/km/admin` really is served with a private-surface `X-Robots-Tag` even
+ * though no such page exists — the two layers agreeing is the point.
+ */
+export function getLocalizedPrivateSeoPaths(): string[] {
+  const out: string[] = [];
+  for (const prefix of getPrivateSeoPaths()) {
+    for (const locale of ["", ...URL_LOCALE_PREFIXES]) {
+      out.push(`${locale}${prefix}`, `${locale}${prefix}/`);
+    }
+  }
+  return out;
+}

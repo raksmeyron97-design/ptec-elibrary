@@ -41,6 +41,7 @@ import SectionQuickNav, { type QuickNavSection } from "@/components/ui/detail/Se
 import SectionHeading from "@/components/ui/detail/SectionHeading";
 import Icon from "@/components/ui/core/Icon";
 import JsonLd from "@/components/seo/JsonLd";
+import ResourceConnections from "@/components/seo/ResourceConnections";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import { publicationScholarMeta } from "@/lib/seo/citation";
 import {
@@ -544,6 +545,15 @@ export default async function PublicationDetailPage({ params }: PageProps) {
             )}
           </div>
         </div>
+
+        {/* Subject + author hubs. Publications carry a `subjects` text[], so
+            every subject on the record that resolves to a populated hub is
+            linked — not just the first. */}
+        <ResourceConnections
+          locale={locale}
+          subjectNames={pub.subjects ?? []}
+          authorNames={authorships.map((a) => a.author?.full_name)}
+        />
 
         {/* ── More from this journal / author ── */}
         <MoreFromJournal currentId={pub.id} journalName={pub.journal_name} />

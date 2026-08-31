@@ -172,6 +172,13 @@ export default async function Footer() {
     })),
     { label: navT("booksInLibrary"), href: "/catalogs" },
     { label: navT("posts"), href: "/posts" },
+    // The two hub pages. Every /subjects/* and /authors/* URL was an orphan
+    // before these existed — advertised in sitemap.xml with no internal link
+    // path from anywhere on the site (docs/SEO-V2-AUDIT.md F-4). The footer
+    // renders on every public page, so one entry here is what makes both
+    // taxonomies reachable by a crawler following links.
+    { label: navT("subjects"), href: "/subjects" },
+    { label: navT("authors"), href: "/authors" },
   ];
 
   // About/help only. Privacy and Policy are deliberately NOT repeated here:

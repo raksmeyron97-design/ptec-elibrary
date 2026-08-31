@@ -72,7 +72,7 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     cover:         row.cover_color       ?? "bg-[#0a1629]",
     coverUrl:      row.cover_url         ?? null,
     pdfUrl:        pdfFile?.file_url     ?? null,
-    uploadedAt:    row.published_at      ?? undefined,
+    publicationDate: row.published_at    ?? undefined,
     createdAt:     row.created_at        ?? undefined,
     downloadCount: row.download_count    ?? 0,
     viewCount:     row.view_count        ?? 0,

@@ -1,27 +1,24 @@
 import { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/seo/site';
-import { isIndexableEnvironment } from '@/lib/seo/indexing';
+import {
+  isIndexableEnvironment,
+  getLocalizedPrivateSeoPaths,
+} from '@/lib/seo/indexing';
 import { getSiteConfig } from '@/lib/system-settings/config';
 
 // Re-evaluate hourly so the admin indexing kill switch propagates without a
 // redeploy (same cadence as the sitemap).
 export const revalidate = 3600;
 
-const privatePaths = [
-  '/admin/',
-  '/api/',
-  '/dashboard/',
-  '/auth/',
-  '/login',
-  '/profile',
-  '/offline-books',
-  '/lists',
-  // Khmer locale-prefixed equivalents — /dashboard etc. also resolve under /km.
-  '/km/dashboard/',
-  '/km/profile',
-  '/km/offline-books',
-  '/km/lists',
-];
+// DERIVED, never hand-maintained. PRIVATE_PATH_PREFIXES in lib/seo/indexing.ts
+// is the single source of truth for what is private, and the same list drives
+// the X-Robots-Tag header and the metadata robots.
+//
+// This used to be a literal array here, and the two copies had already drifted:
+// it disallowed a bare `/login` route that does not exist, while omitting the
+// Khmer-prefixed `/km/auth` and `/km/admin` forms that middleware does treat as
+// private. Add a path to PRIVATE_PATH_PREFIXES and all three layers follow.
+const privatePaths = getLocalizedPrivateSeoPaths();
 
 const publicLibraryPaths = [
   '/',

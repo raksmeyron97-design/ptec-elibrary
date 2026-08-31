@@ -41,6 +41,24 @@ describe("isLocaleScoped", () => {
     }
   });
 
+  it("does not treat a public route as unscoped just because it shares a prefix", () => {
+    // `/authors` starts with `/auth` but is a locale-scoped public route.
+    // UNSCOPED_PREFIXES spells the auth prefix as "/auth/" precisely so this
+    // cannot collide; a boundary-free copy of the rule in this file's source
+    // scan once flagged the footer's /authors link.
+    for (const href of ["/authors", "/authors/ron-raksmey", "/apidocs"]) {
+      expect(isLocaleScoped(href), href).toBe(true);
+    }
+  });
+
+  it("matches /admin as a bare prefix — a known, currently harmless sharp edge", () => {
+    // "/auth/", "/api/" carry a trailing slash; "/admin" does not, because it
+    // must also match the bare /admin route. The cost is that a future public
+    // route beginning with "admin" would be misclassified as unscoped. None
+    // exists, so this documents the edge rather than changing the rule.
+    expect(isLocaleScoped("/administration")).toBe(false);
+  });
+
   it("treats anything that is not an app-relative path as unscoped", () => {
     for (const href of ["https://example.com", "//cdn.example.com", "mailto:a@b.c", "#top"]) {
       expect(isLocaleScoped(href), href).toBe(false);
@@ -99,11 +117,21 @@ describe("no component sends an unscoped route through the locale-aware Link", (
     // An attribute is attached to a visible element, so it is covered by the
     // direct check above and by reading the line; a property is a value that
     // travels, and where it lands cannot be seen from the declaration.
-    const UNSCOPED_HREF = /href\s*:\s*["`](\/(?:auth|admin|~offline)[^"`]*)/;
+    //
+    // Classification goes through isLocaleScoped() rather than a regex spelling
+    // the prefixes a second time. It used to be
+    // `/(?:auth|admin|~offline)[^"`]*/`, which has no segment boundary — so the
+    // public route `/authors` matched the auth prefix `/auth` and a legitimate
+    // footer link was reported as an offender. UNSCOPED_PREFIXES already
+    // encodes the boundary (`"/auth/"` with a trailing slash); one source of
+    // truth cannot disagree with itself.
+    const HREF_PROPERTY = /href\s*:\s*["`](\/[^"`]*)/g;
     const offenders: string[] = [];
     for (const file of localeLinkFiles) {
       const src = read(file);
-      const declared = src.match(UNSCOPED_HREF)?.[1];
+      const declared = [...src.matchAll(HREF_PROPERTY)]
+        .map((m) => m[1])
+        .find((href) => !isLocaleScoped(href));
       if (!declared) continue;
       const hasDynamicLink = linkElements(src).some((el) => /href=\{(?!`\/)/.test(el));
       if (!hasDynamicLink) continue; // the href never reaches a <Link>
