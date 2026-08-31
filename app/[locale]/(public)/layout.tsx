@@ -4,6 +4,7 @@ import AskWidget from "@/components/ui/ask/AskWidget";
 import AnnouncementBanner from "@/components/ui/notifications/AnnouncementBanner";
 import IntlProvider from "@/components/providers/IntlProvider";
 import SessionProvider from "@/components/providers/SessionProvider";
+import PageTransition from "@/components/ui/animations/PageTransition";
 import ReadingProgress from "@/components/ui/animations/ReadingProgress";
 import { setRequestLocale, getMessages } from "next-intl/server";
 import { pickMessages, PUBLIC_NAMESPACES } from "@/i18n/pick-messages";
@@ -40,7 +41,9 @@ export default async function PublicLayout({
           <ReadingProgress />
           <Navbar />
           {banners.length > 0 && <AnnouncementBanner announcements={banners} />}
-          <main id="main-content" tabIndex={-1} className="flex-grow outline-none">{children}</main>
+          <PageTransition>
+            <main id="main-content" tabIndex={-1} className="flex-grow outline-none">{children}</main>
+          </PageTransition>
           <Footer />
           <AskWidget />
         </div>
