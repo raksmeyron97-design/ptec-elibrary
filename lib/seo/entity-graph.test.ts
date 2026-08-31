@@ -30,7 +30,10 @@ const org: OrgIdentity = {
   libraryName: "PTEC Library",
   libraryNameKm: "បណ្ណាល័យ វ.គ.ភ",
   siteName: "PTEC Library",
-  contactEmail: "info@ptec.edu.kh",
+  // Deliberately NOT the real contact address: lib/settings-consistency.test.ts
+  // forbids hardcoding it outside lib/ptec.ts and lib/push.ts, and nothing here
+  // asserts on it.
+  contactEmail: "library@example.test",
   url: SITE_URL,
   institutionUrl: "https://www.ptec.edu.kh",
 };
