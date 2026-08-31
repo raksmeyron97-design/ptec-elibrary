@@ -40,6 +40,7 @@ const SNIPPET_LEN = 260;
 /** Summary output cap — one to three sentences, never an essay. */
 const SUMMARY_OUTPUT_TOKENS = 180;
 
+
 interface AIBook {
   slug: string;
   title: string;

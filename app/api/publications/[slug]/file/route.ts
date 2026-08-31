@@ -36,7 +36,6 @@ export async function GET(
 ) {
   const locked = lockdownResponse("downloads", "/api/publications/[slug]/file");
   if (locked) return locked;
-
   const ip = clientIp(request.headers);
   const { limit, windowMs } = ratePolicy("fileRead");
   const rl = await rateLimit(`publication-file:${ip}`, limit, windowMs);
