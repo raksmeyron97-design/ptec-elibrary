@@ -42,11 +42,11 @@ export default function SearchTrendChart({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-hidden="true">
-        <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-text-body">
           <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--ptec-series-views)" strokeWidth="2" /></svg>
           {t("trendSearches")}
         </span>
-        <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-text-body">
           <svg width="18" height="8"><line x1="0" y1="4" x2="18" y2="4" stroke="var(--ptec-danger)" strokeWidth="2" strokeDasharray="3 3" /></svg>
           {t("trendZero")}
         </span>
@@ -73,11 +73,11 @@ export default function SearchTrendChart({
         </svg>
       </div>
       <details>
-        <summary className="cursor-pointer text-[11.5px] font-semibold text-text-muted hover:text-brand">
+        <summary className="cursor-pointer text-xs font-semibold text-text-muted hover:text-brand">
           {t("showTable")}
         </summary>
         <div className="mt-2 max-h-48 overflow-auto rounded-xl border border-divider">
-          <table className="w-full text-[11.5px]">
+          <table className="w-full text-xs">
             <caption className="sr-only">{srSummary}</caption>
             <thead className="sticky top-0 bg-paper">
               <tr>

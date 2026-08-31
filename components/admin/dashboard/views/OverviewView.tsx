@@ -38,7 +38,7 @@ function ZoneHeader({ label, hint }: { label: string; hint: string }) {
         aria-hidden="true"
       />
       <p className="dash-eyebrow">{label}</p>
-      <p className="text-[11.5px] leading-4 text-text-muted">{hint}</p>
+      <p className="text-xs leading-4 text-text-muted">{hint}</p>
     </div>
   );
 }
@@ -121,10 +121,10 @@ export default async function OverviewView({
           {/* 3 — Engagement trends (8 cols) + measurement pathways (4 cols). */}
           <div className="grid items-start gap-5 xl:grid-cols-12">
             <section aria-labelledby="engagement-heading" className="dash-card min-w-0 p-5 xl:col-span-8">
-              <h2 id="engagement-heading" className="text-[14px] font-bold text-text-heading">
+              <h2 id="engagement-heading" className="text-sm font-bold text-text-heading">
                 {t("engagement.title")}
               </h2>
-              <p className="mb-2.5 text-[11.5px] text-text-muted">
+              <p className="mb-2.5 text-xs text-text-muted">
                 {t("engagement.subtitle", { range: rangeLabel })}
               </p>
               <EngagementChart
@@ -140,10 +140,10 @@ export default async function OverviewView({
             </section>
 
             <section aria-labelledby="pathways-heading" className="dash-card min-w-0 p-5 xl:col-span-4">
-              <h2 id="pathways-heading" className="text-[14px] font-bold text-text-heading">
+              <h2 id="pathways-heading" className="text-sm font-bold text-text-heading">
                 {t("discovery.title")}
               </h2>
-              <p className="mb-2.5 text-[11.5px] text-text-muted">
+              <p className="mb-2.5 text-xs text-text-muted">
                 {t("discovery.subtitle", { range: rangeLabel })}
               </p>
               <EngagementPathways

@@ -12,6 +12,13 @@ const ACCENT_COLOR: Record<KpiAccent, string> = {
   brand: "var(--ptec-brand)",
   gold: "var(--ptec-series-downloads-ink)",
   emerald: "var(--ptec-success)",
+  // Threshold accents — same tokens as the .dash-ico--{ok,warn,crit,unknown}
+  // tile tints in app/admin.css, so a spark line on one of these cards would
+  // match its icon rather than introducing a fifth, unrelated hue.
+  ok: "var(--ptec-success)",
+  warn: "var(--ptec-amber)",
+  crit: "var(--ptec-danger)",
+  unknown: "var(--dash-ink-decorative)",
 };
 
 /**

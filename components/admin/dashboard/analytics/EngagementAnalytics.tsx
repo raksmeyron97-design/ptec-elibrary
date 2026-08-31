@@ -220,14 +220,14 @@ export default function EngagementAnalytics({
               type="button"
               aria-pressed={state.metric === key}
               onClick={() => selectGraphMetric(key)}
-              className="dash-seg-btn text-[11.5px]"
+              className="dash-seg-btn text-xs"
             >
               {t(`series.${key}`)}
             </button>
           ))}
         </div>
 
-        <span className="ms-auto rounded-full border border-divider bg-paper px-2 py-1 text-[10.5px] font-semibold text-text-muted">
+        <span className="ms-auto rounded-full border border-divider bg-paper px-2 py-1 text-xs font-semibold text-text-muted">
           {comparisonLabel}
         </span>
         <button
@@ -239,7 +239,11 @@ export default function EngagementAnalytics({
               comparison: state.comparison === "metrics" ? state.defaultComparison : "metrics",
             })
           }
-          className="rounded-lg px-2.5 py-1.5 text-[11.5px] font-semibold text-brand hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          /* These two report aria-pressed but used to look identical on and
+             off, so the state was announced to a screen reader and hidden from
+             everyone else. Tailwind v4's aria-pressed variant gives them the
+             same filled treatment the segmented controls beside them use. */
+          className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/5 aria-pressed:bg-brand/10 aria-pressed:ring-1 aria-pressed:ring-inset aria-pressed:ring-brand/25"
         >
           {t("compareMetrics")}
         </button>
@@ -248,7 +252,7 @@ export default function EngagementAnalytics({
           aria-pressed={state.tableVisible}
           onClick={() => dispatch({ type: "toggleTable" })}
           aria-label={state.tableVisible ? t("hideTable") : t("showTable")}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted hover:bg-paper hover:text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-paper hover:text-brand aria-pressed:bg-brand/10 aria-pressed:text-brand aria-pressed:ring-1 aria-pressed:ring-inset aria-pressed:ring-brand/25"
         >
           <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -270,7 +274,7 @@ export default function EngagementAnalytics({
               type="button"
               aria-pressed={state.grain === grain}
               onClick={() => dispatch({ type: "setGrain", grain })}
-              className="dash-seg-btn text-[11px]"
+              className="dash-seg-btn text-xs"
             >
               {t(`grain.${grain}`)}
             </button>
@@ -282,7 +286,7 @@ export default function EngagementAnalytics({
             {METRICS.map((key) => {
               const checked = state.visibleSeries.includes(key);
               return (
-                <label key={key} className="inline-flex items-center gap-1 text-[11px] font-medium text-text-body">
+                <label key={key} className="inline-flex items-center gap-1 text-xs font-medium text-text-body">
                   <input
                     type="checkbox"
                     checked={checked}
@@ -308,7 +312,7 @@ export default function EngagementAnalytics({
           className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1"
         >
           {plotSeries.map((item) => (
-            <li key={item.id} className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
+            <li key={item.id} className="flex items-center gap-1.5 text-xs font-medium text-text-body">
               <SeriesKey metric={item.metric} comparison={item.comparison} dashed={false} />
               {item.label}
             </li>
@@ -316,7 +320,7 @@ export default function EngagementAnalytics({
         </ul>
       )}
 
-      <p className="mt-2 min-h-5 text-[11.5px] text-text-muted" aria-live="polite">
+      <p className="mt-2 min-h-5 text-xs text-text-muted" aria-live="polite">
         {collecting ? t("readerOpensCollecting") : summary}
         {state.metric === "visitors" && (state.grain === "week" || state.grain === "month") && (
           <span className="ms-1">{t("visitorRollupNote")}</span>
@@ -325,7 +329,7 @@ export default function EngagementAnalytics({
 
       <div ref={containerRef} className="relative mt-1 min-w-0">
         {activePoints.length === 0 ? (
-          <div className="flex h-[230px] items-center justify-center rounded-xl border border-dashed border-divider bg-paper/40 px-6 text-center text-[12px] text-text-muted" role="status">
+          <div className="flex h-[230px] items-center justify-center rounded-xl border border-dashed border-divider bg-paper/40 px-6 text-center text-xs text-text-muted" role="status">
             {collecting ? t("readerOpensCollecting") : t("noChartData")}
           </div>
         ) : (
@@ -353,7 +357,7 @@ export default function EngagementAnalytics({
 
       {state.tableVisible && (
         <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-divider" tabIndex={0}>
-          <table className="w-full min-w-[420px] text-[11.5px]">
+          <table className="w-full min-w-[420px] text-xs">
             <caption className="sr-only">{t("dataTableCaption", { summary })}</caption>
             <thead className="dash-thead sticky top-0 bg-bg-surface">
               <tr>

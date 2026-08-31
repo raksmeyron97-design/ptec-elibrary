@@ -9,9 +9,9 @@ function SectionError({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations("adminDashboard.states");
   return (
     <div role="alert" className="flex flex-col items-center gap-3 rounded-2xl border border-divider bg-bg-surface px-4 py-8 text-center shadow-sm">
-      <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" />
-      <p className="text-[13px] font-semibold text-text-heading">{t("sectionError")}</p>
-      <p className="max-w-sm text-[12px] text-text-muted">{t("sectionErrorHint")}</p>
+      <AlertTriangle className="dash-status--warn dash-mark h-6 w-6" aria-hidden="true" />
+      <p className="text-sm font-semibold text-text-heading">{t("sectionError")}</p>
+      <p className="max-w-sm text-xs text-text-muted">{t("sectionErrorHint")}</p>
       <button
         type="button"
         onClick={onRetry}

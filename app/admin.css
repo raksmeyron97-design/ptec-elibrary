@@ -140,6 +140,14 @@
   --dash-line: #E2E8F0;
   --dash-line-subtle: #F1F5F9;
 
+  /* One quiet inset surface and one hairline, named.
+     These stood in as seven near-identical alphas (`bg-paper/40`, `/55`,
+     `/60`, `bg-white/60`, `border-divider/60`, `/70`, `/72`) — different
+     numbers for the same intent, which is how a "well" ended up a slightly
+     different grey in each panel. */
+  --dash-well: var(--dash-line-subtle);
+  --dash-hairline: color-mix(in srgb, var(--ptec-divider) 72%, transparent);
+
   /* ── Text ramp — every value below is AA-checked against --dash-surface.
      Do NOT add a lighter "tertiary text" token: #94A3B8 on white is 2.8:1
      and fails AA for any text at any size. It is available as
@@ -196,10 +204,50 @@
   --dash-chart-crosshair: #A8B6CE;
 
   /* ── Radius scale ── */
-  --dash-r-sm: .5rem;
-  --dash-r-md: .75rem;
-  --dash-r-lg: 1rem;
-  --dash-r-xl: 1.25rem;
+  /* ── Type scale — six text steps, three numeral steps ────────────────
+     Before this the dashboard set 19 distinct pixel sizes inline, nine of
+     them between 9px and 13px: 10.5 vs 11 vs 11.5 vs 12 vs 12.5 are not
+     perceptible as steps, so they bought no hierarchy and cost the page its
+     sense of being one system. Six steps is what a data product needs;
+     hierarchy comes from weight and colour, which are free.
+
+     11px is the floor and there are no exceptions — the retired 9px and
+     9.5px labels were below the legible minimum for Latin and hopeless for
+     Khmer, whose diacritics need the height. */
+  --dash-t-xs: 11px;   --dash-lh-xs: 16px;   /* chips, counts, axis ticks   */
+  --dash-t-sm: 12px;   --dash-lh-sm: 18px;   /* labels, metadata, footnotes */
+  --dash-t-md: 13px;   --dash-lh-md: 20px;   /* running text in a panel     */
+  --dash-t-lg: 14px;   --dash-lh-lg: 20px;   /* panel headings              */
+  --dash-t-xl: 16px;   --dash-lh-xl: 24px;   /* drawer heading              */
+  --dash-t-2xl: 20px;  --dash-lh-2xl: 28px;  /* page heading                */
+
+  /* Numerals. A KPI figure is a display element, not body text — it gets its
+     own three steps so a "big number" cannot drift (it was 42/28/27/24/22/20/18
+     across five components for one semantic role). */
+  --dash-t-num-sm: 20px;   /* a figure embedded in a panel or drawer */
+  --dash-t-num: 28px;      /* the headline figure on any KPI card    */
+  --dash-t-num-lg: 40px;   /* a single hero figure, at most one/view */
+
+  /* ── Spacing — one 4px grid, three card paddings, two grid gaps ──────
+     Cards carried five inner paddings (20/16/14/12/10px), so a ribbon and
+     the cards beneath it started their content on different left edges.
+     `--dash-gap-zone` is deliberately a full step above `--dash-gap-grid`:
+     that difference is the only thing that makes the Overview's two zones
+     read as zones. */
+  --dash-pad-card: 20px;
+  --dash-pad-card-compact: 16px;
+  --dash-pad-row: 12px;
+  --dash-gap-grid: 20px;
+  --dash-gap-zone: 32px;
+
+  /* ── Radius — restated on the 4px grid, and actually referenced ──────
+     These four tokens existed but were used twice in 906 lines; everything
+     else hard-coded 8/9/10/11/12/13/14/15/16/17/18px. A child inset inside
+     a padded parent derives its radius rather than guessing it. */
+  --dash-r-sm: 8px;
+  --dash-r-md: 12px;
+  --dash-r-lg: 16px;
+  --dash-r-xl: 20px;
 
   /* Elevation: layered rather than a single hard drop, so a resting card
      reads as raised without a visible grey halo. */
@@ -254,7 +302,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
     z-index: var(--dash-z-overlay);
     margin: 0;
     border-top: 1px solid var(--ptec-divider);
-    border-radius: 16px 16px 0 0;
+    border-radius: var(--dash-r-lg) var(--dash-r-lg) 0 0;
     box-shadow: 0 -8px 32px -12px rgba(11, 21, 48, .35);
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     max-height: 70vh;
@@ -262,32 +310,31 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   }
 }
 
-/* ── Level 1: the page surface — cool-gray → warm-ivory with a faint,
-   masked academic grid (book-page structure) at the top edge only. ── */
+/* ── Level 1: the page surface ────────────────────────────────────────────
+   Flat, and the same ground every other admin page renders on.
+
+   It used to be a three-stop gradient (#F5F8FD → #F2F4F8 → warm ivory) with a
+   32px navy grid over it, masked to fade out at 420px. Two problems, both
+   structural rather than aesthetic: 420px is exactly the band holding the
+   header, the sticky control bar, the health ribbon and the top of the KPI
+   cards, so the texture was at full strength directly behind the highest-value
+   data on the page; and because the gradient ran the full height of the
+   Overview, an identical white card sat on cool blue-grey at the top and on
+   warm ivory at the bottom, which made the three-level elevation system read
+   differently depending on scroll position.
+
+   PTEC identity is carried by the navy sidebar, the gold tab indicator and the
+   gold zone ticks — all still on screen, none of them behind a number. */
 .dash-shell {
   position: relative;
-  background:
-    linear-gradient(180deg, #F5F8FD 0%, #F2F4F8 32%, var(--dash-ivory) 100%);
-}
-.dash-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--dash-blue) 5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--dash-blue) 5%, transparent) 1px, transparent 1px);
-  background-size: 32px 32px;
-  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent 420px);
-          mask-image: linear-gradient(180deg, rgba(0, 0, 0, .55), transparent 420px);
-  opacity: .6;
-  pointer-events: none;
+  background: var(--dash-bg);
 }
 .dash-shell > * { position: relative; }
 
 /* ── Level 2 / 3: cards ── */
 .dash-card {
   background: var(--color-bg-surface, #fff);
-  border-radius: 16px;
+  border-radius: var(--dash-r-lg);
   border: 1px solid color-mix(in srgb, var(--ptec-divider) 72%, transparent);
   box-shadow: var(--dash-elev-1);
 }
@@ -312,7 +359,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
    Warm-white panel, thin gold brand line, restrained seal watermark. */
 .dash-header {
   position: relative;
-  border-radius: 18px;
+  border-radius: var(--dash-r-lg);
   background:
     radial-gradient(130% 150% at 100% -20%, color-mix(in srgb, var(--dash-blue) 8%, #fff) 0%, #fff 52%),
     var(--dash-ivory);
@@ -324,17 +371,46 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  border-radius: 17px 17px 0 0;
+  border-radius: var(--dash-r-lg) var(--dash-r-lg) 0 0;
   background: linear-gradient(90deg, var(--dash-blue) 0%, var(--dash-gold) 42%, color-mix(in srgb, var(--dash-gold) 30%, transparent) 70%, transparent 100%);
 }
-/* Small caps eyebrow used across the dashboard. */
+/* ── The uppercase micro-label, once ──────────────────────────────────────
+   This appeared with five different size/weight/tracking recipes (11/700/.1em,
+   10/700/.025em, 9/700/.025em, 10.5/600/.025em, 10.5/700/.11em). Tailwind's
+   `tracking-wide` is .025em, which at 9–10px uppercase is no tracking at all —
+   so most of those were set small, tight and unreadable.
+
+   One geometry, two inks: `.dash-label` is the neutral form, `.dash-eyebrow`
+   the gold-ink form that names a section. Both sit at the 11px floor and win
+   attention on weight, case and colour rather than on being small. */
+.dash-label,
 .dash-eyebrow {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .11em;
+  font-size: var(--dash-t-xs);
+  line-height: var(--dash-lh-xs);
+  letter-spacing: .07em;
   text-transform: uppercase;
-  color: var(--dash-gold-ink);
 }
+.dash-label   { font-weight: 600; color: var(--dash-ink-3); }
+.dash-eyebrow { font-weight: 700; color: var(--dash-gold-ink); }
+
+/* ── Wrapping translated prose ────────────────────────────────────────────
+   Anything that can wrap AND can be Khmer needs the 1.7 leading the
+   truncation rules below document; a hand-set `leading-4` on 10.5px text is
+   1.52 and shaves the diacritics. Use this instead of a fixed leading for
+   hints, notes, disclaimers and methodology lines. */
+.dash-prose {
+  font-size: var(--dash-t-sm);
+  line-height: 1.7;
+  color: var(--dash-ink-3);
+}
+
+/* ── Numerals: the choice is named, not remembered ────────────────────────
+   MetricCard documented the rule ("equal-width digits are for columns that
+   must align; at 28px they make '116' look gappy") and three sibling
+   components did the opposite. Display figures are proportional, columns and
+   comparison lines are tabular. */
+.dash-num-display { font-variant-numeric: proportional-nums; letter-spacing: -.01em; }
+.dash-num         { font-variant-numeric: tabular-nums; }
 
 /* ── Khmer-safe single-line truncation ────────────────────────────────────
    Use instead of Tailwind's `truncate` anywhere the text can be Khmer.
@@ -367,7 +443,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   align-items: center;
   gap: 2px;
   padding: 3px;
-  border-radius: 11px;
+  border-radius: var(--dash-r-md);
   background: color-mix(in srgb, var(--dash-blue) 6%, var(--ptec-paper));
   border: 1px solid color-mix(in srgb, var(--dash-blue) 10%, transparent);
   /* Segmented labels never wrap, so on a phone the control must be able to
@@ -383,25 +459,35 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-seg-btn {
   position: relative;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--dash-r-sm);
   padding: 5px 9px;
-  font-size: 12px;
+  font-size: var(--dash-t-sm);
+  line-height: var(--dash-lh-sm);
   font-weight: 600;
   white-space: nowrap;
   color: var(--ptec-text-muted);
   transition: color .15s ease, background .15s ease;
 }
 .dash-seg-btn:hover { color: var(--dash-ink); }
+/* Flat, not raised. The sticky bar holds two selection controls 8px apart and
+   they used to speak opposite languages: the tab rail said "selected = a white
+   pill lifted off a tinted rail", the segmented control said "selected = a
+   dark gradient chip pressed into a light rail". Two contradictory answers to
+   "which one is on" in one bar is a system with no rule.
+
+   The rule now: tabs change the whole view and keep the raised pill; segment
+   chips filter within it and are flat. Selection is still carried by
+   aria-pressed as well as by fill. */
 .dash-seg-btn[aria-pressed="true"],
 .dash-seg-btn[data-active="true"] {
   color: #fff;
-  background: linear-gradient(160deg, var(--ptec-navy-700), var(--dash-blue));
-  box-shadow: 0 2px 6px -1px rgba(30, 58, 138, .4), inset 0 1px 0 rgba(255, 255, 255, .16);
+  background: var(--dash-blue);
 }
-.dash-seg-btn:focus-visible {
-  outline: 2px solid var(--dash-gold);
-  outline-offset: 1px;
-}
+/* No scoped outline colour: gold on the pale blue rail is 1.67:1, which is not
+   a focus indicator. Letting the base `:focus-visible` rule in globals.css
+   paint --focus-color (#3A5FC4) gives 4.77:1 on the rail. Only the offset is
+   scoped, so the ring clears the rail's 3px padding. */
+.dash-seg-btn:focus-visible { outline-offset: 1px; }
 
 /* Horizontal overflow without a visible scrollbar.
 
@@ -422,7 +508,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   align-items: center;
   gap: 3px;
   padding: 4px;
-  border-radius: 13px;
+  border-radius: var(--dash-r-md);
   background: color-mix(in srgb, var(--dash-blue) 5%, #fff);
   border: 1px solid color-mix(in srgb, var(--dash-blue) 11%, var(--ptec-divider));
   box-shadow: var(--dash-elev-1);
@@ -432,11 +518,12 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border-radius: 9px;
+  border-radius: var(--dash-r-sm);
   /* Tight enough that the five English tabs and the whole control cluster
      share one row at the 1400px content width. */
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: var(--dash-t-md);
+  line-height: var(--dash-lh-md);
   font-weight: 600;
   white-space: nowrap;
   color: var(--ptec-text-muted);
@@ -444,10 +531,15 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 }
 .dash-tab:hover { color: var(--dash-ink); background: color-mix(in srgb, var(--dash-blue) 6%, transparent); }
 .dash-tab .dash-tab-ico { opacity: .7; transition: opacity .15s ease; }
+/* No font-weight change on the active tab. Bolding one item in a horizontal
+   rail widens it, which re-flows every tab to its right — so the target a user
+   is about to click moves under the cursor as the previous click resolves, and
+   the whole cluster shifts on every view change. The active state is already
+   carried by the white pill, the blue ink, the gold underline and
+   aria-current; a fourth channel that costs layout stability is a bad trade. */
 .dash-tab[aria-current="page"] {
   color: var(--dash-blue);
   background: #fff;
-  font-weight: 700;
   box-shadow: 0 1px 2px rgba(11, 21, 48, .07), 0 2px 8px -3px rgba(30, 58, 138, .28);
 }
 .dash-tab[aria-current="page"] .dash-tab-ico { opacity: 1; }
@@ -471,7 +563,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   display: grid;
   place-items: center;
   flex: none;
-  border-radius: 11px;
+  border-radius: var(--dash-r-md);
   color: var(--dash-ico-ink, var(--dash-blue));
   background: color-mix(in srgb, var(--dash-ico-hue, var(--dash-blue)) 11%, #fff);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-ico-hue, var(--dash-blue)) 14%, transparent);
@@ -489,6 +581,15 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-ico--downloads{ --dash-ico-hue: var(--ptec-series-downloads);   --dash-ico-ink: var(--ptec-series-downloads-ink); }
 .dash-ico--gold     { --dash-ico-hue: var(--dash-gold);               --dash-ico-ink: var(--dash-gold-ink); }
 .dash-ico--emerald  { --dash-ico-hue: var(--ptec-success);            --dash-ico-ink: var(--ptec-success); }
+/* Tone-based icon tints — pair with the .dash-kpi--{ok,warn,crit,unknown}
+   strip variants below, so a KPI whose accent communicates a THRESHOLD
+   (good/attention/bad/no-data) rather than a fixed metric identity tints its
+   icon tile and its top strip from the same token. Used by KpiCard's
+   trendTone-driven accents (e.g. search-insights' zero-result-rate card). */
+.dash-ico--ok      { --dash-ico-hue: var(--ptec-success);       --dash-ico-ink: var(--ptec-success); }
+.dash-ico--warn    { --dash-ico-hue: var(--ptec-amber);         --dash-ico-ink: var(--ptec-amber); }
+.dash-ico--crit    { --dash-ico-hue: var(--ptec-danger);        --dash-ico-ink: var(--ptec-danger); }
+.dash-ico--unknown { --dash-ico-hue: var(--dash-ink-decorative); --dash-ico-ink: var(--dash-ink-decorative); }
 
 /* Per-metric top accent strip on supporting KPI cards.
 
@@ -496,12 +597,21 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
    near data: it puts two colours on a mark whose whole job is to say "this
    card is that series", and the lighter end drifts out of the validated
    palette. One token, full width. */
-.dash-kpi { position: relative; overflow: hidden; }
+/* No `overflow: hidden` here.
+
+   It was there to stop the 3px strip from spilling past the card's rounded top
+   corners — but the strip is the only thing that needed clipping, and the
+   clip applied to the whole card, so every definition popover a KPI card opens
+   (`<details>`, absolutely positioned, deliberately outside the card box) was
+   cut off at the card's edge. The strip clips itself with its own radius
+   instead, and the card can let a popover out again. */
+.dash-kpi { position: relative; }
 .dash-kpi::before {
   content: "";
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
+  border-radius: var(--dash-r-lg) var(--dash-r-lg) 0 0;
   background: var(--dash-kpi-accent, transparent);
   opacity: .9;
   transition: opacity .16s ease, height .16s ease;
@@ -511,25 +621,12 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-kpi--reader    { --dash-kpi-accent: var(--ptec-series-reader); }
 .dash-kpi--downloads { --dash-kpi-accent: var(--ptec-series-downloads); }
 
-/* ── Hero KPI: blue-tinted institutional surface ─────────────────────── */
-.dash-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 16px;
-  color: #EAF0FF;
-  background:
-    radial-gradient(120% 120% at 110% -10%, color-mix(in srgb, var(--dash-gold) 22%, transparent) 0%, transparent 42%),
-    linear-gradient(155deg, var(--ptec-navy-700) 0%, var(--dash-blue) 46%, var(--ptec-navy-950) 100%);
-  border: 1px solid color-mix(in srgb, var(--dash-blue) 40%, #000 4%);
-  box-shadow: var(--dash-elev-3);
-}
-.dash-hero::before {   /* gold hairline under the top edge */
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--dash-gold), transparent 70%);
-}
+/* The dark-navy hero KPI that used to live here has been removed. It was
+   reachable only through KpiCard's `emphasis` prop, which no call site in the
+   repo ever passed — 19 lines of the loudest CSS in this file, plus a 57-line
+   render branch, rendering nowhere. Emphasis on a KPI now comes from grid span
+   and the numeral scale (--dash-t-num-lg), not from a second, darker surface
+   competing with the one the data actually sits on. */
 
 /* Health card strips reuse semantic status colours rather than a metric hue. */
 .dash-kpi--ok      { --dash-kpi-accent: var(--ptec-success); }
@@ -545,7 +642,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   flex-direction: column;
   min-width: 0;
   background: var(--color-bg-surface, #fff);
-  border-radius: 16px;
+  border-radius: var(--dash-r-lg);
   border: 1px solid color-mix(in srgb, var(--ptec-divider) 72%, transparent);
   box-shadow: var(--dash-elev-1);
   transition: box-shadow .16s ease, border-color .16s ease;
@@ -567,7 +664,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 /* ── Shared popover surface (definitions, menus) ─────────────────────────── */
 .dash-popover {
   z-index: var(--dash-z-popover);
-  border-radius: 12px;
+  border-radius: var(--dash-r-md);
   border: 1px solid var(--ptec-divider);
   background: var(--color-bg-surface, #fff);
   box-shadow: 0 12px 32px -12px rgba(11, 21, 48, .35), 0 2px 6px rgba(11, 21, 48, .08);
@@ -611,14 +708,93 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   display: flex;
   align-items: center;
   gap: 10px;
-  border-radius: 12px;
+  border-radius: var(--dash-r-md);
   border: 1px solid color-mix(in srgb, var(--ptec-divider) 60%, transparent);
   background: color-mix(in srgb, var(--ptec-paper) 55%, #fff);
   padding: 8px 10px;
 }
 
+/* ══ Status layer — ONE vocabulary for "what state is this in?" ══════════
+   The dashboard ran three unreconciled status families at once: raw Tailwind
+   palette weights (`bg-emerald-50 text-emerald-800 ring-emerald-200` in
+   HealthCard, `bg-emerald-100 text-emerald-800` in SystemView, `text-rose-700`
+   in SearchView…), the semantic `--ptec-{success,warning,danger,info}-*`
+   tokens that `trend-style.ts` had already migrated the trend arrows onto,
+   and a set of hand-picked dot colours. Three greens for "OK" were visible on
+   one screen. 175 palette references in total.
+
+   A state now sets ONE class and reads four variables from it, so a chip, a
+   tile, a dot and a rail for the same state cannot drift apart:
+
+     --dash-status-bg    tinted surface (AA-checked pair with -fg)
+     --dash-status-line   its border / ring
+     --dash-status-fg     text on that surface
+     --dash-status-mark   solid mark colour — dots, icons, rails
+
+   `-mark` is deliberately NOT the 500-weight the dots used before: a 1.5px
+   dot is a non-text mark and needs 3:1 against white. `bg-amber-500` was
+   2.15:1 — i.e. the "degraded" dot was the least visible thing on the page.
+   These four all clear it (4.8–6.5:1).
+
+   Colour is never the only channel here — every consumer pairs a status class
+   with a distinct icon shape and a word, as it did before. */
+.dash-status--ok {
+  --dash-status-bg: var(--ptec-success-soft);
+  --dash-status-line: var(--ptec-success-line);
+  --dash-status-fg: var(--ptec-success-text);
+  --dash-status-mark: var(--ptec-success);      /* #15803D — 5.0:1 on white */
+}
+.dash-status--warn {
+  --dash-status-bg: var(--ptec-warning-soft);
+  --dash-status-line: var(--ptec-warning-line);
+  --dash-status-fg: var(--ptec-warning-text);
+  --dash-status-mark: var(--ptec-warning);      /* #806211 — 5.7:1 */
+}
+.dash-status--crit {
+  --dash-status-bg: var(--ptec-danger-soft);
+  --dash-status-line: var(--ptec-danger-line);
+  --dash-status-fg: var(--ptec-danger-text);
+  --dash-status-mark: var(--ptec-danger);       /* #B91C1C — 6.5:1 */
+}
+.dash-status--info {
+  --dash-status-bg: var(--ptec-info-soft);
+  --dash-status-line: var(--ptec-info-line);
+  --dash-status-fg: var(--ptec-info-text);
+  --dash-status-mark: var(--ptec-info);         /* #2A47A6 — 8.6:1 */
+}
+.dash-status--neutral {
+  --dash-status-bg: var(--dash-line-subtle);
+  --dash-status-line: var(--dash-line);
+  --dash-status-fg: var(--dash-ink-2);
+  --dash-status-mark: var(--dash-ink-3);        /* #64748B — 4.8:1 */
+}
+
+/* The three shapes a status is ever drawn as. */
+.dash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--dash-r-sm);
+  padding: 4px 8px;
+  font-size: var(--dash-t-sm);
+  line-height: var(--dash-lh-sm);
+  font-weight: 600;
+  background: var(--dash-status-bg, var(--dash-line-subtle));
+  color: var(--dash-status-fg, var(--dash-ink-2));
+  box-shadow: inset 0 0 0 1px var(--dash-status-line, var(--dash-line));
+}
+.dash-dot {
+  display: inline-block;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--dash-status-mark, var(--dash-ink-3));
+}
+.dash-mark { color: var(--dash-status-mark, var(--dash-ink-3)); }
+
 /* ── Severity rails (Action Center) ──────────────────────────────────── */
-.dash-sev { position: relative; border-radius: 12px; }
+.dash-sev { position: relative; border-radius: var(--dash-r-md); }
 .dash-sev::before {
   content: "";
   position: absolute;
@@ -628,24 +804,35 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   border-radius: 3px;
   background: var(--dash-sev-color, transparent);
 }
+.dash-sev--ok       { --dash-sev-color: var(--ptec-success); }
 .dash-sev--critical { --dash-sev-color: var(--ptec-danger); }
-.dash-sev--warning  { --dash-sev-color: var(--ptec-amber); }
+.dash-sev--warning  { --dash-sev-color: var(--ptec-warning); }
 .dash-sev--pending  { --dash-sev-color: var(--ptec-info); }
 .dash-sev--info     { --dash-sev-color: var(--dash-ink-decorative); }
 
 /* ── Insight surface: warm gold / ivory — distinct from red/amber alerts ─ */
+/* A plain card, like every other panel on the Overview.
+
+   It was the only tinted panel surface on the page — a gold radial over a gold
+   linear inside a gold border, with each insight inside it a second gold wash.
+   Two problems: the loudest surface on the Overview was spent on the panel the
+   view's own ordering ranks last ("6. What should I look at next?"), pulling
+   the eye to the bottom of a long scroll before the health verdict at the top;
+   and because panel and cards were both gold, the individual insights had
+   almost no separation from their container.
+
+   Gold survives where it is a mark rather than a field: the icon tile and the
+   eyebrow. The severity edge below still carries meaning. */
 .dash-insight-panel {
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--dash-gold) 30%, var(--ptec-divider));
-  background:
-    radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--dash-gold) 12%, #fff) 0%, transparent 46%),
-    linear-gradient(180deg, #FEFCF5 0%, #fff 100%);
+  border-radius: var(--dash-r-lg);
+  border: 1px solid var(--dash-hairline);
+  background: var(--dash-surface);
   box-shadow: var(--dash-elev-1);
 }
 .dash-insight {
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--dash-gold) 7%, #fff);
-  border: 1px solid color-mix(in srgb, var(--dash-gold) 22%, transparent);
+  border-radius: var(--dash-r-md);
+  background: var(--dash-well);
+  border: 1px solid var(--dash-line);
 }
 /* Severity edge — the same four semantic tokens the icons use, so a rule's
    border and its icon can never drift apart. */
@@ -748,48 +935,40 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 .dash-rolechip--admin { background: color-mix(in srgb, #D97706 12%, #fff); color: #B45309; }
 .dash-rolechip--staff { background: color-mix(in srgb, #059669 11%, #fff); color: #047857; }
 
-/* ── Staggered reveal ─────────────────────────────────────────────────────
-   Opt-in per zone: the parent sets .dash-stagger, each child fades up with a
-   delay derived from its index. Capped at 8 so a long list never leaves the
-   last card invisibly late. Uses `both` so the child is hidden during the
-   delay rather than flashing at full opacity first. */
-/* Opacity only — deliberately NOT a translate/transform.
+/* ── Zone reveal ──────────────────────────────────────────────────────────
+   ONE short fade for the whole zone, not a per-child staircase.
 
-   A transformed element becomes the containing block for any `position: fixed`
-   descendant. ExecutivePulse is a direct child here and it mounts
-   MetricDetailsDrawer, whose scrim is `position: fixed; inset: 0` — so a rise
-   animation would anchor a full-screen overlay to the card instead of the
-   viewport for anyone who clicked "Details" inside the animation window.
-   The brief asked for a staggered fade, and a fade has no such side effect. */
+   It used to stage each child by index up to 350ms. That reads well the first
+   time and badly the two-hundredth: the page is `force-dynamic` and every
+   range toggle, filter change and tab switch remounts these zones, so a tool
+   used all day spent up to 450ms per interaction re-introducing content the
+   reader was already looking at. A single 180ms fade still covers the streamed
+   hand-off from the skeleton without dramatising it.
+
+   Two properties here are load-bearing, not stylistic — both record fixed
+   regressions:
+
+   OPACITY ONLY, never transform. A transformed element becomes the containing
+   block for any `position: fixed` descendant. ExecutivePulse is a direct child
+   and mounts MetricDetailsDrawer, whose scrim is `position: fixed; inset: 0` —
+   a rise animation anchored that full-screen overlay to the card instead of
+   the viewport for anyone who opened it inside the animation window.
+
+   `backwards`, never `both`. `both` = backwards + FORWARDS, and a
+   forwards-filling animation stays "in effect" permanently once it has run. An
+   element with an opacity animation in effect gets a STACKING CONTEXT, so each
+   zone kept one forever, which confined `position: fixed` descendants to the
+   zone: the metric details drawer painted underneath the sticky control bar no
+   matter how large its z-index grew. `backwards` fills only during the delay,
+   so the effect ends with the animation. Visually identical either way — the
+   `to` value is the resting value. */
 @keyframes dash-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-/* `backwards`, NOT `both` — this is load-bearing, not a style preference.
-   `both` = backwards + FORWARDS, and a forwards-filling animation stays "in
-   effect" permanently once it has run. An element with an opacity animation in
-   effect gets a STACKING CONTEXT, so every zone here kept one forever, which
-   confined `position: fixed` descendants to the zone: the metric details drawer
-   (z-index 51) painted underneath the sticky control bar (z-index 30) no matter
-   how large its z-index grew. `backwards` fills only during the delay, so the
-   effect ends with the animation and the stacking context goes with it.
-   Visually identical — the `to` value is opacity 1, which is also the resting
-   value, so forwards fill was buying nothing.
-
-   (The earlier version animated `transform`, which was worse still: that
-   creates a CONTAINING BLOCK for fixed descendants, anchoring a full-screen
-   scrim to the card.) */
-.dash-stagger > * {
-  animation: dash-fade-in .3s cubic-bezier(.4, 0, .2, 1) backwards;
+.dash-stagger {
+  animation: dash-fade-in .18s cubic-bezier(.4, 0, .2, 1) backwards;
 }
-.dash-stagger > :nth-child(1) { animation-delay: 0ms;   }
-.dash-stagger > :nth-child(2) { animation-delay: 50ms;  }
-.dash-stagger > :nth-child(3) { animation-delay: 100ms; }
-.dash-stagger > :nth-child(4) { animation-delay: 150ms; }
-.dash-stagger > :nth-child(5) { animation-delay: 200ms; }
-.dash-stagger > :nth-child(6) { animation-delay: 250ms; }
-.dash-stagger > :nth-child(7) { animation-delay: 300ms; }
-.dash-stagger > :nth-child(n+8) { animation-delay: 350ms; }
 
 @media (prefers-reduced-motion: reduce) {
   .dash-card--interactive,
@@ -801,7 +980,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
   /* Collapse the animation rather than removing it: `animation: none` would
      also drop the `backwards` fill, and with it the guarantee that the element
      is never painted mid-fade. Duration ~0 reaches opacity 1 immediately. */
-  .dash-stagger > * { animation-duration: .01ms; animation-delay: 0ms; }
+  .dash-stagger { animation-duration: .01ms; }
 }
 
 /* ── Manage E-books: table + command bar ───────────────────────────────────
@@ -881,7 +1060,7 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
     inset-inline: 0;
     width: 100%;
     max-height: 88vh;
-    border-radius: 18px 18px 0 0;
+    border-radius: var(--dash-r-xl) var(--dash-r-xl) 0 0;
     border-inline-start: none;
     border-top: 1px solid var(--ptec-divider);
     box-shadow: 0 -18px 48px -24px rgba(11, 21, 48, .5);

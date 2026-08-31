@@ -38,10 +38,10 @@ export default async function RecentAdminActivity({
           <History className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0">
-          <h2 id="activity-heading" className="text-[14px] font-bold text-text-heading">
+          <h2 id="activity-heading" className="text-sm font-bold text-text-heading">
             {t("title")}
           </h2>
-          <p className="text-[11.5px] text-text-muted">{t("subtitle")}</p>
+          <p className="text-xs text-text-muted">{t("subtitle")}</p>
         </div>
       </div>
 
@@ -57,10 +57,10 @@ export default async function RecentAdminActivity({
             const body = (
               <>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-medium leading-4 text-text-body">
+                  <span className="block text-xs font-medium leading-4 text-text-body">
                     {label}
                     {e.repeats > 1 && (
-                      <span className="ms-1 rounded bg-paper px-1 py-px text-[10px] font-bold tabular-nums text-text-muted">
+                      <span className="ms-1 rounded bg-paper px-1 py-px text-xs font-bold tabular-nums text-text-muted">
                         ×{e.repeats}
                       </span>
                     )}
@@ -71,7 +71,7 @@ export default async function RecentAdminActivity({
                       </>
                     )}
                   </span>
-                  <span className="block text-[11px] text-text-muted">
+                  <span className="block text-xs text-text-muted">
                     {t("byline", { actor: e.actor, when: relative(e.createdAt) })}
                   </span>
                 </span>
@@ -103,7 +103,7 @@ export default async function RecentAdminActivity({
           the entries, not before. */}
       <Link
         href={logsHref}
-        className="mt-3 block rounded-lg py-1 text-center text-[12px] font-semibold text-brand hover:underline"
+        className="mt-3 block rounded-lg py-1 text-center text-xs font-semibold text-brand hover:underline"
       >
         {t("viewLog")}
       </Link>

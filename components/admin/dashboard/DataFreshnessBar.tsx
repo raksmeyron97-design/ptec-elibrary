@@ -2,11 +2,12 @@ import { getTranslations, getLocale } from "next-intl/server";
 import type { HealthLevel } from "@/lib/admin/dashboard-shared";
 import { dateTimeFormat } from "./formatters";
 
-const LEVEL_DOT: Record<HealthLevel, string> = {
-  operational: "bg-emerald-500",
-  degraded: "bg-amber-500",
-  critical: "bg-rose-500",
-  unknown: "bg-slate-400",
+/** Same status vocabulary as every other state mark on the dashboard. */
+const LEVEL_STATUS: Record<HealthLevel, string> = {
+  operational: "dash-status--ok",
+  degraded: "dash-status--warn",
+  critical: "dash-status--crit",
+  unknown: "dash-status--neutral",
 };
 
 /**
@@ -34,9 +35,9 @@ export default async function DataFreshnessBar({
   }).format(new Date(generatedAt));
 
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-divider/70 pt-2.5 text-[11px] text-text-muted">
-      <p className="flex items-center gap-1.5">
-        <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${LEVEL_DOT[level]}`} />
+    <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-[var(--dash-line)] pt-2.5 text-xs text-text-muted">
+      <p className={`${LEVEL_STATUS[level]} flex items-center gap-1.5`}>
+        <span aria-hidden="true" className="dash-dot" />
         {t("liveAt", { time, tz: "Asia/Phnom_Penh" })}
       </p>
       {notes.length > 0 && (

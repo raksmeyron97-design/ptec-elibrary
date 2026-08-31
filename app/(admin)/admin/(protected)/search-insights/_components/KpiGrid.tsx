@@ -1,78 +1,48 @@
 import { getLocale, getTranslations } from "next-intl/server";
-import { BarChart3, MousePointerClick, SearchCheck, SearchX, TrendingDown, TrendingUp } from "lucide-react";
-import type { ReactNode } from "react";
+import { BarChart3, MousePointerClick, SearchCheck, SearchX } from "lucide-react";
 import { percentChange, type SearchKpis } from "@/lib/admin/search-insights-shared";
-
-type CardTone = "neutral" | "good" | "bad";
+import KpiCard from "@/components/admin/dashboard/KpiCard";
+import type { TrendInfo } from "@/lib/admin/dashboard-shared";
 
 /**
- * One KPI.
+ * A percent trend for one KPI, or null when there is no previous window to
+ * compare against — a fabricated "+100%" against an empty prior period is
+ * worse than no number at all.
  *
- * The delta is shown ONLY when there is a previous window to compare with.
- * With no comparison the card states the period instead — a fabricated
- * "+100%" against an empty prior period is worse than no number at all.
- *
- * `higherIsBetter` decides whether a rise is green or red: a rising
- * zero-result rate is bad news and must not be painted as growth.
+ * `direction` (the arrow) tracks the RAW sign of the change; `trendTone` (the
+ * colour) is computed separately from `higherIsBetter`, because the two can
+ * disagree — a RISING zero-result rate is bad news and must not read as green
+ * just because the number went up.
  */
-function KpiCard({
-  icon,
-  label,
-  value,
-  hint,
-  delta,
-  neutralLabel,
-  higherIsBetter,
-  tone = "neutral",
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  hint: string;
-  delta: number | null;
-  neutralLabel: string;
-  higherIsBetter: boolean;
-  tone?: CardTone;
-}) {
-  const accent =
-    tone === "bad" ? "var(--ptec-danger)" : tone === "good" ? "var(--ptec-success)" : "var(--ptec-series-views)";
-  const improving = delta === null ? null : higherIsBetter ? delta >= 0 : delta <= 0;
-  const DeltaIcon = delta !== null && delta < 0 ? TrendingDown : TrendingUp;
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-divider bg-bg-surface p-4 shadow-sm">
-      <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: accent, opacity: 0.9 }} aria-hidden="true" />
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-muted">{label}</p>
-        <span style={{ color: accent }}>{icon}</span>
-      </div>
-      {/* Proportional figures on a standalone value; tabular is for columns. */}
-      <p className="mt-3 text-[28px] font-bold leading-none text-text-heading">{value}</p>
-      <p className="mt-2 min-h-[18px] text-[11.5px] leading-[18px]">
-        {delta === null ? (
-          <span className="text-text-muted">{neutralLabel}</span>
-        ) : (
-          <span className="flex flex-wrap items-center gap-x-1.5 text-text-muted">
-            <span
-              className="inline-flex items-center gap-0.5 font-bold tabular-nums"
-              style={{ color: improving ? "var(--ptec-success)" : "var(--ptec-danger)" }}
-            >
-              <DeltaIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              {delta > 0 ? "+" : ""}{delta}%
-            </span>
-            {neutralLabel}
-          </span>
-        )}
-      </p>
-      <p className="mt-1 text-[11px] leading-4 text-text-muted">{hint}</p>
-    </div>
-  );
+function trendOf(
+  delta: number | null,
+  neutralLabel: string,
+  higherIsBetter: boolean,
+): { trend: TrendInfo | null; trendTone: "success" | "danger" | undefined } {
+  if (delta === null) return { trend: null, trendTone: undefined };
+  const improving = higherIsBetter ? delta >= 0 : delta <= 0;
+  return {
+    trend: {
+      direction: delta < 0 ? "down" : "up",
+      value: `${delta > 0 ? "+" : ""}${delta}%`,
+      label: neutralLabel,
+      mode: "percent",
+    },
+    trendTone: improving ? "success" : "danger",
+  };
 }
 
 /**
  * The five headline measures. Formulas live in
  * lib/admin/search-insights-shared.ts (`computeKpis`) and are documented
  * there; a rate that cannot be calculated renders as "—", never as 0%.
+ *
+ * Cards render through the dashboard's shared `KpiCard` — this file used to
+ * carry its own, fifth re-implementation of the same KPI-card pattern (see
+ * the admin dashboard modernization audit's KPI-card-consolidation item),
+ * with its own top-strip colour logic. `trendTone`, `noTrendLabel` and the
+ * "ok" / "crit" threshold accents exist on the shared card specifically so
+ * this page's "a rise can be bad" cards could move onto it too.
  */
 export default async function KpiGrid({
   kpis,
@@ -91,54 +61,89 @@ export default async function KpiGrid({
   const pct = (value: number | null) => (value === null ? "—" : `${value}%`);
   const compareLabel = previous ? t("vsPrevious", { days }) : t("selectedPeriod");
 
+  const successRate = trendOf(
+    previous ? percentChange(kpis.successRate, previous.successRate) : null,
+    compareLabel,
+    true,
+  );
+  const zeroRate = trendOf(
+    previous ? percentChange(kpis.zeroResultRate, previous.zeroResultRate) : null,
+    compareLabel,
+    false,
+  );
+  const searches = trendOf(
+    previous ? percentChange(kpis.searches, previous.searches) : null,
+    compareLabel,
+    true,
+  );
+  const clickRate = trendOf(
+    previous ? percentChange(kpis.clickRate, previous.clickRate) : null,
+    compareLabel,
+    true,
+  );
+  const perDay = trendOf(
+    previous ? percentChange(kpis.avgPerDay, previous.avgPerDay) : null,
+    compareLabel,
+    true,
+  );
+
   return (
     <section aria-label={t("aria")} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <KpiCard
-        icon={<BarChart3 className="h-4 w-4" />}
-        label={t("searches")}
+        title={t("searches")}
         value={numberFormat.format(kpis.searches)}
         hint={t("searchesHint")}
-        delta={previous ? percentChange(kpis.searches, previous.searches) : null}
-        neutralLabel={compareLabel}
-        higherIsBetter
+        trend={searches.trend}
+        trendTone={searches.trendTone}
+        noTrendLabel={compareLabel}
+        icon={BarChart3}
+        // Neutral identity: this metric has no inherent good/bad direction,
+        // regardless of which way any given period's number moved.
+        accent="views"
       />
       <KpiCard
-        icon={<SearchCheck className="h-4 w-4" />}
-        label={t("successRate")}
+        title={t("successRate")}
         value={pct(kpis.successRate)}
         hint={kpis.unmeasured > 0 ? t("unmeasured", { count: numberFormat.format(kpis.unmeasured) }) : t("successHint")}
-        delta={previous ? percentChange(kpis.successRate, previous.successRate) : null}
-        neutralLabel={compareLabel}
-        higherIsBetter
-        tone="good"
+        trend={successRate.trend}
+        trendTone={successRate.trendTone}
+        noTrendLabel={compareLabel}
+        icon={SearchCheck}
+        // Inherently a positive metric — always the "good" identity, whether
+        // or not it happens to have risen this period.
+        accent="ok"
       />
       <KpiCard
-        icon={<SearchX className="h-4 w-4" />}
-        label={t("zeroRate")}
+        title={t("zeroRate")}
         value={pct(kpis.zeroResultRate)}
         hint={t("zeroHint")}
-        delta={previous ? percentChange(kpis.zeroResultRate, previous.zeroResultRate) : null}
-        neutralLabel={compareLabel}
-        higherIsBetter={false}
-        tone="bad"
+        trend={zeroRate.trend}
+        trendTone={zeroRate.trendTone}
+        noTrendLabel={compareLabel}
+        icon={SearchX}
+        // Inherently a negative metric — always the "bad" identity, whether
+        // or not it happens to have fallen this period.
+        accent="crit"
       />
       <KpiCard
-        icon={<MousePointerClick className="h-4 w-4" />}
-        label={t("clickRate")}
+        title={t("clickRate")}
         value={pct(kpis.clickRate)}
         hint={t("clickHint")}
-        delta={previous ? percentChange(kpis.clickRate, previous.clickRate) : null}
-        neutralLabel={compareLabel}
-        higherIsBetter
+        trend={clickRate.trend}
+        trendTone={clickRate.trendTone}
+        noTrendLabel={compareLabel}
+        icon={MousePointerClick}
+        accent="views"
       />
       <KpiCard
-        icon={<BarChart3 className="h-4 w-4" />}
-        label={t("perDay")}
+        title={t("perDay")}
         value={numberFormat.format(kpis.avgPerDay)}
         hint={t("perDayHint", { days })}
-        delta={previous ? percentChange(kpis.avgPerDay, previous.avgPerDay) : null}
-        neutralLabel={compareLabel}
-        higherIsBetter
+        trend={perDay.trend}
+        trendTone={perDay.trendTone}
+        noTrendLabel={compareLabel}
+        icon={BarChart3}
+        accent="views"
       />
     </section>
   );

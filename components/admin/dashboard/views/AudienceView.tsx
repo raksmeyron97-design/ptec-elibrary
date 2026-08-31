@@ -17,9 +17,9 @@ function ShareBar({
   const total = parts.reduce((s, p) => s + p.value, 0);
   return (
     <div className="rounded-xl bg-paper px-3 py-2.5">
-      <p className="text-[12px] font-semibold text-text-body">{label}</p>
+      <p className="text-xs font-semibold text-text-body">{label}</p>
       {total === 0 ? (
-        <p className="mt-1 text-[11.5px] text-text-muted">{note ?? "—"}</p>
+        <p className="mt-1 text-xs text-text-muted">{note ?? "—"}</p>
       ) : (
         <>
           <div
@@ -35,13 +35,13 @@ function ShareBar({
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
             {parts.map((p) => (
-              <span key={p.name} className="flex items-center gap-1 text-[11px] text-text-muted">
+              <span key={p.name} className="flex items-center gap-1 text-xs text-text-muted">
                 <span className={`h-2 w-2 rounded-full ${p.className}`} aria-hidden="true" />
                 {p.name} · <span className="tabular-nums">{p.value.toLocaleString()}</span>
               </span>
             ))}
           </div>
-          {note && <p className="mt-1.5 text-[10.5px] text-text-muted">{note}</p>}
+          {note && <p className="mt-1.5 text-xs text-text-muted">{note}</p>}
         </>
       )}
     </div>
@@ -60,9 +60,14 @@ export default async function AudienceView({ filters }: { filters: DashboardFilt
   const totalViews = data.signedInViews + data.anonymousViews;
   const smallData = totalViews < 30;
 
+  // Outer wrapper matches OverviewView's space-y-8 "zone" rhythm — the
+  // dashboard-modernization audit's density item: this tab used to sit at
+  // one flat space-y-5 level while Overview alone separated its zones with
+  // extra air. Nested grids/cards below keep their own space-y-5/gap-5 —
+  // that rhythm is WITHIN a zone, not between them, and stays unchanged.
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
         <KpiCard
           accent="visitors"
           title={t("newRegistrations")}
@@ -111,43 +116,43 @@ export default async function AudienceView({ filters }: { filters: DashboardFilt
         />
       </div>
 
-      <section aria-labelledby="audience-shares-heading" className="dash-card p-4">
+      <section aria-labelledby="audience-shares-heading" className="dash-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <span className="dash-ico dash-ico--visitors dash-ico--md" aria-hidden="true">
               <PieChart className="h-[18px] w-[18px]" />
             </span>
-            <h3 id="audience-shares-heading" className="text-[14px] font-bold text-text-heading">
+            <h3 id="audience-shares-heading" className="text-sm font-bold text-text-heading">
               {t("sharesTitle")}
             </h3>
           </div>
-          <span className="text-[11px] text-text-muted">
+          <span className="text-xs text-text-muted">
             {t("registeredTotal", { count: nf.format(data.totalUsers) })} · {t("periodNote", { range: rangeLabel })}
           </span>
         </div>
         {smallData && (
-          <p className="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-[11.5px] text-sky-900">
+          <p className="dash-status--info mt-2 rounded-lg bg-[var(--dash-status-bg)] px-3 py-2 text-xs text-[var(--dash-status-fg)]">
             {t("smallDataNote", { count: nf.format(totalViews) })}
           </p>
         )}
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-5 sm:grid-cols-2">
           <ShareBar
             label={t("signedInVsAnon")}
             parts={[
               { name: t("signedIn"), value: data.signedInViews, className: "bg-brand" },
-              { name: t("anonymous"), value: data.anonymousViews, className: "bg-sky-300" },
+              { name: t("anonymous"), value: data.anonymousViews, className: "bg-[var(--ptec-series-visitors)]" },
             ]}
           />
           <ShareBar
             label={t("localeSplit")}
             parts={[
               { name: t("english"), value: data.localeSplit.en, className: "bg-brand" },
-              { name: t("khmer"), value: data.localeSplit.km, className: "bg-amber-400" },
+              { name: t("khmer"), value: data.localeSplit.km, className: "bg-[var(--ptec-series-downloads)]" },
             ]}
             note={localeTracked === 0 ? t("localeCollecting") : undefined}
           />
         </div>
-        <p className="mt-3 text-[10.5px] leading-4 text-text-muted">{t("privacyNote")}</p>
+        <p className="mt-3 text-xs leading-4 text-text-muted">{t("privacyNote")}</p>
       </section>
 
       <FreshnessLine generatedAt={data.generatedAt} note={t("internalExcluded")} />

@@ -37,7 +37,7 @@ export default async function AutomatedInsightsPanel({
         </span>
         <div className="min-w-0">
           <p className="dash-eyebrow">{t("eyebrow")}</p>
-          <h2 id="insights-heading" className="text-[14px] font-bold text-text-heading">
+          <h2 id="insights-heading" className="text-sm font-bold text-text-heading">
             {t("title")}
           </h2>
         </div>
@@ -45,8 +45,8 @@ export default async function AutomatedInsightsPanel({
 
       {insights.length === 0 ? (
         <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-1 rounded-xl bg-white/60 px-3 py-8 text-center">
-          <p className="text-[12.5px] font-semibold text-text-heading">{t("emptyTitle")}</p>
-          <p className="max-w-xs text-[11.5px] text-text-muted">{emptyHint}</p>
+          <p className="text-xs font-semibold text-text-heading">{t("emptyTitle")}</p>
+          <p className="max-w-xs text-xs text-text-muted">{emptyHint}</p>
         </div>
       ) : (
         <div className="mt-3 flex-1 space-y-2">
@@ -57,22 +57,22 @@ export default async function AutomatedInsightsPanel({
               <article key={insight.key} className={`dash-insight ${p.surface} px-3 py-2.5`}>
                 <p className="flex items-center gap-1.5">
                   <Icon className={`h-3.5 w-3.5 shrink-0 ${p.iconColor}`} aria-hidden="true" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-text-muted">
+                  <span className="text-xs font-bold uppercase tracking-wide text-text-muted">
                     {t(`priority.${p.key}`)}
                   </span>
                 </p>
                 {/* What changed — with the numbers that triggered the rule. */}
-                <p className="mt-1 text-[12.5px] font-semibold leading-5 text-text-heading">
+                <p className="mt-1 text-xs font-semibold leading-5 text-text-heading">
                   {t(insight.key, insight.params)}
                 </p>
                 {/* Why it matters. */}
-                <p className="mt-0.5 text-[11.5px] leading-4 text-text-muted">{t(`why.${insight.key}`)}</p>
+                <p className="mt-0.5 text-xs leading-4 text-text-muted">{t(`why.${insight.key}`)}</p>
                 {/* Recommended action + route to the underlying data. */}
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[11.5px] font-medium text-text-body">{t(`action.${insight.key}`)}</p>
+                  <p className="text-xs font-medium text-text-body">{t(`action.${insight.key}`)}</p>
                   <Link
                     href={insight.href}
-                    className="flex items-center gap-0.5 whitespace-nowrap text-[11.5px] font-semibold text-brand hover:underline"
+                    className="flex items-center gap-0.5 whitespace-nowrap text-xs font-semibold text-brand hover:underline"
                   >
                     {t("viewData")}
                     <ArrowRight className="h-3 w-3" aria-hidden="true" />
@@ -84,7 +84,7 @@ export default async function AutomatedInsightsPanel({
         </div>
       )}
 
-      <p className="mt-2.5 text-[10.5px] leading-4 text-text-muted">{t("disclaimer")}</p>
+      <p className="mt-2.5 text-xs leading-4 text-text-muted">{t("disclaimer")}</p>
     </section>
   );
 }

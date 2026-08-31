@@ -72,15 +72,15 @@ export default function ContentPerformancePanel({
             <FileStack className="h-[18px] w-[18px]" />
           </span>
           <div className="min-w-0">
-            <h2 id="content-perf-heading" className="text-[14px] font-bold text-text-heading">
+            <h2 id="content-perf-heading" className="text-sm font-bold text-text-heading">
               {t("title")}
             </h2>
-            <p className="text-[11.5px] text-text-muted">{t("subtitle")}</p>
+            <p className="text-xs text-text-muted">{t("subtitle")}</p>
           </div>
         </div>
         <Link
           href={contentHref}
-          className="shrink-0 rounded-lg px-1.5 py-1 text-[11.5px] font-semibold text-brand hover:underline"
+          className="shrink-0 rounded-lg px-1.5 py-1 text-xs font-semibold text-brand hover:underline"
         >
           {t("openTable")}
         </Link>
@@ -96,7 +96,7 @@ export default function ContentPerformancePanel({
               setPreset(p);
               setOpenRow(null);
             }}
-            className="dash-seg-btn text-[11.5px]"
+            className="dash-seg-btn text-xs"
           >
             {t(`preset.${p}`)}
           </button>
@@ -104,7 +104,7 @@ export default function ContentPerformancePanel({
       </div>
 
       {visible.length === 0 ? (
-        <p className="mt-3 flex flex-1 items-center justify-center rounded-xl bg-paper/60 px-3 py-8 text-center text-[12px] text-text-muted">
+        <p className="mt-3 flex flex-1 items-center justify-center rounded-xl bg-paper/60 px-3 py-8 text-center text-xs text-text-muted">
           {t(`empty.${preset}`)}
         </p>
       ) : (
@@ -120,25 +120,25 @@ export default function ContentPerformancePanel({
                     <p className="flex items-center gap-1.5">
                       <Link
                         href={r.editHref}
-                        className="min-w-0 dash-truncate text-[12.5px] font-semibold text-text-heading hover:text-brand hover:underline"
+                        className="min-w-0 dash-truncate text-xs font-semibold text-text-heading hover:text-brand hover:underline"
                         title={r.title}
                         dir="auto"
                       >
                         {r.title}
                       </Link>
                       {!r.published && (
-                        <span className="shrink-0 rounded bg-slate-100 px-1 py-px text-[9.5px] font-bold uppercase text-slate-700">
+                        <span className="dash-status--neutral dash-chip shrink-0 text-xs font-bold uppercase">
                           {t("draft")}
                         </span>
                       )}
                       {r.fileBroken && (
-                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-rose-50 px-1 py-px text-[9.5px] font-bold uppercase text-rose-700">
+                        <span className="dash-status--crit dash-chip shrink-0 gap-0.5 text-xs font-bold uppercase">
                           <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" />
                           {t("fileBroken")}
                         </span>
                       )}
                     </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-text-muted">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
                       <span>{tTypes(`type.${r.type}`)}</span>
                       <span className="tabular-nums">{t("views", { count: nf.format(r.views) })}</span>
                       {compare && delta !== 0 && (
@@ -175,20 +175,20 @@ export default function ContentPerformancePanel({
                         ] as const
                       ).map(([k, v]) => (
                         <div key={k}>
-                          <dt className="text-[10.5px] text-text-muted">{t(`metric.${k}`)}</dt>
-                          <dd className="text-[12.5px] font-bold tabular-nums text-text-heading">{v}</dd>
+                          <dt className="text-xs text-text-muted">{t(`metric.${k}`)}</dt>
+                          <dd className="text-xs font-bold tabular-nums text-text-heading">{v}</dd>
                         </div>
                       ))}
                     </dl>
                     {r.missing.length > 0 && (
-                      <p className="mt-1.5 text-[11px] text-text-muted">
+                      <p className="mt-1.5 text-xs text-text-muted">
                         {t("missingMeta", { fields: r.missing.join(", ") })}
                       </p>
                     )}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Link
                         href={r.editHref}
-                        className="flex h-8 items-center gap-1 rounded-lg border border-brand/25 bg-brand/5 px-2 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10 [--focus-ring-offset:1px]"
+                        className="flex h-8 items-center gap-1 rounded-lg border border-brand/25 bg-brand/5 px-2 text-xs font-semibold text-brand transition-colors hover:bg-brand/10 [--focus-ring-offset:1px]"
                       >
                         <PenLine className="h-3.5 w-3.5" aria-hidden="true" />
                         {t("edit")}
@@ -198,7 +198,7 @@ export default function ContentPerformancePanel({
                           href={r.publicHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex h-8 items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold text-text-muted transition-colors hover:bg-paper hover:text-text-heading [--focus-ring-offset:1px]"
+                          className="flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-text-muted transition-colors hover:bg-paper hover:text-text-heading [--focus-ring-offset:1px]"
                         >
                           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                           {t("viewPublic")}

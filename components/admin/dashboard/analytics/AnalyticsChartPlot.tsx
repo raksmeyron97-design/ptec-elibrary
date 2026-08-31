@@ -493,25 +493,25 @@ export function AnalyticsChartPlot({
             transform: `translate(${anchorTransform}, ${below ? "0" : "-100%"})`,
           }}
         >
-          <p className="text-[10.5px] font-semibold uppercase tracking-wide text-white/55">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
             {formatBucket(readoutBucket)}
           </p>
           <ul className="mt-1 space-y-1">
             {readoutRows.map((row) => (
-              <li key={row.id} className="flex items-center gap-2 text-[11.5px] leading-4">
+              <li key={row.id} className="flex items-center gap-2 text-xs leading-4">
                 <LineKey
                   color={METRIC_CHART_STYLE[row.metric].stroke}
                   dash={row.comparison
                     ? ANALYTICS_CHART_TOKENS.comparisonDash
                     : multiSeries ? METRIC_CHART_STYLE[row.metric].dash : undefined}
                 />
-                <span className="min-w-0 flex-1 truncate text-white/70">{row.label}</span>
+                <span className="min-w-0 flex-1 dash-truncate text-white/70">{row.label}</span>
                 <span className="shrink-0 font-bold tabular-nums text-white">{formatValue(row.value)}</span>
               </li>
             ))}
           </ul>
           {annotationByBucket.has(readoutBucket) && (
-            <p className="mt-1.5 border-t border-white/15 pt-1.5 text-[10.5px] leading-4 text-[var(--ptec-accent)]">
+            <p className="mt-1.5 border-t border-white/15 pt-1.5 text-xs leading-4 text-[var(--ptec-accent)]">
               {annotationByBucket.get(readoutBucket)?.label}
             </p>
           )}

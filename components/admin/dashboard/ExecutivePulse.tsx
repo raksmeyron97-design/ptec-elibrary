@@ -134,6 +134,9 @@ export default async function ExecutivePulse({
         label: tActions(`items.${a.key}`, { count: a.count }),
         href: a.href,
         severity: a.severity,
+        // Localised here, on the server, so the drawer can name the severity
+        // rather than encoding it as a colour a screen reader cannot read.
+        severityLabel: tActions(`severity.${a.severity}`),
       }));
 
     const previous = d.trend?.previous;
@@ -195,13 +198,14 @@ export default async function ExecutivePulse({
       {health ? (
         <HealthCard pulse={health} />
       ) : (
-        <div className="dash-card flex items-center gap-2 p-3.5 text-[12px] text-text-muted">
+        <div className="dash-card flex items-center gap-2 p-3.5 text-xs text-text-muted">
           {tHealth("unavailable")}
         </div>
       )}
 
-      {/* The four engagement measures, as one cohesive group. */}
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* The four engagement measures, as one cohesive group. gap-5 matches
+          every other tab's KPI row — this one sat at gap-4 alone. */}
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {METRICS.map((m) => (
           <MetricCard
             key={m}

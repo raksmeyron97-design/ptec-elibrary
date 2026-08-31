@@ -51,7 +51,7 @@ export default function OpportunityActions({
 
   if (state === "dismissed") {
     return (
-      <p role="status" className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+      <p role="status" className="dash-status--ok flex items-center gap-1 text-xs font-semibold text-[var(--dash-status-fg)]">
         <Check className="h-3.5 w-3.5" aria-hidden="true" />
         {t("dismissed")}
       </p>
@@ -59,12 +59,12 @@ export default function OpportunityActions({
   }
 
   const btn =
-    "flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 text-[11.5px] font-semibold transition-colors [--focus-ring-offset:1px] disabled:opacity-50";
+    "flex h-8 cursor-pointer items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors [--focus-ring-offset:1px] disabled:opacity-50";
 
   return (
     <div className="flex items-center gap-1">
       {error && (
-        <span role="alert" className="text-[10.5px] font-medium text-rose-700">
+        <span role="alert" className="text-xs font-medium text-[var(--ptec-danger)]">
           {error}
         </span>
       )}
