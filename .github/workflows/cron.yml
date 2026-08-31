@@ -94,7 +94,6 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
             --data-urlencode text="$text" \
             || echo "::warning::Telegram alert could not be delivered"
-
   cleanup:
     if: >-
       github.event.schedule == '0 20 * * *' ||
@@ -123,7 +122,6 @@ jobs:
           done
           echo "::error title=Cleanup sweep failed::/api/cron/cleanup did not return 200 — see docs/RUNBOOKS.md"
           exit 1
-
       - name: Telegram alert (Sev 2)
         if: failure()
         env:
