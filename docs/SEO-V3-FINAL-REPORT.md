@@ -141,7 +141,7 @@ Checked live on `https://library.ptec.edu.kh`:
 | `/books?dept=…` | `noindex, follow`, canonical `/books` ✓ |
 | `/home` | 308 → `/` ✓ |
 | `/logo.png` | 200 `image/png` ✓ |
-| `robots.txt` | **Cloudflare-overridden, contradictory** (unresolved, dashboard-side) |
+| `robots.txt` | **Cloudflare-overridden** — its `Content-Signal:` line is the only invalid directive in the file, scores the `robots-txt` audit 0, and holds every page's Lighthouse SEO at **0.92** (audit D-8) |
 | `sitemap.xml` | 37 URLs; **10 are empty subject pages** (pre-V2 build) |
 
 Verified in rendered HTML against a local dev server, both locales:
@@ -257,7 +257,10 @@ labels · three invariant tests · six documents · upgraded `seo-optimizer` ski
   self-hosted deploy is automatic (GHCR publish on push to `main` + a 5-minute
   poll from the box).
 - **Cloudflare `robots.txt` override** — dashboard-side; the app is the decided
-  source of truth.
+  source of truth. **Re-rated to P0**: measured with `lighthouse@12`, its
+  invalid `Content-Signal:` line is the sole failing SEO audit, costs every
+  page 8 points, and has made `lighthouse.yml` red on every merge to `main`
+  since at least 2026-08-29. One dashboard change fixes score, CI and policy.
 - **Editorial content** — the binding constraint on nearly everything above.
 
 ### Explicitly not done, with reasons

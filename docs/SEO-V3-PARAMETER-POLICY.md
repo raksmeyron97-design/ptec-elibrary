@@ -118,8 +118,11 @@ deliberate:
   (`lib/seo/indexing.ts`).
 
 **Live caveat:** Cloudflare prepends a managed block to the served
-`robots.txt`, and it contradicts the app's rules for several AI user agents
-(audit D-8). Unresolved, dashboard-side, tracked.
+`robots.txt`. It contradicts the app's rules for several AI user agents **and**
+carries a `Content-Signal:` line that is not a valid robots directive — the
+only invalid line in the file. Lighthouse scores the `robots-txt` audit 0 as a
+result, holding every page's SEO category at 0.92 and failing `lighthouse.yml`
+on every merge to `main`. See audit D-8 (P0). Dashboard-side, tracked.
 
 ---
 
