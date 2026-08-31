@@ -1806,7 +1806,17 @@
     "pageLabel": "ទំព័រ",
     "resultCountFiltered": "{count} ក្នុងចំណោម {total} និក្ខេបបទ",
     "resultCount": "និក្ខេបបទ {count}",
-    "noResults": "រកមិនឃើញនិក្ខេបបទ"
+    "noResults": "រកមិនឃើញនិក្ខេបបទ",
+    "appliedFilters": {
+      "search": "ស្វែងរក",
+      "program": "កម្មវិធីសិក្សា",
+      "faculty": "មហាវិទ្យាល័យ / ជំនាញ",
+      "cohort": "ជំនាន់",
+      "year": "ឆ្នាំ",
+      "author": "អ្នកនិពន្ធ",
+      "advisor": "គ្រូទទួលបន្ទុក",
+      "keyword": "ពាក្យគន្លឹះ"
+    }
   },
   "adminDashboard": {
     "header": {

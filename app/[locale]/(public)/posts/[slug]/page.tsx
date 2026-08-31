@@ -8,6 +8,7 @@ import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import JsonLd from "@/components/seo/JsonLd";
+import { organizationNode } from "@/lib/seo/org-nodes";
 import { breadcrumbSchema } from "@/lib/seo/schema";
 import Markdown, { extractToc, computeReadingTime } from "./Markdown";
 import ViewTracker from "./ViewTracker";
@@ -316,10 +317,13 @@ export default async function PostDetailPage({
     keywords: postTags.length > 0 ? postTags.join(", ") : undefined,
     wordCount: (post.content ?? "").trim().split(/\s+/).filter(Boolean).length || undefined,
     author: { "@type": "Person", name: author },
+    // The institution, by reference. This was a fourth hand-rolled
+    // EducationalOrganization node — and like the others it set `url` to the
+    // LIBRARY origin, contradicting the site graph's real institution url on
+    // the same page (docs/SEO-V3-AUDIT.md D-2). The logo is kept: it is the
+    // publisher image Article consumers look for.
     publisher: {
-      "@type": "EducationalOrganization",
-      name: org.institutionName,
-      url: SITE_URL,
+      ...organizationNode(org),
       logo: {
         "@type": "ImageObject",
         url: `${SITE_URL}/logo.png`,
@@ -337,7 +341,7 @@ export default async function PostDetailPage({
     { name: tNav("home"), path: "/" },
     { name: t("title"), path: "/posts" },
     { name: post.title },
-  ]);
+  ], { locale });
 
   // An Event-category post is described by schema.org/Event; everything else
   // stays a schema.org/Article. Only one primary node is emitted.

@@ -273,7 +273,7 @@ export default async function TeamMemberPage({
           { name: "About", path: "/about" },
           { name: t("title"), path: "/about/team" },
           { name: name.primary },
-        ])}
+        ], { locale })}
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}

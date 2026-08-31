@@ -130,7 +130,7 @@ export default async function AuthorPage({ params }: PageProps) {
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbAuthors"), path: "/authors" },
     { name: author.name },
-  ]);
+  ], { locale, pageUrl: canonical });
 
   const hasAside = !!(author.bio || author.bioKm) || author.researchInterests.length > 0;
 

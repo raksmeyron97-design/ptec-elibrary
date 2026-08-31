@@ -59,7 +59,10 @@ export function postsCollectionJsonLd({
     isAccessibleForFree: true,
     inLanguage: locale === "km" ? "km" : "en",
     provider: libraryNode(org),
-    publisher: { "@type": "Organization", name: org.siteName, url: org.url },
+    // The institution, by reference — never a hand-rolled Organization node.
+    // An inline copy here is how the same entity ended up with two different
+    // urls in one document (docs/SEO-V3-AUDIT.md D-2).
+    publisher: organizationNode(org),
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: total,

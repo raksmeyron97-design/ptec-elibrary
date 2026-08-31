@@ -59,7 +59,7 @@ export default async function PrivacyPage({
   const breadcrumb = breadcrumbSchema([
     { name: t("breadcrumb.home"), path: "/" },
     { name: t("breadcrumb.current") },
-  ]);
+  ], { locale });
 
   return (
     <div className="bg-paper">

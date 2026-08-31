@@ -49,8 +49,15 @@ export type OrgIdentity = {
   siteName: string;
   /** Public contact address (OAI adminEmail, email footers, report links). */
   contactEmail: string;
-  /** Canonical site origin, no trailing slash. */
+  /** Canonical site origin, no trailing slash. This is the LIBRARY's origin
+   *  (https://library.ptec.edu.kh) — the institution's own website is
+   *  `institutionUrl`. Conflating the two put the wrong URL on the
+   *  EducationalOrganization node of every resource page (SEO-V3-AUDIT D-2). */
   url: string;
+  /** The INSTITUTION's own website (published settings → links.website,
+   *  https://www.ptec.edu.kh). schema.org EducationalOrganization.url — never
+   *  this library's origin. */
+  institutionUrl: string;
 };
 
 /** Pure projection: published site configuration → public identity. */
@@ -64,6 +71,10 @@ export function orgIdentityFrom(cfg: SiteConfig): OrgIdentity {
     siteName: cfg.seo.siteName,
     contactEmail: cfg.email,
     url: SITE_URL,
+    // The institution's own site, not ours. Falls back to the library origin
+    // only if an admin has cleared the field, so the node never emits an
+    // empty url.
+    institutionUrl: cfg.links.website || SITE_URL,
   };
 }
 
@@ -81,6 +92,7 @@ export const EMERGENCY_ORG_IDENTITY: OrgIdentity = {
   siteName: DEFAULT_SECTION_DOCS.seo.siteName,
   contactEmail: DEFAULT_SECTION_DOCS.contact.email,
   url: SITE_URL,
+  institutionUrl: DEFAULT_SECTION_DOCS.links.website,
 };
 
 let warned = false;

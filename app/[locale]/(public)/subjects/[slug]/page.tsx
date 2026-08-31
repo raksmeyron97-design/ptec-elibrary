@@ -116,7 +116,7 @@ export default async function SubjectPage({ params }: PageProps) {
     { name: t("breadcrumbHome"), path: "/" },
     { name: t("breadcrumbSubjects"), path: "/subjects" },
     { name: subject.name },
-  ]);
+  ], { locale });
 
   const collectionSchema = {
     "@context": "https://schema.org",

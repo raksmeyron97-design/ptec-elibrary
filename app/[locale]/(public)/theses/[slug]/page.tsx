@@ -312,7 +312,7 @@ export default async function ThesisDetailPage({ params }: PageProps) {
     { name: tNav("home"), path: "/" },
     { name: tNav("theses"), path: "/theses" },
     { name: report.title },
-  ]);
+  ], { locale });
 
   return (
     // One <article> holding one <h1>, with the sections beneath it as <section>

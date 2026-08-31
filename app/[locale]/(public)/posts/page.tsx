@@ -152,7 +152,7 @@ export default async function PostsPage({
   const listingBreadcrumb = breadcrumbSchema([
     { name: tNav("home"), path: "/" },
     { name: t("title") },
-  ]);
+  ], { locale });
 
   // Active-filter chips (server-built removable links).
   const activeChips = buildActiveChips(sp, {
