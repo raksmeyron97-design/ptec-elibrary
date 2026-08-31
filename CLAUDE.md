@@ -218,6 +218,9 @@ A dozen unit tests enforce architecture rules by scanning files. When one fails,
 | `lib/i18n-namespaces.test.ts` | every namespace in `messages/*.json` is in the right `pickMessages()` list |
 | `lib/focus-system.test.ts` | focus rules stay in the layers they must (see Focus system above) |
 | `lib/status-tokens.test.ts` | callouts use `--ptec-{success,warning,danger,info}-*` rather than hand-written colour triplets |
+| `lib/seo/entity-graph.test.ts` | only `RootShell` may DECLARE the Organization/Library/WebSite nodes — everything else references them by `@id` (a second, anonymous copy carrying the library origin as the institution's url shipped to production) |
+| `lib/seo/breadcrumbs.test.ts` | breadcrumb items are locale-correct, carry no query string and no redirecting path; call sites pass locale-less paths and a `locale` |
+| `lib/seo/institution.test.ts` | PTEC's real faculty/department vocabulary; `research_faculties` is never labelled a bare "Faculty"; public filter chips are translated |
 | `components/admin/dashboard/series-palette.test.ts` | the admin dashboard's four metric colours come from `--ptec-series-*` only — no literal hex in any dashboard component (see Dashboard metric palette below) |
 | `lib/i18n-parity.test.ts` | every key in `messages/en.json` has a Khmer counterpart, and no message in either catalogue is blank |
 | `lib/sw-policy.test.ts` | offline fallback + `shouldPrecache()` decisions |

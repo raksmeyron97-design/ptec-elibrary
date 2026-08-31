@@ -19,6 +19,96 @@ Use this skill when:
 - Implementing schema markup (structured data)
 - Planning content strategy for organic traffic
 
+## THIS REPOSITORY FIRST (read before applying anything below)
+
+The generic guidance further down is background. In **this** codebase it is
+outranked by the architecture that already exists, which is documented and
+enforced by tests. Read these before proposing any SEO change:
+
+| Document | What it settles |
+|---|---|
+| `docs/SEO-ARCHITECTURE.md` | indexing gate, canonicals, hreflang, sitemap, robots |
+| `docs/SEO-V2-FINAL-REPORT.md` | topic + entity hubs, validators, empty-page exclusion |
+| `docs/SEO-V3-AUDIT.md` | the current defect ledger, with severities |
+| `docs/SEO-V3-ARCHITECTURE.md` | the institutional entity graph |
+| `docs/PTEC-ENTITY-MAPPING.md` | what PTEC actually publishes; which links are safe |
+| `docs/SEO-V3-PARAMETER-POLICY.md` | which URLs are indexable |
+| `docs/SEO-V3-SEARCH-INTENT-MAP.md` | intent coverage (no invented metrics) |
+
+### The nine rules that govern SEO work here
+
+1. **Verify against live output, never source alone.** Three separate P0/P1
+   defects — a duplicated organization entity, breadcrumbs pointing at a 308,
+   Khmer pages emitting English breadcrumb URLs — were invisible in code review
+   and obvious in one `curl` of the rendered HTML. Fetch the page. Parse the
+   JSON-LD. Check the headers.
+
+2. **One entity, declared once, referenced by `@id`.** `RootShell.buildSiteGraph()`
+   is the only place that may declare `EducationalOrganization`, `Library` or
+   `WebSite`. Everything else references them via `lib/seo/org-nodes.ts`.
+   `lib/seo/entity-graph.test.ts` fails the build otherwise. An inline copy of a
+   node is how the same institution ended up with two different URLs in one
+   document.
+
+3. **The institution is not the library.** `OrgIdentity.institutionUrl` is
+   `www.ptec.edu.kh`; `OrgIdentity.url` is `library.ptec.edu.kh`. Conflating
+   them was a real, shipped defect.
+
+4. **Data first, heuristics never.** Prefer a real database relationship over a
+   guess, and an explicit admin mapping over fuzzy matching. Do **not** match
+   people across systems by name: Khmer names romanise inconsistently and the
+   failure mode is a false claim about a real individual.
+
+5. **Never invent a fact or a number.** No search volumes, no traffic, no
+   rankings, no generated descriptions of what a subject "covers". If the
+   database has no description column, the page states counts. Omit an unknown
+   field rather than defaulting it.
+
+6. **A page must earn its index entry.** An empty subject, an empty hub, a
+   filtered listing, an out-of-range page: `noindex, follow`, and out of the
+   sitemap. Ten empty subject pages were once submitted for indexing.
+
+7. **No landing page without content behind it.** Faculty/department/programme
+   pages are deliberately *not* built — with the current collection they would
+   be doorway pages. Check the actual published counts before proposing a page
+   type.
+
+8. **Khmer is a first-class surface.** Titles, descriptions, H1s, breadcrumbs,
+   facet labels and filter chips must all be localized. A hardcoded English
+   string on a `(public)` page is a defect. `lib/i18n-parity.test.ts` requires a
+   Khmer counterpart for every key.
+
+9. **Encode the rule as a test that reads the source.** This codebase enforces
+   architecture with source-scanning tests (`cache-safety`,
+   `settings-consistency`, `entity-graph`, `breadcrumbs`, `institution`). When a
+   defect class could recur silently, add a scan. Strip comments before scanning
+   so documentation quoting the defect does not trip the rule, and balance
+   brackets rather than regex-matching a call — a conditional spread inside an
+   array silently truncates a non-greedy match.
+
+### Where SEO logic lives
+
+```
+lib/seo/entity-ids.ts     @id anchors — the single source
+lib/seo/org-nodes.ts      institution/library references
+lib/seo/schema.ts         breadcrumbSchema(crumbs, { locale, pageUrl })
+lib/seo/indexing.ts       the indexing gate + PRIVATE_PATH_PREFIXES
+lib/seo/listing-metadata.ts  the one place listings get robots/canonical
+lib/seo/validate.ts       deterministic validators (sitemap, metadata, JSON-LD)
+lib/seo/institution.ts    PTEC's published vocabulary (reference, not data)
+lib/resources/connections.ts  resource → subject/author hub links
+```
+
+Add SEO behaviour by editing these modules — never by hand-rolling JSON-LD or a
+`robots` value in a page component.
+
+### Things that are decided, not open
+
+Do not "helpfully" reopen these; each has a recorded owner decision:
+`book-<epoch>` category slugs (needs a migration + 301s), the Cloudflare
+`robots.txt` override (dashboard-side), evergreen guide content (the team
+authors it), and automatic lecturer↔author merging (refused on principle).
+
 ## SEO Fundamentals
 
 ### 1. Keyword Research & Strategy
