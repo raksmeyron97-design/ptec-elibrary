@@ -74,4 +74,5 @@ jobs:
             --skip "^(?!https://library\\.ptec\\.edu\\.kh)" \
             --skip "/api/" \
             --skip "/admin" \
+            --skip "cdn-cgi" \
             --verbosity error
