@@ -19,9 +19,9 @@ export default async function FreshnessLine({
   }).format(new Date(generatedAt));
 
   return (
-    <p className="text-end text-[11px] text-text-muted">
+    <p className="text-end text-xs text-text-muted">
       {note && <span className="me-2">{note}</span>}
-      <span className="me-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle" aria-hidden="true" />
+      <span className="dash-status--ok dash-dot me-1 align-middle" aria-hidden="true" />
       {t("freshness", { time })}
     </p>
   );

@@ -311,7 +311,7 @@ export default function LegacyEngagementChart({
   };
 
   const menuItemClass =
-    "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-start text-[12.5px] font-medium text-text-body transition-colors hover:bg-paper [--focus-ring-offset:-2px]";
+    "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-start text-xs font-medium text-text-body transition-colors hover:bg-paper [--focus-ring-offset:-2px]";
 
   return (
     <div>
@@ -325,7 +325,7 @@ export default function LegacyEngagementChart({
               aria-pressed={!compareAll && activeMetric === k}
               disabled={compareAll}
               onClick={() => selectMetric(k)}
-              className="dash-seg-btn text-[11.5px] disabled:cursor-default disabled:opacity-50"
+              className="dash-seg-btn text-xs disabled:cursor-default disabled:opacity-50"
             >
               {t(`series.${k}`)}
             </button>
@@ -340,7 +340,7 @@ export default function LegacyEngagementChart({
                 type="button"
                 aria-pressed={grain === g}
                 onClick={() => setGrain(g)}
-                className="dash-seg-btn text-[11.5px]"
+                className="dash-seg-btn text-xs"
               >
                 {t(`grain.${g}`)}
               </button>
@@ -354,7 +354,7 @@ export default function LegacyEngagementChart({
             aria-haspopup="menu"
             aria-expanded={moreOpen}
             onClick={() => setMoreOpen((v) => !v)}
-            className="flex h-8 cursor-pointer items-center gap-1 rounded-[10px] px-2 text-[11.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
+            className="flex h-8 cursor-pointer items-center gap-1 rounded-[10px] px-2 text-xs font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading"
           >
             {t("more")}
             <ChevronDown className="h-3 w-3" aria-hidden="true" />
@@ -403,7 +403,7 @@ export default function LegacyEngagementChart({
       {compareAll ? (
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
           {drawn.map((s) => (
-            <span key={s.key} className="flex items-center gap-1.5 text-[11.5px] font-medium text-text-body">
+            <span key={s.key} className="flex items-center gap-1.5 text-xs font-medium text-text-body">
               <svg width="18" height="8" aria-hidden="true">
                 <line
                   x1="0"
@@ -421,7 +421,7 @@ export default function LegacyEngagementChart({
           ))}
         </div>
       ) : (
-        <p className="mt-2 text-[12px] text-text-muted">
+        <p className="mt-2 text-xs text-text-muted">
           {t("summary", {
             total,
             avg,
@@ -599,7 +599,7 @@ export default function LegacyEngagementChart({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="dash-eyebrow">{t("eventEyebrow")}</p>
-                  <h4 className="text-[12.5px] font-bold text-text-heading">
+                  <h4 className="text-xs font-bold text-text-heading">
                     {t("eventTitle", { date: formatBucket(eventBucket, bucketFormat) })}
                   </h4>
                 </div>
@@ -613,18 +613,18 @@ export default function LegacyEngagementChart({
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </div>
-              <p className="mt-1 text-[12px] text-text-body">{t("publishedAnnotation", { count: ann.count })}</p>
+              <p className="mt-1 text-xs text-text-body">{t("publishedAnnotation", { count: ann.count })}</p>
               {ann.titles && ann.titles.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {ann.titles.map((title) => (
-                    <li key={title} className="dash-truncate text-[11.5px] text-text-muted" dir="auto" title={title}>
+                    <li key={title} className="dash-truncate text-xs text-text-muted" dir="auto" title={title}>
                       • {title}
                     </li>
                   ))}
                 </ul>
               )}
               {ctx && (
-                <p className="mt-1.5 text-[11.5px] leading-4 text-text-muted">
+                <p className="mt-1.5 text-xs leading-4 text-text-muted">
                   {t("eventCorrelation", {
                     series: t(`series.${activeMetric}`),
                     pct: `${ctx.pct > 0 ? "+" : ""}${ctx.pct}`,
@@ -635,7 +635,7 @@ export default function LegacyEngagementChart({
               <button
                 type="button"
                 onClick={() => openDrill(eventBucket)}
-                className="mt-1.5 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline"
+                className="mt-1.5 cursor-pointer text-xs font-semibold text-brand hover:underline"
               >
                 {t("eventInspect")}
               </button>
@@ -654,7 +654,7 @@ export default function LegacyEngagementChart({
           className="mt-2.5 rounded-xl border border-divider bg-paper/70 p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-[12.5px] font-bold text-text-heading">
+            <h4 className="text-xs font-bold text-text-heading">
               {t("drillTitle", { date: formatBucket(drillBucket, bucketFormat) })}
             </h4>
             <button
@@ -668,20 +668,20 @@ export default function LegacyEngagementChart({
             </button>
           </div>
           {drillLoading && !drillCache.has(drillBucket) ? (
-            <p className="mt-2 flex items-center gap-1.5 text-[12px] text-text-muted" role="status">
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-text-muted" role="status">
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               {t("drillLoading")}
             </p>
           ) : drillErrorMessage ? (
             <div className="mt-2" role="alert">
-              <p className="text-[12px] font-medium text-danger-text">{drillErrorMessage}</p>
+              <p className="text-xs font-medium text-danger-text">{drillErrorMessage}</p>
               <button
                 type="button"
                 onClick={() => {
                   setDrillError(null);
                   setDrillRetry((n) => n + 1);
                 }}
-                className="mt-1 cursor-pointer text-[11.5px] font-semibold text-brand hover:underline"
+                className="mt-1 cursor-pointer text-xs font-semibold text-brand hover:underline"
               >
                 {t("retry")}
               </button>
@@ -691,14 +691,14 @@ export default function LegacyEngagementChart({
               const d = drillCache.get(drillBucket);
               if (!d) return null;
               if (d.items.length === 0) {
-                return <p className="mt-2 text-[12px] text-text-muted">{t("drillEmpty")}</p>;
+                return <p className="mt-2 text-xs text-text-muted">{t("drillEmpty")}</p>;
               }
               return (
                 <>
-                  <p className="mt-0.5 text-[11px] text-text-muted">{t("drillTotal", { count: d.total })}</p>
+                  <p className="mt-0.5 text-xs text-text-muted">{t("drillTotal", { count: d.total })}</p>
                   <ol className="mt-1.5 space-y-0.5">
                     {d.items.map((item) => (
-                      <li key={`${item.type}-${item.id}`} className="flex items-center gap-2 text-[12px]">
+                      <li key={`${item.type}-${item.id}`} className="flex items-center gap-2 text-xs">
                         <Link
                           href={item.editHref}
                           className="min-w-0 flex-1 dash-truncate font-medium text-text-body hover:text-brand hover:underline"
@@ -723,7 +723,7 @@ export default function LegacyEngagementChart({
       {/* Accessible data table alternative */}
       {showTable && (
         <div className="mt-2 max-h-56 overflow-auto rounded-xl border border-divider">
-          <table className="w-full text-[11.5px]" aria-describedby={`${chartId}-caption`}>
+          <table className="w-full text-xs" aria-describedby={`${chartId}-caption`}>
             <caption id={`${chartId}-caption`} className="sr-only">
               {srSummary}
             </caption>

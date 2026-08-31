@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Info, X } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ArrowRight, Clock, Info, X } from "lucide-react";
 import type { TrendPoint } from "@/lib/admin/dashboard";
 import type { DashboardMetric } from "@/lib/admin/dashboard-shared";
 import { useMetricSelection } from "./MetricSelection";
@@ -32,7 +32,7 @@ export type MetricDetailPayload = {
   prevSeries: TrendPoint[] | null;
   top: DrawerTopRow[];
   /** Alerts whose module relates to this metric. */
-  alerts: { key: string; label: string; href: string; severity: string }[];
+  alerts: { key: string; label: string; href: string; severity: string; severityLabel: string }[];
   reportHref: string;
   reportLabel: string;
   /** Attribution / measurement caveat, when one applies. */
@@ -47,11 +47,20 @@ export type HealthDetailPayload = {
   reportLabel: string;
 };
 
-const LEVEL_DOT: Record<string, string> = {
-  ok: "bg-emerald-500",
-  warn: "bg-amber-500",
-  critical: "bg-rose-500",
-  unknown: "bg-slate-300",
+/** Severity keeps a distinct shape as well as a colour. */
+const ALERT_ICON: Record<string, typeof Info> = {
+  critical: AlertOctagon,
+  warning: AlertTriangle,
+  pending: Clock,
+};
+
+/** The shared status vocabulary — the dot reads --dash-status-mark, which is
+ *  the AA-safe step for a non-text mark. */
+const LEVEL_STATUS: Record<string, string> = {
+  ok: "dash-status--ok",
+  warn: "dash-status--warn",
+  critical: "dash-status--crit",
+  unknown: "dash-status--neutral",
 };
 
 /**
@@ -223,7 +232,7 @@ export default function MetricDetailsDrawer({
         <div className="flex items-start justify-between gap-3 border-b border-divider px-5 py-3.5">
           <div className="min-w-0">
             <p className="dash-eyebrow">{t("detailsEyebrow")}</p>
-            <h2 className="dash-truncate-head text-[16px] font-bold text-text-heading">{title}</h2>
+            <h2 className="dash-truncate-head text-base font-bold text-text-heading">{title}</h2>
           </div>
           <button
             ref={closeRef}
@@ -239,21 +248,21 @@ export default function MetricDetailsDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {isHealth ? (
             <>
-              <p className="text-[13px] font-semibold text-text-heading">{health.level}</p>
+              <p className="text-sm font-semibold text-text-heading">{health.level}</p>
               <ul className="mt-3 space-y-2">
                 {health.checks.map((c) => (
                   <li key={c.key} className="rounded-xl border border-divider bg-paper/50 p-3">
                     <div className="flex items-center gap-2">
-                      <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${LEVEL_DOT[c.level]}`} />
-                      <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-text-heading">{c.label}</span>
-                      <span className="shrink-0 text-[11px] font-bold uppercase tracking-wide text-text-muted">
+                      <span aria-hidden="true" className={`dash-dot ${LEVEL_STATUS[c.level] ?? "dash-status--neutral"}`} />
+                      <span className="min-w-0 flex-1 text-xs font-semibold text-text-heading">{c.label}</span>
+                      <span className="shrink-0 text-xs font-bold uppercase tracking-wide text-text-muted">
                         {c.levelLabel}
                       </span>
                     </div>
-                    <p className="mt-1 text-[11.5px] leading-4 text-text-muted">{c.detail}</p>
+                    <p className="mt-1 text-xs leading-4 text-text-muted">{c.detail}</p>
                     <Link
                       href={c.href}
-                      className="mt-1.5 inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-brand hover:underline"
+                      className="mt-1.5 inline-flex items-center gap-0.5 text-xs font-semibold text-brand hover:underline"
                     >
                       {t("inspect")}
                       <ArrowRight className="h-3 w-3" aria-hidden="true" />
@@ -263,7 +272,7 @@ export default function MetricDetailsDrawer({
               </ul>
               <Link
                 href={health.reportHref}
-                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
               >
                 {health.reportLabel}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -271,28 +280,28 @@ export default function MetricDetailsDrawer({
             </>
           ) : payload ? (
             <>
-              <p className="flex items-start gap-2 rounded-xl bg-paper/70 p-3 text-[11.5px] leading-5 text-text-body">
+              <p className="flex items-start gap-2 rounded-xl bg-paper/70 p-3 text-xs leading-5 text-text-body">
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden="true" />
                 {payload.definition}
               </p>
 
               <dl className="mt-4 grid grid-cols-3 gap-3">
                 <div>
-                  <dt className="text-[11px] font-medium text-text-muted">{t("current")}</dt>
-                  <dd className="text-[22px] font-bold leading-tight tabular-nums text-text-heading">
+                  <dt className="text-xs font-medium text-text-muted">{t("current")}</dt>
+                  <dd className="text-xl font-bold leading-tight tabular-nums text-text-heading">
                     {payload.value}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] font-medium text-text-muted">{t("previousPeriod")}</dt>
-                  <dd className="text-[22px] font-bold leading-tight tabular-nums text-text-muted">
+                  <dt className="text-xs font-medium text-text-muted">{t("previousPeriod")}</dt>
+                  <dd className="text-xl font-bold leading-tight tabular-nums text-text-muted">
                     {payload.previous ?? "—"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] font-medium text-text-muted">{t("change")}</dt>
+                  <dt className="text-xs font-medium text-text-muted">{t("change")}</dt>
                   <dd
-                    className={`text-[22px] font-bold leading-tight tabular-nums ${
+                    className={`text-xl font-bold leading-tight tabular-nums ${
                       payload.changeDirection
                         ? TREND_STYLE[payload.changeDirection].className
                         : "text-text-muted"
@@ -304,21 +313,21 @@ export default function MetricDetailsDrawer({
               </dl>
 
               <div className="mt-4">
-                <h3 className="text-[12px] font-bold text-text-heading">{t("trendHeading")}</h3>
+                <h3 className="text-xs font-bold text-text-heading">{t("trendHeading")}</h3>
                 <DrawerTrend metric={details as DashboardMetric} series={payload.series} prevSeries={payload.prevSeries} />
-                <p className="text-[11px] text-text-muted">{t("trendLegend")}</p>
+                <p className="text-xs text-text-muted">{t("trendLegend")}</p>
               </div>
 
               <div className="mt-4">
-                <h3 className="text-[12px] font-bold text-text-heading">{t("topContentHeading")}</h3>
+                <h3 className="text-xs font-bold text-text-heading">{t("topContentHeading")}</h3>
                 {payload.top.length === 0 ? (
-                  <p className="mt-1.5 rounded-xl bg-paper/70 px-3 py-4 text-center text-[12px] text-text-muted">
+                  <p className="mt-1.5 rounded-xl bg-paper/70 px-3 py-4 text-center text-xs text-text-muted">
                     {t("noContentData")}
                   </p>
                 ) : (
                   <ol className="mt-1.5 space-y-1">
                     {payload.top.map((row) => (
-                      <li key={row.key} className="flex items-baseline gap-2 text-[12px]">
+                      <li key={row.key} className="flex items-baseline gap-2 text-xs">
                         <Link
                           href={row.href}
                           className="min-w-0 flex-1 dash-truncate font-medium text-text-body hover:text-brand hover:underline"
@@ -327,7 +336,7 @@ export default function MetricDetailsDrawer({
                         >
                           {row.title}
                         </Link>
-                        <span className="shrink-0 text-[11px] text-text-muted">{row.secondary}</span>
+                        <span className="shrink-0 text-xs text-text-muted">{row.secondary}</span>
                         <span className="shrink-0 font-bold tabular-nums text-text-heading">{row.value}</span>
                       </li>
                     ))}
@@ -337,24 +346,34 @@ export default function MetricDetailsDrawer({
 
               {payload.alerts.length > 0 && (
                 <div className="mt-4">
-                  <h3 className="text-[12px] font-bold text-text-heading">{t("relatedAlerts")}</h3>
+                  <h3 className="text-xs font-bold text-text-heading">{t("relatedAlerts")}</h3>
                   <ul className="mt-1.5 space-y-1">
                     {payload.alerts.map((a) => (
                       <li key={a.key}>
                         <Link
                           href={a.href}
-                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-text-body transition-colors hover:bg-paper"
+                          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-text-body transition-colors hover:bg-paper"
                         >
+                          {/* Severity was a bare coloured dot — no glyph, no
+                              text, no sr-only alternative — so it was invisible
+                              to a screen reader and to anyone who cannot
+                              separate the three hues. It now carries a shape
+                              and a word as well. */}
                           <span
-                            aria-hidden="true"
-                            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                            className={
                               a.severity === "critical"
-                                ? "bg-rose-500"
+                                ? "dash-status--crit"
                                 : a.severity === "warning"
-                                  ? "bg-amber-500"
-                                  : "bg-sky-500"
-                            }`}
-                          />
+                                  ? "dash-status--warn"
+                                  : "dash-status--info"
+                            }
+                          >
+                            {(() => {
+                              const Glyph = ALERT_ICON[a.severity] ?? Info;
+                              return <Glyph className="dash-mark h-3.5 w-3.5 shrink-0" aria-hidden="true" />;
+                            })()}
+                            <span className="sr-only">{a.severityLabel}</span>
+                          </span>
                           <span className="min-w-0 flex-1">{a.label}</span>
                           <ArrowRight className="h-3 w-3 shrink-0 text-text-muted" aria-hidden="true" />
                         </Link>
@@ -365,14 +384,14 @@ export default function MetricDetailsDrawer({
               )}
 
               {payload.limitation && (
-                <p className="mt-4 rounded-xl border border-divider bg-paper/50 p-2.5 text-[11px] leading-4 text-text-muted">
+                <p className="dash-prose mt-4 rounded-xl border border-[var(--dash-line)] bg-[var(--dash-well)] p-3">
                   {payload.limitation}
                 </p>
               )}
 
               <Link
                 href={payload.reportHref}
-                className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand hover:underline"
+                className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-brand hover:underline"
               >
                 {payload.reportLabel}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />

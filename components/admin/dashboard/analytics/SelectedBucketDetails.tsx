@@ -68,7 +68,7 @@ function DetailBody({
   const locale = useLocale();
   if (load.status === "loading" || load.status === "idle") {
     return (
-      <p role="status" className="flex items-center gap-2 py-5 text-[12px] text-text-muted">
+      <p role="status" className="flex items-center gap-2 py-5 text-xs text-text-muted">
         <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
         {t("detailsLoading")}
       </p>
@@ -77,13 +77,13 @@ function DetailBody({
   if (load.status === "error") {
     return (
       <div role="alert" className="rounded-xl border border-danger-line bg-danger-soft p-3 text-danger-text">
-        <p className="text-[12px] font-semibold">
+        <p className="text-xs font-semibold">
           {load.error === "timeout" ? t("detailsTimeout") : t("detailsError")}
         </p>
         <button
           type="button"
           onClick={load.retry}
-          className="mt-2 rounded-lg bg-bg-surface px-2.5 py-1.5 text-[11.5px] font-bold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-2 rounded-lg bg-bg-surface px-2.5 py-1.5 text-xs font-bold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           {t("retry")}
         </button>
@@ -100,27 +100,27 @@ function DetailBody({
       {data.partial && (
         <div role="status" className="flex gap-2 rounded-xl border border-warning-line bg-warning-soft p-3 text-warning-text">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p className="text-[11.5px] leading-5">{t("partialDetails")}</p>
+          <p className="text-xs leading-5">{t("partialDetails")}</p>
         </div>
       )}
       {data.scope.aggregationScope === "peakDay" && data.scope.representativeDate && (
-        <p className="rounded-lg bg-info-soft px-2.5 py-2 text-[11.5px] font-semibold text-info-text">
+        <p className="rounded-lg bg-info-soft px-2.5 py-2 text-xs font-semibold text-info-text">
           {t("peakDayWithin", { date: data.scope.representativeDate })}
         </p>
       )}
       <dl className="grid grid-cols-2 gap-2 rounded-xl border border-divider bg-paper/60 p-3">
         <div>
-          <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-text-muted">{metricLabel}</dt>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">{metricLabel}</dt>
           <dd className="mt-1 text-xl font-bold tabular-nums text-text-heading">{number.format(data.total)}</dd>
         </div>
         <div>
-          <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-text-muted">{t("selectedDate")}</dt>
-          <dd className="mt-1 text-[12px] font-semibold text-text-heading">{bucketLabel}</dd>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-text-muted">{t("selectedDate")}</dt>
+          <dd className="mt-1 text-xs font-semibold text-text-heading">{bucketLabel}</dd>
         </div>
       </dl>
 
       <section aria-labelledby="engagement-ranking-heading">
-        <h4 id="engagement-ranking-heading" className="text-[12px] font-bold text-text-heading">
+        <h4 id="engagement-ranking-heading" className="text-xs font-bold text-text-heading">
           {showMetricRanking
             ? t("topResourcesForMetric", { metric: metricLabel })
             : showFallback
@@ -130,12 +130,12 @@ function DetailBody({
         {(showMetricRanking || showFallback) && data.ranking.items.length > 0 ? (
           <ol className="mt-1.5 divide-y divide-divider rounded-xl border border-divider bg-bg-surface">
             {data.ranking.items.map((item, index) => (
-              <li key={`${item.type}:${item.id}`} className="flex items-center gap-2 px-3 py-2 text-[12px]">
-                <span className="w-4 shrink-0 text-[10px] font-bold text-text-muted">{index + 1}</span>
+              <li key={`${item.type}:${item.id}`} className="flex items-center gap-2 px-3 py-2 text-xs">
+                <span className="w-4 shrink-0 text-xs font-bold text-text-muted">{index + 1}</span>
                 <Link
                   href={item.editHref}
                   dir="auto"
-                  className="min-w-0 flex-1 truncate font-semibold text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="min-w-0 flex-1 dash-truncate-head font-semibold text-text-body hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   {item.title}
                 </Link>
@@ -144,13 +144,13 @@ function DetailBody({
             ))}
           </ol>
         ) : (
-          <p className="mt-1 text-[11.5px] leading-5 text-text-muted">
+          <p className="mt-1 text-xs leading-5 text-text-muted">
             {data.ranking.reason === "noData" ? t("noChartData") : t("rankingUnavailableHint")}
           </p>
         )}
       </section>
       {data.unattributed > 0 && (
-        <p className="text-[11px] text-text-muted">{t("unattributed", { count: data.unattributed })}</p>
+        <p className="text-xs text-text-muted">{t("unattributed", { count: data.unattributed })}</p>
       )}
     </div>
   );
@@ -195,7 +195,7 @@ export default function SelectedBucketDetails({
       <div className="mb-4 flex items-start justify-between gap-3 border-b border-divider pb-3">
         <div>
           <p className="dash-eyebrow">{metricLabel}</p>
-          <h3 id="selected-bucket-details-title" className="text-[15px] font-bold text-text-heading">
+          <h3 id="selected-bucket-details-title" className="text-sm font-bold text-text-heading">
             {t("detailsTitle", { date: bucketLabel })}
           </h3>
         </div>
@@ -231,7 +231,7 @@ export default function SelectedBucketDetails({
         <>
           <button
             type="button"
-            className="fixed inset-0 z-[var(--dash-z-overlay)] cursor-default bg-slate-950/30"
+            className="dash-drawer-scrim cursor-default"
             aria-label={t("closeDetails")}
             onClick={closeDetails}
           />
@@ -256,8 +256,8 @@ export default function SelectedBucketDetails({
         <>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-paper/60 px-3 py-2">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-semibold text-text-muted">{bucketLabel}</p>
-              <p className="text-[12px] font-bold text-text-heading">
+              <p className="dash-truncate text-xs font-semibold text-text-muted">{bucketLabel}</p>
+              <p className="text-xs font-bold text-text-heading">
                 {t("selectedSummary", { metric: metricLabel, value: plottedValue })}
               </p>
             </div>
@@ -265,7 +265,7 @@ export default function SelectedBucketDetails({
               ref={openerRef}
               type="button"
               onClick={() => onExpandedChange(true)}
-              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11.5px] font-bold text-brand hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold text-brand hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {t("viewDetails")}
               <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -282,7 +282,7 @@ export default function SelectedBucketDetails({
           {panel}
         </>
       ) : (
-        <p className="px-2 py-3 text-[11.5px] text-text-muted">{t("selectionHint")}</p>
+        <p className="px-2 py-3 text-xs text-text-muted">{t("selectionHint")}</p>
       )}
     </div>
   );

@@ -2322,6 +2322,7 @@
     "searchAi": {
       "searchSection": "Search metrics",
       "totalSearches": "Searches",
+      "totalSearchesDef": "Searches run in this period, after bot filtering",
       "prevValue": "{value} in the previous period",
       "sessions": "Search sessions",
       "collectingHint": "Collecting — new instrumentation",
@@ -2329,6 +2330,7 @@
       "ctr": "Click-through",
       "ctrHint": "Result clicks ÷ searches",
       "zeroRate": "Zero-result rate",
+      "zeroRateDef": "Share of searches that returned nothing",
       "avgResults": "avg. {value} results per search",
       "kmShare": "Khmer searches",
       "kmShareHint": "Share of searches typed in Khmer",

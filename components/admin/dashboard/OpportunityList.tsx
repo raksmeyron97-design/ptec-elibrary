@@ -48,27 +48,27 @@ export default function OpportunityList({ items: initial }: { items: Opportunity
 
   if (items.length === 0) {
     return (
-      <p className="mt-3 rounded-xl bg-white/60 px-3 py-5 text-center text-[12px] text-text-muted">
+      <p className="mt-3 rounded-xl bg-white/60 px-3 py-5 text-center text-xs text-text-muted">
         {t("noOpportunities")}
       </p>
     );
   }
 
   const actionBtn =
-    "flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-amber-100 hover:text-amber-900 [--focus-ring-offset:1px] disabled:opacity-40";
+    "flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-[var(--dash-well)] hover:text-text-heading [--focus-ring-offset:1px] disabled:opacity-40";
 
   return (
     <>
       <ul className="mt-2.5 space-y-1.5">
         {items.map((o) => (
           <li key={`${o.kind}-${o.term}`} className="dash-insight flex flex-wrap items-center gap-2 px-3 py-2">
-            <span className="inline-flex shrink-0 items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-900">
+            <span className="dash-status--warn dash-chip shrink-0 text-xs font-bold">
               {t(`opportunityKind.${o.kind}`)}
             </span>
-            <span className="min-w-0 flex-1 dash-truncate text-[12.5px] font-medium text-text-body" title={o.term} dir="auto">
+            <span className="min-w-0 flex-1 dash-truncate text-xs font-medium text-text-body" title={o.term} dir="auto">
               {o.term}
             </span>
-            <span className="shrink-0 text-[11px] tabular-nums text-text-muted">
+            <span className="shrink-0 text-xs tabular-nums text-text-muted">
               {t("searchedTimes", { count: o.count })}
             </span>
             <span className="flex shrink-0 items-center gap-0.5">
@@ -99,7 +99,7 @@ export default function OpportunityList({ items: initial }: { items: Opportunity
         ))}
       </ul>
       {error && (
-        <p role="alert" className="mt-1.5 text-[11.5px] font-medium text-rose-700">
+        <p role="alert" className="mt-1.5 text-xs font-medium text-[var(--ptec-danger)]">
           {error}
         </p>
       )}

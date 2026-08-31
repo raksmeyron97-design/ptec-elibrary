@@ -17,7 +17,7 @@ export default function InfoTip({ label, text }: { label: string; text: string }
       </summary>
       <p
         role="note"
-        className="absolute end-0 top-6 z-30 w-60 whitespace-normal rounded-xl border border-divider bg-bg-surface p-2.5 text-start text-[11.5px] font-normal normal-case leading-4 text-text-body shadow-lg"
+        className="dash-popover absolute end-0 top-6 w-60 whitespace-normal p-3 text-start text-xs font-normal normal-case leading-5 text-text-body"
       >
         {text}
       </p>

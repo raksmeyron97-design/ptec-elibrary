@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarRange,
@@ -43,6 +43,30 @@ const VIEW_ICON: Record<DashboardView, LucideIcon> = {
   audience: Users,
   system: ServerCog,
 };
+
+/**
+ * The inside of a view tab, so it can read its OWN navigation state.
+ *
+ * The dashboard page is `force-dynamic` and every view runs real analytics
+ * queries, so a tab click is followed by a wait with no feedback at all — on a
+ * slow query the rail simply sat there and people clicked again. `useLinkStatus`
+ * is scoped to the enclosing <Link>, so only the tab actually being navigated
+ * to spins; the icon is swapped rather than added, so nothing reflows.
+ */
+function TabBody({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  const { pending } = useLinkStatus();
+  return (
+    <>
+      {pending ? (
+        <Loader2 className="dash-tab-ico h-4 w-4 animate-spin" aria-hidden="true" />
+      ) : (
+        <Icon className="dash-tab-ico h-4 w-4" aria-hidden="true" />
+      )}
+      {label}
+      {pending && <span className="sr-only">…</span>}
+    </>
+  );
+}
 
 /** Built once: an Intl formatter is expensive and this one never varies. */
 const YMD_FORMAT = new Intl.DateTimeFormat("en-CA", {
@@ -96,10 +120,25 @@ export default function DashboardControlBar({
   const dateBtnRef = useRef<HTMLButtonElement>(null);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
 
+  /**
+   * What the CONTROLS show, which is not always what the page has rendered.
+   *
+   * Every control used to read `filters` — the committed URL state — and be
+   * `disabled` while the navigation was in flight. So clicking "90 days" left
+   * "30 days" looking selected, greyed out, for as long as the analytics query
+   * took, and the only feedback was a small spinner elsewhere in the bar. The
+   * controls now flip immediately and the spinner reports that the page behind
+   * them is catching up.
+   */
+  const [shown, applyOptimistic] = useOptimistic(filters);
+
   const apply = (next: DashboardFilters) => {
     const qs = serializeDashboardFilters(next);
     startTransition(() => {
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      applyOptimistic(next);
+      // `push`, not `replace`: range, type and department are deliberate,
+      // low-frequency decisions, and Back is how people undo one.
+      router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     });
   };
 
@@ -129,38 +168,44 @@ export default function DashboardControlBar({
 
   const max = todayYmd();
   const customValid = Boolean(from && to && from <= to && from <= max);
-  const activeCount = activeFilterCount(filters);
+  const activeCount = activeFilterCount(shown);
   const views = DASHBOARD_VIEWS.filter((v) => v !== "system" || showSystem);
 
   const quietBtn =
-    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading ";
+    "flex h-9 cursor-pointer items-center gap-1.5 rounded-[10px] px-2 text-xs font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading ";
   // h-11 matches the SearchableSelect trigger used for Department, so the
   // three filter controls sit on one baseline.
   const selectClass =
-    "h-11 w-full min-w-[150px] cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-[13px] font-medium text-text-body [--focus-ring-offset:1px]";
+    "h-11 w-full min-w-[150px] cursor-pointer rounded-lg border border-divider bg-bg-surface px-2.5 text-sm font-medium text-text-body [--focus-ring-offset:1px]";
 
   /** Removable chips for every non-default audience filter. */
   const chips: { key: string; label: string; clear: DashboardFilters }[] = [];
-  if (filters.type !== "all") {
-    chips.push({ key: "type", label: t(`type.${filters.type}`), clear: { ...filters, type: "all" } });
+  if (shown.type !== "all") {
+    chips.push({ key: "type", label: t(`type.${shown.type}`), clear: { ...shown, type: "all" } });
   }
-  if (filters.dept) {
-    chips.push({ key: "dept", label: filters.dept, clear: { ...filters, dept: null } });
+  if (shown.dept) {
+    chips.push({ key: "dept", label: shown.dept, clear: { ...shown, dept: null } });
   }
-  if (filters.contentLanguage !== "all") {
-    chips.push({ key: "lang", label: t(`lang.${filters.contentLanguage}`), clear: { ...filters, contentLanguage: "all" } });
+  if (shown.contentLanguage !== "all") {
+    chips.push({ key: "lang", label: t(`lang.${shown.contentLanguage}`), clear: { ...shown, contentLanguage: "all" } });
   }
 
   const rangeLabel =
-    filters.range === "custom" && filters.from && filters.to
-      ? `${filters.from} → ${filters.to}`
-      : t(`range.${filters.range}`);
+    shown.range === "custom" && shown.from && shown.to
+      ? `${shown.from} → ${shown.to}`
+      : t(`range.${shown.range}`);
 
   return (
     <div className="dash-controlbar">
-      {/* One row from xl up: the tab rail shrinks and scrolls rather than
-          pushing the period/filter controls onto a second line. */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 py-1.5 xl:flex-nowrap">
+      {/* Two rows until 2xl, then one.
+
+          It used to force a single row from `xl` (1280px), which is below the
+          width the row actually needs: five tab labels plus four range presets,
+          a compare toggle, a filter button, refresh and export overflow at
+          1280–1535px, and because the tab <nav> scrolls without a visible
+          scrollbar the overflow was silent — tabs simply vanished off the end
+          with nothing to say so. Wrapping to two rows shows every control. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 py-1.5 2xl:flex-nowrap">
         {/* ── View tabs ── */}
         <nav aria-label={tTabs("ariaLabel")} className="dash-scroll-x -mx-1 min-w-0 max-w-full px-1">
           <ul className="dash-tabrail flex min-w-max">
@@ -174,8 +219,7 @@ export default function DashboardControlBar({
                     aria-current={view === active ? "page" : undefined}
                     className="dash-tab"
                   >
-                    <Icon className="dash-tab-ico h-4 w-4" aria-hidden="true" />
-                    {tTabs(view)}
+                    <TabBody icon={Icon} label={tTabs(view)} />
                   </Link>
                 </li>
               );
@@ -184,18 +228,17 @@ export default function DashboardControlBar({
         </nav>
 
         {/* ── Period + filters + utilities ── */}
-        <div className="ms-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 xl:flex-nowrap xl:shrink-0">
+        <div className="ms-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 2xl:flex-nowrap 2xl:shrink-0">
           <div className="dash-seg" role="group" aria-label={t("rangeLabel")}>
             {RANGE_PRESETS.map((r) => (
               <button
                 key={r}
                 type="button"
-                disabled={isPending}
-                aria-pressed={filters.range === r}
-                className="dash-seg-btn disabled:cursor-wait"
+                aria-pressed={shown.range === r}
+                className="dash-seg-btn"
                 onClick={() => {
                   setPanel("none");
-                  apply({ ...filters, range: r, from: undefined, to: undefined });
+                  apply({ ...shown, range: r, from: undefined, to: undefined });
                 }}
               >
                 {t(`range.${r}`)}
@@ -204,10 +247,9 @@ export default function DashboardControlBar({
             <button
               ref={dateBtnRef}
               type="button"
-              disabled={isPending}
-              aria-pressed={filters.range === "custom"}
+              aria-pressed={shown.range === "custom"}
               aria-expanded={panel === "date"}
-              className="dash-seg-btn flex items-center gap-1 disabled:cursor-wait"
+              className="dash-seg-btn flex items-center gap-1"
               onClick={() => setPanel((p) => (p === "date" ? "none" : "date"))}
             >
               <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
@@ -215,12 +257,11 @@ export default function DashboardControlBar({
             </button>
           </div>
 
-          <label className="flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-[10px] px-1.5 text-[12.5px] font-medium text-text-muted hover:text-text-heading">
+          <label className="flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-[10px] px-1.5 text-xs font-medium text-text-muted hover:text-text-heading">
             <input
               type="checkbox"
-              checked={filters.compare}
-              disabled={isPending}
-              onChange={(e) => apply({ ...filters, compare: e.target.checked })}
+              checked={shown.compare}
+              onChange={(e) => apply({ ...shown, compare: e.target.checked })}
               className="h-3.5 w-3.5 cursor-pointer accent-[var(--ptec-brand)]"
             />
             {t("compareShort")}
@@ -229,7 +270,6 @@ export default function DashboardControlBar({
           <button
             ref={filterBtnRef}
             type="button"
-            disabled={isPending}
             aria-expanded={panel === "filters"}
             onClick={() => setPanel((p) => (p === "filters" ? "none" : "filters"))}
             className={`${quietBtn} ${activeCount > 0 ? "text-brand" : ""}`}
@@ -237,7 +277,7 @@ export default function DashboardControlBar({
             <ListFilter className="h-3.5 w-3.5" aria-hidden="true" />
             {t("filters")}
             {activeCount > 0 && (
-              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold tabular-nums text-white">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-xs font-bold tabular-nums text-white">
                 {activeCount}
               </span>
             )}
@@ -268,14 +308,13 @@ export default function DashboardControlBar({
       {/* ── Active filter chips (only when something is filtered) ── */}
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 px-1 pb-1.5">
-          <span className="text-[11.5px] font-medium text-text-muted">{t("activeFilters")}:</span>
+          <span className="text-xs font-medium text-text-muted">{t("activeFilters")}:</span>
           {chips.map((c) => (
             <button
               key={c.key}
               type="button"
-              disabled={isPending}
               onClick={() => apply(c.clear)}
-              className="flex h-6 cursor-pointer items-center gap-1 rounded-full border border-brand/20 bg-brand/5 ps-2 pe-1.5 text-[11.5px] font-semibold text-brand transition-colors hover:bg-brand/10"
+              className="flex h-6 cursor-pointer items-center gap-1 rounded-full border border-brand/20 bg-brand/5 ps-2 pe-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand/10"
             >
               <span className="max-w-[160px] dash-truncate" dir="auto">
                 {c.label}
@@ -286,9 +325,8 @@ export default function DashboardControlBar({
           ))}
           <button
             type="button"
-            disabled={isPending}
-            onClick={() => apply({ ...filters, type: "all", dept: null, contentLanguage: "all" })}
-            className="cursor-pointer rounded-md px-1.5 py-0.5 text-[11.5px] font-semibold text-text-muted underline hover:text-brand"
+            onClick={() => apply({ ...shown, type: "all", dept: null, contentLanguage: "all" })}
+            className="cursor-pointer rounded-md px-1.5 py-0.5 text-xs font-semibold text-text-muted underline hover:text-brand"
           >
             {t("clearFilters")}
           </button>
@@ -306,17 +344,17 @@ export default function DashboardControlBar({
         >
           {panel === "date" ? (
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
                 {t("from")}
                 <input
                   type="date"
                   value={from}
                   max={to || max}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body [--focus-ring-offset:1px]"
+                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-sm text-text-body [--focus-ring-offset:1px]"
                 />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
                 {t("to")}
                 <input
                   type="date"
@@ -324,34 +362,33 @@ export default function DashboardControlBar({
                   min={from || undefined}
                   max={max}
                   onChange={(e) => setTo(e.target.value)}
-                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-[13px] text-text-body [--focus-ring-offset:1px]"
+                  className="h-10 rounded-[10px] border border-divider bg-bg-surface px-2.5 text-sm text-text-body [--focus-ring-offset:1px]"
                 />
               </label>
               <button
                 type="button"
                 disabled={!customValid || isPending}
                 onClick={() => {
-                  apply({ ...filters, range: "custom", from, to });
+                  apply({ ...shown, range: "custom", from, to });
                   setPanel("none");
                 }}
-                className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[10px] bg-brand px-4 text-[13px] font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 cursor-pointer items-center gap-1.5 rounded-[10px] bg-brand px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Check className="h-4 w-4" aria-hidden="true" />
                 {t("apply")}
               </button>
-              <p className="w-full text-[11.5px] text-text-muted sm:w-auto">
+              <p className="w-full text-xs text-text-muted sm:w-auto">
                 {t("timezoneNote")}
-                {filters.compare && <span className="ms-1">{t("compareNote")}</span>}
+                {shown.compare && <span className="ms-1">{t("compareNote")}</span>}
               </p>
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
                 {t("contentType")}
                 <select
-                  value={filters.type}
-                  disabled={isPending}
-                  onChange={(e) => apply({ ...filters, type: e.target.value as ContentTypeFilter })}
+                  value={shown.type}
+                  onChange={(e) => apply({ ...shown, type: e.target.value as ContentTypeFilter })}
                   className={selectClass}
                 >
                   {TYPES.map((v) => (
@@ -364,13 +401,12 @@ export default function DashboardControlBar({
               {/* Departments are a long, bilingual list, so this one gets the
                   searchable widget rather than a native <select>. Not wrapped
                   in a <label>: the trigger is a button, named via ariaLabel. */}
-              <div className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+              <div className="flex flex-col gap-1 text-xs font-medium text-text-muted">
                 <span>{t("department")}</span>
                 <SearchableSelect
                   name="dept"
-                  value={filters.dept ?? ""}
-                  onChange={(v) => apply({ ...filters, dept: v || null })}
-                  disabled={isPending}
+                  value={shown.dept ?? ""}
+                  onChange={(v) => apply({ ...shown, dept: v || null })}
                   ariaLabel={t("department")}
                   placeholder={t("allDepartments")}
                   options={[
@@ -379,12 +415,11 @@ export default function DashboardControlBar({
                   ]}
                 />
               </div>
-              <label className="flex flex-col gap-1 text-[12px] font-medium text-text-muted">
+              <label className="flex flex-col gap-1 text-xs font-medium text-text-muted">
                 {t("language")}
                 <select
-                  value={filters.contentLanguage}
-                  disabled={isPending}
-                  onChange={(e) => apply({ ...filters, contentLanguage: e.target.value as LanguageFilter })}
+                  value={shown.contentLanguage}
+                  onChange={(e) => apply({ ...shown, contentLanguage: e.target.value as LanguageFilter })}
                   className={selectClass}
                 >
                   {LANGS.map((v) => (
@@ -395,11 +430,11 @@ export default function DashboardControlBar({
                 </select>
               </label>
               <div className="flex items-center justify-between gap-2 sm:col-span-3">
-                <p className="text-[11.5px] text-text-muted">{t("filterScope", { range: rangeLabel })}</p>
+                <p className="text-xs text-text-muted">{t("filterScope", { range: rangeLabel })}</p>
                 <button
                   type="button"
                   onClick={() => setPanel("none")}
-                  className="cursor-pointer rounded-[10px] border border-divider px-3 py-1.5 text-[12.5px] font-semibold text-text-body transition-colors hover:bg-paper"
+                  className="cursor-pointer rounded-[10px] border border-divider px-3 py-1.5 text-xs font-semibold text-text-body transition-colors hover:bg-paper"
                 >
                   {t("done")}
                 </button>

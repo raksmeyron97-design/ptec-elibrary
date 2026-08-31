@@ -43,11 +43,11 @@ export default async function CollectionHealthCards({ health }: { health: Collec
           <span className="dash-ico dash-ico--brand dash-ico--md" aria-hidden="true">
             <Library className="h-[18px] w-[18px]" />
           </span>
-          <h3 id="health-heading" className="text-[15px] font-bold text-text-heading">
+          <h3 id="health-heading" className="text-sm font-bold text-text-heading">
             {t("title")}
           </h3>
         </div>
-        <span className="text-[11.5px] text-text-muted">
+        <span className="text-xs text-text-muted">
           {t("lifetimeNote")}
           {health.avgCompleteness !== null && ` · ${t("avgCompleteness", { pct: health.avgCompleteness })}`}
         </span>
@@ -65,8 +65,8 @@ export default async function CollectionHealthCards({ health }: { health: Collec
                 <Icon className="h-[18px] w-[18px]" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[11px] font-semibold text-text-muted">{t(`totals.${key}`)}</span>
-                <span className="block text-[20px] font-bold leading-tight tabular-nums text-text-heading">{nf.format(value)}</span>
+                <span className="block text-xs font-semibold text-text-muted">{t(`totals.${key}`)}</span>
+                <span className="block text-xl font-bold leading-tight tabular-nums text-text-heading">{nf.format(value)}</span>
               </span>
             </Link>
           </li>
@@ -81,8 +81,8 @@ export default async function CollectionHealthCards({ health }: { health: Collec
         >
           <PlusCircle className="h-4.5 w-4.5 shrink-0 text-brand" aria-hidden="true" />
           <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-text-heading">{t("catalogEmptyTitle")}</span>
-            <span className="block text-[11.5px] text-text-muted">{t("catalogEmptyHint")}</span>
+            <span className="block text-sm font-semibold text-text-heading">{t("catalogEmptyTitle")}</span>
+            <span className="block text-xs text-text-muted">{t("catalogEmptyHint")}</span>
           </span>
         </Link>
       ) : (
@@ -91,7 +91,7 @@ export default async function CollectionHealthCards({ health }: { health: Collec
           className="mt-2.5 flex items-center gap-3 rounded-xl border border-divider bg-paper px-3 py-2.5 transition-colors hover:border-brand/40"
         >
           <Library className="h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
-          <span className="text-[13px] text-text-body">
+          <span className="text-sm text-text-body">
             {t("catalogCount", { count: nf.format(health.totals.catalog) })}
           </span>
         </Link>
@@ -103,15 +103,15 @@ export default async function CollectionHealthCards({ health }: { health: Collec
         {gaps.map(({ key, value, href }) => {
           const critical = key === "brokenFiles" && value > 0;
           const cls = critical
-            ? "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-400"
+            ? "dash-status--crit"
             : value > 0
-              ? "border-amber-200 bg-amber-50 text-amber-900 hover:border-amber-400"
-              : "border-divider bg-bg-surface text-text-muted hover:border-brand/30";
+              ? "dash-status--warn"
+              : "dash-status--neutral";
           return (
             <li key={key}>
               <Link
                 href={href}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11.5px] font-semibold transition-colors  ${cls}`}
+                className={`${cls} dash-chip text-xs font-semibold transition-colors hover:brightness-95`}
               >
                 {critical && <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />}
                 {t(`gaps.${key}`)}

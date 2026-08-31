@@ -34,10 +34,14 @@ const QUIET_TONE: Record<StatTone, { icon: string; value: string }> = {
   gold:   { icon: "bg-warning-soft text-warning-text",   value: "text-warning-text" },
 };
 
+/** The shared status vocabulary, so a trend badge here is the same green and
+ *  red as every other "this moved" mark in the app (see trend-style.ts, which
+ *  made the same migration for the arrows on the dashboard's own cards).
+ *  Direction is never carried by colour alone — each has its own glyph. */
 const TREND_STYLE = {
-  up:      { icon: TrendingUp,   className: "bg-emerald-100 text-emerald-800" },
-  down:    { icon: TrendingDown, className: "bg-rose-100 text-rose-700" },
-  neutral: { icon: Minus,        className: "bg-slate-200/70 text-slate-600" },
+  up:      { icon: TrendingUp,   className: "dash-status--ok" },
+  down:    { icon: TrendingDown, className: "dash-status--crit" },
+  neutral: { icon: Minus,        className: "dash-status--neutral" },
 } as const;
 
 /**
@@ -73,14 +77,12 @@ export default function StatCard({
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <span
-          className={
-            quiet
-              ? "text-[11px] font-bold uppercase tracking-widest leading-tight text-text-muted"
-              : "text-[11px] font-bold uppercase tracking-widest leading-tight"
-          }
-          style={quiet ? undefined : { color: `color-mix(in srgb, ${t.num} 70%, transparent)` }}
-        >
+        {/* The tinted variant used to fade this label into its own fill
+            (`color-mix(… 70%, transparent)`), which lands at 3.3–4.2:1 — below
+            AA for 11px text. The tone's own `-num` token at full strength is
+            8.9:1 on the same tint and is the colour the value already uses, so
+            label and value now read as one pair rather than two greys. */}
+        <span className="dash-label" style={quiet ? undefined : { color: t.num }}>
           {title}
         </span>
         {quiet ? (
@@ -94,8 +96,10 @@ export default function StatCard({
         )}
       </div>
 
+      {/* One numeral step for "the big number on a KPI card", proportional
+          rather than tabular — see `.dash-num-display` in admin.css. */}
       <div
-        className={`mt-2.5 text-2xl font-bold leading-none tabular-nums ${quiet ? q.value : ""}`}
+        className={`dash-num-display mt-2.5 text-2xl font-bold leading-none ${quiet ? q.value : ""}`}
         style={quiet ? undefined : { color: t.num }}
       >
         {value}
@@ -104,32 +108,23 @@ export default function StatCard({
       {trend && TrendIcon && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           <span
-            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${trendStyle.className}`}
+            className={`dash-chip gap-1 text-xs font-bold tabular-nums ${trendStyle.className}`}
           >
             <TrendIcon className="h-3 w-3" aria-hidden="true" />
             {trend.value}
           </span>
-          <span className="text-[11px]" style={{ color: `color-mix(in srgb, ${t.num} 60%, transparent)` }}>
-            {trend.label}
-          </span>
+          <span className="text-xs text-text-body">{trend.label}</span>
         </div>
       )}
 
-      {description && (
-        <div
-          className={`mt-1.5 text-[11px] ${quiet ? "text-text-muted" : ""}`}
-          style={quiet ? undefined : { color: `color-mix(in srgb, ${t.num} 60%, transparent)` }}
-        >
-          {description}
-        </div>
-      )}
+      {description && <div className="mt-1.5 text-xs text-text-body">{description}</div>}
     </>
   );
 
   const cardStyle = quiet ? undefined : { background: t.bg, border: `1px solid ${t.border}` };
   const cardClass = quiet
-    ? "relative block overflow-hidden rounded-xl border border-divider bg-bg-surface p-4 transition-all duration-200"
-    : "relative block overflow-hidden rounded-2xl p-4 shadow-sm transition-all duration-200 sm:p-5";
+    ? "relative block overflow-hidden rounded-[var(--dash-r-lg)] border border-divider bg-bg-surface p-4 transition-all duration-200"
+    : "relative block overflow-hidden rounded-[var(--dash-r-lg)] p-4 shadow-sm transition-all duration-200 sm:p-5";
 
   if (href) {
     return (

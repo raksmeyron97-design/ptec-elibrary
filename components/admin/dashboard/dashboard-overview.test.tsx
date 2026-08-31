@@ -186,7 +186,15 @@ const metricPayloads: Record<string, MetricDetailPayload> = {
     ],
     prevSeries: null,
     top: [{ key: "book:1", title: "Chemistry 101", href: "/admin/edit/1", value: "88", secondary: "Books" }],
-    alerts: [{ key: "brokenFiles", label: "3 files are broken", href: "/admin/data-quality", severity: "critical" }],
+    alerts: [
+      {
+        key: "brokenFiles",
+        label: "3 files are broken",
+        href: "/admin/data-quality",
+        severity: "critical",
+        severityLabel: "Critical",
+      },
+    ],
     reportHref: "/admin?view=content",
     reportLabel: "Open the full report",
     limitation: null,

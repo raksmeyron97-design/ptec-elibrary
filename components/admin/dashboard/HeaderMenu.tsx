@@ -85,8 +85,8 @@ export default function HeaderMenu({
 
   const buttonClass =
     variant === "quiet"
-      ? "flex h-9 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-[13px] font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading "
-      : "flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-paper px-3 text-[13px] font-semibold text-text-heading transition-colors hover:bg-brand/10 hover:text-brand ";
+      ? "flex h-9 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-paper hover:text-text-heading "
+      : "flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-paper px-3 text-sm font-semibold text-text-heading transition-colors hover:bg-brand/10 hover:text-brand ";
 
   return (
     <div ref={rootRef} className="relative">
@@ -121,7 +121,7 @@ export default function HeaderMenu({
                 href={item.href}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-text-body transition-colors hover:bg-paper hover:text-brand [--focus-ring-offset:-2px]"
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-text-body transition-colors hover:bg-paper hover:text-brand [--focus-ring-offset:-2px]"
               >
                 {ItemIcon && <ItemIcon className="h-4 w-4 text-text-muted" aria-hidden="true" />}
                 {item.label}

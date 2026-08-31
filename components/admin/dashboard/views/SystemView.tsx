@@ -15,26 +15,32 @@ import FreshnessLine from "../FreshnessLine";
 
 type HealthStatus = "healthy" | "warning" | "critical" | "collecting" | "unknown" | "notConfigured";
 
-const STATUS_STYLE: Record<HealthStatus, string> = {
-  healthy: "bg-emerald-100 text-emerald-800",
-  warning: "bg-amber-100 text-amber-800",
-  critical: "bg-rose-100 text-rose-700",
-  collecting: "bg-sky-100 text-sky-800",
-  unknown: "bg-slate-100 text-slate-600",
-  notConfigured: "bg-slate-100 text-slate-600",
-};
-
-/** Card-level tonal surface + status glyph per health state (colour is never
- *  the only signal — each state has a distinct icon shape and a text badge). */
-const STATUS_CARD: Record<HealthStatus, { surface: string; icon: LucideIcon; iconColor: string }> = {
-  healthy: { surface: "border-emerald-100 bg-emerald-50/60", icon: CheckCircle2, iconColor: "text-emerald-600" },
-  warning: { surface: "border-amber-100 bg-amber-50/60", icon: AlertTriangle, iconColor: "text-amber-600" },
-  critical: { surface: "border-rose-100 bg-rose-50/60", icon: AlertOctagon, iconColor: "text-rose-600" },
-  collecting: { surface: "border-sky-100 bg-sky-50/60", icon: CircleDashed, iconColor: "text-sky-600" },
-  unknown: { surface: "border-slate-200 bg-slate-50/70", icon: HelpCircle, iconColor: "text-slate-400" },
+/** One status class per health state; the chip, the card surface and the glyph
+ *  all read their colours from it (`.dash-status--*`, admin.css), so this view
+ *  cannot drift from the health ribbon on the Overview — which is exactly what
+ *  had happened: `emerald-100/800` here vs `emerald-50/800` there vs
+ *  `--ptec-success` in the insight panel, three greens for one meaning.
+ *
+ *  Colour is never the only signal — each state keeps a distinct icon shape and
+ *  a text badge. */
+const STATUS_CLASS: Record<HealthStatus, string> = {
+  healthy: "dash-status--ok",
+  warning: "dash-status--warn",
+  critical: "dash-status--crit",
+  collecting: "dash-status--info",
+  unknown: "dash-status--neutral",
   // Deliberately neutral: "nobody wired this up yet" is a setup task, not a
   // detected failure — red/amber stays reserved for real staleness/errors.
-  notConfigured: { surface: "border-slate-200 bg-slate-50/70", icon: Settings2, iconColor: "text-slate-400" },
+  notConfigured: "dash-status--neutral",
+};
+
+const STATUS_ICON: Record<HealthStatus, LucideIcon> = {
+  healthy: CheckCircle2,
+  warning: AlertTriangle,
+  critical: AlertOctagon,
+  collecting: CircleDashed,
+  unknown: HelpCircle,
+  notConfigured: Settings2,
 };
 
 /** Actor initials for the activity timeline avatar. */
@@ -111,32 +117,43 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
   const fixLink =
     filesStatus === "critical" ? { href: data.brokenFilesHref, label: t("fixBrokenFiles") } : undefined;
 
-  const card = "dash-card p-4";
+  const card = "dash-card p-5";
 
+  // Outer wrapper matches OverviewView's space-y-8 "zone" rhythm — the
+  // dashboard-modernization audit's density item: this tab used to sit at
+  // one flat space-y-5 level while Overview alone separated its zones with
+  // extra air. Nested grids/cards below keep their own space-y-5/gap-5 —
+  // that rhythm is WITHIN a zone, not between them, and stays unchanged.
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {/* ── Health summary ── */}
       <section aria-label={t("healthTitle")}>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-5">
           {chips.map(({ key, status, icon: IconCmp, hint }) => {
-            const card = STATUS_CARD[status];
-            const StatusIcon = card.icon;
+            const StatusIcon = STATUS_ICON[status];
             return (
-              <div key={key} className={`flex items-start gap-2.5 rounded-2xl border px-3 py-2.5 shadow-[var(--dash-elev-1)] ${card.surface}`}>
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white/80 shadow-sm ring-1 ring-inset ring-black/[0.04]" aria-hidden="true">
-                  <IconCmp className="h-4 w-4 text-text-muted" />
+              /* A white card with a status CHIP, not a tinted card. Five
+                 saturated tiles in a row made the whole strip read as an alert
+                 even when every check was healthy; the state now lives in the
+                 chip, where a glance can find it. */
+              <div
+                key={key}
+                className={`${STATUS_CLASS[status]} dash-card flex items-start gap-2.5 p-4`}
+              >
+                <span className="dash-ico dash-ico--sm dash-ico--brand" aria-hidden="true">
+                  <IconCmp className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11.5px] font-semibold text-text-body">{t(`health.${key}`)}</p>
-                  <span className={`mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10.5px] font-bold ${STATUS_STYLE[status]}`}>
-                    <StatusIcon className={`h-3 w-3 ${card.iconColor}`} aria-hidden="true" />
+                  <p className="dash-truncate text-xs font-semibold text-text-body">{t(`health.${key}`)}</p>
+                  <span className="dash-chip mt-1.5 text-xs font-bold">
+                    <StatusIcon className="dash-mark h-3.5 w-3.5" aria-hidden="true" />
                     {t(`status.${status}`)}
                   </span>
-                  {hint && <p className="mt-1 text-[10px] leading-[14px] text-text-muted">{hint}</p>}
+                  {hint && <p className="dash-prose mt-1.5">{hint}</p>}
                   {key === "files" && fixLink && (
                     <Link
                       href={fixLink.href}
-                      className="mt-1 block w-fit text-[10.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      className="mt-1.5 block w-fit text-xs font-semibold text-brand hover:underline"
                     >
                       {fixLink.label} →
                     </Link>
@@ -148,52 +165,52 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
         </div>
       </section>
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-5 lg:grid-cols-2">
         {/* ── Operations ── */}
         <section aria-labelledby="ops-heading" className={card}>
           <div className="flex items-center gap-2.5">
             <span className="dash-ico dash-ico--brand dash-ico--md" aria-hidden="true">
               <Wrench className="h-[18px] w-[18px]" />
             </span>
-            <h3 id="ops-heading" className="text-[14px] font-bold text-text-heading">
+            <h3 id="ops-heading" className="text-sm font-bold text-text-heading">
               {t("opsTitle")}
             </h3>
           </div>
           <dl className="mt-3 space-y-1.5">
             <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
-              <dt className="text-[12px] text-text-body">{t("brokenFiles")}</dt>
-              <dd className={`text-[12.5px] font-bold tabular-nums ${data.brokenFiles > 0 ? "text-rose-700" : "text-text-heading"}`}>
+              <dt className="text-xs text-text-body">{t("brokenFiles")}</dt>
+              <dd className={`text-sm font-bold tabular-nums ${data.brokenFiles > 0 ? "text-[var(--ptec-danger)]" : "text-text-heading"}`}>
                 <Link href={data.brokenFilesHref} className="hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
                   {nf.format(data.brokenFiles)}
                 </Link>
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
-              <dt className="text-[12px] text-text-body">{t("lastFileCheck")}</dt>
-              <dd className="text-[12.5px] font-semibold tabular-nums text-text-heading">
+              <dt className="text-xs text-text-body">{t("lastFileCheck")}</dt>
+              <dd className="text-xs font-semibold tabular-nums text-text-heading">
                 {data.lastFileHealthCheckAt ? df.format(new Date(data.lastFileHealthCheckAt)) : t("never")}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
-              <dt className="text-[12px] text-text-body">{t("backupAge")}</dt>
-              <dd className={`text-[12.5px] font-bold tabular-nums ${data.backupAgeHours !== null && data.backupAgeHours > 30 ? "text-amber-700" : "text-text-heading"}`}>
+              <dt className="text-xs text-text-body">{t("backupAge")}</dt>
+              <dd className={`text-sm font-bold tabular-nums ${data.backupAgeHours !== null && data.backupAgeHours > 30 ? "text-[var(--ptec-warning)]" : "text-text-heading"}`}>
                 {data.backupAgeHours === null ? t("backupNotTracked") : t("hoursAgo", { hours: nf.format(data.backupAgeHours) })}
               </dd>
             </div>
             {!data.storage.collecting && (
               <>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
-                  <dt className="text-[12px] text-text-body">{t("zimaErrors")}</dt>
-                  <dd className={`text-[12.5px] font-bold tabular-nums ${data.storage.zimaErrors > 0 ? "text-rose-700" : "text-text-heading"}`}>
+                  <dt className="text-xs text-text-body">{t("zimaErrors")}</dt>
+                  <dd className={`text-sm font-bold tabular-nums ${data.storage.zimaErrors > 0 ? "text-[var(--ptec-danger)]" : "text-text-heading"}`}>
                     {nf.format(data.storage.zimaErrors)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded-xl bg-paper px-3 py-2">
-                  <dt className="text-[12px] text-text-body">{t("r2Fallbacks")}</dt>
-                  <dd className="text-[12.5px] font-bold tabular-nums text-text-heading">
+                  <dt className="text-xs text-text-body">{t("r2Fallbacks")}</dt>
+                  <dd className="text-xs font-bold tabular-nums text-text-heading">
                     {nf.format(data.storage.r2Fallbacks)}
                     {data.storage.fallbackSharePct !== null && (
-                      <span className="ms-1 text-[11px] font-normal text-text-muted">({data.storage.fallbackSharePct}%)</span>
+                      <span className="ms-1 text-xs font-normal text-text-muted">({data.storage.fallbackSharePct}%)</span>
                     )}
                   </dd>
                 </div>
@@ -201,15 +218,21 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
             )}
           </dl>
           {(data.storage.collecting || data.ai.total === 0) && (
-            <p className="mt-2.5 rounded-lg bg-sky-50 px-3 py-2 text-[11px] text-sky-900">{t("telemetryCollectingNote")}</p>
+            <p className="dash-status--info mt-2.5 rounded-lg bg-[var(--dash-status-bg)] px-3 py-2 text-xs text-[var(--dash-status-fg)]">
+              {t("telemetryCollectingNote")}
+            </p>
           )}
           {data.opsEvents.length > 0 && (
             <ul className="mt-2.5 space-y-1">
               {data.opsEvents.slice(0, 4).map((o, i) => (
-                <li key={i} className="flex items-center gap-2 text-[11px] text-text-muted">
+                <li key={i} className="flex items-center gap-2 text-xs text-text-muted">
                   <span
-                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                      o.status === "ok" ? "bg-emerald-500" : o.status === "warn" ? "bg-amber-500" : "bg-rose-500"
+                    className={`dash-dot ${
+                      o.status === "ok"
+                        ? "dash-status--ok"
+                        : o.status === "warn"
+                          ? "dash-status--warn"
+                          : "dash-status--crit"
                     }`}
                     aria-hidden="true"
                   />
@@ -228,10 +251,10 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
             <span className="dash-ico dash-ico--reader dash-ico--md" aria-hidden="true">
               <ShieldCheck className="h-[18px] w-[18px]" />
             </span>
-            <h3 id="audit-heading" className="text-[14px] font-bold text-text-heading">{t("auditTitle")}</h3>
+            <h3 id="audit-heading" className="text-sm font-bold text-text-heading">{t("auditTitle")}</h3>
           </div>
           {data.recentAdminActions.length === 0 ? (
-            <p className="mt-3 rounded-xl bg-paper px-3 py-5 text-center text-[12px] text-text-muted">{t("noAudit")}</p>
+            <p className="mt-3 rounded-xl bg-paper px-3 py-5 text-center text-xs text-text-muted">{t("noAudit")}</p>
           ) : (
             <ol className="mt-3 space-y-0.5">
               {groupConsecutiveActivity(data.recentAdminActions).map((group, i) => {
@@ -242,26 +265,26 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                 const rowBody = (
                   <>
                     <span
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/10 text-[10px] font-bold text-brand ring-1 ring-inset ring-brand/10"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/10 text-xs font-bold text-brand ring-1 ring-inset ring-brand/10"
                       aria-hidden="true"
                     >
                       {initials(a.actor)}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-text-body">
+                    <span className="min-w-0 flex-1 dash-truncate text-text-body">
                       <span className="font-semibold text-text-heading">{a.actor}</span> · {label}
                       {group.entries.length > 1 && (
-                        <span className="ms-1 rounded-md bg-brand/10 px-1 py-px text-[10px] font-bold tabular-nums text-brand">
+                        <span className="ms-1 rounded-md bg-brand/10 px-1 py-px text-xs font-bold tabular-nums text-brand">
                           {t("groupTimes", { count: nf.format(group.entries.length) })}
                         </span>
                       )}
                       {sensitive && (
                         <span className="ms-1 inline-flex align-text-bottom" title={t("sensitiveAction")}>
-                          <ShieldAlert className="h-3 w-3 text-amber-600" aria-hidden="true" />
+                          <ShieldAlert className="dash-status--warn dash-mark h-3.5 w-3.5" aria-hidden="true" />
                           <span className="sr-only">{t("sensitiveAction")}</span>
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 tabular-nums text-[10.5px] text-text-muted">
+                    <span className="shrink-0 tabular-nums text-xs text-text-muted">
                       {df.format(new Date(a.createdAt))}
                     </span>
                   </>
@@ -270,7 +293,7 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                   return (
                     <li
                       key={i}
-                      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12px] transition-colors hover:bg-paper"
+                      className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs transition-colors hover:bg-paper"
                       title={a.action}
                     >
                       {rowBody}
@@ -279,15 +302,15 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
                 }
                 // Bulk run — one summary row, individual entries behind a toggle.
                 return (
-                  <li key={i} className="text-[12px]" title={a.action}>
+                  <li key={i} className="text-xs" title={a.action}>
                     <details>
                       <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
                         {rowBody}
                       </summary>
                       <ol className="ms-[38px] space-y-0.5 border-s border-divider/70 ps-3">
                         {group.entries.map((entry, j) => (
-                          <li key={j} className="flex items-center gap-2 py-0.5 text-[11px] text-text-muted">
-                            <span className="min-w-0 flex-1 truncate">{label}</span>
+                          <li key={j} className="flex items-center gap-2 py-0.5 text-xs text-text-muted">
+                            <span className="min-w-0 flex-1 dash-truncate">{label}</span>
                             <span className="shrink-0 tabular-nums">{df.format(new Date(entry.createdAt))}</span>
                           </li>
                         ))}
@@ -300,7 +323,7 @@ export default async function SystemView({ filters }: { filters: DashboardFilter
           )}
           <Link
             href="/admin/logs"
-            className="mt-2.5 inline-block text-[11.5px] font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="mt-2.5 inline-block text-xs font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             {t("allLogs")}
           </Link>

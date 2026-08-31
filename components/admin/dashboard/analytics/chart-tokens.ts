@@ -34,7 +34,12 @@ export const ANALYTICS_CHART_TOKENS = {
   selection: "var(--ptec-accent-line)",
   annotation: "var(--ptec-accent)",
   comparisonDash: "5 5",
-  comparisonOpacity: 0.42,
+  /* Full strength. At 0.42 the previous-period line sat at 1.87:1 against the
+     card — below the 3:1 floor for a data mark, i.e. a line drawn to be
+     compared that could not reliably be seen. The dash pattern and the
+     narrower stroke are what distinguish it; that is what this file's own
+     comment says the dash is for, and unlike opacity they cost no contrast. */
+  comparisonOpacity: 1,
   lineWidth: 2,
   comparisonLineWidth: 1.5,
   markerRadius: 4,
