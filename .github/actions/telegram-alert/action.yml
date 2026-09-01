@@ -1,0 +1,91 @@
+# Shared Telegram alert step for GitHub Actions.
+#
+# Before this existed, uptime.yml and cron.yml each inlined the same ~12 lines
+# of curl. Three copies meant three places to fix when the message format
+# changed, and no shared place to put state-transition logic — which is why a
+# three-hour outage produced twelve identical Sev 1 messages
+# (docs/SECURITY_MONITORING_AUDIT.md §1).
+#
+# Formatting matches lib/security/notify/format.ts and
+# scripts/ops/alert-telegram.mjs: same severity tags, same HTML escaping, same
+# Phnom Penh + UTC timestamps. lib/security/notify/format.test.ts pins the
+# vocabulary across all three.
+#
+# Missing secrets degrade to a workflow WARNING, never a failure: a broken
+# alert path must not mask the result it was reporting on.
+name: Telegram alert
+description: Send one severity-tagged alert to the PTEC ops chat.
+
+inputs:
+  severity:
+    description: "1-4 (see docs/ALERT-CATALOG.md §Severity model)"
+    required: true
+  title:
+    description: Short headline, e.g. "Uptime probe failed"
+    required: true
+  service:
+    description: What is affected, e.g. library.ptec.edu.kh
+    required: false
+    default: ""
+  message:
+    description: One or two sentences of context. No secrets, no payloads.
+    required: false
+    default: ""
+  runbook:
+    description: e.g. "docs/RUNBOOKS.md §I1"
+    required: false
+    default: ""
+  bot-token:
+    description: TELEGRAM_BOT_TOKEN
+    required: true
+  chat-id:
+    description: TELEGRAM_CHAT_ID
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send
+      shell: bash
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ inputs.bot-token }}
+        TELEGRAM_CHAT_ID: ${{ inputs.chat-id }}
+        SEVERITY: ${{ inputs.severity }}
+        TITLE: ${{ inputs.title }}
+        SERVICE: ${{ inputs.service }}
+        MESSAGE: ${{ inputs.message }}
+        RUNBOOK: ${{ inputs.runbook }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -uo pipefail
+        if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
+          echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — alert NOT sent (GitHub email only)"
+          exit 0
+        fi
+
+        case "$SEVERITY" in
+          1) TAG='🚨 SEV 1' ;;
+          2) TAG='⚠️ SEV 2' ;;
+          3) TAG='🔔 SEV 3' ;;
+          4) TAG='ℹ️ SEV 4' ;;
+          recovered) TAG='✅ RECOVERED' ;;
+          *) TAG='🔔 SEV 3' ;;
+        esac
+
+        # Same three entities lib/security/notify/format.ts escapes.
+        esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+        UTC=$(date -u '+%Y-%m-%d %H:%M:%S')
+        LOCAL=$(TZ=Asia/Phnom_Penh date '+%d/%m/%Y, %H:%M')
+
+        TEXT="${TAG} — <b>$(esc "$TITLE")</b>"
+        [ -n "$SERVICE" ] && TEXT="${TEXT}"$'\n'"<b>Service</b> <code>$(esc "$SERVICE")</code>"
+        [ -n "$MESSAGE" ] && TEXT="${TEXT}"$'\n'"$(esc "$MESSAGE")"
+        [ -n "$RUNBOOK" ] && TEXT="${TEXT}"$'\n'"📕 Runbook: <code>$(esc "$RUNBOOK")</code>"
+        TEXT="${TEXT}"$'\n'"🔗 <a href=\"${RUN_URL}\">Workflow run</a>"
+        TEXT="${TEXT}"$'\n'"<i>${LOCAL} Phnom Penh · ${UTC} UTC</i>"
+
+        curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+          -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
+          --data-urlencode text="$TEXT" \
+          || echo "::warning::Telegram alert could not be delivered"

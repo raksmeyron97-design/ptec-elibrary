@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { verifyMfa } from "@/app/actions/sign-in";
 
 export default function MfaVerifyPage() {
   const supabase = createClient();
@@ -70,14 +71,21 @@ export default function MfaVerifyPage() {
       return;
     }
 
-    const { error: verifyError } = await supabase.auth.mfa.verify({
+    // Verification goes through the server (app/actions/sign-in.ts) so a
+    // REJECTED code is recorded. GoTrue's own audit log writes
+    // `verification_attempted` with no outcome field, so a failed second
+    // factor is indistinguishable from a successful one there — which is why
+    // mfa_failure_spike had no signal before this
+    // (docs/SECURITY_MONITORING_AUDIT.md §3.2). The challenge stays
+    // client-side: it carries no secret and creating one is not an attempt.
+    const result = await verifyMfa({
       factorId,
       challengeId: challengeData.id,
       code: trimmedCode,
     });
 
-    if (verifyError) {
-      setError("Invalid code. Please try again.");
+    if (!result.ok) {
+      setError(result.error ?? "Invalid code. Please try again.");
       setCode("");
       setVerifying(false);
       return;

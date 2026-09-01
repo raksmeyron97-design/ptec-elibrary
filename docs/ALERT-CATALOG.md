@@ -15,30 +15,45 @@ owner, **DIR** = library director._
 | **3** | Partial degradation or operational issue (one route erroring, disk 80 %, noisy captcha) | Next working day / ticket | Email |
 | **4** | Warning or maintenance item (CSP novelty, cert < 30 d, drift) | Weekly review | Dashboard/digest |
 
-## Delivery channels (what actually fires, 2026-08-29)
+## Delivery channels (what actually fires, updated 2026-08-31)
 
-Telegram is the **primary active channel** for Sev 1 and Sev 2. It reuses the
-contact-form bot (`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` — already in the
-box's `.env`; also set as GitHub Actions repo secrets), so there is no extra
-account to lapse. Three senders exist:
+Telegram is the **primary active channel** for Sev 1 and Sev 2. It uses
+`TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (in the box's `.env` and as GitHub
+Actions repo secrets). *Correction to an earlier note here: these are ALERT
+credentials, not contact-form credentials — the contact form has delivered by
+Gmail since `lib/gmail.ts` landed, and rotating the bot token does not affect
+it.* Four senders exist, all sharing one message format:
 
-1. **GitHub Actions** — `uptime.yml` (probe failure → Sev 1) and `cron.yml`
-   (sweep failure → Sev 2) send directly via the Bot API on `failure()`,
-   on top of GitHub's own failure email. Missing secrets degrade to a
-   workflow warning, never a masked probe result.
-2. **Box jobs** — `scripts/ops/alert-telegram.mjs` is the CLI any script or
+1. **The application** — `lib/security/notify/telegram.ts`, driven by the
+   incident engine. This is the sender for everything the app itself detects
+   (authentication attacks, privilege changes, abuse, malware). It alerts on
+   the FIRST detection of an incident, on escalation, and once on recovery —
+   never per event. See `SECURITY-MONITORING.md`.
+2. **GitHub Actions** — `.github/actions/telegram-alert`, a shared composite
+   action used by `uptime.yml` and `cron.yml`. `uptime.yml` alerts on state
+   TRANSITIONS only (first failure, then recovery), using GitHub's own run
+   history as the state store — the app's incident engine cannot help here,
+   because the site being down is exactly when it is unreachable.
+3. **Box jobs** — `scripts/ops/alert-telegram.mjs` is the CLI any script or
    systemd unit calls (`--severity 1-4 --title … --message … --runbook …`);
    the storage backup job uses it on failure. Verify wiring any time with
    `node scripts/ops/alert-telegram.mjs --test`.
-3. **External monitor** — UptimeRobot (free tier) probes
+4. **External monitor** — UptimeRobot (free tier) probes
    `https://library.ptec.edu.kh/api/health` and `GET /` at 5-min intervals;
    configure its alert contact as email + the UptimeRobot Telegram
    integration to the same chat. Configuration checklist in
    `MONITORING.md` §Uptime probes.
 
+All four use the same severity tags, HTML escaping and dual UTC + Phnom Penh
+timestamps; `lib/security/notify/format.test.ts` reads the CLI's source and
+fails if they drift apart.
+
 GitHub's "workflow failed" email to the repo owner remains the backstop when
-Telegram itself is down. Sev 3/4 stay email/digest — do not push them to
-Telegram, or rule 5 (baseline reviews) will be retuning it within a month.
+Telegram itself is down — and a run of failed deliveries with no successes
+opens an `alert-pipeline-degraded` incident, so a silently broken channel is
+itself alertable. Sev 3/4 stay dashboard/digest (`SECURITY_ALERT_MIN_SEVERITY`
+enforces it in one place) — do not push them to Telegram, or rule 5 (baseline
+reviews) will be retuning it within a month.
 
 ## Availability & infrastructure
 
@@ -78,6 +93,16 @@ Telegram, or rule 5 (baseline reviews) will be retuning it within a month.
 
 ## Security
 
+**These are now executable.** Until 2026-08-31 every alert in this section
+described a threshold against `evt:"security"` log lines that were never
+collected — no alert here could fire. Events are now persisted
+(`security_events`, migration 0127) and evaluated every 5 minutes by
+`/api/cron/security-scan`; the thresholds below are the defaults in
+`lib/security/config.ts` and each is an environment variable. Mechanism:
+`SECURITY-MONITORING.md`. Anything in the source column marked *(no source)*
+still has no signal in this deployment and is listed so nobody mistakes a zero
+for an all-clear.
+
 | Alert | Purpose | Source | Threshold | Sev | Owner | Suppression | Escalation | Runbook | Recovery |
 |---|---|---|---|---|---|---|---|---|---|
 | admin-auth-anomaly | Account probing / takeover attempt | `evt:security` `auth_forbidden`/`mfa_required` | > 10/h one user or IP | 2 | WL | pen-test windows | §I8 immediately if success suspected | §I8 | 24 h quiet |
@@ -86,7 +111,16 @@ Telegram, or rule 5 (baseline reviews) will be retuning it within a month.
 | malware-upload | Infected file blocked (or missed) | `virus_scan_blocked` / VirusTotal hit | any | 2 | WL | none | §I12; DIR if published file affected | §I12 | file removed + rescan clean |
 | captcha-storm | Bot campaign on forms | `captcha_failed` | > 50/h | 3 | WL | none | DDOS playbook | DDOS-PROTECTION.md | < 10/h |
 | rate-limit-storm | Abuse/download farming | `rate_limited` | > 100/h | 2 | WL | announced load test | DDOS playbook / strict env switches | §I13 | < 20/h |
-| waf-spike | Edge attack traffic | Cloudflare Security Events | 10× baseline | 3 → 2 sustained | WL | none | Under Attack Mode | DDOS-PROTECTION.md | baseline 2 h |
+| waf-spike | Edge attack traffic | Cloudflare Security Events *(no source — needs a read-only API token; adapter is typed and ready)* | 10× baseline | 3 → 2 sustained | WL | none | Under Attack Mode | DDOS-PROTECTION.md | baseline 2 h |
+| brute-force | Password guessing against one account | `login_failed` (server-side login proxy) | 10 per account / 15 min | 2 | WL | none | §I8; §I9 if admin | §I8 | 30 min quiet |
+| credential-stuffing | One client testing many accounts | `login_failed` grouped by client hash | 5 distinct accounts / 15 min | 2 | WL | none | §I8 | §I8 | 30 min quiet |
+| auth-success-after-failures | Possible account takeover | `login_succeeded` following ≥8 failures | any | 1 admin / 2 public | WL | none | §I9 immediately | §I9 | account holder confirms |
+| mfa-failure-spike | Second factor being guessed, or clock drift | `mfa_failed` | 5 / 15 min | 2 | WL | none | §I8 | §I8 | 30 min quiet |
+| enumeration | Scanner mapping the API | unmatched `/api/*` requests | 25 per client / 10 min | 3 | WL | verified crawlers excluded | DDoS playbook | DDOS-PROTECTION.md | 30 min quiet |
+| injection-pattern | Possible injection/traversal probing | signature class on query or path | 3 of one class / 10 min | 3 | WL | none | — | SECURITY-HEADERS.md | 30 min quiet |
+| upload-abuse | Upload validator being probed | `upload_rejected` | 10 / h | 3 | WL | bulk-import sessions | §I3 | §I3 | 30 min quiet |
+| malware-scanner-open | Uploads landing unscanned | `virus_scan_error`/`virus_scan_skipped` | 3 | 2 | WL | none | set FAIL_CLOSED_VIRUS_SCAN | §I12 | scanner healthy |
+| alert-pipeline-degraded | Incidents open but nobody is told | `alert_deliveries` failures with no successes | 3 in 1 h | 2 | WL | none | check bot token / chat id | MONITORING.md | a delivery succeeds |
 | csp-novel-violation | New injection vector or regression | `/api/csp-report` distinct directive+URI | first occurrence of a new pair | 4 | WL | known-noisy extensions list | — | SECURITY-HEADERS.md | triaged |
 | dependency-vuln | Vulnerable prod dependency | CI `npm audit` + dependency-review | high/critical | 3 | WL | accepted-risk list (documented) | — | §M5 | CI green |
 | secret-in-history | Committed secret | gitleaks CI | any | 1 | WL | none | rotate first, then rewrite | §I10 | rotated + scan clean |

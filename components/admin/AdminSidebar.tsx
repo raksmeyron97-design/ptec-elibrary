@@ -21,6 +21,7 @@ import {
   Newspaper,
   BarChart3,
   Shield,
+  ShieldAlert,
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -175,6 +176,12 @@ function getNavTree(
   if (perm(p, "users", "write"))         administration.push({ name: t("users"),        href: "/admin/users", icon: Users       });
   if (perm(p, "roles", "write") || isSA) administration.push({ name: t("roles"),        href: "/admin/roles", icon: ShieldCheck });
   if (perm(p, "settings", "read") || isSA) administration.push({ name: t("systemSettings"), href: "/admin/system-settings", icon: SlidersHorizontal });
+  // Two security surfaces, deliberately separate (see lib/admin/security-console.ts):
+  //   Security Console — what is attacking the library and what was done about it
+  //   Security Logs    — who downloaded/viewed what, and which downloads were denied
+  // Merging them would mean putting the highest-volume event class into a
+  // read-model with a 5,000-row cap and pushing real activity out of it.
+  if (isAdmin)                           administration.push({ name: t("securityConsole"), href: "/admin/security", icon: ShieldAlert, badge: crit(badges.securityIncidents) });
   if (isAdmin)                           administration.push({ name: t("securityLogs"), href: "/admin/logs",  icon: Shield      });
 
   const tree: NavNode[] = [

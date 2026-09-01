@@ -282,6 +282,15 @@ conventions (top of file) always apply.
 - **Validate**: < 75 %. **Follow-up**: adjust M13 trend line.
 
 ### I8 Suspected account compromise (any user) — Sev 2
+
+**Start at `/admin/security`.** Since 2026-08-31 an authentication attack opens
+an incident automatically: brute force, credential stuffing, MFA failure
+spikes, and a sign-in that SUCCEEDED after a run of failures (which is Sev 1 on
+the admin surface — see §I9). The incident carries the numbers that fired, the
+correlated events, and the account's internal id. Acknowledge it so colleagues
+know it is being worked; silence it for 1–4 h if you need quiet while you
+investigate — detection and recording continue.
+
 - **Trigger**: admin-auth-anomaly; user report; odd audit rows.
 - **Contain**: Supabase dashboard → user → sign out all sessions; force
   password reset.

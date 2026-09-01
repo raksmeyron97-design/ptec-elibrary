@@ -131,8 +131,70 @@ The public search page calls **`/api/search/native`**, not the Gemini `/api/sear
 ### Machine Interfaces & Scheduled Jobs
 
 - **OAI-PMH** (`/api/oai`, `lib/oai/`) exposes published, publicly-licensed items to harvesters (BASE, CORE, OpenAIRE). Read-only and anonymous; the license filter lives in `lib/oai/records.ts`. Lists paginate with a **stateless** base64url `resumptionToken` over a deterministic ordering, so no token table is needed across serverless instances. Split like the SEO helpers: pure XML builders (`lib/oai/xml.ts`, unit-tested) vs server-only fetch (`lib/oai/records.ts`). Registration notes: `docs/oai-pmh-registration.md`.
-- **Cron routes** under `app/api/cron/` are `Bearer $CRON_SECRET`-authenticated and platform-neutral — the self-hosted container schedules nothing itself, so `.github/workflows/cron.yml` is the scheduler of record (publish sweep every 15 min, cleanup daily at 20:00 UTC; its `CRON_SECRET` repo secret must match the box's `.env`). They are: `publish-scheduled` flips posts/theses/books from `scheduled` → `published` once `scheduled_at` passes (DB triggers `0073`/`0075`/`0086` then cascade `is_published`/`published_at`) and runs the Announcement Center sweep (`0100`); `cleanup` does retention deletes.
+- **Cron routes** under `app/api/cron/` are `Bearer $CRON_SECRET`-authenticated and platform-neutral — the self-hosted container schedules nothing itself, so `.github/workflows/cron.yml` is the scheduler of record (publish sweep every 15 min, cleanup daily at 20:00 UTC; its `CRON_SECRET` repo secret must match the box's `.env`). They are: `security-scan` runs the detection + incident + notification pass every 5 minutes (see Security Monitoring above); `publish-scheduled` flips posts/theses/books from `scheduled` → `published` once `scheduled_at` passes (DB triggers `0073`/`0075`/`0086` then cascade `is_published`/`published_at`) and runs the Announcement Center sweep (`0100`); `cleanup` does retention deletes.
 - `/api/reader-events` ingests reader telemetry; `/api/admin/dashboard/*` backs the admin analytics surfaces.
+
+### Security Monitoring & Incident Response
+
+Detection, incidents and alerting. Full picture: `docs/SECURITY-MONITORING.md`;
+the policy it implements is `docs/ALERT-CATALOG.md`; the Phase 0 audit that
+motivated it is `docs/SECURITY_MONITORING_AUDIT.md`.
+
+- **Three nouns, never confused.** An **event** is one thing that happened
+  (recorded always, alerts never); a **finding** means a threshold was crossed;
+  an **incident** is the deduplicated record a human is told about. 100 failed
+  logins = 100 events → 1 finding → 1 incident → **1 Telegram message**.
+- **`lib/security-log.ts` stays the emitter for every call site** and stays
+  free of `server-only` — the durable sink is *registered* by
+  `instrumentation.ts`, never imported directly. That inversion is what keeps
+  the emitter importable from the pure tests and every layer. Enforced by
+  `lib/security/policy-parity.test.ts`.
+- **The pure core is pure on purpose**: `model.ts` (taxonomy, severity, risk,
+  fingerprints, sanitization), `detect.ts` (16 detectors), `incident-policy.ts`
+  (state machine, dedupe, alert decision), `config.ts` (every threshold),
+  `notify/format.ts` (message text). No DB, no `next/headers`, no secrets — so
+  every rule that decides whether a phone buzzes is unit-testable offline.
+- **Detection runs out of band**, every 5 minutes via
+  `/api/cron/security-scan` (scheduled by `.github/workflows/cron.yml`).
+  Aggregation cannot happen on the request path: "10 failures in 15 minutes"
+  needs the other nine, and a range scan on every rate-limited request is
+  exactly what §29 forbids. The request path writes one buffered row.
+- **One live incident per fingerprint is a DATABASE guarantee** — the partial
+  unique index in migration 0127, `WHERE status NOT IN (recovered, closed)` —
+  not application logic, so concurrent passes cannot both open one.
+  Fingerprints deliberately exclude the client address: a rotating attacker
+  must collapse onto one incident, not multiply them.
+- **Severity is raised above the catalog's floor only on evidence of SUCCESS,
+  never by volume.** 12 blocked admin sign-in attempts scoring "act
+  immediately, any hour" is how a channel stops being read.
+- **Recovery is measured from raw events, not findings** — a detector stops
+  producing findings when an attack drops below its threshold while the attack
+  continues, and the recovery message claims "no further events".
+- **`/admin/security` is the INCIDENT console; `/admin/logs` is the ACTIVITY
+  console.** They are separate because merging them would put the
+  highest-volume event class into a read-model with a 5,000-row cap and push
+  real download/view activity out of it.
+- **Privacy is structural, not procedural**: no raw IPs (daily-rotating keyed
+  hash), no email addresses (internal profile UUID, or `unknown:<hash>`), no
+  attack payloads (signature CLASS only), no message bodies. Forbidden
+  metadata keys are *dropped*, not redacted. `checkSafeForTelegram()` is the
+  last gate and redacts rather than refusing — an undelivered alert is worse
+  than a redacted one.
+- **Telegram is outbound-only** (decision D2). Acknowledge/resolve/silence live
+  in `/admin/security`, which already has auth, MFA, RBAC and an audit trail.
+  One bot and one message format across four senders
+  (`lib/security/notify/telegram.ts`, `.github/actions/telegram-alert`,
+  `scripts/ops/alert-telegram.mjs`, UptimeRobot); `notify/format.test.ts` reads
+  the CLI's source and fails if they drift.
+- **Password sign-in is proxied server-side** (`app/actions/sign-in.ts`). It has
+  to be: login runs client-side against GoTrue, which records no failed-login
+  audit entry at all, so brute force and credential stuffing had no observable
+  signal. It also adds the login rate limit the form never had. OAuth stays
+  client-side.
+- **What is NOT detected is stated, not hidden**: Cloudflare WAF/DDoS (no API
+  token — the adapter is typed and the dashboard says "not configured", never
+  a zero) and non-`/api` 404 probing (middleware is Edge, the 404 page is
+  static). A dashboard showing "0 WAF events" would read as "no attacks".
 
 ### Data Layer
 
@@ -223,6 +285,7 @@ A dozen unit tests enforce architecture rules by scanning files. When one fails,
 | `lib/seo/institution.test.ts` | PTEC's real faculty/department vocabulary; `research_faculties` is never labelled a bare "Faculty"; public filter chips are translated |
 | `components/admin/dashboard/series-palette.test.ts` | the admin dashboard's four metric colours come from `--ptec-series-*` only — no literal hex in any dashboard component (see Dashboard metric palette below) |
 | `lib/i18n-parity.test.ts` | every key in `messages/en.json` has a Khmer counterpart, and no message in either catalogue is blank |
+| `lib/security/policy-parity.test.ts` | every security threshold in `config.ts` is in `.env.example`; documented defaults match the code; every detector's runbook link resolves to a real heading; no detector exists for a signal we do not have; the pure security modules stay pure and only `instrumentation.ts`/`incidents.ts` import the sink |
 | `lib/sw-policy.test.ts` | offline fallback + `shouldPrecache()` decisions |
 | `lib/csp.test.ts` | the split CSP and `THEME_INIT_SCRIPT` stay consistent |
 | `lib/resource-slug-gate.test.ts` | every public detail route is slug-gated (unknown slug → real 404, not a streamed 200) |
@@ -242,13 +305,14 @@ Required variables (see `.env.example`):
 - `GEMINI_API_KEY` (server-side only — never `NEXT_PUBLIC_`)
 - `VIRUSTOTAL_API_KEY` (optional — hash-reputation malware check on admin uploads, `lib/virus-scan.ts`; fails open if unset and logs `virus_scan_skipped`; set `FAIL_CLOSED_VIRUS_SCAN=true` to reject uploads whose scan cannot complete)
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` (Cloudflare Turnstile CAPTCHA)
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (contact-form delivery)
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (security/ops alert delivery — NOT the contact form, which delivers by Gmail via `lib/gmail.ts`)
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (web push)
 - `CRON_SECRET` (Bearer token for `/api/cron/*`)
 - `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_ROOT_DOMAIN`
 - `SMTP_USER`, `SMTP_PASS` (Gmail App Password for Supabase auth emails)
 - `ADMIN_ENGAGEMENT_CHART_V2` (optional rollout flag, `on`/`off`; default legacy in production)
 - `SEO_INDEXING=on` (force indexable where neither the platform nor the site URL says production — used by the e2e suite; **not** needed by self-hosted production, which is detected from `NEXT_PUBLIC_SITE_URL`)
+- Security monitoring thresholds and retention (`SECURITY_ALERT_MIN_SEVERITY`, `AUTH_ATTACK_THRESHOLD`, `ALERT_COOLDOWN_SECONDS`, `SECURITY_ALERTING_ENABLED`, …) — all optional with safe defaults; the full list is in `.env.example` and `docs/SECURITY-MONITORING.md` §Configuration
 - `CANONICAL_HOST_REDIRECT=off` (optional escape hatch — disables middleware's 308 from the tunnel's fallback hostname to `library.ptec.edu.kh`; only for a DNS cutover window)
 
 <!-- BEGIN:nextjs-agent-rules -->

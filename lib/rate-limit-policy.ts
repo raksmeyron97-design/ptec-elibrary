@@ -123,6 +123,35 @@ const POLICIES = {
     limit: envInt("RL_STORAGE_PURGE_PER_HOUR", 10),
     windowMs: 3600_000,
   }),
+  /**
+   * Password sign-in, per client. Added with the server-side login proxy
+   * (app/actions/sign-in.ts): before that the login form had NO rate limit of
+   * its own — only Turnstile, which a headless client with a solver defeats.
+   *
+   * 10 per 5 minutes is generous for a person who mistypes and forgiving of a
+   * shared campus NAT address, while making an unthrottled guessing run
+   * impossible. NEVER weakened by DDOS_MODE/STRICT_RATE_LIMIT — those switches
+   * exist to shed public read traffic during an attack, and tightening auth
+   * limits during an incident is a decision an operator makes explicitly.
+   */
+  login: () => ({
+    limit: envInt("RL_LOGIN_PER_5MIN", 10),
+    windowMs: 5 * 60_000,
+  }),
+  /**
+   * Password sign-in, per ACCOUNT. Stops a distributed run against one
+   * mailbox, which the per-client limit cannot see. Keyed on a keyed hash of
+   * the address, never the address itself.
+   */
+  loginAccount: () => ({
+    limit: envInt("RL_LOGIN_PER_ACCOUNT_PER_15MIN", 15),
+    windowMs: 15 * 60_000,
+  }),
+  /** Second-factor verification — per signed-in user, else per client. */
+  mfaVerify: () => ({
+    limit: envInt("RL_MFA_VERIFY_PER_5MIN", 10),
+    windowMs: 5 * 60_000,
+  }),
 } as const;
 
 export type PolicyName = keyof typeof POLICIES;

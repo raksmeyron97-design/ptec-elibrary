@@ -38,9 +38,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # A committed secret is the catalog's `secret-in-history` — Sev 1, the
+      # only CI failure that pages. Everything else in CI is a build problem.
+      # Runs on the default branch only: a contributor's PR that trips
+      # gitleaks is caught by the failing check, and paging on every PR would
+      # train the responder to ignore the channel.
+      - name: Telegram alert (Sev 1 — secret detected)
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "1"
+          title: Secret detected in the repository
+          service: gitleaks
+          message: >-
+            A commit on main matched a secret pattern. ROTATE THE CREDENTIAL
+            FIRST, then rewrite history. The value is not repeated here.
+          runbook: docs/RUNBOOKS.md §I10
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
   # On PRs, block newly-introduced dependencies with known vulnerabilities.
   # Requires the dependency graph — free on public repos, GHAS-only on
   # private ones (it failed every PR while this repo was private).
+
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -97,6 +117,22 @@ jobs:
       
     - name: Unit Tests
       run: npx vitest run
+
+    # Build integrity on the default branch. Sev 3: main is broken, which is a
+    # next-working-day problem, not a 03:00 one — nothing is down.
+    - name: Telegram alert (Sev 3 — CI failed on main)
+      if: failure() && github.ref == 'refs/heads/main'
+      uses: ./.github/actions/telegram-alert
+      with:
+        severity: "3"
+        title: CI failed on main
+        service: ci
+        message: >-
+          Type check, lint, audit or unit tests failed on the default branch.
+          Deployments from this commit should not be trusted.
+        runbook: docs/RUNBOOKS.md §I15
+        bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
 
   # Playwright suite against a REAL database: a local Supabase stack is
   # booted in the runner, the full migration chain is applied from the

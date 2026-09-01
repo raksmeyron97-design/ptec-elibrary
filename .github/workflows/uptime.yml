@@ -1,13 +1,25 @@
-# Hourly uptime backstop (probes 1 & 2 from docs/MONITORING.md).
+# Uptime backstop (probes 1 & 2 from docs/MONITORING.md).
 #
 # This is NOT the primary monitor — UptimeRobot/BetterStack at a 5-minute
 # interval is (see docs/MONITORING.md §Uptime probes). This job exists so a
-# total outage still produces an alert (GitHub "workflow failed" email) even
-# if the external monitor was never set up or its account lapses.
+# total outage still produces an alert even if the external monitor was never
+# set up or its account lapsed.
 #
 # Actions minutes are free on public repos, so this runs every 15 minutes.
 # If the repo ever goes private again, loosen to hourly (each run bills a
 # full minute against the 2,000/month free tier).
+#
+# ── State-transition alerting ───────────────────────────────────────────────
+# Every 15 minutes with no memory means a three-hour outage sends TWELVE
+# identical 🚨 messages and never says it recovered — the exact anti-pattern
+# docs/ALERT-CATALOG.md hygiene rule 2 forbids, and what this workflow used to
+# do (docs/SECURITY_MONITORING_AUDIT.md §1).
+#
+# The fix needs state, and the site being down is precisely when the app's own
+# incident engine cannot be reached. GitHub's run history IS the state: the
+# previous run's conclusion tells us whether this is a NEW failure or a
+# continuing one, and whether a recovery is worth announcing. No new
+# infrastructure, no extra secret, and it keeps working when the box is dark.
 name: Uptime Backstop
 
 on:
@@ -15,7 +27,9 @@ on:
     - cron: "7/15 * * * *" # every 15 min, off the top-of-hour cron rush
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  actions: read # read this workflow's own previous run conclusion
+  contents: read # checkout, but only on the runs that actually alert
 
 jobs:
   probe:
@@ -25,6 +39,7 @@ jobs:
       # Three attempts 30s apart per probe: a single blip (cold function,
       # transient network) must not page; only a sustained failure fails the run.
       - name: Probe production
+        id: probe
         run: |
           set -u
           check() {
@@ -51,29 +66,75 @@ jobs:
           fail=0
           check "GET /api/health (DB + storage reachability)" "https://library.ptec.edu.kh/api/health" || fail=1
           check "GET / (homepage, tunnel, app process)" "https://library.ptec.edu.kh/" "PTEC" || fail=1
+          echo "healthy=$([ "$fail" -eq 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           exit "$fail"
 
-      # Active alert on top of the GitHub failure email (docs/ALERT-CATALOG.md
-      # site-down / dependency-degraded — Sev 1). Inline curl on purpose: no
-      # checkout, no permissions, nothing extra on the 96 green runs a day.
-      # Missing secrets degrade to a warning — the probe result must never be
-      # masked by a broken alert path.
-      - name: Telegram alert (Sev 1)
-        if: failure()
+      # What did the PREVIOUS scheduled run conclude? This is the whole of the
+      # dedupe state. `always()` so it runs whether the probe passed or failed.
+      - name: Read previous run conclusion
+        id: previous
+        if: always()
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — Sev 1 alert NOT sent (GitHub email only)"
-            exit 0
-          fi
-          text="🚨 SEV 1 — <b>Uptime probe failed</b>
-          Service: <code>library.ptec.edu.kh</code>
-          /api/health or / unhealthy after 3 attempts.
-          Runbook: docs/RUNBOOKS.md §I1 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
-          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
-            --data-urlencode text="$text" \
-            || echo "::warning::Telegram alert could not be delivered"
+          set -uo pipefail
+          # The most recent completed run of THIS workflow that is not this one.
+          prev=$(gh run list \
+                   --workflow uptime.yml \
+                   --branch "${{ github.ref_name }}" \
+                   --status completed \
+                   --limit 5 \
+                   --json databaseId,conclusion \
+                   --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].conclusion" 2>/dev/null || echo "")
+          # An empty result (first ever run, API hiccup, permissions) is treated
+          # as "success", so an outage still alerts. Failing toward NOTIFYING is
+          # the right default for an availability probe: a duplicate message is
+          # an annoyance, a missed outage is the thing we are paid to catch.
+          if [ -z "$prev" ] || [ "$prev" = "null" ]; then prev="success"; fi
+          echo "conclusion=$prev" >> "$GITHUB_OUTPUT"
+          echo "Previous run concluded: $prev"
+
+      # Checkout ONLY when a message is actually going out. The original
+      # workflow inlined curl specifically to avoid a checkout on the ~96 green
+      # runs a day; a sparse checkout of one directory keeps that property while
+      # letting all three senders share one action.
+      - name: Checkout (alerting runs only)
+        if: >-
+          always() &&
+          (failure() || steps.previous.outputs.conclusion == 'failure')
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
+      # FIRST failure only → Sev 1. A continuing outage updates nothing and
+      # says nothing; the GitHub failure email remains the per-run record.
+      - name: Telegram alert (Sev 1, first detection)
+        if: failure() && steps.previous.outputs.conclusion == 'success'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "1"
+          title: Site unreachable
+          service: library.ptec.edu.kh
+          message: >-
+            /api/health or / failed 3 consecutive attempts. Continuing failures
+            will NOT re-alert; a recovery message follows when the probe passes.
+          runbook: docs/RUNBOOKS.md §I1
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Note continuing outage
+        if: failure() && steps.previous.outputs.conclusion != 'success'
+        run: echo "::warning::Outage continues — alert suppressed (already notified on first detection)"
+
+      # Recovery, exactly once: this run passed and the previous one did not.
+      - name: Telegram recovery
+        if: success() && steps.previous.outputs.conclusion == 'failure'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: recovered
+          title: Site reachable again
+          service: library.ptec.edu.kh
+          message: /api/health and / both returned 200. The uptime incident is closed.
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -16,12 +16,19 @@
  *   bookRequests → /admin/book-requests (reader requests awaiting triage)
  *   inbox        → /admin/inbox         (new, unread contact messages)
  *   dataQuality  → /admin/data-quality  (files that failed their health check)
+ *   securityIncidents → /admin/security  (Sev 1-2 incidents still open)
  */
 export type SidebarBadges = {
   review: number;
   bookRequests: number;
   inbox: number;
   dataQuality: number;
+  /**
+   * Live Sev 1-2 incidents only. Sev 3 and Sev 4 are deliberately excluded:
+   * a badge means "there is work waiting for you here", and an always-on
+   * count of informational events is how a badge stops being read.
+   */
+  securityIncidents: number;
 };
 
 export const EMPTY_SIDEBAR_BADGES: SidebarBadges = {
@@ -29,4 +36,5 @@ export const EMPTY_SIDEBAR_BADGES: SidebarBadges = {
   bookRequests: 0,
   inbox: 0,
   dataQuality: 0,
+  securityIncidents: 0,
 };
