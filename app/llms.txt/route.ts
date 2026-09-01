@@ -5,6 +5,7 @@ import { getCollectionStats, type PublicCollectionStats } from "@/lib/collection
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
+import { markdownLink } from "@/lib/markdown/link";
 
 export const revalidate = 3600;
 
@@ -51,18 +52,6 @@ function firstJoinedName(value: JoinedName) {
   if (!value) return "";
   if (Array.isArray(value)) return clean(value.map((item) => item.name).filter(Boolean).join(", "));
   return clean(value.name);
-}
-
-export function markdownLink(title: string, url: string) {
-  // Backslash must be escaped FIRST: escaping only `[`/`]` lets a
-  // pre-existing backslash in `title` cancel the escape this function adds
-  // (e.g. title containing `\]` becomes `\\]`, which a Markdown parser
-  // reads as an escaped backslash followed by a real, unescaped `]`).
-  const safeTitle = title
-    .replace(/\\/g, "\\\\")
-    .replace(/\[/g, "\\[")
-    .replace(/\]/g, "\\]");
-  return `[${safeTitle}](${url})`;
 }
 
 function detail(parts: Array<string | number | null | undefined>) {

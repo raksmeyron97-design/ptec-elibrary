@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { markdownLink } from "./route";
+import { markdownLink } from "@/lib/markdown/link";
 
 describe("markdownLink", () => {
   it("renders an ordinary title as a normal Markdown link", () => {
