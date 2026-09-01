@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -24,12 +24,17 @@ import {
   FormSection,
   StickyActionBar,
   ButtonBusy,
+  UploadProgress,
   BTN_PRIMARY,
   BTN_SECONDARY,
   LABEL_CLASS,
   TEXTAREA_CLASS,
   HINT_CLASS,
 } from "@/components/admin/kit/form";
+import {
+  uploadWithProgress,
+  type UploadProgress as Transfer,
+} from "@/lib/upload-progress";
 import { EBOOKS_BASE_PATH, EBOOKS_REVIEW_PATH } from "@/lib/admin/ebooks-url";
 import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
 import {
@@ -114,67 +119,13 @@ function CompositeField({
 }
 
 /* ── Upload progress ──────────────────────────────────────────────────────
-   Three named steps rather than a percentage: the transport here is a single
-   `fetch` with a FormData body, which reports no progress events, and a bar
-   that advances on a timer would be a lie about a 40 MB file on a slow link.
-   Each step says what is happening and which of the three it is. */
+   Named steps AND real bytes. The transport is `XMLHttpRequest`
+   (`lib/upload-progress.ts`) precisely so this can be determinate:
+   the previous `fetch` reported nothing while a 40 MB PDF went out, and the
+   panel could only repeat the step's own label beside a spinner. The panel
+   itself is `components/admin/kit/form/UploadProgress.tsx`, shared with the
+   book edit form, which had a second copy of the same stepper. */
 const PHASE_STEPS = ["uploading-pdf", "uploading-cover", "saving"] as const;
-
-function PhaseProgress({ phase }: { phase: Phase }) {
-  const t = useTranslations("adminUpload.single.phaseStep");
-  if (phase === "idle" || phase === "done") return null;
-  const currentIndex = PHASE_STEPS.indexOf(phase as (typeof PHASE_STEPS)[number]);
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-admin-accent-line bg-admin-accent-soft px-4 py-3"
-    >
-      <div className="flex flex-1 items-center gap-2">
-        {PHASE_STEPS.map((step, i) => {
-          const done = i < currentIndex;
-          const active = i === currentIndex;
-          return (
-            <Fragment key={step}>
-              {i > 0 && (
-                <span
-                  className={`h-px flex-1 rounded-full ${done ? "bg-success" : "bg-admin-accent-line"}`}
-                  aria-hidden="true"
-                />
-              )}
-              <span className="flex shrink-0 items-center gap-1.5">
-                <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done
-                      ? "bg-success text-white"
-                      : active
-                        ? "bg-admin-accent text-white"
-                        : "bg-bg-surface text-text-muted"
-                  }`}
-                  aria-hidden="true"
-                >
-                  {done ? "✓" : i + 1}
-                </span>
-                <span
-                  className={`text-xs font-semibold ${
-                    active ? "text-admin-accent-text" : done ? "text-success-text" : "text-text-muted"
-                  }`}
-                >
-                  {t(step)}
-                </span>
-              </span>
-            </Fragment>
-          );
-        })}
-      </div>
-      <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-admin-accent-text">
-        <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-        {t(phase as (typeof PHASE_STEPS)[number])}
-      </span>
-    </div>
-  );
-}
 
 export default function UploadForm({
   recentBooks = [],
@@ -184,6 +135,10 @@ export default function UploadForm({
   const supabase = createClient();
 
   const [phase, setPhase] = useState<Phase>("idle");
+  /* Byte progress for whichever file is in flight, plus its name — the readout
+     answers "which file, how far" and both halves are wrong without the other. */
+  const [transfer, setTransfer] = useState<Transfer | null>(null);
+  const [transferName, setTransferName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<PublishMode>("published");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -444,12 +399,15 @@ export default function UploadForm({
       pdfPayload.set("key", pdfPath);
       pdfPayload.set("target", "private");
 
-      const pdfRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
-      if (!pdfRes.ok) {
-        const data = await pdfRes.json().catch(() => ({}));
-        throw new Error(data.error ?? `PDF upload failed (${pdfRes.status})`);
-      }
-      const { url: pdfPublicUrl, contentHash } = await pdfRes.json();
+      setTransferName(pdf.name);
+      setTransfer(null);
+      const { url: pdfPublicUrl, contentHash } = await uploadWithProgress<{
+        url: string;
+        contentHash?: string;
+      }>("/api/admin/upload", pdfPayload, {
+        onProgress: setTransfer,
+        fallbackError: (status) => `PDF upload failed (${status})`,
+      });
 
       let coverUrl: string | null = null;
       if (hasCover) {
@@ -462,12 +420,16 @@ export default function UploadForm({
           coverPayload.set("key", coverPath);
           coverPayload.set("target", "public");
 
-          const coverRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
-          if (!coverRes.ok) {
-            const data = await coverRes.json().catch(() => ({}));
-            throw new Error(data.error ?? `Cover upload failed (${coverRes.status})`);
-          }
-          const { url: uploadedCoverUrl } = await coverRes.json();
+          setTransferName(coverFile.name);
+          setTransfer(null);
+          const { url: uploadedCoverUrl } = await uploadWithProgress<{ url: string }>(
+            "/api/admin/upload",
+            coverPayload,
+            {
+              onProgress: setTransfer,
+              fallbackError: (status) => `Cover upload failed (${status})`,
+            },
+          );
           coverUrl = uploadedCoverUrl;
         } catch (coverErr) {
           // The cover is optional and the PDF is already stored — losing the
@@ -477,6 +439,8 @@ export default function UploadForm({
       }
 
       setPhase("saving");
+      setTransfer(null);
+      setTransferName(null);
       const res = await saveBookRecord({
         title,
         author:     (formData.get("author")     as string) ?? "",
@@ -518,6 +482,8 @@ export default function UploadForm({
       throw new Error(t("err.uploadFailed"));
     } catch (err) {
       setPhase("idle");
+      setTransfer(null);
+      setTransferName(null);
       setError(err instanceof Error ? err.message : t("err.uploadFailed"));
     } finally {
       inFlight.current = false;
@@ -542,10 +508,10 @@ export default function UploadForm({
       <div
         role="status"
         aria-live="polite"
-        className="flex flex-col items-center justify-center rounded-2xl border border-success-line bg-success-soft px-6 py-16 text-center"
+        className="upl-done flex flex-col items-center justify-center rounded-2xl border border-success-line bg-success-soft px-6 py-16 text-center"
       >
         <span
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-success-line bg-bg-surface text-success"
+          className="upl-done-mark relative mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-success-line bg-bg-surface text-success"
           aria-hidden="true"
         >
           <CheckCircle2 className="h-6 w-6" />
@@ -564,7 +530,18 @@ export default function UploadForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
-      <PhaseProgress phase={phase} />
+      <UploadProgress
+        steps={PHASE_STEPS.map((id) => ({ id, label: t(`phaseStep.${id}`) }))}
+        /* "done" is impossible here — the success screen returns above. */
+        currentId={phase === "idle" ? null : phase}
+        transfer={transfer}
+        fileName={transferName}
+        processingLabel={t("progress.processing")}
+        transferredLabel={(done, total) => t("progress.transferred", { done, total })}
+        announceLabel={(current, total, label) =>
+          t("progress.step", { current, total, label })
+        }
+      />
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">

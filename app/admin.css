@@ -1083,3 +1083,132 @@ main:has(.dash-controlbar) { scroll-padding-top: 104px; }
 }
 .logs-desktop-flex { display: none; }
 @media (min-width: 860px) { .logs-desktop-flex { display: flex; } }
+
+/* ── Upload progress (components/admin/kit/form/UploadProgress.tsx) ────────
+   Motion in an upload panel is not decoration in the usual sense: it is the
+   only thing that separates "still transferring" from "stalled". Tailwind can
+   express the layout but not the four things below, so they live here.
+
+   Everything is driven by four custom properties, which is what lets one set
+   of rules serve both tones — the upload form's admin indigo and the edit
+   form's `info` surface — without a second copy of the component. */
+.upl {
+  --upl-accent: var(--ptec-admin-accent);
+  --upl-line: var(--ptec-admin-accent-line);
+  --upl-soft: var(--ptec-admin-accent-soft);
+  --upl-text: var(--ptec-admin-accent-text);
+  animation: upl-in .22s cubic-bezier(.4, 0, .2, 1) backwards;
+}
+.upl[data-tone="info"] {
+  --upl-accent: var(--ptec-info);
+  --upl-line: var(--ptec-info-line);
+  --upl-soft: var(--ptec-info-soft);
+  --upl-text: var(--ptec-info-text);
+}
+
+/* The panel appears at the top of a form the user has just submitted, pushing
+   it down. Fading in over ~200ms makes that a transition rather than a jump. */
+@keyframes upl-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The active step pulses a ring outward. This is the one element that must
+   stay legible when the network stalls and every measured value freezes. */
+.upl-dot--active { animation: upl-halo 1.9s cubic-bezier(.4, 0, .6, 1) infinite; }
+@keyframes upl-halo {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--upl-accent) 42%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--upl-accent) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--upl-accent) 0%, transparent); }
+}
+
+/* A completed step's tick lands with a slight overshoot — the only moment in
+   the panel where something has definitively finished. */
+.upl-check { animation: upl-pop .24s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+@keyframes upl-pop {
+  from { transform: scale(.4); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* Determinate fills. `linear`, not `ease`: an eased width transition on a
+   value that updates several times a second never reaches its target before
+   the next one arrives, so the bar trails the truth by a visible margin. */
+.upl-fill,
+.upl-link-fill { transition: width .18s linear; }
+
+/* A sheen travelling over the filled portion. Progress events arrive in
+   bursts, so a bar with no intrinsic motion looks frozen between them on a
+   slow link — which is precisely when the user is deciding whether to reload. */
+.upl-sheen { overflow: hidden; }
+.upl-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent);
+  animation: upl-sheen 1.25s linear infinite;
+}
+@keyframes upl-sheen {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* Indeterminate: the bytes are gone and the server is hashing, scanning,
+   optimizing and storing. Nothing reports that, so the bar stops claiming a
+   position and sweeps instead. */
+.upl-bar--indeterminate .upl-fill {
+  width: 40%;
+  transition: none;
+  animation: upl-sweep 1.15s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes upl-sweep {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(260%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Collapse rather than remove, for the same reason as `.dash-stagger`: the
+     `backwards` fill is what guarantees the element is never painted mid-fade. */
+  .upl { animation-duration: .01ms; }
+  .upl-check { animation-duration: .01ms; }
+  .upl-dot--active { animation: none; }
+  .upl-sheen::after { animation: none; opacity: 0; }
+  .upl-fill,
+  .upl-link-fill { transition: none; }
+  /* No sweep, but the state still has to be distinguishable from a determinate
+     bar: a dimmed full-width track reads as "working, extent unknown". */
+  .upl-bar--indeterminate .upl-fill {
+    animation: none;
+    width: 100%;
+    opacity: .45;
+  }
+}
+
+/* The confirmation the upload panel hands over to. It is on screen only for as
+   long as `router.push` takes to resolve, so the entrance has to read at a
+   glance: the plate settles with a slight overshoot and a single ring leaves
+   it. `forwards` is required — the ripple ends invisible, and without the fill
+   it would snap back to visible. It is a decorative ::after with no positioned
+   descendants, so the stacking context it leaves behind costs nothing. */
+.upl-done { animation: upl-in .24s cubic-bezier(.4, 0, .2, 1) backwards; }
+.upl-done-mark { animation: upl-mark .38s cubic-bezier(.34, 1.56, .64, 1) backwards; }
+@keyframes upl-mark {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.upl-done-mark::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2px solid var(--ptec-success);
+  animation: upl-ripple .7s cubic-bezier(.4, 0, .2, 1) forwards;
+}
+@keyframes upl-ripple {
+  from { opacity: .45; transform: scale(.86); }
+  to   { opacity: 0; transform: scale(1.2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upl-done,
+  .upl-done-mark { animation-duration: .01ms; }
+  .upl-done-mark::after { animation: none; opacity: 0; }
+}
