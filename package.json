@@ -75,5 +75,10 @@
     "tsx": "^4.22.4",
     "typescript": "^5",
     "vitest": "^4.1.8"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }
