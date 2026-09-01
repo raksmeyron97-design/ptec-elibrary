@@ -58,11 +58,27 @@ minutes are free; loosen to hourly if it ever goes private again.)
 
 ## Log-based alerts
 
+**Updated 2026-08-31 — these no longer depend on an aggregator.** Security
+events are now written to the `security_events` table (migration 0127) and
+evaluated every 5 minutes by `/api/cron/security-scan`, which opens
+deduplicated incidents and sends at most one Telegram message per incident
+state change. See `SECURITY-MONITORING.md` for the mechanism and
+`/admin/security` for the console.
+
+The instruction below — "wire these filters wherever logs land" — was never
+carried out on this deployment, which meant every alert in the catalog's
+Security section had no mechanism that could fire it. The table is kept
+because the log lines still exist and are still the fastest way to grep during
+an incident, and because an external aggregator remains a useful second pair
+of eyes if one is ever added.
+
 All security-relevant events are one-line JSON with `evt:"security"`
-(`lib/security-log.ts`), now carrying `x-request-id` correlation (middleware
-mints it, reuses Cloudflare `cf-ray` when present — quote it in bug reports
-and grep across layers). Wire these filters wherever logs land (Vercel Logs
-/ `docker logs` + Loki / grep cron):
+(`lib/security-log.ts`), carrying `x-request-id` correlation (middleware mints
+it, reusing Cloudflare `cf-ray` when present — quote it in bug reports, and
+paste it into `/admin/security/events` to see every event from that request).
+Each line now also carries `severity`, `risk` and `fingerprint`, so a grep over
+stdout and a query over the table give the same answer. Filters for
+`docker logs` / Loki:
 
 | Alert | Filter | Threshold (per hour) | Severity | Runbook |
 |---|---|---|---|---|

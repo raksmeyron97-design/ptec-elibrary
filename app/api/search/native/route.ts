@@ -8,6 +8,7 @@ import { generateQueryEmbedding } from "@/lib/gemini-embeddings";
 import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
+import { classifySignatures } from "@/lib/security/model";
 import { resolveDownloadAccess } from "@/lib/publications/access";
 import {
   academicTextToPlainText,
@@ -1179,6 +1180,26 @@ export async function GET(req: Request) {
 
   const q = sanitize(rawQ);
   if (!q) return Response.json({ error: "Missing or invalid query." }, { status: 400 });
+
+  // Classify the raw query against known attack shapes. This is the library's
+  // largest public input surface, so it is where injection probing actually
+  // shows up. Recording is all that happens here — `sanitize()` above already
+  // neutralised the input, and one match is NOT an incident (a database
+  // textbook search legitimately contains "UNION SELECT"): the detector needs
+  // several matches of the same signature class before it opens one.
+  //
+  // Only the class is stored, never the query text.
+  const signatures = classifySignatures(rawQ);
+  if (signatures.length) {
+    logSecurityEvent({
+      type: "injection_pattern",
+      where: "/api/search/native",
+      ip,
+      target: signatures[0],
+      detail: `search query matched ${signatures.length} signature class(es)`,
+      metadata: { signature: signatures[0], signatureCount: signatures.length },
+    });
+  }
 
   const type = parseType(searchParams.get("resourceType") ?? searchParams.get("type"));
   const sort = parseSort(searchParams.get("sort"));

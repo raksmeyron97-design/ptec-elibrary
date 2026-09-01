@@ -3211,6 +3211,7 @@
       "users": "Users",
       "roles": "Roles",
       "systemSettings": "System Settings",
+      "securityConsole": "Security Console",
       "securityLogs": "Security Logs",
       "ariaNavigation": "Admin navigation",
       "ariaSections": "Admin sections",

@@ -56,3 +56,27 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:javascript-typescript"
+
+      - name: Checkout alert action
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
+      # The ANALYSIS failing is what this alerts on — findings themselves go to
+      # the GitHub Security tab, which is where they are triaged. Sev 3: static
+      # analysis stopping is a next-working-day problem.
+      - name: Telegram alert (Sev 3 — CodeQL failed)
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "3"
+          title: CodeQL analysis failed
+          service: codeql
+          message: >-
+            Static analysis did not complete on main, so new code is not being
+            scanned. Findings (when it runs) live in the GitHub Security tab.
+          runbook: docs/RUNBOOKS.md §M5
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { SITE_URL } from "@/lib/seo/site";
 import type { AppRole } from "@/lib/types/roles";
 import { ADMIN_ROLES } from "@/lib/types/roles";
+import { logSecurityEvent } from "@/lib/security-log";
 
 export type ActionResult = { success: boolean; error?: string };
 
@@ -84,7 +85,31 @@ export async function setUserRole(targetUserId: string, newRole: AppRole): Promi
   const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", targetUserId);
   if (error) throw new Error(`Role update failed: ${error.message}`);
 
-  await audit("user_role.update", targetUserId, { from: target?.role ?? "unknown", to: newRole });
+  const previousRole = target?.role ?? "unknown";
+  await audit("user_role.update", targetUserId, { from: previousRole, to: newRole });
+
+  // The security stream, in addition to the audit log.
+  //
+  // admin_audit_log has recorded role changes since migration 0003 and is the
+  // authoritative record — but nothing ever READ it for security purposes, so
+  // an unexpected admin grant produced no alert and appeared on no dashboard
+  // (docs/SECURITY_MONITORING_AUDIT.md §3.5). This is the cheapest
+  // high-value detector in the whole system: the data already existed.
+  //
+  // No email, no name — the target is the internal profile id, which an
+  // operator can resolve and an alert never shows. The detector promotes a
+  // grant of admin/super_admin to a `privilege_escalation` incident; every
+  // other role change stays informational.
+  logSecurityEvent({
+    type: "privilege_change",
+    where: "setUserRole",
+    userId: user.id,
+    actorType: "admin",
+    target: targetUserId,
+    detail: `${previousRole} -> ${newRole}`,
+    metadata: { from: previousRole, to: newRole, targetUserId },
+  });
+
   revalidate();
 }
 

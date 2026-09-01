@@ -3,8 +3,10 @@
 # These used to be Vercel Cron entries in vercel.json. The app now runs as a
 # Docker container on ZimaOS, where nothing schedules anything — so without
 # this workflow `scheduled` posts/theses/books/paths never flip to
-# `published`, and the rate_limit table grows forever. The routes themselves
-# did not need to change: both are plain GETs guarded by
+# `published`, the rate_limit table grows forever, and no security detection
+# pass ever runs.
+#
+# The routes themselves are platform-neutral: plain GETs guarded by
 # `Authorization: Bearer $CRON_SECRET`, which any scheduler can send.
 #
 # GitHub Actions is the scheduler of record because it is the one component
@@ -21,6 +23,12 @@ name: Scheduled Jobs
 
 on:
   schedule:
+    # Security detection pass every 5 minutes — the finest granularity GitHub
+    # offers, and the interval that decides how quickly an attack in progress
+    # becomes an incident somebody is told about. The pass is idempotent and
+    # cheap (one indexed range scan); overlapping runs cannot double-open an
+    # incident or double-notify (see the route's header and migration 0127).
+    - cron: "*/5 * * * *"
     # Publish sweep every 15 minutes: the finest granularity an editor can
     # meaningfully schedule to, and cheap (four small UPDATEs).
     - cron: "3/15 * * * *"
@@ -33,17 +41,73 @@ on:
         required: true
         default: publish-scheduled
         type: choice
-        options: [publish-scheduled, cleanup, both]
+        options: [publish-scheduled, cleanup, security-scan, both]
 
-permissions: {}
+permissions:
+  contents: read # checkout, on the runs that alert
 
 env:
   SITE_URL: https://library.ptec.edu.kh
 
 jobs:
+  # ── Security detection + incident + notification pass ──────────────────────
+  # Deliberately the first job in this file: it is the one whose lateness has
+  # security consequences.
+  security-scan:
+    if: >-
+      github.event.schedule == '*/5 * * * *' ||
+      (github.event_name == 'workflow_dispatch' && inputs.job == 'security-scan')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run detection pass
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          # ONE attempt, unlike the other sweeps. A retry here would re-run a
+          # pass that may already have sent notifications; the next tick is
+          # five minutes away, and the pass is designed to catch up.
+          code=$(curl -sS --max-time 120 -o /tmp/scan.json -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SITE_URL/api/cron/security-scan")
+          cat /tmp/scan.json 2>/dev/null; echo
+          [ "$code" = "200" ] && exit 0
+          echo "::error title=Security scan failed::/api/cron/security-scan returned ${code:-no-response} — detection is not running"
+          exit 1
+
+      - name: Checkout (alerting runs only)
+        if: failure()
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
+      # Sev 2, not 3: while this fails, security events are still being
+      # recorded but nothing is being detected or announced. The library is not
+      # down — the monitoring is.
+      - name: Telegram alert (Sev 2)
+        if: failure()
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Security detection pass failing
+          service: /api/cron/security-scan
+          message: >-
+            Events are still being recorded, but no detection, incident or
+            notification is running. Security alerting is blind until this
+            recovers.
+          runbook: docs/SECURITY-MONITORING.md
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
   publish-scheduled:
-    # Skip on the daily cleanup tick; run on the 15-minute tick and on a manual
-    # dispatch that asked for it.
+    # Skip on the security and cleanup ticks; run on the 15-minute tick and on
+    # a manual dispatch that asked for it.
     if: >-
       github.event.schedule == '3/15 * * * *' ||
       (github.event_name == 'workflow_dispatch' &&
@@ -73,27 +137,25 @@ jobs:
           echo "::error title=Publish sweep failed::/api/cron/publish-scheduled did not return 200 — see docs/RUNBOOKS.md"
           exit 1
 
-      # Active alert on top of the GitHub failure email (docs/ALERT-CATALOG.md
-      # cron-missed — Sev 2). Missing secrets degrade to a warning.
+      - name: Checkout (alerting runs only)
+        if: failure()
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
       - name: Telegram alert (Sev 2)
         if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — alert NOT sent (GitHub email only)"
-            exit 0
-          fi
-          text="⚠️ SEV 2 — <b>Publish sweep failed</b>
-          Service: <code>/api/cron/publish-scheduled</code>
-          Scheduled content is not flipping to published.
-          Runbook: docs/RUNBOOKS.md §M2 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
-          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
-            --data-urlencode text="$text" \
-            || echo "::warning::Telegram alert could not be delivered"
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Publish sweep failed
+          service: /api/cron/publish-scheduled
+          message: Scheduled content is not flipping to published.
+          runbook: docs/RUNBOOKS.md §M2
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
   cleanup:
     if: >-
       github.event.schedule == '0 20 * * *' ||
@@ -102,7 +164,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Purge stale rate-limit rows
+      - name: Purge stale rows (rate limits, analytics, security retention)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
@@ -122,22 +184,24 @@ jobs:
           done
           echo "::error title=Cleanup sweep failed::/api/cron/cleanup did not return 200 — see docs/RUNBOOKS.md"
           exit 1
+
+      - name: Checkout (alerting runs only)
+        if: failure()
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
       - name: Telegram alert (Sev 2)
         if: failure()
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
-            echo "::warning::TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID repo secrets not set — alert NOT sent (GitHub email only)"
-            exit 0
-          fi
-          text="⚠️ SEV 2 — <b>Cleanup sweep failed</b>
-          Service: <code>/api/cron/cleanup</code>
-          Retention deletes are not running; the rate_limit table will grow.
-          Runbook: docs/RUNBOOKS.md §M2 · run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          <i>$(date -u '+%Y-%m-%d %H:%M:%S') UTC</i>"
-          curl -sS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" -d parse_mode=HTML -d disable_web_page_preview=true \
-            --data-urlencode text="$text" \
-            || echo "::warning::Telegram alert could not be delivered"
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Cleanup sweep failed
+          service: /api/cron/cleanup
+          message: >-
+            Retention deletes are not running; rate_limit and security_events
+            will grow without bound.
+          runbook: docs/RUNBOOKS.md §M2
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

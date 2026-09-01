@@ -78,3 +78,26 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: supabase migration list --db-url "$SUPABASE_DB_URL" | tail -15
+
+      - name: Checkout alert action
+        if: failure() && github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/actions/telegram-alert
+          sparse-checkout-cone-mode: false
+
+      # Sev 2, not 1: a failed migration leaves the schema mid-flight, which
+      # can break writes for a whole content type, but the site is still up.
+      - name: Telegram alert (Sev 2 — migration failed)
+        if: failure() && github.event_name != 'pull_request'
+        uses: ./.github/actions/telegram-alert
+        with:
+          severity: "2"
+          title: Database migration failed on main
+          service: supabase-migrate
+          message: >-
+            The hosted database may be mid-migration. Check the run log before
+            deploying anything else; never fix it by hand in the SQL editor.
+          runbook: docs/RUNBOOKS.md §I16
+          bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

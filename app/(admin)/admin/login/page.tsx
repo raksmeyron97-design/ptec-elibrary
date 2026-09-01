@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { signInWithPassword } from "@/app/actions/sign-in";
 
 export default function AdminLoginPage() {
-  const supabase = createClient();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -28,19 +27,16 @@ export default function AdminLoginPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
+    // Through the server (app/actions/sign-in.ts): the admin login is the
+    // surface an attacker cares about most, and until this went through the
+    // server a failed attempt against it left no trace anywhere.
+    const result = await signInWithPassword({ email, password, captchaToken, surface: "admin" });
 
-    if (error) {
-      // One generic message for credential/confirmation failures — a
-      // distinct "email not confirmed" branch confirms the account exists.
-      if (
-        error.message.includes("Invalid login") ||
-        error.message.includes("Email not confirmed")
-      ) {
-        setError("Email or password is incorrect. Please try again.");
-      } else {
-        setError(error.message);
-      }
+    if (!result.ok) {
+      // One generic message, as before — a distinct "email not confirmed"
+      // branch would confirm the account exists. The server already collapses
+      // them; this keeps the rate-limit message, which reveals nothing.
+      setError(result.error ?? "Email or password is incorrect. Please try again.");
       turnstileRef.current?.reset();
       setCaptchaToken(undefined);
       setLoading(false);

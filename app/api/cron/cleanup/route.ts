@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logSecurityEvent } from "@/lib/security-log";
 import { verifyBearer } from "@/lib/security/bearer";
+import {
+  alertDeliveryRetentionDays,
+  baselineRetentionDays,
+  securityEventRetentionDays,
+} from "@/lib/security/config";
 
 export const dynamic = "force-dynamic";
 
@@ -70,5 +75,35 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, cleaned: "rate_limit", retention });
+  // Security-monitoring retention (migration 0127 §8). Deleted here rather
+  // than by a trigger or a DB job so retention lives in ONE place with the
+  // other purges, and so the policy is visible in code review.
+  //
+  // Incidents are NOT purged: they are the institutional record of what
+  // happened to this library, they are low-volume by construction (one per
+  // distinct problem, not one per event), and a deleted incident takes its
+  // post-incident review with it.
+  const securityRetention: Record<string, number | string> = {};
+  for (const [table, column, days] of [
+    ["security_events", "occurred_at", securityEventRetentionDays()],
+    ["alert_deliveries", "created_at", alertDeliveryRetentionDays()],
+    ["security_baselines", "computed_at", baselineRetentionDays()],
+  ] as const) {
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+    const { error: purgeError, count } = await db
+      .from(table)
+      .delete({ count: "exact" })
+      .lt(column, cutoff);
+    if (purgeError) {
+      // Absent table = 0127 not applied yet. Skip, do not fail the sweep.
+      if (!["42P01", "PGRST205"].includes(purgeError.code ?? "")) {
+        console.error(`[/api/cron/cleanup] ${table} purge failed:`, purgeError.message);
+        securityRetention[table] = "error";
+      }
+    } else {
+      securityRetention[table] = count ?? 0;
+    }
+  }
+
+  return NextResponse.json({ ok: true, cleaned: "rate_limit", retention, securityRetention });
 }

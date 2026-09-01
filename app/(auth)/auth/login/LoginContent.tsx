@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from 'next-intl';
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { authRedirect } from "@/lib/auth/redirect-url";
+import { signInWithPassword, type SignInErrorCode } from "@/app/actions/sign-in";
 
 // ── Friendly error messages ───────────────────────────────────────────────────
 // ── PTEC content data ────────────────────────────────────────────────────────
@@ -119,6 +120,18 @@ export default function LoginContent({ stats, site }: Props) {
     return isDev ? `[Dev] ${msg}` : t('errDefault');
   }
 
+  /** Same wording as before, now driven by the server action's reason code. */
+  function messageForCode(code?: SignInErrorCode): string {
+    switch (code) {
+      case 'invalid_credentials':   return t('errInvalidLogin');
+      case 'email_not_confirmed':   return t('errEmailNotConfirmed');
+      case 'rate_limited':
+      case 'provider_rate_limited': return t('errTooManyRequests');
+      case 'provider_unreachable':  return t('errNetwork');
+      default:                      return t('errDefault');
+    }
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setSubmitted(true);
@@ -126,9 +139,13 @@ export default function LoginContent({ stats, site }: Props) {
     if (!captchaToken) { setError("Please complete the verification below."); return; }
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } });
-    if (error) {
-      setError(friendlyError(error.message));
+    // Through the server (app/actions/sign-in.ts) rather than straight to
+    // GoTrue: that is the only place a failed attempt can be counted, rate
+    // limited and recorded. Sessions still land in the same cookies, so
+    // nothing downstream changes. See docs/SECURITY-MONITORING.md.
+    const result = await signInWithPassword({ email, password, captchaToken, surface: 'public' });
+    if (!result.ok) {
+      setError(messageForCode(result.code));
       setLoading(false);
       if (!isDev) { turnstileRef.current?.reset(); setCaptchaToken(undefined); }
       return;

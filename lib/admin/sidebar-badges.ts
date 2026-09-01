@@ -48,7 +48,8 @@ export async function getSidebarBadges(
     }
   };
 
-  const [reviewBooks, reviewTheses, bookRequests, inbox, dataQuality] = await Promise.all([
+  const [reviewBooks, reviewTheses, bookRequests, inbox, dataQuality, securityIncidents] =
+    await Promise.all([
     count(canBooks, () =>
       supabase.from("books").select("id", { count: "exact", head: true }).in("status", REVIEW_STATUSES),
     ),
@@ -64,6 +65,15 @@ export async function getSidebarBadges(
     count(canBooks, () =>
       supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "broken"),
     ),
+    // Live Sev 1-2 incidents. `count()` swallows a missing table, so this is
+    // 0 rather than an error before migration 0127 is applied.
+    count(canBooks, () =>
+      supabase
+        .from("security_incidents")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["detected", "open", "acknowledged", "investigating", "mitigating"])
+        .lte("severity", 2),
+    ),
   ]);
 
   return {
@@ -71,5 +81,6 @@ export async function getSidebarBadges(
     bookRequests,
     inbox,
     dataQuality,
+    securityIncidents,
   };
 }
