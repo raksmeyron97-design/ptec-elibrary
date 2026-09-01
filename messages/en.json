@@ -3190,7 +3190,6 @@
       "dashboard": "Dashboard",
       "inbox": "Inbox",
       "groupBooks": "Books",
-      "uploadBook": "Upload Book",
       "reviewQueue": "Review Queue",
       "manageEbooks": "Manage E-books",
       "duplicates": "Duplicates",
@@ -5195,7 +5194,9 @@
       "users": "Users",
       "roles": "Roles",
       "settings": "System Settings",
-      "homepage_photos": "Homepage Photos"
+      "homepage_photos": "Homepage Photos",
+      "storage": "Storage",
+      "storage_manage": "Storage Deletion"
     },
     "initials": {
       "reader": "R",
@@ -5217,7 +5218,9 @@
       "users": "Accounts, team directory, and role assignment",
       "roles": "This permission matrix itself",
       "settings": "Global site configuration: contacts, hours, links, SEO",
-      "homepage_photos": "Photos shown in the homepage “Life at the library” gallery"
+      "homepage_photos": "Photos shown in the homepage “Life at the library” gallery",
+      "storage": "Browse and upload files in the media library",
+      "storage_manage": "Permanently delete files, bypassing the trash"
     },
     "actionBar": {
       "saving": "Saving changes…",
@@ -5296,6 +5299,27 @@
       "permissions": "Permissions",
       "users": "Users",
       "lastUpdated": "Last updated"
+    },
+    "semantics": {
+      "legendLabel": "What each access level means",
+      "noneHeadline": "Cannot access",
+      "noneDetail": "The pages are hidden from the menu, and opening one directly returns “Access restricted”.",
+      "readHeadline": "View and inspect",
+      "readDetail": "Can open the pages, search, filter, view details and previews. No create, edit, delete, upload, publish, approve or reject.",
+      "writeHeadline": "View and modify",
+      "writeDetail": "Everything Read allows, plus every change this area supports — create, edit, upload, publish, approve and delete.",
+      "grants": {
+        "none": "Cannot open this area at all.",
+        "read": "Can open and inspect this area, but cannot change anything in it.",
+        "write": "Can open this area and make every change it supports."
+      },
+      "showDetail": "What this unlocks",
+      "hideDetail": "Hide details",
+      "unlockedByRead": "Opened by Read",
+      "unlockedByWrite": "Needs Write",
+      "writeActions": "{count} actions need Write",
+      "elevatedResource": "Granting this hands over every permission on this page — a role with it can change what every other role can do.",
+      "elevatedSuperAdminOnly": "Only a Super Admin can change it."
     }
   },
   "adminEbooks": {
@@ -5532,6 +5556,7 @@
     "states": {
       "emptyTitle": "No e-books yet",
       "emptyBody": "Upload your first e-book to start building the PTEC Library.",
+      "emptyBodyReadOnly": "Nothing has been added to the collection yet. Adding e-books needs write access to the collection.",
       "uploadCta": "Upload E-book",
       "noResultsTitle": "No e-books found",
       "noResultsBody": "Try changing your search or filters.",
@@ -6806,6 +6831,11 @@
         "uploading-pdf": "Uploading PDF…",
         "uploading-cover": "Uploading cover…"
       },
+      "progress": {
+        "processing": "Processing on the server…",
+        "transferred": "{done} of {total}",
+        "step": "Step {current} of {total}: {label}"
+      },
       "chooseFirst": "Choose a PDF first.",
       "err": {
         "pdfRequired": "A PDF file is required",
@@ -7422,7 +7452,27 @@
     "title": "Something went wrong",
     "body": "This page could not be loaded. The problem has been logged.",
     "reference": "Reference: {digest}",
-    "retry": "Try again"
+    "retry": "Try again",
+    "access": {
+      "title": "Access restricted",
+      "body": "You don’t have permission to open this page.",
+      "currentAccess": "Current access",
+      "requiredAccess": "Required access",
+      "requiredRole": "Required role",
+      "contact": "If you need this access, ask a library administrator to update your role.",
+      "back": "Back to {area}",
+      "backDashboard": "Back to dashboard"
+    },
+    "unauthorized": {
+      "title": "Sign in required",
+      "body": "Your session has ended. Sign in again to continue.",
+      "action": "Go to sign in"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "body": "This admin page doesn’t exist, or it has moved.",
+      "action": "Back to dashboard"
+    }
   },
   "subjects": {
     "eyebrow": "Subject",

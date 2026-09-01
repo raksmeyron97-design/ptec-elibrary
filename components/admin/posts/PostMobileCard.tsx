@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import PostActionsMenu from "@/components/admin/posts/PostActionsMenu";
 import { CATEGORY_BADGE_STYLES, STATUS_BADGE_STYLES, STATUS_LABELS, type PostListRow } from "@/lib/admin/posts-shared";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -45,13 +46,15 @@ export default function PostMobileCard({
             className={`rounded-xl border p-4 shadow-sm transition ${isSelected ? "border-brand/40 bg-brand/5" : "border-divider bg-bg-surface"} ${isBusy ? "opacity-50" : ""}`}
           >
             <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(post.id)}
-                aria-label={t("selectOne", { title: post.title })}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
-              />
+              <CanDo action="posts.edit">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(post.id)}
+                  aria-label={t("selectOne", { title: post.title })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
+                />
+              </CanDo>
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/posts/${post.slug}`}
@@ -80,15 +83,17 @@ export default function PostMobileCard({
                   <dd className="text-right">{formatDate(post.createdAt)}</dd>
                 </dl>
               </div>
-              <PostActionsMenu
-                post={post}
-                busy={isBusy}
-                onPublish={() => onPublish(post.id)}
-                onUnpublish={() => onUnpublish(post.id)}
-                onArchive={() => onArchive(post.id)}
-                onDuplicate={() => onDuplicate(post.id)}
-                onDelete={() => onDeleteRequest(post.id, post.title)}
-              />
+              <CanDo action="posts.edit">
+                <PostActionsMenu
+                  post={post}
+                  busy={isBusy}
+                  onPublish={() => onPublish(post.id)}
+                  onUnpublish={() => onUnpublish(post.id)}
+                  onArchive={() => onArchive(post.id)}
+                  onDuplicate={() => onDuplicate(post.id)}
+                  onDelete={() => onDeleteRequest(post.id, post.title)}
+                />
+              </CanDo>
             </div>
           </div>
         );

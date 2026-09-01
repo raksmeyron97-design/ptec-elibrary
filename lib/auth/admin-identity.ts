@@ -21,6 +21,14 @@ export type AdminIdentity = {
  *
  * This is a read model only — the layout still owns the redirect/MFA
  * decisions, and Server Actions keep their own guards (lib/auth-guards.ts).
+ *
+ * It answers "who is this?", never "may they?". The capability question has one
+ * home — `lib/admin/access-policy.ts`, asked on the server through
+ * `lib/admin/route-guard.ts` and in the browser through
+ * `components/admin/access/AdminCapabilities.tsx`. An `adminCan()` helper used
+ * to live here as a second answer to the same question, resolved from a read
+ * model that does not run the MFA or lockdown checks; two capability APIs is
+ * how a control and its guard drift apart.
  */
 export const getAdminIdentity = cache(async (): Promise<AdminIdentity> => {
   const authClient = await createClient();

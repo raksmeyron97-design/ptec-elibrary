@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import { useState, useRef, Fragment } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 import { updateBook } from "@/app/(admin)/admin/(protected)/books/actions";
 import { replaceBookFile } from "@/app/actions/ebooks";
@@ -29,7 +29,6 @@ import {
   Save,
   BookOpen,
   AlertCircle,
-  Check,
   CheckCircle2,
   X,
   FileText,
@@ -45,9 +44,14 @@ import {
   StickyActionBar,
   ContextPanel,
   ButtonBusy,
+  UploadProgress,
   BTN_PRIMARY,
   type FormTab,
 } from "@/components/admin/kit/form";
+import {
+  uploadWithProgress,
+  type UploadProgress as Transfer,
+} from "@/lib/upload-progress";
 
 type Initial = {
   id: string;
@@ -172,75 +176,21 @@ function FieldLabel({
 }
 
 /**
- * Upload/save progress, three steps.
+ * Upload/save progress.
  *
- * Every colour here used to be an inline hex — a violet step, a cyan step, an
- * emerald step, plus two greys — which made the one element that appears only
- * while the form is busy also the most colourful thing on the page. Progress is
- * not a category: the states are pending, running and done, so there are three
- * tokens rather than five hexes, and `info` carries the running step because
- * that is what the panel's own surface already is.
+ * This used to be a local `PhaseStepper` — a near-duplicate of the one in the
+ * book upload form, differing only in tone and in whether the tick was an icon.
+ * Both are now `components/admin/kit/form/UploadProgress.tsx`, which also
+ * carries real byte progress: the `fetch` these steps used to run reported
+ * nothing at all while a replacement PDF went out, so the panel could only
+ * repeat the active step's label beside a spinner. `info` stays this form's
+ * tone, because that is what the panel's own surface already is.
  */
-function PhaseStepper({ phase }: { phase: Phase }) {
-  if (phase === "idle") return null;
-  const steps = [
-    { id: "uploading-pdf", label: "Uploading PDF" },
-    { id: "uploading-cover", label: "Uploading cover" },
-    { id: "saving", label: "Saving record" },
-  ] as const;
-  const order = steps.map((s) => s.id as string);
-  const ci = order.indexOf(phase);
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="mb-6 flex items-center gap-4 rounded-xl border border-info-line bg-info-soft px-5 py-3.5"
-    >
-      <div className="flex flex-1 items-center gap-2">
-        {steps.map((step, i) => {
-          const isDone = i < ci;
-          const isActive = i === ci;
-          return (
-            <Fragment key={step.id}>
-              {i > 0 && (
-                <div
-                  className={`h-px flex-1 rounded-full transition-colors duration-500 ${
-                    isDone ? "bg-success" : "bg-info-line"
-                  }`}
-                />
-              )}
-              <div className="flex shrink-0 items-center gap-1.5">
-                <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all ${
-                    isDone
-                      ? "bg-success text-white"
-                      : isActive
-                        ? "bg-info text-white"
-                        : "bg-paper text-text-muted"
-                  }`}
-                >
-                  {isDone ? <Check className="h-3 w-3" aria-hidden="true" /> : i + 1}
-                </span>
-                <span
-                  className={`text-xs font-semibold ${
-                    isActive ? "text-info-text" : isDone ? "text-success-text" : "text-text-muted"
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            </Fragment>
-          );
-        })}
-      </div>
-      <div className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-info-text">
-        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none" />
-        {phase === "uploading-pdf" ? "Uploading PDF…" : phase === "uploading-cover" ? "Uploading cover…" : "Saving…"}
-      </div>
-    </div>
-  );
-}
+const PHASE_STEPS = [
+  { id: "uploading-pdf", label: "Uploading PDF" },
+  { id: "uploading-cover", label: "Uploading cover" },
+  { id: "saving", label: "Saving record" },
+] as const;
 
 export default function EditForm({
   initial,
@@ -261,6 +211,9 @@ export default function EditForm({
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>("files");
   const [phase, setPhase]         = useState<Phase>("idle");
+  /* Byte progress for whichever file is in flight, plus its name. */
+  const [transfer, setTransfer]         = useState<Transfer | null>(null);
+  const [transferName, setTransferName] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -382,9 +335,16 @@ export default function EditForm({
         pdfPayload.set("excludeType", "book");
         pdfPayload.set("excludeId", initial.id);
 
-        const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: pdfPayload });
-        const data = await uploadRes.json().catch(() => ({}));
-        if (!uploadRes.ok) throw new Error(data.error ?? `PDF upload failed (${uploadRes.status})`);
+        setTransferName(pdfFile.name);
+        setTransfer(null);
+        const data = await uploadWithProgress<{ url: string; contentHash?: string }>(
+          "/api/admin/upload",
+          pdfPayload,
+          {
+            onProgress: setTransfer,
+            fallbackError: (status) => `PDF upload failed (${status})`,
+          },
+        );
 
         const replaceResult = await replaceBookFile(initial.id, {
           fileUrl: data.url,
@@ -409,12 +369,16 @@ export default function EditForm({
         coverPayload.set("key", path);
         coverPayload.set("target", "public");
 
-        const uploadRes = await fetch("/api/admin/upload", { method: "POST", body: coverPayload });
-        if (!uploadRes.ok) {
-          const data = await uploadRes.json().catch(() => ({}));
-          throw new Error(data.error ?? `Cover upload failed (${uploadRes.status})`);
-        }
-        const { url } = await uploadRes.json();
+        setTransferName(coverFile.name);
+        setTransfer(null);
+        const { url } = await uploadWithProgress<{ url: string }>(
+          "/api/admin/upload",
+          coverPayload,
+          {
+            onProgress: setTransfer,
+            fallbackError: (status) => `Cover upload failed (${status})`,
+          },
+        );
         newCoverUrl = url;
       }
 
@@ -422,9 +386,13 @@ export default function EditForm({
       else if (preview === null) formData.set("coverUrl", "__remove__");
 
       setPhase("saving");
+      setTransfer(null);
+      setTransferName(null);
       await updateBook(initial.id, formData);
     } catch (err) {
       setPhase("idle");
+      setTransfer(null);
+      setTransferName(null);
       setError(err instanceof Error ? err.message : "Update failed");
     }
   }
@@ -590,7 +558,15 @@ export default function EditForm({
     >
       {/* Upload progress stays above the panels: it is about the whole save,
           not the section that happens to be open. */}
-      <PhaseStepper phase={phase} />
+      <UploadProgress
+        steps={PHASE_STEPS}
+        currentId={phase === "idle" ? null : phase}
+        transfer={transfer}
+        fileName={transferName}
+        processingLabel="Processing on the server…"
+        tone="info"
+        className="mb-6"
+      />
 
 
       <div

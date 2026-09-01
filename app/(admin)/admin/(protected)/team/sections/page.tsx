@@ -1,12 +1,13 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import SectionsClient from "./_components/SectionsClient";
 import type { TeamSection } from "../actions";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function TeamSectionsPage() {
-  await requireAdmin();
+  await requireRouteAccess("team.sections");
+
   const supabase = createServiceClient();
 
   const [{ data: sectionsRaw }, { data: membersRaw }] = await Promise.all([

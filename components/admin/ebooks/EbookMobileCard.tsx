@@ -28,6 +28,7 @@ export default function EbookMobileCard({
   onVerify,
   onUnverify,
   onDeleteRequest,
+  canWrite,
 }: {
   rows: EbookListRow[];
   selectedIds: Set<string>;
@@ -41,6 +42,9 @@ export default function EbookMobileCard({
   onVerify: (id: string) => void;
   onUnverify: (id: string) => void;
   onDeleteRequest: (id: string, title: string) => void;
+  /** `books: write` — same rule as the table: mutation controls are absent, not
+   *  disabled, for a read-only viewer. */
+  canWrite: boolean;
 }) {
   const t = useTranslations("adminEbooks.table");
   const tStatus = useTranslations("adminEbooks.status");
@@ -60,13 +64,15 @@ export default function EbookMobileCard({
             } ${isBusy ? "opacity-50" : ""}`}
           >
             <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(book.id)}
-                aria-label={t("selectOne", { title: book.title })}
-                className="mt-1 h-4 w-4 shrink-0 rounded-sm border-divider accent-[var(--ptec-brand)]"
-              />
+              {canWrite && (
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(book.id)}
+                  aria-label={t("selectOne", { title: book.title })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded-sm border-divider accent-[var(--ptec-brand)]"
+                />
+              )}
               <EbookCover coverUrl={book.coverUrl} title={book.title} className="h-14 w-10" />
 
               <div className="min-w-0 flex-1">
@@ -107,6 +113,7 @@ export default function EbookMobileCard({
                   </span>
 
                   <div className="ml-auto flex items-center gap-0.5">
+                    {canWrite && (
                     <Link
                       href={`/admin/edit/${book.id}`}
                       aria-label={t("editFor", { title: book.title })}
@@ -114,6 +121,8 @@ export default function EbookMobileCard({
                     >
                       <Pencil className="h-4 w-4" aria-hidden="true" />
                     </Link>
+                    )}
+                    {canWrite && (
                     <EbookActionsMenu
                       book={book}
                       busy={isBusy}
@@ -126,6 +135,7 @@ export default function EbookMobileCard({
                       onUnverify={() => onUnverify(book.id)}
                       onDeleteRequest={onDeleteRequest}
                     />
+                    )}
                   </div>
                 </div>
               </div>

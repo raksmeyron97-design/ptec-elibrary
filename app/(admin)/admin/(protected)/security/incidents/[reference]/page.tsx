@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import { getIncidentDetail } from "@/lib/admin/security-console";
 import {
@@ -13,6 +12,7 @@ import {
   SeverityBadge,
 } from "../../_components/security-ui";
 import IncidentActions from "./IncidentActions";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,8 @@ export default async function IncidentDetailPage({
 }: {
   params: Promise<{ reference: string }>;
 }) {
-  await requireAdmin();
+  await requireRouteAccess("security.incident");
+
   const { reference } = await params;
   const detail = await getIncidentDetail(decodeURIComponent(reference));
   if (!detail) notFound();

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { adminUpdateBookRequest, adminDeleteBookRequest } from "@/app/actions/book-requests";
 import type { BookRequest, BookRequestStatus } from "@/app/actions/book-requests";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 import { ConfirmDialog, EmptyState, StatusBadge, useToast } from "@/components/admin/kit";
 import type { StatusTone } from "@/components/admin/kit";
 
@@ -139,6 +140,15 @@ function DetailPanel({
   onDelete: (req: BookRequest) => void;
 }) {
   const t = useTranslations("adminBookRequests");
+  /* `books: read` reaches this queue — it is where a librarian sees what
+     readers have asked for, and that is worth reading whether or not you can
+     act on it. Approving, rejecting, marking added and deleting are each
+     `books: write`, checked again in the action; the admin note is a mutation
+     too, so the composer goes with the buttons rather than sitting there
+     collecting text nobody can save. */
+  const canUpdate = useCan("books.requests.update");
+  const canDelete = useCan("books.requests.delete");
+
   return (
     <div className="flex flex-col gap-2.5">
       {req.reason && (
@@ -147,27 +157,33 @@ function DetailPanel({
           {req.reason}
         </p>
       )}
-      <label className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-        {t("note.label")}
-        <textarea
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          placeholder={t("note.placeholder")}
-          rows={2}
-          className="mt-1 w-full resize-none rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[12.5px] font-normal normal-case tracking-normal text-text-body placeholder:text-text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-        />
-      </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <TransitionButtons req={req} note={note} busy={busy} onUpdate={onUpdate} />
-        <button
-          type="button"
-          onClick={() => onDelete(req)}
-          disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-danger/25 bg-danger/5 px-3 py-1.5 text-[12px] font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-60"
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.delete")}
-        </button>
-      </div>
+      {canUpdate && (
+        <label className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          {t("note.label")}
+          <textarea
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder={t("note.placeholder")}
+            rows={2}
+            className="mt-1 w-full resize-none rounded-xl border border-divider bg-bg-surface px-3 py-2 text-[12.5px] font-normal normal-case tracking-normal text-text-body placeholder:text-text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+          />
+        </label>
+      )}
+      {(canUpdate || canDelete) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {canUpdate && <TransitionButtons req={req} note={note} busy={busy} onUpdate={onUpdate} />}
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(req)}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-danger/25 bg-danger/5 px-3 py-1.5 text-[12px] font-semibold text-danger transition hover:bg-danger/10 disabled:opacity-60"
+            >
+              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.delete")}
+            </button>
+          )}
+        </div>
+      )}
       {req.admin_note && (
         <p className="text-[11.5px] text-text-muted">{t("note.current", { note: req.admin_note })}</p>
       )}

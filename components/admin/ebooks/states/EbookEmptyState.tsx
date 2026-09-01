@@ -4,21 +4,24 @@ import { BookOpen, SearchX, Plus } from "lucide-react";
 import { EmptyState } from "@/components/admin/kit";
 import { EBOOKS_BASE_PATH, EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
 
-/** Nothing has ever been uploaded — the one case that gets a primary action. */
-export function EbookEmptyState() {
+/** Nothing has ever been uploaded — the one case that gets a primary action,
+ *  and only for someone who can actually take it. */
+export function EbookEmptyState({ canUpload = false }: { canUpload?: boolean }) {
   const t = useTranslations("adminEbooks.states");
   return (
     <EmptyState
       icon={<BookOpen className="h-7 w-7" />}
       title={t("emptyTitle")}
-      description={t("emptyBody")}
+      description={canUpload ? t("emptyBody") : t("emptyBodyReadOnly")}
       action={
-        <Link
-          href={EBOOKS_UPLOAD_PATH}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" /> {t("uploadCta")}
-        </Link>
+        canUpload ? (
+          <Link
+            href={EBOOKS_UPLOAD_PATH}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" /> {t("uploadCta")}
+          </Link>
+        ) : undefined
       }
     />
   );

@@ -34,4 +34,6 @@ export { useWideContext, SPLIT_BREAKPOINT } from "./use-wide-context";
 export { default as FieldEmptyState } from "./FieldEmptyState";
 export { default as SlugField } from "./SlugField";
 export { default as Switch } from "./Switch";
+export { default as UploadProgress } from "./UploadProgress";
+export type { UploadStepDef, UploadProgressProps } from "./UploadProgress";
 export type { SlugFieldLabels } from "./SlugField";

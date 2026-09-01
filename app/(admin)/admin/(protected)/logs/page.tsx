@@ -1,4 +1,3 @@
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import SecurityLogsClient, { type ClientFilters } from "./_components/SecurityLogsClient";
 import { queryActivity, type ActivityFilters } from "@/lib/admin/activity-log";
@@ -11,6 +10,7 @@ import {
   type ResourceType,
 } from "@/lib/admin/activity-log-shared";
 import type { Metadata } from "next";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 // Logs are session-dependent + contain personal data: never prerender or cache.
 export const dynamic = "force-dynamic";
@@ -33,7 +33,8 @@ export default async function AdminLogsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireRouteAccess("logs.activity");
+
   const identity = await getAdminIdentity();
   const canSeePersonal = identity.isSuperAdmin || identity.role === "super_admin";
 

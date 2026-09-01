@@ -21,6 +21,7 @@ import ContentView from "@/components/admin/dashboard/views/ContentView";
 import SearchView from "@/components/admin/dashboard/views/SearchView";
 import AudienceView from "@/components/admin/dashboard/views/AudienceView";
 import SystemView from "@/components/admin/dashboard/views/SystemView";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,8 @@ export default async function AdminDashboardPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireRouteAccess("dashboard");
+
   const sp = await searchParams;
   const filters = parseDashboardFilters(sp);
   const engagementChartVersion = resolveEngagementChartVersion();

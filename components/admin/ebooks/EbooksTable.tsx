@@ -113,6 +113,7 @@ export default function EbooksTable({
   busyId,
   onToggleSelect,
   onToggleSelectAll,
+  canWrite,
   ...actions
 }: RowActions & {
   rows: EbookListRow[];
@@ -121,6 +122,13 @@ export default function EbooksTable({
   busyId: string | null;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
+  /**
+   * `books: write`. Selection, the row menu and the edit pencil all exist only
+   * to change a record, so for a read-only viewer the whole column is absent
+   * rather than disabled — a checkbox that selects rows for a bulk bar that can
+   * never appear is worse than no checkbox.
+   */
+  canWrite: boolean;
 }) {
   const t = useTranslations("adminEbooks.table");
   const tStatus = useTranslations("adminEbooks.status");
@@ -132,16 +140,18 @@ export default function EbooksTable({
         <caption className="sr-only">{t("caption")}</caption>
         <thead>
           <tr className="border-b border-divider bg-paper/70 text-xs font-semibold text-text-muted">
-            <th scope="col" className={`${th} w-10`}>
-              <label className="sr-only" htmlFor="select-all-ebooks">{t("selectAll")}</label>
-              <input
-                id="select-all-ebooks"
-                type="checkbox"
-                checked={allSelected}
-                onChange={onToggleSelectAll}
-                className={checkbox}
-              />
-            </th>
+            {canWrite && (
+              <th scope="col" className={`${th} w-10`}>
+                <label className="sr-only" htmlFor="select-all-ebooks">{t("selectAll")}</label>
+                <input
+                  id="select-all-ebooks"
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={onToggleSelectAll}
+                  className={checkbox}
+                />
+              </th>
+            )}
             <SortableTh label={t("document")} asc="title-asc" desc="title-desc" className={`${th} min-w-[280px]`} />
             <th scope="col" className={`${th} hidden w-[150px] uppercase tracking-wide lg:table-cell`}>
               {t("department")}
@@ -177,16 +187,18 @@ export default function EbooksTable({
                   isSelected ? "bg-surface-brand-soft" : "hover:bg-paper/60"
                 } ${isBusy ? "opacity-50" : ""}`}
               >
-                <td className="px-4 py-3 align-top">
-                  <label className="sr-only" htmlFor={`select-ebook-${book.id}`}>{t("selectOne", { title: book.title })}</label>
-                  <input
-                    id={`select-ebook-${book.id}`}
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggleSelect(book.id)}
-                    className={`${checkbox} mt-1`}
-                  />
-                </td>
+                {canWrite && (
+                  <td className="px-4 py-3 align-top">
+                    <label className="sr-only" htmlFor={`select-ebook-${book.id}`}>{t("selectOne", { title: book.title })}</label>
+                    <input
+                      id={`select-ebook-${book.id}`}
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => onToggleSelect(book.id)}
+                      className={`${checkbox} mt-1`}
+                    />
+                  </td>
+                )}
 
                 {/* Document — cover, title, one meta line, and flags only when
                     something needs attention. */}
@@ -261,6 +273,7 @@ export default function EbooksTable({
 
                 <td className="px-4 py-3 align-top text-right">
                   <div className="row-actions flex items-center justify-end gap-0.5">
+                    {canWrite && (
                     <Link
                       href={`/admin/edit/${book.id}`}
                       aria-label={t("editFor", { title: book.title })}
@@ -269,6 +282,8 @@ export default function EbooksTable({
                     >
                       <Pencil className="h-4 w-4" aria-hidden="true" />
                     </Link>
+                    )}
+                    {canWrite && (
                     <EbookActionsMenu
                       book={book}
                       busy={isBusy}
@@ -281,6 +296,7 @@ export default function EbooksTable({
                       onUnverify={() => actions.onUnverify(book.id)}
                       onDeleteRequest={actions.onDeleteRequest}
                     />
+                    )}
                   </div>
                 </td>
               </tr>

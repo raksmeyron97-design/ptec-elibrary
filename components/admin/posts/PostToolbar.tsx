@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus, Search, X } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/posts-url";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 export default function PostToolbar({ totalItems }: { totalItems: number }) {
   const router = useRouter();
@@ -54,13 +55,16 @@ export default function PostToolbar({ totalItems }: { totalItems: number }) {
         </span>
       </div>
 
-      <Link
-        href="/admin/posts/new"
-        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
-      >
-        <Plus className="h-4 w-4" strokeWidth={2.5} />
-        {t("create")}
-      </Link>
+      {/* The create route requires write; offering it to a read-only viewer only routes them to a 403 */}
+      <CanDo action="posts.create">
+        <Link
+          href="/admin/posts/new"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.5} />
+          {t("create")}
+        </Link>
+      </CanDo>
     </div>
   );
 }

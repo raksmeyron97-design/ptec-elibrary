@@ -8,11 +8,14 @@ import { withUpdatedParams } from "@/lib/admin/users-url";
 
 export default function UserToolbar({
   totalItems,
+  canInviteUsers = false,
   onAddUser,
   onImport,
   exportMenu,
 }: {
   totalItems: number;
+  /** `users: write`. Search, filters and export stay; Invite and Import go. */
+  canInviteUsers?: boolean;
   onAddUser: () => void;
   onImport: () => void;
   /** Rendered in place of the old Export button (see components/admin/ExportMenu). */
@@ -103,16 +106,20 @@ export default function UserToolbar({
 
       <div className="flex items-center gap-2">
         {exportMenu}
-        <button type="button" onClick={onImport} className={secondaryBtn}>
-          <Upload className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">{t("import")}</span>
-        </button>
-        <button
-          type="button"
-          onClick={onAddUser}
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
-        >
-          <UserPlus className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /> {t("addUser")}
-        </button>
+        {canInviteUsers && (
+          <>
+            <button type="button" onClick={onImport} className={secondaryBtn}>
+              <Upload className="h-4 w-4" aria-hidden="true" /> <span className="hidden sm:inline">{t("import")}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onAddUser}
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
+            >
+              <UserPlus className="h-4 w-4" strokeWidth={2.5} aria-hidden="true" /> {t("addUser")}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

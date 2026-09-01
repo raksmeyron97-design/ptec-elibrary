@@ -69,6 +69,8 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     description: "People, roles, and system access",
     iconKey: "administration",
     resources: [
+      { key: "storage", label: "Storage", description: "Browse and upload files in the media library" },
+      { key: "storage_manage", label: "Storage Deletion", description: "Permanently delete files, bypassing the trash" },
       { key: "users", label: "Users", description: "Accounts, team directory, and role assignment" },
       { key: "roles", label: "Roles", description: "This permission matrix itself" },
       { key: "settings", label: "System Settings", description: "Global site configuration: contacts, hours, links, SEO" },
@@ -213,7 +215,16 @@ export function groupResourceKeys(groupId: string): string[] {
   return PERMISSION_GROUPS.find((g) => g.id === groupId)?.resources.map((r) => r.key) ?? [];
 }
 
-/** Overwrite one role's levels for the given resource keys. Locked roles are inert. */
+/**
+ * Overwrite one role's levels for the given resource keys. Locked roles are
+ * inert.
+ *
+ * Bulk paths may move the `roles` row like any other now that role management
+ * is delegable. The line that used to be held here is held on the server
+ * instead (`ROLES_DELEGATION_RULES.rolesRowSuperAdminOnly`), which is where it
+ * belongs: a bulk edit and a single-cell edit have to be refused by the same
+ * rule, and only the server knows who is asking.
+ */
 export function setLevels(
   matrix: PermMatrix,
   role: AppRole,

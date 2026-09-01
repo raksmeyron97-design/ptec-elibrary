@@ -113,6 +113,16 @@ export async function middleware(request: NextRequest) {
 
   request.headers.set('x-request-id', requestId);
 
+  // The admin 403 page (app/(admin)/admin/(protected)/forbidden.tsx) takes no
+  // props — Next's forbidden.js convention passes none — so it reconstructs
+  // "what you have vs what this needs" from the pathname plus the policy table
+  // in lib/admin/access-policy.ts. Set only for /admin, because *reading*
+  // headers() opts a route out of static rendering and the public tree must
+  // stay prerenderable. Writing a request header here costs nothing either way.
+  if (rawPath === '/admin' || rawPath.startsWith('/admin/')) {
+    request.headers.set('x-pathname', rawPath);
+  }
+
   // ── Indexing safety (lib/seo/indexing.ts) ──────────────────────────────
   // Non-production deployments (previews, branch URLs, local, staging) get a
   // blanket noindex header; private surfaces (/admin, /auth, /api, account

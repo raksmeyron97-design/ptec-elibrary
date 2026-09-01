@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Plus, Search, X } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/theses-url";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 export default function ThesisToolbar({ totalItems }: { totalItems: number }) {
   const router = useRouter();
@@ -54,13 +55,16 @@ export default function ThesisToolbar({ totalItems }: { totalItems: number }) {
         </span>
       </div>
 
-      <Link
-        href="/admin/theses/create"
-        className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
-      >
-        <Plus className="h-4 w-4" strokeWidth={2.5} />
-        {t("upload")}
-      </Link>
+      {/* The create route requires write; offering it to a read-only viewer only routes them to a 403 */}
+      <CanDo action="theses.create">
+        <Link
+          href="/admin/theses/create"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-hover"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.5} />
+          {t("upload")}
+        </Link>
+      </CanDo>
     </div>
   );
 }

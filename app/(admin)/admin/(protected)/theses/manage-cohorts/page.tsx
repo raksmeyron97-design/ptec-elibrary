@@ -4,8 +4,11 @@ import { ArrowLeft } from "lucide-react";
 import { getThesisPrograms, getThesisFaculties, getThesisCohorts, getThesisAcademicYears } from "@/app/actions/theses";
 import { PageHeader } from "@/components/admin/kit";
 import ManageCohortsClient from "./_components/ManageCohortsClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function ManageCohortsPage() {
+  await requireRouteAccess("theses.cohorts");
+
   const [programRes, facultyRes, cohortRes, yearRes] = await Promise.all([
     getThesisPrograms(),
     getThesisFaculties(),

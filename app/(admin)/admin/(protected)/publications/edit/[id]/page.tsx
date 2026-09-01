@@ -1,8 +1,11 @@
 import { notFound } from "next/navigation";
 import { getPublicationForAdmin } from "@/app/actions/publications";
 import PublicationForm from "../../_components/PublicationForm";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditPublicationPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRouteAccess("publications.edit");
+
   const { id } = await params;
   const { data: publication, error } = await getPublicationForAdmin(id);
 

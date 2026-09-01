@@ -99,6 +99,9 @@ describe("applyReferenceRow", () => {
     const after = applyReferenceRow(matrixOf("read"), "staff", reference);
 
     expect(levelAt(after, "staff", "books")).toBe("write");
+    // Every row moves, `roles` included: it is a normal matrix row now that
+    // role management is delegable. What a *particular editor* may move is a
+    // server question (ROLES_DELEGATION_RULES), not a shape question.
     for (const key of ALL_RESOURCE_KEYS.filter((k) => k !== "books")) {
       expect(levelAt(after, "staff", key)).toBe("none");
     }

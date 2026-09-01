@@ -9,6 +9,7 @@ import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
 import ThesisDownloadControl from "@/components/admin/theses/ThesisDownloadControl";
 import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function programLabel(programs: ThesisProgramOption[], code: string | null): string {
   if (!code) return "No program";
@@ -59,13 +60,15 @@ export default function ThesisMobileCard({
             className={`rounded-xl border p-4 shadow-sm transition ${isSelected ? "border-brand/40 bg-brand/5" : "border-divider bg-bg-surface"} ${isBusy ? "opacity-50" : ""}`}
           >
             <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(thesis.id)}
-                aria-label={t("selectOne", { title: thesis.title })}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
-              />
+              <CanDo action="theses.edit">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(thesis.id)}
+                  aria-label={t("selectOne", { title: thesis.title })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
+                />
+              </CanDo>
               {thesis.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={thesis.coverUrl} alt="" loading="lazy" className="h-16 w-12 shrink-0 rounded object-cover shadow-sm" />
@@ -97,13 +100,15 @@ export default function ThesisMobileCard({
                   longer carries them, so a card without these would strand a
                   tablet user with no way to open a thesis. */}
               <div className="flex shrink-0 flex-col items-center gap-0.5">
-                <Link
-                  href={`/admin/theses/edit/${thesis.id}`}
-                  aria-label={t("editNamed", { title: thesis.title })}
-                  className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                <CanDo action="theses.edit">
+                  <Link
+                    href={`/admin/theses/edit/${thesis.id}`}
+                    aria-label={t("editNamed", { title: thesis.title })}
+                    className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </CanDo>
                 {thesis.status === "published" && (
                   <Link
                     href={thesisHref(thesis)}
@@ -115,19 +120,21 @@ export default function ThesisMobileCard({
                     <Eye className="h-4 w-4" aria-hidden="true" />
                   </Link>
                 )}
-                <ThesisActionsMenu
-                  thesis={thesis}
-                  busy={isBusy}
-                  onPublish={() => onPublish(thesis.id)}
-                  onUnpublish={() => onUnpublish(thesis.id)}
-                  onArchive={() => onArchive(thesis.id)}
-                  onUnarchive={() => onUnarchive(thesis.id)}
-                  onDuplicate={() => onDuplicate(thesis.id)}
-                  onSubmitForReview={() => onSubmitForReview(thesis.id)}
-                  onVerify={() => onVerify(thesis.id)}
-                  onUnverify={() => onUnverify(thesis.id)}
-                  onDelete={() => onDeleteRequest(thesis.id, thesis.title)}
-                />
+                <CanDo action="theses.edit">
+                  <ThesisActionsMenu
+                    thesis={thesis}
+                    busy={isBusy}
+                    onPublish={() => onPublish(thesis.id)}
+                    onUnpublish={() => onUnpublish(thesis.id)}
+                    onArchive={() => onArchive(thesis.id)}
+                    onUnarchive={() => onUnarchive(thesis.id)}
+                    onDuplicate={() => onDuplicate(thesis.id)}
+                    onSubmitForReview={() => onSubmitForReview(thesis.id)}
+                    onVerify={() => onVerify(thesis.id)}
+                    onUnverify={() => onUnverify(thesis.id)}
+                    onDelete={() => onDeleteRequest(thesis.id, thesis.title)}
+                  />
+                </CanDo>
               </div>
             </div>
           </div>

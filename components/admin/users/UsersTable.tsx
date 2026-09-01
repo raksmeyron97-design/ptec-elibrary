@@ -13,6 +13,7 @@ export default function UsersTable({
   busyId,
   currentUserId,
   callerCanAssignAdmin,
+  canManageUsers,
   onToggleSelect,
   onToggleSelectAll,
   onOpen,
@@ -24,6 +25,8 @@ export default function UsersTable({
   busyId: string | null;
   currentUserId: string;
   callerCanAssignAdmin: boolean;
+  /** `users: write`. Selection only feeds the bulk bar, which is all mutations. */
+  canManageUsers: boolean;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onOpen: (user: UserRow) => void;
@@ -40,15 +43,17 @@ export default function UsersTable({
           <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper [&>th:first-child]:rounded-tl-2xl [&>th:last-child]:rounded-tr-2xl">
-              <th scope="col" className="w-10 px-4 py-3">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={onToggleSelectAll}
-                  aria-label={t("selectAll")}
-                  className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
-                />
-              </th>
+              {canManageUsers && (
+                <th scope="col" className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onToggleSelectAll}
+                    aria-label={t("selectAll")}
+                    className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                  />
+                </th>
+              )}
               <th scope="col" className={th}>{t("user")}</th>
               <th scope="col" className={th}>{t("role")}</th>
               <th scope="col" className={th}>{t("status")}</th>
@@ -61,7 +66,7 @@ export default function UsersTable({
             {rows.map((u) => {
               const isMe = u.id === currentUserId;
               const targetIsSuperAdmin = u.isSuperAdmin || u.role === "super_admin";
-              const canManage = !isMe && (!targetIsSuperAdmin || callerCanAssignAdmin);
+              const canManage = canManageUsers && !isMe && (!targetIsSuperAdmin || callerCanAssignAdmin);
               const isBusy = busyId === u.id;
               const selected = selectedIds.has(u.id);
 
@@ -71,15 +76,17 @@ export default function UsersTable({
                   className={`group cursor-pointer transition-colors hover:bg-paper/70 ${selected ? "bg-brand/[0.04]" : ""} ${isBusy ? "opacity-50" : ""}`}
                   onClick={() => onOpen(u)}
                 >
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => onToggleSelect(u.id)}
-                      aria-label={t("selectUser", { name: u.fullName ?? u.email })}
-                      className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
-                    />
-                  </td>
+                  {canManageUsers && (
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => onToggleSelect(u.id)}
+                        aria-label={t("selectUser", { name: u.fullName ?? u.email })}
+                        className="h-4 w-4 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                      />
+                    </td>
+                  )}
 
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

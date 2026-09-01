@@ -17,13 +17,9 @@ import AuthDivider from "./_components/AuthDivider";
 import TextField from "./_components/TextField";
 import PasswordField from "./_components/PasswordField";
 import PasswordRequirements from "./_components/PasswordRequirements";
+import { isReservedAdminDomain } from "@/lib/auth/reserved-domains";
 import TurnstileField from "./_components/TurnstileField";
 import SignupSuccessState from "./_components/SignupSuccessState";
-
-// Kept in sync with the DB-level guard (migration 0068) and app/actions/auth.ts
-// — this client check only exists to show a friendly message before the round
-// trip; enforcement happens in the database trigger regardless of this list.
-const RESERVED_ADMIN_DOMAINS = ["@ptec.edu.kh", "@admin.ptec.edu.kh", "@ptec-admin.edu.kh"];
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -100,7 +96,11 @@ export default function SignupContent() {
         ? t("errPasswordMismatch")
         : null;
 
-  const emailReserved = RESERVED_ADMIN_DOMAINS.some((d) => email.trim().toLowerCase().endsWith(d));
+  /* Only ever a courtesy: it shows the friendly message before the round trip.
+     Enforcement is migration 0068's trigger, with app/actions/auth.ts as the
+     app-layer copy — and none of the three touches Google sign-in, which is
+     how a real @ptec.edu.kh mailbox holder gets in. */
+  const emailReserved = isReservedAdminDomain(email);
   const formHasErrors = Boolean(
     nameError
       || emailError

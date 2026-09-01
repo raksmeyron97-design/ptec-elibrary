@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
-import { requireSuperAdmin } from "@/lib/auth/requireAdmin";
+import { resolveAdminPermissions } from "@/lib/auth/requireAdmin";
+import { requireAction } from "@/lib/admin/route-guard";
+import { isElevatedResource, isSuperAdminViewer } from "@/lib/admin/access-policy";
 import { logAdminAction } from "@/app/actions/audit";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ALL_RESOURCE_KEYS, type PermChange } from "@/lib/admin/roles-shared";
@@ -22,21 +24,55 @@ export type SaveResult =
  * started with. Before writing we re-read the current DB level for every
  * changed cell; if any differs from `from`, someone else edited it meanwhile
  * and we return a `conflict` instead of silently clobbering their change.
+ *
+ * Authorization is `roles: write` (ROUTE/ACTION policy `roles.save`), the same
+ * requirement as the page that hosts this editor — role management is delegable
+ * now, so a super admin can hand it to a trusted `admin` from the matrix itself
+ * rather than by editing a hardcoded role list.
+ *
+ * A permission level is not the whole check, though. `roles: write` is the one
+ * grant that can grant grants, so three rules ride on top of it; they are named
+ * in `ROLES_DELEGATION_RULES` and enforced below.
  */
 export async function saveRolePermissions(changes: PermChange[]): Promise<SaveResult> {
-  const { supabase, user } = await requireSuperAdmin();
+  const { supabase, user } = await requireAction("roles.save");
+
+  // Who is asking — resolved through the same request-deduped path the guard
+  // above already used, so this costs no extra round-trip.
+  const { role, isSuperAdmin } = await resolveAdminPermissions();
+  const editorIsSuperAdmin = isSuperAdminViewer({ role, isSuperAdmin, perms: {} });
 
   if (!Array.isArray(changes) || changes.length === 0) {
     return { status: "error", message: "No changes to save" };
   }
 
-  // Validate every change up front.
+  // ── Rule: wellFormedChange ──────────────────────────────────────────────
   for (const c of changes) {
     if (!VALID_ROLES.has(c.role)) return { status: "error", message: `Invalid role: ${c.role}` };
+    // ── Rule: superAdminRowImmutable ──────────────────────────────────────
     if (c.role === "super_admin") return { status: "error", message: "Super Admin permissions are fixed" };
     if (!VALID_RESOURCES.has(c.resource)) return { status: "error", message: `Invalid resource: ${c.resource}` };
     if (!VALID_LEVELS.has(c.to) || !VALID_LEVELS.has(c.from)) {
       return { status: "error", message: "Invalid permission level" };
+    }
+
+    /* ── Rule: rolesRowSuperAdminOnly ────────────────────────────────────────
+       Delegation is not transitive. A delegated administrator (`roles: write`,
+       granted by a super admin) administers every other permission, but may not
+       appoint further administrators — and, by the same rule, may not revoke
+       their own grant, so there is no way to lock themselves or anyone else out
+       of this page by editing it. Widening or withdrawing role management stays
+       a decision only a super admin can make.
+
+       This is checked per cell rather than only on the control that produced it
+       because a bulk action ("copy Admin onto Staff", "reset to defaults")
+       reaches the same rows through a different path. */
+    if (isElevatedResource(c.resource) && !editorIsSuperAdmin) {
+      return {
+        status: "error",
+        message:
+          "Only a Super Admin can change who manages roles. Ask a Super Admin to grant or revoke Roles access.",
+      };
     }
   }
 

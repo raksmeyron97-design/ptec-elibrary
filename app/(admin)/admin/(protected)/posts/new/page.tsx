@@ -1,8 +1,11 @@
 // app/admin/posts/new/page.tsx
 import { createClient } from "@/lib/supabase/server";
 import PostForm from "@/components/admin/posts/PostForm";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function NewPostPage() {
+  await requireRouteAccess("posts.create");
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   let authorName = "You";

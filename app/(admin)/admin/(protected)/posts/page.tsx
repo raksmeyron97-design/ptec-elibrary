@@ -7,6 +7,7 @@ import PostFilters from "@/components/admin/posts/PostFilters";
 import PostsListClient from "@/components/admin/posts/PostsListClient";
 import PostErrorState from "@/components/admin/posts/PostErrorState";
 import { getPosts, getPostsSummary, getPostAuthors } from "@/lib/admin/posts";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 const PAGE_SIZE = 20;
 
@@ -29,6 +30,8 @@ export default async function AdminPostsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
+  await requireRouteAccess("posts.manage");
+
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 

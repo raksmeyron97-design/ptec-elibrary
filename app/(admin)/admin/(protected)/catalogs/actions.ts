@@ -46,7 +46,7 @@ export async function checkCatalogSlugAvailable(
   slug: string,
   ignoreId?: string,
 ): Promise<boolean> {
-  const { supabase } = await requirePermission("books", "read");
+  const { supabase } = await requirePermission("catalog", "read");
   const clean = catalogRecordSlug(slug);
   if (!clean) return false;
   const { data } = await supabase.from("catalog_books").select("id").eq("slug", clean).limit(1);
@@ -200,7 +200,7 @@ function coverAudit(previousUrl: string | null, nextUrl: string | null) {
 
 // ── addCatalogBook ─────────────────────────────────────────────────────────────
 export async function addCatalogBook(formData: FormData): Promise<BookActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const parsed = parseBookForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error, fieldErrors: parsed.fieldErrors };
@@ -262,7 +262,7 @@ export async function addCatalogBook(formData: FormData): Promise<BookActionResu
 
 // ── updateCatalogBook ──────────────────────────────────────────────────────────
 export async function updateCatalogBook(bookId: string, formData: FormData): Promise<BookActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const parsed = parseBookForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error, fieldErrors: parsed.fieldErrors };
@@ -358,7 +358,7 @@ export async function updateCatalogBook(bookId: string, formData: FormData): Pro
 
 // ── deleteCatalogBook (soft — hides from the public catalog) ──────────────────
 export async function deleteCatalogBook(bookId: string) {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
   const { data: book, error } = await supabase
     .from("catalog_books")
     .update({ is_active: false })
@@ -373,7 +373,7 @@ export async function deleteCatalogBook(bookId: string) {
 
 /** Restore a soft-deleted record to the public catalog. */
 export async function restoreCatalogBook(bookId: string) {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
   const { data: book, error } = await supabase
     .from("catalog_books")
     .update({ is_active: true })
@@ -387,7 +387,7 @@ export async function restoreCatalogBook(bookId: string) {
 }
 
 export async function hardDeleteCatalogBook(bookId: string) {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
   const { data: book } = await supabase
     .from("catalog_books").select("slug, title, cover_url").eq("id", bookId).single();
   const { error } = await supabase.from("catalog_books").delete().eq("id", bookId);

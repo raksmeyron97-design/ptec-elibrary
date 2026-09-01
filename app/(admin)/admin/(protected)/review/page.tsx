@@ -1,11 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import { getReviewQueues, getReviewerOptions, type ReviewItem } from "@/app/actions/review";
-import { requireLibrarian } from "@/lib/auth/requireAdmin";
 import { ADMIN_ROLES } from "@/lib/types/roles";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import type { CanonicalStatus } from "@/lib/content-status";
 import ReviewQueueClient, { type QueueTab } from "./_components/ReviewQueueClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +23,25 @@ type SP = { tab?: string; status?: string; page?: string; size?: string };
  * never outlive the list they were made against.
  */
 export default async function ReviewQueuePage({ searchParams }: { searchParams: Promise<SP> }) {
+  /* READ, not write. The queue is where a reviewer *looks* at what is waiting:
+     the backlog, each submission's metadata, its validation state and its
+     publish blockers. Every mutation on it — approve, reject, assign, verify —
+     is a separate `books: write` check inside the action, so a `books: read`
+     account gets the whole picture and none of the buttons. Gating the page on
+     write, as it was, hid the work from the people who triage it. */
+  const { userId, role, can } = await requireRouteAccess("books.review");
+
   const sp = await searchParams;
-  const [t, { userId, role }, queues, reviewers] = await Promise.all([
+  const [t, queues, reviewers] = await Promise.all([
     getTranslations("adminReview"),
-    requireLibrarian(),
     getReviewQueues(),
-    getReviewerOptions(),
+    /* Only fetched when it can be used: the assign dropdown is a write action,
+       and listing colleagues to a read-only viewer is a needless disclosure.
+       Either collection's write permission qualifies, matching the action's own
+       gate — the queue mixes books and theses. */
+    can("books.review.assign") || can("research.review.assign")
+      ? getReviewerOptions()
+      : Promise.resolve([]),
   ]);
 
   const actionable = queues.pending.filter(
@@ -96,6 +109,11 @@ export default async function ReviewQueuePage({ searchParams }: { searchParams: 
         reviewers={reviewers}
         viewerId={userId}
         canRestore={ADMIN_ROLES.includes(role)}
+        /* Per collection, not per page: the queue mixes books and theses, and
+           `books: write` says nothing about a thesis. A viewer with one and not
+           the other gets action buttons on exactly the half they own. */
+        canWriteBooks={can("books.review.approve")}
+        canWriteResearch={can("research.review.approve")}
       />
       <Pagination
         currentPage={page}

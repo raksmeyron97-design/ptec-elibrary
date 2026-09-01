@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Eye, UserCog, KeyRound, Ban, CircleCheck, Trash2 } from "lucide-react";
 import { userLabel, type UserRow } from "@/lib/admin/users-shared";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 
 export type UserActionIntent =
   | "view"
@@ -28,10 +29,24 @@ export default function UserActionsMenu({
   user: UserRow;
   busy: boolean;
   /** false when the row is the caller, or a protected super admin. */
+  /**
+   * May this viewer act on THIS row? False for their own account and, unless
+   * they are a super admin, for another super admin's — a per-row reason, shown
+   * as a disabled item so the answer to "why not this one?" is on screen.
+   *
+   * Lacking `users: write` altogether is a different question and gets a
+   * different treatment: the items are absent, not greyed. A menu where every
+   * item is disabled for the same global reason is noise.
+   */
   canManage: boolean;
   onIntent: (intent: UserActionIntent) => void;
 }) {
   const t = useTranslations("adminUsers.actions");
+  /* The global question, asked directly rather than folded into `canManage`,
+     so the two reasons a control is unavailable stay distinguishable: no write
+     permission at all → the items are absent; write but not on this row → they
+     are disabled with the reason visible beside them. */
+  const canWriteUsers = useCan("users.update");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [menuPosition, setMenuPosition] = useState<React.CSSProperties | null>(null);
@@ -121,6 +136,8 @@ export default function UserActionsMenu({
           <button type="button" role="menuitem" className={item} onClick={() => run("view")}>
             <Eye className="h-4 w-4 text-text-muted" /> {t("viewProfile")}
           </button>
+          {canWriteUsers && (
+          <>
           <button type="button" role="menuitem" className={item} disabled={!canManage} onClick={() => run("assignRole")}>
             <UserCog className="h-4 w-4 text-text-muted" /> {t("assignRole")}
           </button>
@@ -151,6 +168,8 @@ export default function UserActionsMenu({
           >
             <Trash2 className="h-4 w-4" /> {t("delete")}
           </button>
+          </>
+          )}
         </div>,
         document.body
       )}

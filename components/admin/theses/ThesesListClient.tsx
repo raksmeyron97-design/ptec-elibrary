@@ -22,6 +22,7 @@ import {
   bulkUpdateTheses,
   type BulkThesisAction,
 } from "@/app/actions/theses";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function toCsvValue(v: string | number | null | undefined): string {
   const s = String(v ?? "");
@@ -173,18 +174,21 @@ export default function ThesesListClient({
 
   return (
     <div className="space-y-4">
-      <BulkThesisActionBar
-        count={selectedIds.size}
-        busy={bulkBusy}
-        onPublish={() => runBulkAction("publish")}
-        onUnpublish={() => runBulkAction("unpublish")}
-        onChangeCohort={(cohort) => runBulkAction("cohort", { cohort })}
-        onChangeAcademicYear={(academicYear) => runBulkAction("academicYear", { academicYear })}
-        onArchive={() => runBulkAction("archive")}
-        onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
-        onExportCsv={() => exportCsv(selectedRows.length ? selectedRows : rows, programs)}
-        onClear={() => setSelectedIds(new Set())}
-      />
+      {/* Every control on the bulk bar is a mutation, so read-only viewers never get one */}
+      <CanDo action="theses.edit">
+        <BulkThesisActionBar
+          count={selectedIds.size}
+          busy={bulkBusy}
+          onPublish={() => runBulkAction("publish")}
+          onUnpublish={() => runBulkAction("unpublish")}
+          onChangeCohort={(cohort) => runBulkAction("cohort", { cohort })}
+          onChangeAcademicYear={(academicYear) => runBulkAction("academicYear", { academicYear })}
+          onArchive={() => runBulkAction("archive")}
+          onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
+          onExportCsv={() => exportCsv(selectedRows.length ? selectedRows : rows, programs)}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      </CanDo>
 
       <ThesesTable
         rows={rows}

@@ -1,11 +1,12 @@
 // app/admin/catalogs/edit/[id]/page.tsx
-import { notFound, redirect } from "next/navigation";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { LIBRARIAN_ROLES } from "@/lib/types/roles";
+import { notFound } from "next/navigation";
+import { createServiceClient } from "@/lib/supabase/server";
+
 import type { CatalogBook } from "@/lib/catalog";
 import type { CatalogCopy } from "../../copy-actions";
 import { coverSourceFromUrl } from "@/lib/catalog-cover";
 import EditBookWizard from "./_components/EditBookWizard";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditCatalogBookPage({
   params,
@@ -14,18 +15,16 @@ export default async function EditCatalogBookPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ tab?: string }>;
 }) {
+  await requireRouteAccess("catalog.edit");
+
   const { id } = await params;
   const sp = (await searchParams) ?? {};
 
-  const auth = await createClient();
-  const { data: { user } } = await auth.auth.getUser();
-  if (!user) redirect("/auth/login");
+  /* Same story as /admin/catalogs/add: a hand-rolled role check that neither
+     the permission table nor `is_super_admin` reached, redirecting a refused
+     admin out to the public catalog. */
 
   const supabase = createServiceClient();
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!LIBRARIAN_ROLES.includes((profile?.role ?? "") as (typeof LIBRARIAN_ROLES)[number])) {
-    redirect("/catalogs");
-  }
 
   const { data: book } = await supabase.from("catalog_books").select("*").eq("id", id).single();
   if (!book) notFound();

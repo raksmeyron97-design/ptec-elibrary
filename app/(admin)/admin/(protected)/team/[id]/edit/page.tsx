@@ -1,16 +1,17 @@
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import TeamForm from "../../_components/TeamForm";
 import { getTeamSections, getAllProfiles } from "../../actions";
 import type { TeamMemberRow } from "../../actions";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditTeamMemberPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAdmin();
+  await requireRouteAccess("team.edit");
+
   const { id } = await params;
   const supabase = createServiceClient();
 

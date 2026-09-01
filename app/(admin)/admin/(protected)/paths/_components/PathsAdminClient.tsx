@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { CanDo, useCan } from "@/components/admin/access/AdminCapabilities";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -43,6 +44,7 @@ export default function PathsAdminClient({ paths: initial }: { paths: AdminPathR
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<AdminPathRow | null>(null);
+  const canWrite = useCan("paths.edit");
   const [deleteTarget, setDeleteTarget] = useState<AdminPathRow | null>(null);
   const [scheduleTarget, setScheduleTarget] = useState<AdminPathRow | null>(null);
 
@@ -277,7 +279,7 @@ export default function PathsAdminClient({ paths: initial }: { paths: AdminPathR
       </div>
 
       {/* ── Bulk action bar ── */}
-      {selected.size > 0 && (
+      {canWrite && selected.size > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-brand/25 bg-brand/[0.05] px-3 py-2">
           <span className="text-[13px] font-semibold text-text-heading">{t("bulk.selected", { count: selected.size })}</span>
           <div className="mx-1 h-4 w-px bg-divider" aria-hidden="true" />
@@ -307,9 +309,12 @@ export default function PathsAdminClient({ paths: initial }: { paths: AdminPathR
           <table className="w-full min-w-[820px] text-left text-[13px]">
             <thead>
               <tr className="border-b border-divider text-[11px] font-bold uppercase tracking-wide text-text-muted">
-                <th scope="col" className="w-10 px-3 py-2.5">
-                  <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} aria-label={t("selectAll")} className="h-4 w-4 accent-brand" />
-                </th>
+                {/* Selection feeds the bulk status bar — publish, archive, delete. */}
+                <CanDo action="paths.edit">
+                  <th scope="col" className="w-10 px-3 py-2.5">
+                    <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} aria-label={t("selectAll")} className="h-4 w-4 accent-brand" />
+                  </th>
+                </CanDo>
                 <th scope="col" className="px-3 py-2.5">{t("columns.path")}</th>
                 <th scope="col" className="px-3 py-2.5">{t("columns.status")}</th>
                 <th scope="col" className="hidden px-3 py-2.5 lg:table-cell">{t("columns.audience")}</th>
@@ -435,9 +440,11 @@ function Row({
 
   return (
     <tr className={`border-b border-divider/70 transition hover:bg-paper/40 ${busy ? "opacity-60" : ""}`}>
-      <td className="px-3 py-3 align-top">
-        <input type="checkbox" checked={selected} onChange={onToggleSelect} aria-label={t("selectRow", { title: row.title })} className="mt-0.5 h-4 w-4 accent-brand" />
-      </td>
+      <CanDo action="paths.edit">
+        <td className="px-3 py-3 align-top">
+          <input type="checkbox" checked={selected} onChange={onToggleSelect} aria-label={t("selectRow", { title: row.title })} className="mt-0.5 h-4 w-4 accent-brand" />
+        </td>
+      </CanDo>
       <td className="px-3 py-3">
         <div className="flex items-start gap-2.5">
           <div className="flex h-11 w-9 shrink-0 items-center justify-center overflow-hidden rounded border border-divider bg-paper">
@@ -476,24 +483,28 @@ function Row({
       </td>
       <td className="px-3 py-3 align-top">
         <div className="flex items-center justify-end gap-1">
-          <Link href={`/admin/paths/edit/${row.id}`} aria-label={t("actions.edit")}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand">
-            <Pencil className="h-4 w-4" />
-          </Link>
+          <CanDo action="paths.edit">
+            <Link href={`/admin/paths/edit/${row.id}`} aria-label={t("actions.edit")}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand">
+              <Pencil className="h-4 w-4" />
+            </Link>
+          </CanDo>
           <Link href={`/paths/${row.slug}`} target="_blank" aria-label={t("actions.preview")}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand">
             <Eye className="h-4 w-4" />
           </Link>
-          <RowMenu
-            row={row}
-            onStatus={onStatus}
-            onFeature={onFeature}
-            onDuplicate={onDuplicate}
-            onArchive={onArchive}
-            onDelete={onDelete}
-            onSchedule={onSchedule}
-            onCopyLink={onCopyLink}
-          />
+          <CanDo action="paths.edit">
+            <RowMenu
+              row={row}
+              onStatus={onStatus}
+              onFeature={onFeature}
+              onDuplicate={onDuplicate}
+              onArchive={onArchive}
+              onDelete={onDelete}
+              onSchedule={onSchedule}
+              onCopyLink={onCopyLink}
+            />
+          </CanDo>
         </div>
       </td>
     </tr>

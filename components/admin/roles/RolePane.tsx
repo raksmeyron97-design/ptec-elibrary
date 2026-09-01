@@ -16,7 +16,11 @@ import {
   type BulkIntent,
   type PermMatrix,
 } from "@/lib/admin/roles-shared";
+import { isElevatedResource } from "@/lib/admin/access-policy";
+import { useAdminViewerIsSuperAdmin } from "@/components/admin/access/AdminCapabilities";
 import { GROUP_ICON, LEVEL_ICON, ROLE_ICON } from "./icons";
+import LevelLegend from "./LevelLegend";
+import ResourceAccessNote from "./ResourceAccessNote";
 import { PermPill, PermSegmented, SELECTED_LEVEL_STYLE, WasLevel } from "./PermControl";
 import RoleActionsMenu from "./RoleActionsMenu";
 import { useResourceText } from "./useResourceText";
@@ -77,6 +81,11 @@ export default function RolePane({
   const tRoles = useTranslations("adminUsers.roles");
   const tRoleDesc = useTranslations("adminUsers.roleDescriptions");
   const res = useResourceText();
+  /* Only a super admin may move the `roles` row (delegation is not transitive
+     — ROLES_DELEGATION_RULES). A delegated administrator editing this page sees
+     that row as a read-only pill with the reason beside it, rather than a
+     control whose every setting the server would refuse. */
+  const viewerIsSuperAdmin = useAdminViewerIsSuperAdmin();
 
   const meta = ROLE_META[role];
   const Icon = ROLE_ICON[role];
@@ -163,6 +172,14 @@ export default function RolePane({
           </span>
         </p>
       )}
+
+      {/* What the three levels mean, before the list of things to set them on.
+          Placed inside the pane rather than in a help panel because the
+          question "does Read let them in at all?" is asked at the moment of
+          setting a level, not before opening the page. */}
+      <div className="border-b border-divider px-4 py-4 sm:px-5">
+        <LevelLegend />
+      </div>
 
       {/* ── Feature groups ──────────────────────────────────────────────── */}
       {groups.length === 0 ? (
@@ -258,9 +275,17 @@ export default function RolePane({
                 {open && (
                   <ul>
                     {group.resources.map((resource) => {
+                      /* `roles` is editable — role management is delegable —
+                         but granting it hands over every other permission on
+                         this page, so the row is flagged and only a super admin
+                         may move it. The refusal is the server's
+                         (ROLES_DELEGATION_RULES); this decides whether the
+                         editor is shown a control or the reason they have none. */
+                      const elevated = isElevatedResource(resource.key);
                       const level = locked ? "write" : levelAt(draft, role, resource.key);
                       const was = levelAt(baseline, role, resource.key);
-                      const dirty = !locked && level !== was;
+                      const rowEditable = editable && !locked && (!elevated || viewerIsSuperAdmin);
+                      const dirty = rowEditable && level !== was;
                       const description = res.description(resource.key);
 
                       return (
@@ -279,6 +304,15 @@ export default function RolePane({
                                 {description}
                               </div>
                             )}
+                            {/* Feature · description · what the current level
+                                grants — the three things the brief asks every
+                                row to show, in that order. */}
+                            <ResourceAccessNote
+                              resource={resource.key}
+                              level={level}
+                              elevated={elevated}
+                              delegatable={viewerIsSuperAdmin}
+                            />
                           </div>
 
                           {/* Below `sm` the segmented control takes its own
@@ -292,7 +326,7 @@ export default function RolePane({
                             }`}
                           >
                             {dirty && <WasLevel level={was} />}
-                            {editable ? (
+                            {rowEditable ? (
                               <PermSegmented
                                 value={level}
                                 dirty={dirty}
@@ -303,7 +337,7 @@ export default function RolePane({
                                 })}
                               />
                             ) : (
-                              <PermPill level={level} locked={locked} />
+                              <PermPill level={level} locked={locked || (elevated && editable)} />
                             )}
                           </div>
                         </li>

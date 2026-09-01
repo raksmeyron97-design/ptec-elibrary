@@ -20,10 +20,15 @@ export default function EbookToolbar({
   totalItems,
   filters,
   chips,
+  canUpload = false,
 }: {
   totalItems: number;
   filters?: React.ReactNode;
   chips?: React.ReactNode;
+  /** `books: write`. Now that Upload has left the sidebar, this button is the
+   *  primary way in — so it has to be absent, not merely 403 on arrival, for a
+   *  `staff` account that can read the collection but not add to it. */
+  canUpload?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,13 +76,15 @@ export default function EbookToolbar({
 
         {filters}
 
-        <Link
-          href={EBOOKS_UPLOAD_PATH}
-          className="ml-auto inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          {t("upload")}
-        </Link>
+        {canUpload && (
+          <Link
+            href={EBOOKS_UPLOAD_PATH}
+            className="ml-auto inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-brand px-4 text-sm font-medium text-brand-contrast shadow-sm transition duration-150 hover:-translate-y-px hover:bg-brand-hover hover:shadow-md active:translate-y-0 active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {t("upload")}
+          </Link>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-divider pt-3">

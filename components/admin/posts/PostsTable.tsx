@@ -5,6 +5,7 @@ import { Eye } from "lucide-react";
 import { useTranslations } from "next-intl";
 import PostActionsMenu from "@/components/admin/posts/PostActionsMenu";
 import { CATEGORY_BADGE_STYLES, STATUS_BADGE_STYLES, STATUS_LABELS, type PostListRow } from "@/lib/admin/posts-shared";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -46,16 +47,19 @@ export default function PostsTable({
           <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
-              <th scope="col" className="w-10 px-4 py-3">
-                <label className="sr-only" htmlFor="select-all-posts">{t("selectAll")}</label>
-                <input
-                  id="select-all-posts"
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={onToggleSelectAll}
-                  className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
-                />
-              </th>
+              {/* Selection drives the bulk bar, which is entirely mutations */}
+              <CanDo action="posts.edit">
+                <th scope="col" className="w-10 px-4 py-3">
+                  <label className="sr-only" htmlFor="select-all-posts">{t("selectAll")}</label>
+                  <input
+                    id="select-all-posts"
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onToggleSelectAll}
+                    className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+                  />
+                </th>
+              </CanDo>
               <th scope="col" className="px-4 py-3">#</th>
               <th scope="col" className="px-4 py-3">{t("titleCol")}</th>
               <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("category")}</th>
@@ -76,16 +80,18 @@ export default function PostsTable({
                   key={post.id}
                   className={`transition-colors hover:bg-paper/80 ${isBusy ? "opacity-50" : ""} ${isSelected ? "bg-brand/5" : ""}`}
                 >
-                  <td className="px-4 py-3">
-                    <label className="sr-only" htmlFor={`select-post-${post.id}`}>{t("selectOne", { title: post.title })}</label>
-                    <input
-                      id={`select-post-${post.id}`}
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => onToggleSelect(post.id)}
-                      className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
-                    />
-                  </td>
+                  <CanDo action="posts.edit">
+                    <td className="px-4 py-3">
+                      <label className="sr-only" htmlFor={`select-post-${post.id}`}>{t("selectOne", { title: post.title })}</label>
+                      <input
+                        id={`select-post-${post.id}`}
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggleSelect(post.id)}
+                        className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+                      />
+                    </td>
+                  </CanDo>
                   <td className="px-4 py-3 text-xs tabular-nums text-text-muted">{rowNumberOffset + idx + 1}</td>
                   <td className="max-w-[320px] px-4 py-3">
                     <Link
@@ -121,15 +127,17 @@ export default function PostsTable({
                   <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted lg:table-cell">{formatDate(post.createdAt)}</td>
                   <td className="hidden px-4 py-3 text-xs tabular-nums text-text-muted xl:table-cell">{formatDate(post.updatedAt)}</td>
                   <td className="px-4 py-3 text-right">
-                    <PostActionsMenu
-                      post={post}
-                      busy={isBusy}
-                      onPublish={() => actions.onPublish(post.id)}
-                      onUnpublish={() => actions.onUnpublish(post.id)}
-                      onArchive={() => actions.onArchive(post.id)}
-                      onDuplicate={() => actions.onDuplicate(post.id)}
-                      onDelete={() => actions.onDeleteRequest(post.id, post.title)}
-                    />
+                    <CanDo action="posts.edit">
+                      <PostActionsMenu
+                        post={post}
+                        busy={isBusy}
+                        onPublish={() => actions.onPublish(post.id)}
+                        onUnpublish={() => actions.onUnpublish(post.id)}
+                        onArchive={() => actions.onArchive(post.id)}
+                        onDuplicate={() => actions.onDuplicate(post.id)}
+                        onDelete={() => actions.onDeleteRequest(post.id, post.title)}
+                      />
+                    </CanDo>
                   </td>
                 </tr>
               );

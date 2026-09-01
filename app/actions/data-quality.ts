@@ -4,7 +4,8 @@
 // badges were part 1, see migration 0062). Surfaces two signals to
 // librarians: incomplete metadata, and files that no longer resolve.
 
-import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
+import { requireAction } from "@/lib/admin/route-guard";
 import { scoreEbookQuality } from "@/lib/admin/ebook-quality";
 import { scoreMetadataQuality } from "@/lib/admin/thesis-metadata-quality";
 import {
@@ -103,7 +104,7 @@ export async function getMetadataQualityReport(): Promise<{
   report: QualityReport;
   available: boolean;
 }> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
 
   const [booksResult, thesesResult] = await Promise.all([
     supabase.from("books").select(BOOK_QUALITY_COLUMNS).eq("is_published", true).limit(10_000),
@@ -157,7 +158,7 @@ export interface FileHealthSummary {
  * the whole library twice per page load.
  */
 export async function getFileHealthSummary(): Promise<FileHealthSummary> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
 
   const [brokenResult, unknownResult, checkedResult, latestCheckResult] = await Promise.all([
     supabase.from("file_health").select("id", { count: "exact", head: true }).eq("status", "broken"),
@@ -196,7 +197,7 @@ export interface BrokenFile {
 
 /** Broken files from the last check run, joined back to their record's title. */
 export async function getBrokenFiles(): Promise<BrokenFile[]> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
 
   const { data, error } = await supabase
     .from("file_health")
@@ -239,15 +240,18 @@ export async function getBrokenFiles(): Promise<BrokenFile[]> {
 // is no stored counter, and this action can never set one to an arbitrary
 // value.
 //
-// Gated by requireLibrarian(), the same gate as the rest of this file: the
-// output is counts and status breakdowns, which is librarian-level
-// information, and it is never exposed on a public route.
+// Gated on `books: read`, the same gate as the rest of this file and as
+// /admin/data-quality itself: the output is counts and status breakdowns over
+// the collection, which is exactly what read means here, and it is never
+// exposed on a public route. It used to be `requireLibrarian()` while the
+// sidebar offered the page on `books: read` — so a staff account was shown a
+// link that answered with a 403 dressed as a crash.
 
 export async function getResourceStatsReconciliation(): Promise<{
   reconciliation: ResourceStatsReconciliation;
   byType: AdminTypeStats[];
 }> {
-  await requireLibrarian();
+  await requirePermission("books", "read");
   const [reconciliation, byType] = await Promise.all([
     reconcilePublicResourceStats(),
     getAdminResourceStats(),
@@ -264,7 +268,9 @@ export async function recalculateResourceStats(): Promise<{
   reconciliation: ResourceStatsReconciliation;
   byType: AdminTypeStats[];
 }> {
-  await requireLibrarian();
+  /* The one mutation in this file — it drops a shared cache, which every
+     visitor to the public site then pays to refill. Read is not enough. */
+  await requireAction("insights.recalculate");
   revalidateCollectionStats();
   return getResourceStatsReconciliation();
 }
@@ -272,11 +278,11 @@ export async function recalculateResourceStats(): Promise<{
 // Canonical-model backfill reconciliation (migrations 0104–0109). Reports, per
 // domain, the legacy source count vs the canonical count the backfill produced
 // (see lib/admin/canonical-backfill.ts and docs/CANONICAL-RESOURCES.md). Same
-// librarian gate as the rest of this file. Degrades gracefully to an empty
+// read gate as the rest of this file. Degrades gracefully to an empty
 // result before the migrations are applied (the view does not exist yet), which
 // the panel renders as an "apply migration" hint rather than an error.
 export async function getCanonicalBackfillReconciliation(): Promise<CanonicalBackfillReconciliation> {
-  await requireLibrarian();
+  await requirePermission("books", "read");
   return reconcileCanonicalBackfill();
 }
 
@@ -300,7 +306,7 @@ function hasYear(value: unknown): boolean {
 }
 
 export async function getSeoHealth(): Promise<SeoHealthResult> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
 
   const [
     { data: books },

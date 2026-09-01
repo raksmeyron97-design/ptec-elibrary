@@ -70,6 +70,13 @@ const nextConfig: NextConfig = {
   // deployments ignore it.
   output: "standalone",
   experimental: {
+    // `forbidden()` / `unauthorized()` from next/navigation. They are what keep
+    // an authorization failure out of the generic error boundary: each throws a
+    // distinct HTTP interrupt that Next routes to forbidden.tsx / unauthorized.tsx
+    // with a real status code, instead of the redacted, digest-only Error that a
+    // client `error.tsx` receives in production and cannot classify.
+    // See lib/admin/route-guard.ts.
+    authInterrupts: true,
     serverActions: {
       // Catalog cover uploads allow a 5 MB image; the rest of the multipart
       // body (bibliographic fields + boundaries) needs headroom beyond that.

@@ -8,7 +8,8 @@
 // results (the only path by which analytics may influence search behavior),
 // and raise acquisition requests into the existing book_requests workflow.
 
-import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
+import { requireAction } from "@/lib/admin/route-guard";
 import { logAdminAction } from "@/app/actions/audit";
 import {
   groupEquivalentTerms,
@@ -71,7 +72,7 @@ type SearchRow = {
   resource_type?: string | null;
 };
 
-type Supabase = Awaited<ReturnType<typeof requireLibrarian>>["supabase"];
+type Supabase = Awaited<ReturnType<typeof requirePermission>>["supabase"];
 
 /** PostgREST codes meaning "this function/table/column is not deployed yet". */
 const MISSING_CODES = new Set(["42883", "42P01", "42703", "PGRST202", "PGRST204"]);
@@ -274,7 +275,7 @@ async function clickedResultsFor(
 export async function getSearchInsightsOverview(
   filters: SearchInsightsFilters,
 ): Promise<SearchInsightsOverview> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
   const window = resolveRangeWindow(filters);
 
   const [current, trend, topTerms, zeroResultTerms, clickedResults, previous] = await Promise.all([
@@ -410,7 +411,7 @@ async function zeroResultGroups(supabase: Supabase, since: string, until: string
 export async function getZeroResultWorkspace(
   filters: SearchInsightsFilters,
 ): Promise<ZeroResultWorkspace> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
   const window = resolveRangeWindow(filters);
 
   const raw = await zeroResultGroups(supabase, window.since, window.until);
@@ -518,7 +519,7 @@ export interface SearchActivityRow {
 export async function getSearchActivityPage(
   filters: SearchInsightsFilters,
 ): Promise<PaginatedResult<SearchActivityRow> & { available: boolean }> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
   const window = resolveRangeWindow(filters);
   const { from, to } = rangeBounds(filters.apage, filters.asize);
 
@@ -592,7 +593,7 @@ const EXPORT_ROW_LIMIT = 5000;
 export async function exportSearchActivity(
   filters: ExportSearchActivityInput,
 ): Promise<{ ok: true; csv: string; filename: string; rows: number } | { ok: false; error: string }> {
-  const { supabase, user } = await requireLibrarian();
+  const { supabase, user } = await requirePermission("books", "read");
   const window = resolveRangeWindow({ ...filters, compare: false, q: "", lang: "all", status: "all", sort: "count", page: 1, size: 10, apage: 1, asize: 10 });
 
   let query = supabase
@@ -648,7 +649,7 @@ export async function exportSearchActivity(
 
 /** Distinct resource-type values actually present, for the type filter. */
 export async function getSearchResourceTypes(): Promise<string[]> {
-  const { supabase } = await requireLibrarian();
+  const { supabase } = await requirePermission("books", "read");
   const { data, error } = await supabase
     .from("search_queries")
     .select("resource_type")
@@ -692,7 +693,7 @@ export async function actOnSearchTerm(
   note?: string,
 ): Promise<ActionResult> {
   try {
-    const { supabase, user } = await requireLibrarian();
+    const { supabase, user } = await requireAction("insights.searchCurate");
     const normalized = normalizeSearchTerm(term);
     if (!normalized) return { error: "Empty term" };
     const { error } = await supabase.from("search_term_actions").upsert({
@@ -722,7 +723,7 @@ export async function addSearchSynonym(
   note?: string,
 ): Promise<ActionResult> {
   try {
-    const { supabase, user } = await requireLibrarian();
+    const { supabase, user } = await requireAction("insights.searchCurate");
     const normalized = normalizeSearchTerm(term);
     const cleaned = [
       ...new Set(synonymList.flatMap((synonym) => {
@@ -766,7 +767,7 @@ export async function addCuratedSearchResult(
   result: { type: "book" | "thesis" | "publication" | "post" | "page"; url: string; title: string },
 ): Promise<ActionResult> {
   try {
-    const { supabase, user } = await requireLibrarian();
+    const { supabase, user } = await requireAction("insights.searchCurate");
     const normalized = normalizeSearchTerm(term);
     const url = result.url.trim();
     if (!normalized || !isSafeInternalUrl(url) || !result.title.trim()) {
@@ -803,7 +804,7 @@ export async function addCuratedSearchResult(
 /** Raise a zero-result term into the existing book-requests workflow. */
 export async function createAcquisitionRequest(term: string, actionTerm = term): Promise<ActionResult> {
   try {
-    const { supabase, user } = await requireLibrarian();
+    const { supabase, user } = await requireAction("insights.searchCurate");
     const normalized = normalizeSearchTerm(actionTerm);
     if (!normalized) return { error: "Empty term" };
 

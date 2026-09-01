@@ -26,6 +26,7 @@ import {
   Undo2,
 } from "lucide-react";
 import Link from "next/link";
+import { CanDo, useCan } from "@/components/admin/access/AdminCapabilities";
 
 type PublicationRow = {
   id: string;
@@ -138,6 +139,7 @@ export default function PublicationsClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const canWrite = useCan("publications.edit");
   const [bulkBusy, setBulkBusy] = useState<"publish" | "unpublish" | "delete" | null>(null);
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false);
 
@@ -430,18 +432,21 @@ export default function PublicationsClient({
             <caption className="sr-only">Publications list</caption>
             <thead className="border-b border-divider bg-paper text-xs text-text-muted">
               <tr>
-                <th scope="col" className="w-10 px-3 py-2.5">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someSelected && !allSelected;
-                    }}
-                    onChange={toggleAll}
-                    aria-label="Select all on this page"
-                    className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-brand)]"
-                  />
-                </th>
+                {/* Selection only feeds the bulk bar below, which is publish/unpublish/delete */}
+                <CanDo action="publications.edit">
+                  <th scope="col" className="w-10 px-3 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = someSelected && !allSelected;
+                      }}
+                      onChange={toggleAll}
+                      aria-label="Select all on this page"
+                      className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-brand)]"
+                    />
+                  </th>
+                </CanDo>
                 {show("cover") && <th scope="col" className="w-14 px-2 py-2.5 font-medium"><span className="sr-only">Cover</span></th>}
                 <SortableHeader label="Title" column="title" sort={sort} onSort={handleSort} />
                 {show("journal") && <th scope="col" className="px-4 py-2.5 font-medium">Journal / Issue</th>}
@@ -482,15 +487,17 @@ export default function PublicationsClient({
                         isSelected ? "bg-brand/[0.04]" : "hover:bg-paper/50"
                       } ${isDeleting ? "opacity-40" : ""}`}
                     >
-                      <td className="px-3 py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleRow(pub.id)}
-                          aria-label={`Select ${pub.title}`}
-                          className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-brand)]"
-                        />
-                      </td>
+                      <CanDo action="publications.edit">
+                        <td className="px-3 py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleRow(pub.id)}
+                            aria-label={`Select ${pub.title}`}
+                            className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-brand)]"
+                          />
+                        </td>
+                      </CanDo>
                       {show("cover") && (
                         <td className="px-2 py-2.5">
                           {pub.coverUrl ? (
@@ -562,26 +569,28 @@ export default function PublicationsClient({
                         </td>
                       )}
                       <td className="px-4 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(pub.id, pub.isPublished)}
-                          disabled={loadingId === pub.id}
-                          title={pub.isPublished ? "Unpublish" : "Publish"}
-                          className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                            pub.isPublished
-                              ? "bg-success/10 text-success hover:bg-success/20"
-                              : "bg-warning/10 text-warning hover:bg-warning/20"
-                          }`}
-                        >
-                          {loadingId === pub.id ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : pub.isPublished ? (
-                            <CheckCircle2 className="h-3 w-3" />
-                          ) : (
-                            <CircleDashed className="h-3 w-3" />
-                          )}
-                          {pub.isPublished ? "Published" : "Draft"}
-                        </button>
+                        <CanDo action="publications.edit">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePublish(pub.id, pub.isPublished)}
+                            disabled={loadingId === pub.id}
+                            title={pub.isPublished ? "Unpublish" : "Publish"}
+                            className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                              pub.isPublished
+                                ? "bg-success/10 text-success hover:bg-success/20"
+                                : "bg-warning/10 text-warning hover:bg-warning/20"
+                            }`}
+                          >
+                            {loadingId === pub.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : pub.isPublished ? (
+                              <CheckCircle2 className="h-3 w-3" />
+                            ) : (
+                              <CircleDashed className="h-3 w-3" />
+                            )}
+                            {pub.isPublished ? "Published" : "Draft"}
+                          </button>
+                        </CanDo>
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         {isConfirming ? (
@@ -613,22 +622,24 @@ export default function PublicationsClient({
                             >
                               <ExternalLink className="h-4 w-4" />
                             </Link>
-                            <Link
-                              href={`/admin/publications/edit/${pub.id}`}
-                              className="rounded-md p-1.5 transition-colors hover:bg-paper hover:text-brand"
-                              title="Edit"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmId(pub.id)}
-                              disabled={isDeleting}
-                              className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-paper hover:text-danger disabled:opacity-50"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <CanDo action="publications.edit">
+                              <Link
+                                href={`/admin/publications/edit/${pub.id}`}
+                                className="rounded-md p-1.5 transition-colors hover:bg-paper hover:text-brand"
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmId(pub.id)}
+                                disabled={isDeleting}
+                                className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-paper hover:text-danger disabled:opacity-50"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </CanDo>
                           </div>
                         )}
                       </td>
@@ -642,7 +653,10 @@ export default function PublicationsClient({
       </div>
 
       {/* ── Floating bulk-action bar ── */}
-      {selectedCount > 0 && (
+      {/* Publish / unpublish / delete: write only. Selection is already hidden
+          for read-only viewers, so this is belt-and-braces — the bar must not
+          appear even if a selection could somehow be produced. */}
+      {canWrite && selectedCount > 0 && (
         <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2">
           <div className="flex items-center gap-1 rounded-full border border-divider bg-bg-surface py-1.5 pl-4 pr-1.5 shadow-xl">
             <span className="mr-2 text-xs font-semibold text-text-heading">

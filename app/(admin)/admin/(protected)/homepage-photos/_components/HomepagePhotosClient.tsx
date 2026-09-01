@@ -21,6 +21,7 @@ import {
   ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, ImagePlus, Images,
   Loader2, Pencil, Trash2,
 } from "lucide-react";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 import { Badge, ConfirmDialog, EmptyState, useToast } from "@/components/admin/kit";
 import type { BadgeTone } from "@/components/admin/kit";
 import {
@@ -54,6 +55,13 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
   const t = useTranslations("adminHomepagePhotos");
   const toast = useToast();
   const router = useRouter();
+  /* `homepage_photos: read` sees the gallery as it will appear — order,
+     captions, which three reach the hero. Every control that changes it (add,
+     reorder, show/hide, edit, delete) is one `write` capability, re-checked by
+     each action in app/actions/homepage-photos.ts. Reordering is drag-and-drop
+     as well as buttons, so the drag handlers are gated too — hiding the arrows
+     while leaving the row draggable would be a control that only *looks* gone. */
+  const canManage = useCan("homepagePhotos.manage");
 
   const [list, setList] = useState(photos);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -183,14 +191,16 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
             t("countSummary", { total: list.length, active: activeCount })
           )}
         </p>
-        <button
-          type="button"
-          onClick={() => { setModalError(null); setModal({ mode: "create" }); }}
-          className="focus-field inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
-        >
-          <ImagePlus className="h-4 w-4" aria-hidden />
-          {t("addPhoto")}
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => { setModalError(null); setModal({ mode: "create" }); }}
+            className="focus-field inline-flex cursor-pointer items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-brand-contrast transition hover:bg-brand-hover"
+          >
+            <ImagePlus className="h-4 w-4" aria-hidden />
+            {t("addPhoto")}
+          </button>
+        )}
       </div>
 
       {list.length === 0 ? (
@@ -201,7 +211,8 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
         />
       ) : (
         <>
-          <p className="text-xs text-text-muted">{t("dragToReorder")}</p>
+          {/* The hint describes an interaction a read-only viewer does not have. */}
+          {canManage && <p className="text-xs text-text-muted">{t("dragToReorder")}</p>}
           <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {list.map((photo, index) => {
               const slot =
@@ -215,11 +226,11 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
               return (
                 <li
                   key={photo.id}
-                  draggable
-                  onDragStart={() => setDragIndex(index)}
-                  onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-                  onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
-                  onDrop={(e) => { e.preventDefault(); onDrop(index); }}
+                  draggable={canManage}
+                  onDragStart={canManage ? () => setDragIndex(index) : undefined}
+                  onDragEnd={canManage ? () => { setDragIndex(null); setOverIndex(null); } : undefined}
+                  onDragOver={canManage ? (e) => { e.preventDefault(); setOverIndex(index); } : undefined}
+                  onDrop={canManage ? (e) => { e.preventDefault(); onDrop(index); } : undefined}
                   className={`rounded-xl border bg-bg-surface shadow-sm transition ${
                     overIndex === index && dragIndex !== null && dragIndex !== index
                       ? "border-brand ring-2 ring-brand/30"
@@ -247,13 +258,15 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
 
                   <div className="space-y-3 p-4">
                     <div className="flex items-start gap-2">
-                      <span
-                        className="mt-0.5 shrink-0 cursor-grab text-text-muted"
-                        aria-hidden
-                        title={t("dragHandle")}
-                      >
-                        <GripVertical className="h-4 w-4" />
-                      </span>
+                      {canManage && (
+                        <span
+                          className="mt-0.5 shrink-0 cursor-grab text-text-muted"
+                          aria-hidden
+                          title={t("dragHandle")}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </span>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-text-heading">
                           {photo.caption_en || photo.caption_km || t("noCaption")}
@@ -267,6 +280,7 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
                       </Badge>
                     </div>
 
+                    {canManage && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         type="button"
@@ -315,6 +329,7 @@ export default function HomepagePhotosClient({ photos }: { photos: HomepagePhoto
                         <Trash2 className="h-3.5 w-3.5" aria-hidden />
                       </button>
                     </div>
+                    )}
                   </div>
                 </li>
               );

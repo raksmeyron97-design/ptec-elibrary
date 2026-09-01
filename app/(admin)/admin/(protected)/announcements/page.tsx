@@ -1,10 +1,8 @@
-import { redirect } from "next/navigation";
+
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Plus, LayoutTemplate, Settings } from "lucide-react";
-import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
-import { getAdminIdentity } from "@/lib/auth/admin-identity";
-import { hasPermission } from "@/lib/permissions";
+
 import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import AnnouncementMetricsCards from "@/components/admin/announcements/AnnouncementMetrics";
@@ -13,6 +11,8 @@ import AnnouncementsDashboardClient from "@/components/admin/announcements/Annou
 import { AnnouncementEmptyState } from "@/components/admin/announcements/AnnouncementEmptyState";
 import { queryAnnouncements, getAnnouncementMetrics, listAnnouncementCreators } from "@/lib/admin/announcements/query";
 import { DEFAULT_FILTERS, type AnnouncementFiltersValue, type AnnouncementSort } from "@/lib/admin/announcements/shared";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { canAccessRoute } from "@/lib/admin/access-policy";
 
 export const metadata = { title: "Announcements — PTEC Admin" };
 
@@ -36,21 +36,18 @@ type SP = {
 };
 
 export default async function AnnouncementsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  try {
-    await requirePermission("announcements", "read");
-  } catch (err) {
-    if (isAdminAuthError(err) && err.status === 403) redirect("/admin");
-    throw err;
-  }
+  /* READ. Composing, scheduling and pushing are separate write capabilities,
+     each with its own resource row — `announcements` and `announcements_push`. */
+  const { can, viewer } = await requireRouteAccess("announcements.manage");
+  const canWrite = can("announcements.edit");
+  const canPush = can("announcements.push");
+  const canReachSettings = canAccessRoute(viewer, "settings.manage");
 
-  const [t, identity, sp] = await Promise.all([
+  const [t, sp] = await Promise.all([
     getTranslations("adminAnnouncements"),
-    getAdminIdentity(),
     searchParams,
   ]);
 
-  const canWrite = identity.isSuperAdmin || identity.role === "super_admin" || hasPermission(identity.perms, "announcements", "write");
-  const canPush = identity.isSuperAdmin || identity.role === "super_admin" || hasPermission(identity.perms, "announcements_push", "write");
 
   const filters: AnnouncementFiltersValue = {
     q: sp.q ?? "",
@@ -104,7 +101,11 @@ export default async function AnnouncementsPage({ searchParams }: { searchParams
             >
               <LayoutTemplate className="h-4 w-4" /> {t("templatesAction")}
             </Link>
-            {identity.role === "admin" || identity.role === "super_admin" || identity.isSuperAdmin ? (
+            {/* Ask the destination's own policy rather than re-deriving it from
+                the role: this used to read `role === "admin" || ...`, a fourth
+                authorization mechanism that the `settings` permission row on
+                /admin/roles could not reach. */}
+            {canReachSettings ? (
               <Link
                 href="/admin/system-settings"
                 className="inline-flex items-center gap-1.5 rounded-xl border border-divider bg-bg-surface px-4 py-2 text-sm font-semibold text-text-body transition hover:bg-paper"
