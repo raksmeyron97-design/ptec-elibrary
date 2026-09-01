@@ -3,12 +3,15 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import EditForm from "./_components/EditForm";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditBookPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireRouteAccess("books.edit");
+
   const { id } = await params;
 
   const supabase = createServiceClient();

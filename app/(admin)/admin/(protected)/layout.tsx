@@ -10,6 +10,7 @@ import { ADMIN_PANEL_ROLES } from "@/lib/types/roles";
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import { logSecurityEvent } from "@/lib/security-log";
 import { getSidebarBadges } from "@/lib/admin/sidebar-badges";
+import { AdminCapabilitiesProvider } from "@/components/admin/access/AdminCapabilities";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -69,6 +70,16 @@ export default async function AdminLayout({
       messages={pickMessages(allMessages, ADMIN_NAMESPACES)}
     >
       <ToastProvider>
+        {/* One capability source for the whole panel. Every mutation control
+            below asks it directly (useCan / CanDo) instead of receiving a
+            `canWrite` prop threaded down from the page, which is how controls
+            were getting added without one. It is a rendering aid, never the
+            boundary: the same policy is enforced by requireAction() server-side. */}
+        <AdminCapabilitiesProvider
+          role={identity.effectiveRole}
+          isSuperAdmin={identity.isSuperAdmin}
+          perms={identity.perms}
+        >
         <AdminSidebar
           email={identity.user.email}
           fullName={identity.fullName}
@@ -80,6 +91,7 @@ export default async function AdminLayout({
         >
           {children}
         </AdminSidebar>
+        </AdminCapabilitiesProvider>
       </ToastProvider>
     </IntlProvider>
   );

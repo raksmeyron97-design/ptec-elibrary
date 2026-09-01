@@ -19,6 +19,7 @@ import {
   bulkUpdatePosts,
   type BulkPostAction,
 } from "@/app/(admin)/admin/(protected)/posts/actions";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 export default function PostsListClient({
   rows,
@@ -112,16 +113,19 @@ export default function PostsListClient({
 
   return (
     <div className="space-y-4">
-      <BulkActionBar
-        count={selectedIds.size}
-        busy={bulkBusy}
-        onPublish={() => runBulkAction("publish")}
-        onUnpublish={() => runBulkAction("unpublish")}
-        onChangeCategory={(category) => runBulkAction("category", { category })}
-        onArchive={() => runBulkAction("archive")}
-        onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
-        onClear={() => setSelectedIds(new Set())}
-      />
+      {/* Every control on the bulk bar is a mutation, so read-only viewers never get one */}
+      <CanDo action="posts.edit">
+        <BulkActionBar
+          count={selectedIds.size}
+          busy={bulkBusy}
+          onPublish={() => runBulkAction("publish")}
+          onUnpublish={() => runBulkAction("unpublish")}
+          onChangeCategory={(category) => runBulkAction("category", { category })}
+          onArchive={() => runBulkAction("archive")}
+          onDelete={() => setDeleteTarget({ kind: "bulk", ids: Array.from(selectedIds) })}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      </CanDo>
 
       <PostsTable
         rows={rows}

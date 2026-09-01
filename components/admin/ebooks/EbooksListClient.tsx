@@ -58,11 +58,23 @@ export default function EbooksListClient({
   rows,
   departments,
   hasAnyEbooksAtAll,
+  canUpload = false,
+  canWrite = false,
 }: {
   rows: EbookListRow[];
   departments: EbookOption[];
   /** Distinguishes "zero e-books ever uploaded" from "zero e-books match the current filters". */
   hasAnyEbooksAtAll: boolean;
+  /** `books: write` — decides whether the empty state offers a way in. */
+  canUpload?: boolean;
+  /**
+   * `books: write`. Everything selection-driven in this workspace ends in a
+   * mutation, so a read-only viewer gets the collection — search, filters,
+   * sort, badges, counts — with the machinery for changing it removed. The
+   * server refuses every one of these actions regardless; hiding them is what
+   * stops the page from advertising work the viewer cannot do.
+   */
+  canWrite?: boolean;
 }) {
   const router = useRouter();
   const t = useTranslations("adminEbooks.toasts");
@@ -167,7 +179,7 @@ export default function EbooksListClient({
   }
 
   if (rows.length === 0) {
-    return hasAnyEbooksAtAll ? <EbookNoResultsState /> : <EbookEmptyState />;
+    return hasAnyEbooksAtAll ? <EbookNoResultsState /> : <EbookEmptyState canUpload={canUpload} />;
   }
 
   const rowActions = {
@@ -196,6 +208,7 @@ export default function EbooksListClient({
         busyId={busyId}
         onToggleSelect={toggleSelect}
         onToggleSelectAll={toggleSelectAll}
+        canWrite={canWrite}
         {...rowActions}
       />
       <EbookMobileCard
@@ -203,11 +216,13 @@ export default function EbooksListClient({
         selectedIds={selectedIds}
         busyId={busyId}
         onToggleSelect={toggleSelect}
+        canWrite={canWrite}
         {...rowActions}
       />
 
       {/* After the list, so `sticky bottom` floats it over the rows instead of
           reserving a band above them that shifts the table on first tick. */}
+      {canWrite && (
       <BulkEbookActionBar
         count={selectedIds.size}
         busy={bulkBusy}
@@ -221,6 +236,7 @@ export default function EbooksListClient({
         onExportCsv={() => exportCsv(selectedRows.length ? selectedRows : rows)}
         onClear={() => setSelectedIds(new Set())}
       />
+      )}
 
       {deleteTarget && (
         <DeleteEbookDialog

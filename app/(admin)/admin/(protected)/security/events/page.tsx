@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import { listSecurityEvents, type EventFilters } from "@/lib/admin/security-console";
 import type { SecurityEventType, Severity } from "@/lib/security/model";
 import { formatWhen, RiskMeter, SeverityBadge } from "../_components/security-ui";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,8 @@ export default async function SecurityEventsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  await requireAdmin();
+  await requireRouteAccess("security.events");
+
   const sp = await searchParams;
 
   const severityRaw = Number(one(sp, "severity"));

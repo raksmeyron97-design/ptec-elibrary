@@ -11,6 +11,8 @@ import BooksWorkspaceNav from "@/components/admin/ebooks/BooksWorkspaceNav";
 import { getEbooks, getEbooksSummary, getEbookFilterOptions } from "@/lib/admin/ebooks";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 
+import { requireRouteAccess } from "@/lib/admin/route-guard";
+
 const PAGE_SIZE = 20;
 
 type SP = {
@@ -42,6 +44,17 @@ export default async function BooksPage({
 }: {
   searchParams: Promise<SP>;
 }) {
+  /* READ. The workspace reads the whole collection through the service client,
+     which bypasses RLS — so this guard is the only thing standing between
+     `books: none` and every record. It used to be nothing at all: the route
+     inherited the panel's role check and the sidebar hid the link, which a
+     typed URL walks straight past.
+
+     `can` comes back from the same resolution, so deciding what to render costs
+     no second round-trip and cannot disagree with what the actions enforce. */
+  const { can } = await requireRouteAccess("books.manage");
+  const canWrite = can("books.create");
+
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
@@ -104,6 +117,7 @@ export default async function BooksPage({
       {/* Zone 4 — search, filters, primary action. */}
       <EbookToolbar
         totalItems={ebooksResult.total}
+        canUpload={canWrite}
         filters={
           <EbookFilters
             value={filtersValue}
@@ -133,6 +147,8 @@ export default async function BooksPage({
           rows={ebooksResult.rows}
           departments={filterOptions.departments}
           hasAnyEbooksAtAll={summary.total > 0}
+          canUpload={canWrite}
+          canWrite={canWrite}
         />
       )}
 

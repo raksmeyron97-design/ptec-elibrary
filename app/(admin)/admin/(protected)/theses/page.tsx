@@ -7,6 +7,7 @@ import ThesisFilters from "@/components/admin/theses/ThesisFilters";
 import ThesesListClient from "@/components/admin/theses/ThesesListClient";
 import ThesisErrorState from "@/components/admin/theses/states/ThesisErrorState";
 import { getTheses, getThesesSummary, getThesisFilterOptions } from "@/lib/admin/theses";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 const PAGE_SIZE = 20;
 
@@ -27,6 +28,8 @@ export default async function AdminThesesPage({
 }: {
   searchParams: Promise<SP>;
 }) {
+  await requireRouteAccess("theses.manage");
+
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 

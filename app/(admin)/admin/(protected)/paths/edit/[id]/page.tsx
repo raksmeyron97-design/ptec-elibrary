@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { adminGetPathDetail } from "@/app/actions/learning-paths";
 import PathBuilderForm from "../../_components/PathBuilderForm";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditPathPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRouteAccess("paths.edit");
+
   const { id } = await params;
   const [path, t] = await Promise.all([adminGetPathDetail(id), getTranslations("adminPaths")]);
   if (!path) notFound();

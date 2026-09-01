@@ -1,9 +1,10 @@
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getTeamSections, getAllProfiles } from "../actions";
 import TeamForm from "../_components/TeamForm";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function NewTeamMemberPage() {
-  await requireAdmin();
+  await requireRouteAccess("team.create");
+
   const [sections, profiles] = await Promise.all([
     getTeamSections(),
     getAllProfiles(),

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { PageHeader } from "@/components/admin/kit";
 import Pagination from "@/components/ui/core/Pagination";
 import { listIncidents, type IncidentFilters } from "@/lib/admin/security-console";
 import { INCIDENT_STATUSES, type IncidentStatus } from "@/lib/security/incident-policy";
 import type { Severity } from "@/lib/security/model";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 import {
   formatDuration,
   formatWhen,
@@ -54,7 +54,8 @@ export default async function IncidentsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  await requireAdmin();
+  await requireRouteAccess("security.incidents");
+
   const sp = await searchParams;
 
   const statusParam = one(sp, "status") ?? "live";

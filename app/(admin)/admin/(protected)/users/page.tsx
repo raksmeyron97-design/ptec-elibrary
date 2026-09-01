@@ -1,11 +1,10 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/admin/kit";
 import UsersClient from "./_components/UsersClient";
 import UserStats from "@/components/admin/users/UserStats";
 import { getUsers, getUsersSummary } from "@/lib/admin/users";
-import type { AppRole } from "@/lib/types/roles";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
+import { isSuperAdminViewer } from "@/lib/admin/access-policy";
 import {
   USER_SORT_OPTIONS, JOINED_RANGE_OPTIONS,
   type UserSort, type JoinedRange,
@@ -20,11 +19,20 @@ function str(v: string | string[] | undefined): string {
 }
 
 export default async function AdminUsersPage({ searchParams }: { searchParams: Promise<SP> }) {
-  // This page reads the full user directory (emails, phones, roles) via the
-  // service-role client. The (protected) layout only checks ADMIN_PANEL_ROLES,
-  // which admits staff/librarian — both of whom have `users: none`. Guard the
-  // read here so the sidebar-hidden link isn't the only control.
-  await requireAdmin();
+  /* READ opens the directory — the page reads every email, phone and role
+     through the service-role client, and the (protected) layout only checks
+     ADMIN_PANEL_ROLES, which admits staff and librarian (both `users: none`).
+     Inviting, editing, deactivating and deleting are `users: write`.
+
+     The guard hands back the caller's identity, so the two things the client
+     needs to know — who they are, and whether they may assign the admin role —
+     come from the auth round-trip the guard already made. This used to be a
+     second `getUser()` plus a second `profiles` read in a parallel IIFE, which
+     is the redundant lookup docs/ADMIN-AUTHORIZATION.md warns about. */
+  const { userId, viewer, can } = await requireRouteAccess("users.manage");
+  const callerIsSuperAdmin = isSuperAdminViewer(viewer);
+  const canManageUsers = can("users.update");
+  const canInviteUsers = can("users.invite");
 
   const params = await searchParams;
 
@@ -37,25 +45,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const joined = (JOINED_RANGE_OPTIONS as readonly string[]).includes(joinedRaw) ? (joinedRaw as JoinedRange) : "all";
   const sort = (USER_SORT_OPTIONS as readonly string[]).includes(sortRaw) ? (sortRaw as UserSort) : "newest";
 
-  const [t, summary, result, callerIdentity] = await Promise.all([
+  const [t, summary, result] = await Promise.all([
     getTranslations("adminUsers"),
     getUsersSummary(),
     getUsers({ q, role, status, joined, sort, page, pageSize: PAGE_SIZE }),
-    (async () => {
-      const authClient = await createClient();
-      const { data: { user } } = await authClient.auth.getUser();
-      const svc = createServiceClient();
-      const { data: profile } = await svc
-        .from("profiles")
-        .select("role, is_super_admin")
-        .eq("id", user?.id ?? "")
-        .single();
-      return {
-        id: user?.id ?? "",
-        role: (profile?.role ?? "reader") as AppRole,
-        isSuperAdmin: Boolean(profile?.is_super_admin) || profile?.role === "super_admin",
-      };
-    })(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(result.total / PAGE_SIZE));
@@ -74,8 +67,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         pageSize={PAGE_SIZE}
         searchParams={params as Record<string, string | undefined>}
         filterValue={{ role: role || "all", status: status || "all", joined, sort }}
-        currentUserId={callerIdentity.id}
-        callerCanAssignAdmin={callerIdentity.isSuperAdmin}
+        currentUserId={userId}
+        callerCanAssignAdmin={callerIsSuperAdmin}
+        canManageUsers={canManageUsers}
+        canInviteUsers={canInviteUsers}
         hasAnyAtAll={result.hasAnyAtAll}
       />
     </div>

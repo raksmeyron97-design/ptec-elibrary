@@ -6,6 +6,7 @@ import { getPublicationAffiliations } from "@/app/actions/publications";
 import { PageHeader } from "@/components/admin/kit";
 import AuthorsClient from "./_components/AuthorsClient";
 import AffiliationsPanel from "./_components/AffiliationsPanel";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 /**
  * Author and institution management.
@@ -17,6 +18,8 @@ import AffiliationsPanel from "./_components/AffiliationsPanel";
  * server round trip.
  */
 export default async function PublicationAuthorsPage() {
+  await requireRouteAccess("publications.authors");
+
   const [{ data: authors, error }, { data: affiliations }] = await Promise.all([
     listPublicationAuthors(),
     getPublicationAffiliations(),

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { PageHeader } from "@/components/admin/kit";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 import {
   getDetectionCoverage,
   getSecurityOverview,
@@ -42,7 +42,7 @@ const WINDOW_HOURS = 24;
  * /api/cron/security-scan, so opening this page can never send an alert.
  */
 export default async function SecurityConsolePage() {
-  await requireAdmin();
+  await requireRouteAccess("security.console");
 
   let overview: SecurityOverview | null = null;
   let loadError: string | null = null;

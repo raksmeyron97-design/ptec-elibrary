@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import AdminProfileClient from "@/components/admin/AdminProfileClient";
 import type { Metadata } from "next";
 import type { TeamMemberData, TeamSectionData } from "@/components/admin/AdminProfileClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata: Metadata = {
   title: "My Profile — Admin",
 };
 
 export default async function AdminProfilePage() {
+  await requireRouteAccess("profile");
+
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect("/admin/login");

@@ -20,7 +20,9 @@ import {
   revalidateBook,
   revalidateThesis,
 } from "@/lib/cache/revalidate";
-import { requireLibrarian, requirePermission } from "@/lib/auth/requireAdmin";
+import { AdminAuthError, requirePermission, resolveAdminPermissions } from "@/lib/auth/requireAdmin";
+import { requireAction } from "@/lib/admin/route-guard";
+import { canRead, canWrite } from "@/lib/admin/access-policy";
 import { logAdminAction } from "@/app/actions/audit";
 import {
   canActorTransition,
@@ -189,6 +191,16 @@ function toItem(type: ReviewItemType, row: Row, people: Map<string, ReviewPerson
   };
 }
 
+/**
+ * The queue's read gate, returning the viewer's own permission map so the
+ * per-type filtering below reads the same numbers the gate enforced.
+ */
+async function requireQueueRead() {
+  const { supabase } = await requirePermission("books", "read");
+  const { role, isSuperAdmin, perms } = await resolveAdminPermissions();
+  return { supabase, role, isSuperAdmin, perms };
+}
+
 export type ReviewQueues = {
   /** Submitted for approval, not yet public. */
   pending: ReviewItem[];
@@ -198,15 +210,29 @@ export type ReviewQueues = {
   unverifiedLiveCapped: boolean;
 };
 
-/** Both review queues in one pass — they share the profiles lookup. */
+/**
+ * Both review queues in one pass — they share the profiles lookup.
+ *
+ * READ-level, and per-type. Reading the queue is `books: read` (it is the books
+ * workspace's queue and carries the books badge), but the theses half of it is
+ * `research` data, so a viewer without `research: read` gets the book rows and
+ * not the thesis rows — object-level authorization, rather than one gate over
+ * two collections. It used to be `requireLibrarian()`, which meant a `staff`
+ * account granted `books: write` on /admin/roles was promised the queue by the
+ * sidebar and then refused by the action.
+ */
 export async function getReviewQueues(): Promise<ReviewQueues> {
-  const { supabase } = await requireLibrarian();
+  const { supabase, role, perms, isSuperAdmin } = await requireQueueRead();
+  const includeResearch = canRead({ role, isSuperAdmin, perms }, "research");
+  const none = async () => ({ rows: [] as Row[], hasWorkflowCols: false });
 
   const [books, research, liveBooks, liveResearch] = await Promise.all([
     fetchQueueRows(supabase, "books", BOOK_BASE_COLS),
-    fetchQueueRows(supabase, "research_reports", RESEARCH_BASE_COLS),
+    includeResearch ? fetchQueueRows(supabase, "research_reports", RESEARCH_BASE_COLS) : none(),
     fetchUnverifiedLiveRows(supabase, "books", BOOK_BASE_COLS),
-    fetchUnverifiedLiveRows(supabase, "research_reports", RESEARCH_BASE_COLS),
+    includeResearch
+      ? fetchUnverifiedLiveRows(supabase, "research_reports", RESEARCH_BASE_COLS)
+      : ([] as Row[]),
   ]);
 
   const personIds = [...books.rows, ...research.rows, ...liveBooks, ...liveResearch].flatMap((r) =>
@@ -235,9 +261,15 @@ export async function getReviewQueue(): Promise<ReviewItem[]> {
   return (await getReviewQueues()).pending;
 }
 
-/** Reviewer candidates for the assign dropdown (librarian and above). */
+/** Reviewer candidates for the assign dropdown. Assignment is a mutation, so
+ *  the list of colleagues it discloses needs write on one of the two
+ *  collections the queue covers — never plain read. */
 export async function getReviewerOptions(): Promise<ReviewPerson[]> {
-  const { supabase } = await requireLibrarian();
+  const { supabase, role, isSuperAdmin, perms } = await resolveAdminPermissions();
+  const viewer = { role, isSuperAdmin, perms };
+  if (!canWrite(viewer, "books") && !canWrite(viewer, "research")) {
+    throw new AdminAuthError("Forbidden", 403);
+  }
   const { data } = await supabase
     .from("profiles")
     .select("id, full_name, email, role")
@@ -249,7 +281,7 @@ export async function getReviewerOptions(): Promise<ReviewPerson[]> {
 /** Count shown as the sidebar badge; returns 0 on any failure. */
 export async function getPendingReviewCount(): Promise<number> {
   try {
-    const { supabase } = await requireLibrarian();
+    const { supabase } = await requirePermission("books", "read");
     const actionable = ["needs_review", "pending_review", "in_review"];
     const [{ count: books }, { count: research }] = await Promise.all([
       supabase.from("books").select("id", { count: "exact", head: true }).in("status", actionable),
@@ -414,7 +446,9 @@ export async function assignReviewer(
   reviewerId: string | null,
 ): Promise<ActionResult> {
   try {
-    const { supabase, user } = await requireLibrarian();
+    const { supabase, user } = await requireAction(
+      type === "book" ? "books.review.assign" : "research.review.assign",
+    );
     const table = type === "book" ? "books" : "research_reports";
     const { error } = await supabase
       .from(table)

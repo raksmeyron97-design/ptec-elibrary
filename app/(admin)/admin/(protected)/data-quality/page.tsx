@@ -33,6 +33,7 @@ import SeoHealthAudit from "@/components/admin/SeoHealthAudit";
 import MetadataAnalysis from "@/components/admin/data-quality/MetadataAnalysis";
 import RepairQueue from "@/components/admin/data-quality/RepairQueue";
 import { PageHeader } from "@/components/admin/kit";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,8 @@ function MetricCard({
 }
 
 export default async function DataQualityPage({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireRouteAccess("insights.dataQuality");
+
   const sp = await searchParams;
   const [t, metadata, fileHealth, brokenFiles, resourceStats, backfill, seoHealth] = await Promise.all([
     getTranslations("adminDataQuality"),

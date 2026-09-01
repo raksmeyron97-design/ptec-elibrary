@@ -10,6 +10,7 @@ import ThesisMetadataBadge from "@/components/admin/theses/ThesisMetadataBadge";
 import ThesisFileStatusBadge from "@/components/admin/theses/ThesisFileStatusBadge";
 import { STATUS_BADGE_STYLES, STATUS_LABELS, type ThesisListRow, type ThesisProgramOption } from "@/lib/admin/theses-shared";
 import { thesisHref } from "@/lib/theses";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -64,16 +65,19 @@ export default function ThesesTable({
           <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
-              <th scope="col" className="w-10 px-4 py-3">
-                <label className="sr-only" htmlFor="select-all-theses">{t("selectAll")}</label>
-                <input
-                  id="select-all-theses"
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={onToggleSelectAll}
-                  className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
-                />
-              </th>
+              {/* Selection exists only to feed the bulk action bar, which is a mutation surface */}
+              <CanDo action="theses.edit">
+                <th scope="col" className="w-10 px-4 py-3">
+                  <label className="sr-only" htmlFor="select-all-theses">{t("selectAll")}</label>
+                  <input
+                    id="select-all-theses"
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={onToggleSelectAll}
+                    className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+                  />
+                </th>
+              </CanDo>
               <th scope="col" className="w-6 px-2 py-3" />
               <th scope="col" className="w-14 px-2 py-3 text-center">{t("cover")}</th>
               <th scope="col" className="px-4 py-3">{t("titleCol")}</th>
@@ -100,16 +104,18 @@ export default function ThesesTable({
                   <tr
                     className={`transition-colors hover:bg-paper/80 ${isBusy ? "opacity-50" : ""} ${isSelected ? "bg-brand/5" : ""}`}
                   >
-                    <td className="px-4 py-3">
-                      <label className="sr-only" htmlFor={`select-thesis-${thesis.id}`}>{t("selectOne", { title: thesis.title })}</label>
-                      <input
-                        id={`select-thesis-${thesis.id}`}
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => onToggleSelect(thesis.id)}
-                        className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
-                      />
-                    </td>
+                    <CanDo action="theses.edit">
+                      <td className="px-4 py-3">
+                        <label className="sr-only" htmlFor={`select-thesis-${thesis.id}`}>{t("selectOne", { title: thesis.title })}</label>
+                        <input
+                          id={`select-thesis-${thesis.id}`}
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => onToggleSelect(thesis.id)}
+                          className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30"
+                        />
+                      </td>
+                    </CanDo>
                     <td className="px-1 py-3">
                       <button
                         type="button"
@@ -192,14 +198,16 @@ export default function ThesesTable({
                         way to reach each.
                       */}
                       <div className="flex items-center justify-end gap-0.5">
-                        <Link
-                          href={`/admin/theses/edit/${thesis.id}`}
-                          aria-label={t("editNamed", { title: thesis.title })}
-                          title={t("editAction")}
-                          className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
-                        >
-                          <Pencil className="h-4 w-4" aria-hidden="true" />
-                        </Link>
+                        <CanDo action="theses.edit">
+                          <Link
+                            href={`/admin/theses/edit/${thesis.id}`}
+                            aria-label={t("editNamed", { title: thesis.title })}
+                            title={t("editAction")}
+                            className="focus-field flex h-8 w-8 items-center justify-center rounded-lg text-text-muted transition hover:bg-paper hover:text-brand"
+                          >
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                          </Link>
+                        </CanDo>
                         {thesis.status === "published" ? (
                           <Link
                             href={thesisHref(thesis)}
@@ -220,19 +228,21 @@ export default function ThesesTable({
                             <span className="sr-only">{t("viewUnavailable")}</span>
                           </span>
                         )}
-                        <ThesisActionsMenu
-                          thesis={thesis}
-                          busy={isBusy}
-                          onPublish={() => actions.onPublish(thesis.id)}
-                          onUnpublish={() => actions.onUnpublish(thesis.id)}
-                          onArchive={() => actions.onArchive(thesis.id)}
-                          onUnarchive={() => actions.onUnarchive(thesis.id)}
-                          onDuplicate={() => actions.onDuplicate(thesis.id)}
-                          onSubmitForReview={() => actions.onSubmitForReview(thesis.id)}
-                          onVerify={() => actions.onVerify(thesis.id)}
-                          onUnverify={() => actions.onUnverify(thesis.id)}
-                          onDelete={() => actions.onDeleteRequest(thesis.id, thesis.title)}
-                        />
+                        <CanDo action="theses.edit">
+                          <ThesisActionsMenu
+                            thesis={thesis}
+                            busy={isBusy}
+                            onPublish={() => actions.onPublish(thesis.id)}
+                            onUnpublish={() => actions.onUnpublish(thesis.id)}
+                            onArchive={() => actions.onArchive(thesis.id)}
+                            onUnarchive={() => actions.onUnarchive(thesis.id)}
+                            onDuplicate={() => actions.onDuplicate(thesis.id)}
+                            onSubmitForReview={() => actions.onSubmitForReview(thesis.id)}
+                            onVerify={() => actions.onVerify(thesis.id)}
+                            onUnverify={() => actions.onUnverify(thesis.id)}
+                            onDelete={() => actions.onDeleteRequest(thesis.id, thesis.title)}
+                          />
+                        </CanDo>
                       </div>
                     </td>
                   </tr>

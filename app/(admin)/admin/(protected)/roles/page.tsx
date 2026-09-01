@@ -1,11 +1,11 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireSuperAdmin, isAdminAuthError } from "@/lib/auth/requireAdmin";
-import { redirect } from "next/navigation";
+
 import RolesWorkspace from "@/components/admin/roles/RolesWorkspace";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ALL_ROLES } from "@/lib/types/roles";
 import { DEFAULT_PERMISSIONS } from "@/lib/permissions";
 import type { PermMatrix } from "@/lib/admin/roles-shared";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata = { title: "Role Management - PTEC Library" };
 
@@ -20,14 +20,7 @@ function formatUpdated(iso: string): string {
 }
 
 export default async function AdminRolesPage() {
-  try {
-    await requireSuperAdmin();
-  } catch (err) {
-    if (isAdminAuthError(err) && err.status === 403) {
-      redirect("/admin");
-    }
-    throw err;
-  }
+  await requireRouteAccess("roles.manage");
 
   const supabase = createServiceClient();
 

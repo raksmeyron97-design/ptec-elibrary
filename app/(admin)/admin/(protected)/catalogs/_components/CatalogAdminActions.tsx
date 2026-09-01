@@ -5,9 +5,11 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { CatalogBook } from "@/lib/catalog";
 import Icon from "@/components/ui/core/Icon";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 import { deleteCatalogBook, restoreCatalogBook, hardDeleteCatalogBook } from "../actions";
 
 export default function CatalogAdminActions({ book, copyCount }: { book: CatalogBook; copyCount?: number }) {
+  const canWrite = useCan("catalog.edit");
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<"unlist" | "purge" | null>(null);
 
@@ -53,6 +55,35 @@ export default function CatalogAdminActions({ book, copyCount }: { book: Catalog
         >
           Cancel
         </button>
+      </div>
+    );
+  }
+
+  /* Every control here mutates the physical catalog — edit, manage copies,
+     unlist, restore, purge — so a `catalog: read` viewer gets the row and no
+     actions rather than five buttons that all end in a refusal. The public-page
+     link is the one exception and stays below.
+
+     `catalog`, not `books`: this is a different collection with its own row on
+     /admin/roles, and every action file behind these buttons checks `catalog`. */
+  if (!canWrite) {
+    return (
+      <div className="flex items-center justify-end gap-3 text-text-muted">
+        {book.is_active && (
+          <a
+            href={`/catalogs/${book.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-muted transition hover:text-brand"
+            title="View public page"
+            aria-label={`View public page of ${book.title}`}
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M15 3h6v6M10 14 21 3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </a>
+        )}
       </div>
     );
   }

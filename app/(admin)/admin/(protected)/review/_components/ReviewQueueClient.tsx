@@ -47,6 +47,19 @@ type Props = {
   reviewers: ReviewPerson[];
   viewerId: string;
   canRestore: boolean;
+  /**
+   * Whether this viewer may mutate each of the two collections the queue
+   * covers. Read-only viewers see the whole queue — the backlog, the metadata,
+   * the validation state, the publish blockers — and none of the controls that
+   * change it. The buttons are hidden rather than disabled: a row of greyed-out
+   * "Approve / Request changes / Archive" is noise to someone who will never be
+   * able to press them, and it says nothing a disabled control could explain.
+   *
+   * Hiding is a rendering decision, never the boundary — every one of these
+   * actions re-checks the same permission on the server.
+   */
+  canWriteBooks: boolean;
+  canWriteResearch: boolean;
 };
 
 /**
@@ -184,6 +197,8 @@ function ItemCard({
   reviewers,
   viewerId,
   canRestore,
+  canWriteBooks,
+  canWriteResearch,
   onChanged,
 }: {
   item: ReviewItem;
@@ -191,8 +206,12 @@ function ItemCard({
   reviewers: ReviewPerson[];
   viewerId: string;
   canRestore: boolean;
+  canWriteBooks: boolean;
+  canWriteResearch: boolean;
   onChanged: (id: string, type: string, status: CanonicalStatus | "removed") => void;
 }) {
+  /** This row's collection decides, not the page's. */
+  const canMutate = item.type === "book" ? canWriteBooks : canWriteResearch;
   const t = useTranslations("adminReview");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -304,9 +323,13 @@ function ItemCard({
 
         <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:flex-col lg:items-end">
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={item.editUrl} className={ghost}>
-              <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.edit")}
-            </Link>
+            {/* The edit form is a `write` route; offering it to a read-only
+                reviewer only routes them to a 403. */}
+            {canMutate && (
+              <Link href={item.editUrl} className={ghost}>
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.edit")}
+              </Link>
+            )}
             {item.previewUrl && (
               <a href={item.previewUrl} target="_blank" rel="noreferrer" className={ghost}>
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> {t("actions.preview")}
@@ -318,6 +341,10 @@ function ItemCard({
             </button>
           </div>
 
+          {/* Every control below mutates. One gate, so a read-only viewer sees a
+              queue card that is purely informational rather than a row of dead
+              buttons. */}
+          {canMutate && (
           <div className="flex flex-wrap items-center gap-2">
             {isLiveQueue && (
               <>
@@ -384,6 +411,7 @@ function ItemCard({
               </>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -434,6 +462,7 @@ function ItemCard({
                 <p className="mt-1 text-[11px] text-text-muted">{t("details.unverifiedNote")}</p>
               )}
             </div>
+            {canMutate && (
             <div>
               <label
                 htmlFor={`reviewer-${item.type}-${item.id}`}
@@ -456,9 +485,10 @@ function ItemCard({
                 ))}
               </select>
             </div>
+            )}
             <div>
               <h4 className="mb-2 text-[12px] font-bold uppercase tracking-wide text-text-muted">{t("details.history")}</h4>
-              <VersionHistory item={item} canRestore={canRestore} />
+              <VersionHistory item={item} canRestore={canRestore && canMutate} />
             </div>
           </div>
         </div>
@@ -478,6 +508,8 @@ export default function ReviewQueueClient({
   reviewers,
   viewerId,
   canRestore,
+  canWriteBooks,
+  canWriteResearch,
 }: Props) {
   const t = useTranslations("adminReview");
   // Optimistic state over this page's slice only: the server remounts this
@@ -583,6 +615,8 @@ export default function ReviewQueueClient({
               reviewers={reviewers}
               viewerId={viewerId}
               canRestore={canRestore}
+              canWriteBooks={canWriteBooks}
+              canWriteResearch={canWriteResearch}
               onChanged={handleChanged}
             />
           ))}

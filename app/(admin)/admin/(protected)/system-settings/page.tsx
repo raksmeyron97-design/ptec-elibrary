@@ -1,9 +1,10 @@
-import { redirect } from "next/navigation";
-import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
+
+
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import { hasPermission } from "@/lib/permissions";
 import { getSettingsWorkspace } from "@/lib/system-settings/admin";
 import SettingsWorkspace from "@/components/admin/system-settings/SettingsWorkspace";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata = { title: "System Settings - PTEC Library" };
 
@@ -17,14 +18,7 @@ export const metadata = { title: "System Settings - PTEC Library" };
  * route is exclusively for global website configuration.
  */
 export default async function SystemSettingsPage() {
-  try {
-    await requirePermission("settings", "read");
-  } catch (err) {
-    if (isAdminAuthError(err) && err.status === 403) {
-      redirect("/admin");
-    }
-    throw err;
-  }
+  await requireRouteAccess("settings.manage");
 
   const identity = await getAdminIdentity();
   const canWrite =

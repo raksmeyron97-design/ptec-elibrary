@@ -6,6 +6,7 @@ import { Bell, MonitorSmartphone, MessageSquare, Pin } from "lucide-react";
 import { StatusBadge } from "@/components/admin/kit";
 import AnnouncementActionsMenu, { type AnnouncementRowHandlers } from "./AnnouncementActionsMenu";
 import { STATUS_TONES, PRIORITY_TONES, type AnnouncementListRow } from "@/lib/admin/announcements/shared";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -35,13 +36,15 @@ export default function AnnouncementMobileCard({
         return (
           <div key={row.id} className={`rounded-xl border p-4 shadow-sm transition ${isSelected ? "border-brand/40 bg-brand/5" : "border-divider bg-bg-surface"} ${isBusy ? "opacity-50" : ""}`}>
             <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggleSelect(row.id)}
-                aria-label={t("selectOne", { name: row.internalName })}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
-              />
+              <CanDo action="announcements.edit">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => onToggleSelect(row.id)}
+                  aria-label={t("selectOne", { name: row.internalName })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-divider text-brand focus:ring-focus-ring/30"
+                />
+              </CanDo>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-1.5">
                   {row.pinned && <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" aria-hidden="true" />}
@@ -80,7 +83,9 @@ export default function AnnouncementMobileCard({
                   <dd className="text-right truncate">{row.createdByName ?? "—"}</dd>
                 </dl>
               </div>
-              <AnnouncementActionsMenu row={row} busy={isBusy} {...handlers} />
+              <CanDo action="announcements.edit">
+                <AnnouncementActionsMenu row={row} busy={isBusy} {...handlers} />
+              </CanDo>
             </div>
           </div>
         );

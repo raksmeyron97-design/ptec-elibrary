@@ -42,14 +42,12 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { AppRole, PermLevel } from "@/lib/types/roles";
-import { ADMIN_ROLES } from "@/lib/types/roles";
+
 // Client-safe half only — lib/admin/sidebar-badges.ts is `server-only`.
 import { EMPTY_SIDEBAR_BADGES, type SidebarBadges } from "@/lib/admin/sidebar-badges-shared";
-import {
-  EBOOKS_BASE_PATH,
-  EBOOKS_DUPLICATES_PATH,
-  EBOOKS_UPLOAD_PATH,
-} from "@/lib/admin/ebooks-url";
+import { EBOOKS_UPLOAD_PATH } from "@/lib/admin/ebooks-url";
+import { BOOKS_NAV, canReachEntry, hrefFor, type BooksNavKey } from "@/lib/admin/books-nav";
+import { canAccessRoute, type AdminViewer } from "@/lib/admin/access-policy";
 import { makeIsActive } from "@/lib/admin/nav-active";
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
@@ -83,10 +81,6 @@ type NavNode =
 /** Translator narrowed to what the nav needs (adminShell.nav namespace). */
 type NavT = (key: string, values?: Record<string, string | number>) => string;
 
-function perm(perms: Record<string, PermLevel>, resource: string, minLevel: "read" | "write"): boolean {
-  const level = perms[resource] ?? "none";
-  return minLevel === "write" ? level === "write" : level !== "none";
-}
 
 /** Sum of a group's child badges, so a collapsed / closed group still signals
  *  that something inside it needs attention. */
@@ -131,6 +125,16 @@ function CountDot({ severity }: { severity: BadgeInfo["severity"] }) {
   );
 }
 
+/** Icons stay here rather than in the nav table: lib/admin/books-nav.ts is
+ *  pure data so it can be read by a test without pulling in an icon set. */
+const BOOKS_NAV_ICONS: Record<BooksNavKey, NavIcon> = {
+  manage: BookCopy,
+  review: ClipboardCheck,
+  requests: BookPlus,
+  duplicates: Copy,
+  catalog: Library,
+};
+
 /**
  * Parent → children navigation tree. A parent only renders when the user
  * can see at least one of its children (same permission gates as before).
@@ -142,52 +146,65 @@ function getNavTree(
   badges: SidebarBadges = EMPTY_SIDEBAR_BADGES,
   t: NavT,
 ): NavNode[] {
-  const isSA    = isSuperAdmin || role === "super_admin";
-  const isAdmin = ADMIN_ROLES.includes(role) || isSA;
-  const p = userPermissions;
+  const viewer: AdminViewer = { role, isSuperAdmin, perms: userPermissions };
+
+  /* Every gate below is the *destination's own* route policy, asked by id.
+     There is no second permission model here any more: an entry is shown
+     exactly when `requireRouteAccess(<id>)` on that route would let this viewer
+     through — which is why an item that requires write (Upload, Duplicates)
+     disappears for a read-only account while its read-level siblings stay, with
+     nothing in this file deciding that. */
+  const reach = (policyId: string) => canAccessRoute(viewer, policyId);
 
   // Only surface a badge when there is genuinely something to act on.
   const attn = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "attention" } : undefined);
   const crit = (n: number): BadgeInfo | undefined => (n > 0 ? { count: n, severity: "critical" } : undefined);
 
-  const books: NavChild[] = [];
-  if (perm(p, "books",   "write")) books.push({ name: t("uploadBook"),   href: EBOOKS_UPLOAD_PATH,     icon: Upload         });
-  if (perm(p, "books",   "write")) books.push({ name: t("reviewQueue"),  href: "/admin/review",        icon: ClipboardCheck, badge: attn(badges.review) });
-  if (perm(p, "books",   "read"))  books.push({ name: t("manageEbooks"), href: EBOOKS_BASE_PATH,       icon: BookCopy       });
-  if (perm(p, "books",   "write")) books.push({ name: t("duplicates"),   href: EBOOKS_DUPLICATES_PATH, icon: Copy       });
-  if (perm(p, "catalog", "read"))  books.push({ name: t("catalog"),      href: "/admin/catalogs",      icon: Library        });
-  if (perm(p, "books",   "read"))  books.push({ name: t("bookRequests"), href: "/admin/book-requests", icon: BookPlus, badge: attn(badges.bookRequests) });
+  /* Order, gates and destinations live in lib/admin/books-nav.ts, next to a
+     test that checks each gate against the guard its route actually runs.
+     Upload is deliberately absent — it is an action on the collection, reached
+     from the Manage E-books workspace, not a sixth destination. */
+  const books: NavChild[] = BOOKS_NAV.filter((entry) => canReachEntry(entry, viewer)).map(
+    (entry) => ({
+      name: t(entry.labelKey),
+      href: hrefFor(entry),
+      icon: BOOKS_NAV_ICONS[entry.key],
+      badge: entry.badge ? attn(badges[entry.badge]) : undefined,
+    }),
+  );
 
   const content: NavChild[] = [];
-  if (perm(p, "posts",          "read")) content.push({ name: t("posts"),         href: "/admin/posts",         icon: FileText      });
-  if (perm(p, "research",       "read")) content.push({ name: t("theses"),        href: "/admin/theses",        icon: GraduationCap });
-  if (perm(p, "publications",   "read")) content.push({ name: t("publications"),  href: "/admin/publications",  icon: ScrollText    });
-  if (perm(p, "learning_paths", "read")) content.push({ name: t("learningPaths"), href: "/admin/paths",         icon: Route         });
-  if (perm(p, "announcements",  "read")) content.push({ name: t("announcements"), href: "/admin/announcements", icon: Megaphone     });
-  if (perm(p, "homepage_photos", "read")) content.push({ name: t("homepagePhotos"), href: "/admin/homepage-photos", icon: Images    });
+  if (reach("posts.manage"))              content.push({ name: t("posts"),          href: "/admin/posts",           icon: FileText      });
+  if (reach("theses.manage"))             content.push({ name: t("theses"),         href: "/admin/theses",          icon: GraduationCap });
+  if (reach("publications.manage"))       content.push({ name: t("publications"),   href: "/admin/publications",    icon: ScrollText    });
+  if (reach("paths.manage"))              content.push({ name: t("learningPaths"),  href: "/admin/paths",           icon: Route         });
+  if (reach("announcements.manage"))      content.push({ name: t("announcements"),  href: "/admin/announcements",   icon: Megaphone     });
+  if (reach("homepagePhotos.manage"))     content.push({ name: t("homepagePhotos"), href: "/admin/homepage-photos", icon: Images        });
 
   const insights: NavChild[] = [];
-  if (perm(p, "books", "read")) insights.push({ name: t("searchInsights"), href: "/admin/search-insights", icon: SearchX });
-  if (perm(p, "books", "read")) insights.push({ name: t("dataQuality"),    href: "/admin/data-quality",    icon: Gauge, badge: crit(badges.dataQuality) });
+  if (reach("insights.search"))       insights.push({ name: t("searchInsights"), href: "/admin/search-insights", icon: SearchX });
+  if (reach("insights.dataQuality"))  insights.push({ name: t("dataQuality"),    href: "/admin/data-quality",    icon: Gauge, badge: crit(badges.dataQuality) });
 
-  // Administration — role-gated items (security-sensitive) live here too
+  // Administration — the role-gated surfaces (security console, activity log)
+  // live here too, and go through the same registry: their policies declare a
+  // role list instead of a permission, which `canAccessRoute` handles.
   const administration: NavChild[] = [];
-  if (perm(p, "users", "write"))         administration.push({ name: t("libraryTeam"),  href: "/admin/team",  icon: UserCircle  });
-  if (perm(p, "users", "write"))         administration.push({ name: t("users"),        href: "/admin/users", icon: Users       });
-  if (perm(p, "roles", "write") || isSA) administration.push({ name: t("roles"),        href: "/admin/roles", icon: ShieldCheck });
-  if (perm(p, "settings", "read") || isSA) administration.push({ name: t("systemSettings"), href: "/admin/system-settings", icon: SlidersHorizontal });
+  if (reach("team.manage"))     administration.push({ name: t("libraryTeam"),    href: "/admin/team",            icon: UserCircle        });
+  if (reach("users.manage"))    administration.push({ name: t("users"),          href: "/admin/users",           icon: Users             });
+  if (reach("roles.manage"))    administration.push({ name: t("roles"),          href: "/admin/roles",           icon: ShieldCheck       });
+  if (reach("settings.manage")) administration.push({ name: t("systemSettings"), href: "/admin/system-settings", icon: SlidersHorizontal });
   // Two security surfaces, deliberately separate (see lib/admin/security-console.ts):
   //   Security Console — what is attacking the library and what was done about it
   //   Security Logs    — who downloaded/viewed what, and which downloads were denied
   // Merging them would mean putting the highest-volume event class into a
   // read-model with a 5,000-row cap and pushing real activity out of it.
-  if (isAdmin)                           administration.push({ name: t("securityConsole"), href: "/admin/security", icon: ShieldAlert, badge: crit(badges.securityIncidents) });
-  if (isAdmin)                           administration.push({ name: t("securityLogs"), href: "/admin/logs",  icon: Shield      });
+  if (reach("security.console")) administration.push({ name: t("securityConsole"), href: "/admin/security", icon: ShieldAlert, badge: crit(badges.securityIncidents) });
+  if (reach("logs.activity"))    administration.push({ name: t("securityLogs"),    href: "/admin/logs",     icon: Shield      });
 
   const tree: NavNode[] = [
     { type: "link", name: t("dashboard"), href: "/admin", icon: LayoutDashboard },
   ];
-  if (perm(p, "contact", "read")) tree.push({ type: "link", name: t("inbox"), href: "/admin/inbox", icon: Inbox, badge: attn(badges.inbox) });
+  if (reach("inbox.manage")) tree.push({ type: "link", name: t("inbox"), href: "/admin/inbox", icon: Inbox, badge: attn(badges.inbox) });
   if (books.length)          tree.push({ type: "group", key: "books",          name: t("groupBooks"),          icon: BookOpen,  children: books          });
   if (content.length)        tree.push({ type: "group", key: "content",        name: t("groupContent"),        icon: Newspaper, children: content        });
   if (insights.length)       tree.push({ type: "group", key: "insights",       name: t("groupInsights"),       icon: BarChart3, children: insights       });
@@ -197,7 +214,7 @@ function getNavTree(
   // mean every admin page load calls the separate storage service just to
   // render the sidebar, which is exactly the coupling CLAUDE.md's "handle
   // storage downtime without crashing the dashboard" rule warns against.
-  if (perm(p, "storage", "read")) tree.push({ type: "link", name: t("storage"), href: "/admin/storage", icon: HardDrive });
+  if (reach("storage.browse")) tree.push({ type: "link", name: t("storage"), href: "/admin/storage", icon: HardDrive });
   if (administration.length) tree.push({ type: "group", key: "administration", name: t("groupAdministration"), icon: Settings,  children: administration });
   return tree;
 }
@@ -525,17 +542,21 @@ export default function AdminSidebar({
   // the sidebar plus the write-scoped create flows, so it can only ever offer
   // destinations this administrator is authorised to open.
   const commands = useMemo<AdminCommand[]>(() => {
-    const canWrite = (resource: string) => (userPermissions[resource] ?? "none") === "write";
+    /* Same registry, same ids as the routes these shortcuts open — a palette
+       entry the destination would refuse is a worse lie than a sidebar one,
+       because ⌘K is how people reach pages they can't see. */
+    const viewer: AdminViewer = { role, isSuperAdmin, perms: userPermissions };
+    const reach = (policyId: string) => canAccessRoute(viewer, policyId);
     const list: AdminCommand[] = [];
 
     const actions = tPalette("actions");
     const goTo = tPalette("goTo");
 
-    if (canWrite("books")) list.push({ id: "act-upload", label: tPalette("addEbook"), group: actions, href: EBOOKS_UPLOAD_PATH, icon: Upload, keywords: "new create book pdf" });
-    if (canWrite("research")) list.push({ id: "act-thesis", label: tPalette("addThesis"), group: actions, href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
-    if (canWrite("publications")) list.push({ id: "act-pub", label: tPalette("addPublication"), group: actions, href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
-    if (canWrite("posts")) list.push({ id: "act-post", label: tPalette("createPost"), group: actions, href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
-    if (canWrite("users")) list.push({ id: "act-users", label: tPalette("manageUsers"), group: actions, href: "/admin/users", icon: Users, keywords: "invite people accounts staff" });
+    if (reach("books.upload")) list.push({ id: "act-upload", label: tPalette("addEbook"), group: actions, href: EBOOKS_UPLOAD_PATH, icon: Upload, keywords: "new create book pdf" });
+    if (reach("theses.create")) list.push({ id: "act-thesis", label: tPalette("addThesis"), group: actions, href: "/admin/theses/create", icon: GraduationCap, keywords: "new create research report" });
+    if (reach("publications.create")) list.push({ id: "act-pub", label: tPalette("addPublication"), group: actions, href: "/admin/publications/new", icon: ScrollText, keywords: "new create paper" });
+    if (reach("posts.create")) list.push({ id: "act-post", label: tPalette("createPost"), group: actions, href: "/admin/posts/new", icon: FileText, keywords: "new news article announcement" });
+    if (reach("users.manage")) list.push({ id: "act-users", label: tPalette("manageUsers"), group: actions, href: "/admin/users", icon: Users, keywords: "invite people accounts staff" });
 
     for (const node of navTree) {
       if (node.type === "link") {

@@ -3,8 +3,11 @@ import { Settings2 } from "lucide-react";
 import ThesisForm from "@/components/admin/theses/form/ThesisForm";
 import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function CreateThesisPage() {
+  await requireRouteAccess("theses.create");
+
   const t = await getTranslations("adminThesisForm");
   /*
     Breadcrumb, heading, tabs, context sidebar and action bar all come from

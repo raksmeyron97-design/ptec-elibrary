@@ -4,10 +4,15 @@ import { Plus, ExternalLink, GraduationCap, CheckCircle2, FileEdit, Archive, Use
 import { adminGetPaths, adminGetPathStats } from "@/app/actions/learning-paths";
 import { PageHeader } from "@/components/admin/kit";
 import PathsAdminClient from "./_components/PathsAdminClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPathsPage() {
+  /* READ. Building and editing a path is a separate write route. */
+  const { can } = await requireRouteAccess("paths.manage");
+  const canCreate = can("paths.create");
+
   const [t, paths, stats] = await Promise.all([
     getTranslations("adminPaths"),
     adminGetPaths(),
@@ -36,12 +41,14 @@ export default async function AdminPathsPage() {
             >
               <ExternalLink className="h-4 w-4" aria-hidden="true" /> {t("viewPublic")}
             </Link>
+            {canCreate && (
             <Link
               href="/admin/paths/create"
               className="btn-brand-gradient inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
             >
               <Plus className="h-4 w-4" aria-hidden="true" /> {t("newPath")}
             </Link>
+            )}
           </div>
         }
       />

@@ -6,6 +6,7 @@ import { Bell, MonitorSmartphone, MessageSquare, Pin } from "lucide-react";
 import { StatusBadge } from "@/components/admin/kit";
 import AnnouncementActionsMenu, { type AnnouncementRowHandlers } from "./AnnouncementActionsMenu";
 import { STATUS_TONES, PRIORITY_TONES, type AnnouncementListRow } from "@/lib/admin/announcements/shared";
+import { CanDo } from "@/components/admin/access/AdminCapabilities";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -42,10 +43,13 @@ export default function AnnouncementsTable({
           <caption className="sr-only">{t("caption")}</caption>
           <thead>
             <tr className="border-b border-divider bg-paper text-left text-xs font-bold uppercase tracking-wide text-text-muted [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
-              <th scope="col" className="w-10 px-4 py-3">
-                <label className="sr-only" htmlFor="select-all-announcements">{t("selectAll")}</label>
-                <input id="select-all-announcements" type="checkbox" checked={allSelected} onChange={onToggleSelectAll} className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30" />
-              </th>
+              {/* Selection drives the bulk bar, which is publish/schedule/archive/delete */}
+              <CanDo action="announcements.edit">
+                <th scope="col" className="w-10 px-4 py-3">
+                  <label className="sr-only" htmlFor="select-all-announcements">{t("selectAll")}</label>
+                  <input id="select-all-announcements" type="checkbox" checked={allSelected} onChange={onToggleSelectAll} className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30" />
+                </th>
+              </CanDo>
               <th scope="col" className="px-4 py-3">#</th>
               <th scope="col" className="px-4 py-3">{t("announcement")}</th>
               <th scope="col" className="hidden px-4 py-3 lg:table-cell">{t("audience")}</th>
@@ -63,10 +67,12 @@ export default function AnnouncementsTable({
               const isBusy = busyId === row.id;
               return (
                 <tr key={row.id} className={`transition-colors hover:bg-paper/80 ${isBusy ? "opacity-50" : ""} ${isSelected ? "bg-brand/5" : ""}`}>
-                  <td className="px-4 py-3">
-                    <label className="sr-only" htmlFor={`select-ann-${row.id}`}>{t("selectOne", { name: row.internalName })}</label>
-                    <input id={`select-ann-${row.id}`} type="checkbox" checked={isSelected} onChange={() => onToggleSelect(row.id)} className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30" />
-                  </td>
+                  <CanDo action="announcements.edit">
+                    <td className="px-4 py-3">
+                      <label className="sr-only" htmlFor={`select-ann-${row.id}`}>{t("selectOne", { name: row.internalName })}</label>
+                      <input id={`select-ann-${row.id}`} type="checkbox" checked={isSelected} onChange={() => onToggleSelect(row.id)} className="h-4 w-4 rounded border-divider text-brand focus:ring-focus-ring/30" />
+                    </td>
+                  </CanDo>
                   <td className="px-4 py-3 text-xs tabular-nums text-text-muted">{rowNumberOffset + idx + 1}</td>
                   <td className="max-w-[320px] px-4 py-3">
                     <div className="flex items-start gap-1.5">
@@ -117,7 +123,9 @@ export default function AnnouncementsTable({
                   </td>
                   <td className="hidden max-w-[140px] truncate px-4 py-3 text-text-body xl:table-cell">{row.createdByName ?? "—"}</td>
                   <td className="px-4 py-3 text-right">
-                    <AnnouncementActionsMenu row={row} busy={isBusy} {...handlers} />
+                    <CanDo action="announcements.edit">
+                      <AnnouncementActionsMenu row={row} busy={isBusy} {...handlers} />
+                    </CanDo>
                   </td>
                 </tr>
               );

@@ -205,7 +205,7 @@ function friendlyDbError(error: { code?: string; message: string }): string {
 
 // ── fetchCopiesForBook ─────────────────────────────────────────────────────────
 export async function fetchCopiesForBook(bookId: string): Promise<CatalogCopy[]> {
-  const { supabase } = await requirePermission("books", "read");
+  const { supabase } = await requirePermission("catalog", "read");
   const { data, error } = await supabase
     .from("catalog_copies")
     .select("*")
@@ -220,7 +220,7 @@ export async function fetchCopiesForBook(bookId: string): Promise<CatalogCopy[]>
 
 // ── addCopy ────────────────────────────────────────────────────────────────────
 export async function addCopy(bookId: string, formData: FormData): Promise<CopyActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const parsed = parseCopyForm(formData);
   if (!parsed.ok) return { success: false, error: parsed.error };
@@ -256,7 +256,7 @@ export async function addCopy(bookId: string, formData: FormData): Promise<CopyA
 
 // ── updateCopy (full edit) ─────────────────────────────────────────────────────
 export async function updateCopy(copyId: string, formData: FormData): Promise<CopyActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const { data: before, error: fetchErr } = await supabase
     .from("catalog_copies").select("*").eq("id", copyId).single();
@@ -289,7 +289,7 @@ export async function updateCopy(copyId: string, formData: FormData): Promise<Co
 
 // ── updateCopyStatus (quick toggle) ────────────────────────────────────────────
 export async function updateCopyStatus(copyId: string, status: CopyStatus, note?: string): Promise<CopyActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   if (!(COPY_STATUS_VALUES as readonly string[]).includes(status)) {
     return { success: false, error: "Unknown copy status." };
@@ -321,7 +321,7 @@ export async function archiveCopy(copyId: string, note?: string): Promise<CopyAc
 
 // ── deleteCopy (hard delete — data-entry mistakes only) ───────────────────────
 export async function deleteCopy(copyId: string): Promise<CopyActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const { data: before } = await supabase
     .from("catalog_copies").select("*").eq("id", copyId).single();
@@ -343,7 +343,7 @@ export async function deleteCopy(copyId: string): Promise<CopyActionResult> {
 // failure (e.g. a unique violation) creates nothing. Rows arrive pre-generated
 // by the client but every field is re-validated here.
 export async function saveCopies(bookId: string, rows: GeneratedCopy[]): Promise<CopyActionResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: "No copies to save." };
   if (rows.length > 100) return { success: false, error: "You can create at most 100 copies at a time." };

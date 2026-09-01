@@ -1,10 +1,13 @@
 import { Inbox } from "lucide-react";
 import { adminListContactMessages } from "@/app/actions/contact-messages";
 import InboxClient from "./_components/InboxClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminInboxPage() {
+  await requireRouteAccess("inbox.manage");
+
   const initial = await adminListContactMessages({ status: "all", page: 1, pageSize: 20 });
 
   return (

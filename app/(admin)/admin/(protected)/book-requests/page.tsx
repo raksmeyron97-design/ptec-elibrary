@@ -2,10 +2,13 @@ import { getTranslations } from "next-intl/server";
 import { adminGetBookRequests } from "@/app/actions/book-requests";
 import { PageHeader, StatusBadge } from "@/components/admin/kit";
 import BookRequestsClient from "./_components/BookRequestsClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function BookRequestsPage() {
+  await requireRouteAccess("books.requests");
+
   const [t, requests] = await Promise.all([
     getTranslations("adminBookRequests"),
     adminGetBookRequests(),

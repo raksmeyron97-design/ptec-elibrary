@@ -1,8 +1,9 @@
 import "server-only";
 
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import type { AppRole } from "@/lib/types/roles";
+import type { AppRole, PermLevel } from "@/lib/types/roles";
 import { ADMIN_ROLES, ADMIN_PANEL_ROLES, LIBRARIAN_ROLES } from "@/lib/types/roles";
 import { getPermissionsForRole, hasPermission } from "@/lib/permissions";
 import { logSecurityEvent } from "@/lib/security-log";
@@ -44,14 +45,22 @@ export function isAdminAuthError(error: unknown): error is AdminAuthError {
   return error instanceof AdminAuthError;
 }
 
-/** Shared auth + MFA verification logic used by all guards below. */
-async function verifyAuthAndMFA(): Promise<{
+/**
+ * Shared auth + MFA verification logic used by all guards below.
+ *
+ * Request-deduped with React `cache()`: a page that declares a route guard and
+ * then asks two or three capability questions used to repeat the whole
+ * sequence — `getUser()`, the profile read and the AAL round-trip — once per
+ * call. `cache()` memoizes the rejection too, which is the behaviour we want:
+ * the same request cannot get a different authorization answer twice.
+ */
+const verifyAuthAndMFA = cache(async (): Promise<{
   authClient: Awaited<ReturnType<typeof createClient>>;
   supabase: ReturnType<typeof createServiceClient>;
   user: User;
   role: AppRole;
   isSuperAdmin: boolean;
-}> {
+}> => {
   const authClient = await createClient();
   const {
     data: { user },
@@ -142,6 +151,36 @@ async function verifyAuthAndMFA(): Promise<{
   }
 
   return { authClient, supabase, user, role, isSuperAdmin };
+});
+
+/** Request-deduped permission map for a role (one `role_permissions` read). */
+const cachedPermissionsForRole = cache(
+  async (role: AppRole, supabase: ReturnType<typeof createServiceClient>) =>
+    getPermissionsForRole(role, supabase),
+);
+
+/**
+ * The authenticated admin's resolved permission map, straight from the server.
+ *
+ * Exported so the route guard and the capability helpers can read the same
+ * numbers the enforcement path uses, rather than a parallel read model that
+ * could drift from it. Super admins are reported as such by the caller; this
+ * returns only the stored matrix row.
+ */
+export async function resolveAdminPermissions(): Promise<{
+  role: AppRole;
+  isSuperAdmin: boolean;
+  userId: string;
+  perms: Record<string, PermLevel>;
+  supabase: ReturnType<typeof createServiceClient>;
+  user: User;
+}> {
+  const { supabase, user, role, isSuperAdmin } = await verifyAuthAndMFA();
+  const perms =
+    isSuperAdmin || role === "super_admin"
+      ? {}
+      : await cachedPermissionsForRole(role, supabase);
+  return { role, isSuperAdmin, userId: user.id, perms, supabase, user };
 }
 
 /**
@@ -217,7 +256,7 @@ export async function requirePermission(
     return { supabase, user, userId: user.id, role };
   }
 
-  const perms = await getPermissionsForRole(role, supabase);
+  const perms = await cachedPermissionsForRole(role, supabase);
 
   if (!hasPermission(perms, resource, minLevel)) {
     throw forbidden(`requirePermission:${resource}:${minLevel}`, user.id);

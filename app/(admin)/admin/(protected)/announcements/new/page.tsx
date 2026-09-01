@@ -1,22 +1,18 @@
-import { redirect } from "next/navigation";
+
 import { getTranslations } from "next-intl/server";
-import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
+
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import { hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/admin/kit";
 import AnnouncementComposer, { EMPTY_INPUT } from "@/components/admin/announcements/composer/AnnouncementComposer";
 import { getAnnouncementTemplate } from "@/lib/admin/announcements/templates";
 import type { AnnouncementInput } from "@/lib/admin/announcements/validation";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata = { title: "New Announcement — PTEC Admin" };
 
 export default async function NewAnnouncementPage({ searchParams }: { searchParams: Promise<{ template?: string }> }) {
-  try {
-    await requirePermission("announcements", "write");
-  } catch (err) {
-    if (isAdminAuthError(err) && err.status === 403) redirect("/admin/announcements");
-    throw err;
-  }
+  await requireRouteAccess("announcements.create");
 
   const [t, identity, sp] = await Promise.all([getTranslations("adminAnnouncements.composer"), getAdminIdentity(), searchParams]);
   const canPush = identity.isSuperAdmin || identity.role === "super_admin" || hasPermission(identity.perms, "announcements_push", "write");

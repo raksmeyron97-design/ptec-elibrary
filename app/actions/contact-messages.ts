@@ -2,6 +2,7 @@
 
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { requirePermission } from "@/lib/auth/requireAdmin";
+import { canAccess } from "@/lib/admin/route-guard";
 import { createServiceClient } from "@/lib/supabase/server";
 import { logAdminAction } from "@/app/actions/audit";
 import { sendGmail, GmailSendError } from "@/lib/gmail";
@@ -385,7 +386,15 @@ export async function adminGetContactMessage(id: string): Promise<ContactDetail 
   const detail = await fetchContactDetail(supabase, id, user.id);
   if (!detail) return null;
 
-  if (detail.message.status === "new") {
+  /* The Gmail-style auto-read is a WRITE, and it is visible to everyone: it
+     moves the message out of the "New" filter and changes the counts the team
+     triages by. So it is gated on `contact: write`, not on the read that got us
+     here — otherwise a read-only viewer merely looking at the queue would
+     silently re-triage it for the people who work it.
+     Behaviour is unchanged for anyone who could already act on the message. */
+  const canWriteContact = await canAccess("contact", "write");
+
+  if (canWriteContact && detail.message.status === "new") {
     const { error } = await supabase.from("contact_messages").update({ status: "read" }).eq("id", id);
     if (!error) {
       detail.message.status = "read";

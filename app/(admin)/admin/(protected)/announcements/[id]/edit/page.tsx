@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { requirePermission, isAdminAuthError } from "@/lib/auth/requireAdmin";
+
 import { getAdminIdentity } from "@/lib/auth/admin-identity";
 import { hasPermission } from "@/lib/permissions";
 import { PageHeader } from "@/components/admin/kit";
@@ -9,6 +9,7 @@ import { getAnnouncementDetail } from "@/lib/admin/announcements/query";
 import { rowToComposerInput } from "@/lib/admin/announcements/mapping";
 import { EDITABLE_STATUSES, normalizeStatus } from "@/lib/admin/announcements/shared";
 import type { ComposerStepKey } from "@/components/admin/announcements/composer/ComposerStepNav";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata = { title: "Edit Announcement — PTEC Admin" };
 
@@ -21,12 +22,7 @@ export default async function EditAnnouncementPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ step?: string }>;
 }) {
-  try {
-    await requirePermission("announcements", "write");
-  } catch (err) {
-    if (isAdminAuthError(err) && err.status === 403) redirect("/admin/announcements");
-    throw err;
-  }
+  await requireRouteAccess("announcements.edit");
 
   const [t, identity, { id }, sp] = await Promise.all([
     getTranslations("adminAnnouncements.composer"),

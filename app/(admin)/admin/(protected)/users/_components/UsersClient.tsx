@@ -54,6 +54,8 @@ export default function UsersClient({
   filterValue,
   currentUserId,
   callerCanAssignAdmin,
+  canManageUsers,
+  canInviteUsers,
   hasAnyAtAll,
 }: {
   rows: UserRow[];
@@ -65,6 +67,17 @@ export default function UsersClient({
   filterValue: { role: string; status: string; joined: string; sort: string };
   currentUserId: string;
   callerCanAssignAdmin: boolean;
+  /**
+   * `users: write`. Reading the directory and changing who is in it are
+   * different capabilities: an account with `users: read` sees every row, the
+   * filters, the stats and the export, and none of the controls that invite,
+   * suspend, re-role or delete anyone. Each of those is re-checked in
+   * ./actions.ts, which is the boundary.
+   */
+  canManageUsers: boolean;
+  /** `users: write` too, but its own control: bringing new accounts INTO the
+   *  directory is a different act from editing the ones already in it. */
+  canInviteUsers: boolean;
   hasAnyAtAll: boolean;
 }) {
   const router = useRouter();
@@ -80,7 +93,11 @@ export default function UsersClient({
   const [pending, setPending] = useState<Pending | null>(null);
   const [addMode, setAddMode] = useState<"invite" | "import" | null>(null);
 
+  /* Three independent reasons a row may not be managed, and all three have to
+     hold: the viewer needs write at all, nobody may act on their own account,
+     and only a super admin may act on another super admin. */
   const canManage = (u: UserRow) => {
+    if (!canManageUsers) return false;
     if (u.id === currentUserId) return false;
     const targetSuper = u.isSuperAdmin || u.role === "super_admin";
     return !targetSuper || callerCanAssignAdmin;
@@ -170,6 +187,7 @@ export default function UsersClient({
     <div className="space-y-4">
       <UserToolbar
         totalItems={total}
+        canInviteUsers={canInviteUsers}
         onAddUser={() => setAddMode("invite")}
         onImport={() => setAddMode("import")}
         exportMenu={
@@ -186,6 +204,8 @@ export default function UsersClient({
       />
       <UserFilters value={filterValue} hasActiveFilters={hasActiveFilters} />
 
+      {/* Every control on the bulk bar assigns a role, suspends or deletes. */}
+      {canManageUsers && (
       <BulkUserActionBar
         count={selectedIds.size}
         busy={bulkBusy}
@@ -202,6 +222,7 @@ export default function UsersClient({
         }
         onClear={() => setSelectedIds(new Set())}
       />
+      )}
 
       {rows.length === 0 ? (
         hasAnyAtAll ? <UsersNoResultsState /> : <UsersEmptyState />
@@ -214,6 +235,7 @@ export default function UsersClient({
             busyId={busyId}
             currentUserId={currentUserId}
             callerCanAssignAdmin={callerCanAssignAdmin}
+            canManageUsers={canManageUsers}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
             onOpen={setDrawerUser}
@@ -225,6 +247,7 @@ export default function UsersClient({
             busyId={busyId}
             currentUserId={currentUserId}
             callerCanAssignAdmin={callerCanAssignAdmin}
+            canManageUsers={canManageUsers}
             onToggleSelect={toggleSelect}
             onOpen={setDrawerUser}
             onIntent={handleIntent}
@@ -291,7 +314,7 @@ export default function UsersClient({
         />
       )}
 
-      {addMode && (
+      {canInviteUsers && addMode && (
         <AddUserDialog mode={addMode} canAssignAdmin={callerCanAssignAdmin} onClose={() => setAddMode(null)} />
       )}
     </div>

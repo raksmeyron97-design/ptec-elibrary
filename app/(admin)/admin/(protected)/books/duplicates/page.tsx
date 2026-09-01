@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { ShieldCheck, SearchX } from "lucide-react";
 import { createServiceClient } from "@/lib/supabase/server";
-import { requirePermission } from "@/lib/auth/requireAdmin";
+
 import { findDuplicateGroups, type DuplicateBook } from "@/lib/admin/duplicates";
 import {
   filterDuplicateGroups,
@@ -22,6 +22,7 @@ import DuplicateSummary from "./_components/DuplicateSummary";
 import DuplicateFilters from "./_components/DuplicateFilters";
 import DuplicateGroupCard, { type UIGroup } from "./_components/DuplicateGroupCard";
 import RefreshButton from "./_components/RefreshButton";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 // Duplicate review workspace. Detection is read-only and happens here; the
 // retire action (app/actions/duplicates.ts) is the only thing that writes, and
@@ -105,7 +106,7 @@ async function loadDuplicateBooks(): Promise<{ books: DuplicateBook[]; covers: M
 }
 
 export default async function DuplicatesPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requirePermission("books", "write");
+  await requireRouteAccess("books.duplicates");
 
   const [sp, t, locale, { books, covers }] = await Promise.all([
     searchParams,

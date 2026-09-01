@@ -2,6 +2,7 @@
 // app/admin/catalogs/page.tsx
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+
 import type { CatalogBook } from "@/lib/catalog";
 import {
   computeCopyStats,
@@ -15,6 +16,7 @@ import CsvImportWizard from "./import/CsvImportWizard";
 import AdminCatalogToolbar from "./_components/AdminCatalogToolbar";
 import Pagination from "@/components/ui/core/Pagination";
 import AdminCoverThumb from "@/components/admin/catalogs/AdminCoverThumb";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,15 @@ export default async function AdminCatalogsPage({
 }: {
   searchParams?: Promise<SP>;
 }) {
+  /* READ — the physical collection is browsable by anyone with `catalog: read`.
+     Creating, importing and editing are separate write routes. */
+  const { can } = await requireRouteAccess("catalog.manage");
+  const canCreate = can("catalog.create");
+
+  /* The physical collection reads through the service client, so this guard is
+     the whole access control for the route — there was none, and the sidebar's
+     `catalog` gate was the only thing standing in front of it. */
+
   const sp = (await searchParams) ?? {};
   const supabase = createServiceClient();
 
@@ -163,18 +174,21 @@ export default async function AdminCatalogsPage({
 
   return (
     <div className="w-full space-y-6">
-      <div className="mb-6 flex flex-wrap justify-end gap-3">
-        <CsvImportWizard />
-        <Link
-          href="/admin/catalogs/add"
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-          </svg>
-          Add Book
-        </Link>
-      </div>
+      {/* Bulk CSV import and "Add Book" both end in `catalog: write` actions. */}
+      {canCreate && (
+        <div className="mb-6 flex flex-wrap justify-end gap-3">
+          <CsvImportWizard />
+          <Link
+            href="/admin/catalogs/add"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-5 text-sm font-semibold text-white transition hover:bg-brand-hover"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            Add Book
+          </Link>
+        </div>
+      )}
 
       {/* ── Stats row (always reflects ALL active books, derived from copy rows) ── */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

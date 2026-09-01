@@ -1,11 +1,11 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
 import Link from "next/link";
 import {
   UserPlus, FolderOpen, Users, Eye, EyeOff, LayoutGrid, ImageOff, Languages, ExternalLink,
 } from "lucide-react";
 import TeamClient from "./_components/TeamClient";
 import type { TeamMemberRow, TeamSection } from "./actions";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 /** A member is "missing a translation" when a field is filled in one language only. */
 function hasTranslationGap(m: TeamMemberRow): boolean {
@@ -22,7 +22,14 @@ export default async function TeamPage({
 }: {
   searchParams: Promise<{ created?: string }>;
 }) {
-  await requireAdmin();
+  /* READ opens the directory and its health stats — published/draft counts,
+     missing photos, translation gaps — which is what an editor checks before
+     asking someone to fix them. Adding, editing, reordering and removing
+     members are `users: write`, as are the section definitions. */
+  const { can } = await requireRouteAccess("team.manage");
+  const canCreate = can("team.create");
+  const canManageSections = can("team.sections");
+
   const { created } = await searchParams;
   const supabase = createServiceClient();
 
@@ -76,20 +83,24 @@ export default async function TeamPage({
             <ExternalLink className="h-4 w-4" />
             View public page
           </a>
-          <Link
-            href="/admin/team/sections"
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3.5 py-2 text-sm font-semibold text-text-body transition hover:bg-paper"
-          >
-            <FolderOpen className="h-4 w-4" />
-            Manage sections
-          </Link>
-          <Link
-            href="/admin/team/new"
-            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand"
-          >
-            <UserPlus className="h-4 w-4" />
-            Add member
-          </Link>
+          {canManageSections && (
+            <Link
+              href="/admin/team/sections"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-divider bg-bg-surface px-3.5 py-2 text-sm font-semibold text-text-body transition hover:bg-paper"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Manage sections
+            </Link>
+          )}
+          {canCreate && (
+            <Link
+              href="/admin/team/new"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-blue-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add member
+            </Link>
+          )}
         </div>
       </div>
 

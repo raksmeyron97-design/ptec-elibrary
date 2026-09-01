@@ -12,6 +12,7 @@ export default function UserMobileCard({
   busyId,
   currentUserId,
   callerCanAssignAdmin,
+  canManageUsers,
   onToggleSelect,
   onOpen,
   onIntent,
@@ -21,6 +22,8 @@ export default function UserMobileCard({
   busyId: string | null;
   currentUserId: string;
   callerCanAssignAdmin: boolean;
+  /** `users: write` — same rule as the desktop table. */
+  canManageUsers: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (user: UserRow) => void;
   onIntent: (user: UserRow, intent: UserActionIntent) => void;
@@ -32,7 +35,7 @@ export default function UserMobileCard({
       {rows.map((u) => {
         const isMe = u.id === currentUserId;
         const targetIsSuperAdmin = u.isSuperAdmin || u.role === "super_admin";
-        const canManage = !isMe && (!targetIsSuperAdmin || callerCanAssignAdmin);
+        const canManage = canManageUsers && !isMe && (!targetIsSuperAdmin || callerCanAssignAdmin);
         const selected = selectedIds.has(u.id);
 
         return (
@@ -41,13 +44,15 @@ export default function UserMobileCard({
             className={`rounded-2xl border bg-bg-surface p-4 shadow-sm transition ${selected ? "border-brand/40 ring-1 ring-brand/20" : "border-divider"} ${busyId === u.id ? "opacity-50" : ""}`}
           >
             <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                checked={selected}
-                onChange={() => onToggleSelect(u.id)}
-                aria-label={t("selectUser", { name: u.fullName ?? u.email })}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
-              />
+              {canManageUsers && (
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => onToggleSelect(u.id)}
+                  aria-label={t("selectUser", { name: u.fullName ?? u.email })}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-brand focus-visible:ring-2 focus-visible:ring-focus-ring/40"
+                />
+              )}
               <button type="button" onClick={() => onOpen(u)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                 <Avatar url={u.avatarUrl ?? null} name={u.fullName} email={u.email} size={40} />
                 <div className="min-w-0">

@@ -13,8 +13,11 @@ import { StatusBadge } from "@/components/admin/kit";
 import { BTN_SECONDARY } from "@/components/admin/kit/form";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import { evaluateQuality } from "@/lib/metadata-quality";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditThesisPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRouteAccess("theses.edit");
+
   const resolvedParams = await params;
   const { data: report, error } = await getThesisById(resolvedParams.id);
 

@@ -8,12 +8,16 @@ import type { PermChange } from "@/lib/admin/roles-shared";
 // tests drive the action directly, the way a forged request would.
 // ──────────────────────────────────────────────────────────────────
 
-const requireSuperAdmin = vi.fn();
+const requireAction = vi.fn();
+const resolveAdminPermissions = vi.fn();
 const logAdminAction = vi.fn();
 const revalidateLocalizedPath = vi.fn();
 
+vi.mock("@/lib/admin/route-guard", () => ({
+  requireAction: (...args: unknown[]) => requireAction(...args),
+}));
 vi.mock("@/lib/auth/requireAdmin", () => ({
-  requireSuperAdmin: () => requireSuperAdmin(),
+  resolveAdminPermissions: () => resolveAdminPermissions(),
 }));
 vi.mock("@/app/actions/audit", () => ({
   logAdminAction: (...args: unknown[]) => logAdminAction(...args),
@@ -46,9 +50,23 @@ function fakeSupabase({
   return { client, upserted };
 }
 
-function useSupabase(config?: Parameters<typeof fakeSupabase>[0]) {
+/**
+ * Arrange the action's two dependencies: the guard that admits the caller, and
+ * the identity lookup the delegation rules read. `asSuperAdmin` defaults to
+ * true because that is who edited this matrix before it became delegable —
+ * every pre-existing test below then describes unchanged behaviour.
+ */
+function useSupabase(
+  config?: Parameters<typeof fakeSupabase>[0],
+  { asSuperAdmin = true }: { asSuperAdmin?: boolean } = {},
+) {
   const { client, upserted } = fakeSupabase(config);
-  requireSuperAdmin.mockResolvedValue({ supabase: client, user: { id: "admin-uuid" } });
+  requireAction.mockResolvedValue({ supabase: client, user: { id: "admin-uuid" } });
+  resolveAdminPermissions.mockResolvedValue({
+    role: asSuperAdmin ? "super_admin" : "admin",
+    isSuperAdmin: asSuperAdmin,
+    perms: { roles: "write" },
+  });
   return upserted;
 }
 
@@ -65,17 +83,99 @@ beforeEach(() => {
 });
 
 describe("authorization", () => {
-  it("runs the super-admin guard before touching anything", async () => {
+  it("runs the registry guard, by policy id, before touching anything", async () => {
     useSupabase();
     await saveRolePermissions([change()]);
-    expect(requireSuperAdmin).toHaveBeenCalledTimes(1);
+    expect(requireAction).toHaveBeenCalledTimes(1);
+    // Same id the page declares, so the editor and the save cannot drift apart.
+    expect(requireAction).toHaveBeenCalledWith("roles.save");
   });
 
   it("propagates a guard rejection instead of writing", async () => {
     const upserted = useSupabase();
-    requireSuperAdmin.mockRejectedValue(new Error("Forbidden"));
+    requireAction.mockRejectedValue(new Error("Forbidden"));
     await expect(saveRolePermissions([change()])).rejects.toThrow("Forbidden");
     expect(upserted).toHaveLength(0);
+  });
+});
+
+describe("delegation rules", () => {
+  // `roles: write` is the one grant that can grant grants. The permission level
+  // says whether someone may edit the matrix; these say whether a given edit may
+  // widen who else can. See ROLES_DELEGATION_RULES in lib/admin/access-policy.ts.
+
+  it("lets a delegated admin administer ordinary permissions", async () => {
+    const upserted = useSupabase({}, { asSuperAdmin: false });
+    const res = await saveRolePermissions([change({ resource: "books" })]);
+    expect(res.status).toBe("ok");
+    expect(upserted).toHaveLength(1);
+  });
+
+  it("refuses to let a delegated admin appoint another administrator", async () => {
+    const upserted = useSupabase({}, { asSuperAdmin: false });
+    const res = await saveRolePermissions([
+      change({ role: "staff", resource: "roles", from: "none", to: "write" }),
+    ]);
+    expect(res.status).toBe("error");
+    expect(upserted).toHaveLength(0);
+  });
+
+  it("refuses to let a delegated admin revoke role management — including their own", async () => {
+    // The same rule that stops the trust boundary widening also makes
+    // self-lockout impossible: an admin cannot take `roles` away from `admin`.
+    const upserted = useSupabase({}, { asSuperAdmin: false });
+    const res = await saveRolePermissions([
+      change({ role: "admin", resource: "roles", from: "write", to: "none" }),
+    ]);
+    expect(res.status).toBe("error");
+    expect(upserted).toHaveLength(0);
+  });
+
+  it("rejects the whole batch when one cell touches the roles row", async () => {
+    // A bulk action ("copy Admin onto Staff") reaches the roles row through a
+    // different path than the segmented control, and must be refused too.
+    const upserted = useSupabase({}, { asSuperAdmin: false });
+    const res = await saveRolePermissions([
+      change({ resource: "books" }),
+      change({ role: "staff", resource: "roles", from: "none", to: "write" }),
+    ]);
+    expect(res.status).toBe("error");
+    expect(upserted).toHaveLength(0);
+  });
+
+  it("lets a super admin move the roles row", async () => {
+    const upserted = useSupabase({}, { asSuperAdmin: true });
+    const res = await saveRolePermissions([
+      change({ role: "admin", resource: "roles", from: "none", to: "write" }),
+    ]);
+    expect(res.status).toBe("ok");
+    expect(upserted).toHaveLength(1);
+  });
+
+  // Not a loop: `useSupabase` reads as a React hook to the lint rules, and
+  // calling it in a loop trips rules-of-hooks.
+  it.each([true, false])(
+    "still refuses to edit super_admin (caller is super admin: %s)",
+    async (asSuperAdmin) => {
+      const upserted = useSupabase({}, { asSuperAdmin });
+      const res = await saveRolePermissions([change({ role: "super_admin" })]);
+      expect(res.status).toBe("error");
+      expect(upserted).toHaveLength(0);
+    },
+  );
+
+  it("honours the legacy is_super_admin flag, not just the role string", async () => {
+    const upserted = useSupabase({}, { asSuperAdmin: false });
+    resolveAdminPermissions.mockResolvedValue({
+      role: "admin",
+      isSuperAdmin: true,
+      perms: { roles: "write" },
+    });
+    const res = await saveRolePermissions([
+      change({ role: "admin", resource: "roles", from: "none", to: "write" }),
+    ]);
+    expect(res.status).toBe("ok");
+    expect(upserted).toHaveLength(1);
   });
 });
 

@@ -3,12 +3,15 @@
 // book editor. This route stays only so old links/bookmarks keep working.
 
 import { redirect } from "next/navigation";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function AddCopiesPage({
   params,
 }: {
   params: Promise<{ bookId: string }>;
 }) {
+  await requireRouteAccess("catalog.copies");
+
   const { bookId } = await params;
   redirect(`/admin/catalogs/edit/${bookId}?tab=copies`);
 }

@@ -63,7 +63,7 @@ export type CatalogImportContext = {
 };
 
 export async function getCatalogImportContext(): Promise<CatalogImportContext> {
-  const { supabase } = await requirePermission("books", "write");
+  const { supabase } = await requirePermission("catalog", "write");
   const { data } = await supabase
     .from("catalog_books")
     .select("category, department, shelf_location");
@@ -152,7 +152,7 @@ async function lookupDuplicates(
 }
 
 export async function checkCatalogDuplicates(req: DuplicateCheckRequest): Promise<DuplicateCheckResult> {
-  const { supabase } = await requirePermission("books", "write");
+  const { supabase } = await requirePermission("catalog", "write");
   // Bound the request so a hostile client can't turn this into a table scan storm.
   if (req.isbns.length > IMPORT_LIMITS.maxRows || req.titleAuthors.length > IMPORT_LIMITS.maxRows ||
       req.barcodes.length > IMPORT_LIMITS.maxRows || req.accessions.length > IMPORT_LIMITS.maxRows) {
@@ -181,7 +181,7 @@ export type StartImportResult =
 const DUPLICATE_SUBMISSION_WINDOW_MS = 15 * 60 * 1000;
 
 export async function startCatalogImport(req: StartImportRequest): Promise<StartImportResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   if (!Number.isInteger(req.totalRows) || req.totalRows < 1 || req.totalRows > IMPORT_LIMITS.maxRows) {
     return { ok: false, code: "LIMITS", error: `Imports are limited to ${IMPORT_LIMITS.maxRows} rows.` };
@@ -366,7 +366,7 @@ async function fillMissingFields(
 }
 
 export async function runCatalogImportBatch(req: ImportBatchRequest): Promise<ImportBatchResult> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
   const results: ImportRowResult[] = [];
 
   if (!Array.isArray(req.rows) || req.rows.length === 0) {
@@ -555,7 +555,7 @@ export type FinishImportRequest = {
 };
 
 export async function finishCatalogImport(req: FinishImportRequest): Promise<void> {
-  const { supabase, userId } = await requirePermission("books", "write");
+  const { supabase, userId } = await requirePermission("catalog", "write");
 
   const status = ["completed", "failed", "cancelled"].includes(req.status) ? req.status : "failed";
   const c = req.counts ?? { created: 0, updated: 0, copiesCreated: 0, skippedDuplicates: 0, failed: 0, excluded: 0 };

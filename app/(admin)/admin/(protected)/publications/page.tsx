@@ -4,6 +4,7 @@ import PublicationsClient from "./_components/PublicationsClient";
 import Pagination from "@/components/ui/core/Pagination";
 import Link from "next/link";
 import { Plus, Users } from "lucide-react";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 const PAGE_SIZE = 20;
 
@@ -28,6 +29,11 @@ export default async function AdminPublicationsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
+  /* READ. The listing below reads every publication through the service
+     client, so this is the whole access control for the route. */
+  const { can } = await requireRouteAccess("publications.manage");
+  const canCreate = can("publications.create");
+
   const sp = await searchParams;
   const supabase = createServiceClient();
 
@@ -134,13 +140,17 @@ export default async function AdminPublicationsPage({
             <Users className="w-4 h-4" />
             Authors
           </Link>
-          <Link
-            href="/admin/publications/new"
-            className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Publication
-          </Link>
+          {/* The create route requires write — a read-only viewer offered this
+              button would land on a 403 for pressing the page's primary CTA. */}
+          {canCreate && (
+            <Link
+              href="/admin/publications/new"
+              className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Publication
+            </Link>
+          )}
         </div>
       </div>
 

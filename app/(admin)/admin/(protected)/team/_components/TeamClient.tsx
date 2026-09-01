@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 import {
   Pencil, Trash2, ChevronUp, ChevronDown, UserCircle, Mail, Users,
   Search, X, Check, Star, Copy, FolderInput, Eye, EyeOff,
@@ -53,6 +54,9 @@ export default function TeamClient({
   sections: TeamSection[];
 }) {
   const router = useRouter();
+  /* Read the directory, write the changes — see the row component below for
+     what each control costs. */
+  const canManage = useCan("team.manage");
   const [list, setList]              = useState(members);
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId]          = useState<string | null>(null);
@@ -294,6 +298,8 @@ export default function TeamClient({
       )}
 
       {/* ── Bulk action bar ──────────────────────────────────── */}
+      {/* Selection, publish/unpublish, move-to-section and delete: all writes. */}
+      {canManage && (
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-divider bg-bg-surface px-4 py-2.5 shadow-sm">
         <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-text-body">
           <input
@@ -387,6 +393,7 @@ export default function TeamClient({
           </div>
         )}
       </div>
+      )}
 
       {/* ── List ─────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
@@ -511,6 +518,11 @@ function MemberRow({
   onReorder: (dir: "up" | "down") => void;
 }) {
   const [confirming, setConfirming] = useState(false);
+  /* `users: write`. A read-only viewer keeps the whole directory — photo,
+     position, section, published state, translation gaps — and none of the
+     controls that change it. Each of these calls a server action in ./actions.ts
+     that re-checks the same permission. */
+  const canManage = useCan("team.manage");
 
   return (
     <div
@@ -518,13 +530,15 @@ function MemberRow({
         isBusy ? "pointer-events-none opacity-40" : ""
       } ${!member.is_published ? "opacity-60" : ""} ${isSelected ? "bg-blue-50/50" : "hover:bg-paper/50"}`}
     >
-      <input
-        type="checkbox"
-        checked={isSelected}
-        onChange={onSelect}
-        className="h-4 w-4 shrink-0 cursor-pointer accent-blue-800"
-        aria-label={`Select ${member.name_en}`}
-      />
+      {canManage && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onSelect}
+          className="h-4 w-4 shrink-0 cursor-pointer accent-blue-800"
+          aria-label={`Select ${member.name_en}`}
+        />
+      )}
 
       {/* Photo */}
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-divider bg-paper">
@@ -586,7 +600,7 @@ function MemberRow({
       </div>
 
       {/* Reorder within section — hidden while filtering/sorting */}
-      {canReorder && (
+      {canManage && canReorder && (
         <div className="flex shrink-0 flex-col gap-0.5">
           <button
             type="button"
@@ -609,7 +623,9 @@ function MemberRow({
         </div>
       )}
 
-      {/* Publish toggle */}
+      {/* Publish toggle — a switch, so read-only viewers get the state as a
+          badge rather than a control that looks broken. */}
+      {canManage ? (
       <button
         type="button"
         role="switch"
@@ -628,8 +644,18 @@ function MemberRow({
           }`}
         />
       </button>
+      ) : (
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            member.is_published ? "bg-emerald-50 text-emerald-700" : "bg-paper text-text-muted"
+          }`}
+        >
+          {member.is_published ? "Published" : "Draft"}
+        </span>
+      )}
 
       {/* Actions */}
+      {canManage && (
       <div className="flex shrink-0 items-center gap-2">
         <Link
           href={`/admin/team/${member.id}/edit`}
@@ -680,6 +706,7 @@ function MemberRow({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }

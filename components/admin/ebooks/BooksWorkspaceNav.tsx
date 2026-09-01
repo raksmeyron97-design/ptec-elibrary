@@ -6,6 +6,7 @@ import {
   EBOOKS_DUPLICATES_PATH,
   EBOOKS_UPLOAD_PATH,
 } from "@/lib/admin/ebooks-url";
+import { canRoute } from "@/lib/admin/route-guard";
 
 export type BooksWorkspace = "manage" | "upload" | "duplicates";
 
@@ -23,6 +24,13 @@ export type BooksWorkspace = "manage" | "upload" | "duplicates";
  * its own URL, so `role="tablist"` would promise a panel swap that does not
  * happen. The current page carries `aria-current="page"` and a weight change,
  * so the state does not depend on colour.
+ *
+ * Upload and Duplicates both require `books: write`, and since Upload left the
+ * sidebar this strip is one of the two ways to reach it — so it asks the
+ * registry itself rather than taking a prop that a call site could forget or
+ * get wrong. `canRoute` asks each destination's own route policy against the
+ * request-deduped identity, so the tab set is exactly the set of pages that
+ * would open, and asking costs nothing.
  */
 export default async function BooksWorkspaceNav({
   current,
@@ -32,18 +40,28 @@ export default async function BooksWorkspaceNav({
   current: BooksWorkspace;
   duplicateCount?: number;
 }) {
-  const t = await getTranslations("adminEbooks.workspace");
+  const [t, canUpload, canSweepDuplicates] = await Promise.all([
+    getTranslations("adminEbooks.workspace"),
+    canRoute("books.upload"),
+    canRoute("books.duplicates"),
+  ]);
 
   const items: { key: BooksWorkspace; href: string; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "manage", href: EBOOKS_BASE_PATH, label: t("manage"), icon: BookCopy },
-    { key: "upload", href: EBOOKS_UPLOAD_PATH, label: t("upload"), icon: Upload },
-    {
-      key: "duplicates",
-      href: EBOOKS_DUPLICATES_PATH,
-      label: t("duplicates"),
-      icon: Copy,
-      count: duplicateCount,
-    },
+    ...(canUpload
+      ? [{ key: "upload" as const, href: EBOOKS_UPLOAD_PATH, label: t("upload"), icon: Upload }]
+      : []),
+    ...(canSweepDuplicates
+      ? [
+          {
+            key: "duplicates" as const,
+            href: EBOOKS_DUPLICATES_PATH,
+            label: t("duplicates"),
+            icon: Copy,
+            count: duplicateCount,
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -4,12 +4,15 @@ import { notFound } from "next/navigation";
 import PostForm, { type PostInitial } from "@/components/admin/posts/PostForm";
 import { normalizeCategory, normalizeStatus, normalizeVisibility } from "@/lib/admin/posts-shared";
 import { eventColumnsAvailable } from "@/lib/posts-data";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export default async function EditPostPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireRouteAccess("posts.edit");
+
   const { id } = await params;
 
   const supabase = createServiceClient();

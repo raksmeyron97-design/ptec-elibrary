@@ -42,6 +42,7 @@ import {
   type RetryEmailKind,
 } from "@/app/actions/contact-messages";
 import { CONTACT_CATEGORIES, CONTACT_CATEGORY_LABELS, type ContactCategory } from "@/lib/contact/validate";
+import { useCan } from "@/components/admin/access/AdminCapabilities";
 import ConfirmDialog from "@/components/admin/inbox/ConfirmDialog";
 import { useToast } from "@/components/admin/kit";
 
@@ -893,6 +894,18 @@ function MessageDetail({
   const warnings = deliveryWarnings(message);
   const failedCount = failedDeliveryCount(message);
 
+  /* `contact: read` opens the inbox and every message in it — the thread, the
+     delivery history, the internal notes colleagues have already written. What
+     it does not open is anything that leaves a mark: replying, changing status
+     or priority, marking spam, adding a note, retrying a send, deleting.
+     Each is re-checked in app/actions/contact-messages.ts, which is the
+     boundary; these three questions decide only what to draw. Asked here rather
+     than threaded from the page because this component already takes thirty
+     props, and the thirty-first is the one nobody would remember to pass. */
+  const canUpdate = useCan("inbox.update");
+  const canReply = useCan("inbox.reply");
+  const canDelete = useCan("inbox.delete");
+
   return (
     <div className="flex min-h-[70vh] flex-col">
       <header className="border-b border-divider p-4 md:p-5">
@@ -921,12 +934,17 @@ function MessageDetail({
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <IconButton label="Mark as unread" icon={Mail} onClick={() => onStatusChange("new")} />
-            <IconButton label="Mark as read" icon={MailOpen} onClick={() => onStatusChange("read")} />
-            <IconButton label="Close conversation" icon={CheckCircle2} onClick={() => onStatusChange("closed")} />
+            {canUpdate && (
+              <>
+                <IconButton label="Mark as unread" icon={Mail} onClick={() => onStatusChange("new")} />
+                <IconButton label="Mark as read" icon={MailOpen} onClick={() => onStatusChange("read")} />
+                <IconButton label="Close conversation" icon={CheckCircle2} onClick={() => onStatusChange("closed")} />
+              </>
+            )}
+            {/* Copying the sender's address changes nothing and stays. */}
             <IconButton label="Copy email" icon={Copy} onClick={onCopyEmail} />
-            <IconButton label="Mark as spam" icon={Ban} onClick={onRequestSpam} tone="danger" />
-            <IconButton label="Delete" icon={Trash2} onClick={onRequestDelete} tone="danger" />
+            {canUpdate && <IconButton label="Mark as spam" icon={Ban} onClick={onRequestSpam} tone="danger" />}
+            {canDelete && <IconButton label="Delete" icon={Trash2} onClick={onRequestDelete} tone="danger" />}
           </div>
         </div>
 
@@ -934,30 +952,46 @@ function MessageDetail({
           <span className="rounded-full border border-divider px-2.5 py-0.5 text-[11px] font-medium text-text-muted">
             {CONTACT_CATEGORY_LABELS[message.category]}
           </span>
-          <select
-            value={message.status}
-            onChange={(e) => onStatusChange(e.target.value as ContactStatus)}
-            className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-brand/30 ${STATUS_BADGE[message.status]}`}
-            aria-label="Message status"
-          >
-            {Object.keys(STATUS_LABEL).map((status) => (
-              <option key={status} value={status}>
-                {STATUS_LABEL[status as ContactStatus]}
-              </option>
-            ))}
-          </select>
-          <select
-            value={message.priority}
-            onChange={(e) => onPriorityChange(e.target.value as ContactPriority)}
-            className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-brand/30 ${PRIORITY_BADGE[message.priority]}`}
-            aria-label="Message priority"
-          >
-            {(["low", "normal", "high"] as ContactPriority[]).map((priority) => (
-              <option key={priority} value={priority}>
-                {PRIORITY_LABEL[priority]}
-              </option>
-            ))}
-          </select>
+          {/* Status and priority stay VISIBLE for a read-only viewer — they are
+              what the queue is triaged by — but as badges rather than selects.
+              A disabled <select> would read as "broken", and an enabled one
+              would collect a change the server refuses. */}
+          {canUpdate ? (
+            <select
+              value={message.status}
+              onChange={(e) => onStatusChange(e.target.value as ContactStatus)}
+              className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-brand/30 ${STATUS_BADGE[message.status]}`}
+              aria-label="Message status"
+            >
+              {Object.keys(STATUS_LABEL).map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABEL[status as ContactStatus]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${STATUS_BADGE[message.status]}`}>
+              {STATUS_LABEL[message.status]}
+            </span>
+          )}
+          {canUpdate ? (
+            <select
+              value={message.priority}
+              onChange={(e) => onPriorityChange(e.target.value as ContactPriority)}
+              className={`rounded-full border-0 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-brand/30 ${PRIORITY_BADGE[message.priority]}`}
+              aria-label="Message priority"
+            >
+              {(["low", "normal", "high"] as ContactPriority[]).map((priority) => (
+                <option key={priority} value={priority}>
+                  {PRIORITY_LABEL[priority]}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${PRIORITY_BADGE[message.priority]}`}>
+              {PRIORITY_LABEL[message.priority]}
+            </span>
+          )}
           {warnings.map((warning) => (
             <span key={warning} className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
               <AlertTriangle className="h-3 w-3" /> {warning}
@@ -965,12 +999,26 @@ function MessageDetail({
           ))}
         </div>
 
-        <DeliverySummary message={message} onRetry={onRetry} retryingKind={retryingKind} failedCount={failedCount} />
+        {/* The delivery history is diagnostic and stays readable; only the
+            Retry buttons inside it send anything, so `canRetry` gates those. */}
+        <DeliverySummary
+          message={message}
+          onRetry={onRetry}
+          retryingKind={retryingKind}
+          failedCount={failedCount}
+          canRetry={canUpdate}
+        />
       </header>
 
       <ThreadView detail={detail} />
 
+      {/* Composers. Everything below this line writes: the internal note and
+          the reply. A read-only viewer keeps the thread above it — including
+          notes colleagues have already left, which is the part worth reading —
+          and is not handed a textarea whose Send the server would refuse. */}
+      {(canReply || canUpdate) && (
       <section className="border-t border-divider p-4 md:p-5">
+        {canUpdate && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
           <div className="mb-2 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-amber-800">
             <StickyNote className="h-3.5 w-3.5" /> Internal note - only visible to admins
@@ -998,7 +1046,9 @@ function MessageDetail({
             </button>
           </div>
         </div>
+        )}
 
+        {canReply && (
         <div className="rounded-xl border border-divider bg-paper p-3">
           <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
             <div>
@@ -1109,7 +1159,9 @@ function MessageDetail({
             </button>
           </div>
         </div>
+        )}
       </section>
+      )}
     </div>
   );
 }
@@ -1119,17 +1171,20 @@ function DeliverySummary({
   onRetry,
   retryingKind,
   failedCount,
+  canRetry,
 }: {
   message: ContactMessage;
   onRetry: (kind: RetryEmailKind) => void;
   retryingKind: RetryEmailKind | null;
   failedCount: number;
+  /** `contact: write`. Resending an email is a mutation with an outside effect. */
+  canRetry: boolean;
 }) {
   return (
     <div className="mt-4 rounded-xl border border-divider bg-paper p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-bold uppercase tracking-wide text-text-muted">Email Delivery</p>
-        {failedCount > 1 && (
+        {canRetry && failedCount > 1 && (
           <RetryButton
             label="Retry all failed emails"
             kind="all_failed"
@@ -1145,6 +1200,7 @@ function DeliverySummary({
           retryKind="admin_notification"
           onRetry={onRetry}
           retryingKind={retryingKind}
+          canRetry={canRetry}
         />
         <DeliveryRow
           label="User confirmation"
@@ -1152,6 +1208,7 @@ function DeliverySummary({
           retryKind="user_confirmation"
           onRetry={onRetry}
           retryingKind={retryingKind}
+          canRetry={canRetry}
         />
         <DeliveryRow
           label="Last admin reply"
@@ -1159,6 +1216,7 @@ function DeliverySummary({
           retryKind="last_reply"
           onRetry={onRetry}
           retryingKind={retryingKind}
+          canRetry={canRetry}
         />
       </div>
       {message.last_email_error && (
@@ -1174,12 +1232,14 @@ function DeliveryRow({
   retryKind,
   onRetry,
   retryingKind,
+  canRetry,
 }: {
   label: string;
   status: DeliveryDisplay;
   retryKind: Exclude<RetryEmailKind, "all_failed">;
   onRetry: (kind: RetryEmailKind) => void;
   retryingKind: RetryEmailKind | null;
+  canRetry: boolean;
 }) {
   return (
     <div className="rounded-lg border border-divider bg-white px-3 py-2">
@@ -1187,7 +1247,9 @@ function DeliveryRow({
         <span className="text-[12px] font-semibold text-text-body">{label}</span>
         <DeliveryBadge status={status} />
       </div>
-      {status === "failed" && (
+      {/* The failure itself is still shown by the badge above — only the
+          remedy is gated. */}
+      {canRetry && status === "failed" && (
         <div className="mt-1.5">
           <RetryButton label={`Retry ${label.toLowerCase()}`} kind={retryKind} onRetry={onRetry} retryingKind={retryingKind} />
         </div>

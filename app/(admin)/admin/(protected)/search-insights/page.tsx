@@ -22,6 +22,7 @@ import PopularSearches from "./_components/PopularSearches";
 import ZeroResultWorkspace from "./_components/ZeroResultWorkspace";
 import SearchActivityTable from "./_components/SearchActivityTable";
 import { ChartSkeleton, KpiSkeleton, PanelSkeleton, TableSkeleton } from "./_components/Skeletons";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -220,6 +221,8 @@ export default async function SearchInsightsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireRouteAccess("insights.search");
+
   const raw = await searchParams;
   const filters = parseSearchInsightsFilters(raw);
   const t = await getTranslations("adminSearchInsights");

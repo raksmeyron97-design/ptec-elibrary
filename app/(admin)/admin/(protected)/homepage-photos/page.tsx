@@ -3,6 +3,7 @@ import { ExternalLink, Eye, EyeOff, Images, LayoutTemplate } from "lucide-react"
 import { PageHeader } from "@/components/admin/kit";
 import { getAllPhotos } from "@/app/actions/homepage-photos";
 import HomepagePhotosClient from "./_components/HomepagePhotosClient";
+import { requireRouteAccess } from "@/lib/admin/route-guard";
 
 export const metadata = { title: "Homepage Photos - PTEC Library" };
 
@@ -14,6 +15,8 @@ export const metadata = { title: "Homepage Photos - PTEC Library" };
  * rather than a rendered-but-empty page.
  */
 export default async function HomepagePhotosPage() {
+  await requireRouteAccess("homepagePhotos.manage");
+
   const [t, photos] = await Promise.all([
     getTranslations("adminHomepagePhotos"),
     getAllPhotos(),
