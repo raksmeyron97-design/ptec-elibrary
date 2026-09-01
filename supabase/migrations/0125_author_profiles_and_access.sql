@@ -145,6 +145,19 @@ create trigger trg_publication_authors_updated_at
 -- guise; the academic profile lives on publication_authors and /authors/[slug]
 -- joins a book author to it by slug when both exist.
 
+-- created_at is in the squashed baseline (00000000000000_initial_schema.sql
+-- line 85) but was MISSING from the hosted database — the same dashboard-made
+-- drift 0124 reconciled for public.categories.created_at, on a sibling table
+-- the 2026-08-28 audit did not cover. The dedupe below orders by it, so
+-- without this line the whole migration fails on hosted with
+-- `ERROR: column "created_at" does not exist (SQLSTATE 42703)` — which is
+-- exactly what happened, silently, on every push to main from 2026-08-29.
+--
+-- Idempotent and additive: a no-op on a fresh stack built from the baseline,
+-- where the column already exists. Same statement shape as 0124 line 38.
+alter table public.authors
+  add column if not exists created_at timestamptz default timezone('utc'::text, now());
+
 alter table public.authors
   add column if not exists slug text;
 
