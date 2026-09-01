@@ -39,9 +39,31 @@ export const SEVERITY_MEANING: Record<Severity, string> = {
   4: "Informational — weekly review",
 };
 
-/** Telegram's HTML parse mode needs exactly these three escaped. */
+/**
+ * Escape TEXT content. Telegram's HTML parse mode needs exactly these three,
+ * and this matches `scripts/ops/alert-telegram.mjs` character for character
+ * (pinned by the parity test).
+ *
+ * NOT sufficient for an attribute value — see {@link escapeAttribute}.
+ */
 export function escapeHtml(value: unknown): string {
   return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Escape a value going inside an HTML ATTRIBUTE, e.g. `href="…"`.
+ *
+ * Text escaping is not enough here: it leaves `"` intact, so a quote in the
+ * value closes the attribute early and everything after it is parsed as
+ * markup. CodeQL flagged exactly this on the three `<a href>` sites below
+ * (js/incomplete-html-attribute-sanitization), and it was right — the URLs are
+ * built from `SITE_URL`, which is environment-supplied, so "we construct it
+ * ourselves" is not the same as "it cannot contain a quote".
+ *
+ * Single quotes are escaped too, so the function is safe for either delimiter.
+ */
+export function escapeAttribute(value: unknown): string {
+  return escapeHtml(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 /**
@@ -154,7 +176,7 @@ export function buildIncidentMessage(input: IncidentMessageInput): string {
     `<i>${escapeHtml(input.detectionReason)}</i>`,
     "",
     row("Response", SEVERITY_MEANING[input.severity]),
-    `🔗 <a href="${escapeHtml(incidentUrl(input.baseUrl, input.reference))}">Open incident</a>`,
+    `🔗 <a href="${escapeAttribute(incidentUrl(input.baseUrl, input.reference))}">Open incident</a>`,
   );
 
   if (input.runbook) lines.push(`📕 Runbook: <code>${escapeHtml(input.runbook)}</code>`);
@@ -182,7 +204,7 @@ export function buildRecoveryMessage(input: RecoveryMessageInput): string {
     row("Recovered", timestamps(input.recoveredAt)),
     "",
     "<i>No further events within the quiet period. The incident stopped producing evidence — this is not a claim that it was blocked or remediated.</i>",
-    `🔗 <a href="${escapeHtml(incidentUrl(input.baseUrl, input.reference))}">Open incident</a>`,
+    `🔗 <a href="${escapeAttribute(incidentUrl(input.baseUrl, input.reference))}">Open incident</a>`,
   ].join("\n");
 }
 
@@ -206,7 +228,7 @@ export function buildPipelineDegradedMessage(input: {
     row("Fallback", input.fallback),
     "",
     "<i>Detection and recording are working; only the notification channel is failing. Check the incident list directly.</i>",
-    `🔗 <a href="${escapeHtml(`${input.baseUrl.replace(/\/$/, "")}/admin/security`)}">Open security console</a>`,
+    `🔗 <a href="${escapeAttribute(`${input.baseUrl.replace(/\/$/, "")}/admin/security`)}">Open security console</a>`,
   ].join("\n");
 }
 

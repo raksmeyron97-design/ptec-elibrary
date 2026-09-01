@@ -57,10 +57,26 @@ function setupDb(seed: Record<string, Record<string, unknown>[]> = {}) {
   return db;
 }
 
-/** Telegram messages actually sent this test. */
+/**
+ * Telegram messages actually sent this test.
+ *
+ * Matches on the parsed HOSTNAME rather than `url.includes("api.telegram.org")`.
+ * A substring check is satisfied by `https://evil.example/api.telegram.org`,
+ * which is why CodeQL flags the pattern (js/incomplete-url-substring-
+ * sanitization) — and in a test whose whole job is to prove where messages go,
+ * matching the wrong URL would quietly assert nothing.
+ */
+function isTelegramUrl(url: unknown): boolean {
+  try {
+    return new URL(String(url)).hostname === "api.telegram.org";
+  } catch {
+    return false;
+  }
+}
+
 function sentMessages(): string[] {
   return fetchMock.mock.calls
-    .filter(([url]) => String(url).includes("api.telegram.org"))
+    .filter(([url]) => isTelegramUrl(url))
     .map(([, init]) => JSON.parse((init as RequestInit).body as string).text as string);
 }
 
@@ -329,7 +345,7 @@ describe("Telegram failure (brief §30)", () => {
     fetchMock.mockResolvedValue({ ok: false, status: 400, text: async () => "" });
     setupDb({ security_events: Array.from({ length: 12 }, () => securityEvent()) });
     await runSecurityScan(NOW);
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("telegram"))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([u]) => isTelegramUrl(u))).toHaveLength(1);
   });
 
   it("records a skipped delivery when no credentials are configured", async () => {

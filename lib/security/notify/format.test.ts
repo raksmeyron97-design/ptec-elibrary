@@ -7,6 +7,7 @@ import {
   buildRecoveryMessage,
   checkSafeForTelegram,
   clampToTelegramLimit,
+  escapeAttribute,
   escapeHtml,
   formatDuration,
   humanType,
@@ -236,8 +237,23 @@ describe("formatting helpers", () => {
     expect(humanType("brute_force")).toBe("Brute force");
   });
 
-  it("escapes only what Telegram's HTML mode requires", () => {
+  it("escapes only what Telegram's HTML mode requires, for TEXT", () => {
     expect(escapeHtml('a & b < c > d "e"')).toBe('a &amp; b &lt; c &gt; d "e"');
+  });
+
+  it("escapes quotes as well for ATTRIBUTE values", () => {
+    // Text escaping leaves `"` intact, which closes an href early and turns
+    // everything after it into markup. CodeQL flagged the three <a href>
+    // sites for exactly this.
+    expect(escapeAttribute('a & b < c > d "e" \'f\'')).toBe(
+      "a &amp; b &lt; c &gt; d &quot;e&quot; &#39;f&#39;",
+    );
+  });
+
+  it("a quote in the base URL cannot break out of the href", () => {
+    const msg = alert({ baseUrl: 'https://library.ptec.edu.kh"onmouseover="alert(1)' });
+    expect(msg).not.toMatch(/href="[^"]*"\s*onmouseover/);
+    expect(msg).toContain("&quot;");
   });
 
   it("clamps an over-long message rather than letting Telegram reject it", () => {

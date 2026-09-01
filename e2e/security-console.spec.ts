@@ -53,13 +53,23 @@ test.describe('security console is not reachable without a session', () => {
 });
 
 test.describe('security APIs refuse unauthenticated callers', () => {
-  test('the detection pass requires the cron bearer secret', async ({ request }) => {
+  // The route answers 401 when CRON_SECRET is configured and 500 ("cron not
+  // configured") when it is not — the same shape as the existing
+  // publish-scheduled and cleanup routes. CI runs the e2e job WITHOUT that
+  // secret, so pinning 401 made this pass locally and fail there.
+  //
+  // What matters is invariant across both: the pass is REFUSED, and the
+  // refusal gives an unauthenticated caller nothing.
+  const REFUSED = [401, 500];
+
+  test('the detection pass refuses an unauthenticated caller', async ({ request }) => {
     const response = await request.get('/api/cron/security-scan');
-    expect(response.status()).toBe(401);
+    expect(REFUSED, `unexpected status ${response.status()}`).toContain(response.status());
 
     // The refusal must not describe how to satisfy it.
     const body = await response.text();
     expect(body).not.toContain('CRON_SECRET');
+    expect(body).not.toContain('Bearer');
     expect(body.length).toBeLessThan(200);
   });
 
@@ -67,7 +77,15 @@ test.describe('security APIs refuse unauthenticated callers', () => {
     const response = await request.get('/api/cron/security-scan', {
       headers: { Authorization: 'Bearer definitely-not-the-secret' },
     });
-    expect(response.status()).toBe(401);
+    expect(REFUSED, `unexpected status ${response.status()}`).toContain(response.status());
+  });
+
+  test('the pass never runs for an unauthenticated caller', async ({ request }) => {
+    // A scan summary in the body would mean the guard let it through.
+    const response = await request.get('/api/cron/security-scan');
+    const body = await response.text();
+    expect(body).not.toContain('incidentsOpened');
+    expect(body).not.toContain('eventsScanned');
   });
 });
 
