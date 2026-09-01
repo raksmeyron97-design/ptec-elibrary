@@ -4,7 +4,7 @@
 import { revalidateLocalizedPath as revalidatePath, revalidateBook } from "@/lib/cache/revalidate";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 import { slugify } from "@/lib/books";
 import { zimaDelete } from "@/lib/zima";
 import { logAdminAction } from "@/app/actions/audit";
@@ -83,7 +83,7 @@ export interface BookInput {
 
 export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
   try {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("books", "write");
 
   const title      = input.title?.trim();
   const author     = input.author?.trim();
@@ -277,7 +277,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
 
 // ── deleteBook — also removes PDF + cover from Storage ───────────
 export async function deleteBook(bookId: string) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("books", "write");
 
   // ── 1. Fetch book_files + cover_url before deleting ──────────
   const { data: bookFiles } = await supabase
@@ -335,7 +335,7 @@ export async function deleteBook(bookId: string) {
 
 // ── updateBook — handles cover URL update ────────────────────────
 export async function updateBook(bookId: string, formData: FormData) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase, user } = await requirePermission("books", "write");
 
   const title      = requiredText(formData, "title");
   const author     = requiredText(formData, "author");
@@ -475,9 +475,9 @@ export async function updateBook(bookId: string, formData: FormData) {
 
 // ── addCategory — create a new category (admin only, bypasses RLS) ──
 export async function addCategory(name: string): Promise<{ id?: string; name?: string; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
@@ -520,9 +520,9 @@ export async function addCategory(name: string): Promise<{ id?: string; name?: s
 
 // ── addDepartment — create a new department (admin only, bypasses RLS) ──
 export async function addDepartment(name: string): Promise<{ id?: string; name?: string; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
@@ -565,9 +565,9 @@ export async function addDepartment(name: string): Promise<{ id?: string; name?:
 // ── Taxonomy Management (Update & Delete) ──────────────────────────
 
 export async function updateCategory(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
@@ -589,9 +589,9 @@ export async function updateCategory(id: string, newName: string): Promise<{ suc
 }
 
 export async function deleteCategory(id: string): Promise<{ success?: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
@@ -611,9 +611,9 @@ export async function deleteCategory(id: string): Promise<{ success?: boolean; e
 }
 
 export async function updateDepartment(id: string, newName: string): Promise<{ success?: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
@@ -638,9 +638,9 @@ export async function updateDepartment(id: string, newName: string): Promise<{ s
 }
 
 export async function deleteDepartment(id: string): Promise<{ success?: boolean; error?: string }> {
-  let admin: Awaited<ReturnType<typeof requireAdmin>>;
+  let admin: Awaited<ReturnType<typeof requirePermission>>;
   try {
-    admin = await requireAdmin();
+    admin = await requirePermission("books", "write");
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Forbidden" };
   }
