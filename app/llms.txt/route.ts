@@ -53,8 +53,15 @@ function firstJoinedName(value: JoinedName) {
   return clean(value.name);
 }
 
-function markdownLink(title: string, url: string) {
-  const safeTitle = title.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+export function markdownLink(title: string, url: string) {
+  // Backslash must be escaped FIRST: escaping only `[`/`]` lets a
+  // pre-existing backslash in `title` cancel the escape this function adds
+  // (e.g. title containing `\]` becomes `\\]`, which a Markdown parser
+  // reads as an escaped backslash followed by a real, unescaped `]`).
+  const safeTitle = title
+    .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]");
   return `[${safeTitle}](${url})`;
 }
 

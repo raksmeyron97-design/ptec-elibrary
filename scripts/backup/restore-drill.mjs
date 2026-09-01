@@ -318,7 +318,14 @@ async function main() {
 
 | Result | Check | Detail |
 |---|---|---|
-${findings.map((f) => `| ${f.level.toUpperCase()} | ${f.check} | ${f.detail.replace(/\|/g, "\\|")} |`).join("\n")}
+${findings
+  .map(
+    (f) =>
+      // Backslash must be escaped first: escaping only "|" lets a
+      // pre-existing backslash in f.detail cancel the escape this adds.
+      `| ${f.level.toUpperCase()} | ${f.check} | ${f.detail.replace(/\\/g, "\\\\").replace(/\|/g, "\\|")} |`,
+  )
+  .join("\n")}
 
 ## RTO evidence
 

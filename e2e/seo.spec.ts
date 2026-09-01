@@ -7,6 +7,10 @@ import { test, expect } from "@playwright/test";
 // Canonicals always use the production origin (lib/seo/site.ts falls back to
 // it when NEXT_PUBLIC_SITE_URL is unset), so assertions pin that constant.
 const PROD = "https://library.ptec.edu.kh";
+// Escapes PROD for embedding in a `new RegExp(...)` pattern below — plain
+// interpolation leaves its dots unescaped, so `.` would match ANY character
+// (e.g. a differently-punctuated host), not just a literal ".".
+const PROD_RE = PROD.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 test.describe("canonical homepage", () => {
   test("/home 308-redirects to /", async ({ request }) => {
@@ -186,7 +190,7 @@ test.describe("subject and author hubs", () => {
   }) => {
     // Take a real subject from the sitemap rather than assuming a slug.
     const sitemap = await (await request.get("/sitemap.xml")).text();
-    const match = sitemap.match(new RegExp(`<loc>${PROD}(/subjects/[^<]+)</loc>`));
+    const match = sitemap.match(new RegExp(`<loc>${PROD_RE}(/subjects/[^<]+)</loc>`));
     test.skip(!match, "no subject URLs in the sitemap for this dataset");
 
     await page.goto(decodeURIComponent(match![1]));
@@ -211,7 +215,7 @@ test.describe("subject and author hubs", () => {
     // The soft-404 rule: getIndexableSubjects() filters empty subjects out of
     // the sitemap, so anything still listed must have content.
     const sitemap = await (await request.get("/sitemap.xml")).text();
-    const urls = [...sitemap.matchAll(new RegExp(`<loc>(${PROD}/subjects/[^<]+)</loc>`, "g"))].map(
+    const urls = [...sitemap.matchAll(new RegExp(`<loc>(${PROD_RE}/subjects/[^<]+)</loc>`, "g"))].map(
       (m) => m[1],
     );
     test.skip(urls.length === 0, "no subject URLs in the sitemap for this dataset");
