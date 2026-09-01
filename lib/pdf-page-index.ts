@@ -31,6 +31,17 @@ export type IndexPdfResult =
   | { indexed: true; pages: number }
   | { indexed: false; reason: "unresolvable-url" | "fetch-failed" | "no-text-layer"; detail?: string };
 
+/**
+ * Strip anything that could forge a fake log line or terminal escape sequence
+ * out of a value before it is interpolated into a log message. `recordId`
+ * comes from a Server Action's `id` — a route/form parameter on the edit
+ * path, not always a value this module minted itself — so CRLF and other
+ * control characters must be removed before it reaches console.log/error.
+ */
+export function sanitizeLogId(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, "").slice(0, 200);
+}
+
 function serviceDb(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -163,16 +174,17 @@ export async function indexPdfPagesSafe(
   recordId: string,
   fileUrl: string,
 ): Promise<void> {
+  const logId = sanitizeLogId(recordId);
   try {
     const result = await indexPdfPages({ recordType, recordId, fileUrl });
     if (result.indexed) {
-      console.log(`[pdf-index] ${recordType}:${recordId} — indexed ${result.pages} pages`);
+      console.log(`[pdf-index] ${recordType}:${logId} — indexed ${result.pages} pages`);
       const { embedRecordChunksSafe } = await import("./chunk-embed");
       await embedRecordChunksSafe(recordType, recordId);
     } else {
-      console.log(`[pdf-index] ${recordType}:${recordId} — skipped (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
+      console.log(`[pdf-index] ${recordType}:${logId} — skipped (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
     }
   } catch (err) {
-    console.error(`[pdf-index] ${recordType}:${recordId} — failed:`, err instanceof Error ? err.message : err);
+    console.error(`[pdf-index] ${recordType}:${logId} — failed:`, err instanceof Error ? err.message : err);
   }
 }
