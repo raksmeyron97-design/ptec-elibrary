@@ -341,12 +341,22 @@ self.addEventListener("activate", (event) => {
 // ── User-approved update. ───────────────────────────────────────────────────
 // The only way a waiting worker ever takes over, since skipWaiting is off. The
 // page posts this from the Update button and reloads on `controllerchange`.
+// Only this origin's own pages can drive the service worker — a page from
+// another origin cannot normally reach it (a service worker's message port
+// is scoped to clients it controls), but nothing here should depend on that
+// alone: verify explicitly rather than trust an unauthenticated postMessage.
+function isTrustedClientOrigin(event: ExtendableMessageEvent): boolean {
+  return event.origin === self.location.origin;
+}
+
 self.addEventListener("message", (event) => {
+  if (!isTrustedClientOrigin(event)) return;
   if ((event.data as { type?: string } | null)?.type !== "SKIP_WAITING") return;
   self.skipWaiting();
 });
 
 self.addEventListener("message", (event) => {
+  if (!isTrustedClientOrigin(event)) return;
   if ((event.data as { type?: string } | null)?.type !== "CLEAR_PRIVATE_CACHES") return;
   event.waitUntil(
     (async () => {

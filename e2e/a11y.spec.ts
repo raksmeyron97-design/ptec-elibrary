@@ -25,8 +25,17 @@ async function expectNoViolations(page: import('@playwright/test').Page, name: s
     .analyze();
 
   if (results.violations.length > 0) {
+    // Written into Playwright's own gitignored artifact directory, not the
+    // shared OS temp dir: a predictable /tmp/axe-<name>.json path is a
+    // symlink-attack target on a multi-tenant machine (another local user
+    // pre-creates the path as a symlink to something this process can write
+    // but shouldn't), and test-results/ is already where CI collects
+    // Playwright's other output.
     const fs = await import('fs');
-    fs.writeFileSync(`/tmp/axe-${name}.json`, JSON.stringify(results.violations, null, 2));
+    const path = await import('path');
+    const dir = path.join(process.cwd(), 'test-results', 'axe-violations');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, `${name}.json`), JSON.stringify(results.violations, null, 2));
   }
   expect(results.violations).toEqual([]);
 }

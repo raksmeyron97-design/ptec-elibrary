@@ -157,7 +157,9 @@ export function toDublinCoreXml(work: ScholarlyWork): string {
   const dc = toDublinCoreJson(work);
   const elements: string[] = [];
   for (const [key, raw] of Object.entries(dc)) {
-    const tag = key.replace("dc:", "dc:");
+    // `key` is already the full "dc:xxx" element name (see toDublinCoreJson
+    // above) — no transform needed.
+    const tag = key;
     const values = Array.isArray(raw) ? raw : [raw];
     for (const v of values) elements.push(dcElement(tag, String(v)));
   }
