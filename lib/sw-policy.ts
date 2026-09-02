@@ -42,6 +42,44 @@
 export const OFFLINE_FALLBACK_URL = "/~offline";
 
 /**
+ * Pages that must be able to BOOT with no network — the offline library and the
+ * offline reader, in both locales.
+ *
+ * `/~offline` above is the generic "you have no connection" screen. These are
+ * different in kind: they are working surfaces over content already on the
+ * device, so serving them the apology page would be a bug. They are precached
+ * as documents for the same reason /~offline is (nothing else adds an app/
+ * route to the manifest), and their JS chunks come from the build manifest, so
+ * an installed worker always holds an HTML+chunk pair from ONE build.
+ *
+ * Locale-prefixed rather than locale-agnostic: a precached document carries the
+ * server-rendered messages of the locale it was fetched for, so Khmer readers
+ * need their own copy. English is unprefixed (localePrefix: "as-needed").
+ */
+export const OFFLINE_SHELL_URLS = [
+  "/offline-books",
+  "/km/offline-books",
+  "/offline-reader",
+  "/km/offline-reader",
+] as const;
+
+/**
+ * Which precached shell answers this navigation, if any.
+ *
+ * The reader is addressed as `/offline-reader?id=<bookId>`: the book id is in
+ * the query string precisely so that ONE prerendered document can serve every
+ * saved book (a `[bookId]` segment would need a precache entry per book). The
+ * shell reads the id from the URL on the client, so substituting it for any
+ * `/offline-reader` URL is correct rather than a compromise.
+ */
+export function offlineShellFor(pathname: string): string | null {
+  const clean = pathname.length > 1 && pathname.endsWith("/")
+    ? pathname.slice(0, -1)
+    : pathname;
+  return (OFFLINE_SHELL_URLS as readonly string[]).includes(clean) ? clean : null;
+}
+
+/**
  * A revision string for entries we add ourselves, derived from the injected
  * build manifest.
  *
