@@ -125,3 +125,41 @@ export function isPlausibleTextFile(buffer: ArrayBuffer): boolean {
   }
   return suspicious / sample.length < 0.01;
 }
+
+/** Raster image types every upload surface accepts. */
+export const ACCEPTED_IMAGE_MIMES: ReadonlySet<string> = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+]);
+
+/**
+ * Verify an upload's real content and report the type to treat it as.
+ *
+ * A file extension is user- and OS-controlled: a WebP saved as `.jpg` reports
+ * `image/jpeg`, and the browser derives `File.type` from the extension alone.
+ * For IMAGES that mislabelling is harmless — sharp re-encodes to WebP either
+ * way — so the sniffed type wins and the upload proceeds. For anything else the
+ * declared type must still match the bytes exactly.
+ *
+ * Extracted because the two upload routes disagreed. `/api/admin/upload` had
+ * this tolerance inline; `/api/admin/bulk-upload` called `validateMimeType()`
+ * directly, so a cover whose extension did not match its bytes returned 400 and
+ * — since the bulk route treated any cover problem as fatal — cost the whole
+ * book. One rule, one place, both doors.
+ */
+export function resolveUploadType(
+  bytes: ArrayBuffer,
+  declaredType: string,
+): { ok: boolean; effectiveType: string } {
+  if (declaredType === "text/csv") {
+    return { ok: isPlausibleTextFile(bytes), effectiveType: declaredType };
+  }
+  const detected = detectMimeType(bytes);
+  if (detected && ACCEPTED_IMAGE_MIMES.has(detected) && ACCEPTED_IMAGE_MIMES.has(declaredType)) {
+    // A real image, just wrong extension — trust the bytes.
+    return { ok: true, effectiveType: detected };
+  }
+  return { ok: validateMimeType(bytes, declaredType), effectiveType: declaredType };
+}

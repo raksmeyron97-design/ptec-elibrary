@@ -194,6 +194,9 @@ export function sanitizeUploadName(name: string): string {
  * @param folder  Destination folder (e.g. "books", "posts", "team").
  * @returns The public CDN URL of the uploaded file.
  */
+/** Upload budget for one file. See the note on the fetch below. */
+const ZIMA_UPLOAD_TIMEOUT_MS = 240_000;
+
 export async function zimaUpload(
   file: File | Blob,
   folder: string,
@@ -206,17 +209,43 @@ export async function zimaUpload(
   const name = sanitizeUploadName(rawName);
   form.append("file", new File([file], name, { type: file.type }));
 
-  const res = await fetch(`${apiUrl}/api/upload`, {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      // HTTP headers are ByteStrings (chars 0-255 only). Non-ASCII folder
-      // names (e.g. Khmer slugs) would crash fetch(). Percent-encode them
-      // as a safety net — callers should already pass ASCII-only paths.
-      "x-folder": /[^\x00-\xff]/.test(folder) ? encodeURIComponent(folder) : folder,
-    },
-    body: form,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/api/upload`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        // HTTP headers are ByteStrings (chars 0-255 only). Non-ASCII folder
+        // names (e.g. Khmer slugs) would crash fetch(). Percent-encode them
+        // as a safety net — callers should already pass ASCII-only paths.
+        "x-folder": /[^\x00-\xff]/.test(folder) ? encodeURIComponent(folder) : folder,
+      },
+      body: form,
+      // Bounded, because an unreachable or black-holed storage host otherwise
+      // hangs this fetch indefinitely and the caller has no way to tell that
+      // from a slow 100 MB transfer — the admin form simply shows
+      // "Uploading PDF…" forever. Matches the batch path's existing budget
+      // (BATCH_UPLOAD_TIMEOUT_MS in /api/admin/bulk-upload) and stays inside
+      // the routes' maxDuration of 300 s, so the operator gets a real error
+      // instead of a killed request.
+      signal: AbortSignal.timeout(ZIMA_UPLOAD_TIMEOUT_MS),
+    });
+  } catch (err) {
+    // A timeout or a dead connection is a ZimaUploadError like any other, so
+    // both upload routes map it to a retryable 503 with a real sentence.
+    // Raw, it was an AbortError that fell through to the generic handler and
+    // reached the operator as a bare 500 — and, in the bulk importer, as a row
+    // that had "failed" for no stated reason.
+    const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    throw new ZimaUploadError(
+      timedOut
+        ? `Storage did not respond within ${Math.round(ZIMA_UPLOAD_TIMEOUT_MS / 1000)}s. The file was not uploaded.`
+        : `Storage is unreachable: ${err instanceof Error ? err.message : "connection failed"}.`,
+      // 503 makes `retryable` true via the constructor's own rule, so the
+      // importer's queue waits and retries instead of failing the row outright.
+      503,
+    );
+  }
 
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
@@ -330,6 +359,9 @@ function zimaApiEndpoint(apiUrl: string, endpoint: string, objectPath?: string):
  * Delete a file from Zima Storage by its URL.
  * No-ops silently for non-Zima URLs (e.g. legacy R2 or Vercel Blob records).
  */
+/** Cleanup is best-effort: bound it rather than inherit the OS TCP timeout. */
+const ZIMA_DELETE_TIMEOUT_MS = 10_000;
+
 export async function zimaDelete(fileUrl: string): Promise<void> {
   if (!fileUrl || !isZimaUrl(fileUrl)) return;
 
@@ -355,22 +387,36 @@ export async function zimaDelete(fileUrl: string): Promise<void> {
     // Verified live contract (2026-07-15): POST /api/delete { path } is the
     // endpoint the deployed Zima server actually implements; DELETE
     // /api/files/{path} returns 404 there, so it is only kept as a fallback.
+    //
+    // BOTH calls are bounded. Neither had a timeout, so an unreachable or
+    // black-holed storage host left them waiting on the OS TCP timeout — 75+
+    // seconds each, 150 for the pair. Nothing here is worth that: this is a
+    // best-effort cleanup whose callers are all on a path where something has
+    // ALREADY failed, and every one of them was made to wait for it. The upload
+    // form sat on its "Saving…" spinner for the whole of it before showing the
+    // error the librarian needed to see.
     const res = await fetch(deleteEndpoint, {
       method: "POST",
       headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ path: relativePath, url: fileUrl }),
+      signal: AbortSignal.timeout(ZIMA_DELETE_TIMEOUT_MS),
     });
 
     if (!res.ok) {
       const fallback = await fetch(fallbackEndpoint, {
         method: "DELETE",
         headers: { "x-api-key": apiKey },
+        signal: AbortSignal.timeout(ZIMA_DELETE_TIMEOUT_MS),
       });
       if (!fallback.ok) {
         console.warn(`[zima] delete failed: primary=${res.status}, fallback=${fallback.status}`);
       }
     }
   } catch (err) {
+    // A timeout lands here like any other failure, and is swallowed on purpose:
+    // an object we could not remove is a stray file for
+    // scripts/audit-book-storage.ts to reconcile, never a reason to fail the
+    // caller a second time.
     console.error("[zima] delete error:", err);
   }
 }

@@ -236,6 +236,43 @@ describe("admin API routes authorize on the server", () => {
     expect(read(file), file).toMatch(GUARD);
   });
 
+  it("the upload routes gate on the destination's resource, not a role list", () => {
+    /* Both routes serve several resources at once (`books/`, `posts/`,
+       `research/`, `publications/`, `paths/`), so a fixed role list was wrong
+       in both directions: `requireLibrarian()` on the single-file route refused
+       a `staff` account that /admin/roles had granted books: write — the page
+       opened, the POST answered a bare "Forbidden" — and `requireAdmin()` on
+       the bulk route refused every librarian, the one default role that holds
+       books: write. */
+    const uploadRoutes = routes.filter((f) => /upload\/route\.ts$/.test(f));
+    // Named explicitly so a rename empties the loop loudly rather than turning
+    // this into a test that asserts nothing.
+    expect(uploadRoutes.length, "upload routes not found").toBe(2);
+    for (const file of uploadRoutes) {
+      const source = read(file);
+      // The destination is a `key` on one route and a `folder` on the other.
+      expect(source, file).toMatch(
+        /requirePermission\(uploadPermissionResource\((?:key|folder)\), "write"\)/,
+      );
+      expect(source, file).not.toMatch(/await requireLibrarian\(\)/);
+      expect(source, file).not.toMatch(/await requireAdmin\(\)/);
+      // The caller is still established before the body is read, so an
+      // unauthenticated request never costs a 100 MB buffer.
+      const authAt = source.indexOf("await requireStaff()");
+      const bodyAt = source.search(/await request\.(formData|arrayBuffer)\(\)/);
+      expect(authAt, `${file}: no session check`).toBeGreaterThanOrEqual(0);
+      expect(authAt, `${file}: body read before auth`).toBeLessThan(bodyAt);
+    }
+  });
+
+  it("AI auto-fill asks for the same grant as the form that hosts it", () => {
+    // It runs from the book upload form, so a role list here refused the exact
+    // account the route policy had just admitted.
+    const source = read("app/actions/ai-extraction.ts");
+    expect(source).toContain('requirePermission("books", "write")');
+    expect(source).not.toMatch(/await requireLibrarian\(\)/);
+  });
+
   it.each(routes)("%s guards before it opens a service-role client", (file) => {
     const source = read(file);
     if (!source.includes("createServiceClient")) return;

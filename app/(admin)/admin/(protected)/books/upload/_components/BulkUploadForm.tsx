@@ -235,8 +235,12 @@ async function uploadBook(
     // invisible in the catalogue, still occupying the disk, and — because the
     // duplicate check is by content hash — enough to make the retry of this
     // very row fail with 409. Give the bytes back before reporting.
+    // Not awaited: this is a storage call on a path where storage may be what
+    // just failed, and with two workers a stalled cleanup stalls the import
+    // itself. The row's verdict is due now; the bytes can go back whenever the
+    // request finishes. (zimaDelete is bounded — see lib/zima.ts.)
     if (uploadedPdfUrl) {
-      await deleteZimaFile(uploadedPdfUrl).catch(() => {});
+      void deleteZimaFile(uploadedPdfUrl).catch(() => {});
     }
     // Stopping is not a row failure: leave the row pending so Start resumes it.
     if (err instanceof QueueCancelled) throw err;

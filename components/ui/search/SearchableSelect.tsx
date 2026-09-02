@@ -153,8 +153,18 @@ const SearchableSelect = forwardRef<HTMLButtonElement, SearchableSelectProps>(fu
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
-      {/* Hidden input for native form submission (uncontrolled callers only) */}
-      {!isControlled && <input type="hidden" name={name} value={selected} required={required} />}
+      {/* Hidden input for native form submission.
+          Rendered in BOTH modes on purpose. It used to be uncontrolled-only,
+          which quietly broke the contract this component advertises by taking a
+          `name`: a controlled caller got a widget that displayed a selection,
+          reported it to `onChange`, and contributed NOTHING to `new
+          FormData(form)`. The book upload form hit exactly that — the
+          department was visibly chosen, the readiness panel said "Category and
+          department set", and the server answered "department is required",
+          because `formData.get("department")` was null. `selected` resolves to
+          the controlled `value` when there is one, so this is the same value
+          the trigger displays either way. */}
+      <input type="hidden" name={name} value={selected} required={required} />
 
       {/* Select Trigger — brand focus ring (was hardcoded teal #007c91) */}
       <button
