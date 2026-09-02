@@ -39,6 +39,14 @@ alter table public.books
 comment on column public.books.storage_folder is
   'Zima Storage folder holding this book''s files, e.g. "books/research/a-title-jm0p7tqz". Written once at upload; NEVER recomputed from the title (the uid is random and the slug is truncated). NULL for legacy rows with a flat storage layout.';
 
+-- NO `order by` ON THE SUBQUERY, DELIBERATELY. The first version ordered by
+-- `bf.created_at`, which exists in this repo's baseline schema — so a fresh
+-- stack (and therefore CI's e2e job) accepted it — but NOT in the hosted
+-- database, which drifted from the baseline before the chain was squashed.
+-- The hosted apply failed with `column bf.created_at does not exist`. Any one
+-- of a book's file rows yields the same folder, so ordering bought nothing but
+-- a dependency on a column that is not there.
+--
 -- Backfill from book_files.file_url, else books.cover_url. Both shapes end in
 -- `books/<cat>/<folder>/<filename>`, whether they are full Zima URLs or bare
 -- legacy keys, so one end-anchored pattern covers both without caring about
@@ -58,7 +66,6 @@ with recovered as (
            from public.book_files bf
           where bf.book_id = b.id
             and bf.file_url is not null
-          order by bf.created_at asc nulls last
           limit 1)
         from '(books/[^/]+/[^/]+)/[^/]+$'
       ),
