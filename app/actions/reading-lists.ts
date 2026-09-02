@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 
 export interface ReadingList {

@@ -1,5 +1,4 @@
 "use client";
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useState, useRef } from "react";
 import Image from "next/image";
@@ -15,7 +14,6 @@ import {
 } from "@/lib/book-utils";
 import { formatFileSize } from "@/lib/admin/ebooks-shared";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
-import Icon from "@/components/ui/core/Icon";
 import TagInput from "@/components/ui/core/TagInput";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
 import BookSeoPanel from "@/components/admin/ebooks/BookSeoPanel";
@@ -32,7 +30,6 @@ import {
   CheckCircle2,
   X,
   FileText,
-  Info,
   Download,
   Search,
   ShieldCheck,
@@ -508,6 +505,7 @@ export default function EditForm({
       description={pageDescription}
       contentKey={activeTab}
       onSubmit={handleSubmit}
+      onFormChange={handleFormInput}
       tabs={
         <FormTabs
           idPrefix="ebook"

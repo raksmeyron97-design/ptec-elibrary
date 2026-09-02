@@ -128,7 +128,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let newIndex = index;
+    let newIndex: number;
     if (e.key === "ArrowRight") {
       newIndex = (index + 1) % 3;
     } else if (e.key === "ArrowLeft") {

@@ -151,7 +151,8 @@ async function uploadBook(
 
     // Auto-detect pages from PDF if not specified in CSV row
     let pages = (row.pages ?? "").trim();
-    if (!pages && pdfFile) {
+    // pdfFile is already guaranteed non-null here (line 103's early return).
+    if (!pages) {
       try {
         const detected = await getPdfPageCount(pdfFile);
         if (detected) pages = String(detected);

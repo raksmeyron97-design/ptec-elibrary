@@ -9,7 +9,6 @@ import NavbarStickyWrapper from "./NavbarStickyWrapper";
 import LanguageSwitcher from "@/components/ui/core/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import PriorityNav, { type PriorityNavEntry } from "./PriorityNav";
-import NotificationBell from "@/components/ui/notifications/NotificationBell";
 import { getSiteConfig } from "@/lib/system-settings/config";
 import { compactHoursLabel } from "@/lib/library-hours";
 
