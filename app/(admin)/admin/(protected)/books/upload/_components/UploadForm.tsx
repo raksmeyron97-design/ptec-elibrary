@@ -8,6 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { saveBookRecord } from "@/app/(admin)/admin/(protected)/books/actions";
 import { extractBookMetadata } from "@/app/actions/ai-extraction";
+import { deleteZimaFile } from "@/app/actions/upload";
 import {
   departments as defaultDepartments,
   makeUid,
@@ -203,6 +204,12 @@ export default function UploadForm({
      has re-rendered with `disabled`. The ref closes that window; `phase` alone
      does not. */
   const inFlight = useRef(false);
+  /* Files already in storage that no database row references yet. Non-null only
+     between the upload finishing and the save succeeding. */
+  const storedForCleanup = useRef<{ pdfUrl: string; coverUrl: string | null } | null>(null);
+  /* Set when the book saved but something optional did not. The success screen
+     holds instead of redirecting when this is set — see handleSubmit. */
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   const refreshLists = useCallback(async () => {
     const [deptRes, catRes] = await Promise.all([
@@ -466,6 +473,26 @@ export default function UploadForm({
 
   /* ── Submit ──────────────────────────────────────────────────────────── */
 
+  /**
+   * Remove files this submission stored but no record claimed.
+   *
+   * Best effort by design: the librarian's problem is the save that failed, and
+   * a storage error while tidying up must not overwrite that message or throw
+   * out of the catch block it runs in. A file that survives here is a stray
+   * object, which `scripts/check-file-health.ts` already sweeps — strictly
+   * better than the retry-storms-a-second-copy behaviour it replaces.
+   */
+  async function discardStoredFiles() {
+    const stored = storedForCleanup.current;
+    if (!stored) return;
+    storedForCleanup.current = null;
+    await Promise.allSettled(
+      [stored.pdfUrl, stored.coverUrl]
+        .filter((url): url is string => Boolean(url))
+        .map((url) => deleteZimaFile(url)),
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (inFlight.current) return;
@@ -496,6 +523,23 @@ export default function UploadForm({
       return;
     }
 
+    /* Every field the server refuses on is checked HERE, before the first byte
+       moves. `saveBookRecord` throws "department is required" after the PDF and
+       the cover are already in storage, which leaves two orphaned objects and
+       asks the librarian to re-pick a 40 MB file to fix a dropdown. The server
+       checks remain the authority; this is the same answer, arrived at while it
+       is still free. */
+    const submittedCategory = category.trim();
+    const submittedDepartment = department.trim();
+    if (!submittedCategory) {
+      setError(t("err.categoryRequired"));
+      return;
+    }
+    if (!submittedDepartment) {
+      setError(t("err.departmentRequired"));
+      return;
+    }
+
     /* A debounce window is not a decision point. Re-check with the record as
        it stands NOW, before a byte is uploaded — the librarian may have typed
        the ISBN a moment ago, or another cataloguer may have saved the same
@@ -518,7 +562,11 @@ export default function UploadForm({
     inFlight.current = true;
     try {
       setPhase("uploading-pdf");
-      const categoryName = (formData.get("category") as string)?.trim() || "uncategorized";
+      /* From state, not `formData`: these two are controlled inputs, so state
+         is the value the librarian actually chose. The old `formData` read
+         returned null and fell back to "uncategorized", which silently filed
+         every book under the wrong storage folder. */
+      const categoryName = submittedCategory;
       const uid = makeUid();
       const folder = bookFolder(categoryName, submittedTitle, uid);
       const pdfPath = bookPdfPath(folder);
@@ -539,6 +587,7 @@ export default function UploadForm({
       });
 
       let coverUrl: string | null = null;
+      let coverFailure: string | null = null;
       if (hasCover) {
         setPhase("uploading-cover");
         const coverFile = cover as File;
@@ -562,20 +611,28 @@ export default function UploadForm({
           coverUrl = uploadedCoverUrl;
         } catch (coverErr) {
           // The cover is optional and the PDF is already stored — losing the
-          // whole upload over a thumbnail would be the wrong trade.
+          // whole upload over a thumbnail would be the wrong trade. But it was
+          // only ever `console.warn`ed, so the book was saved without its cover
+          // and nobody was told: the librarian saw an unqualified success and
+          // found a placeholder in the catalogue later. Carried to the success
+          // screen instead.
           console.warn("Cover upload failed:", coverErr instanceof Error ? coverErr.message : coverErr);
+          coverFailure = coverErr instanceof Error ? coverErr.message : String(coverErr);
         }
       }
 
       setPhase("saving");
       setTransfer(null);
       setTransferName(null);
+      // From here on the bytes are in storage but no row references them. If
+      // the save fails, `discardStoredFiles()` in the catch takes them back out.
+      storedForCleanup.current = { pdfUrl: pdfPublicUrl, coverUrl };
       const res = await saveBookRecord({
         title:      submittedTitle,
         author:     author.name,
         authorId:   author.id ?? undefined,
-        department: (formData.get("department") as string) ?? "",
-        category:   (formData.get("category")   as string) ?? "",
+        department: submittedDepartment,
+        category:   submittedCategory,
         language:   (formData.get("language")   as string) ?? "",
         summary:    (formData.get("summary")    as string) ?? "",
         isbn,
@@ -599,6 +656,8 @@ export default function UploadForm({
       });
       if (res && "error" in res) throw new Error(res.error);
       if (res && "success" in res) {
+        // The row now owns the files; nothing to undo.
+        storedForCleanup.current = null;
         /*
           Land where the work continues, not on the artefact.
           A published book used to redirect to its own public page — which
@@ -609,6 +668,14 @@ export default function UploadForm({
           them (they 404 on the public page anyway).
         */
         setPhase("done");
+        if (coverFailure) {
+          // Do not navigate past a message the librarian has to act on. The
+          // book exists and is correct apart from its cover; they need to know
+          // that now, while they still have the file to hand.
+          setSaveWarning(t("err.coverNotSaved", { reason: coverFailure }));
+          router.refresh();
+          return;
+        }
         router.push(publishMode === "pending_review" ? EBOOKS_REVIEW_PATH : EBOOKS_BASE_PATH);
         // The new record must be visible on arrival; the page is cached.
         router.refresh();
@@ -618,10 +685,21 @@ export default function UploadForm({
       // leaving the form in "saving".
       throw new Error(t("err.uploadFailed"));
     } catch (err) {
+      /* Report FIRST, tidy up after — and never await the tidying.
+         A save that fails after the upload leaves a PDF and a cover in storage
+         that no row will ever reference — the state the librarian reported:
+         "PDF and cover already uploaded to storage but it says error". Retrying
+         then stores a SECOND copy, and the first is invisible to every admin
+         screen. But the cleanup is a network call to storage, on a path where
+         storage may be exactly what just failed: awaiting it here held the form
+         on its spinner for the whole timeout before the error appeared, which
+         reads as a hang. The librarian's error is due now; the housekeeping is
+         not, and nothing downstream depends on when it finishes. */
       setPhase("idle");
       setTransfer(null);
       setTransferName(null);
       setError(err instanceof Error ? err.message : t("err.uploadFailed"));
+      void discardStoredFiles();
     } finally {
       inFlight.current = false;
     }
@@ -657,10 +735,26 @@ export default function UploadForm({
         <p className="mt-1.5 max-w-sm text-sm text-text-body">
           {publishMode === "published" ? t("success.published") : t("success.pending")}
         </p>
-        <p className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-text-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          {publishMode === "published" ? t("success.redirectBooks") : t("success.redirectReview")}
-        </p>
+        {saveWarning ? (
+          /* Saved, with a caveat. No spinner and no redirect: this is a message
+             to act on, not a status to watch scroll past. */
+          <>
+            <p className="mt-4 max-w-sm rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-sm text-warning-text">
+              {saveWarning}
+            </p>
+            <Link
+              href={publishMode === "pending_review" ? EBOOKS_REVIEW_PATH : EBOOKS_BASE_PATH}
+              className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-brand underline underline-offset-2"
+            >
+              {publishMode === "published" ? t("success.redirectBooks") : t("success.redirectReview")}
+            </Link>
+          </>
+        ) : (
+          <p className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-text-muted">
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            {publishMode === "published" ? t("success.redirectBooks") : t("success.redirectReview")}
+          </p>
+        )}
       </div>
     );
   }

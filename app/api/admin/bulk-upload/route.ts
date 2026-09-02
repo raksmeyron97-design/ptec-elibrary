@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
-import { validateMimeType } from "@/lib/mime-validation";
+import { isAdminAuthError, requirePermission, requireStaff } from "@/lib/auth/requireAdmin";
+import { uploadPermissionResource } from "@/lib/storage/permission-resource";
+import { validateMimeType, resolveUploadType } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload, isZimaUploadError } from "@/lib/zima";
 import { uploadStorageFiles, trashStorageFile } from "@/lib/storage-client";
@@ -83,7 +84,11 @@ async function readPart(
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdmin();
+    // Establish the caller before touching the body. The destination travels in
+    // the form here, so the resource-level check follows immediately after the
+    // path is validated — see /api/admin/upload for why the other route splits
+    // the two.
+    const { user } = await requireStaff();
 
     const form = await request.formData();
     const folder = (form.get("folder") as string | null)?.trim() ?? "";
@@ -99,6 +104,11 @@ export async function POST(request: NextRequest) {
     }
     const pathProblem = describeStoragePathError(folder) ?? describeStorageKeyError(`${folder}/${pdfName}`);
     if (pathProblem) return jsonError(pathProblem, 400);
+
+    // `books.bulk` is perm("books", "write") in the registry. This route used
+    // to demand requireAdmin(), which refused every librarian — the one role
+    // that holds books: write by default — and the whole bulk importer with it.
+    await requirePermission(uploadPermissionResource(folder), "write");
 
     const pdfPart = await readPart(form, "pdf", "application/pdf");
     if ("error" in pdfPart) return pdfPart.error;
@@ -122,17 +132,50 @@ export async function POST(request: NextRequest) {
       { name: pdfName, bytes: new Uint8Array(pdfPart.bytes), contentType: "application/pdf" },
     ];
 
-    // ── Optional cover, optimized here so the batch carries final bytes ──
+    // ── Optional cover ────────────────────────────────────────────────────
+    //
+    // A COVER PROBLEM MUST NEVER COST THE BOOK. The asymmetry documented for
+    // the storage leg below applies just as much to preparing the file, and
+    // this block used to break it twice:
+    //
+    //   - `readPart` returning its 400 ended the request, so a cover whose
+    //     extension disagreed with its bytes (`.jpg` holding a PNG — the
+    //     browser derives File.type from the name alone) lost the book. The
+    //     single-file route has always tolerated exactly that; `resolveUploadType`
+    //     is now that rule, shared.
+    //   - `optimizeImage` is a sharp pipeline with no error containment. A
+    //     truncated, CMYK or otherwise unreadable image threw straight past
+    //     every branch here into the generic handler, and the operator got a
+    //     bare 500 on a row whose PDF was perfectly good.
+    //
+    // Both now degrade to the same outcome the storage leg produces: no cover,
+    // a warning on the row, and the book saved.
+    let coverPrepWarning: string | null = null;
     if (coverName) {
       const declared = (form.get("coverType") as string | null) ?? "image/jpeg";
-      const coverPart = await readPart(form, "cover", declared);
-      if ("error" in coverPart) return coverPart.error;
-      const optimized = await optimizeImage(coverPart.bytes, coverName, declared, BOOK_COVER_OPTS);
-      parts.push({
-        name: optimized.filename,
-        bytes: optimized.buffer,
-        contentType: optimized.contentType,
-      });
+      const cover = form.get("cover");
+      if (!(cover instanceof File) || cover.size === 0) {
+        coverPrepWarning = "Cover skipped: the file was missing or empty.";
+      } else if (cover.size > MAX_UPLOAD_BYTES) {
+        coverPrepWarning = "Cover skipped: larger than the 100 MB limit.";
+      } else {
+        try {
+          const coverBytes = await cover.arrayBuffer();
+          const { ok, effectiveType } = resolveUploadType(coverBytes, declared);
+          if (!ok) {
+            coverPrepWarning = `Cover skipped: content does not match declared type (${declared}). Only JPEG, PNG, WebP, and AVIF are allowed.`;
+          } else {
+            const optimized = await optimizeImage(coverBytes, coverName, effectiveType, BOOK_COVER_OPTS);
+            parts.push({
+              name: optimized.filename,
+              bytes: optimized.buffer,
+              contentType: optimized.contentType,
+            });
+          }
+        } catch (err) {
+          coverPrepWarning = `Cover skipped: the image could not be processed (${err instanceof Error ? err.message : "unknown error"}).`;
+        }
+      }
     }
 
     const files = parts.map(
@@ -158,7 +201,7 @@ export async function POST(request: NextRequest) {
     // latin1→utf8 decode. Index is the contract; the name is for messages.
     let pdfUrl: string | null = null;
     let coverUrl: string | null = null;
-    let coverWarning: string | null = null;
+    let coverWarning: string | null = coverPrepWarning;
     let via: "v1" | "legacy" = "v1";
 
     const actor = { actorId: user.id, actorRole: "admin" };
@@ -229,7 +272,10 @@ export async function POST(request: NextRequest) {
     if (via === "legacy") {
       pdfUrl = await zimaUpload(files[0], folder, parts[0].name);
       coverUrl = null;
-      coverWarning = null;
+      // Back to the preparation verdict, not to null: a cover rejected above
+      // never entered `parts`, and blanking this would drop the only
+      // explanation the operator gets for a book that arrived without one.
+      coverWarning = coverPrepWarning;
       if (parts.length > 1) {
         try {
           coverUrl = await zimaUpload(files[1], folder, parts[1].name);

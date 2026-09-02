@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { validateMimeType, detectMimeType, isPlausibleTextFile } from "./mime-validation";
+import {
+  validateMimeType,
+  detectMimeType,
+  isPlausibleTextFile,
+  resolveUploadType,
+} from "./mime-validation";
 
 /** Build an ArrayBuffer that starts with `prefix` bytes then zero-padding. */
 function buf(prefix: number[], length = 32): ArrayBuffer {
@@ -63,5 +68,51 @@ describe("isPlausibleTextFile", () => {
   it("rejects a binary disguised as text", () => {
     expect(isPlausibleTextFile(buf(PDF))).toBe(false); // %PDF prefix
     expect(isPlausibleTextFile(buf([0x00, 0x01]))).toBe(false); // NUL byte
+  });
+});
+
+describe("resolveUploadType", () => {
+  /* One rule for both upload doors. /api/admin/upload had this inline while
+     /api/admin/bulk-upload called validateMimeType() directly, so a cover
+     whose extension disagreed with its bytes was accepted by one route and
+     refused by the other — and in the bulk route a refused cover cost the
+     whole book. */
+
+  it("accepts an image whose extension lies, reporting the REAL type", () => {
+    // A WebP saved as .jpg: the browser reports image/jpeg from the name alone.
+    const r = resolveUploadType(buf(WEBP), "image/jpeg");
+    expect(r.ok).toBe(true);
+    expect(r.effectiveType).toBe("image/webp");
+  });
+
+  it("accepts a correctly-labelled image unchanged", () => {
+    const r = resolveUploadType(buf(PNG), "image/png");
+    expect(r.ok).toBe(true);
+    expect(r.effectiveType).toBe("image/png");
+  });
+
+  it("does NOT extend that tolerance beyond images", () => {
+    // A PDF announced as a JPEG is a mismatch, not a mislabelled photo.
+    expect(resolveUploadType(buf(PDF), "image/jpeg").ok).toBe(false);
+    // And an image announced as a PDF must not pass as one.
+    expect(resolveUploadType(buf(JPEG), "application/pdf").ok).toBe(false);
+  });
+
+  it("holds a PDF to its declared type exactly", () => {
+    expect(resolveUploadType(buf(PDF), "application/pdf")).toEqual({
+      ok: true,
+      effectiveType: "application/pdf",
+    });
+  });
+
+  it("routes CSV through the text heuristic, not the signature table", () => {
+    const text = new TextEncoder().encode("title,author\nA,B\n");
+    expect(resolveUploadType(text.buffer as ArrayBuffer, "text/csv").ok).toBe(true);
+    // A renamed executable is still refused.
+    expect(resolveUploadType(buf([0x4d, 0x5a]), "text/csv").ok).toBe(false);
+  });
+
+  it("rejects unrecognised content rather than guessing", () => {
+    expect(resolveUploadType(buf([0x01, 0x02, 0x03]), "image/jpeg").ok).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAdminAuthError, requireLibrarian } from "@/lib/auth/requireAdmin";
-import { validateMimeType, detectMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
+import { isAdminAuthError, requirePermission, requireStaff } from "@/lib/auth/requireAdmin";
+import { uploadPermissionResource } from "@/lib/storage/permission-resource";
+import { resolveUploadType } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload, isZimaUploadError } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
@@ -24,7 +25,14 @@ function presetsForFolder(key: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireLibrarian();
+    // Two steps, in this order, on purpose. `requireStaff()` establishes who is
+    // asking (session + MFA + admin-panel role) BEFORE the 100 MB body is
+    // buffered, so an anonymous or reader request is refused without uploading
+    // anything. Which permission row applies depends on the destination folder,
+    // which only arrives with the body — so the resource-level check follows,
+    // once `key` is known. `verifyAuthAndMFA` is cache()d per request, so the
+    // second call costs no extra round-trip.
+    await requireStaff();
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -57,6 +65,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: pathProblem }, { status: 400 });
     }
 
+    // The destination decides the grant: a `books/` upload needs books: write,
+    // a `paths/` cover needs learning_paths: write. The key is validated
+    // against ALLOWED_PREFIXES above, so this cannot be steered somewhere the
+    // route does not serve.
+    await requirePermission(uploadPermissionResource(key), "write");
+
     const bytes = await file.arrayBuffer();
 
     // ── Content-type verification (magic bytes, never the spoofable extension) ──
@@ -66,20 +80,10 @@ export async function POST(request: NextRequest) {
     // — sharp re-encodes to WebP regardless, so a mislabeled-but-valid image is
     // safe to accept. CSV has no signature (weaker heuristic). Everything else
     // must still match its declared type exactly.
-    const IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
-    let effectiveType = file.type;
-    let contentOk: boolean;
-    if (file.type === "text/csv") {
-      contentOk = isPlausibleTextFile(bytes);
-    } else {
-      const detected = detectMimeType(bytes);
-      if (detected && IMAGE_MIMES.has(detected) && IMAGE_MIMES.has(file.type)) {
-        effectiveType = detected; // real image, just wrong extension — trust the bytes
-        contentOk = true;
-      } else {
-        contentOk = validateMimeType(bytes, file.type);
-      }
-    }
+    // The rule itself lives in `resolveUploadType` so /api/admin/bulk-upload
+    // reaches the same verdict — it used to call `validateMimeType` directly
+    // and refuse covers this route accepts.
+    const { ok: contentOk, effectiveType } = resolveUploadType(bytes, file.type);
     if (!contentOk) {
       logSecurityEvent({ type: "upload_rejected", where: "/api/admin/upload", detail: `content does not match declared type ${file.type}` });
       return NextResponse.json(

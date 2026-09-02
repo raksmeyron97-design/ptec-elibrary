@@ -7,7 +7,7 @@
 // edit or reject every field before submitting, same as typing it by hand.
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { requireLibrarian } from "@/lib/auth/requireAdmin";
+import { requirePermission } from "@/lib/auth/requireAdmin";
 
 const MODEL = "gemini-3.5-flash";
 // Newest-generation models occasionally 503 under high demand — confirmed
@@ -53,7 +53,10 @@ function getAI() {
 export async function extractBookMetadata(
   formData: FormData,
 ): Promise<{ data: ExtractedBookMetadata } | { error: string }> {
-  const { supabase, user } = await requireLibrarian();
+  // Same grant the upload form itself requires. A role list here refused a
+  // `staff` account that had been delegated books: write, on the very page the
+  // registry had just let it open.
+  const { supabase, user } = await requirePermission("books", "write");
 
   const file = formData.get("pdf");
   if (!(file instanceof File) || file.size === 0) return { error: "No PDF provided." };
