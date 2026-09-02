@@ -246,11 +246,24 @@ export function buildRecordXml(record: OaiRecord, publisherName: string): string
 
 // ── Envelope ─────────────────────────────────────────────────────────────
 
+// A key safe to emit, unescaped, as an XML attribute NAME. Every real
+// OAI-PMH argument name (identifier, metadataPrefix, from, until, set,
+// resumptionToken) matches this trivially. `escapeXml` can't be applied to
+// `key` the way it is to `value`: escaping is for text CONTENT, and `key`
+// sits outside any quotes in `<request ${key}="...">` — an attribute name
+// isn't valid XML just because its special characters were entity-encoded.
+const SAFE_ATTR_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+
 export function buildRequestTag(baseUrl: string, verb: string | null, params: Record<string, string>): string {
   let attrs = "";
   if (verb) attrs += ` verb="${escapeXml(verb)}"`;
   for (const [key, value] of Object.entries(params)) {
     if (key === "verb") continue;
+    // `params` reaches here from the raw query string, including on the
+    // badArgument error path — where `key` is, by definition, whatever
+    // caused validation to fail. Drop anything that isn't already a safe
+    // bare identifier rather than echo it back into the tag.
+    if (!SAFE_ATTR_NAME.test(key)) continue;
     attrs += ` ${key}="${escapeXml(value)}"`;
   }
   return `<request${attrs}>${escapeXml(baseUrl)}</request>`;
