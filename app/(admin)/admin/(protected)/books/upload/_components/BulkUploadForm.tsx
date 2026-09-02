@@ -12,7 +12,7 @@ import {
   type ImportRun,
   type ImportRunRow,
 } from "@/app/(admin)/admin/(protected)/books/upload/import-run-actions";
-import { makeUid, bookFolder, bookPdfPath, bookCoverPath } from "@/lib/book-utils";
+import { makeUid, bookFolder } from "@/lib/book-utils";
 import { describeStoragePathError, folderNameNote, type FolderNameNote } from "@/lib/storage/folder-name";
 import { QueueCancelled, postFile, type QueueGate } from "@/lib/admin/import-queue";
 import { getPdfPageCount } from "@/lib/pdf-client-utils";
@@ -64,6 +64,8 @@ interface BookJob {
   folder: string;
   /** Whether the title fit the storage segment, was cut, or fell back. */
   folderNote: FolderNameNote;
+  /** Non-fatal problem on an otherwise successful row (e.g. cover rejected). */
+  warning?: string;
 }
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
@@ -116,12 +118,19 @@ function parseCsv(text: string): CsvRow[] {
   });
 }
 
+/** Lower-cased cover extension, defaulting the way bookCoverPath() did. */
+function coverExt(name: string): string {
+  const ext = name.split(".").pop()?.toLowerCase();
+  return ext && ext !== name.toLowerCase() ? ext : "jpg";
+}
+
 // ─── Upload a single book ─────────────────────────────────────────────────────
 
 async function uploadBook(
   job: BookJob,
   gate: QueueGate,
-  onStatus: (status: RowStatus, extra?: { error?: string; slug?: string }) => void,
+  onStatus: (status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
+  onTransport: (via: "v1" | "legacy") => void,
 ): Promise<void> {
   const { row, pdfFile, coverFile } = job;
 
@@ -134,19 +143,25 @@ async function uploadBook(
 
   let uploadedPdfUrl: string | null = null;
   try {
-    // 1. Upload PDF via server proxy (server → R2, no CORS needed)
+    // 1. PDF and cover in ONE request. Zima meters per request, not per file,
+    //    so a book now costs one unit instead of two — see the route's header
+    //    comment and docs/BULK-IMPORT.md.
     onStatus("uploading-pdf");
     const folder = job.folder;
-    const pdfPath = bookPdfPath(folder);
+
+    const payload = new FormData();
+    payload.set("folder", folder);
+    payload.set("pdf", pdfFile);
+    payload.set("pdfName", "book.pdf");
+    if (coverFile) {
+      payload.set("cover", coverFile);
+      payload.set("coverName", `cover.${coverExt(coverFile.name)}`);
+      payload.set("coverType", coverFile.type || "image/jpeg");
+    }
 
     const pdfRes = await postFile("/api/admin/bulk-upload", {
       method: "POST",
-      headers: {
-        "x-file-path": pdfPath,
-        "x-target": "private",
-        "x-content-type": "application/pdf",
-      },
-      body: pdfFile,
+      body: payload,
     }, gate);
     if (!pdfRes.ok) {
       const { error } = await pdfRes.json().catch(() => ({ error: pdfRes.statusText }));
@@ -158,34 +173,9 @@ async function uploadBook(
       if (pdfRes.status === 409) { onStatus("skipped", { error }); return; }
       throw new Error(`PDF upload failed: ${error}`);
     }
-    const { url: pdfPublicUrl, contentHash } = await pdfRes.json();
+    const { url: pdfPublicUrl, coverUrl, contentHash, via, warning } = await pdfRes.json();
     uploadedPdfUrl = pdfPublicUrl;
-
-    // 2. Upload cover (optional, non-fatal)
-    let coverUrl: string | null = null;
-    if (coverFile) {
-      onStatus("uploading-cover");
-      try {
-        const coverPath = bookCoverPath(folder, coverFile.name);
-        const coverRes = await postFile("/api/admin/bulk-upload", {
-          method: "POST",
-          headers: {
-            "x-file-path": coverPath,
-            "x-target": "public",
-            "x-content-type": coverFile.type || "image/jpeg",
-          },
-          body: coverFile,
-        }, gate);
-        if (coverRes.ok) {
-          const { url } = await coverRes.json();
-          coverUrl = url;
-        }
-      } catch (err) {
-        // A missing cover is not worth failing a book over — but a Stop is not
-        // a cover problem, so it must not be swallowed here.
-        if (err instanceof QueueCancelled) throw err;
-      }
-    }
+    onTransport(via === "legacy" ? "legacy" : "v1");
 
     // 3. Save record
     onStatus("saving");
@@ -227,7 +217,13 @@ async function uploadBook(
     // `result` is a discriminated union; the error branch is thrown above, so
     // the success branch's slug is reachable without an `as any` cast — which
     // is all the file-level no-explicit-any suppression was hiding here.
-    onStatus("done", { slug: result && "slug" in result ? result.slug : undefined });
+    onStatus("done", {
+      slug: result && "slug" in result ? result.slug : undefined,
+      // A book saved without its cover is a success WITH a caveat. Showing it
+      // on the row is the difference between "no cover" and "no cover, and
+      // nobody was told".
+      warning: warning ?? undefined,
+    });
   } catch (err) {
     // A PDF that reached storage but never reached a book row is an orphan:
     // invisible in the catalogue, still occupying the disk, and — because the
@@ -248,7 +244,8 @@ async function runQueue(
   jobs: BookJob[],
   concurrency: number,
   gate: QueueGate,
-  onJobUpdate: (id: string, status: RowStatus, extra?: { error?: string; slug?: string }) => void,
+  onJobUpdate: (id: string, status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
+  onTransport: (via: "v1" | "legacy") => void,
 ) {
   let i = 0;
 
@@ -258,7 +255,7 @@ async function runQueue(
     if (idx >= jobs.length) return;
     const job = jobs[idx];
     try {
-      await uploadBook(job, gate, (status, extra) => onJobUpdate(job.id, status, extra));
+      await uploadBook(job, gate, (status, extra) => onJobUpdate(job.id, status, extra), onTransport);
     } catch (err) {
       if (err instanceof QueueCancelled) return; // drain quietly
       throw err;
@@ -385,6 +382,12 @@ export default function BulkUploadForm() {
 
   // Durable progress (migration 0129).
   const [resumable, setResumable] = useState<ImportRun | null>(null);
+  // Which storage endpoint the run actually reached. Reported POSITIVELY, not
+  // only on failure: "am I getting 120/hour or silently falling back to 60?"
+  // must be answerable at a glance, and the absence of a warning is not an
+  // answer. "legacy" wins once seen — a run that fell back even once did not
+  // get the batched rate.
+  const [transport, setTransport] = useState<"v1" | "legacy" | null>(null);
   const [resumedRows, setResumedRows] = useState<Map<string, ImportRunRow>>(new Map());
   const runIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -482,10 +485,16 @@ export default function BulkUploadForm() {
     setStarted(false);
   }
 
-  function updateJob(id: string, status: RowStatus, extra?: { error?: string; slug?: string }) {
+  function updateJob(
+    id: string,
+    status: RowStatus,
+    extra?: { error?: string; slug?: string; warning?: string },
+  ) {
     setJobs((prev) =>
       prev.map((j) =>
-        j.id === id ? { ...j, status, error: extra?.error, slug: extra?.slug } : j,
+        j.id === id
+          ? { ...j, status, error: extra?.error, slug: extra?.slug, warning: extra?.warning }
+          : j,
       ),
     );
   }
@@ -536,7 +545,7 @@ export default function BulkUploadForm() {
         updateJob(id, status, extra);
         latest = latest.map((j) => (j.id === id ? { ...j, status, error: extra?.error, slug: extra?.slug } : j));
         persist(latest, gate.cancelled ? "paused" : "running");
-      });
+      }, (via) => setTransport((prev) => (prev === "legacy" ? prev : via)));
     } finally {
       setRunning(false);
       setPausedUntil(null);
@@ -863,6 +872,27 @@ export default function BulkUploadForm() {
             </div>
           )}
 
+          {/* WHICH PATH THIS RUN USED, shown either way. The question being
+              answered is "am I really getting 120/hour?", and silence cannot
+              answer it — a fallback and a fast run would look identical. */}
+          {transport !== null && (
+            <p
+              role="status"
+              className={`flex items-start gap-2 border-b px-5 py-3 text-xs sm:px-6 ${
+                transport === "v1"
+                  ? "border-divider text-text-muted"
+                  : "border-warning-line bg-warning-soft text-warning-text"
+              }`}
+            >
+              {transport === "v1" ? (
+                <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              {transport === "v1" ? t("transportBatched") : t("legacyUploadPath")}
+            </p>
+          )}
+
           {/* Pre-flight notices. Shown before the batch runs, because "14 of the
               first 36 rows failed" is a discovery an operator should never make
               one upload at a time. */}
@@ -953,6 +983,7 @@ export default function BulkUploadForm() {
                       <div className="flex flex-col gap-1">
                         <StatusBadge status={job.status} />
                         {job.error && <p className="text-xs text-danger-text">{job.error}</p>}
+                        {job.warning && <p className="text-xs text-warning-text">{job.warning}</p>}
                         {job.slug && (
                           <a
                             href={`/books/${job.slug}`}

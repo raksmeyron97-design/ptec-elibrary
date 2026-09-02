@@ -188,11 +188,25 @@ export async function createStorageFolder(actor: ActorContext, params: { folder:
   return call<{ folder: string }>("/folders", actor, { method: "POST", body: params, idempotencyKey });
 }
 
-export async function uploadStorageFiles(actor: ActorContext, folder: string, files: File[]) {
+/**
+ * Upload up to 10 files to one folder in a SINGLE request.
+ *
+ * Zima meters `/api/v1/files` per request, not per file, so batching a book's
+ * PDF and cover together costs one unit of the 120/hour `v1-upload` budget
+ * instead of two of the legacy endpoint's 60. `timeoutMs` is overridable
+ * because the book importer sends a 100 MB PDF and a cover together, which the
+ * file manager's 2-minute default does not comfortably cover.
+ */
+export async function uploadStorageFiles(
+  actor: ActorContext,
+  folder: string,
+  files: File[],
+  timeoutMs: number = UPLOAD_TIMEOUT_MS,
+) {
   const formData = new FormData();
   formData.set("folder", folder);
   for (const file of files) formData.append("files", file, file.name);
-  return call<StorageUploadResult[]>("/files", actor, { method: "POST", formData, timeoutMs: UPLOAD_TIMEOUT_MS });
+  return call<StorageUploadResult[]>("/files", actor, { method: "POST", formData, timeoutMs });
 }
 
 export async function renameStorageFile(actor: ActorContext, storageKey: string, name: string, idempotencyKey?: string) {
