@@ -11,10 +11,28 @@
 // Restricting "data:" to actual raster image MIME types (never
 // "image/svg+xml", which can carry an embedded <script>, nor "text/html")
 // keeps the allow-list from becoming a no-op.
-const SAFE_IMAGE_SRC_RE =
-  /^(https?:\/\/|blob:|data:image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon);)/i;
+//
+// Parses with the URL constructor and checks `.protocol` explicitly, the
+// same shape as lib/zima.ts's toAllowedStorageUrl() — deliberately not a
+// single regex test: `new URL(...)` rejects malformed input outright (a
+// regex only matches a prefix, so a value crafted to *start* with an
+// allowed scheme but parse as something else could slip a naive prefix
+// check), and `.protocol` is what a browser actually dispatches on.
+const SAFE_IMAGE_DATA_MIME_RE = /^image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon);/i;
 
 export function isSafeImageSrc(url: string | null | undefined): url is string {
   if (!url) return false;
-  return SAFE_IMAGE_SRC_RE.test(url.trim());
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return false;
+  }
+  if (parsed.protocol === "https:" || parsed.protocol === "http:" || parsed.protocol === "blob:") {
+    return true;
+  }
+  if (parsed.protocol === "data:") {
+    return SAFE_IMAGE_DATA_MIME_RE.test(parsed.pathname);
+  }
+  return false;
 }

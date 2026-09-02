@@ -37,4 +37,10 @@ describe("isSafeImageSrc", () => {
     expect(isSafeImageSrc("   https://cdn.example.org/x.jpg   ")).toBe(true);
     expect(isSafeImageSrc("   javascript:alert(1)")).toBe(false);
   });
+
+  it("rejects a relative path and other malformed/non-absolute input", () => {
+    expect(isSafeImageSrc("relative/path.jpg")).toBe(false);
+    expect(isSafeImageSrc("not a url")).toBe(false);
+    expect(isSafeImageSrc("//evil.example/x.jpg")).toBe(false);
+  });
 });
