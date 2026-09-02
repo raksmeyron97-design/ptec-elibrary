@@ -116,6 +116,7 @@ describe("BUG #2 — authorization failures never reach the generic error bounda
 const ADMIN_ACTION_FILES = [
   "ai-extraction.ts",
   "authors.ts",
+  "book-duplicates.ts",
   "book-requests.ts",
   "contact-messages.ts",
   "content-versions.ts",

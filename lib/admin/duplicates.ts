@@ -38,24 +38,19 @@ export type DuplicateGroup = {
   books: DuplicateBook[];
 };
 
-/** Lowercase, strip diacritics + punctuation, collapse whitespace. Used to
- *  cluster titles that differ only in casing/punctuation. */
-export function normalizeTitle(title: string): string {
-  return title
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9ក-៿]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-}
-
-/** Digits only (ISBN-10/13 with hyphens/spaces removed). Empty → null. */
-export function normalizeIsbn(isbn: string | null | undefined): string | null {
-  if (!isbn || isbn === "N/A") return null;
-  const digits = isbn.replace(/[^0-9xX]/g, "").toUpperCase();
-  return digits.length === 10 || digits.length === 13 ? digits : null;
-}
+/*
+ * NORMALIZATION LIVES IN ONE PLACE, AND IT IS NOT HERE.
+ *
+ * These are re-exported from lib/books/duplicate-detection/normalize.ts so the
+ * review queue, the upload gate and the bulk importer cannot develop separate
+ * opinions about what "the same title" or "the same ISBN" means — they had
+ * three, and the importer's was the weakest of them. They stay exported from
+ * this module because existing call sites import them from here, and because
+ * this module still owns a different question: how matching records are
+ * GROUPED, not how their fields are folded.
+ */
+export { normalizeIsbn, normalizeTitle } from "@/lib/books/duplicate-detection/normalize";
+import { normalizeIsbn, normalizeTitle } from "@/lib/books/duplicate-detection/normalize";
 
 function normalizeAuthor(author: string | null | undefined): string | null {
   const a = author?.trim().toLowerCase();

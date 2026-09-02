@@ -37,6 +37,13 @@ import {
 } from "@/lib/upload-progress";
 import { EBOOKS_BASE_PATH, EBOOKS_REVIEW_PATH } from "@/lib/admin/ebooks-url";
 import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
+import AuthorPicker, { type AuthorSelection } from "@/components/admin/books/AuthorPicker";
+import DuplicateAlert, { type DuplicateOverride } from "@/components/admin/books/DuplicateAlert";
+import PreflightPanel from "@/components/admin/books/PreflightPanel";
+import { useDuplicateCheck } from "@/components/admin/books/use-duplicate-check";
+import { hashFile } from "@/lib/books/duplicate-detection/client-hash";
+import { validateIsbn } from "@/lib/books/duplicate-detection/normalize";
+import { buildPreflight } from "@/lib/books/upload-preflight";
 import {
   FileText,
   ImagePlus,
@@ -51,6 +58,9 @@ import {
 } from "lucide-react";
 
 const LANGUAGES = ["Khmer", "English"] as const;
+
+/** Pre-filled, not entered. See `yearTouched`. */
+const DEFAULT_YEAR = String(new Date().getFullYear());
 
 /** Matches the global cap enforced by /api/admin/upload. Checked here too so a
  *  100 MB file is refused before it is sent, not after. */
@@ -153,13 +163,39 @@ export default function UploadForm({
   const [aiFilled, setAiFilled] = useState<AiField[]>([]);
   const [detectedPages, setDetectedPages] = useState<number | null>(null);
   const [isDetectingPages, setIsDetectingPages] = useState(false);
+
+  /* ── Fields the duplicate gate reads ──────────────────────────────────
+     These five are controlled, and the rest of the form stays uncontrolled.
+     The split is not cosmetic: the detector has to see the record as it is
+     being typed, and a ref only reports its value when something asks. Every
+     other field (summary, language, pages, tags) has no bearing on identity,
+     so it keeps the cheaper uncontrolled shape it already had. */
+  const [title, setTitle] = useState(initialTitle);
+  const [author, setAuthor] = useState<AuthorSelection>({ id: null, name: "" });
+  const [isbn, setIsbn] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [year, setYear] = useState(DEFAULT_YEAR);
+  /* The year box ships pre-filled with the current year, which is a DEFAULT and
+     not an answer. Without this flag the AI assistant would refuse to correct
+     it — "do not overwrite what the librarian typed" would silently become "do
+     not overwrite what the form typed". */
+  const [yearTouched, setYearTouched] = useState(false);
+  const [category, setCategory] = useState("");
+  const [department, setDepartment] = useState("");
+
+  /* sha256 of the chosen PDF, computed locally so "this file is already in the
+     library" is answerable BEFORE the transfer, not after it. Null is a real
+     state — a plain-http session has no SubtleCrypto — and simply means the
+     file-identity check waits for the server. */
+  const [contentHash, setContentHash] = useState<string | null>(null);
+  const [hashing, setHashing] = useState(false);
+  const [duplicateOverride, setDuplicateOverride] = useState<DuplicateOverride>(null);
+
   const t = useTranslations("adminUpload.single");
 
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const authorInputRef = useRef<HTMLInputElement>(null);
-  const yearInputRef = useRef<HTMLInputElement>(null);
   const languageSelectRef = useRef<HTMLSelectElement>(null);
   const summaryInputRef = useRef<HTMLTextAreaElement>(null);
   const pagesInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +245,63 @@ export default function UploadForm({
 
   const busy = phase !== "idle";
 
+  /* ── The duplicate gate ────────────────────────────────────────────────
+     Debounced, server-side, and advisory: `saveBookRecord` re-runs the same
+     detector at insert time, so nothing here is load-bearing for correctness.
+     What it is load-bearing for is the librarian's time — being told after a
+     40 MB upload is the failure this replaces. */
+  const duplicates = useDuplicateCheck({
+    title,
+    author: author.name,
+    isbn,
+    publisher,
+    year,
+    contentHash: contentHash ?? undefined,
+  });
+
+  const isbnAssessment = validateIsbn(isbn);
+  const duplicateResult = duplicates.result;
+  const blockedByDuplicate = Boolean(duplicateResult?.blocked);
+  const overrideSatisfies =
+    blockedByDuplicate &&
+    duplicateResult?.top != null &&
+    duplicateOverride?.acknowledgedBookId === duplicateResult.top.bookId &&
+    // A byte-identical PDF is never overridable — the server refuses it too.
+    !duplicateResult.top.signals.includes("content_hash");
+
+  /* The only state in which the primary action is disabled. A blocking match
+     is not a validation error the librarian can fix in the form — the record
+     already exists — so leaving the button live would promise something the
+     server will refuse. Every other finding stays submittable on purpose:
+     disabling a button is how a form stops explaining itself. */
+  const saveBlocked = blockedByDuplicate && !overrideSatisfies;
+
+  const preflight = buildPreflight({
+    pdf: {
+      chosen: Boolean(pdfMeta),
+      sizeBytes: pdfMeta?.size ?? 0,
+      overSize: (pdfMeta?.size ?? 0) > MAX_PDF_BYTES,
+      overRecommended: (pdfMeta?.size ?? 0) > RECOMMENDED_PDF_BYTES,
+    },
+    pages: { detecting: isDetectingPages || hashing, detected: detectedPages },
+    title,
+    author: { name: author.name, canonicalId: author.id },
+    category,
+    department,
+    isbn: { raw: isbn, status: isbnAssessment.status },
+    duplicates:
+      duplicates.state === "ready" && duplicateResult
+        ? {
+            state: "ready",
+            blocked: duplicateResult.blocked,
+            count: duplicateResult.matches.length,
+            confidence: duplicateResult.top?.confidence ?? null,
+          }
+        : duplicates.state === "error"
+          ? { state: "error" }
+          : { state: duplicates.state === "checking" ? "checking" : "idle" },
+  });
+
   /* ── PDF ─────────────────────────────────────────────────────────────── */
 
   const acceptPdf = useCallback(
@@ -217,6 +310,10 @@ export default function UploadForm({
       setError(null);
       setDetectedPages(null);
       setAiFilled([]);
+      // A new file invalidates both the identity of the old one and any
+      // acknowledgement made about it.
+      setContentHash(null);
+      setDuplicateOverride(null);
 
       if (!file) {
         setPdfMeta(null);
@@ -250,6 +347,15 @@ export default function UploadForm({
         console.warn("[UploadForm] Could not detect pages:", err);
       } finally {
         setIsDetectingPages(false);
+      }
+
+      // Fingerprint last: it is the slowest of the three local reads and the
+      // only one whose absence degrades gracefully.
+      setHashing(true);
+      try {
+        setContentHash(await hashFile(file));
+      } finally {
+        setHashing(false);
       }
     },
     [t],
@@ -314,29 +420,33 @@ export default function UploadForm({
         return;
       }
 
-      const { title, author, year, language, summary } = res.data;
+      const { title: aiTitle, author: aiAuthor, year: aiYear, language, summary } = res.data;
       // Imperative fill — these are uncontrolled inputs (native defaultValue),
       // matching the rest of this form; only overwrite fields the model
       // actually returned a value for, and never touch category/department
       // (this library's taxonomy is too specific for the model to guess).
       const filled: AiField[] = [];
-      if (title && titleInputRef.current) {
-        titleInputRef.current.value = title;
+      // A value the librarian has already typed is the human answer and wins.
+      // The model fills BLANKS; it does not correct people. (§11)
+      if (aiTitle && !title.trim()) {
+        setTitle(aiTitle);
         filled.push("title");
       }
-      if (author && authorInputRef.current) {
-        authorInputRef.current.value = author;
+      if (aiAuthor && !author.name.trim()) {
+        // Never carries a canonical id: the model produced a string, not a
+        // decision about which person in the collection this is.
+        setAuthor({ id: null, name: aiAuthor });
         filled.push("author");
       }
-      if (year && yearInputRef.current) {
-        yearInputRef.current.value = String(year);
+      if (aiYear && (!year.trim() || !yearTouched)) {
+        setYear(String(aiYear));
         filled.push("year");
       }
       if (language && languageSelectRef.current) {
         languageSelectRef.current.value = language;
         filled.push("language");
       }
-      if (summary && summaryInputRef.current) {
+      if (summary && summaryInputRef.current && !summaryInputRef.current.value.trim()) {
         summaryInputRef.current.value = summary;
         filled.push("summary");
       }
@@ -379,11 +489,30 @@ export default function UploadForm({
       if ((cover as File).size > MAX_COVER_BYTES) { setError(t("err.coverSize")); return; }
     }
 
-    const title = (formData.get("title") as string)?.trim();
-    if (!title) {
+    const submittedTitle = title.trim();
+    if (!submittedTitle) {
       setError(t("err.titleRequired"));
       titleInputRef.current?.focus();
       return;
+    }
+
+    /* A debounce window is not a decision point. Re-check with the record as
+       it stands NOW, before a byte is uploaded — the librarian may have typed
+       the ISBN a moment ago, or another cataloguer may have saved the same
+       book while this form sat open. */
+    const fresh = await duplicates.runNow();
+    if (fresh?.blocked && fresh.top) {
+      const overridable = !fresh.top.signals.includes("content_hash");
+      const acknowledged =
+        overridable && duplicateOverride?.acknowledgedBookId === fresh.top.bookId;
+      if (!acknowledged) {
+        setError(
+          overridable
+            ? t("err.duplicateIsbn", { title: fresh.top.title })
+            : t("err.duplicateFile", { title: fresh.top.title }),
+        );
+        return;
+      }
     }
 
     inFlight.current = true;
@@ -391,7 +520,7 @@ export default function UploadForm({
       setPhase("uploading-pdf");
       const categoryName = (formData.get("category") as string)?.trim() || "uncategorized";
       const uid = makeUid();
-      const folder = bookFolder(categoryName, title, uid);
+      const folder = bookFolder(categoryName, submittedTitle, uid);
       const pdfPath = bookPdfPath(folder);
 
       const pdfPayload = new FormData();
@@ -401,7 +530,7 @@ export default function UploadForm({
 
       setTransferName(pdf.name);
       setTransfer(null);
-      const { url: pdfPublicUrl, contentHash } = await uploadWithProgress<{
+      const { url: pdfPublicUrl, contentHash: uploadedHash } = await uploadWithProgress<{
         url: string;
         contentHash?: string;
       }>("/api/admin/upload", pdfPayload, {
@@ -442,25 +571,31 @@ export default function UploadForm({
       setTransfer(null);
       setTransferName(null);
       const res = await saveBookRecord({
-        title,
-        author:     (formData.get("author")     as string) ?? "",
+        title:      submittedTitle,
+        author:     author.name,
+        authorId:   author.id ?? undefined,
         department: (formData.get("department") as string) ?? "",
         category:   (formData.get("category")   as string) ?? "",
         language:   (formData.get("language")   as string) ?? "",
         summary:    (formData.get("summary")    as string) ?? "",
-        isbn:       (formData.get("isbn")       as string) ?? "",
-        publisher:  (formData.get("publisher")  as string) ?? "",
-        year:       (formData.get("year")       as string) ?? "",
+        isbn,
+        publisher,
+        year,
         pages:      (formData.get("pages")      as string) ?? "",
         fileUrl:    pdfPublicUrl,
         fileSizeKb: String(Math.round(pdf.size / 1024)),
         coverUrl:   coverUrl ?? "",
         tags:       (formData.get("tags")       as string) ?? "",
-        contentHash: contentHash ?? "",
+        // The server's own hash of the uploaded bytes, not the browser's:
+        // the record must record what storage actually holds.
+        contentHash: uploadedHash ?? contentHash ?? "",
         // See migration 0128: recorded, never recomputed from the title.
         storageFolder: folder,
         status:     publishMode,
         license:    (formData.get("license")    as string) ?? "",
+        // Carried only when it matches the blocking match the form showed;
+        // the server re-checks that it still does.
+        duplicateOverride: overrideSatisfies && duplicateOverride ? duplicateOverride : undefined,
       });
       if (res && "error" in res) throw new Error(res.error);
       if (res && "success" in res) {
@@ -768,6 +903,19 @@ export default function UploadForm({
             </div>
           </FormSection>
 
+          {/* The gate. Placed between the file and the metadata because both
+              feed it: the PDF's fingerprint arrives on pick, the identifiers
+              arrive as they are typed, and the answer has to be visible
+              throughout rather than appearing at the end of the form. It
+              renders nothing until there is enough of a record to check, so it
+              is not gated on the file — a librarian who types the title first
+              is warned first. */}
+          <DuplicateAlert
+            snapshot={duplicates}
+            override={duplicateOverride}
+            onOverrideChange={setDuplicateOverride}
+          />
+
           {/* ── Step 2 · Book information ──────────────────────────────── */}
           <FormSection title={t("bookDetails")} description={t("bookDetailsSub")}>
             <Field label={t("field.title")} required>
@@ -776,7 +924,8 @@ export default function UploadForm({
                   {...p}
                   ref={titleInputRef}
                   name="title"
-                  defaultValue={initialTitle}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder={t("field.titlePlaceholder")}
                 />
               )}
@@ -787,35 +936,75 @@ export default function UploadForm({
                 description. License spans the measure because its CC option
                 labels are long enough to truncate in half a row. */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("field.author")} required>
+              {/* The picker owns its own `<input>`, so `Field` is told which id
+                  to label rather than handing one out. */}
+              <Field
+                label={t("field.author")}
+                required
+                htmlFor="book-author"
+                hint={author.id ? undefined : t("field.authorHint")}
+              >
+                <AuthorPicker
+                  id="book-author"
+                  value={author}
+                  onChange={setAuthor}
+                  disabled={busy}
+                  required
+                  placeholder={t("field.authorPlaceholder")}
+                  ariaLabel={t("field.author")}
+                />
+              </Field>
+
+              <Field
+                label={t("field.isbn")}
+                hint={
+                  isbnAssessment.status === "invalid"
+                    ? undefined
+                    : isbnAssessment.status === "valid"
+                      ? t("field.isbnValid")
+                      : undefined
+                }
+                /* An unverifiable check digit is worth saying and never worth
+                   refusing a book over — a real printed ISBN can be wrong. */
+                error={isbnAssessment.status === "invalid" ? t("field.isbnInvalid") : undefined}
+              >
                 {(p) => (
                   <input
                     {...p}
-                    ref={authorInputRef}
-                    name="author"
-                    placeholder={t("field.authorPlaceholder")}
+                    name="isbn"
+                    value={isbn}
+                    onChange={(e) => setIsbn(e.target.value)}
+                    inputMode="numeric"
+                    placeholder={t("optional")}
                   />
                 )}
               </Field>
 
-              <Field label={t("field.isbn")}>
-                {(p) => <input {...p} name="isbn" placeholder={t("optional")} />}
-              </Field>
-
               <Field label={t("field.publisher")}>
-                {(p) => <input {...p} name="publisher" placeholder={t("optional")} />}
+                {(p) => (
+                  <input
+                    {...p}
+                    name="publisher"
+                    value={publisher}
+                    onChange={(e) => setPublisher(e.target.value)}
+                    placeholder={t("optional")}
+                  />
+                )}
               </Field>
 
               <Field label={t("field.year")}>
                 {(p) => (
                   <input
                     {...p}
-                    ref={yearInputRef}
                     name="year"
                     type="number"
                     min="1900"
                     max="2099"
-                    defaultValue={new Date().getFullYear()}
+                    value={year}
+                    onChange={(e) => {
+                      setYear(e.target.value);
+                      setYearTouched(true);
+                    }}
                   />
                 )}
               </Field>
@@ -825,6 +1014,8 @@ export default function UploadForm({
                   name="category"
                   required
                   options={catList}
+                  value={category}
+                  onChange={setCategory}
                   disabled={busy}
                   ariaLabel={t("field.category")}
                   chevron="down"
@@ -836,6 +1027,8 @@ export default function UploadForm({
                   name="department"
                   required
                   options={deptList}
+                  value={department}
+                  onChange={setDepartment}
                   disabled={busy}
                   ariaLabel={t("field.department")}
                   chevron="down"
@@ -948,7 +1141,9 @@ export default function UploadForm({
         </div>
 
         {/* ── Context aside ───────────────────────────────────────────── */}
-        <aside className="w-full min-w-0 xl:sticky xl:top-6">
+        <aside className="w-full min-w-0 space-y-4 xl:sticky xl:top-6">
+          <PreflightPanel report={preflight} />
+
           <div className="overflow-hidden rounded-2xl border border-divider bg-bg-surface">
             <div className="border-b border-divider bg-paper px-5 py-3.5">
               <h3 className="text-sm font-semibold text-text-heading">{t("recentUploads")}</h3>
@@ -994,15 +1189,21 @@ export default function UploadForm({
 
       <StickyActionBar
         status={
-          <span className="text-text-muted">
-            {publishMode === "published" ? t("statusWillPublish") : t("statusWillQueue")}
-          </span>
+          saveBlocked ? (
+            <span className="font-semibold text-danger-text">{t("statusBlocked")}</span>
+          ) : overrideSatisfies ? (
+            <span className="font-semibold text-warning-text">{t("statusOverride")}</span>
+          ) : (
+            <span className="text-text-muted">
+              {publishMode === "published" ? t("statusWillPublish") : t("statusWillQueue")}
+            </span>
+          )
         }
       >
         <Link href={EBOOKS_BASE_PATH} className={BTN_SECONDARY}>
           {t("cancel")}
         </Link>
-        <button type="submit" disabled={busy} className={BTN_PRIMARY}>
+        <button type="submit" disabled={busy || saveBlocked} className={BTN_PRIMARY}>
           {busy ? (
             <ButtonBusy label={busyLabel} />
           ) : (

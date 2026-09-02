@@ -12,6 +12,8 @@ import { createAdminNotification } from "@/lib/admin-notifications";
 import { indexPdfPagesSafe } from "@/lib/pdf-page-index";
 import { notifyNewBookPublished } from "@/lib/push-events";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
+import { findBookDuplicates } from "@/lib/books/duplicate-detection/service";
+import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normalize";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -82,6 +84,139 @@ export interface BookInput {
   /** "published" (default) goes live immediately; "pending_review" waits in /admin/review */
   status?: "published" | "pending_review";
   license?: string;
+  /** Canonical author chosen in the picker. When present and real, the book
+   *  attaches to that exact row instead of upserting one by name — which is
+   *  how "John Smith" stops becoming three people. Never trusted blindly: an
+   *  id that does not exist falls back to the name path. */
+  authorId?: string;
+  /**
+   * A librarian's explicit decision to save despite a BLOCKING duplicate.
+   *
+   * Only an ISBN collision can be overridden, and only into the review queue —
+   * see assertNotDuplicate(). A byte-identical PDF has no legitimate override:
+   * there is no second record to make of the same file.
+   */
+  duplicateOverride?: { acknowledgedBookId: string; reason: string };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Escape LIKE metacharacters so a taxonomy name is matched as literal text. */
+function likeLiteral(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+/**
+ * Find an existing category/department by name, case- and padding-insensitively.
+ *
+ * `.eq("name", …)` is case-sensitive, so "education" typed into a form that
+ * already had "Education" inserted a second row — and then the two split the
+ * collection between them on every listing page. Matching folds the case;
+ * nothing is renamed or merged, and a genuinely new value is still created
+ * with the casing the librarian typed.
+ */
+async function findTaxonomyByName(
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
+  table: "categories" | "departments",
+  name: string,
+): Promise<{ id: string } | null> {
+  const { data: exact } = await supabase.from(table).select("id").eq("name", name).maybeSingle();
+  if (exact) return exact;
+
+  const { data: folded } = await supabase
+    .from(table)
+    .select("id, name")
+    .ilike("name", likeLiteral(name))
+    .limit(5);
+  const target = normalizeTaxonomyValue(name);
+  const hit = (folded ?? []).find((row: { name: string }) => normalizeTaxonomyValue(row.name) === target);
+  return hit ? { id: (hit as { id: string }).id } : null;
+}
+
+/**
+ * The server's own duplicate refusal — the one that actually prevents a row.
+ *
+ * The upload form checks before it uploads so a librarian is not made to wait
+ * for a 40 MB transfer before being told, but that check is advisory: the
+ * client can be stale, raced, or simply not run. This is the same detector,
+ * on the same rules, at the moment of insert.
+ *
+ * Two blocking signals, treated differently on purpose:
+ *
+ *   * content_hash — byte-identical PDF. Never overridable. The file is
+ *     already in the library; a second record of it is not a decision anyone
+ *     needs to make. (The partial unique index on book_files.content_hash is
+ *     the backstop behind this for two requests that race.)
+ *   * isbn — the same registered identifier. Overridable, because a librarian
+ *     can be looking at a genuine cataloguing error in the EXISTING record.
+ *     The override does not publish: it routes to /admin/review with the
+ *     acknowledgement recorded, so a second person sees it.
+ */
+async function assertNotDuplicate(
+  supabase: Awaited<ReturnType<typeof requirePermission>>["supabase"],
+  userId: string,
+  input: BookInput,
+  resolved: { title: string; author: string; year: number },
+): Promise<{ status: "published" | "pending_review"; overrodeBookId: string | null }> {
+  const requestedStatus = input.status === "pending_review" ? "pending_review" : "published";
+
+  let assessment;
+  try {
+    assessment = await findBookDuplicates(supabase, {
+      title: resolved.title,
+      author: resolved.author,
+      isbn: input.isbn ?? null,
+      publisher: input.publisher ?? null,
+      year: resolved.year,
+      contentHash: input.contentHash?.trim() || null,
+    });
+  } catch (error) {
+    // A detector that cannot run must not become a detector that says "clean".
+    // It also must not take the upload down: the content-hash unique index
+    // still stands behind this, so the save proceeds and the failure is loud.
+    console.error("[saveBookRecord] duplicate re-check failed:", error);
+    return { status: requestedStatus, overrodeBookId: null };
+  }
+
+  const top = assessment.top;
+  if (!top || !assessment.blocked) return { status: requestedStatus, overrodeBookId: null };
+
+  const overrideId = input.duplicateOverride?.acknowledgedBookId?.trim() ?? "";
+  const overrideMatches = UUID_PATTERN.test(overrideId) && overrideId === top.bookId;
+
+  if (top.signals.includes("content_hash")) {
+    await logAdminAction(userId, "book.duplicate_blocked", "books", top.bookId, {
+      signal: "content_hash",
+      confidence: top.confidence,
+      score: top.score,
+      attemptedTitle: resolved.title,
+    });
+    throw new Error(
+      `This exact PDF is already in the library as "${top.title}". Open that record instead of adding a second copy.`,
+    );
+  }
+
+  if (!overrideMatches) {
+    await logAdminAction(userId, "book.duplicate_blocked", "books", top.bookId, {
+      signal: top.signals[0] ?? "isbn",
+      confidence: top.confidence,
+      score: top.score,
+      attemptedTitle: resolved.title,
+    });
+    throw new Error(
+      `ISBN ${input.isbn?.trim()} is already registered to "${top.title}". Correct the ISBN, or confirm this is a different edition to send it for review.`,
+    );
+  }
+
+  await logAdminAction(userId, "book.duplicate_override", "books", top.bookId, {
+    signal: top.signals[0] ?? "isbn",
+    confidence: top.confidence,
+    score: top.score,
+    reason: input.duplicateOverride?.reason ?? "unspecified",
+    attemptedTitle: resolved.title,
+  });
+  // An acknowledged duplicate never goes straight to the public library.
+  return { status: "pending_review", overrodeBookId: top.bookId };
 }
 
 export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
@@ -106,6 +241,15 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   const isbn       = input.isbn?.trim() || null;
   const publisher  = input.publisher?.trim() || null;
   const year       = validatedYear(input.year);
+
+  // THE authoritative duplicate refusal. Deliberately before the slug loop and
+  // every insert: a blocked save must leave nothing behind.
+  const { status: effectiveStatus, overrodeBookId } = await assertNotDuplicate(
+    supabase,
+    user.id,
+    input,
+    { title, author, year },
+  );
   const pages      = Number(input.pages) || 1;
   const fileSizeKb = Number(input.fileSizeKb) || 0;
   const coverUrl   = input.coverUrl?.trim() || null;
@@ -133,12 +277,29 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     }
   }
 
-  const { data: authorRow, error: authorError } = await supabase
-    .from("authors")
-    .upsert({ name: author }, { onConflict: "name" })
-    .select("id")
-    .single();
-  if (authorError) throw new Error(`Author error: ${authorError.message}`);
+  // Canonical author reuse. A picked id is verified to exist before it is
+  // trusted — a client-supplied uuid must never become a foreign key on the
+  // word of the client — and anything else falls back to the upsert-by-name
+  // path this form has always used.
+  let authorId: string | null = null;
+  const pickedAuthorId = input.authorId?.trim();
+  if (pickedAuthorId && UUID_PATTERN.test(pickedAuthorId)) {
+    const { data: picked } = await supabase
+      .from("authors")
+      .select("id")
+      .eq("id", pickedAuthorId)
+      .maybeSingle();
+    if (picked) authorId = picked.id;
+  }
+  if (!authorId) {
+    const { data: authorRow, error: authorError } = await supabase
+      .from("authors")
+      .upsert({ name: author }, { onConflict: "name" })
+      .select("id")
+      .single();
+    if (authorError) throw new Error(`Author error: ${authorError.message}`);
+    authorId = authorRow.id;
+  }
 
   // Look up existing category first; only insert if not found
   let categoryId: string;
@@ -147,11 +308,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   if (providedCategoryId) {
     categoryId = providedCategoryId;
   } else {
-    const { data: existingCat } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("name", category)
-      .maybeSingle();
+    const existingCat = await findTaxonomyByName(supabase, "categories", category);
 
     if (existingCat) {
       categoryId = existingCat.id;
@@ -180,11 +337,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   if (providedDepartmentId) {
     departmentId = providedDepartmentId;
   } else {
-    const { data: existingDept } = await supabase
-      .from("departments")
-      .select("id")
-      .eq("name", department)
-      .maybeSingle();
+    const existingDept = await findTaxonomyByName(supabase, "departments", department);
 
     if (existingDept) {
       departmentId = existingDept.id;
@@ -217,15 +370,15 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       title,
       slug,
       description:  summary,
-      author_id:    authorRow.id,
+      author_id:    authorId,
       category_id:  categoryId,
       department_id: departmentId,
       language,
       published_at: `${year}-01-01`,
-      is_published: input.status !== "pending_review",
+      is_published: effectiveStatus !== "pending_review",
       // Only reference the status/license columns (migrations 0061/0062)
       // when actually set — keeps this insert working even pre-migration.
-      ...(input.status === "pending_review" ? { status: "pending_review" } : {}),
+      ...(effectiveStatus === "pending_review" ? { status: "pending_review" } : {}),
       ...(input.license?.trim() ? { license: input.license.trim() } : {}),
       department,
       isbn,
@@ -258,8 +411,12 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     throw new Error(`File error: ${fileError.message}`);
   }
 
-  await logAdminAction(user.id, "book.create", "books", book.id, { title, status: input.status ?? "published" });
-  if (input.status === "pending_review") {
+  await logAdminAction(user.id, "book.create", "books", book.id, {
+    title,
+    status: effectiveStatus,
+    ...(overrodeBookId ? { duplicateOf: overrodeBookId } : {}),
+  });
+  if (effectiveStatus === "pending_review") {
     await createAdminNotification("new_book", `Book submitted for review: "${title}"`, undefined, "/admin/review");
   } else {
     await createAdminNotification("new_book", `New book added: "${title}"`, undefined, `/books/${book.slug}`);
@@ -372,12 +529,27 @@ export async function updateBook(bookId: string, formData: FormData) {
   }
   // else: no change to cover_url
 
-  const { data: authorRow, error: authorError } = await supabase
-    .from("authors")
-    .upsert({ name: author }, { onConflict: "name" })
-    .select("id")
-    .single();
-  if (authorError) throw new Error(`Author error: ${authorError.message}`);
+  // Same canonical-author rule as the upload form: a verified picked id wins,
+  // otherwise upsert by name.
+  let editAuthorId: string | null = null;
+  const pickedEditAuthorId = formData.get("authorId")?.toString().trim();
+  if (pickedEditAuthorId && UUID_PATTERN.test(pickedEditAuthorId)) {
+    const { data: picked } = await supabase
+      .from("authors")
+      .select("id")
+      .eq("id", pickedEditAuthorId)
+      .maybeSingle();
+    if (picked) editAuthorId = picked.id;
+  }
+  if (!editAuthorId) {
+    const { data: authorRow, error: authorError } = await supabase
+      .from("authors")
+      .upsert({ name: author }, { onConflict: "name" })
+      .select("id")
+      .single();
+    if (authorError) throw new Error(`Author error: ${authorError.message}`);
+    editAuthorId = authorRow.id;
+  }
 
   // Look up existing category first; only insert if not found
   let categoryId: string;
@@ -386,11 +558,7 @@ export async function updateBook(bookId: string, formData: FormData) {
   if (providedCategoryId) {
     categoryId = providedCategoryId;
   } else {
-    const { data: existingCat } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("name", category)
-      .maybeSingle();
+    const existingCat = await findTaxonomyByName(supabase, "categories", category);
 
     if (existingCat) {
       categoryId = existingCat.id;
@@ -418,11 +586,7 @@ export async function updateBook(bookId: string, formData: FormData) {
   if (providedDepartmentId) {
     departmentId = providedDepartmentId;
   } else {
-    const { data: existingDept } = await supabase
-      .from("departments")
-      .select("id")
-      .eq("name", department)
-      .maybeSingle();
+    const existingDept = await findTaxonomyByName(supabase, "departments", department);
 
     if (existingDept) {
       departmentId = existingDept.id;
@@ -448,7 +612,7 @@ export async function updateBook(bookId: string, formData: FormData) {
     .update({
       title,
       description:  summary,
-      author_id:    authorRow.id,
+      author_id:    editAuthorId,
       category_id:  categoryId,
       department_id: departmentId,
       language,
