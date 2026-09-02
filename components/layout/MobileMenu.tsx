@@ -61,7 +61,6 @@ export default function MobileMenu({ navLinks, locale, contact }: MobileMenuProp
   const notificationsT = useTranslations("notifications");
   const pathname = usePathname() ?? "";
   const drawerId = useId();
-  const [openSection, setOpenSection] = useState<string | null>(null);
   const [openPath, setOpenPath] = useState<string | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const open = openPath !== null && openPath === pathname;

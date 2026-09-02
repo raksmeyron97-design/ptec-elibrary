@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/admin/catalogs/add/page.tsx
-import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
 
 import AddBookWizard from "./_components/AddBookWizard";

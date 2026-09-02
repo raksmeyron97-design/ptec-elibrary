@@ -600,6 +600,7 @@ async function ActionButtons({
           coverColor={book.cover}
           pdfUrl={fileSrc as string}
           isLoggedIn={!!user}
+          userId={user?.id ?? null}
         />
       )}
       {book.dbId && (

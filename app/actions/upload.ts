@@ -5,6 +5,7 @@ import { zimaUpload, zimaDelete } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 import { guardUploadContent } from "@/lib/upload-content-guard";
 import { logSecurityEvent } from "@/lib/security-log";
+import { describeStoragePathError } from "@/lib/storage/folder-name";
 
 const ALLOWED_FOLDERS = ["books", "posts", "research", "reports", "team", "avatars", "publications", "announcements"];
 
@@ -20,6 +21,11 @@ function validateFolder(folder: string): void {
       `Folder must start with one of: ${ALLOWED_FOLDERS.join(", ")}`,
     );
   }
+  // The regex above permits shapes Zima itself refuses — any segment over 80
+  // characters, and the `.` its folder charset does not contain. Catch them
+  // here so the caller gets a sentence instead of "Invalid target folder".
+  const pathProblem = describeStoragePathError(folder);
+  if (pathProblem) throw new Error(pathProblem);
 }
 
 /**

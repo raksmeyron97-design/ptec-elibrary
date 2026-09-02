@@ -16,6 +16,12 @@
 // quarterly access review. --create refuses to touch an email that already
 // has an account. The generated password is printed ONCE, to stdout, for the
 // envelope; it is never written to disk and never logged anywhere else.
+//
+// --create also refuses to run unless stdout is an interactive terminal. The
+// one-time print is the whole handoff, so a redirect (`> out.txt`, a pipe into
+// `tee`, a CI step, `script`/`asciinema`) would quietly turn a sealed-envelope
+// credential into a file nobody remembers to shred. Failing before the account
+// exists is the cheap side of that trade.
 
 import { randomBytes } from "node:crypto";
 import path from "node:path";
@@ -110,6 +116,12 @@ async function main() {
   }
 
   // --create path
+  if (!process.stdout.isTTY) {
+    console.error("\nRefusing to --create with stdout redirected.");
+    console.error("The generated password is shown exactly once and must not land in a log file,");
+    console.error("a CI transcript or a scrollback capture. Re-run attached to a terminal.");
+    process.exit(2);
+  }
   if (existing) {
     console.error(`\n${email} already has an account (id ${existing.id}).`);
     console.error("Refusing to touch it — resetting an existing account's password from a script would be indistinguishable from a takeover in the audit trail.");

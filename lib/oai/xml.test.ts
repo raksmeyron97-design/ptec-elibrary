@@ -237,6 +237,41 @@ describe("envelope + errors", () => {
     expect(xml).toContain('<error code="cannotDisseminateFormat">nope</error>');
   });
 
+  it("buildRequestTag escapes an attribute VALUE that carries XML metacharacters", () => {
+    const tag = buildRequestTag("https://x.test/api/oai", "GetRecord", {
+      verb: "GetRecord",
+      identifier: `oai:x">--><script>alert(1)</script>`,
+    });
+    expect(tag).not.toContain("<script>");
+    expect(tag).toContain("&lt;script&gt;");
+  });
+
+  it("buildRequestTag drops a query-string key that isn't a safe attribute name, instead of reflecting it raw", () => {
+    // This is the badArgument error path: an illegal query param NAME
+    // reaches buildRequestTag via buildErrorXml before the request is
+    // rejected. Escaping only the attribute VALUE can't make an attacker-
+    // controlled attribute NAME safe, so it must be dropped instead.
+    const malicious = `"><script>alert(1)</script>`;
+    const tag = buildRequestTag("https://x.test/api/oai", "Identify", {
+      verb: "Identify",
+      [malicious]: "x",
+    });
+    expect(tag).toBe('<request verb="Identify">https://x.test/api/oai</request>');
+    expect(tag).not.toContain("<script>");
+  });
+
+  it("buildErrorXml drops an illegal argument name from the reflected <request> tag", () => {
+    const malicious = `foo"><evil/>`;
+    const xml = buildErrorXml(
+      "https://x.test/api/oai",
+      "Identify",
+      { verb: "Identify", [malicious]: "x" },
+      [new OaiError("badArgument", `Illegal argument '${malicious}' for verb Identify`)],
+    );
+    expect(xml).toContain('<request verb="Identify">https://x.test/api/oai</request>');
+    expect(xml).not.toContain("<evil/>");
+  });
+
   it("buildOaiPmhXml produces a namespaced OAI-PMH document with responseDate", () => {
     const xml = buildOaiPmhXml("<request>https://x.test/api/oai</request>", "<Identify></Identify>");
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);

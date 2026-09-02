@@ -5,7 +5,6 @@ import { localeAlternates } from "@/lib/seo/alternates";
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity, getSiteConfig } from "@/lib/system-settings/config";
 import { upcomingClosures } from "@/lib/system-settings/hours";
-import { formatTimeLabel } from "@/lib/library-hours";
 import { toAboutLocale, formatClock, formatDate, localized } from "@/lib/about/format";
 import { resolveLibraryStatus } from "@/lib/about/status";
 import { cambodiaWeekday, minutesToHHMM, todayIntervals } from "@/lib/about/schedule";

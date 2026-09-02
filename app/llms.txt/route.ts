@@ -5,6 +5,7 @@ import { getCollectionStats, type PublicCollectionStats } from "@/lib/collection
 import { SITE_URL } from "@/lib/seo/site";
 import { getOrgIdentity } from "@/lib/system-settings/config";
 import type { OrgIdentity } from "@/lib/system-settings/org-identity";
+import { markdownLink } from "@/lib/markdown/link";
 
 export const revalidate = 3600;
 
@@ -51,11 +52,6 @@ function firstJoinedName(value: JoinedName) {
   if (!value) return "";
   if (Array.isArray(value)) return clean(value.map((item) => item.name).filter(Boolean).join(", "));
   return clean(value.name);
-}
-
-function markdownLink(title: string, url: string) {
-  const safeTitle = title.replace(/\[/g, "\\[").replace(/\]/g, "\\]");
-  return `[${safeTitle}](${url})`;
 }
 
 function detail(parts: Array<string | number | null | undefined>) {

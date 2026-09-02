@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireLibrarian } from "@/lib/auth/requireAdmin";
 import { validateMimeType, detectMimeType, isPlausibleTextFile } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
-import { zimaUpload } from "@/lib/zima";
+import { zimaUpload, isZimaUploadError } from "@/lib/zima";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 import { logSecurityEvent } from "@/lib/security-log";
+import { describeStorageKeyError } from "@/lib/storage/folder-name";
 import { checkFileHashReputation, isVirusScanFailClosed } from "@/lib/virus-scan";
 
 export const runtime = "nodejs";
@@ -44,6 +45,16 @@ export async function POST(request: NextRequest) {
         { error: "File path must start with books/, posts/, research/, reports/, publications/, or paths/" },
         { status: 400 },
       );
+    }
+
+    // Refuse a folder Zima would refuse, but say WHY. The storage server
+    // answers any over-long or non-ASCII path segment with a bare
+    // `400 {"error":"Invalid target folder"}` — after the whole file has been
+    // uploaded to this route and re-sent. Checking here costs nothing and
+    // gives the operator a message they can act on.
+    const pathProblem = describeStorageKeyError(key);
+    if (pathProblem) {
+      return NextResponse.json({ error: pathProblem }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -140,6 +151,22 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     if (isAdminAuthError(err)) {
       return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    // A storage 429 or 5xx must reach the client AS a 429/5xx with its
+    // Retry-After intact. Flattening these to 500 is what made the bulk
+    // importer treat "wait 54 minutes" as "this row is broken" and burn
+    // through 63 rows in seconds.
+    if (isZimaUploadError(err) && err.status !== 400) {
+      const headers = err.retryAfterSeconds
+        ? { "Retry-After": String(err.retryAfterSeconds) }
+        : undefined;
+      return NextResponse.json(
+        { error: err.message, retryAfterSeconds: err.retryAfterSeconds, retryable: err.retryable },
+        { status: err.status === 429 ? 429 : 503, headers },
+      );
+    }
+    if (isZimaUploadError(err)) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("[admin/upload]", err);
     return NextResponse.json(

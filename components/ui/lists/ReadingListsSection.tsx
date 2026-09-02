@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
-import Image from "next/image";
 import {
   BookMarked, Plus, Trash2, Globe, Lock, ChevronRight,
-  Pencil, Check, X, Loader2,
+  Pencil, Check, Loader2,
 } from "lucide-react";
 import {
   createReadingList, deleteReadingList, updateReadingList,

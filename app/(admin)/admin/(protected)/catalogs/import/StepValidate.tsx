@@ -37,7 +37,6 @@ export default function StepValidate({
   importSet: ImportSet | null;
 }) {
   const t = useTranslations("adminCatalog.import.validate");
-  const tf = useTranslations("adminCatalog.import.fields");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);

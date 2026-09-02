@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { validateMimeType } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
-import { zimaUpload } from "@/lib/zima";
+import { zimaUpload, isZimaUploadError } from "@/lib/zima";
+import { describeStorageKeyError } from "@/lib/storage/folder-name";
 import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-optimize";
 
 export const runtime = "nodejs";
@@ -34,6 +35,14 @@ export async function POST(request: NextRequest) {
         { error: "File path must start with books/, posts/, research/, or reports/" },
         { status: 400 },
       );
+    }
+
+    // See /api/admin/upload: reject an unusable folder with a message that
+    // names the problem, rather than forwarding it and relaying Zima's
+    // "Invalid target folder" to an operator importing 86 rows.
+    const pathProblem = describeStorageKeyError(key);
+    if (pathProblem) {
+      return NextResponse.json({ error: pathProblem }, { status: 400 });
     }
 
     const declaredLength = Number(request.headers.get("content-length") ?? 0);
@@ -89,6 +98,22 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     if (isAdminAuthError(err)) {
       return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    // A storage 429 or 5xx must reach the client AS a 429/5xx with its
+    // Retry-After intact. Flattening these to 500 is what made the bulk
+    // importer treat "wait 54 minutes" as "this row is broken" and burn
+    // through 63 rows in seconds.
+    if (isZimaUploadError(err) && err.status !== 400) {
+      const headers = err.retryAfterSeconds
+        ? { "Retry-After": String(err.retryAfterSeconds) }
+        : undefined;
+      return NextResponse.json(
+        { error: err.message, retryAfterSeconds: err.retryAfterSeconds, retryable: err.retryable },
+        { status: err.status === 429 ? 429 : 503, headers },
+      );
+    }
+    if (isZimaUploadError(err)) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("[bulk-upload]", err);
     return NextResponse.json(

@@ -73,7 +73,12 @@ function getClientIP(req: NextRequest): string {
 
 /** Extracts request args, rejecting any argument that appears more than once. */
 function extractArgs(searchParams: URLSearchParams): Record<string, string> {
-  const args: Record<string, string> = {};
+  // Object.create(null) rather than `{}`: `key` is an arbitrary query-string
+  // parameter name, and a plain object literal gives `__proto__` special
+  // meaning as a property write. A null-prototype object has no such
+  // accessor, so a query param literally named `__proto__` just becomes an
+  // ordinary own property, like any other key.
+  const args: Record<string, string> = Object.create(null);
   for (const key of new Set(searchParams.keys())) {
     const values = searchParams.getAll(key);
     if (values.length > 1) throw new OaiError("badArgument", `Argument '${key}' appears more than once`);

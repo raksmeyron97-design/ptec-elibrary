@@ -21,7 +21,7 @@ export default async function EditBookPage({
     .from("books")
     .select(`
       id, title, slug, description, language, published_at,
-      department, isbn, publisher, pages, cover_url, tags, license,
+      department, isbn, publisher, pages, cover_url, tags, license, storage_folder,
       seo_title, seo_description, og_image,
       status, verified_at, verified_by, source_attribution,
       authors(name),
@@ -81,6 +81,9 @@ export default async function EditBookPage({
     summary:    (book.description as string) ?? "",
     tags:       Array.isArray(book.tags) ? (book.tags as string[]) : [],
     coverUrl: (book.cover_url as string | null) ?? null,
+    // Where this book's files actually live (migration 0128). NEVER recompute
+    // this from the title: the uid is random and the slug is truncated.
+    storageFolder: (book.storage_folder as string | null) ?? null,
     license:  (book.license as string | null) ?? "",
     seoTitle:       (book.seo_title as string | null) ?? "",
     seoDescription: (book.seo_description as string | null) ?? "",

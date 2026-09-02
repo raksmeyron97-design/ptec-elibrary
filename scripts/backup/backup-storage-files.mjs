@@ -101,13 +101,15 @@ async function main() {
   mkdirSync(target, { recursive: true });
 
   const indexPath = path.join(target, INDEX_FILE);
+  // Read directly rather than existsSync() + readFileSync(): the two-call
+  // form has a check-then-use gap (the file can vanish, or be swapped for a
+  // symlink, between the check and the read) that a single try/catch on
+  // ENOENT closes outright, with no window at all.
   let index = {};
-  if (existsSync(indexPath)) {
-    try {
-      index = JSON.parse(readFileSync(indexPath, "utf8"));
-    } catch {
-      console.warn("Sync index unreadable — treating every file as changed.");
-    }
+  try {
+    index = JSON.parse(readFileSync(indexPath, "utf8"));
+  } catch (e) {
+    if (e.code !== "ENOENT") console.warn("Sync index unreadable — treating every file as changed.");
   }
 
   const files = walk(source);

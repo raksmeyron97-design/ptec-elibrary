@@ -76,6 +76,9 @@ export interface BookInput {
   categoryId?: string;
   departmentId?: string;
   contentHash?: string;
+  /** Zima folder the files were written to (migration 0128). Recorded, never
+   *  recomputed: the uid in it is random and the title slug is truncated. */
+  storageFolder?: string;
   /** "published" (default) goes live immediately; "pending_review" waits in /admin/review */
   status?: "published" | "pending_review";
   license?: string;
@@ -230,6 +233,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       pages,
       cover_color:  coverColor,
       cover_url:    coverUrl,
+      storage_folder: input.storageFolder?.trim() || null,
       tags: tagsArr,
     })
     .select("id, slug")

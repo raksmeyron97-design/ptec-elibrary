@@ -11,9 +11,15 @@ import { invalidateSession } from "@/components/providers/SessionProvider";
  * DELIBERATELY NOT CLEARED: books the user downloaded for offline reading
  * ("offline-books"/"book-covers"). Those are content the user explicitly chose
  * to keep, they can be large, and silently destroying them on sign-out would be
- * a nasty surprise — lib/offline.ts owns their lifecycle and the UI has a
- * Remove button. If this library ever runs on genuinely shared kiosk devices,
- * that is the decision to revisit.
+ * a nasty surprise — the common case is one reader signing out of their own
+ * device and back in later, and their library should survive that.
+ *
+ * The shared-device case is handled where it actually matters, at sign-IN:
+ * every download carries the id of the account that saved it, and
+ * reconcileOfflineOwnership() in lib/offline.ts destroys another account's
+ * downloads — records and bytes — the moment a different reader signs in here.
+ * Sign-out hides nothing and deletes nothing; a different account arriving
+ * deletes everything that is not theirs. See docs/PWA-OFFLINE-READING.md.
  *
  * Best-effort by design: everything here can fail (no SW, storage disabled,
  * private browsing) and sign-out must succeed anyway.

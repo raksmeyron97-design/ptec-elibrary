@@ -288,7 +288,7 @@ export function upgradeLegacyCitationTokens(
   content: string | null | undefined,
   references: readonly PublicationReference[],
 ): string {
-  if (!content) return content ?? "";
+  if (!content) return "";
   return content.replace(CITATION_TOKEN_RE, (raw, key: string) => {
     const keys = splitCitationKeys(key);
     if (keys.length === 0) return raw;

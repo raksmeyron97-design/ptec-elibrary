@@ -39,9 +39,6 @@ interface Props {
   onChange: (values: CascadeValues) => void;
 }
 
-const SELECT_CLASS =
-  "h-11 w-full rounded-lg border border-divider px-4 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-focus-ring/15 bg-bg-surface";
-
 export default function ProgramCohortFields({ defaultValues, onChange }: Props) {
   // ── DB data (fetched once on mount) ─────────────────────────────────────────
   const [allPrograms, setAllPrograms] = useState<ThesisProgram[]>([]);

@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ImagePlus, X } from "lucide-react";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 
 interface CoverDropzoneProps {
   file: File | null;
@@ -33,7 +34,8 @@ export default function CoverDropzone({
     if (f && f.type.startsWith("image/")) onChange(f);
   };
 
-  const displayUrl = previewUrl ?? (!removed ? existingUrl ?? null : null);
+  const rawDisplayUrl = previewUrl ?? (!removed ? existingUrl ?? null : null);
+  const displayUrl = isSafeImageSrc(rawDisplayUrl) ? rawDisplayUrl : null;
   const canRemove = !!onRemove && !!displayUrl;
 
   return (

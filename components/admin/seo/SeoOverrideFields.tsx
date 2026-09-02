@@ -11,6 +11,7 @@
 // auto-generated title/description/cover, so leaving these empty is always safe.
 
 import { useState } from "react";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 
 export type SeoOverrideLabels = {
   heading: string;
@@ -73,7 +74,8 @@ export default function SeoOverrideFields({
 
   const previewTitle = seoTitle.trim() || fallbackTitle || l.titlePlaceholder!;
   const previewDescription = seoDescription.trim() || fallbackDescription || l.descPlaceholder!;
-  const previewImage = ogImage.trim() || fallbackImage;
+  const rawPreviewImage = ogImage.trim() || fallbackImage;
+  const previewImage = isSafeImageSrc(rawPreviewImage) ? rawPreviewImage : null;
   const displayUrl = siteUrl.replace(/^https?:\/\//, "");
 
   return (

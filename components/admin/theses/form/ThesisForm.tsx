@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { createThesis, updateThesis } from "@/app/actions/theses";
 import { autosaveThesisDraft, getThesisDraft, discardThesisDraft, type ThesisDraftKey, type ThesisDraftPayload } from "@/app/actions/thesis-drafts";
-import { slugify as fileSlugify, makeUid } from "@/lib/book-utils";
+import { makeUid, thesisFolder } from "@/lib/book-utils";
 import { SITE_URL } from "@/lib/seo/site";
 import { validateThesisDraft, validateThesisPublish, firstValidationError, type ThesisValidationErrors } from "@/lib/admin/thesis-validation";
 import { validateClientFile, sanitizeFilename, type SupplementaryFile } from "@/lib/admin/thesis-file-validation";
@@ -556,8 +556,11 @@ export default function ThesisForm({
     setPhase("uploading");
     try {
       const uid = makeUid();
-      const titleSlug = fileSlugify(title || "thesis");
-      const folder = `reports/${titleSlug}-${uid}`;
+      // thesisFolder() keeps the segment ASCII and inside Zima's 80-char cap.
+      // The previous `fileSlugify(title)` was the URL slugifier, so a Khmer
+      // title produced a Khmer folder — percent-encoded into the x-folder
+      // header and refused — and a long English one simply overran the cap.
+      const folder = thesisFolder(title || "thesis", uid);
 
       let finalPdfUrl = initial?.fileUrl ?? null;
       let fileSizeKb = initial?.fileSizeKb ?? null;

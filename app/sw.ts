@@ -17,6 +17,8 @@ import {
   isPrivateRequest,
   manifestRevision,
   OFFLINE_FALLBACK_URL,
+  OFFLINE_SHELL_URLS,
+  offlineShellFor,
   shouldPrecache,
 } from "@/lib/sw-policy";
 
@@ -65,9 +67,16 @@ const buildManifest = (self.__SW_MANIFEST ?? []).filter((entry) =>
 /** ...plus the offline shell, which nothing else adds. `fallbacks` below only
  *  NAMES it; without this entry the fallback resolves to nothing and an
  *  offline navigation shows the browser's network error. */
+const buildRevision = manifestRevision(buildManifest);
 const precacheEntries: (PrecacheEntry | string)[] = [
   ...buildManifest,
-  { url: OFFLINE_FALLBACK_URL, revision: manifestRevision(buildManifest) },
+  { url: OFFLINE_FALLBACK_URL, revision: buildRevision },
+  // ...and the two offline WORKING surfaces (library + reader, per locale).
+  // Same mechanism, different purpose: /~offline apologises for the network,
+  // these two open books that are already on the device. Precaching the
+  // documents is what lets them boot cold with the radio off — a NetworkFirst
+  // page cache only holds pages this visitor happened to open while online.
+  ...OFFLINE_SHELL_URLS.map((url) => ({ url, revision: buildRevision })),
 ];
 
 const runtimeCaching: RuntimeCaching[] = [
@@ -81,7 +90,8 @@ const runtimeCaching: RuntimeCaching[] = [
   //
   // This is the rule that used to leak. Merely *reading* a book online now
   // stores nothing; a book enters Cache Storage only when the user presses
-  // "Save offline", which calls cache.add() from the page (lib/offline.ts).
+  // "Save offline", which fetches it and cache.put()s the verified bytes from
+  // the page (downloadOfflineBook in lib/offline.ts).
   //
   // - ignoreSearch: the download is stored as `…/file?offline=1`, but the reader
   //   requests the bare `…/file`. Without this the saved copy is never found.
@@ -101,7 +111,48 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 2. Private: session-scoped, per-user, or Set-Cookie-bearing. ──────────
+  // ── 2. Offline library + offline reader: always answerable. ──────────────
+  // Before the generic navigation rule, and before the fallback can claim
+  // these: showing "you're offline" on the page whose entire job is to open
+  // downloaded books would be the exact failure this route exists to fix.
+  //
+  // Network first, because online these pages should reflect the current
+  // deployment. Offline, the precached shell answers — including for
+  // `/offline-reader?id=<bookId>`, which the precache route itself cannot match
+  // (its URL carries a query string, and serwist only ignores utm_/fbclid).
+  // The shell is id-independent by design; the page reads the id on the client.
+  {
+    matcher: ({ request, url, sameOrigin }) =>
+      sameOrigin &&
+      request.mode === "navigate" &&
+      offlineShellFor(url.pathname) !== null,
+    handler: async ({ request, url, event }) => {
+      try {
+        // navigationPreload is on, so the browser already started this request
+        // while the worker was booting. Consuming it avoids a second fetch and
+        // the "preload response not used" warning.
+        const preloaded = (await (event as FetchEvent).preloadResponse) as
+          | Response
+          | undefined;
+        const fresh = preloaded ?? (await fetch(request));
+        if (fresh && (fresh.ok || fresh.type === "opaqueredirect")) return fresh;
+      } catch {
+        // No network — that is the case this rule exists for.
+      }
+      const shell = offlineShellFor(url.pathname);
+      // ignoreSearch: precache entries are keyed with a __WB_REVISION__ param.
+      const cached = shell
+        ? await caches.match(shell, { ignoreSearch: true })
+        : undefined;
+      return (
+        cached ??
+        (await caches.match(OFFLINE_FALLBACK_URL, { ignoreSearch: true })) ??
+        Response.error()
+      );
+    },
+  },
+
+  // ── 3. Private: session-scoped, per-user, or Set-Cookie-bearing. ──────────
   // Everything under /api (including /api/me, /api/push/*, /api/notifications),
   // plus /admin, /auth, /dashboard, /profile, /lists. `/admin/login` really was
   // landing in Cache Storage before this rule existed.
@@ -115,8 +166,8 @@ const runtimeCaching: RuntimeCaching[] = [
     handler: new NetworkOnly(),
   },
 
-  // ── 3. Public page navigations. ──────────────────────────────────────────
-  // Private paths were already taken by rule 1, so this only ever sees public
+  // ── 4. Public page navigations. ──────────────────────────────────────────
+  // Private paths were already taken by rule 3, so this only ever sees public
   // pages. NetworkFirst keeps content fresh and gives the offline shell a
   // fallback.
   //
@@ -163,7 +214,7 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 4. Hashed build output. Content-addressed, so CacheFirst is safe. ─────
+  // ── 5. Hashed build output. Content-addressed, so CacheFirst is safe. ─────
   {
     matcher: ({ url, sameOrigin }) =>
       sameOrigin && url.pathname.startsWith("/_next/static/"),
@@ -177,7 +228,7 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 5. pdf.js worker, cmaps, standard fonts. ─────────────────────────────
+  // ── 6. pdf.js worker, cmaps, standard fonts. ─────────────────────────────
   {
     matcher: ({ url, sameOrigin }) =>
       sameOrigin && /^\/pdf\/.*\.(mjs|js|bcmap|pfb|ttf|otf)$/.test(url.pathname),
@@ -191,7 +242,7 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 6. Images (book covers, logos). Size-capped by `guard`. ──────────────
+  // ── 7. Images (book covers, logos). Size-capped by `guard`. ──────────────
   // Opaque cross-origin responses are rejected by the guard (status 0): their
   // size is unknowable and Chrome pads them to megabytes each in quota
   // accounting, so maxEntries alone would not bound storage.
@@ -207,8 +258,8 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 7. Anonymous Supabase reads of public tables only. ───────────────────
-  // Requests carrying an Authorization header were already claimed by rule 1,
+  // ── 8. Anonymous Supabase reads of public tables only. ───────────────────
+  // Requests carrying an Authorization header were already claimed by rule 3,
   // so an RLS-filtered row cannot reach this cache and be replayed to the next
   // user on a shared device.
   {
@@ -226,7 +277,7 @@ const runtimeCaching: RuntimeCaching[] = [
     }),
   },
 
-  // ── 8. Everything else: network, never stored. ───────────────────────────
+  // ── 9. Everything else: network, never stored. ───────────────────────────
   { matcher: () => true, handler: new NetworkOnly() },
 ];
 
@@ -290,12 +341,22 @@ self.addEventListener("activate", (event) => {
 // ── User-approved update. ───────────────────────────────────────────────────
 // The only way a waiting worker ever takes over, since skipWaiting is off. The
 // page posts this from the Update button and reloads on `controllerchange`.
+// Only this origin's own pages can drive the service worker — a page from
+// another origin cannot normally reach it (a service worker's message port
+// is scoped to clients it controls), but nothing here should depend on that
+// alone: verify explicitly rather than trust an unauthenticated postMessage.
+function isTrustedClientOrigin(event: ExtendableMessageEvent): boolean {
+  return event.origin === self.location.origin;
+}
+
 self.addEventListener("message", (event) => {
+  if (!isTrustedClientOrigin(event)) return;
   if ((event.data as { type?: string } | null)?.type !== "SKIP_WAITING") return;
   self.skipWaiting();
 });
 
 self.addEventListener("message", (event) => {
+  if (!isTrustedClientOrigin(event)) return;
   if ((event.data as { type?: string } | null)?.type !== "CLEAR_PRIVATE_CACHES") return;
   event.waitUntil(
     (async () => {

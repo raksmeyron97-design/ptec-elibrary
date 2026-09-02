@@ -49,6 +49,7 @@ export const PUBLIC_NAMESPACES = [
   "metrics",
   "nav",
   "notifications",
+  "offline",
   "pagination",
   "paths",
   "posts",

@@ -172,6 +172,20 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 
+-- ── Book files ──────────────────────────────────────────────────────────────
+-- One seeded PDF, so the reading and offline-download surfaces are reachable
+-- end to end: without a book_files row the detail page renders "PDF not
+-- available" and neither /books/[slug]/read nor "Save offline" exists to test.
+-- The URL is deliberately a bare storage key rather than a live CDN address —
+-- e2e intercepts /api/books/[id]/file and serves a real PDF body, so no test
+-- depends on an object existing in Zima or R2.
+INSERT INTO public.book_files (id, book_id, format, file_url, file_size_kb)
+VALUES
+  ('33333333-3333-4333-8333-3333333f3301', '33333333-3333-4333-8333-333333333301',
+   'pdf', 'books/seed/foundations-of-education.pdf', 512)
+ON CONFLICT (id) DO NOTHING;
+
+
 -- ============================================================================
 -- 6. Physical catalog (3 titles with shelf locations + barcoded copies)
 -- ============================================================================

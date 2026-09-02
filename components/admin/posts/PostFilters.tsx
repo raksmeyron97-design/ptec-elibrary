@@ -6,21 +6,12 @@ import { useTranslations } from "next-intl";
 import { SlidersHorizontal, X } from "lucide-react";
 import { withUpdatedParams } from "@/lib/admin/posts-url";
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
-import { CATEGORIES, SORT_OPTIONS, STATUS_LABELS, STATUSES, type PostAuthorOption } from "@/lib/admin/posts-shared";
+import { CATEGORIES, SORT_OPTIONS, STATUSES, type PostAuthorOption } from "@/lib/admin/posts-shared";
 
 const selectClass =
   "h-10 rounded-xl border border-divider bg-bg-surface px-3 text-[13.5px] text-text-body outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-focus-ring/30 cursor-pointer";
 
 const compactSelectWrapper = "w-[168px] shrink-0 [&_button]:h-10";
-
-const SORT_LABELS: Record<(typeof SORT_OPTIONS)[number], string> = {
-  newest: "Newest first",
-  oldest: "Oldest first",
-  "most-viewed": "Most viewed",
-  "least-viewed": "Least viewed",
-  "title-asc": "Title A–Z",
-  "title-desc": "Title Z–A",
-};
 
 const DATE_RANGE_LABELS: Record<string, string> = {
   all: "All time",

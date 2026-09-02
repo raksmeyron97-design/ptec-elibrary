@@ -74,10 +74,18 @@ export default function UpdateAvailable() {
     // button reliable: it waits for the handover to actually happen instead of
     // guessing at a delay, and it also covers the case where another tab
     // accepted the update first.
+    //
+    // ONLY when this page was already controlled. `clientsClaim: true` also
+    // fires controllerchange the first time a worker ever activates, on a page
+    // that was loaded before it existed — reloading there yanks the page out
+    // from under someone seconds into their first visit (and, measurably,
+    // destroyed the execution context mid-test). A first claim is not a
+    // handover: nothing about the page is stale, so there is nothing to reload.
+    const wasControlled = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener(
       "controllerchange",
       () => {
-        if (reloading.current) return;
+        if (!wasControlled || reloading.current) return;
         reloading.current = true;
         window.location.reload();
       },

@@ -62,7 +62,7 @@ import {
 } from "@/components/admin/kit/form";
 import TagInput from "@/components/ui/core/TagInput";
 import { ConfirmDialog } from "@/components/admin/kit";
-import { slugify, makeUid } from "@/lib/book-utils";
+import { slugify, makeUid, publicationFolder } from "@/lib/book-utils";
 import { SITE_URL } from "@/lib/seo/site";
 import AuthorshipEditor, { type AuthorshipRow } from "./AuthorshipEditor";
 import FiguresEditor from "./FiguresEditor";
@@ -608,7 +608,9 @@ export default function PublicationForm({
     savingRef.current = true;
     try {
       const uid = makeUid();
-      const folder = `publications/${finalSlug}-${uid}`;
+      // `finalSlug` is the URL slug and may be Khmer or very long; storage
+      // segments must be ASCII and ≤ 80 chars (lib/storage/folder-name.ts).
+      const folder = publicationFolder(finalSlug, uid);
 
       let nextPdfUrl = pdfUrl;
       if (pdfFile) {
