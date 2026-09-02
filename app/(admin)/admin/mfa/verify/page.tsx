@@ -61,26 +61,19 @@ export default function MfaVerifyPage() {
       return;
     }
 
-    // Challenge → Verify
-    const { data: challengeData, error: challengeError } =
-      await supabase.auth.mfa.challenge({ factorId });
-
-    if (challengeError || !challengeData) {
-      setError(challengeError?.message ?? "Failed to create MFA challenge");
-      setVerifying(false);
-      return;
-    }
-
     // Verification goes through the server (app/actions/sign-in.ts) so a
     // REJECTED code is recorded. GoTrue's own audit log writes
     // `verification_attempted` with no outcome field, so a failed second
     // factor is indistinguishable from a successful one there — which is why
     // mfa_failure_spike had no signal before this
-    // (docs/SECURITY_MONITORING_AUDIT.md §3.2). The challenge stays
-    // client-side: it carries no secret and creating one is not an attempt.
+    // (docs/SECURITY_MONITORING_AUDIT.md §3.2).
+    //
+    // The challenge is created server-side too, by `challengeAndVerify`. It
+    // used to be minted here and its id passed down, which meant a challenge
+    // that failed to be created returned early in the browser — never reaching
+    // the server, and so never recorded as a failed second factor at all.
     const result = await verifyMfa({
       factorId,
-      challengeId: challengeData.id,
       code: trimmedCode,
     });
 

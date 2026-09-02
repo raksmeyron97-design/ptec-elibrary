@@ -219,7 +219,6 @@ function classifyAuthError(message: string): SignInErrorCode {
  */
 export async function verifyMfa(input: {
   factorId: string;
-  challengeId: string;
   code: string;
 }): Promise<SignInResult> {
   const requestHeaders = await headers();
@@ -246,9 +245,8 @@ export async function verifyMfa(input: {
     return { ok: false, error: RATE_LIMITED_ERROR, code: "rate_limited" };
   }
 
-  const { error } = await supabase.auth.mfa.verify({
+  const { error } = await supabase.auth.mfa.challengeAndVerify({
     factorId: input.factorId,
-    challengeId: input.challengeId,
     code: input.code,
   });
 
