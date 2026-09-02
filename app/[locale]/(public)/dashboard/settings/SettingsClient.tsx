@@ -6,6 +6,7 @@ import { updateProfile, updatePassword, deleteAccount } from "@/app/actions/prof
 import Icon from "@/components/ui/core/Icon";
 import DownloadProfileForm from "@/components/ui/settings/DownloadProfileForm";
 import type { DownloadProfileRow } from "@/lib/profile/download-profile-shared";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 
 type SettingsClientProps = {
   user: {
@@ -291,7 +292,7 @@ export default function SettingsClient({
               {/* Avatar */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                 <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden bg-paper ring-2 ring-divider shrink-0 group">
-                  {avatarPreview && !avatarFailed ? (
+                  {avatarPreview && isSafeImageSrc(avatarPreview) && !avatarFailed ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={avatarPreview}

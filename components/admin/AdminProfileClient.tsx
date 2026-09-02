@@ -5,6 +5,7 @@ import Image from "next/image";
 import { updateProfile, updatePassword } from "@/app/actions/profile";
 import { updateOwnTeamMember } from "@/app/actions/team-profile";
 import { uploadToZima } from "@/app/actions/upload";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 import {
   Camera,
   Lock,
@@ -354,7 +355,7 @@ export default function AdminProfileClient({ user, teamMember, sections }: Props
               <div className="flex items-center gap-5">
                 <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 ring-2 ring-divider shrink-0 group cursor-pointer"
                   onClick={() => fileRef.current?.click()}>
-                  {preview && !previewFailed ? (
+                  {preview && isSafeImageSrc(preview) && !previewFailed ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={preview}

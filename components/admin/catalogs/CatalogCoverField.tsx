@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import GeneratedBookCover from "@/components/ui/books/GeneratedBookCover";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 import {
   COVER_ACCEPT_ATTR,
   COVER_MAX_BYTES,
@@ -215,8 +216,10 @@ export default function CatalogCoverField({
           <div className="flex flex-wrap items-start gap-4 rounded-xl border border-divider bg-bg-surface p-3">
             <figure className="w-[92px]">
               <div className={figureCls}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={selected.objectUrl} alt={t("coverPreviewAlt")} className="h-full w-full object-cover" />
+                {isSafeImageSrc(selected.objectUrl) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selected.objectUrl} alt={t("coverPreviewAlt")} className="h-full w-full object-cover" />
+                )}
               </div>
               <figcaption className={captionCls}>{t("selectedFile")}</figcaption>
             </figure>
@@ -329,7 +332,7 @@ export default function CatalogCoverField({
           <div className="flex flex-wrap items-start gap-4 rounded-xl border border-divider bg-bg-surface p-3" aria-live="polite">
             <figure className="w-[92px]">
               <div className={figureCls}>
-                {externalBroken ? (
+                {externalBroken || !isSafeImageSrc(externalUrl.trim()) ? (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
                     <svg className="h-5 w-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
                       <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
