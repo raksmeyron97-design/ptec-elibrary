@@ -39,7 +39,22 @@ export type IndexPdfResult =
  * control characters must be removed before it reaches console.log/error.
  */
 export function sanitizeLogId(value: string): string {
-  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, "").slice(0, 200);
+  return (
+    value
+      // Line breaks first, spelled out rather than folded into the control
+      // range below. They are the actual forging vector — a `\r\n` in a record
+      // id is what lets a caller append a whole fake log line — and stating
+      // them explicitly is also what makes the removal legible to static
+      // analysis, which cannot see a `\n` inside a unicode range and therefore
+      // reported every one of these call sites as unsanitised (CodeQL
+      // js/log-injection). Same output either way; the second pass already
+      // covered them.
+      .replace(/[\r\n]/g, "")
+      // ...then every other C0/C1 control character: NUL, and the ESC that
+      // starts a terminal colour sequence.
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+      .slice(0, 200)
+  );
 }
 
 function serviceDb(): SupabaseClient {
@@ -178,13 +193,27 @@ export async function indexPdfPagesSafe(
   try {
     const result = await indexPdfPages({ recordType, recordId, fileUrl });
     if (result.indexed) {
-      console.log(`[pdf-index] ${recordType}:${logId} — indexed ${result.pages} pages`);
+      // Constant format string, values as arguments. A template literal makes
+      // the whole message the format string, so a `%` inside a record id would
+      // consume the next argument — and CodeQL reports it as a tainted format
+      // string. The rendered line is identical.
+      console.log("[pdf-index] %s:%s — indexed %d pages", recordType, logId, result.pages);
       const { embedRecordChunksSafe } = await import("./chunk-embed");
       await embedRecordChunksSafe(recordType, recordId);
     } else {
-      console.log(`[pdf-index] ${recordType}:${logId} — skipped (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
+      console.log(
+        "[pdf-index] %s:%s — skipped (%s)",
+        recordType,
+        logId,
+        result.detail ? `${result.reason}: ${result.detail}` : result.reason,
+      );
     }
   } catch (err) {
-    console.error(`[pdf-index] ${recordType}:${logId} — failed:`, err instanceof Error ? err.message : err);
+    console.error(
+      "[pdf-index] %s:%s — failed:",
+      recordType,
+      logId,
+      err instanceof Error ? err.message : err,
+    );
   }
 }

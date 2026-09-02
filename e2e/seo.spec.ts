@@ -7,10 +7,25 @@ import { test, expect } from "@playwright/test";
 // Canonicals always use the production origin (lib/seo/site.ts falls back to
 // it when NEXT_PUBLIC_SITE_URL is unset), so assertions pin that constant.
 const PROD = "https://library.ptec.edu.kh";
-// Escapes PROD for embedding in a `new RegExp(...)` pattern below — plain
-// interpolation leaves its dots unescaped, so `.` would match ANY character
-// (e.g. a differently-punctuated host), not just a literal ".".
-const PROD_RE = PROD.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// The same origin, pre-escaped for the `new RegExp(...)` patterns below —
+// plain interpolation leaves the dots unescaped, so `.` would match ANY
+// character (a differently-punctuated host would pass).
+//
+// Written out literally rather than derived with a `.replace()`: a computed
+// escape is invisible to static analysis, which then reads the raw host —
+// dots and all — as the live pattern and reports it (CodeQL
+// js/incomplete-hostname-regexp). The first test below is what keeps the two
+// constants in step, so the literal cannot drift from the origin it mirrors.
+const PROD_RE = "https://library\\.ptec\\.edu\\.kh";
+
+test.describe("test constants", () => {
+  test("the escaped origin still describes the origin it mirrors", () => {
+    expect(new RegExp(`^${PROD_RE}$`).test(PROD)).toBe(true);
+    // ...and is genuinely escaped: a host that differs only in punctuation
+    // must not match.
+    expect(new RegExp(`^${PROD_RE}$`).test(PROD.replace(".ptec", "Xptec"))).toBe(false);
+  });
+});
 
 test.describe("canonical homepage", () => {
   test("/home 308-redirects to /", async ({ request }) => {
