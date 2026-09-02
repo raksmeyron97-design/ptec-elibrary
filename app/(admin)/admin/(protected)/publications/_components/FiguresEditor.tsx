@@ -20,6 +20,7 @@ import {
 } from "@/app/actions/publications";
 import type { PublicationFigure } from "@/lib/publications";
 import { Field, FieldEmptyState } from "@/components/admin/kit/form";
+import { clampStorageSegment } from "@/lib/storage/folder-name";
 
 /**
  * Manage a publication's figures.
@@ -76,7 +77,10 @@ async function uploadFigure(file: File, slug: string, index: number): Promise<st
   // "publications/" is the allow-listed folder whose permission check is
   // publications:write — the same permission that governs the article this
   // figure belongs to (app/actions/upload.ts permissionResourceForFolder).
-  payload.set("key", `publications/${slug || "publication"}/figures/figure-${seq}-${Date.now()}.${ext}`);
+  // The slug is a URL slug (may be Khmer, may be long); a storage segment may
+  // be neither — see lib/storage/folder-name.ts.
+  const folderSlug = clampStorageSegment(slug, "publication");
+  payload.set("key", `publications/${folderSlug}/figures/figure-${seq}-${Date.now()}.${ext}`);
   const res = await fetch("/api/admin/upload", { method: "POST", body: payload });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

@@ -5,7 +5,8 @@
 // so it can be safely imported from Client Components ("use client").
 // ──────────────────────────────────────────────────────────────
 
-import { asciiSlug, unicodeSlug } from "@/lib/slug";
+import { unicodeSlug } from "@/lib/slug";
+import { buildStorageFolderName, clampStorageSegment } from "@/lib/storage/folder-name";
 
 export type Book = {
   slug: string;
@@ -99,9 +100,33 @@ export function slugify(value: string) {
 // same key instead of leaving orphaned files scattered around.
 // ──────────────────────────────────────────────────────────────
 
-/** Short, URL-safe unique id (time-based, 6 chars). */
+/**
+ * Short, URL-safe unique id (8 chars) — the part of a storage folder name that
+ * keeps two books apart.
+ *
+ * Four time-derived characters keep folders roughly chronological, and four
+ * random ones carry the uniqueness. The previous `Date.now().toString(36)`
+ * alone gave every row built in the same millisecond the same id, and the bulk
+ * importer builds all 86 jobs in one synchronous pass. That was survivable
+ * while a folder name carried the whole title; it is not now that long titles
+ * are truncated to a common prefix and the uid is the only thing left telling
+ * two folders apart. Four base36 characters put a 500-row batch's collision
+ * probability under 0.1%, against roughly 3 expected collisions with two.
+ */
 export function makeUid() {
-  return Date.now().toString(36).slice(-6);
+  const time = Date.now().toString(36).slice(-4);
+  const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
+  const bytes = new Uint8Array(4);
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  let random = "";
+  // 256 % 36 != 0, so a plain modulo is very slightly biased toward the first
+  // four letters. Irrelevant for a collision-avoidance id, and not a secret.
+  for (const b of bytes) random += alphabet[b % alphabet.length];
+  return `${time}${random}`;
 }
 
 /** Lower-cased file extension (no dot). Falls back to a sensible default. */
@@ -110,12 +135,20 @@ function fileExt(name: string, fallback = "bin") {
   return ext && ext !== name.toLowerCase() ? ext : fallback;
 }
 
-/** Per-book folder: `books/{category}/{title}-{uid}` (no trailing slash). */
+/**
+ * Per-book folder: `books/{category}/{title}-{uid}` (no trailing slash).
+ *
+ * Both variable segments go through lib/storage/folder-name.ts, which keeps
+ * them ASCII and inside Zima's 80-character-per-segment cap. Before that,
+ * every academic title with a subtitle — "Interviewing as Qualitative
+ * Research: A Guide for Researchers in Education and the Social Sciences (3rd
+ * Edition)" is 116 characters slugified — produced a folder the storage server
+ * refused with `400 {"error":"Invalid target folder"}`, so those books could
+ * never be uploaded at all.
+ */
 export function bookFolder(category: string | null | undefined, title: string, uid: string) {
-  // Storage keys stay ASCII regardless of the title's script — the {uid}
-  // carries uniqueness, so a Khmer-only title just gets a plain folder name.
-  const cat = asciiSlug((category ?? "").trim()) || "uncategorized";
-  return `books/${cat}/${asciiSlug(title) || "book"}-${uid}`;
+  const cat = clampStorageSegment((category ?? "").trim(), "uncategorized");
+  return `books/${cat}/${buildStorageFolderName(title, uid, "book")}`;
 }
 
 /** The book's PDF key inside its folder. */
@@ -130,7 +163,17 @@ export function bookCoverPath(folder: string, coverFileName: string) {
 
 /** Per-post folder: `posts/{title}-{uid}` (no trailing slash). */
 export function postFolder(title: string, uid: string) {
-  return `posts/${asciiSlug(title) || "post"}-${uid}`;
+  return `posts/${buildStorageFolderName(title, uid, "post")}`;
+}
+
+/** Per-thesis folder: `reports/{title}-{uid}` (the DB table is research_reports). */
+export function thesisFolder(title: string, uid: string) {
+  return `reports/${buildStorageFolderName(title, uid, "thesis")}`;
+}
+
+/** Per-publication folder: `publications/{slug}-{uid}`. */
+export function publicationFolder(slug: string, uid: string) {
+  return `publications/${buildStorageFolderName(slug, uid, "publication")}`;
 }
 
 /** A numbered cover key inside a post folder, e.g. `.../cover-01.jpg`. */

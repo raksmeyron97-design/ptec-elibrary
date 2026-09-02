@@ -24,7 +24,7 @@ import { FileText, Globe, Image as ImageIcon, Search, type LucideIcon } from "lu
 import PostPreviewModal from "@/components/admin/posts/PostPreviewModal";
 import { SITE_URL } from "@/lib/seo/site";
 import { slugify } from "@/lib/admin/posts-shared";
-import { asciiSlug } from "@/lib/slug";
+import { makeUid, postFolder } from "@/lib/book-utils";
 import { validatePost, firstValidationError, type PostValidationErrors } from "@/lib/admin/post-validation";
 import type { PostCategory, PostStatus, PostVisibility } from "@/lib/admin/posts-shared";
 
@@ -331,11 +331,10 @@ export default function PostForm({
       const uploadedUrls: string[] = [];
       if (newItems.length > 0) {
         setPhase("uploading");
-        const uid = Date.now().toString(36).slice(-6);
-        // Storage folder must be ASCII — Khmer slugs in the x-folder HTTP
-        // header crash with "Cannot convert argument to a ByteString".
-        const safeFolder = asciiSlug(title) || "post";
-        const folder = `posts/${safeFolder}-${uid}`;
+        // postFolder() is the one builder for storage segments: ASCII only
+        // (Khmer in the x-folder header is percent-encoded and then refused)
+        // and clamped under Zima's 80-character-per-segment cap.
+        const folder = postFolder(title, makeUid());
         for (let i = 0; i < newItems.length; i++) {
           setUploadProgress(t("uploadingImage", { current: i + 1, total: newItems.length }));
           const { file } = newItems[i];

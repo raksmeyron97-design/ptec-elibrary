@@ -3,6 +3,60 @@
  * No "use server" — safe to import from both Server Actions and API Route Handlers.
  */
 
+import { describeStoragePathError } from "@/lib/storage/folder-name";
+
+/**
+ * Zima's upload quota, READ FROM THE SERVER, not guessed.
+ *
+ * `POST /api/upload` — the endpoint zimaUpload() calls — is wrapped by
+ * `uploadLimiter = makeLimiter({ name: 'upload', windowMs: 3600_000, max:
+ * rl.uploadPerHour })` in the storage server's index.js, and its production
+ * `.env` sets `RL_UPLOAD_PER_HOUR=60`. So:
+ *
+ *   * **60 uploads per hour**, counted per FILE, not per book — a book with a
+ *     cover spends two.
+ *   * a **fixed** one-hour window (not sliding), so `retryAfterSeconds` counts
+ *     down to the window's end and hammering does not extend it;
+ *   * keyed by client IP — and every upload reaches Zima from THIS SERVER, so
+ *     the whole application shares one bucket, bulk import included;
+ *   * charged BEFORE the folder is validated, so a rejected row still spends
+ *     quota. That is why the 86-row run stopped where it did: 23 books × 2
+ *     files + 14 folder-rejected rows = exactly 60.
+ *
+ * 86 books ≈ 172 files ≈ 2.9 hours at this rate. The importer waits it out
+ * correctly, but the real remedy is to raise `RL_UPLOAD_PER_HOUR` on the
+ * storage box for bulk-import work; see docs/BULK-IMPORT.md.
+ */
+export const ZIMA_UPLOADS_PER_HOUR = 60;
+
+/**
+ * A Zima upload that failed with a status the CALLER must be able to act on.
+ *
+ * Without this the route caught a plain Error and answered 500, so the bulk
+ * importer could not tell "this file is broken" (give up) from "you are rate
+ * limited for the next 54 minutes" (wait and retry) — and treated a whole
+ * batch of the second as the first, failing 63 rows in a few seconds.
+ */
+export class ZimaUploadError extends Error {
+  readonly status: number;
+  /** Seconds until the quota window resets, when the server told us. */
+  readonly retryAfterSeconds?: number;
+  /** True for a status worth retrying: rate limit or a transient server fault. */
+  readonly retryable: boolean;
+
+  constructor(message: string, status: number, retryAfterSeconds?: number) {
+    super(message);
+    this.name = "ZimaUploadError";
+    this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.retryable = status === 429 || status === 408 || (status >= 500 && status <= 599);
+  }
+}
+
+export function isZimaUploadError(err: unknown): err is ZimaUploadError {
+  return err instanceof ZimaUploadError;
+}
+
 function zimaConfig(): { apiUrl: string; apiKey: string } {
   const apiUrl = process.env.ZIMA_API_URL;
   const apiKey = process.env.ZIMA_API_KEY;
@@ -166,7 +220,38 @@ export async function zimaUpload(
 
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`Zima upload failed (${res.status}): ${msg}`);
+    // "Invalid target folder" is all the storage server says when a path
+    // segment breaks its `/^[a-zA-Z0-9_\- ក-៿]{1,80}$/` rule. Callers should
+    // have caught that with describeStoragePathError() before sending; if one
+    // slipped through, at least name the actual defect here.
+    if (res.status === 400 && msg.includes("Invalid target folder")) {
+      const problem = describeStoragePathError(folder);
+      throw new ZimaUploadError(
+        problem ?? `Storage rejected the destination folder "${folder}".`,
+        400,
+      );
+    }
+    // Zima's own body carries `retryAfterSeconds`; its `Retry-After` header is
+    // the same number. Prefer the body, fall back to the header.
+    let retryAfter: number | undefined;
+    try {
+      const parsed = JSON.parse(msg) as { retryAfterSeconds?: number };
+      if (typeof parsed.retryAfterSeconds === "number") retryAfter = parsed.retryAfterSeconds;
+    } catch {
+      // not JSON — fall through to the header
+    }
+    if (retryAfter === undefined) {
+      const header = Number(res.headers.get("retry-after"));
+      if (Number.isFinite(header) && header > 0) retryAfter = header;
+    }
+    if (res.status === 429) {
+      throw new ZimaUploadError(
+        `Storage rate limit reached (${ZIMA_UPLOADS_PER_HOUR} uploads/hour).`,
+        429,
+        retryAfter,
+      );
+    }
+    throw new ZimaUploadError(`Zima upload failed (${res.status}): ${msg}`, res.status, retryAfter);
   }
 
   const json = await res.json();

@@ -64,6 +64,7 @@ type Initial = {
   pages: number;
   summary: string;
   coverUrl: string | null;
+  storageFolder: string | null;
   tags: string[];
   license?: string;
   seoTitle: string;
@@ -317,12 +318,29 @@ export default function EditForm({
     const formData = new FormData(form);
     const title    = (formData.get("title") as string)?.trim() || initial.title;
 
+    /*
+      Where this book's files go. In priority order:
+
+        1. `storage_folder` — recorded at upload (migration 0128). Authoritative.
+        2. the folder recovered from the existing cover URL — for rows written
+           before that column existed and not covered by its backfill.
+        3. a fresh folder — a genuinely new location for a book that has none.
+
+      Steps 1 and 2 both survive a title edit, which is the whole point: the
+      folder name is a fact about what was written to disk, and the uid in it is
+      random, so recomputing it from the CURRENT title would name a directory
+      that does not exist. Before this, a book with no cover took branch 3 on
+      every PDF replacement and scattered its files across new folders.
+    */
+    const resolveFolder = () =>
+      initial.storageFolder ||
+      bookFolderFromCoverUrl(initial.coverUrl) ||
+      bookFolder(initial.category, title, makeUid());
+
     try {
       if (pdfFile) {
         setPhase("uploading-pdf");
-        const folder =
-          bookFolderFromCoverUrl(initial.coverUrl) ??
-          bookFolder(initial.category, title, makeUid());
+        const folder = resolveFolder();
         const path = bookPdfPath(folder);
 
         const pdfPayload = new FormData();
@@ -356,9 +374,7 @@ export default function EditForm({
 
       if (coverFile) {
         setPhase("uploading-cover");
-        const folder =
-          bookFolderFromCoverUrl(initial.coverUrl) ??
-          bookFolder(initial.category, title, makeUid());
+        const folder = resolveFolder();
         const path = bookCoverPath(folder, coverFile.name);
 
         const coverPayload = new FormData();
