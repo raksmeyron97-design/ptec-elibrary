@@ -83,46 +83,81 @@ That last row explains the observed run exactly:
 > got `429 {"retryAfterSeconds":3224}` instantly — 63 rows "failed" against a
 > limit that still had 54 minutes to run.
 
-### Concurrency is not the fix
+### Concurrency is not the fix — and neither is raising the limit
 
-The quota is a **rate**, not a concurrency limit. 86 books ≈ 172 files ≈ **2.9
-hours** at 60/hour no matter how the client paces itself. Lowering concurrency
-from 4 to 2 only stops four rows being burned per 429 instead of one.
+The quota is a **rate**, not a concurrency limit. At 2 files per book against
+60/hour, 86 books is ~2.9 hours no matter how the client paces itself; dropping
+concurrency from 4 to 2 only stops four rows being burned per 429 instead of
+one.
 
-### The real remedy: raise the limit on the storage box
+Raising `RL_UPLOAD_PER_HOUR` on the box would work, and is worth knowing about
+as an escape hatch, but it was not needed: it permanently widens the ceiling on
+an endpoint every other upload path also uses.
 
-For bulk-import work, set on the Zima server's `.env` and restart it:
+### What the importer actually does: one request per book
 
-```bash
-RL_UPLOAD_PER_HOUR=600      # 86 books ≈ 172 files, comfortably inside one window
+Zima meters **per request, not per file**, and runs two upload endpoints on two
+independent counters:
+
+| endpoint | bucket | limit | files/request | scope |
+| --- | --- | --- | --- | --- |
+| `POST /api/upload` | `upload:<ip>` | `RL_UPLOAD_PER_HOUR` = 60 | 1 | `write:files` |
+| `POST /api/v1/files` | `v1-upload:<ip>` | `storageUploadPerHour` = 120 | up to 10 | `storage:write` |
+
+`RL_STORAGE_UPLOAD_PER_HOUR` is not set on the box, so v1 runs at its 120
+default. The importer sends a book's PDF and cover in **one** v1 request:
+
+```
+before:  2 of 60/hour   =  30 books/hour
+after:   1 of 120/hour  = 120 books/hour        4x, nothing raised or removed
 ```
 
-This is a deliberate operational choice, not a default to change blindly: the
-limiter also caps the damage an exposed key could do. Raise it for an import
-window and consider putting it back afterwards.
+It also stops the importer competing with the single-book form, the thesis form
+and the publication form, which stay on the legacy endpoint.
 
-### What the importer does meanwhile
+**One folder per request** is the binding constraint: `POST /api/v1/files` takes
+a single `folder` for the whole batch, and every book has its own folder. So it
+is one request per book, not five books per request.
 
-Implemented in `lib/admin/import-queue.ts` (extracted so it is unit-testable —
-`lib/admin/import-queue.test.ts`) and driven by `BulkUploadForm.tsx`:
+`lib/storage-client.ts` already spoke v1 for `/admin/storage`; `uploadStorageFiles()`
+only needed an overridable timeout, because the file manager's 2-minute default
+does not comfortably cover a 100 MB PDF and a cover together.
 
-- **Concurrency 2.**
-- **One shared gate.** The first 429 pauses *every* worker. The quota is
-  per-IP, so racing on only burns the counter for the same reply.
-- **`retryAfterSeconds` is honoured**, from the JSON body or the `Retry-After`
-  header, clamped to 70 minutes, and never shortened by a later worker.
-- **A quota wait is not a failure** and is not charged to the transient-retry
-  budget: up to 4 windows per file, versus 3 retries for a 5xx or network fault
-  with exponential backoff.
-- **`429`/`5xx` reach the client as themselves.** Both upload routes now relay
-  `ZimaUploadError` with its status and `Retry-After` instead of flattening
-  everything to `500` — that flattening is what made a rate limit look like a
-  broken file.
-- **"Rate limited — resuming in M:SS"** with a live countdown, and a **Stop**
-  button, because a 54-minute automatic wait with no exit is a trap.
-- **Progress is persisted server-side** (`book_import_runs`, migration `0129`)
-  on a 1-second debounce, so a refresh or a closed laptop during a long pause
-  does not lose the record of which rows landed.
+### The legacy path is kept as a fallback, and it announces itself
+
+v1 authorizes on `storage:write` — a different scope from the legacy endpoint's
+`write:files`. In production both env vars hold the **same key**, and any key
+whose role is `write` or `admin` carries both scopes (`storage/lib/auth.js`
+→ `ROLE_SCOPES`), so it should be present; an explicit per-key scope override is
+the only way it would not be.
+
+Rather than depend on that, a v1 failure falls back to the old
+one-request-per-file path so imports keep working at the old rate. The response
+carries `via: "v1" | "legacy"` and **Step 3 shows which path the run used either
+way** — a green "Batched uploads in use" line, or an amber warning naming the
+scope to check. Silence cannot answer "am I really getting 120/hour?", because a
+fallback and a fast run would look identical.
+
+### Partial success
+
+`POST /api/v1/files` returns a per-file array and has already moved each
+successful file into place by the time it answers, so "one of two failed" is a
+state on disk, not a hypothetical. The two halves are deliberately asymmetric:
+
+- **PDF fails** → the book cannot exist, so anything that landed is garbage:
+  every stored file in the batch is trashed before returning the error. No
+  half-written folder.
+- **Cover fails** → the book is still worth having. It is saved without a cover
+  and the row carries a visible warning. A book quietly created with no cover
+  and no error shown is the outcome this must not produce.
+- **Unexpected response shape, or stored-but-no-URL** → files may be on disk, so
+  re-uploading would duplicate them: clean up and fail the row rather than fall
+  back.
+
+The one case that can still leave an orphan is a **timeout**: the request may
+have stored the files, and the client cannot tell, so the legacy retry can
+leave an unreferenced copy. `scripts/audit-book-storage.ts` reconciles that, and
+it is a better outcome than failing every row of an import.
 
 ### Resuming
 

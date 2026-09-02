@@ -12,8 +12,7 @@
 // serialized, so resuming still requires re-selecting the source folders — the
 // UI states that plainly. What comes back is the decision record: which rows
 // are done, which failed and why, and the folder each one's files belong in.
-//
-// It also holds the PRE-FLIGHT duplicate check — see findAlreadyImported().
+
 
 import { requirePermission } from "@/lib/auth/requireAdmin";
 
@@ -174,94 +173,3 @@ export async function closeImportRun(
   }
 }
 
-
-// ── Pre-flight duplicate check ───────────────────────────────────────────────
-//
-// There is already a duplicate check, and it is stronger than this one: the
-// upload route hashes every PDF and refuses a byte-identical file with a 409
-// (`book_files.content_hash`, unique-indexed by migration 0060). Nothing can
-// create a duplicate row.
-//
-// What that check cannot do is answer "which of these 33 rows do I already
-// have?" BEFORE the run starts. It fires per row, after the file has been sent
-// to this server, and it misses a book re-exported or re-compressed to
-// different bytes. This one runs once over the whole CSV, matches on title +
-// author, and lets the importer mark those rows skipped without transferring
-// anything.
-//
-// The two are complementary and neither replaces the other: this one is
-// advisory and fuzzy (an operator can still start a flagged row), the hash one
-// is the guarantee.
-
-/** Fold a title/author to compare across casing, spacing and punctuation. */
-function matchKey(title: string, author: string): string {
-  const fold = (v: string) =>
-    v
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[^\p{L}\p{N}]+/gu, " ")
-      .trim()
-      .replace(/\s+/g, " ");
-  return `${fold(title)}|${fold(author)}`;
-}
-
-/** Cap the scan: this reads the catalogue, not a single row. */
-const MATCH_SCAN_LIMIT = 20_000;
-
-export interface AlreadyImported {
-  /** Row id (CSV index) → the existing book it matches. */
-  id: string;
-  title: string;
-  slug: string | null;
-}
-
-/**
- * Which of these rows are already in the library, by title + author.
- *
- * One query for the whole CSV rather than one per row: the catalogue is in the
- * hundreds of rows, and comparison has to happen in JS anyway because the
- * match is on a folded form no index could serve.
- */
-export async function findAlreadyImported(
-  rows: Array<{ id: string; title: string; author: string }>,
-): Promise<AlreadyImported[]> {
-  try {
-    if (rows.length === 0) return [];
-    const { supabase } = await requirePermission("books", "write");
-
-    const { data, error } = await supabase
-      .from("books")
-      .select("title, slug, authors(name)")
-      .limit(MATCH_SCAN_LIMIT);
-    if (error) throw new Error(error.message);
-
-    const existing = new Map<string, { title: string; slug: string | null }>();
-    for (const row of data ?? []) {
-      // `authors` arrives as an object for a to-one embed and an array for a
-      // to-many one depending on how PostgREST resolves the relationship;
-      // accept both rather than depending on which.
-      const rel = (row as { authors?: unknown }).authors;
-      const name =
-        Array.isArray(rel)
-          ? ((rel[0] as { name?: string } | undefined)?.name ?? "")
-          : ((rel as { name?: string } | null)?.name ?? "");
-      const title = (row as { title?: string }).title ?? "";
-      if (!title) continue;
-      existing.set(matchKey(title, name), {
-        title,
-        slug: ((row as { slug?: string | null }).slug ?? null),
-      });
-    }
-
-    const hits: AlreadyImported[] = [];
-    for (const row of rows) {
-      const hit = existing.get(matchKey(row.title, row.author));
-      if (hit) hits.push({ id: row.id, title: hit.title, slug: hit.slug });
-    }
-    return hits;
-  } catch {
-    // Advisory only. A failed pre-check must never block an import — the
-    // content-hash check downstream is the actual guarantee.
-    return [];
-  }
-}

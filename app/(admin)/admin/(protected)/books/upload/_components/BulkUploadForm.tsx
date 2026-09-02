@@ -9,8 +9,6 @@ import {
   saveImportRunProgress,
   getResumableImportRun,
   closeImportRun,
-  findAlreadyImported,
-  type AlreadyImported,
   type ImportRun,
   type ImportRunRow,
 } from "@/app/(admin)/admin/(protected)/books/upload/import-run-actions";
@@ -66,8 +64,8 @@ interface BookJob {
   folder: string;
   /** Whether the title fit the storage segment, was cut, or fell back. */
   folderNote: FolderNameNote;
-  /** The library already has a book with this title + author. */
-  alreadyImported?: AlreadyImported;
+  /** Non-fatal problem on an otherwise successful row (e.g. cover rejected). */
+  warning?: string;
 }
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
@@ -131,8 +129,8 @@ function coverExt(name: string): string {
 async function uploadBook(
   job: BookJob,
   gate: QueueGate,
-  onStatus: (status: RowStatus, extra?: { error?: string; slug?: string }) => void,
-  onLegacyPath: () => void,
+  onStatus: (status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
+  onTransport: (via: "v1" | "legacy") => void,
 ): Promise<void> {
   const { row, pdfFile, coverFile } = job;
 
@@ -175,9 +173,9 @@ async function uploadBook(
       if (pdfRes.status === 409) { onStatus("skipped", { error }); return; }
       throw new Error(`PDF upload failed: ${error}`);
     }
-    const { url: pdfPublicUrl, coverUrl, contentHash, via } = await pdfRes.json();
+    const { url: pdfPublicUrl, coverUrl, contentHash, via, warning } = await pdfRes.json();
     uploadedPdfUrl = pdfPublicUrl;
-    if (via === "legacy") onLegacyPath();
+    onTransport(via === "legacy" ? "legacy" : "v1");
 
     // 3. Save record
     onStatus("saving");
@@ -219,7 +217,13 @@ async function uploadBook(
     // `result` is a discriminated union; the error branch is thrown above, so
     // the success branch's slug is reachable without an `as any` cast — which
     // is all the file-level no-explicit-any suppression was hiding here.
-    onStatus("done", { slug: result && "slug" in result ? result.slug : undefined });
+    onStatus("done", {
+      slug: result && "slug" in result ? result.slug : undefined,
+      // A book saved without its cover is a success WITH a caveat. Showing it
+      // on the row is the difference between "no cover" and "no cover, and
+      // nobody was told".
+      warning: warning ?? undefined,
+    });
   } catch (err) {
     // A PDF that reached storage but never reached a book row is an orphan:
     // invisible in the catalogue, still occupying the disk, and — because the
@@ -240,8 +244,8 @@ async function runQueue(
   jobs: BookJob[],
   concurrency: number,
   gate: QueueGate,
-  onJobUpdate: (id: string, status: RowStatus, extra?: { error?: string; slug?: string }) => void,
-  onLegacyPath: () => void,
+  onJobUpdate: (id: string, status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
+  onTransport: (via: "v1" | "legacy") => void,
 ) {
   let i = 0;
 
@@ -251,7 +255,7 @@ async function runQueue(
     if (idx >= jobs.length) return;
     const job = jobs[idx];
     try {
-      await uploadBook(job, gate, (status, extra) => onJobUpdate(job.id, status, extra), onLegacyPath);
+      await uploadBook(job, gate, (status, extra) => onJobUpdate(job.id, status, extra), onTransport);
     } catch (err) {
       if (err instanceof QueueCancelled) return; // drain quietly
       throw err;
@@ -378,12 +382,12 @@ export default function BulkUploadForm() {
 
   // Durable progress (migration 0129).
   const [resumable, setResumable] = useState<ImportRun | null>(null);
-  // Set when a row had to fall back to the one-file-per-request endpoint, so
-  // the operator learns they are on the slow path instead of just waiting.
-  const [usedLegacyPath, setUsedLegacyPath] = useState(false);
-  // Rows the library already has, by title + author. Advisory: the
-  // content-hash check in the upload route remains the actual guarantee.
-  const [alreadyImported, setAlreadyImported] = useState<Map<string, AlreadyImported>>(new Map());
+  // Which storage endpoint the run actually reached. Reported POSITIVELY, not
+  // only on failure: "am I getting 120/hour or silently falling back to 60?"
+  // must be answerable at a glance, and the absence of a warning is not an
+  // answer. "legacy" wins once seen — a run that fell back even once did not
+  // get the batched rate.
+  const [transport, setTransport] = useState<"v1" | "legacy" | null>(null);
   const [resumedRows, setResumedRows] = useState<Map<string, ImportRunRow>>(new Map());
   const runIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -460,18 +464,13 @@ export default function BulkUploadForm() {
       // run cannot inherit another book's destination.
       const prior = resumedRows.get(id);
       const priorApplies = prior !== undefined && prior.title === row.title;
-      // A title+author match in the library pre-skips the row, so the file is
-      // never transferred. handleStart() already filters "skipped" out of the
-      // queue, so this needs no separate branch there.
-      const existing = alreadyImported.get(id);
       return {
         id,
         row,
         pdfFile:   pdfIndex.get(row.pdf_file.toLowerCase()) ?? null,
         coverFile: row.cover_file ? (coverIndex.get(row.cover_file.toLowerCase()) ?? null) : null,
-        status:    (priorApplies ? (prior.status as RowStatus) : existing ? "skipped" : "pending"),
+        status:    (priorApplies ? (prior.status as RowStatus) : "pending"),
         error:     priorApplies ? prior.error : undefined,
-        alreadyImported: existing,
         slug:      priorApplies ? prior.slug : undefined,
         folder:
           keptFolders.get(id) ??
@@ -479,24 +478,23 @@ export default function BulkUploadForm() {
         folderNote: folderNameNote(row.title, uid),
       };
     });
-  }, [csvRows, pdfIndex, coverIndex, resumedRows, alreadyImported]);
+  }, [csvRows, pdfIndex, coverIndex, resumedRows]);
 
-  async function handlePreview() {
-    const built = buildJobs(jobs);
-    setJobs(built);
+  function handlePreview() {
+    setJobs(buildJobs(jobs));
     setStarted(false);
-    // One query for the whole CSV, before anything is sent. Advisory only —
-    // it never blocks, and a failure just means no rows are pre-flagged.
-    const hits = await findAlreadyImported(
-      built.map((j) => ({ id: j.id, title: j.row.title, author: j.row.author })),
-    );
-    if (hits.length > 0) setAlreadyImported(new Map(hits.map((h) => [h.id, h])));
   }
 
-  function updateJob(id: string, status: RowStatus, extra?: { error?: string; slug?: string }) {
+  function updateJob(
+    id: string,
+    status: RowStatus,
+    extra?: { error?: string; slug?: string; warning?: string },
+  ) {
     setJobs((prev) =>
       prev.map((j) =>
-        j.id === id ? { ...j, status, error: extra?.error, slug: extra?.slug } : j,
+        j.id === id
+          ? { ...j, status, error: extra?.error, slug: extra?.slug, warning: extra?.warning }
+          : j,
       ),
     );
   }
@@ -547,7 +545,7 @@ export default function BulkUploadForm() {
         updateJob(id, status, extra);
         latest = latest.map((j) => (j.id === id ? { ...j, status, error: extra?.error, slug: extra?.slug } : j));
         persist(latest, gate.cancelled ? "paused" : "running");
-      }, () => setUsedLegacyPath(true));
+      }, (via) => setTransport((prev) => (prev === "legacy" ? prev : via)));
     } finally {
       setRunning(false);
       setPausedUntil(null);
@@ -630,7 +628,6 @@ export default function BulkUploadForm() {
   const remaining = started
     ? jobs.filter((j) => j.status === "pending" && j.pdfFile).length
     : 0;
-  const preSkipped = jobs.filter((j) => j.alreadyImported).length;
   const badFolders = jobs.filter((j) => describeStoragePathError(j.folder) !== null).length;
   const truncated  = jobs.filter((j) => j.folderNote === "truncated").length;
   // Not a problem, but the answer to "why is there a folder called book-d4rwjf?"
@@ -811,7 +808,7 @@ export default function BulkUploadForm() {
           )}
 
           {canPreview && !started && (
-            <button type="button" onClick={() => void handlePreview()} className={BTN_SECONDARY}>
+            <button type="button" onClick={handlePreview} className={BTN_SECONDARY}>
               {t("preview")}
             </button>
           )}
@@ -875,30 +872,32 @@ export default function BulkUploadForm() {
             </div>
           )}
 
-          {/* The batched v1 endpoint was unavailable for at least one row, so
-              the import is running at the old one-file-per-request rate. Worth
-              saying out loud: the symptom is otherwise just "this is slow". */}
-          {usedLegacyPath && (
+          {/* WHICH PATH THIS RUN USED, shown either way. The question being
+              answered is "am I really getting 120/hour?", and silence cannot
+              answer it — a fallback and a fast run would look identical. */}
+          {transport !== null && (
             <p
               role="status"
-              className="flex items-start gap-2 border-b border-divider px-5 py-3 text-xs text-warning-text sm:px-6"
+              className={`flex items-start gap-2 border-b px-5 py-3 text-xs sm:px-6 ${
+                transport === "v1"
+                  ? "border-divider text-text-muted"
+                  : "border-warning-line bg-warning-soft text-warning-text"
+              }`}
             >
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              {t("legacyUploadPath")}
+              {transport === "v1" ? (
+                <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+              ) : (
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              {transport === "v1" ? t("transportBatched") : t("legacyUploadPath")}
             </p>
           )}
 
           {/* Pre-flight notices. Shown before the batch runs, because "14 of the
               first 36 rows failed" is a discovery an operator should never make
               one upload at a time. */}
-          {!started && (badFolders > 0 || truncated > 0 || fallbacks > 0 || preSkipped > 0) && (
+          {!started && (badFolders > 0 || truncated > 0 || fallbacks > 0) && (
             <div className="space-y-2 border-b border-divider px-5 py-3 sm:px-6">
-              {preSkipped > 0 && (
-                <p className="flex items-start gap-2 text-xs text-text-muted">
-                  <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-                  {t("alreadyImportedCount", { count: preSkipped })}
-                </p>
-              )}
               {badFolders > 0 && (
                 <p role="alert" className="flex items-start gap-2 text-xs text-danger-text">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -949,21 +948,6 @@ export default function BulkUploadForm() {
                     <td className="max-w-[200px] px-4 py-3">
                       <p className="truncate text-sm font-medium text-text-body">{job.row.title}</p>
                       <p className="truncate text-xs text-text-muted">{job.row.category} · {job.row.department}</p>
-                      {job.alreadyImported && (
-                        <p className="mt-0.5 truncate text-xs text-text-muted">
-                          {t("alreadyImportedRow")}
-                          {job.alreadyImported.slug && (
-                            <a
-                              href={`/books/${job.alreadyImported.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-1 text-brand underline"
-                            >
-                              {t("viewExisting")}
-                            </a>
-                          )}
-                        </p>
-                      )}
                       {(() => {
                         const problem = describeStoragePathError(job.folder);
                         if (problem) {
@@ -999,6 +983,7 @@ export default function BulkUploadForm() {
                       <div className="flex flex-col gap-1">
                         <StatusBadge status={job.status} />
                         {job.error && <p className="text-xs text-danger-text">{job.error}</p>}
+                        {job.warning && <p className="text-xs text-warning-text">{job.warning}</p>}
                         {job.slug && (
                           <a
                             href={`/books/${job.slug}`}

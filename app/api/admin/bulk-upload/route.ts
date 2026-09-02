@@ -3,7 +3,7 @@ import { isAdminAuthError, requireAdmin } from "@/lib/auth/requireAdmin";
 import { validateMimeType } from "@/lib/mime-validation";
 import { sha256Hex, findDuplicatePdf } from "@/lib/content-hash";
 import { zimaUpload, isZimaUploadError } from "@/lib/zima";
-import { uploadStorageFiles } from "@/lib/storage-client";
+import { uploadStorageFiles, trashStorageFile } from "@/lib/storage-client";
 import { optimizeImage, BOOK_COVER_OPTS } from "@/lib/image-optimize";
 import { describeStorageKeyError, describeStoragePathError } from "@/lib/storage/folder-name";
 
@@ -140,53 +140,113 @@ export async function POST(request: NextRequest) {
     );
 
     // ── One request, both files ──
-    let urls: string[] | null = null;
+    //
+    // PARTIAL SUCCESS IS THE INTERESTING CASE. v1 returns a per-file array and
+    // has ALREADY moved each successful file into place by the time it answers,
+    // so "one of two failed" is a state that exists on disk, not a hypothetical.
+    // The two halves are not symmetric:
+    //
+    //   PDF fails  → the book cannot exist, so anything that DID land is
+    //                garbage. The cover is trashed before returning, or the
+    //                folder keeps a file no row will ever reference.
+    //   cover fails → the book is still worth having. It is created WITHOUT a
+    //                cover and the row carries a visible warning; silently
+    //                dropping the cover is the outcome this must not produce.
+    //
+    // Results are matched BY INDEX: v1 iterates the uploaded files in order and
+    // pushes one result per file, whereas originalName round-trips through a
+    // latin1→utf8 decode. Index is the contract; the name is for messages.
+    let pdfUrl: string | null = null;
+    let coverUrl: string | null = null;
+    let coverWarning: string | null = null;
     let via: "v1" | "legacy" = "v1";
+
+    const actor = { actorId: user.id, actorRole: "admin" };
+
+    /** Trash whatever a batch DID store, so a rejected row leaves no files. */
+    async function discardStored(rows: { success: boolean; file?: { storageKey: string } }[]) {
+      for (const row of rows) {
+        if (row.success && row.file?.storageKey) {
+          await trashStorageFile(actor, row.file.storageKey).catch(() => {});
+        }
+      }
+    }
+
     try {
-      const result = await uploadStorageFiles(
-        { actorId: user.id, actorRole: "admin" },
-        folder,
-        files,
-        BATCH_UPLOAD_TIMEOUT_MS,
-      );
-      if (result.ok && result.data) {
-        const failed = result.data.find((r) => !r.success);
-        if (failed) {
-          // A per-file rejection is a real problem with THAT file (bad
-          // signature, blocked type), not a transport fault — do not retry it
-          // on the legacy path, just report it.
+      const result = await uploadStorageFiles(actor, folder, files, BATCH_UPLOAD_TIMEOUT_MS);
+
+      if (!result.ok) {
+        // v1 rejected the request itself (auth, scope, folder) — nothing was
+        // stored, so the legacy path is safe to try.
+        via = "legacy";
+      } else {
+        const rows = result.data ?? [];
+        if (rows.length !== parts.length) {
+          // v1 answered normally but with an unexpected shape. Files may be on
+          // disk, so re-uploading would duplicate them: clean up and fail the
+          // row instead of falling back.
+          await discardStored(rows);
+          return jsonError("Storage returned an unexpected response for this upload.", 502);
+        }
+
+        const pdfRow = rows[0];
+        const coverRow = parts.length > 1 ? rows[1] : undefined;
+
+        if (!pdfRow.success) {
+          // The book cannot exist, so anything that landed is garbage.
+          await discardStored(rows);
           return jsonError(
-            `Storage rejected ${failed.originalName}: ${failed.error?.message ?? "unknown error"}`,
+            `Storage rejected the PDF: ${pdfRow.error?.message ?? "unknown error"}`,
             400,
           );
         }
-        urls = parts.map((p) => {
-          const hit = result.data!.find((r) => r.originalName === p.name);
-          return hit?.file?.url ?? "";
-        });
-        if (urls.some((u) => !u)) urls = null; // response shape not as expected
+
+        pdfUrl = pdfRow.file?.url ?? null;
+        if (!pdfUrl) {
+          // Stored but unaddressable — same reasoning as the shape mismatch.
+          await discardStored(rows);
+          return jsonError("Storage stored the PDF but returned no URL for it.", 502);
+        }
+
+        if (coverRow) {
+          if (coverRow.success) {
+            coverUrl = coverRow.file?.url ?? null;
+          } else {
+            coverWarning = `Cover rejected by storage: ${coverRow.error?.message ?? "unknown error"}`;
+          }
+        }
       }
-      if (!urls) via = "legacy";
     } catch {
-      // Not configured, wrong scope, or unreachable — fall back rather than
-      // failing the import, and tell the caller which path actually ran.
+      // Not configured, unreachable, or timed out. The first two stored
+      // nothing; a timeout MAY have stored the files and we cannot tell from
+      // here, so the legacy retry can leave an unreferenced copy behind.
+      // scripts/audit-book-storage.ts is what reconciles that, and it is a far
+      // better outcome than failing every row of an import.
       via = "legacy";
     }
 
     // ── Fallback: the original one-request-per-file path ──
-    if (!urls) {
-      urls = [];
-      for (const part of parts) {
-        const file = new File([part.bytes as BlobPart], part.name, { type: part.contentType });
-        urls.push(await zimaUpload(file, folder, part.name));
+    if (via === "legacy") {
+      pdfUrl = await zimaUpload(files[0], folder, parts[0].name);
+      coverUrl = null;
+      coverWarning = null;
+      if (parts.length > 1) {
+        try {
+          coverUrl = await zimaUpload(files[1], folder, parts[1].name);
+        } catch (err) {
+          // Same rule as above: a missing cover must not cost the book, but it
+          // must not be silent either.
+          coverWarning = `Cover upload failed: ${err instanceof Error ? err.message : "unknown error"}`;
+        }
       }
     }
 
     return NextResponse.json({
-      url: urls[0],
-      coverUrl: urls[1] ?? null,
+      url: pdfUrl,
+      coverUrl,
       contentHash,
       via,
+      warning: coverWarning,
     });
   } catch (err) {
     if (isAdminAuthError(err)) {
