@@ -6974,7 +6974,11 @@
       "resumeTitle": "Unfinished import: {label} — {done} of {total} rows done",
       "resumeHint": "Re-select the same CSV and PDF folder to continue. Rows already uploaded will be skipped, not repeated.",
       "resumeAction": "Resume",
-      "resumeDiscard": "Discard"
+      "resumeDiscard": "Discard",
+      "alreadyImportedCount": "{count, plural, one {# row is already in the library (matched on title + author) and will be skipped — its file is never uploaded.} other {# rows are already in the library (matched on title + author) and will be skipped — their files are never uploaded.}}",
+      "alreadyImportedRow": "Already in the library — skipped.",
+      "viewExisting": "View",
+      "legacyUploadPath": "Storage is using the older one-file-per-request endpoint, so this import consumes quota twice as fast. Check the STORAGE_SERVICE_TOKEN key has the storage:write scope."
     },
     "title": "Upload books",
     "description": "Add a single book with full metadata, or import many at once from a CSV.",
