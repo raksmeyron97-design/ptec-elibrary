@@ -69,6 +69,50 @@ const nextConfig: NextConfig = {
   // copies .next/standalone). Harmless elsewhere: `next start` and Vercel
   // deployments ignore it.
   output: "standalone",
+  /**
+   * NO PERSISTENT WEBPACK CACHE IN A PRODUCTION BUILD.
+   *
+   * Vercel restores `.next/cache` from the previous deployment. Reading that
+   * cache back crashes the compile:
+   *
+   *     ✓ (serwist) Bundling the service worker script ...
+   *     uncaughtException TypeError: Cannot read properties of undefined (reading 'length')
+   *     Error: Command "npm run build" exited with 1
+   *
+   * about 40s in — right where the successful build reports "Compiled
+   * successfully in 42s", i.e. as webpack seals and serializes its pack files.
+   * Next hides the frames (`at ignore-listed frames`), so there is no actionable
+   * stack; `__NEXT_SHOW_IGNORE_LISTED=true` does not recover one either.
+   *
+   * PROVEN, not guessed. The same commit, on the same 2-core/8 GB Vercel
+   * builder, with the same env:
+   *
+   *   restored cache                      -> crash  (dpl_CdaAJvUdSb44t1rfHpQYDhsQGwhW)
+   *   `vercel deploy --force` (no cache)  -> READY  (dpl_3TNf59hZxSFmXaG1EGTD53QrUNCC)
+   *
+   * It is NOT the code. Every local combination builds fine — cold, warm, and
+   * with a cache written by an older commit and read by a newer one — on a
+   * machine with more cores and RAM than the builder. Bisecting the diff was a
+   * false trail for the same reason: the reverts "fixed" it only because each
+   * test happened to start from a clean `.next`.
+   *
+   * WHY THIS AND NOT `VERCEL_FORCE_NO_BUILD_CACHE=1`. That env var works, but
+   * it lives in project settings where nothing explains it, and it would not
+   * protect a build run anywhere else. This is versioned, it travels with the
+   * repo, and it says why. Guarded on `!dev` so `next dev` keeps its cache —
+   * the dev cache is a different mechanism and is not implicated.
+   *
+   * COST: none worth counting. Vercel compiles this app in ~42s from cold, and
+   * the ZimaOS Docker build is already cold every time (`.dockerignore`
+   * excludes `.next`), so it never had a cache to lose.
+   *
+   * REVISIT on the next Next.js/webpack major — this is a workaround for a bug
+   * in their persistent cache, not a property of this codebase.
+   */
+  webpack: (config, { dev }) => {
+    if (!dev) config.cache = false;
+    return config;
+  },
   experimental: {
     // `forbidden()` / `unauthorized()` from next/navigation. They are what keep
     // an authorization failure out of the generic error boundary: each throws a
