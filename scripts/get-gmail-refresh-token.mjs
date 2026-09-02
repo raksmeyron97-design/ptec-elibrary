@@ -95,9 +95,22 @@ const server = http.createServer(async (req, res) => {
       process.exit(1);
     }
 
-    console.log("\nSuccess! Add these to your .env:\n");
-    console.log(`GOOGLE_CLIENT_ID="${clientId}"`);
-    console.log(`GOOGLE_CLIENT_SECRET="${clientSecret}"`);
+    // Only the refresh token is printed: GOOGLE_CLIENT_ID and
+    // GOOGLE_CLIENT_SECRET came out of this shell's own environment, so
+    // echoing them back adds nothing but two more secrets in the scrollback.
+    // And it is printed only to an interactive terminal — a redirect into a
+    // file or a CI transcript is exactly how a long-lived refresh token
+    // outlives the operator's attention.
+    if (!process.stdout.isTTY) {
+      console.error(
+        "\nGot a refresh token, but stdout is not a terminal — refusing to print it.\n" +
+        "Re-run this script attached to a terminal, without redirecting output."
+      );
+      server.close();
+      process.exit(1);
+    }
+
+    console.log("\nSuccess! Add this to your .env, alongside the client id/secret you already have:\n");
     console.log(`GOOGLE_REFRESH_TOKEN="${tokens.refresh_token}"`);
     console.log("");
 

@@ -97,6 +97,12 @@ type PDFViewerProps = {
   /** Set false to hide the download button for protected books. Default true. */
   allowDownload?: boolean;
   isLoggedIn?: boolean;
+  /** Offline reading mode: the bytes came out of Cache Storage and there is no
+   *  network to talk to. Every server round-trip (progress sync, annotations,
+   *  download counting, reader telemetry) is switched off — offline they would
+   *  be rejected promises, not features — while local state (bookmarks, last
+   *  page, zoom) keeps working because it never left the device. */
+  offline?: boolean;
   /** Published support address for the "report a broken file" mailto — comes
    *  from the server parent (`(await getSiteConfig()).email`). This is a
    *  client component, so it cannot read settings itself; without the prop the
@@ -367,9 +373,16 @@ function useResolvedPdfFile(pdfUrl: string | null | undefined) {
     let objectUrl: string | null = null;
     if (!pdfUrl || typeof window === "undefined" || !("caches" in window))
       return;
+    // Already a local blob (the offline reader resolves the bytes itself) —
+    // there is nothing to look up and `new URL()` on it would be meaningless.
+    if (pdfUrl.startsWith("blob:")) return;
     const abs = new URL(pdfUrl, window.location.origin).href;
+    // ignoreSearch is LOAD-BEARING. A download is stored as `…/file?offline=1`
+    // (the consent marker, see lib/offline.ts) while the reader asks for the
+    // bare `…/file`. Without it this lookup missed every saved book and the
+    // reader went to the network for a file that was sitting on disk.
     caches
-      .match(abs)
+      .match(abs, { ignoreSearch: true })
       .then(async (res) => {
         if (cancelled || !res) return;
         const blob = await res.blob();
@@ -400,9 +413,15 @@ export default function PDFViewer({
   initialProgressPct = 0,
   initialMaxProgressPct = 0,
   allowDownload = true,
-  isLoggedIn = false,
+  isLoggedIn: isLoggedInProp = false,
+  offline = false,
   reportEmail,
 }: PDFViewerProps) {
+  // Everything below asks `isLoggedIn` before touching the server. Deriving it
+  // here — rather than sprinkling `&& !offline` through twenty call sites — is
+  // what makes the offline reader provably network-free: there is no path from
+  // a signed-in session to a fetch while `offline` is set.
+  const isLoggedIn = isLoggedInProp && !offline;
   /* ── i18n (strings follow the site locale via next-intl) ──────── */
   const t = useTranslations("reader");
   const locale = useLocale();
@@ -550,6 +569,7 @@ export default function PDFViewer({
       type: ReaderEventType,
       details: { message?: string; page?: number; durationMs?: number } = {},
     ) => {
+      if (offline) return; // nothing to send to, and nothing worth queueing
       sendReaderEvent({
         type,
         bookId,
@@ -559,7 +579,7 @@ export default function PDFViewer({
         durationMs: details.durationMs,
       });
     },
-    [bookId, pdfUrl],
+    [bookId, pdfUrl, offline],
   );
 
   /* ── Derived ────────────────────────────────────────────────── */
@@ -1755,21 +1775,28 @@ export default function PDFViewer({
   /* ── Download ───────────────────────────────────────────────── */
   async function handleDownload() {
     if (downloading || !pdfUrl || !allowDownload) return;
-    if (!isLoggedIn) {
+    // Offline the file is already on the device and was already paid for with a
+    // signed-in download — bouncing to a login page we cannot even load would
+    // be nonsense.
+    if (!isLoggedIn && !offline) {
       window.location.href = `/auth/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
       return;
     }
     setDownloading(true);
     try {
-      startTransition(() => {
-        incrementDownloadCount(bookId);
-      });
+      if (!offline) {
+        startTransition(() => {
+          incrementDownloadCount(bookId);
+        });
+      }
       const a = document.createElement("a");
       // When we already have an offline blob, download that (works with no
       // network); otherwise hit the original URL.
-      a.href = fromCache && resolvedFile ? resolvedFile : pdfUrl;
+      const localHref =
+        (fromCache && resolvedFile) || (pdfUrl.startsWith("blob:") ? pdfUrl : null);
+      a.href = localHref ?? pdfUrl;
       a.download = `${title}.pdf`;
-      if (!fromCache) {
+      if (!localHref) {
         a.target = "_blank";
         a.rel = "noopener noreferrer";
       }

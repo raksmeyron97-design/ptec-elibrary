@@ -9,11 +9,10 @@
 // transactional call (saveCopies) — either every copy is created or none.
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   type CopyStatus,
   type GeneratedCopy,
-  COPY_STATUS,
   COPY_STATUS_OPTIONS,
   computeCopyStats,
   copyStatusBadgeClass,

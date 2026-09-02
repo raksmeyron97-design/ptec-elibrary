@@ -457,6 +457,8 @@ export default function UploadForm({
         coverUrl:   coverUrl ?? "",
         tags:       (formData.get("tags")       as string) ?? "",
         contentHash: contentHash ?? "",
+        // See migration 0128: recorded, never recomputed from the title.
+        storageFolder: folder,
         status:     publishMode,
         license:    (formData.get("license")    as string) ?? "",
       });

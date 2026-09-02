@@ -1,10 +1,5 @@
-"use client"
- 
-;
-/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 
-
-import { useEffect, useRef, useState } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 
 type SubLink = { label: string; href: string; icon?: React.ReactNode; target?: string };
@@ -17,8 +12,6 @@ type NavDropdownProps = {
 };
 
 export default function NavDropdown({ label, href, icon, subLinks }: NavDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname() ?? "";
 
   const isActive =
@@ -28,26 +21,8 @@ export default function NavDropdown({ label, href, icon, subLinks }: NavDropdown
         subLinks.some((s) => pathname === s.href || pathname.startsWith(s.href))
       : false;
 
-  // Close on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // Close on Escape
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
-
   return (
-    <div className="relative group" ref={ref}>
+    <div className="relative group">
       {/* Trigger link */}
       <Link
         href={href}

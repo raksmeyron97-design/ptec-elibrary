@@ -1,6 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { defineConfig, devices } from '@playwright/test';
 import path from 'path';
+import dotenv from 'dotenv';
+
+// The test PROCESS (not just the dev server it starts) needs the Supabase URL
+// and anon key: e2e/utils/auth.ts asks the local GoTrue for a real session and
+// installs it as a cookie, which is how auth-gated specs get a signed-in page
+// without driving the captcha-gated login form. Next loads .env.local for the
+// server; nothing loads it here, so do it explicitly. Existing process env
+// wins — CI passes real values in.
+dotenv.config({ path: path.resolve(__dirname, '.env.local'), quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
 
 export default defineConfig({
   testDir: './e2e',

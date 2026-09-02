@@ -53,3 +53,64 @@ export async function signInSeededReader(
     return false;
   }
 }
+
+/**
+ * Sign in as the seeded reader by installing a REAL GoTrue session.
+ *
+ * `signInSeededReader` above drives the actual login form, which is the right
+ * test for the login form. It is the wrong dependency for a spec about
+ * something else: the form is gated on a Cloudflare Turnstile widget, and when
+ * that widget cannot complete — no egress, a challenge that stalls, a headless
+ * quirk — the spec does not fail honestly, it hangs until the test timeout.
+ *
+ * This path asks the local GoTrue for a password grant with the seeded
+ * credentials and writes the result into the cookie @supabase/ssr reads. The
+ * token is genuine and the server still verifies it on every request, so
+ * nothing about authorisation is faked or bypassed — only the captcha widget
+ * is stepped around.
+ *
+ * Returns false (never throws) when Supabase is unreachable, so callers can
+ * `test.skip(!ok, ...)`.
+ */
+export async function installSeededReaderSession(
+  page: Page,
+  opts: { email?: string; password?: string; origin?: string } = {},
+): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) return false;
+
+  try {
+    const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { apikey: anon, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: opts.email ?? "student@ptec.local",
+        password: opts.password ?? "Password123!",
+      }),
+    });
+    if (!res.ok) return false;
+    const session = await res.json();
+    if (!session?.access_token) return false;
+
+    // @supabase/ssr keys the cookie by the project ref — the first label of the
+    // Supabase host — and chunks anything over ~3.2 KB.
+    const ref = new URL(url).hostname.split(".")[0];
+    const payload = `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
+    const chunks: string[] = [];
+    for (let i = 0; i < payload.length; i += 3180) chunks.push(payload.slice(i, i + 3180));
+    // Cookies are set by URL so the domain/path come out right whether the
+    // suite runs against localhost or a deployed origin.
+    const origin =
+      opts.origin ?? process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+
+    await page.context().addCookies(
+      chunks.length === 1
+        ? [{ name: `sb-${ref}-auth-token`, value: payload, url: origin }]
+        : chunks.map((value, i) => ({ name: `sb-${ref}-auth-token.${i}`, value, url: origin })),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}

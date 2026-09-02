@@ -19,7 +19,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { isAllowedStorageUrl } from "@/lib/zima";
+import { toAllowedStorageUrl } from "@/lib/zima";
 
 export const MAX_PAGE_CHARS = 8000; // cap outliers; a page of real prose is ~3-4k chars
 export const MIN_PAGE_CHARS = 20;   // below this it's a blank/scanned page — skip
@@ -30,6 +30,32 @@ export type PageRecordType = "book" | "research" | "publication";
 export type IndexPdfResult =
   | { indexed: true; pages: number }
   | { indexed: false; reason: "unresolvable-url" | "fetch-failed" | "no-text-layer"; detail?: string };
+
+/**
+ * Strip anything that could forge a fake log line or terminal escape sequence
+ * out of a value before it is interpolated into a log message. `recordId`
+ * comes from a Server Action's `id` — a route/form parameter on the edit
+ * path, not always a value this module minted itself — so CRLF and other
+ * control characters must be removed before it reaches console.log/error.
+ */
+export function sanitizeLogId(value: string): string {
+  return (
+    value
+      // Line breaks first, spelled out rather than folded into the control
+      // range below. They are the actual forging vector — a `\r\n` in a record
+      // id is what lets a caller append a whole fake log line — and stating
+      // them explicitly is also what makes the removal legible to static
+      // analysis, which cannot see a `\n` inside a unicode range and therefore
+      // reported every one of these call sites as unsanitised (CodeQL
+      // js/log-injection). Same output either way; the second pass already
+      // covered them.
+      .replace(/[\r\n]/g, "")
+      // ...then every other C0/C1 control character: NUL, and the ESC that
+      // starts a terminal colour sequence.
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+      .slice(0, 200)
+  );
+}
 
 function serviceDb(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
@@ -113,12 +139,15 @@ export async function indexPdfPages(opts: {
 }): Promise<IndexPdfResult> {
   const db = opts.db ?? serviceDb();
 
-  const url = await resolvePdfUrl(opts.fileUrl);
-  if (!url) return { indexed: false, reason: "unresolvable-url" };
+  const resolved = await resolvePdfUrl(opts.fileUrl);
+  if (!resolved) return { indexed: false, reason: "unresolvable-url" };
 
   // SSRF guard: `fileUrl` is a DB-sourced value; only fetch allow-listed
   // storage hosts (R2 presigned URLs and Zima/public URLs both qualify).
-  if (!isAllowedStorageUrl(url)) return { indexed: false, reason: "unresolvable-url" };
+  // `toAllowedStorageUrl` returns the URL rebuilt on an allow-listed origin,
+  // so what gets fetched is never the raw DB string.
+  const url = toAllowedStorageUrl(resolved);
+  if (!url) return { indexed: false, reason: "unresolvable-url" };
 
   const res = await fetch(url);
   if (!res.ok) return { indexed: false, reason: "fetch-failed", detail: `HTTP ${res.status}` };
@@ -160,16 +189,31 @@ export async function indexPdfPagesSafe(
   recordId: string,
   fileUrl: string,
 ): Promise<void> {
+  const logId = sanitizeLogId(recordId);
   try {
     const result = await indexPdfPages({ recordType, recordId, fileUrl });
     if (result.indexed) {
-      console.log(`[pdf-index] ${recordType}:${recordId} — indexed ${result.pages} pages`);
+      // Constant format string, values as arguments. A template literal makes
+      // the whole message the format string, so a `%` inside a record id would
+      // consume the next argument — and CodeQL reports it as a tainted format
+      // string. The rendered line is identical.
+      console.log("[pdf-index] %s:%s — indexed %d pages", recordType, logId, result.pages);
       const { embedRecordChunksSafe } = await import("./chunk-embed");
       await embedRecordChunksSafe(recordType, recordId);
     } else {
-      console.log(`[pdf-index] ${recordType}:${recordId} — skipped (${result.reason}${result.detail ? `: ${result.detail}` : ""})`);
+      console.log(
+        "[pdf-index] %s:%s — skipped (%s)",
+        recordType,
+        logId,
+        result.detail ? `${result.reason}: ${result.detail}` : result.reason,
+      );
     }
   } catch (err) {
-    console.error(`[pdf-index] ${recordType}:${recordId} — failed:`, err instanceof Error ? err.message : err);
+    console.error(
+      "[pdf-index] %s:%s — failed:",
+      recordType,
+      logId,
+      err instanceof Error ? err.message : err,
+    );
   }
 }

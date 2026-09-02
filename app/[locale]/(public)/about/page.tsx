@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SITE_URL } from "@/lib/seo/site";
 import { localeAlternates } from "@/lib/seo/alternates";
 import { openGraphBase } from "@/lib/seo/open-graph";
 

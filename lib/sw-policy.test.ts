@@ -12,6 +12,8 @@ import {
   isPrivateRequest,
   manifestRevision,
   OFFLINE_FALLBACK_URL,
+  OFFLINE_SHELL_URLS,
+  offlineShellFor,
   shouldPrecache,
 } from "./sw-policy";
 
@@ -269,9 +271,9 @@ describe("service worker caching policy", () => {
       // So adding `tolerateStorageFailure` to the navigation rule disables the
       // offline fallback entirely — which is exactly what had happened.
       // Slice from the navigate matcher to the start of the next numbered
-      // rule, so this only ever inspects rule 3's own plugin list.
-      const start = sw.indexOf('request.mode === "navigate"');
-      const end = sw.indexOf("// ── 4.", start);
+      // rule, so this only ever inspects rule 4's own plugin list.
+      const start = sw.indexOf('matcher: ({ request }) => request.mode === "navigate"');
+      const end = sw.indexOf("// ── 5.", start);
       expect(start).toBeGreaterThan(-1);
       expect(end).toBeGreaterThan(start);
       // Comments in that block explain the trap by name, so match on code only.
@@ -280,6 +282,64 @@ describe("service worker caching policy", () => {
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/^\s*\/\/.*$/gm, "");
       expect(code).not.toContain("tolerateStorageFailure");
+    });
+  });
+
+  // ── Offline working surfaces ──────────────────────────────────────────────
+  describe("offline library + reader boot with no network", () => {
+    const sw = fs.readFileSync(path.resolve(__dirname, "../app/sw.ts"), "utf8");
+
+    it("precaches both locales of both surfaces", () => {
+      // A precached document carries the locale it was rendered for, so Khmer
+      // needs its own copy — otherwise offline readers get an English shell.
+      expect([...OFFLINE_SHELL_URLS]).toEqual([
+        "/offline-books",
+        "/km/offline-books",
+        "/offline-reader",
+        "/km/offline-reader",
+      ]);
+    });
+
+    it("app/sw.ts actually installs them (naming a URL is not precaching it)", () => {
+      // The exact mistake /~offline made: `fallbacks` named it and nothing put
+      // it in the manifest, so the lookup missed on every offline navigation.
+      expect(sw).toContain("OFFLINE_SHELL_URLS.map");
+      expect(sw).toContain("precacheEntries");
+    });
+
+    it("serves ONE shell for any book id — the reader's id lives in the query", () => {
+      expect(offlineShellFor("/offline-reader")).toBe("/offline-reader");
+      expect(offlineShellFor("/offline-reader/")).toBe("/offline-reader");
+      expect(offlineShellFor("/km/offline-reader")).toBe("/km/offline-reader");
+      expect(offlineShellFor("/offline-books")).toBe("/offline-books");
+    });
+
+    it("claims nothing else — a shell must never answer for another route", () => {
+      for (const p of [
+        "/offline-reader/abc", // a path-shaped id is NOT the contract
+        "/books/some-book",
+        "/offline-booksx",
+        "/",
+        "/km",
+      ]) {
+        expect(offlineShellFor(p), p).toBeNull();
+      }
+    });
+
+    it("is matched BEFORE the generic navigation rule and its offline fallback", () => {
+      // Order is the whole point: the document fallback would otherwise answer
+      // "you're offline" on the two pages whose job is to work offline.
+      const shellRule = sw.indexOf("offlineShellFor(url.pathname)");
+      const navRule = sw.indexOf('matcher: ({ request }) => request.mode === "navigate"');
+      expect(shellRule).toBeGreaterThan(-1);
+      expect(navRule).toBeGreaterThan(shellRule);
+    });
+
+    it("still prefers the network when there is one", () => {
+      const start = sw.indexOf("offlineShellFor(url.pathname) !== null");
+      const block = sw.slice(start, start + 1200);
+      expect(block).toContain("fetch(request)");
+      expect(block).toContain("ignoreSearch: true");
     });
   });
 

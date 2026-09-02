@@ -92,6 +92,7 @@ export const NONCE_PATH_PREFIXES = [
 export const EVAL_PATH_PATTERNS: readonly RegExp[] = [
   /^\/books\/[^/]+\/read$/,
   /^\/offline-books$/,
+  /^\/offline-reader$/,
 ];
 
 /**

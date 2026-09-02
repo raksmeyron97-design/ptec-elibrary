@@ -261,7 +261,7 @@ export default function TeamForm({
   }, [isDirty]);
 
   // Auto-save draft every 30s on the edit flow (not new, to avoid orphan records).
-  const autoSave = useAutoSave({
+  useAutoSave({
     isDirty,
     isEdit,
     busy,

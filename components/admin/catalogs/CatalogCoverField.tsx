@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import GeneratedBookCover from "@/components/ui/books/GeneratedBookCover";
+import { isSafeImageSrc } from "@/lib/safe-image-src";
 import {
   COVER_ACCEPT_ATTR,
   COVER_MAX_BYTES,
@@ -172,6 +173,16 @@ export default function CatalogCoverField({
   const figureCls = "relative h-[128px] w-[92px] overflow-hidden rounded-lg border border-divider bg-bg-surface";
   const captionCls = "mt-1 text-center text-[9px] font-semibold text-text-muted";
 
+  // Bound once and reused at both the isSafeImageSrc() check and the <img
+  // src>: re-evaluating `selected.objectUrl` / `externalUrl.trim()`
+  // separately at each site is still behaviorally correct, but it is two
+  // unrelated property/method-call expressions rather than one tracked
+  // value, which is what let a real (though narrow) js/xss-through-dom
+  // finding through — CodeQL's flow analysis couldn't tell the sink was the
+  // same value the guard had just checked.
+  const selectedObjectUrl = selected?.objectUrl ?? null;
+  const trimmedExternalUrl = externalUrl.trim();
+
   return (
     <fieldset className="rounded-xl border border-divider bg-paper/30 p-4">
       <legend className="px-1 text-xs font-bold uppercase tracking-wider text-text-muted">
@@ -215,8 +226,10 @@ export default function CatalogCoverField({
           <div className="flex flex-wrap items-start gap-4 rounded-xl border border-divider bg-bg-surface p-3">
             <figure className="w-[92px]">
               <div className={figureCls}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={selected.objectUrl} alt={t("coverPreviewAlt")} className="h-full w-full object-cover" />
+                {isSafeImageSrc(selectedObjectUrl) && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={selectedObjectUrl} alt={t("coverPreviewAlt")} className="h-full w-full object-cover" />
+                )}
               </div>
               <figcaption className={captionCls}>{t("selectedFile")}</figcaption>
             </figure>
@@ -329,7 +342,7 @@ export default function CatalogCoverField({
           <div className="flex flex-wrap items-start gap-4 rounded-xl border border-divider bg-bg-surface p-3" aria-live="polite">
             <figure className="w-[92px]">
               <div className={figureCls}>
-                {externalBroken ? (
+                {externalBroken || !isSafeImageSrc(trimmedExternalUrl) ? (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center">
                     <svg className="h-5 w-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
                       <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
@@ -340,7 +353,7 @@ export default function CatalogCoverField({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     ref={brokenProbeRef}
-                    src={externalUrl.trim()}
+                    src={trimmedExternalUrl}
                     alt={t("coverPreviewAlt")}
                     className="h-full w-full object-cover"
                     onError={() => setExternalBroken(true)}

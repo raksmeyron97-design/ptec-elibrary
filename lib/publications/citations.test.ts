@@ -252,6 +252,12 @@ describe("citation token extraction and resolution", () => {
     expect(resolveCitation("3", references)).toBeNull();
   });
 
+  it("returns an empty string for null, undefined, or already-empty content", () => {
+    expect(upgradeLegacyCitationTokens(null, references)).toBe("");
+    expect(upgradeLegacyCitationTokens(undefined, references)).toBe("");
+    expect(upgradeLegacyCitationTokens("", references)).toBe("");
+  });
+
   it("upgrades resolvable numeric tokens while leaving other tokens intact", () => {
     expect(
       upgradeLegacyCitationTokens(

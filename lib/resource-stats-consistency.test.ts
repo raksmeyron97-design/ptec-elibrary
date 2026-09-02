@@ -288,10 +288,10 @@ describe("service worker cannot preserve a stale resource total", () => {
 
   it("serves page navigations network-first, so counts refresh when online", () => {
     const sw = read("app/sw.ts");
-    const navRule = sw.slice(
-      sw.indexOf('matcher: ({ request }) => request.mode === "navigate"'),
-      sw.indexOf("// ── 4."),
-    );
+    // The GENERIC navigation rule — not the offline-shell rule above it, which
+    // also matches navigations but only for /offline-books and /offline-reader.
+    const start = sw.indexOf('matcher: ({ request }) => request.mode === "navigate"');
+    const navRule = sw.slice(start, sw.indexOf("// ── 5.", start));
     expect(navRule).toContain("new NetworkFirst(");
     expect(navRule).not.toContain("CacheFirst");
   });

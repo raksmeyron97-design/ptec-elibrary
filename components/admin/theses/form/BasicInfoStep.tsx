@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import SearchableSelect from "@/components/ui/search/SearchableSelect";
-import { Field, FormSection, INPUT_CLASS, SlugField } from "@/components/admin/kit/form";
+import { Field, FormSection, SlugField } from "@/components/admin/kit/form";
 import { LICENSE_OPTIONS } from "@/lib/book-utils";
 import { THESIS_TYPES, THESIS_LANGUAGES, slugify, type ThesisType, type ThesisLanguage } from "@/lib/admin/theses-shared";
 import { checkThesisSlugAvailable } from "@/app/actions/theses";

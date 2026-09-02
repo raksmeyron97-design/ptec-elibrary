@@ -20,7 +20,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { PageRecordType } from "./pdf-page-index";
+import { sanitizeLogId, type PageRecordType } from "./pdf-page-index";
 
 export const CHUNK_SIZE = 1000;    // target chars per chunk (~ well under the embed token cap)
 export const CHUNK_OVERLAP = 150;  // chars carried into the next chunk for context
@@ -249,14 +249,27 @@ export async function embedRecordChunksSafe(
   recordType: PageRecordType,
   recordId: string,
 ): Promise<void> {
+  const logId = sanitizeLogId(recordId);
   try {
     const result = await embedRecordChunks({ recordType, recordId });
     if (result.embedded) {
-      console.log(`[chunk-embed] ${recordType}:${recordId} — embedded ${result.chunks} chunks from ${result.pages} pages`);
+      // Constant format string — see the note in pdf-page-index.ts.
+      console.log(
+        "[chunk-embed] %s:%s — embedded %d chunks from %d pages",
+        recordType,
+        logId,
+        result.chunks,
+        result.pages,
+      );
     } else {
-      console.log(`[chunk-embed] ${recordType}:${recordId} — skipped (${result.reason})`);
+      console.log("[chunk-embed] %s:%s — skipped (%s)", recordType, logId, result.reason);
     }
   } catch (err) {
-    console.error(`[chunk-embed] ${recordType}:${recordId} — failed:`, err instanceof Error ? err.message : err);
+    console.error(
+      "[chunk-embed] %s:%s — failed:",
+      recordType,
+      logId,
+      err instanceof Error ? err.message : err,
+    );
   }
 }

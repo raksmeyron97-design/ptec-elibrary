@@ -133,6 +133,7 @@ export const PRIVATE_PATH_PREFIXES = [
   "/profile",
   "/lists",
   "/offline-books",
+  "/offline-reader",
 ] as const;
 
 export function isPrivateSurfacePath(localeStrippedPath: string): boolean {
