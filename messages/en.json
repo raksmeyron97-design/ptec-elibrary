@@ -6844,7 +6844,9 @@
         "coverSize": "Cover image must be under 5 MB",
         "titleRequired": "Title is required",
         "uploadFailed": "Upload failed",
-        "pdfTooLarge": "That file is {size}. The limit is {limit}."
+        "pdfTooLarge": "That file is {size}. The limit is {limit}.",
+        "duplicateFile": "This exact PDF is already in the library as “{title}”. Open that record instead of adding a second copy.",
+        "duplicateIsbn": "This ISBN is already registered to “{title}”. Correct the ISBN, or confirm below that this is a different edition."
       },
       "files": "Files",
       "filesSub": "PDF (required) · Cover image (optional)",
@@ -6882,7 +6884,10 @@
         "summaryPlaceholder": "Short description for readers…",
         "keywords": "Keywords / Tags",
         "keywordsPlaceholder": "e.g. គណិតវិទ្យា, algebra, textbook…",
-        "keywordsHint": "Press Enter or comma to add each tag."
+        "keywordsHint": "Press Enter or comma to add each tag.",
+        "authorHint": "Pick an existing author where one matches, so the library keeps one record per person.",
+        "isbnValid": "Valid ISBN.",
+        "isbnInvalid": "This ISBN’s check digit does not verify. Save anyway if it is what the book prints."
       },
       "visibility": "Visibility",
       "publishNow": "Publish immediately",
@@ -6921,7 +6926,9 @@
         "pending": "The book has been sent to the review queue.",
         "redirectBooks": "Opening the collection…",
         "redirectReview": "Opening the review queue…"
-      }
+      },
+      "statusBlocked": "Blocked — this book is already in the library",
+      "statusOverride": "Will be sent for review as a different edition"
     },
     "bulk": {
       "rowStatus": {
@@ -6975,13 +6982,138 @@
       "resumeHint": "Re-select the same CSV and PDF folder to continue. Rows already uploaded will be skipped, not repeated.",
       "resumeAction": "Resume",
       "resumeDiscard": "Discard",
+      "alreadyImportedCount": "{count, plural, one {# row is already in the library and will be skipped — its file is never uploaded.} other {# rows are already in the library and will be skipped — their files are never uploaded.}}",
+      "viewExisting": "View",
       "legacyUploadPath": "Storage is using the older one-file-per-request endpoint, so this import consumes quota twice as fast. Check the STORAGE_SERVICE_TOKEN key has the storage:write scope.",
-      "transportBatched": "Batched uploads in use — 1 request per book (PDF + cover together), 120 books/hour."
+      "transportBatched": "Batched uploads in use — 1 request per book (PDF + cover together), 120 books/hour.",
+      "duplicate": {
+        "blockedCount": "{count, plural, one {# row is already registered and will not be uploaded} other {# rows are already registered and will not be uploaded}}.",
+        "strongCount": "{count, plural, one {# row is almost certainly already in the library and has been skipped} other {# rows are almost certainly already in the library and have been skipped}}.",
+        "possibleCount": "{count, plural, one {# row may be a duplicate — it will still be uploaded, so check it} other {# rows may be duplicates — they will still be uploaded, so check them}}.",
+        "rowBlocked": "Already registered as \u201c{title}\u201d.",
+        "rowStrong": "Likely already in the library as \u201c{title}\u201d ({score}%).",
+        "rowPossible": "Possible duplicate of \u201c{title}\u201d ({score}%).",
+        "rowBatch": "Same book as row {row} of this file."
+      }
     },
     "title": "Upload books",
     "description": "Add a single book with full metadata, or import many at once from a CSV.",
     "modeLabel": "Upload mode",
-    "loadFailedBody": "The upload form could not be loaded. Your files were not sent."
+    "loadFailedBody": "The upload form could not be loaded. Your files were not sent.",
+    "duplicates": {
+      "checking": "Checking the collection…",
+      "clean": "No matching record found",
+      "matchCount": "{count, plural, one {# possible match} other {# possible matches}}",
+      "similarity": "{score}% similarity",
+      "expand": "{count, plural, one {Show the match} other {Show all # matches}}",
+      "collapse": "Hide the details",
+      "reviewQueue": "Open the duplicate queue",
+      "openRecord": "Open the record",
+      "viewPublic": "View public page",
+      "noMetadata": "No author, year or ISBN recorded",
+      "editionNote": "The same title is not always the same book — check the edition, year and ISBN before continuing.",
+      "blocked": {
+        "title": "Duplicate book",
+        "file": "This PDF is already registered in the library.",
+        "isbn": "This ISBN is already registered to another book."
+      },
+      "strong": {
+        "title": "Strong duplicate match",
+        "lead": "This book appears to already exist."
+      },
+      "possible": {
+        "title": "Possible duplicate",
+        "lead": "A similar record was found."
+      },
+      "unavailable": {
+        "title": "Duplicate check unavailable",
+        "body": "The collection could not be checked, so this upload is unverified. Try again, or review the duplicate queue after saving."
+      },
+      "override": {
+        "label": "This is a different edition",
+        "hint": "The book is saved to the review queue rather than published, and your decision is recorded in the audit log.",
+        "active": "This upload will go to the review queue for a second librarian to confirm."
+      },
+      "status": {
+        "published": "Published",
+        "pending": "In review",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
+      "reason": {
+        "sameFile": "Identical PDF file",
+        "sameIsbn": "Same ISBN",
+        "sameTitle": "Same title",
+        "similarTitle": "Similar title",
+        "titleContained": "One title contains the other",
+        "sameAuthor": "Same author",
+        "sameYear": "Same publication year",
+        "samePublisher": "Same publisher",
+        "differentIsbn": "Different ISBN",
+        "differentEdition": "Different edition",
+        "differentYear": "Different year"
+      }
+    },
+    "author": {
+      "suggestions": "Matching authors",
+      "hint": "Start typing to reuse an author the library already has.",
+      "selected": "Existing author selected",
+      "clear": "Change",
+      "createNew": "Create new author “{name}”",
+      "noMatches": "No existing author matches — this will create a new one.",
+      "bookCount": "{count, plural, =0 {No books} one {# book} other {# books}}",
+      "fuzzyNote": "Similar name — confirm this is the same person.",
+      "lookupFailed": "The author list could not be loaded. Type the name to create or reuse it."
+    },
+    "preflight": {
+      "heading": {
+        "ready": "Ready to upload",
+        "pending": "Check before uploading",
+        "blocked": "Cannot upload yet"
+      },
+      "sub": "Everything checked before the file is sent.",
+      "subWithWarnings": "{count, plural, one {# thing worth a look} other {# things worth a look}} before saving.",
+      "check": {
+        "pdf": {
+          "ready": "PDF valid",
+          "missing": "No PDF chosen yet",
+          "tooLarge": "PDF is over the size limit",
+          "large": "Large PDF — students on mobile will wait for this"
+        },
+        "pages": {
+          "detecting": "Reading the PDF…",
+          "detected": "{count} pages detected",
+          "unknown": "Page count could not be read — enter it by hand"
+        },
+        "title": {
+          "present": "Title entered",
+          "missing": "Title is required"
+        },
+        "author": {
+          "existing": "Author recognised",
+          "new": "New author will be created",
+          "missing": "Author is required"
+        },
+        "taxonomy": {
+          "present": "Category and department set",
+          "missing": "Category and department are required"
+        },
+        "isbn": {
+          "valid": "ISBN valid",
+          "invalid": "ISBN check digit does not verify",
+          "absent": "No ISBN — duplicate detection has less to work with"
+        },
+        "duplicates": {
+          "idle": "Duplicate check waiting for a title or ISBN",
+          "checking": "Checking for duplicates…",
+          "clean": "No duplicate found",
+          "possible": "{count, plural, one {# possible duplicate found} other {# possible duplicates found}}",
+          "strong": "{count, plural, one {# strong duplicate match} other {# strong duplicate matches}}",
+          "blocked": "This book is already in the library",
+          "unavailable": "Duplicate check could not run"
+        }
+      }
+    }
   },
   "announcementBanner": {
     "regionLabel": "Site announcements",

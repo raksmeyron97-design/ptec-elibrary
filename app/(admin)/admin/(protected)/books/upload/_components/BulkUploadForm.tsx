@@ -9,6 +9,8 @@ import {
   saveImportRunProgress,
   getResumableImportRun,
   closeImportRun,
+  findAlreadyImported,
+  type AlreadyImported,
   type ImportRun,
   type ImportRunRow,
 } from "@/app/(admin)/admin/(protected)/books/upload/import-run-actions";
@@ -66,6 +68,10 @@ interface BookJob {
   folderNote: FolderNameNote;
   /** Non-fatal problem on an otherwise successful row (e.g. cover rejected). */
   warning?: string;
+  /** What this row collides with — an existing book, or an earlier row of the
+   *  same file. Scored by lib/books/duplicate-detection, so the importer and
+   *  the single-upload form reach the same verdict. */
+  alreadyImported?: AlreadyImported;
 }
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
@@ -388,6 +394,9 @@ export default function BulkUploadForm() {
   // answer. "legacy" wins once seen — a run that fell back even once did not
   // get the batched rate.
   const [transport, setTransport] = useState<"v1" | "legacy" | null>(null);
+  // Rows that collide with the library or with each other, keyed by row id.
+  // Advisory: the content-hash check in the upload route remains the guarantee.
+  const [alreadyImported, setAlreadyImported] = useState<Map<string, AlreadyImported>>(new Map());
   const [resumedRows, setResumedRows] = useState<Map<string, ImportRunRow>>(new Map());
   const runIdRef = useRef<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -464,12 +473,23 @@ export default function BulkUploadForm() {
       // run cannot inherit another book's destination.
       const prior = resumedRows.get(id);
       const priorApplies = prior !== undefined && prior.title === row.title;
+      // A strong-or-blocking match pre-skips the row, so the file is never
+      // transferred. handleStart() already filters "skipped" out of the queue,
+      // so this needs no separate branch there.
+      //
+      // A merely POSSIBLE match does not skip: same title alone is also how a
+      // second edition looks, and silently dropping those rows would make the
+      // importer lose books to protect against a maybe. Those rows stay
+      // pending, flagged, and the operator decides.
+      const existing = alreadyImported.get(id);
+      const preSkip = Boolean(existing && (existing.blocked || existing.confidence === "high"));
       return {
         id,
         row,
         pdfFile:   pdfIndex.get(row.pdf_file.toLowerCase()) ?? null,
         coverFile: row.cover_file ? (coverIndex.get(row.cover_file.toLowerCase()) ?? null) : null,
-        status:    (priorApplies ? (prior.status as RowStatus) : "pending"),
+        status:    (priorApplies ? (prior.status as RowStatus) : preSkip ? "skipped" : "pending"),
+        alreadyImported: existing,
         error:     priorApplies ? prior.error : undefined,
         slug:      priorApplies ? prior.slug : undefined,
         folder:
@@ -478,11 +498,27 @@ export default function BulkUploadForm() {
         folderNote: folderNameNote(row.title, uid),
       };
     });
-  }, [csvRows, pdfIndex, coverIndex, resumedRows]);
+  }, [csvRows, pdfIndex, coverIndex, resumedRows, alreadyImported]);
 
-  function handlePreview() {
-    setJobs(buildJobs(jobs));
+  async function handlePreview() {
+    const built = buildJobs(jobs);
+    setJobs(built);
     setStarted(false);
+    // One query for the whole CSV, before anything is sent. Advisory only —
+    // it never blocks, and a failure just means no rows are pre-flagged.
+    const hits = await findAlreadyImported(
+      built.map((j) => ({
+        id: j.id,
+        title: j.row.title,
+        author: j.row.author,
+        // Without these the pre-flight could not see an ISBN collision — the
+        // one signal that should stop a row outright — nor tell a second
+        // edition apart from a re-import.
+        isbn: j.row.isbn,
+        year: j.row.year,
+      })),
+    );
+    setAlreadyImported(new Map(hits.map((h) => [h.id, h])));
   }
 
   function updateJob(
@@ -628,6 +664,16 @@ export default function BulkUploadForm() {
   const remaining = started
     ? jobs.filter((j) => j.status === "pending" && j.pdfFile).length
     : 0;
+  const preSkipped = jobs.filter((j) => j.status === "skipped" && j.alreadyImported).length;
+  /* Row-level import report (§27): the three outcomes an operator acts on
+     differently — refused, almost certainly already here, and worth a look. */
+  const dupBlocked = jobs.filter((j) => j.alreadyImported?.blocked).length;
+  const dupStrong = jobs.filter(
+    (j) => j.alreadyImported && !j.alreadyImported.blocked && j.alreadyImported.confidence === "high",
+  ).length;
+  const dupPossible = jobs.filter(
+    (j) => j.alreadyImported && !j.alreadyImported.blocked && j.alreadyImported.confidence !== "high",
+  ).length;
   const badFolders = jobs.filter((j) => describeStoragePathError(j.folder) !== null).length;
   const truncated  = jobs.filter((j) => j.folderNote === "truncated").length;
   // Not a problem, but the answer to "why is there a folder called book-d4rwjf?"
@@ -896,8 +942,37 @@ export default function BulkUploadForm() {
           {/* Pre-flight notices. Shown before the batch runs, because "14 of the
               first 36 rows failed" is a discovery an operator should never make
               one upload at a time. */}
-          {!started && (badFolders > 0 || truncated > 0 || fallbacks > 0) && (
+          {!started &&
+            (badFolders > 0 ||
+              truncated > 0 ||
+              fallbacks > 0 ||
+              preSkipped > 0 ||
+              dupPossible > 0) && (
             <div className="space-y-2 border-b border-divider px-5 py-3 sm:px-6">
+              {dupBlocked > 0 && (
+                <p role="alert" className="flex items-start gap-2 text-xs text-danger-text">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("duplicate.blockedCount", { count: dupBlocked })}
+                </p>
+              )}
+              {dupStrong > 0 && (
+                <p className="flex items-start gap-2 text-xs text-warning-text">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("duplicate.strongCount", { count: dupStrong })}
+                </p>
+              )}
+              {dupPossible > 0 && (
+                <p className="flex items-start gap-2 text-xs text-text-muted">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {t("duplicate.possibleCount", { count: dupPossible })}
+                </p>
+              )}
+              {preSkipped > 0 && (
+                <p className="flex items-start gap-2 text-xs text-text-muted">
+                  <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+                  {t("alreadyImportedCount", { count: preSkipped })}
+                </p>
+              )}
               {badFolders > 0 && (
                 <p role="alert" className="flex items-start gap-2 text-xs text-danger-text">
                   <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -948,6 +1023,43 @@ export default function BulkUploadForm() {
                     <td className="max-w-[200px] px-4 py-3">
                       <p className="truncate text-sm font-medium text-text-body">{job.row.title}</p>
                       <p className="truncate text-xs text-text-muted">{job.row.category} · {job.row.department}</p>
+                      {job.alreadyImported && (
+                        <p
+                          className={`mt-0.5 text-xs ${
+                            job.alreadyImported.blocked
+                              ? "font-medium text-danger-text"
+                              : job.alreadyImported.confidence === "high"
+                                ? "font-medium text-warning-text"
+                                : "text-text-muted"
+                          }`}
+                        >
+                          {job.alreadyImported.source === "batch"
+                            ? t("duplicate.rowBatch", {
+                                row: Number(job.alreadyImported.matchRowId ?? 0) + 1,
+                              })
+                            : job.alreadyImported.blocked
+                              ? t("duplicate.rowBlocked", { title: job.alreadyImported.title })
+                              : job.alreadyImported.confidence === "high"
+                                ? t("duplicate.rowStrong", {
+                                    title: job.alreadyImported.title,
+                                    score: job.alreadyImported.score,
+                                  })
+                                : t("duplicate.rowPossible", {
+                                    title: job.alreadyImported.title,
+                                    score: job.alreadyImported.score,
+                                  })}
+                          {job.alreadyImported.bookId && (
+                            <a
+                              href={`/admin/edit/${job.alreadyImported.bookId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1 text-brand underline"
+                            >
+                              {t("viewExisting")}
+                            </a>
+                          )}
+                        </p>
+                      )}
                       {(() => {
                         const problem = describeStoragePathError(job.folder);
                         if (problem) {
