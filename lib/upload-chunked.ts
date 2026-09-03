@@ -110,6 +110,43 @@ export async function uploadChunked<T = { url: string; contentHash?: string }>(
           throw err;
         }
 
+        // Self-healing: if the server reports missing chunks during final assembly,
+        // automatically re-upload the missing chunks before retrying final assembly
+        const errPayload = (err as { payload?: { missingChunks?: unknown } })?.payload;
+        if (
+          isLastChunk &&
+          errPayload &&
+          Array.isArray(errPayload.missingChunks) &&
+          errPayload.missingChunks.length > 0
+        ) {
+          const missing = errPayload.missingChunks as number[];
+          try {
+            for (const mIdx of missing) {
+              const mStart = mIdx * chunkSize;
+              const mEnd = Math.min(totalBytes, mStart + chunkSize);
+              const mBlob = file.slice(mStart, mEnd);
+              await sendSingleChunk({
+                endpoint,
+                uploadId,
+                chunkIndex: mIdx,
+                totalChunks,
+                fileName: file.name,
+                fileSize: totalBytes,
+                key,
+                chunkBlob: mBlob,
+                isLastChunk: false,
+                extraFields,
+                signal,
+              });
+            }
+            // Recovered missing chunks! Reset attempt and immediately retry assembly
+            attempt = 0;
+            continue;
+          } catch {
+            // If recovery fails, fall through to normal retry backoff
+          }
+        }
+
         if (attempt > maxRetries) {
           throw err;
         }
@@ -213,7 +250,9 @@ function sendSingleChunk(params: {
           : null;
 
       const fallback = `Chunk ${chunkIndex + 1}/${totalChunks} upload failed (${xhr.status})`;
-      reject(new UploadHttpError(serverMessage || fallback, xhr.status));
+      const err = new UploadHttpError(serverMessage || fallback, xhr.status);
+      (err as unknown as { payload?: unknown }).payload = payload;
+      reject(err);
     });
 
     xhr.addEventListener("error", () => {

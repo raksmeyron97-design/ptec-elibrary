@@ -23,7 +23,7 @@ const CHUNKS_BASE_DIR = path.join(os.tmpdir(), "ptec-upload-chunks");
 // Sanitize uploadId to safe alphanumeric/hyphen characters to prevent directory traversal
 const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,64}$/;
 
-function cleanOldChunkDirs() {
+function cleanOldChunkDirs(activeUploadId?: string) {
   try {
     if (!fs.existsSync(CHUNKS_BASE_DIR)) return;
     const entries = fs.readdirSync(CHUNKS_BASE_DIR);
@@ -31,10 +31,15 @@ function cleanOldChunkDirs() {
     const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
     for (const id of entries) {
+      if (activeUploadId && id === activeUploadId) continue;
       const dir = path.join(CHUNKS_BASE_DIR, id);
       try {
         const stats = fs.statSync(dir);
-        if (now - stats.mtimeMs > TWO_HOURS_MS) {
+        if (
+          typeof stats.mtimeMs === "number" &&
+          stats.mtimeMs > 1_000_000_000_000 &&
+          now - stats.mtimeMs > TWO_HOURS_MS
+        ) {
           fs.rmSync(dir, { recursive: true, force: true });
         }
       } catch {
@@ -131,14 +136,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Final chunk received: Assemble the full file
-    cleanOldChunkDirs();
+    setTimeout(() => cleanOldChunkDirs(uploadId), 50);
 
+    const missingParts: number[] = [];
     for (let i = 0; i < totalChunks; i++) {
       const partPath = path.join(chunkDir, `part-${i}`);
-      if (!fs.existsSync(partPath)) {
-        fs.rmSync(chunkDir, { recursive: true, force: true });
-        return NextResponse.json({ error: `Missing chunk ${i} during final assembly. Please retry.` }, { status: 400 });
+      if (!fs.existsSync(partPath) || fs.statSync(partPath).size === 0) {
+        missingParts.push(i);
       }
+    }
+
+    if (missingParts.length > 0) {
+      console.warn(`[admin/upload/chunk] Assembly gap for ${uploadId}: missing chunks [${missingParts.join(", ")}] of ${totalChunks}`);
+      return NextResponse.json(
+        {
+          error: `Missing chunk ${missingParts[0]} during final assembly. Please retry.`,
+          missingChunks: missingParts,
+        },
+        { status: 400 },
+      );
     }
 
     const assembledPath = path.join(chunkDir, "assembled.bin");
