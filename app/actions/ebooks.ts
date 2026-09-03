@@ -317,8 +317,9 @@ export async function deleteEbook(id: string): Promise<ActionResult> {
  * Swaps a book's PDF file. The upload itself (MIME-sniffing, malware hash
  * check, duplicate-content check via findDuplicatePdf) already happened in
  * /api/admin/upload — this just points the book_files row at the new URL,
- * drops the stale file_health verdict (it described the old file), re-runs
- * full-text indexing, and best-effort deletes the old file from storage.
+ * removes any duplicate PDF rows for the book, drops the stale file_health
+ * verdict (it described the old file), re-runs full-text indexing, and
+ * best-effort deletes unreferenced old files from storage.
  */
 export async function replaceBookFile(
   bookId: string,
@@ -339,12 +340,23 @@ export async function replaceBookFile(
   const { data: book } = await supabase.from("books").select("title, slug").eq("id", bookId).single();
   if (!book) return { success: false, error: "Book not found" };
 
-  const { data: existingList } = await supabase
+  // Never order this by created_at: the hosted DB has no such column on
+  // book_files (baseline/drift mismatch, see migration 0106). PostgREST
+  // answered the ordered query with an error, `existing` read as null, and
+  // every replacement INSERTed a second row instead of updating the first —
+  // after which the public reader served whichever row came back first,
+  // i.e. usually the file that was being replaced. Order by the primary key.
+  const { data: existingRows, error: existingError } = await supabase
     .from("book_files")
-    .select("id, file_url")
-    .eq("book_id", bookId);
+    .select("id, file_url, format")
+    .eq("book_id", bookId)
+    .order("id", { ascending: true });
+  if (existingError) return { success: false, error: existingError.message };
 
-  const existing = existingList?.[0] ?? null;
+  // An epub row is a different file, not a duplicate — same rule 0106 uses to
+  // pick a book's primary PDF: anything not epub is the PDF.
+  const pdfRows = (existingRows ?? []).filter((row) => (row.format ?? "").toLowerCase() !== "epub");
+  const [existing, ...redundant] = pdfRows;
 
   const payload = {
     file_url: file.fileUrl,
@@ -362,27 +374,48 @@ export async function replaceBookFile(
     return { success: false, error: error.message };
   }
 
-  // Clean up any extra duplicate rows for this book if previous buggy uploads inserted them
-  if (existingList && existingList.length > 1) {
-    const extraIds = existingList.slice(1).map((f: { id: string }) => f.id);
-    try {
-      await supabase.from("book_files").delete().in("id", extraIds);
-    } catch {
-      // Best-effort cleanup
-    }
+  // Drop the duplicates the old bug left behind, so the row just updated is
+  // the only PDF this book has and every reader picks it.
+  if (redundant.length) {
+    await supabase
+      .from("book_files")
+      .delete()
+      .in("id", redundant.map((row) => row.id));
   }
 
   // The old file_health verdict described the file we just replaced.
   await supabase.from("file_health").delete().eq("record_type", "book").eq("record_id", bookId).eq("field", "file_url");
 
   const meta = await requestMeta();
-  await logAdminAction(user.id, "book.replace_pdf", "books", bookId, { title: book.title, ...meta });
+  await logAdminAction(user.id, "book.replace_pdf", "books", bookId, {
+    title: book.title,
+    ...(redundant.length ? { duplicateRowsRemoved: redundant.length } : {}),
+    ...meta,
+  });
 
   revalidateAll(book.slug);
 
-  const oldUrl = existing?.file_url;
-  if (oldUrl && oldUrl !== file.fileUrl) {
-    await zimaDelete(oldUrl).catch(() => null);
+  // Storage cleanup for the file we replaced plus anything the removed rows
+  // pointed at — but ask the database first, and treat a failed lookup as
+  // "still referenced": an orphaned object is cheap, a deleted live one is not.
+  const staleUrls = Array.from(
+    new Set(
+      [existing?.file_url, ...redundant.map((row) => row.file_url)].filter(
+        (url): url is string => typeof url === "string" && url.length > 0 && url !== file.fileUrl,
+      ),
+    ),
+  );
+  if (staleUrls.length) {
+    const { data: stillReferenced, error: refError } = await supabase
+      .from("book_files")
+      .select("file_url")
+      .in("file_url", staleUrls);
+    if (!refError) {
+      const referenced = new Set((stillReferenced ?? []).map((row) => row.file_url));
+      for (const url of staleUrls) {
+        if (!referenced.has(url)) await zimaDelete(url).catch(() => null);
+      }
+    }
   }
 
   after(() => indexPdfPagesSafe("book", bookId, file.fileUrl));
