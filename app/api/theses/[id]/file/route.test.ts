@@ -73,7 +73,10 @@ describe("GET /api/theses/[id]/file", () => {
   it("redirects ?download=1 to the gated /download route without touching storage", async () => {
     const res = await GET(req("/api/theses/abc-123/file?download=1"), { params: params("abc-123") });
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost/api/theses/abc-123/download");
+    // Relative, with no origin — an absolute one built from `request.url`
+    // resolves to the container's internal address behind the tunnel.
+    expect(res.headers.get("location")).toBe("/api/theses/abc-123/download");
+    expect(res.headers.get("location")).not.toMatch(/^https?:\/\//);
     // The bypass is closed: no DB read, no storage fetch, no file bytes served.
     expect(createServiceClient).not.toHaveBeenCalled();
     expect(zimaFetch).not.toHaveBeenCalled();

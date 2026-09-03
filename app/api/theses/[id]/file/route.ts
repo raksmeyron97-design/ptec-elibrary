@@ -45,7 +45,18 @@ export async function GET(
   // route, which enforces auth + complete Download Profile + Top-10/admin
   // policy and streams with `private, no-store`.
   if (download) {
-    return NextResponse.redirect(new URL(`/api/theses/${id}/download`, request.url), 307);
+    // Relative Location — see the books file route for the full reasoning.
+    // `new URL(path, request.url)` sent `Location: https://0.0.0.0:3000/...`
+    // behind the tunnel, so every thesis download link on a detail page
+    // (ActionButtons points at `?download=1`) redirected somewhere no browser
+    // can reach.
+    return new NextResponse(null, {
+      status: 307,
+      headers: {
+        Location: `/api/theses/${encodeURIComponent(id)}/download`,
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   // SECURITY: inline viewing is now gated too. It requires an authenticated

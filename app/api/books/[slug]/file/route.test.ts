@@ -79,7 +79,12 @@ describe("GET /api/books/[slug]/file", () => {
     const res = await GET(req("/api/books/abc-123/file?download=1"), { params: params("abc-123") });
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost/api/books/abc-123/download");
+    // RELATIVE, with no origin. An absolute Location built from `request.url`
+    // resolves to whatever the server sees, which behind the Cloudflare Tunnel
+    // is the container's own bind address — production briefly served
+    // `Location: https://0.0.0.0:3000/...`, which no browser can follow.
+    expect(res.headers.get("location")).toBe("/api/books/abc-123/download");
+    expect(res.headers.get("location")).not.toMatch(/^https?:\/\//);
     // The bypass is closed: no auth round-trip, no DB read, no storage fetch,
     // and above all no bytes. The refusal costs nothing.
     expect(createServiceClient).not.toHaveBeenCalled();
@@ -90,7 +95,12 @@ describe("GET /api/books/[slug]/file", () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const res = await GET(req("/api/books/abc-123/file?download=1"), { params: params("abc-123") });
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost/api/books/abc-123/download");
+    // RELATIVE, with no origin. An absolute Location built from `request.url`
+    // resolves to whatever the server sees, which behind the Cloudflare Tunnel
+    // is the container's own bind address — production briefly served
+    // `Location: https://0.0.0.0:3000/...`, which no browser can follow.
+    expect(res.headers.get("location")).toBe("/api/books/abc-123/download");
+    expect(res.headers.get("location")).not.toMatch(/^https?:\/\//);
   });
 
   it("still refuses an anonymous reader on the inline path", async () => {

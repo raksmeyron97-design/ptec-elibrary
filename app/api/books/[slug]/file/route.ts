@@ -98,7 +98,27 @@ export async function GET(
   // there being exactly one gate. The redirect happens BEFORE any database or
   // storage work, so the bypass costs nothing to refuse.
   if (download) {
-    return NextResponse.redirect(new URL(`/api/books/${slug}/download`, request.url), 307);
+    // A RELATIVE Location, deliberately.
+    //
+    // `new URL(path, request.url)` resolves against the origin the SERVER sees,
+    // which behind the Cloudflare Tunnel is the container's own bind address —
+    // it shipped `Location: https://0.0.0.0:3000/...`, which no browser can
+    // follow. This is the rule in CLAUDE.md ("redirect origins are never taken
+    // from the request") in its least obvious form.
+    //
+    // A relative reference is resolved by the CLIENT against the URL it
+    // actually requested (RFC 7231 §7.1.2), so it needs no origin at all: it
+    // lands on the canonical host for a public visitor, and on the LAN address
+    // for someone debugging over http — which is also the host that holds
+    // their session cookie. `NextResponse.redirect` requires an absolute URL,
+    // so the header is set directly.
+    return new NextResponse(null, {
+      status: 307,
+      headers: {
+        Location: `/api/books/${encodeURIComponent(slug)}/download`,
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   const ip = clientIp(request.headers);
