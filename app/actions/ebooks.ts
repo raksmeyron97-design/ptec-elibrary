@@ -339,13 +339,12 @@ export async function replaceBookFile(
   const { data: book } = await supabase.from("books").select("title, slug").eq("id", bookId).single();
   if (!book) return { success: false, error: "Book not found" };
 
-  const { data: existing } = await supabase
+  const { data: existingList } = await supabase
     .from("book_files")
     .select("id, file_url")
-    .eq("book_id", bookId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .eq("book_id", bookId);
+
+  const existing = existingList?.[0] ?? null;
 
   const payload = {
     file_url: file.fileUrl,
@@ -361,6 +360,16 @@ export async function replaceBookFile(
       return { success: false, error: "This PDF was just uploaded as another book — duplicate file rejected." };
     }
     return { success: false, error: error.message };
+  }
+
+  // Clean up any extra duplicate rows for this book if previous buggy uploads inserted them
+  if (existingList && existingList.length > 1) {
+    const extraIds = existingList.slice(1).map((f: { id: string }) => f.id);
+    try {
+      await supabase.from("book_files").delete().in("id", extraIds);
+    } catch {
+      // Best-effort cleanup
+    }
   }
 
   // The old file_health verdict described the file we just replaced.
