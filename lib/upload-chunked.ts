@@ -101,6 +101,11 @@ export async function uploadChunked<T = { url: string; contentHash?: string }>(
             overallLoaded = Math.min(totalBytes, start + chunkLoaded);
             emit(overallLoaded, "sending");
           },
+          onProcessing: () => {
+            if (isLastChunk) {
+              emit(totalBytes, "processing");
+            }
+          },
         });
 
         success = true;
@@ -179,6 +184,7 @@ function sendSingleChunk(params: {
   extraFields: Record<string, string | null | undefined>;
   signal?: AbortSignal;
   onChunkProgress?: (loaded: number) => void;
+  onProcessing?: () => void;
 }): Promise<unknown> {
   const {
     endpoint,
@@ -189,9 +195,11 @@ function sendSingleChunk(params: {
     fileSize,
     key,
     chunkBlob,
+    isLastChunk,
     extraFields,
     signal,
     onChunkProgress,
+    onProcessing,
   } = params;
 
   return new Promise((resolve, reject) => {
@@ -201,8 +209,8 @@ function sendSingleChunk(params: {
     }
 
     const xhr = new XMLHttpRequest();
-    // 90 second timeout per 5MB chunk (well within Cloudflare 100s, generous for slow links)
-    xhr.timeout = 90_000;
+    // 90 second timeout per 5MB intermediate chunk, 180s on final assembly chunk
+    xhr.timeout = isLastChunk ? 180_000 : 90_000;
 
     const fd = new FormData();
     fd.set("uploadId", uploadId);
@@ -228,6 +236,10 @@ function sendSingleChunk(params: {
       if (e.lengthComputable) {
         onChunkProgress?.(e.loaded);
       }
+    });
+
+    xhr.upload.addEventListener("load", () => {
+      onProcessing?.();
     });
 
     xhr.addEventListener("load", () => {

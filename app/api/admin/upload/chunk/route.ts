@@ -157,22 +157,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const assembledPath = path.join(chunkDir, "assembled.bin");
-    const writeStream = fs.createWriteStream(assembledPath);
-
+    const partBuffers: Buffer[] = [];
     for (let i = 0; i < totalChunks; i++) {
       const partPath = path.join(chunkDir, `part-${i}`);
-      const data = fs.readFileSync(partPath);
-      writeStream.write(data);
+      partBuffers.push(fs.readFileSync(partPath));
     }
-    writeStream.end();
-
-    await new Promise<void>((resolve, reject) => {
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-    });
-
-    const assembledBuffer = fs.readFileSync(assembledPath);
+    const assembledBuffer = Buffer.concat(partBuffers);
     const assembledBytes = assembledBuffer.buffer.slice(
       assembledBuffer.byteOffset,
       assembledBuffer.byteOffset + assembledBuffer.byteLength,
