@@ -8,13 +8,16 @@ import { optimizeImage, BOOK_COVER_OPTS, POST_IMAGE_OPTS } from "@/lib/image-opt
 import { logSecurityEvent } from "@/lib/security-log";
 import { describeStorageKeyError } from "@/lib/storage/folder-name";
 import { checkFileHashReputation, isVirusScanFailClosed } from "@/lib/virus-scan";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/uploads/state";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/", "publications/", "paths/"];
 
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
+// One byte under 100 MiB. Storage refuses EXACTLY 100 MiB, so a cap of
+// 100 * 1024 * 1024 here accepted the one size that could never be stored —
+// see MAX_UPLOAD_BYTES in lib/uploads/state.ts for the probe.
 
 /** Pick optimization preset based on the upload folder. */
 function presetsForFolder(key: string) {
@@ -40,7 +43,10 @@ export async function POST(request: NextRequest) {
 
     if (!file || file.size === 0) return NextResponse.json({ error: "No file provided" }, { status: 400 });
     if (file.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "File too large (max 100 MB)." }, { status: 413 });
+      return NextResponse.json(
+        { error: `File too large (max ${MAX_UPLOAD_LABEL}).` },
+        { status: 413 },
+      );
     }
     if (!key) return NextResponse.json({ error: "No key provided" }, { status: 400 });
 

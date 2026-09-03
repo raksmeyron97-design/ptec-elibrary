@@ -3,6 +3,8 @@
  * No "use server" — safe to import from both Server Actions and API Route Handlers.
  */
 
+import { Readable } from "node:stream";
+
 import { describeStoragePathError } from "@/lib/storage/folder-name";
 
 /**
@@ -247,6 +249,19 @@ export async function zimaUpload(
     );
   }
 
+  return readUploadResponse(res, folder);
+}
+
+/**
+ * Turn a Zima upload response into a URL, or into a ZimaUploadError that says
+ * what the caller can do about it.
+ *
+ * Shared by the buffered and streaming upload paths so the two cannot drift on
+ * the thing that matters most here — that a 429 stays a 429 with its
+ * Retry-After intact, because the bulk importer's decision to wait rather than
+ * fail 63 rows is made from exactly that.
+ */
+async function readUploadResponse(res: Response, folder: string): Promise<string> {
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     // "Invalid target folder" is all the storage server says when a path
@@ -291,6 +306,111 @@ export async function zimaUpload(
   // Normalize to HTTPS so next/image and browser fetch work correctly
   if (url.startsWith("http://")) url = "https://" + url.slice(7);
   return url;
+}
+
+/**
+ * Upload a file to Zima Storage WITHOUT ever holding it in memory.
+ *
+ * `zimaUpload()` above takes a `File`, which means the whole object is a
+ * Blob in the heap before `fetch` serializes it into a multipart body — a
+ * second full copy. For a 100 MB book on a container with a 1 GB memory limit
+ * that is the difference between an upload and an OOM, and it was paid on top
+ * of the copies the chunk route had already made while assembling.
+ *
+ * So the multipart envelope is written by hand around a stream. Three details
+ * make that safe rather than clever:
+ *
+ *   * the boundary is 128 bits of `crypto.randomUUID()`, so it cannot occur in
+ *     the payload by accident and cannot be steered by a caller;
+ *   * `filename` and `contentType` are placed into the part headers only after
+ *     `sanitizeUploadName()` and a CRLF/quote strip, because a newline in
+ *     either would end the header block early and let the caller inject their
+ *     own — the classic multipart header-injection;
+ *   * `Content-Length` is computed exactly (preamble + body + epilogue), so the
+ *     request is a plain sized POST rather than a chunked one. Express/multer
+ *     accepts both, but a sized request is what its `limits.fileSize` and any
+ *     proxy in between can act on BEFORE the bytes flow, which is the
+ *     behaviour a 100 MB cap should have.
+ *
+ * `duplex: "half"` is required by the fetch spec for a streaming request body
+ * and is supported by Node's undici; there is no browser caller for this
+ * function and there must not be.
+ */
+export async function zimaUploadStream(
+  body: Readable,
+  contentLength: number,
+  folder: string,
+  filename: string,
+  contentType: string,
+): Promise<string> {
+  const { apiUrl, apiKey } = zimaConfig();
+
+  const name = sanitizeUploadName(filename).replace(/["\r\n\\]/g, "_");
+  const type = /^[\w.+-]+\/[\w.+-]+$/.test(contentType) ? contentType : "application/octet-stream";
+  const boundary = `----ptec${crypto.randomUUID().replace(/-/g, "")}`;
+
+  const preamble = Buffer.from(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${name}"\r\n` +
+      `Content-Type: ${type}\r\n\r\n`,
+    "utf8",
+  );
+  const epilogue = Buffer.from(`\r\n--${boundary}--\r\n`, "utf8");
+  const total = preamble.byteLength + contentLength + epilogue.byteLength;
+
+  async function* envelope() {
+    yield preamble;
+    let sent = 0;
+    for await (const piece of body) {
+      const buf = piece as Buffer;
+      sent += buf.byteLength;
+      // The declared length is what the server was told to expect. A body that
+      // overruns it would be silently truncated by the receiver and stored as a
+      // corrupt file; failing here makes it a reported error instead.
+      if (sent > contentLength) {
+        throw new ZimaUploadError(
+          "The file grew while it was being uploaded; the transfer was stopped.",
+          400,
+        );
+      }
+      yield buf;
+    }
+    if (sent !== contentLength) {
+      throw new ZimaUploadError(
+        `The file ended early (${sent} of ${contentLength} bytes); nothing was stored.`,
+        400,
+      );
+    }
+    yield epilogue;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/api/upload`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "x-folder": /[^\x00-\xff]/.test(folder) ? encodeURIComponent(folder) : folder,
+        "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        "Content-Length": String(total),
+      },
+      body: Readable.toWeb(Readable.from(envelope())) as ReadableStream<Uint8Array>,
+      // Required for a streaming request body; without it undici rejects.
+      duplex: "half",
+      signal: AbortSignal.timeout(ZIMA_UPLOAD_TIMEOUT_MS),
+    } as RequestInit & { duplex: "half" });
+  } catch (err) {
+    if (isZimaUploadError(err)) throw err;
+    const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    throw new ZimaUploadError(
+      timedOut
+        ? `Storage did not respond within ${Math.round(ZIMA_UPLOAD_TIMEOUT_MS / 1000)}s. The file was not uploaded.`
+        : `Storage is unreachable: ${err instanceof Error ? err.message : "connection failed"}.`,
+      503,
+    );
+  }
+
+  return readUploadResponse(res, folder);
 }
 
 /**

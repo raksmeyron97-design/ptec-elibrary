@@ -79,7 +79,7 @@ describe("uploadWithProgress", () => {
       ["sending", 1],
       // The bytes are gone; the server is now hashing, scanning and storing,
       // and nothing reports that. The caller must be told to go indeterminate.
-      ["processing", 1],
+      ["finalizing", 1],
     ]);
   });
 
@@ -96,7 +96,7 @@ describe("uploadWithProgress", () => {
     FakeXhr.last.respond(413, { error: "File too large (max 100 MB)." });
 
     await expect(promise).rejects.toThrow("File too large (max 100 MB).");
-    expect(seen.at(-1)!.stage).toBe("processing");
+    expect(seen.at(-1)!.stage).toBe("finalizing");
   });
 
   it("prefers the server's message over the caller's fallback", async () => {

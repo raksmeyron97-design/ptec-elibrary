@@ -1,0 +1,11 @@
+{
+  "//": "Runner config for scripts/upload-e2e.mts only. It exists because that script imports real server modules (the route handler, the auth guards, the Supabase service client), and those carry `import \"server-only\"` — a package Next.js aliases away at build time and that does not exist in node_modules. Mapping it to the same no-op shim vitest uses is what lets the script run the REAL code outside Next, which is the entire point of the script. Never extend the root tsconfig with this: `server-only` resolving to a no-op in the app's own typecheck would silently disarm the import boundary it enforces.",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../*"],
+      "server-only": ["../vitest.server-only-shim.ts"],
+      "@/lib/auth/requireAdmin": ["./e2e-auth-stub.ts"]
+    }
+  }
+}

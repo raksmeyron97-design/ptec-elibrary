@@ -10,15 +10,27 @@
  * so it is what this uses. The request itself is unchanged: same URL, same
  * FormData, same same-origin cookies, same JSON response.
  *
- * Two states come out of it, and the difference matters to what the UI may
- * claim:
+ * The stages come out of it, and the difference matters to what the UI may
+ * claim. They are declared in `lib/uploads/state.ts` alongside the server's own
+ * state machine, so the two cannot drift:
  *
  *   "sending"    — bytes are leaving the browser. Measurable, so the bar is
  *                  determinate and the readout is true.
- *   "processing" — the last byte is gone and the server is now hashing,
- *                  virus-checking, optimizing and storing the file. Nothing
- *                  reports that; the UI must go indeterminate rather than
- *                  park a determinate bar at 99%, which reads as a hang.
+ *   "finalizing" — the last byte is gone and the server is hashing, checking
+ *                  content type, and looking the file up for malware and
+ *                  duplicates. Not measurable; the bar goes indeterminate
+ *                  rather than parking a determinate bar at 100%, which is
+ *                  what made a working upload look identical to a hung one.
+ *   "storing"    — the file is being written to storage. Reported by the
+ *                  session, not guessed.
+ *   "saving"     — storage is done and the database row is being written.
+ *   "complete"   — the row exists. The ONLY stage that may be called done.
+ *
+ * The single-request helper below cannot observe the last three separately: it
+ * sends one request and the server answers when everything is finished, so it
+ * reports "finalizing" for the whole of the server's work. That is honest for
+ * the small files it carries (covers, images). Large files go through
+ * `lib/upload-chunked.ts`, which observes the real states.
  *
  * Browser-only. Import it from client components.
  *
@@ -29,16 +41,22 @@
  * page it exists to forbid. Do not move it back.
  */
 
-export type UploadStage = "sending" | "processing";
+export type { UploadStage } from "@/lib/uploads/state";
+import type { UploadStage } from "@/lib/uploads/state";
 
 export type UploadProgress = {
   /** Bytes handed to the network so far. */
   loaded: number;
   /** Total bytes, or 0 when the browser declines to say (rare, but real). */
   total: number;
-  /** 0–1, clamped and monotonic. 1 for the whole of "processing". */
+  /** 0–1, clamped and monotonic. 1 for every stage past "sending". */
   fraction: number;
   stage: UploadStage;
+  /**
+   * Sub-phase reported by the server during "finalizing"/"storing", e.g.
+   * "verifying". Advisory: it refines a label and decides nothing.
+   */
+  phase?: string | null;
 };
 
 export type UploadOptions = {
@@ -82,7 +100,7 @@ export function uploadWithProgress<T = unknown>(
       onProgress?.({
         loaded,
         total,
-        fraction: next === "processing" ? 1 : total > 0 ? Math.min(1, loaded / total) : 0,
+        fraction: next === "sending" ? (total > 0 ? Math.min(1, loaded / total) : 0) : 1,
         stage: next,
       });
     };
@@ -96,14 +114,14 @@ export function uploadWithProgress<T = unknown>(
       emit(e.loaded, "sending");
     });
     /* Every byte is out. Anything after this is server work we cannot measure. */
-    xhr.upload.addEventListener("load", () => emit(total, "processing"));
+    xhr.upload.addEventListener("load", () => emit(total, "finalizing"));
 
     xhr.addEventListener("load", () => {
       cleanup();
       /* A response can arrive without `upload.load` ever firing — an early
          rejection (413, auth) closes the request mid-body. Flip anyway so the
          UI never freezes mid-bar behind an error. */
-      if (stage === "sending") emit(total, "processing");
+      if (stage === "sending") emit(total, "finalizing");
 
       let payload: unknown = null;
       try {

@@ -6830,12 +6830,16 @@
         "uploadingCover": "Uploading cover…",
         "saving": "Saving record",
         "uploading-pdf": "Uploading PDF…",
-        "uploading-cover": "Uploading cover…"
+        "uploading-cover": "Uploading cover…",
+        "finalizing": "Finalizing file"
       },
       "progress": {
         "processing": "Processing on the server…",
         "transferred": "{done} of {total}",
-        "step": "Step {current} of {total}: {label}"
+        "step": "Step {current} of {total}: {label}",
+        "finalizing": "Checking the file…",
+        "storing": "Storing the file…",
+        "savingRecord": "Saving the record…"
       },
       "chooseFirst": "Choose a PDF first.",
       "err": {
@@ -7008,7 +7012,8 @@
         "rowStrong": "Likely already in the library as \u201c{title}\u201d ({score}%).",
         "rowPossible": "Possible duplicate of \u201c{title}\u201d ({score}%).",
         "rowBatch": "Same book as row {row} of this file."
-      }
+      },
+      "transportChunked": "Large PDFs are being sent in chunks — reliable over the proxy, but they use the one-file storage endpoint (60 requests/hour), not the batched one."
     },
     "title": "Upload books",
     "description": "Add a single book with full metadata, or import many at once from a CSV.",

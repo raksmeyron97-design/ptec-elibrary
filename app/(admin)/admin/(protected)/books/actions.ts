@@ -14,6 +14,8 @@ import { notifyNewBookPublished } from "@/lib/push-events";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import { findBookDuplicates } from "@/lib/books/duplicate-detection/service";
 import { normalizeTaxonomyValue } from "@/lib/books/duplicate-detection/normalize";
+import { getSession, transition } from "@/lib/uploads/session";
+import { uploadLog } from "@/lib/uploads/log";
 
 /** Parse comma-separated tag string from FormData into a clean string[] */
 function parseTags(fd: FormData, field: "tags" | "keywords"): string[] {
@@ -107,6 +109,22 @@ export interface BookInput {
    * there is no second record to make of the same file.
    */
   duplicateOverride?: { acknowledgedBookId: string; reason: string };
+  /**
+   * The chunked-upload session whose file this record is for.
+   *
+   * When present, the save becomes the second half of a two-phase commit:
+   * storage has the bytes (session STORED) and this action moves the session to
+   * COMPLETED once the row exists. That is what makes the save IDEMPOTENT — a
+   * repeat of the same submit is answered with the book the first one created
+   * instead of inserting a second — and what makes "file in storage, no row in
+   * the database" a state something can find rather than a permanent invisible
+   * orphan.
+   *
+   * Optional: the bulk importer's legacy small-file path and the thesis and
+   * publication forms do not open a session, and keep exactly the behaviour
+   * they had.
+   */
+  uploadId?: string;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -229,9 +247,132 @@ async function assertNotDuplicate(
   return { status: "pending_review", overrodeBookId: top.bookId };
 }
 
+/**
+ * Claim the upload session for this save, or answer with what already happened.
+ *
+ * THE PROBLEM THIS SOLVES. Before this, the only record that a file had reached
+ * storage lived in a React ref in the browser. So:
+ *
+ *   * a save whose RESPONSE was lost (a refresh, a dropped connection, a
+ *     mobile network switching cells) looked identical to a save that failed,
+ *     and the form's error path deleted the stored PDF — a file that a
+ *     perfectly good `books` row was already pointing at;
+ *   * a librarian who pressed the button twice ran two inserts. The content-hash
+ *     unique index on `book_files` caught most of those, but only after the
+ *     second `books` row had been written and had to be deleted again, and only
+ *     when a hash was present at all.
+ *
+ * Returning `{ replay }` means "this exact upload already became that book" —
+ * the caller answers with its slug and inserts nothing.
+ */
+type SessionClaim =
+  | { kind: "none" }
+  | { kind: "claimed"; storedUrl: string }
+  | { kind: "replay"; bookId: string }
+  | { kind: "error"; message: string };
+
+async function claimUploadSession(
+  input: BookInput,
+  userId: string,
+): Promise<SessionClaim> {
+  const uploadId = input.uploadId?.trim();
+  if (!uploadId) return { kind: "none" };
+
+  const session = await getSession(uploadId);
+  if (!session) {
+    // The session expired or never existed. The file URL still has to be
+    // saved — refusing here would strand bytes that ARE in storage — so this
+    // degrades to the un-sessioned path rather than failing the librarian.
+    return { kind: "none" };
+  }
+  if (session.ownerId !== userId) {
+    return { kind: "error", message: "This upload belongs to a different account." };
+  }
+
+  if (session.state === "COMPLETED" && session.resourceId) {
+    return { kind: "replay", bookId: session.resourceId };
+  }
+  if (session.state === "FAILED" || session.state === "CANCELLED") {
+    return { kind: "error", message: "That upload was cancelled. Upload the file again." };
+  }
+  if (session.state !== "STORED" && session.state !== "ORPHANED") {
+    return {
+      kind: "error",
+      message:
+        session.state === "SAVING_DB"
+          ? "This book is already being saved. Wait a moment before trying again."
+          : "The file has not finished uploading yet.",
+    };
+  }
+
+  // The row must point at the file this session actually stored. A mismatch
+  // means the client sent a URL from somewhere else, which would produce a
+  // book whose bytes nothing accounts for.
+  if (session.storedUrl && input.fileUrl?.trim() && session.storedUrl !== input.fileUrl.trim()) {
+    return { kind: "error", message: "The uploaded file does not match this upload session." };
+  }
+
+  const claimed = await transition(uploadId, ["STORED", "ORPHANED"], "SAVING_DB");
+  if (!claimed) {
+    // Lost the race. Re-read: the winner may already have finished.
+    const now = await getSession(uploadId);
+    if (now?.state === "COMPLETED" && now.resourceId) {
+      return { kind: "replay", bookId: now.resourceId };
+    }
+    return { kind: "error", message: "This book is already being saved. Wait a moment before trying again." };
+  }
+
+  uploadLog({ event: "db_save_start", uploadId, userId, state: "SAVING_DB" });
+  return { kind: "claimed", storedUrl: claimed.storedUrl ?? input.fileUrl };
+}
+
+/**
+ * Hand the session back after a failed insert.
+ *
+ * Back to STORED, not to FAILED: the FILE is still good and still in storage,
+ * so the operator can fix the metadata and press save again without
+ * re-uploading a byte. FAILED here would make a perfectly usable 95 MB upload
+ * unreachable because a category name was wrong.
+ */
+async function releaseUploadSession(uploadId: string | undefined, message: string): Promise<void> {
+  const id = uploadId?.trim();
+  if (!id) return;
+  await transition(id, "SAVING_DB", "STORED", {
+    errorCode: "DATABASE_SAVE_FAILED",
+    errorMessage: message.slice(0, 500),
+  }).catch(() => undefined);
+  uploadLog({ event: "session_failed", uploadId: id, errorCode: "DATABASE_SAVE_FAILED", message: message.slice(0, 300) });
+}
+
 export async function saveBookRecord(input: BookInput): Promise<{ error: string } | { success: true; slug: string }> {
   try {
   const { supabase, user } = await requirePermission("books", "write");
+
+  /* Two-phase commit, phase two. Claimed BEFORE the duplicate gate on purpose:
+     a replayed save must be answered with the book it already created, and
+     asking the duplicate detector first would instead refuse it as "this PDF is
+     already in the library" — which is true, and is the wrong answer, because
+     the book it collides with is the one this very call created. */
+  const claim = await claimUploadSession(input, user.id);
+  if (claim.kind === "error") return { error: claim.message };
+  if (claim.kind === "replay") {
+    const { data: existing } = await supabase
+      .from("books")
+      .select("slug")
+      .eq("id", claim.bookId)
+      .maybeSingle();
+    if (existing?.slug) {
+      uploadLog({
+        event: "db_save_replayed",
+        uploadId: input.uploadId,
+        userId: user.id,
+        state: "COMPLETED",
+      });
+      return { success: true, slug: existing.slug };
+    }
+    // The session says COMPLETED but the book is gone — deleted since. Fall
+    // through and let this call create a fresh record for the same file.
+  }
 
   const title      = input.title?.trim();
   const author     = input.author?.trim();
@@ -446,6 +587,24 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
     after(() => notifyNewBookPublished({ id: book.id, title, slug: book.slug }));
   }
 
+  /* The row exists and owns the file. Recording that on the session is what
+     closes the commit: from here a repeat of this save replays instead of
+     inserting, and the reconciler will never mistake these bytes for an
+     orphan. Best-effort — a book that exists must not be reported as a failure
+     because a bookkeeping update did not land. */
+  if (input.uploadId?.trim()) {
+    await transition(input.uploadId.trim(), "SAVING_DB", "COMPLETED", {
+      resourceType: "book",
+      resourceId: book.id,
+    }).catch(() => undefined);
+    uploadLog({
+      event: "db_save_done",
+      uploadId: input.uploadId.trim(),
+      userId: user.id,
+      state: "COMPLETED",
+    });
+  }
+
   revalidateBook(book.slug, { affectsHome: true });
 
   // Full-text page indexing (book_pages, migration 0066). Runs after the
@@ -455,7 +614,14 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
 
   return { success: true, slug: book.slug };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
+    const message = err instanceof Error ? err.message : String(err);
+    /* The bytes are still in storage and still good. Handing the session back
+       to STORED means the librarian can correct whatever the database refused
+       and save again without re-uploading the file — and means the file is
+       accounted for either way, instead of becoming the invisible orphan this
+       whole path used to produce. */
+    await releaseUploadSession(input.uploadId, message);
+    return { error: message };
   }
 }
 

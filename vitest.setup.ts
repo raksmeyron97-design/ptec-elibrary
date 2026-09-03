@@ -1,6 +1,15 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+/*
+ * Everything below shims a BROWSER environment, and the suite is jsdom by
+ * default — but a handful of files are server code (a route handler parsing a
+ * multipart body needs Node's own File/Blob, not jsdom's) and declare
+ * `@vitest-environment node`. There is no `window` there, and this file is
+ * still loaded, so it has to no-op rather than throw before a single test runs.
+ */
+const IS_BROWSER_ENV = typeof window !== 'undefined';
+
 // ── Web Storage ────────────────────────────────────────────────────────────
 // Node 24+ exposes its own experimental `localStorage`/`sessionStorage`
 // globals that evaluate to `undefined` unless the process was started with
@@ -85,20 +94,24 @@ function installStorage(key: 'localStorage' | 'sessionStorage') {
   }
 }
 
-installStorage('localStorage');
-installStorage('sessionStorage');
+if (IS_BROWSER_ENV) {
+  installStorage('localStorage');
+  installStorage('sessionStorage');
+}
 
 // Mock matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: vi.fn(), // deprecated
-    removeListener: vi.fn(), // deprecated
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-  })),
-});
+if (IS_BROWSER_ENV) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // deprecated
+      removeListener: vi.fn(), // deprecated
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}

@@ -34,6 +34,11 @@ on:
     - cron: "3/15 * * * *"
     # Retention cleanup once a day at 20:00 UTC = 03:00 Asia/Phnom_Penh.
     - cron: "0 20 * * *"
+    # Upload reconciliation hourly. Hourly rather than daily because the state
+    # it repairs — a session stuck in FINALIZING — makes an operator's retry
+    # fail with "already being finalized" until it is released, and a librarian
+    # blocked on one book will not wait until 03:00.
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       job:
@@ -41,7 +46,7 @@ on:
         required: true
         default: publish-scheduled
         type: choice
-        options: [publish-scheduled, cleanup, security-scan, both]
+        options: [publish-scheduled, cleanup, security-scan, upload-reconcile, both]
 
 permissions:
   contents: read # checkout, on the runs that alert
@@ -205,3 +210,44 @@ jobs:
           runbook: docs/RUNBOOKS.md §M2
           bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+  # ── Upload session reconciliation ───────────────────────────────────────────
+  # Releases sessions whose request died mid-transition, adopts files whose row
+  # exists but whose session never heard, flags files no record references, and
+  # reclaims staging disk. Reports only: `purge` is NOT passed on the schedule,
+  # so nothing in storage is deleted by a timer. See lib/uploads/reconcile.ts.
+  #
+  # NO TELEGRAM ALERT, unlike the three jobs above, and deliberately. Nothing
+  # here is time-critical: a missed pass leaves a stuck session stuck for
+  # another hour and some staging disk unreclaimed, neither of which is worth
+  # waking anyone. The failed run still emails the repo owner. If this job
+  # starts failing persistently the symptom an operator will actually notice is
+  # an upload that answers "already being finalized" — docs/CHUNKED-UPLOAD.md §8.
+  upload-reconcile:
+    if: >-
+      github.event.schedule == '17 * * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.job == 'upload-reconcile' || inputs.job == 'both'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reconcile upload sessions
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error title=CRON_SECRET missing::Set the CRON_SECRET repo secret to the same value as the box's .env"
+            exit 1
+          fi
+          for attempt in 1 2; do
+            code=$(curl -sS --max-time 90 -o /tmp/body.json -w '%{http_code}' \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$SITE_URL/api/cron/upload-reconcile") && [ "$code" = "200" ] && {
+                cat /tmp/body.json; echo; exit 0; }
+            echo "attempt $attempt: HTTP ${code:-no-response}"
+            cat /tmp/body.json 2>/dev/null || true
+            [ "$attempt" -lt 2 ] && sleep 20
+          done
+          echo "::error title=Upload reconciliation failed::/api/cron/upload-reconcile did not return 200 — see docs/RUNBOOKS.md"
+          exit 1
