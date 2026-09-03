@@ -37,6 +37,7 @@ import {
   uploadWithProgress,
   type UploadProgress as Transfer,
 } from "@/lib/upload-progress";
+import { uploadChunked } from "@/lib/upload-chunked";
 import { EBOOKS_BASE_PATH, EBOOKS_REVIEW_PATH } from "@/lib/admin/ebooks-url";
 import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
 import AuthorPicker, { type AuthorSelection } from "@/components/admin/books/AuthorPicker";
@@ -576,19 +577,15 @@ export default function UploadForm({
       const folder = bookFolder(categoryName, submittedTitle, uid);
       const pdfPath = bookPdfPath(folder);
 
-      const pdfPayload = new FormData();
-      pdfPayload.set("file", pdf);
-      pdfPayload.set("key", pdfPath);
-      pdfPayload.set("target", "private");
-
       setTransferName(pdf.name);
       setTransfer(null);
-      const { url: pdfPublicUrl, contentHash: uploadedHash } = await uploadWithProgress<{
+      const { url: pdfPublicUrl, contentHash: uploadedHash } = await uploadChunked<{
         url: string;
         contentHash?: string;
-      }>("/api/admin/upload", pdfPayload, {
+      }>("/api/admin/upload/chunk", pdf, pdfPath, {
         onProgress: setTransfer,
         fallbackError: (status) => `PDF upload failed (${status})`,
+        extraFields: { target: "private" },
       });
 
       let coverUrl: string | null = null;
