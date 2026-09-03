@@ -48,9 +48,10 @@ import {
   type FormTab,
 } from "@/components/admin/kit/form";
 import {
-  uploadWithProgress,
   type UploadProgress as Transfer,
+  uploadWithProgress,
 } from "@/lib/upload-progress";
+import { uploadChunked } from "@/lib/upload-chunked";
 
 type Initial = {
   id: string;
@@ -352,21 +353,20 @@ export default function EditForm({
         const folder = resolveFolder();
         const path = bookPdfPath(folder);
 
-        const pdfPayload = new FormData();
-        pdfPayload.set("file", pdfFile);
-        pdfPayload.set("key", path);
-        pdfPayload.set("target", "private");
-        pdfPayload.set("excludeType", "book");
-        pdfPayload.set("excludeId", initial.id);
-
         setTransferName(pdfFile.name);
         setTransfer(null);
-        const data = await uploadWithProgress<{ url: string; contentHash?: string }>(
-          "/api/admin/upload",
-          pdfPayload,
+        const data = await uploadChunked<{ url: string; contentHash?: string }>(
+          "/api/admin/upload/chunk",
+          pdfFile,
+          path,
           {
             onProgress: setTransfer,
             fallbackError: (status) => `PDF upload failed (${status})`,
+            extraFields: {
+              target: "private",
+              excludeType: "book",
+              excludeId: initial.id,
+            },
           },
         );
 

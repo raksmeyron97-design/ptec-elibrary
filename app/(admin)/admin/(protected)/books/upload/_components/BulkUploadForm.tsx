@@ -18,6 +18,7 @@ import { makeUid, bookFolder } from "@/lib/book-utils";
 import { describeStoragePathError, folderNameNote, type FolderNameNote } from "@/lib/storage/folder-name";
 import { QueueCancelled, postFile, type QueueGate } from "@/lib/admin/import-queue";
 import { getPdfPageCount } from "@/lib/pdf-client-utils";
+import { uploadChunked } from "@/lib/upload-chunked";
 import { FormSection, BTN_PRIMARY, BTN_SECONDARY } from "@/components/admin/kit/form";
 import { EBOOKS_BASE_PATH } from "@/lib/admin/ebooks-url";
 import Link from "next/link";
@@ -154,34 +155,71 @@ async function uploadBook(
     //    comment and docs/BULK-IMPORT.md.
     onStatus("uploading-pdf");
     const folder = job.folder;
+    let pdfPublicUrl: string;
+    let coverUrl: string | null = null;
+    let contentHash: string | undefined;
+    let warning: string | null = null;
 
-    const payload = new FormData();
-    payload.set("folder", folder);
-    payload.set("pdf", pdfFile);
-    payload.set("pdfName", "book.pdf");
-    if (coverFile) {
-      payload.set("cover", coverFile);
-      payload.set("coverName", `cover.${coverExt(coverFile.name)}`);
-      payload.set("coverType", coverFile.type || "image/jpeg");
-    }
+    if (pdfFile.size > 15 * 1024 * 1024) {
+      if (gate.cancelled) throw new QueueCancelled();
+      // Large PDF (> 15 MB): Upload in 5 MB chunks to bypass Cloudflare 100s timeout
+      const chunkResult = await uploadChunked<{ url: string; contentHash?: string }>(
+        "/api/admin/upload/chunk",
+        pdfFile,
+        `${folder}/book.pdf`,
+        {
+          extraFields: { target: "private" },
+        },
+      );
+      pdfPublicUrl = chunkResult.url;
+      contentHash = chunkResult.contentHash;
 
-    const pdfRes = await postFile("/api/admin/bulk-upload", {
-      method: "POST",
-      body: payload,
-    }, gate);
-    if (!pdfRes.ok) {
-      const { error } = await pdfRes.json().catch(() => ({ error: pdfRes.statusText }));
-      // 409 means this exact PDF is already in the library — the content-hash
-      // check in /api/admin/bulk-upload. That is the expected outcome of
-      // re-running a CSV after a partial failure, so it is reported as a skip,
-      // not as something the operator has to investigate. It is also what
-      // makes a re-run safe: the rows that succeeded cannot be duplicated.
-      if (pdfRes.status === 409) { onStatus("skipped", { error }); return; }
-      throw new Error(`PDF upload failed: ${error}`);
+      if (coverFile) {
+        onStatus("uploading-cover");
+        const coverPayload = new FormData();
+        coverPayload.set("file", coverFile);
+        coverPayload.set("key", `${folder}/cover.${coverExt(coverFile.name)}`);
+        coverPayload.set("target", "public");
+
+        const coverRes = await postFile("/api/admin/upload", {
+          method: "POST",
+          body: coverPayload,
+        }, gate);
+        if (coverRes.ok) {
+          const coverJson = await coverRes.json();
+          coverUrl = coverJson.url;
+        }
+      }
+      uploadedPdfUrl = pdfPublicUrl;
+      onTransport("v1");
+    } else {
+      const payload = new FormData();
+      payload.set("folder", folder);
+      payload.set("pdf", pdfFile);
+      payload.set("pdfName", "book.pdf");
+      if (coverFile) {
+        payload.set("cover", coverFile);
+        payload.set("coverName", `cover.${coverExt(coverFile.name)}`);
+        payload.set("coverType", coverFile.type || "image/jpeg");
+      }
+
+      const pdfRes = await postFile("/api/admin/bulk-upload", {
+        method: "POST",
+        body: payload,
+      }, gate);
+      if (!pdfRes.ok) {
+        const { error } = await pdfRes.json().catch(() => ({ error: pdfRes.statusText }));
+        if (pdfRes.status === 409) { onStatus("skipped", { error }); return; }
+        throw new Error(`PDF upload failed: ${error}`);
+      }
+      const resData = await pdfRes.json();
+      pdfPublicUrl = resData.url;
+      coverUrl = resData.coverUrl;
+      contentHash = resData.contentHash;
+      warning = resData.warning ?? null;
+      uploadedPdfUrl = pdfPublicUrl;
+      onTransport(resData.via === "legacy" ? "legacy" : "v1");
     }
-    const { url: pdfPublicUrl, coverUrl, contentHash, via, warning } = await pdfRes.json();
-    uploadedPdfUrl = pdfPublicUrl;
-    onTransport(via === "legacy" ? "legacy" : "v1");
 
     // 3. Save record
     onStatus("saving");
