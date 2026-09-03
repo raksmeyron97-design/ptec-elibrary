@@ -49,7 +49,6 @@ import {
 } from "@/components/admin/kit/form";
 import {
   type UploadProgress as Transfer,
-  type UploadStage,
   uploadWithProgress,
 } from "@/lib/upload-progress";
 import { uploadChunked } from "@/lib/upload-chunked";
