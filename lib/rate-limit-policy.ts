@@ -59,9 +59,29 @@ const POLICIES = {
     limit: strictDiv(envInt("RL_SUGGESTIONS_PER_MIN", 60)),
     windowMs: 60_000,
   }),
-  /** Inline PDF reading (books/theses/publications) — per IP */
+  /** Opening a PDF for inline reading (books/theses/publications) — per IP */
   fileRead: () => ({
     limit: isPdfLimitStrict() ? 10 : envInt("RL_FILE_READ_PER_MIN", 30),
+    windowMs: 60_000,
+  }),
+  /**
+   * Continuing an already-open PDF: a `Range` request for more of a document
+   * the caller has already been authorized to read.
+   *
+   * Separate from `fileRead` because they are different events. pdf.js fetches
+   * a book in chunks, so ONE reader opening ONE large book issues many ranged
+   * requests — under the 30/min `fileRead` ceiling that reader exceeded their
+   * own limit before the first page finished and got a 429 mid-open. Counting
+   * every 512 KB of one authorized read as a fresh "file read" measured the
+   * wrong thing.
+   *
+   * It is still a real ceiling, not an exemption: at 512 KB a chunk this
+   * allows roughly 120 MB a minute per IP, about two full sequential reads of
+   * the largest books in the collection, and it collapses with the others
+   * under DDoS/strict mode.
+   */
+  fileRange: () => ({
+    limit: isPdfLimitStrict() ? 40 : envInt("RL_FILE_RANGE_PER_MIN", 240),
     windowMs: 60_000,
   }),
   /** Authenticated book downloads — per user */

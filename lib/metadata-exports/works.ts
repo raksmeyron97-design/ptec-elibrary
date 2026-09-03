@@ -59,8 +59,13 @@ function strArray(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
 }
 
-const BOOK_SELECT = `id, slug, title, description, language, published_at, created_at, tags, license,
+const BOOK_SELECT_BASE = `id, slug, title, description, language, published_at, created_at, tags, license,
   isbn, pages, verified_at, authors(name), categories(name), departments(name)`;
+// allow_download (0131) suppresses the file pointer for a read-online-only
+// book. Kept out of the base list and requested as an optional extra, because
+// a database without the column would otherwise fail the whole export — and an
+// OAI-PMH feed that errors is worse than one whose file pointers are stale.
+const BOOK_SELECT = `${BOOK_SELECT_BASE}, allow_download`;
 
 function mapBook(row: Row): ScholarlyWork {
   const author = (Array.isArray(row.authors) ? row.authors[0]?.name : row.authors?.name)?.trim();
@@ -79,8 +84,14 @@ function mapBook(row: Row): ScholarlyWork {
     abstract: row.description ?? null,
     keywords: [...new Set([row.categories?.name, ...strArray(row.tags)].filter(Boolean))] as string[],
     landingUrl: `${SITE_URL}/books/${row.slug}`,
-    fileUrl: `${SITE_URL}/api/books/${row.slug}/download`,
-    format: "application/pdf",
+    // A harvester takes fileUrl as "fetch and store the full text". Publishing
+    // one for a read-online-only book (0131) would hand the file to every
+    // aggregator that reads this feed, which is precisely what the setting
+    // withholds — and the gated route would refuse them anyway. The landing
+    // URL and all descriptive metadata are unaffected: the record stays
+    // harvestable, only the file pointer goes.
+    fileUrl: row.allow_download === false ? null : `${SITE_URL}/api/books/${row.slug}/download`,
+    format: row.allow_download === false ? null : "application/pdf",
     doi: null,
     isbn: row.isbn ?? null,
     rights: row.license ?? null,
@@ -183,11 +194,20 @@ function mapPublication(row: Row): ScholarlyWork {
   };
 }
 
-const TABLE_FOR: Record<ScholarlyWorkType, { table: string; select: string; map: (r: Row) => ScholarlyWork; verifiedColumn: boolean }> = {
-  book: { table: "books", select: BOOK_SELECT, map: mapBook, verifiedColumn: true },
+const TABLE_FOR: Record<
+  ScholarlyWorkType,
+  { table: string; select: string; fallbackSelect?: string; map: (r: Row) => ScholarlyWork; verifiedColumn: boolean }
+> = {
+  book: { table: "books", select: BOOK_SELECT, fallbackSelect: BOOK_SELECT_BASE, map: mapBook, verifiedColumn: true },
   thesis: { table: "research_reports", select: THESIS_SELECT, map: mapThesis, verifiedColumn: true },
   publication: { table: "publications", select: PUBLICATION_SELECT, map: mapPublication, verifiedColumn: false },
 };
+
+/** A PostgREST "column does not exist" — the shape a not-yet-applied migration
+ *  takes. Anything else is a real failure and must keep throwing. */
+function isUnknownColumn(error: { code?: string } | null): boolean {
+  return error?.code === "42703" || error?.code === "PGRST204";
+}
 
 export interface WorksPage {
   works: ScholarlyWork[];
@@ -204,15 +224,22 @@ export async function fetchExportWorks(
   const db = createServiceClient();
   const from = (page - 1) * pageSize;
 
-  let query = db
-    .from(spec.table)
-    .select(spec.select, { count: "exact" })
-    .eq("is_published", true)
-    .order("slug", { ascending: true })
-    .range(from, from + pageSize - 1);
-  if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
+  const build = (columns: string) => {
+    let query = db
+      .from(spec.table)
+      .select(columns, { count: "exact" })
+      .eq("is_published", true)
+      .order("slug", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
+    return query;
+  };
 
-  const [{ data, error, count }, org] = await Promise.all([query, getOrgIdentity()]);
+  const [first, org] = await Promise.all([build(spec.select), getOrgIdentity()]);
+  let { data, error, count } = first;
+  if (error && spec.fallbackSelect && isUnknownColumn(error)) {
+    ({ data, error, count } = await build(spec.fallbackSelect));
+  }
   if (error) throw new Error(`[export] ${spec.table} query failed: ${error.message}`);
   const works = (data ?? []).map(spec.map).map((w) => ({ ...w, institution: org.siteName }));
   return { works, total: count ?? 0 };
@@ -226,10 +253,17 @@ export async function fetchExportWork(
   const spec = TABLE_FOR[type];
   const db = createServiceClient();
 
-  let query = db.from(spec.table).select(spec.select).eq("slug", slug).eq("is_published", true);
-  if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
+  const build = (columns: string) => {
+    let query = db.from(spec.table).select(columns).eq("slug", slug).eq("is_published", true);
+    if (spec.verifiedColumn) query = query.not("verified_at", "is", null);
+    return query.maybeSingle();
+  };
 
-  const [{ data, error }, org] = await Promise.all([query.maybeSingle(), getOrgIdentity()]);
+  const [first, org] = await Promise.all([build(spec.select), getOrgIdentity()]);
+  let { data, error } = first;
+  if (error && spec.fallbackSelect && isUnknownColumn(error)) {
+    ({ data, error } = await build(spec.fallbackSelect));
+  }
   if (error) throw new Error(`[export] ${spec.table} lookup failed: ${error.message}`);
   return data ? { ...spec.map(data), institution: org.siteName } : null;
 }

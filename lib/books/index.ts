@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   type Book,
+  bookFileHref,
   departments,
   coverColors,
   slugify,
@@ -71,7 +72,16 @@ export function mapRowToBook(row: any): Book & { reviewCount: number } {
     summary:       row.description       ?? "",
     cover:         row.cover_color       ?? "bg-[#0a1629]",
     coverUrl:      row.cover_url         ?? null,
-    pdfUrl:        pdfFile?.file_url     ?? null,
+    // The PROXY url, never the raw storage url. A Book flows into Client
+    // Components and Server Action results, so `pdfUrl` is a published string;
+    // book_files.file_url is credential-free and would be a permanent, policy-
+    // free download link for anyone who read it out of the payload. Falls back
+    // to the raw value only for a row with no id (the static seed data), which
+    // has no proxy route to point at.
+    pdfUrl:        pdfFile?.file_url
+                     ? (row.id ? bookFileHref(row.id) : pdfFile.file_url)
+                     : null,
+    allowDownload: row.allow_download !== false,
     publicationDate: row.published_at    ?? undefined,
     createdAt:     row.created_at        ?? undefined,
     downloadCount: row.download_count    ?? 0,

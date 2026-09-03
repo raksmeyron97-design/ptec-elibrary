@@ -23,21 +23,34 @@ type ReadPageProps = { params: Promise<{ slug: string; locale: string }> };
 const getReadableBook = unstable_cache(
   async (slug: string) => {
     const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("books")
-      .select("id, title, slug, cover_color, cover_url, pages, department, authors ( name, bio ), categories ( name )")
-      .eq("slug", slug)
-      .eq("is_published", true)
-      .maybeSingle();
+    const COLUMNS = "id, title, slug, cover_color, cover_url, pages, department, authors ( name, bio ), categories ( name )";
+    const load = (columns: string) =>
+      supabase
+        .from("books")
+        .select(columns)
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle();
+
+    // allow_download (0131) drives whether the viewer offers a Download action.
+    // Asked for defensively: on a database without the column the whole select
+    // fails, and losing the reader entirely would be a far worse outcome than
+    // falling back to the column's default (downloadable).
+    let { data } = await load(`${COLUMNS}, allow_download`);
+    if (!data) ({ data } = await load(COLUMNS));
     if (!data) return null;
+    // The column list is built at runtime, so PostgREST's inferred row type is
+    // no longer usable here.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = data as any;
 
     const { data: files } = await supabase
       .from("book_files")
       .select("id, format, file_url, file_size_kb")
-      .eq("book_id", data.id);
+      .eq("book_id", row.id);
 
-    const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: [] });
-    return { ...mapped, dbId: data.id as string };
+    const mapped = mapRowToBook({ ...row, book_files: files ?? [], reviews: [] });
+    return { ...mapped, dbId: row.id as string };
   },
   ["book-read"],
   { revalidate: 3600, tags: ["books"] },
@@ -104,7 +117,12 @@ export default async function BookReadPage({ params }: ReadPageProps) {
           totalPages={book.pages}
           initialProgressPct={savedProgress?.progressPct ?? 0}
           initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-          allowDownload={true}
+          // Library policy (0131), not a UI preference: the reader hides the
+          // Download action for a read-online-only book. The refusal that
+          // matters is the server's — /api/books/[slug]/download re-decides on
+          // every request — but offering an action that would 403 is a worse
+          // experience than not offering it.
+          allowDownload={book.allowDownload !== false}
           isLoggedIn={!!user}
           reportEmail={(await getSiteConfig()).email}
         />

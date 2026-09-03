@@ -73,13 +73,25 @@ function authorNamesFromRelation(authors: any): string[] {
 const getBookMeta = unstable_cache(
   async (slug: string) => {
     const supabase = createServiceClient();
-    const { data } = await supabase
-      .from("books")
-      .select("id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, seo_title, seo_description, og_image, authors(name), categories(name), departments(name)")
-      .eq("slug", slug)
-      .eq("is_published", true)
-      .maybeSingle();
-    return data;
+    const COLUMNS = "id, title, description, cover_url, language, published_at, isbn, publisher, department, tags, seo_title, seo_description, og_image, authors(name), categories(name), departments(name)";
+    const load = (columns: string) =>
+      supabase
+        .from("books")
+        .select(columns)
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle();
+
+    // allow_download (0131) decides whether citation_pdf_url is emitted. Read
+    // with a fallback so a database without the column still gets metadata.
+    const first = await load(`${COLUMNS}, allow_download`);
+    let data = first.data;
+    if (first.error && (first.error.code === "42703" || first.error.code === "PGRST204")) {
+      data = (await load(COLUMNS)).data;
+    }
+    // The column list is built at runtime, so PostgREST's inferred row type
+    // degenerates to GenericStringError.
+    return data as any;
   },
   ["book-meta-v2"],
   { revalidate: 3600, tags: ["books"] }
@@ -138,42 +150,62 @@ export async function generateMetadata({
   };
 }
 
-type BookWithSource = Book & { fromSupabase: boolean; dbId: string | null };
+type BookWithSource = Book & {
+  fromSupabase: boolean;
+  dbId: string | null;
+  /** The librarian's wording for a read-online-only book (0131), when set. */
+  downloadDisabledReason?: string | null;
+};
 
 const getBook = unstable_cache(
   async (slug: string): Promise<BookWithSource | null> => {
     const supabase = createServiceClient();
 
-    const { data, error } = await supabase
-      .from("books")
-      .select(`
+    const COLUMNS = `
         id, title, slug, description,
         cover_color, cover_url,
         language, department, pages, published_at, isbn, publisher, rating, tags,
         download_count, license, verified_at,
         authors ( name, bio ),
         categories ( name ),
-        departments ( name )
-      `)
-      .eq("slug", slug)
-      .eq("is_published", true)
-      .maybeSingle();
+        departments ( name )`;
+
+    const load = (columns: string) =>
+      supabase
+        .from("books")
+        .select(columns)
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle();
+
+    // allow_download / download_disabled_reason (0131) decide whether this page
+    // offers a download at all. Asked for defensively — a database without the
+    // columns answers the whole select with 42703, and a 404 on every book
+    // detail page is a far worse failure than falling back to the column's own
+    // default of "downloadable".
+    let { data, error } = await load(`${COLUMNS}, allow_download, download_disabled_reason`);
+    if (error && (error.code === "42703" || error.code === "PGRST204")) {
+      ({ data, error } = await load(COLUMNS));
+    }
 
     if (error) {
       console.error("[getBook] Supabase error:", error.message);
     }
 
     if (data) {
+      // Same reason as getBookMeta: a runtime column list defeats inference.
+      const row = data as any;
       const [{ data: files }, { data: revs }] = await Promise.all([
-        supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", data.id),
-        supabase.from("reviews").select("rating").eq("book_id", data.id),
+        supabase.from("book_files").select("id, format, file_url, file_size_kb").eq("book_id", row.id),
+        supabase.from("reviews").select("rating").eq("book_id", row.id),
       ]);
 
-      const mapped = mapRowToBook({ ...data, book_files: files ?? [], reviews: revs ?? [] });
+      const mapped = mapRowToBook({ ...row, book_files: files ?? [], reviews: revs ?? [] });
       return {
         ...mapped,
         fromSupabase: true,
-        dbId: data.id,
+        dbId: row.id,
+        downloadDisabledReason: (row.download_disabled_reason as string | null) ?? null,
       } as BookWithSource;
     }
 
@@ -590,7 +622,10 @@ async function ActionButtons({
           {t("pdfNotAvailable")}
         </span>
       )}
-      {book.pdfUrl && (
+      {/* Saving for offline writes the whole PDF into the device's Cache
+          Storage — that is keeping a copy of the file, which is the thing a
+          read-online-only book withholds. Offered only when downloads are. */}
+      {book.pdfUrl && book.allowDownload !== false && (
         <OfflineSaveButton
           bookId={book.dbId || book.slug}
           bookSlug={book.slug}
@@ -619,6 +654,15 @@ async function ActionButtons({
         />
       )}
       <ShareButton url={`${SITE_URL}/books/${slug}`} />
+      {/* Says what the reader CAN do, in place of an action they cannot. No
+          status code, no storage vocabulary — the reader is not being told
+          about an error, they are being told what this book is. */}
+      {book.pdfUrl && book.allowDownload === false && (
+        <p className="basis-full text-[12.5px] font-semibold text-text-muted">
+          <Icon name="eye" className="mr-1.5 align-[-2px] text-[15px]" aria-hidden="true" />
+          {book.downloadDisabledReason?.trim() || t("readOnlineOnly")}
+        </p>
+      )}
     </>
   );
 }
@@ -643,7 +687,10 @@ async function ReaderSection({
       totalPages={book.pages}
       initialProgressPct={savedProgress?.progressPct ?? 0}
       initialMaxProgressPct={savedProgress?.maxProgressPct ?? 0}
-      allowDownload={true}
+      // Library policy (0131). The refusal that matters is the server's, in
+      // /api/books/[slug]/download; this stops the viewer offering an action
+      // that would be refused.
+      allowDownload={book.allowDownload !== false}
       isLoggedIn={!!user}
       requireAuthToView
       reportEmail={(await getSiteConfig()).email}

@@ -71,9 +71,18 @@ export async function GET(
     }
   }
 
+  // A ranged request continues a document the caller already opened; an
+  // unranged one opens it. pdf.js reads a thesis in chunks, so metering every
+  // chunk as a fresh "file read" made one reader exceed their own limit while
+  // opening one large document. See ratePolicy("fileRange").
   const rlId = user ? user.id : `crawler:${ip}`;
-  const { limit, windowMs } = ratePolicy("fileRead");
-  const rl = await rateLimit(`thesis-file:${rlId}`, limit, windowMs);
+  const isRangeRequest = !!request.headers.get("range");
+  const { limit, windowMs } = ratePolicy(isRangeRequest ? "fileRange" : "fileRead");
+  const rl = await rateLimit(
+    `${isRangeRequest ? "thesis-file-range" : "thesis-file"}:${rlId}`,
+    limit,
+    windowMs,
+  );
   if (!rl.success) {
     logSecurityEvent({ type: "rate_limited", where: "/api/theses/[id]/file", userId: user?.id, ip });
     return NextResponse.json(

@@ -469,6 +469,7 @@
     "pages": "Pages",
     "readOnline": "Read online",
     "pdfNotAvailable": "PDF not available",
+    "readOnlineOnly": "Online reading only — this book cannot be downloaded.",
     "readerReviews": "Reader Reviews",
     "average": "average",
     "leaveAReview": "Leave a review",
@@ -6890,7 +6891,10 @@
         "keywordsHint": "Press Enter or comma to add each tag.",
         "authorHint": "Pick an existing author where one matches, so the library keeps one record per person.",
         "isbnValid": "Valid ISBN.",
-        "isbnInvalid": "This ISBN’s check digit does not verify. Save anyway if it is what the book prints."
+        "isbnInvalid": "This ISBN’s check digit does not verify. Save anyway if it is what the book prints.",
+        "downloadReason": "Restriction message",
+        "downloadReasonHint": "Shown to readers in place of the download button. Leave blank for the standard wording.",
+        "downloadReasonPlaceholder": "This book is available for online reading only."
       },
       "visibility": "Visibility",
       "publishNow": "Publish immediately",
@@ -6931,7 +6935,14 @@
         "redirectReview": "Opening the review queue…"
       },
       "statusBlocked": "Blocked — this book is already in the library",
-      "statusOverride": "Will be sent for review as a different edition"
+      "statusOverride": "Will be sent for review as a different edition",
+      "access": "Reader access",
+      "accessSub": "Who may take the PDF away. Online reading is unaffected by this setting.",
+      "downloadPermission": "Download permission",
+      "downloadPermissionHint": "Allow readers to download this book.",
+      "canReadOnline": "Read online",
+      "canDownload": "Download PDF",
+      "cannotDownload": "Download PDF — the server refuses the file, not just the button"
     },
     "bulk": {
       "rowStatus": {

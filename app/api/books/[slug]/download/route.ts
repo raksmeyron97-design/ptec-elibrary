@@ -1,4 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// THE authoritative book-download gate. /api/books/[id]/file?download=1 no
+// longer serves an attachment of its own — it redirects here — so this is the
+// single place that decides whether a book's file leaves the server, and the
+// only place that counts a download.
+//
+// The route parameter is a slug OR a book id: the file route is keyed by id
+// and redirects into this one, and resolving both here is what keeps that a
+// redirect rather than a second copy of this policy.
 import { NextResponse } from "next/server";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -9,6 +17,9 @@ import { logSecurityEvent } from "@/lib/security-log";
 import { zimaFetch } from "@/lib/zima";
 import { lockdownResponse } from "@/lib/security/lockdown";
 import { getViewerContext, logAppEvent, logDownloadAttempt } from "@/lib/analytics/events";
+import { resolveBookDownloadAccess } from "@/lib/books/access";
+import { canOverrideBookDownloadPolicy } from "@/lib/books/download-authority";
+import { logAdminAction } from "@/app/actions/audit";
 
 // Legacy R2 client — kept for backward compat with bare-key records in the DB.
 const s3 = new S3Client({
@@ -21,6 +32,9 @@ const s3 = new S3Client({
 });
 
 // Rate limit comes from ratePolicy("download") — RL_DOWNLOAD_PER_MIN to override.
+
+const NO_STORE = "private, no-cache, no-store, max-age=0, must-revalidate";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
   _req: Request,
@@ -53,22 +67,100 @@ export async function GET(
 
   const supabase = createServiceClient();
 
-  const { data: book, error } = await supabase
-    .from("books")
-    .select("id, title, book_files(id, file_url, format)")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .single();
+  // Accept either a slug or a book id. UUID_RE is the discriminator rather
+  // than an `or(...)` filter so a slug can never be matched against a uuid
+  // column and produce a 22P02 that reads as "not found".
+  const idColumn = UUID_RE.test(slug) ? "id" : "slug";
+
+  const BASE_COLUMNS = "id, slug, title, book_files(id, file_url, format)";
+  const POLICY_COLUMNS = `${BASE_COLUMNS}, allow_download, download_disabled_reason`;
+
+  async function loadBook(columns: string) {
+    return supabase
+      .from("books")
+      .select(columns)
+      .eq(idColumn, slug)
+      .eq("is_published", true)
+      .maybeSingle();
+  }
+
+  // Ask for the policy columns; fall back to the pre-0131 column list if the
+  // migration has not reached this database yet. A missing column then means
+  // "allowed" — the column's own default — rather than a 500 that would take
+  // every download down.
+  let { data: book, error } = await loadBook(POLICY_COLUMNS);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data: book, error } = await loadBook(BASE_COLUMNS));
+  }
 
   if (error || !book) {
     return new NextResponse("Not found", { status: 404 });
   }
+  const row = book as any;
 
-  const files = Array.isArray(book.book_files) ? book.book_files : [book.book_files];
+  const files = Array.isArray(row.book_files) ? row.book_files : [row.book_files];
   const pdfFile = files.find((f: any) => f?.format === "pdf") ?? files[0];
 
-  if (!pdfFile?.file_url) {
+  // ── The access gate ────────────────────────────────────────────────────
+  //
+  // THIS is the enforcement point. The reader UI hides the download action for
+  // a read-online-only book, but a hidden button is a courtesy, not a control:
+  // this route is reachable by typing the URL, and it is what actually decides
+  // whether the bytes leave the server. The decision is re-evaluated on every
+  // request, so a page rendered while the book was downloadable cannot be
+  // replayed after a librarian switches it off.
+  //
+  // Reading online is deliberately untouched: /api/books/[id]/file still
+  // streams a restricted book to the in-app viewer, which is the entire point
+  // of the distinction.
+  const access = resolveBookDownloadAccess({
+    allow_download: row.allow_download,
+    download_disabled_reason: row.download_disabled_reason,
+    fileUrl: pdfFile?.file_url ?? null,
+  });
+
+  if (access.reason === "no-file") {
     return new NextResponse("File not found", { status: 404 });
+  }
+
+  if (!access.canDownload) {
+    // A librarian who can change this setting can still retrieve the file —
+    // otherwise switching a book to read-online-only would lock the library
+    // out of its own copy. The override is a books:write check (which carries
+    // the admin panel's MFA requirement with it), it is audited, and it is the
+    // only path past the refusal.
+    const override = await canOverrideBookDownloadPolicy();
+    if (!override.allowed) {
+      logSecurityEvent({
+        type: "download_blocked",
+        where: "/api/books/[slug]/download",
+        userId: user.id,
+      });
+      await logDownloadAttempt({
+        status: "denied",
+        resourceType: "book",
+        resourceId: row.id as string,
+        userId: user.id,
+        reason: "DOWNLOAD_DISABLED",
+        permissionSource: "library-policy",
+        idempotencyKey: `dl-deny:${user.id}:${row.id}:policy:${Math.floor(Date.now() / 60_000)}`,
+      });
+      return NextResponse.json(
+        {
+          error:
+            access.message ??
+            "This book is available for online reading only. Downloads are disabled for this record.",
+          reason: "policy",
+          canReadOnline: true,
+          readUrl: `/books/${row.slug}/read`,
+        },
+        { status: 403, headers: { "Cache-Control": NO_STORE } },
+      );
+    }
+    await logAdminAction(user.id, "book.download_override", "books", row.id as string, {
+      title: row.title,
+      role: override.role,
+    });
   }
 
   // Log download + increment counter (non-blocking). session_hash column is
@@ -81,7 +173,7 @@ export async function GET(
   };
   const [dlRes] = await Promise.all([
     supabase.from("download_logs").insert(dlRow),
-    supabase.rpc("increment_download_count", { book_id: book.id }),
+    supabase.rpc("increment_download_count", { book_id: row.id }),
   ]);
   if (dlRes.error && (dlRes.error.code === "42703" || dlRes.error.code === "PGRST204")) {
     delete dlRow.session_hash;
@@ -89,7 +181,7 @@ export async function GET(
   }
 
   const fileUrl = pdfFile.file_url as string;
-  const safeTitle = encodeURIComponent(`${book.title}.pdf`);
+  const safeTitle = encodeURIComponent(`${row.title}.pdf`);
   const disposition = `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
 
   // ── Zima CDN or any full HTTP(S) URL — proxy download server-side ─
@@ -105,9 +197,9 @@ export async function GET(
     });
     if (!upstream.ok) {
       await logDownloadAttempt({
-        status: "failed", resourceType: "book", resourceId: book.id, userId: user.id,
+        status: "failed", resourceType: "book", resourceId: row.id as string, userId: user.id,
         reason: "STORAGE_ERROR",
-        idempotencyKey: `dl-fail:${user.id}:${book.id}:${Math.floor(Date.now() / 60_000)}`,
+        idempotencyKey: `dl-fail:${user.id}:${row.id}:${Math.floor(Date.now() / 60_000)}`,
       });
       return new NextResponse("File not found in storage", { status: 404 });
     }

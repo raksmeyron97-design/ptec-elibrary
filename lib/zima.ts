@@ -437,6 +437,26 @@ export async function zimaFetch(fileUrl: string, rangeHeader?: string | null): P
   }
   const headers: HeadersInit = {};
   if (rangeHeader) headers["Range"] = rangeHeader;
+
+  // Identify the library to the storage service on its OWN storage hosts only.
+  //
+  // Zima meters /files reads per client IP. Every reader's bytes are fetched by
+  // this server, so the whole library shared one 300-requests-a-minute bucket
+  // with the anonymous internet — and pdf.js reads a book in many ranged
+  // requests, so a handful of concurrent readers of large books reached it.
+  // A recognised key moves these reads into their own, higher bucket
+  // (docs/LARGE-PDF-PERFORMANCE-AUDIT.md §3d).
+  //
+  // Sent ONLY to an allow-listed Zima host, never to the legacy R2/blob hosts
+  // this function also proxies: `toAllowedStorageUrl` has already rebuilt the
+  // origin, and the check below is against that rebuilt host, so a DB row
+  // cannot aim a credential at a third party. Absent key => unchanged
+  // behaviour.
+  const apiKey = process.env.ZIMA_API_KEY;
+  if (apiKey && zimaBaseHosts().includes(target.hostname.toLowerCase())) {
+    headers["x-api-key"] = apiKey;
+  }
+
   // `target` is rebuilt on an allow-listed origin, never the raw input string.
   return fetch(target, { headers });
 }
