@@ -10,7 +10,16 @@ export default defineConfig({
     globals: true,
     // Playwright specs live in e2e/ and must not be collected by vitest —
     // they run under `playwright test`, not the unit runner.
-    exclude: [...configDefaults.exclude, 'e2e/**'],
+    //
+    // `.claude/worktrees/**` holds git worktrees an agent may have left behind.
+    // Each is a FULL second checkout with its own node_modules, so without this
+    // the local suite collects every test twice — once against the working tree
+    // and once against whatever stale commit the worktree sits on. That showed
+    // up as 56 failures with stack frames pointing into
+    // `.claude/worktrees/*/node_modules/react-dom`, none of which existed in the
+    // code under test. CI never saw them (it checks out a clean tree), which is
+    // the worst shape for a false failure to have: only local runs are wrong.
+    exclude: [...configDefaults.exclude, 'e2e/**', '**/.claude/worktrees/**'],
     alias: {
       '@': path.resolve(__dirname, './'),
       // Next.js aliases the bare "server-only" import to an internal no-op

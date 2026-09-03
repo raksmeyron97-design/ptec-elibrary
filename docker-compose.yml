@@ -42,6 +42,28 @@ services:
       # ENOENT on pages-manifest.json. Only genuinely-written paths belong here.
       - /tmp
       - /app/.next/cache
+    volumes:
+      # STAGING FOR CHUNKED UPLOADS — a real volume, deliberately not the tmpfs
+      # above.
+      #
+      # A 95 MB book arrives as twenty separate requests over several minutes,
+      # and its parts have to survive between them. On /tmp they did not, twice
+      # over: a tmpfs is RAM, so the parts competed with the Node heap for this
+      # container's 1 GB limit while the same file was also being assembled in
+      # it; and it is erased by every restart and every `docker compose up -d`,
+      # so a deploy mid-upload destroyed the parts and the operator was told
+      # "Missing chunk 0 during final assembly" — a message about the browser,
+      # for a fault in the deployment.
+      #
+      # On disk, the parts cost disk, survive a restart, and are reclaimed by
+      # /api/cron/upload-reconcile, which knows which sessions are still live.
+      # Sized for a handful of concurrent 100 MB uploads.
+      - upload-staging:/app/.upload-staging
+    environment:
+      # Read by lib/uploads/staging.ts. Without it the staging area falls back
+      # to os.tmpdir(), which is the tmpfs above — the exact defect this volume
+      # exists to fix. Keep the two in step.
+      UPLOAD_STAGING_DIR: /app/.upload-staging
     security_opt:
       - no-new-privileges:true
     deploy:
@@ -71,6 +93,13 @@ services:
       - app
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  # Chunk staging for large uploads. Contents are transient by nature — the
+  # reconciler reclaims anything no live session owns — so this volume can be
+  # removed while the app is stopped without losing any library data. It holds
+  # no books, only parts of books that have not been assembled yet.
+  upload-staging:
 
 networks:
   web:

@@ -52,6 +52,7 @@ import {
   uploadWithProgress,
 } from "@/lib/upload-progress";
 import { uploadChunked } from "@/lib/upload-chunked";
+import { MAX_UPLOAD_BYTES } from "@/lib/uploads/state";
 
 type Initial = {
   id: string;
@@ -192,9 +193,28 @@ function FieldLabel({
  */
 const PHASE_STEPS = [
   { id: "uploading-pdf", label: "Uploading PDF" },
+  // The server's work on a replacement PDF — assembling, hashing, duplicate
+  // check, transfer into storage — is its own step for the same reason it is on
+  // the upload form: it can take minutes on a large book, and hiding it behind
+  // a bar parked at 100% is what makes a working replacement look hung.
+  { id: "finalizing", label: "Finalizing file" },
   { id: "uploading-cover", label: "Uploading cover" },
   { id: "saving", label: "Saving record" },
 ] as const;
+
+/** Label under the bar, taken from the stage the server is actually in. */
+function processingLabelFor(stage: Transfer["stage"] | undefined): string {
+  switch (stage) {
+    case "storing":
+      return "Storing the file…";
+    case "saving":
+      return "Saving the record…";
+    case "finalizing":
+      return "Checking the file…";
+    default:
+      return "Processing on the server…";
+  }
+}
 
 export default function EditForm({
   initial,
@@ -295,7 +315,8 @@ export default function EditForm({
     const file = e.target.files?.[0];
     if (!file) return;
     if (!isPdfFile(file)) { setError("File must be a PDF"); return; }
-    if (file.size > 100 * 1024 * 1024)   { setError("PDF must be under 100 MB"); return; }
+    // MAX_UPLOAD_BYTES, not 100 * 1024 * 1024: storage refuses exactly 100 MiB.
+    if (file.size > MAX_UPLOAD_BYTES)   { setError("PDF must be under 100 MB"); return; }
     setError(null);
     setPdfFile(file);
 
@@ -585,10 +606,16 @@ export default function EditForm({
           not the section that happens to be open. */}
       <UploadProgress
         steps={PHASE_STEPS}
-        currentId={phase === "idle" ? null : phase}
+        currentId={
+          phase === "idle"
+            ? null
+            : phase === "uploading-pdf" && transfer && transfer.stage !== "sending"
+              ? "finalizing"
+              : phase
+        }
         transfer={transfer}
         fileName={transferName}
-        processingLabel="Processing on the server…"
+        processingLabel={processingLabelFor(transfer?.stage)}
         tone="info"
         className="mb-6"
       />

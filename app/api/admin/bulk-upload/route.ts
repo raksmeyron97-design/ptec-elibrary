@@ -7,6 +7,7 @@ import { zimaUpload, isZimaUploadError } from "@/lib/zima";
 import { uploadStorageFiles, trashStorageFile } from "@/lib/storage-client";
 import { optimizeImage, BOOK_COVER_OPTS } from "@/lib/image-optimize";
 import { describeStorageKeyError, describeStoragePathError } from "@/lib/storage/folder-name";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/uploads/state";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -41,7 +42,8 @@ export const maxDuration = 300;
 
 const ALLOWED_PREFIXES = ["books/", "posts/", "research/", "reports/"];
 
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB, matching Zima's MAX_UPLOAD_SIZE_MB
+// One byte under 100 MiB: Zima refuses exactly 100 MiB (see MAX_UPLOAD_BYTES
+// in lib/uploads/state.ts, which is where the number now lives).
 
 /** A large PDF plus a cover, over the tunnel — the client's 2 min is tight. */
 const BATCH_UPLOAD_TIMEOUT_MS = 240_000;
@@ -68,7 +70,7 @@ async function readPart(
     return { error: jsonError(`Missing "${field}" file.`, 400) };
   }
   if (file.size > MAX_UPLOAD_BYTES) {
-    return { error: jsonError(`File too large (max 100 MB): ${field}.`, 413) };
+    return { error: jsonError(`File too large (max ${MAX_UPLOAD_LABEL}): ${field}.`, 413) };
   }
   const bytes = await file.arrayBuffer();
   if (!validateMimeType(bytes, expectedType)) {
@@ -157,7 +159,7 @@ export async function POST(request: NextRequest) {
       if (!(cover instanceof File) || cover.size === 0) {
         coverPrepWarning = "Cover skipped: the file was missing or empty.";
       } else if (cover.size > MAX_UPLOAD_BYTES) {
-        coverPrepWarning = "Cover skipped: larger than the 100 MB limit.";
+        coverPrepWarning = `Cover skipped: larger than the ${MAX_UPLOAD_LABEL} limit.`;
       } else {
         try {
           const coverBytes = await cover.arrayBuffer();

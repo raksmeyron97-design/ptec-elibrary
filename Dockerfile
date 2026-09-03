@@ -71,6 +71,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Mount point for the chunked-upload staging volume (docker-compose.yml).
+#
+# It has to exist in the IMAGE, owned by the runtime user. Docker seeds a named
+# volume from whatever is at its mount point — including the ownership — the
+# first time it is attached; with no such directory the volume is created owned
+# by root, and this container runs as uid 1001, so the first chunk write fails
+# with EACCES on a filesystem the operator can see is writable.
+RUN mkdir -p /app/.upload-staging && chown nextjs:nodejs /app/.upload-staging
+
 USER nextjs
 EXPOSE 3000
 

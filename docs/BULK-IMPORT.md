@@ -195,3 +195,32 @@ Reconciles `books/` in storage against `books` / `book_files` and reports:
 - **orphan rows** — a book row whose PDF is missing. Worse, because the entry
   is public and its download 404s. The script never deletes a row: removing a
   catalogue entry has a public URL attached to it and belongs in `/admin`.
+
+---
+
+## Transport: which path a row takes, and why it is shown
+
+A row goes one of three ways, and the panel says which — positively, on every
+run, because a fallback and a fast run are otherwise indistinguishable:
+
+| Transport | Route | Requests per book | Zima quota |
+|---|---|---|---|
+| `v1` | `POST /api/admin/bulk-upload` → storage `/api/v1/files` | 1 (PDF + cover together) | `v1-upload`, 120/hour |
+| `legacy` | `POST /api/admin/bulk-upload` → storage `/api/upload` | 2 | `upload`, 60/hour |
+| `chunked` | `POST /api/admin/upload/chunk` (many) → storage `/api/upload` | 1 for the PDF, 1 for the cover | `upload`, 60/hour |
+
+The run reports the **worst** path any row took, since that is the rate it is
+actually getting. `chunked` used to be reported as `v1`, which told an operator
+importing large textbooks that they were on the 120/hour batched path while they
+were spending quota twice as fast.
+
+**A PDF over `CHUNKED_THRESHOLD_BYTES` (8 MB) goes chunked.** The number comes
+from the PROXY, not the file: Cloudflare's origin-response timeout is 100 s, and
+a single request carrying the whole PDF has to complete the browser's transfer,
+this server's transfer into storage, the hash and the duplicate query inside
+that budget. It was 15 MB, which put ordinary scanned coursebooks on the wrong
+side of it and produced bare 524s on rows that were perfectly good.
+
+Each row keeps a stable upload-session id for the life of the job, so **retrying
+a failed row resumes its session** rather than uploading the file a second time
+and stranding the first copy. See `docs/CHUNKED-UPLOAD.md`.

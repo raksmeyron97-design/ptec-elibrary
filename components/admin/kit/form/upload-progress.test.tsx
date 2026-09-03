@@ -65,7 +65,7 @@ describe("<UploadProgress>", () => {
 
   it("goes indeterminate once the bytes are gone and the server is working", () => {
     renderPanel({
-      transfer: { loaded: 40 * MB, total: 40 * MB, fraction: 1, stage: "processing" },
+      transfer: { loaded: 40 * MB, total: 40 * MB, fraction: 1, stage: "finalizing" },
     });
 
     const bar = screen.getByRole("progressbar");

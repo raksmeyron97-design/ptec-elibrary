@@ -65,6 +65,17 @@ interface BookJob {
    *  runs, so Step 3 can show and validate it BEFORE anything is sent — and so
    *  a retry lands in the same place instead of minting a second folder. */
   folder: string;
+  /**
+   * Upload session id for the chunked path, fixed for the life of the job.
+   *
+   * Same reasoning as `folder`, one layer down: a row that failed at the SAVE
+   * step already has its PDF in storage, and retrying it with a fresh id would
+   * upload the whole file a second time and leave the first copy unreferenced.
+   * Reusing the id makes the retry resume — the server replays the stored
+   * result and the save proceeds. Rebuilt on a page reload, which is correct:
+   * the browser no longer holds the File either.
+   */
+  uploadId: string;
   /** Whether the title fit the storage segment, was cut, or fell back. */
   folderNote: FolderNameNote;
   /** Non-fatal problem on an otherwise successful row (e.g. cover rejected). */
@@ -125,6 +136,55 @@ function parseCsv(text: string): CsvRow[] {
   });
 }
 
+/**
+ * Which transport a row actually used, reported to the operator.
+ *
+ * Three, not two. `v1` is the batched storage endpoint (one request per book,
+ * 120/hour); `legacy` is one request per file (60/hour); `chunked` is the
+ * multi-request path large PDFs take, which reaches storage through the legacy
+ * endpoint and therefore does NOT get the batched rate. Calling that third one
+ * "v1" — which it was — told an operator watching a run of big textbooks that
+ * they were on the fast path while they were spending quota twice as fast.
+ */
+type Transport = "v1" | "legacy" | "chunked";
+
+/** Higher is worse. The run reports the worst path any row took. */
+const TRANSPORT_RANK: Record<Transport, number> = { v1: 0, chunked: 1, legacy: 2 };
+
+/**
+ * Above this, a PDF is sent in chunks instead of in one request.
+ *
+ * The number is set by the PROXY, not by the file. Production is reached
+ * through Cloudflare, whose origin-response timeout is 100 s: a single request
+ * carrying the whole PDF has to complete the transfer to this server AND the
+ * server's transfer of it into storage AND the hash and duplicate work within
+ * that budget, or the operator gets a 524 with no explanation and a row that
+ * failed for no visible reason. At the ~1 MB/s a Cambodian office link
+ * realistically sustains, 8 MB is already most of the budget once storage's own
+ * leg is counted.
+ *
+ * It was 15 MB, which put ordinary scanned coursebooks on the wrong side of it.
+ * Chunking is cheap — the parts are staged and only assembled at the end — and
+ * a chunk that fails is re-sent alone rather than costing the whole file, so
+ * erring low costs a few extra requests and erring high costs the row.
+ */
+const CHUNKED_THRESHOLD_BYTES = 8 * 1024 * 1024;
+
+/**
+ * A session id for one row's chunked upload.
+ *
+ * Must satisfy UPLOAD_ID_RE in lib/uploads/state.ts — 8 to 64 characters of
+ * `[A-Za-z0-9_-]`, an alphabet chosen so the id can safely become a directory
+ * name. `randomUUID()` fits; the fallback is for the plain-http contexts where
+ * `crypto.randomUUID` is absent.
+ */
+function newUploadSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 /** Lower-cased cover extension, defaulting the way bookCoverPath() did. */
 function coverExt(name: string): string {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -137,7 +197,7 @@ async function uploadBook(
   job: BookJob,
   gate: QueueGate,
   onStatus: (status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
-  onTransport: (via: "v1" | "legacy") => void,
+  onTransport: (via: Transport) => void,
 ): Promise<void> {
   const { row, pdfFile, coverFile } = job;
 
@@ -149,6 +209,9 @@ async function uploadBook(
   if (folderProblem) { onStatus("error", { error: folderProblem }); return; }
 
   let uploadedPdfUrl: string | null = null;
+  /* Hoisted out of the try so the catch can tell the two paths apart: a chunked
+     upload has a session that owns its bytes, a single-request one does not. */
+  let uploadId: string | undefined;
   try {
     // 1. PDF and cover in ONE request. Zima meters per request, not per file,
     //    so a book now costs one unit instead of two — see the route's header
@@ -160,19 +223,26 @@ async function uploadBook(
     let contentHash: string | undefined;
     let warning: string | null = null;
 
-    if (pdfFile.size > 15 * 1024 * 1024) {
+    if (pdfFile.size > CHUNKED_THRESHOLD_BYTES) {
       if (gate.cancelled) throw new QueueCancelled();
-      // Large PDF (> 15 MB): Upload in 5 MB chunks to bypass Cloudflare 100s timeout
-      const chunkResult = await uploadChunked<{ url: string; contentHash?: string }>(
+      // Above the threshold: send in chunks so no single request has to survive
+      // the proxy's idle timeout (see CHUNKED_THRESHOLD_BYTES).
+      const chunkResult = await uploadChunked<{
+        url: string;
+        contentHash?: string | null;
+        uploadId: string;
+      }>(
         "/api/admin/upload/chunk",
         pdfFile,
         `${folder}/book.pdf`,
         {
+          uploadId: job.uploadId,
           extraFields: { target: "private" },
         },
       );
       pdfPublicUrl = chunkResult.url;
-      contentHash = chunkResult.contentHash;
+      contentHash = chunkResult.contentHash ?? undefined;
+      uploadId = chunkResult.uploadId;
 
       if (coverFile) {
         onStatus("uploading-cover");
@@ -190,8 +260,12 @@ async function uploadBook(
           coverUrl = coverJson.url;
         }
       }
+      // NOT "v1". The chunked route reaches storage through the legacy
+      // one-file endpoint, so labelling it v1 told the operator they were on
+      // the 120/hour batched path when they were not — the exact question the
+      // indicator exists to answer.
       uploadedPdfUrl = pdfPublicUrl;
-      onTransport("v1");
+      onTransport("chunked");
     } else {
       const payload = new FormData();
       payload.set("folder", folder);
@@ -254,6 +328,10 @@ async function uploadBook(
       // Recorded so a later title edit cannot send the app looking for a
       // folder that was never created (migration 0128).
       storageFolder: folder,
+      // Present only on the chunked path. It makes a retried row idempotent:
+      // the save replays the book the first attempt created instead of
+      // inserting a second one or being refused as its own duplicate.
+      uploadId,
     });
     if (result && "error" in result) throw new Error(result.error);
     uploadedPdfUrl = null; // committed — the row now owns the file
@@ -269,15 +347,24 @@ async function uploadBook(
       warning: warning ?? undefined,
     });
   } catch (err) {
-    // A PDF that reached storage but never reached a book row is an orphan:
-    // invisible in the catalogue, still occupying the disk, and — because the
-    // duplicate check is by content hash — enough to make the retry of this
-    // very row fail with 409. Give the bytes back before reporting.
-    // Not awaited: this is a storage call on a path where storage may be what
-    // just failed, and with two workers a stalled cleanup stalls the import
-    // itself. The row's verdict is due now; the bytes can go back whenever the
-    // request finishes. (zimaDelete is bounded — see lib/zima.ts.)
-    if (uploadedPdfUrl) {
+    /* A PDF that reached storage but never reached a book row is an orphan:
+       invisible in the catalogue, still occupying the disk, and — because the
+       duplicate check is by content hash — enough to make the retry of this very
+       row fail with 409.
+
+       ONLY THE SINGLE-REQUEST PATH IS CLEANED UP FROM HERE, because only it has
+       no session behind it. A chunked upload's file belongs to its upload
+       session (migration 0132): the session sits in STORED, a retry of this row
+       reuses those exact bytes rather than uploading a second copy, and the
+       reconciler — which can consult the database, unlike this catch block —
+       decides whether it is really unreferenced. Deleting from here is how a
+       save whose RESPONSE was lost took the file out from under its own
+       successful insert.
+
+       Not awaited: this is a storage call on a path where storage may be what
+       just failed, and with two workers a stalled cleanup stalls the import.
+       (zimaDelete is bounded — see lib/zima.ts.) */
+    if (uploadedPdfUrl && !uploadId) {
       void deleteZimaFile(uploadedPdfUrl).catch(() => {});
     }
     // Stopping is not a row failure: leave the row pending so Start resumes it.
@@ -293,7 +380,7 @@ async function runQueue(
   concurrency: number,
   gate: QueueGate,
   onJobUpdate: (id: string, status: RowStatus, extra?: { error?: string; slug?: string; warning?: string }) => void,
-  onTransport: (via: "v1" | "legacy") => void,
+  onTransport: (via: Transport) => void,
 ) {
   let i = 0;
 
@@ -433,9 +520,12 @@ export default function BulkUploadForm() {
   // Which storage endpoint the run actually reached. Reported POSITIVELY, not
   // only on failure: "am I getting 120/hour or silently falling back to 60?"
   // must be answerable at a glance, and the absence of a warning is not an
-  // answer. "legacy" wins once seen — a run that fell back even once did not
-  // get the batched rate.
-  const [transport, setTransport] = useState<"v1" | "legacy" | null>(null);
+  // answer. The WORST path seen wins, because that is the rate the run is
+  // actually getting: legacy (60/hour, one request per file) beats chunked
+  // (also the 60/hour endpoint, but only one request per book) beats v1
+  // (120/hour, batched). A run of large textbooks is legitimately all-chunked
+  // and must not be reported as batched.
+  const [transport, setTransport] = useState<Transport | null>(null);
   // Rows that collide with the library or with each other, keyed by row id.
   // Advisory: the content-hash check in the upload route remains the guarantee.
   const [alreadyImported, setAlreadyImported] = useState<Map<string, AlreadyImported>>(new Map());
@@ -507,9 +597,13 @@ export default function BulkUploadForm() {
   // moving anybody's destination.
   const buildJobs = useCallback((previous: BookJob[] = []): BookJob[] => {
     const keptFolders = new Map(previous.map((j) => [j.id, j.folder] as const));
+    const keptUploadIds = new Map(previous.map((j) => [j.id, j.uploadId] as const));
     return csvRows.map((row, i) => {
       const id = String(i);
       const uid = makeUid();
+      // Kept across a rebuild for the same reason the folder is: a retry must
+      // resume its session, not start a second one.
+      const keptUploadId = keptUploadIds.get(id);
       // A resumed run contributes the row's outcome and its folder — but only
       // when the title still matches, so a different CSV loaded into a stale
       // run cannot inherit another book's destination.
@@ -538,6 +632,7 @@ export default function BulkUploadForm() {
           keptFolders.get(id) ??
           (priorApplies && prior.folder ? prior.folder : bookFolder(row.category || "uncategorized", row.title, uid)),
         folderNote: folderNameNote(row.title, uid),
+        uploadId: keptUploadId ?? newUploadSessionId(),
       };
     });
   }, [csvRows, pdfIndex, coverIndex, resumedRows, alreadyImported]);
@@ -623,7 +718,11 @@ export default function BulkUploadForm() {
         updateJob(id, status, extra);
         latest = latest.map((j) => (j.id === id ? { ...j, status, error: extra?.error, slug: extra?.slug } : j));
         persist(latest, gate.cancelled ? "paused" : "running");
-      }, (via) => setTransport((prev) => (prev === "legacy" ? prev : via)));
+      }, (via) =>
+        setTransport((prev) =>
+          prev === null || TRANSPORT_RANK[via] > TRANSPORT_RANK[prev] ? via : prev,
+        ),
+      );
     } finally {
       setRunning(false);
       setPausedUntil(null);
@@ -967,17 +1066,21 @@ export default function BulkUploadForm() {
             <p
               role="status"
               className={`flex items-start gap-2 border-b px-5 py-3 text-xs sm:px-6 ${
-                transport === "v1"
-                  ? "border-divider text-text-muted"
-                  : "border-warning-line bg-warning-soft text-warning-text"
+                transport === "legacy"
+                  ? "border-warning-line bg-warning-soft text-warning-text"
+                  : "border-divider text-text-muted"
               }`}
             >
-              {transport === "v1" ? (
-                <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-              ) : (
+              {transport === "legacy" ? (
                 <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
               )}
-              {transport === "v1" ? t("transportBatched") : t("legacyUploadPath")}
+              {transport === "v1"
+                ? t("transportBatched")
+                : transport === "chunked"
+                  ? t("transportChunked")
+                  : t("legacyUploadPath")}
             </p>
           )}
 

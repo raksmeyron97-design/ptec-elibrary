@@ -38,6 +38,7 @@ import {
   type UploadProgress as Transfer,
 } from "@/lib/upload-progress";
 import { uploadChunked } from "@/lib/upload-chunked";
+import { MAX_UPLOAD_BYTES } from "@/lib/uploads/state";
 import { EBOOKS_BASE_PATH, EBOOKS_REVIEW_PATH } from "@/lib/admin/ebooks-url";
 import { getPdfPageCount, isPdfFile } from "@/lib/pdf-client-utils";
 import AuthorPicker, { type AuthorSelection } from "@/components/admin/books/AuthorPicker";
@@ -65,9 +66,10 @@ const LANGUAGES = ["Khmer", "English"] as const;
 /** Pre-filled, not entered. See `yearTouched`. */
 const DEFAULT_YEAR = String(new Date().getFullYear());
 
-/** Matches the global cap enforced by /api/admin/upload. Checked here too so a
- *  100 MB file is refused before it is sent, not after. */
-const MAX_PDF_BYTES = 100 * 1024 * 1024;
+/** THE cap, imported rather than restated. A client limit above the server's is
+ *  how a file gets fully uploaded before being refused — and this one was: it
+ *  allowed exactly 100 MiB, the one size storage rejects. */
+const MAX_PDF_BYTES = MAX_UPLOAD_BYTES;
 const RECOMMENDED_PDF_BYTES = 25 * 1024 * 1024;
 const MAX_COVER_BYTES = 5 * 1024 * 1024;
 const COVER_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
@@ -138,7 +140,35 @@ function CompositeField({
    panel could only repeat the step's own label beside a spinner. The panel
    itself is `components/admin/kit/form/UploadProgress.tsx`, shared with the
    book edit form, which had a second copy of the same stepper. */
-const PHASE_STEPS = ["uploading-pdf", "uploading-cover", "saving"] as const;
+/*
+   FINALIZING IS A STEP, NOT A PAUSE.
+
+   The rail used to end the PDF step when the last byte left the browser, which
+   is when the server's work STARTS: assembling twenty parts, hashing 95 MB,
+   a malware reputation lookup, a duplicate query and the transfer into storage.
+   All of that was represented by a bar sitting at 100% with an unchanging
+   label, so the operator could not tell a working upload from a dead one — the
+   reported "reaches 100% but stays loading". It is now its own step, with the
+   sub-phase the server reports (`progress.finalizing` / `progress.storing`).
+
+   `uploading-cover` stays on the rail even for a book without one, as it always
+   has: a rail whose length changes with the form's contents is harder to read
+   than one step that never lights up. */
+const PHASE_STEPS = ["uploading-pdf", "finalizing", "uploading-cover", "saving"] as const;
+
+/** The label under the bar for whichever stage the transfer is actually in. */
+function processingKey(stage: Transfer["stage"] | undefined): string {
+  switch (stage) {
+    case "storing":
+      return "progress.storing";
+    case "saving":
+      return "progress.savingRecord";
+    case "finalizing":
+      return "progress.finalizing";
+    default:
+      return "progress.processing";
+  }
+}
 
 export default function UploadForm({
   recentBooks = [],
@@ -480,23 +510,33 @@ export default function UploadForm({
   /* ── Submit ──────────────────────────────────────────────────────────── */
 
   /**
-   * Remove files this submission stored but no record claimed.
+   * Give back a COVER this submission stored but no record claimed.
    *
-   * Best effort by design: the librarian's problem is the save that failed, and
-   * a storage error while tidying up must not overwrite that message or throw
-   * out of the catch block it runs in. A file that survives here is a stray
-   * object, which `scripts/check-file-health.ts` already sweeps — strictly
-   * better than the retry-storms-a-second-copy behaviour it replaces.
+   * THE PDF IS DELIBERATELY NOT DELETED HERE ANY MORE.
+   *
+   * This function used to delete both files whenever the save threw, and that
+   * is not a decision a browser can make correctly. A save request can fail
+   * from the browser's point of view — a timeout, a refresh, a phone changing
+   * cells — while the insert on the server succeeded, and the file it deleted
+   * was then the one a live `books` row pointed at. The librarian's next
+   * discovery was a book in the catalogue whose PDF 404s, which is strictly
+   * worse than a stray file.
+   *
+   * The PDF's fate now belongs to the upload session (migration 0132). A save
+   * that fails leaves the session in STORED — "these bytes are in storage and
+   * no row references them" — which is a state the reconciler can evaluate
+   * against the database, hours later, when the answer is knowable. Retrying
+   * the save reuses the same file rather than uploading a second copy.
+   *
+   * The cover has none of that ambiguity: it is only ever referenced by the row
+   * this very call was creating, and it is a thumbnail.
    */
   async function discardStoredFiles() {
     const stored = storedForCleanup.current;
     if (!stored) return;
     storedForCleanup.current = null;
-    await Promise.allSettled(
-      [stored.pdfUrl, stored.coverUrl]
-        .filter((url): url is string => Boolean(url))
-        .map((url) => deleteZimaFile(url)),
-    );
+    if (!stored.coverUrl) return;
+    await deleteZimaFile(stored.coverUrl).catch(() => undefined);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -579,9 +619,10 @@ export default function UploadForm({
 
       setTransferName(pdf.name);
       setTransfer(null);
-      const { url: pdfPublicUrl, contentHash: uploadedHash } = await uploadChunked<{
+      const { url: pdfPublicUrl, contentHash: uploadedHash, uploadId } = await uploadChunked<{
         url: string;
         contentHash?: string;
+        uploadId: string;
       }>("/api/admin/upload/chunk", pdf, pdfPath, {
         onProgress: setTransfer,
         fallbackError: (status) => `PDF upload failed (${status})`,
@@ -626,8 +667,8 @@ export default function UploadForm({
       setPhase("saving");
       setTransfer(null);
       setTransferName(null);
-      // From here on the bytes are in storage but no row references them. If
-      // the save fails, `discardStoredFiles()` in the catch takes them back out.
+      // The PDF is in storage and the session knows it. Only the cover is this
+      // function's to take back — see discardStoredFiles.
       storedForCleanup.current = { pdfUrl: pdfPublicUrl, coverUrl };
       const res = await saveBookRecord({
         title:      submittedTitle,
@@ -650,6 +691,10 @@ export default function UploadForm({
         contentHash: uploadedHash ?? contentHash ?? "",
         // See migration 0128: recorded, never recomputed from the title.
         storageFolder: folder,
+        // Closes the two-phase commit (migration 0132): the session moves to
+        // COMPLETED with this book's id, so a repeat of this submit is answered
+        // with the same book instead of inserting a second one.
+        uploadId,
         status:     publishMode,
         allowDownload,
         downloadDisabledReason: allowDownload ? null : downloadReason.trim() || null,
@@ -767,11 +812,20 @@ export default function UploadForm({
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <UploadProgress
         steps={PHASE_STEPS.map((id) => ({ id, label: t(`phaseStep.${id}`) }))}
-        /* "done" is impossible here — the success screen returns above. */
-        currentId={phase === "idle" ? null : phase}
+        /* "done" is impossible here — the success screen returns above.
+           While the PDF is in flight the rail follows the SERVER's stage, not
+           the form's: once the bytes are gone the honest answer is "finalizing",
+           and that is a different step from "uploading". */
+        currentId={
+          phase === "idle"
+            ? null
+            : phase === "uploading-pdf" && transfer && transfer.stage !== "sending"
+              ? "finalizing"
+              : phase
+        }
         transfer={transfer}
         fileName={transferName}
-        processingLabel={t("progress.processing")}
+        processingLabel={t(processingKey(transfer?.stage))}
         transferredLabel={(done, total) => t("progress.transferred", { done, total })}
         announceLabel={(current, total, label) =>
           t("progress.step", { current, total, label })
