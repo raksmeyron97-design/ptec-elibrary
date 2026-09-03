@@ -257,6 +257,16 @@ motivated it is `docs/SECURITY_MONITORING_AUDIT.md`.
 - **`AuthorPicker` attaches a canonical `authors.id`, and never merges.** Exact normalized equality is the only identity ("J. Smith" ≠ "John Smith"); a fuzzy suggestion is labelled as one; the id detaches the moment the name is edited; a client-supplied id is verified to exist first. `findTaxonomyByName()` does the same case-folding for categories/departments so "education" resolves to the existing "Education".
 - **`scripts/audit-book-duplicates.ts` reports and changes nothing** — duplicate books, author records that fold to one name, taxonomy collisions. Retiring and merging stay deliberate, audited admin workflows.
 
+### Per-Book Download Permission
+
+`books.allow_download` (`0131`) lets a librarian publish a book as **read online only**. Full picture: `docs/BOOK-DOWNLOAD-PERMISSION.md`.
+
+- **The gate is a route, not a button.** `/api/books/[slug]/download` re-decides on every request via the pure `resolveBookDownloadAccess()` (`lib/books/access.ts`) — the book counterpart of `lib/publications/access.ts` (0125), same column names and same default so the two stay one idea. Every other reader (detail page, read page, `/api/search/native`, `citation_pdf_url`, `lib/metadata-exports/works.ts`) asks the same function, so a drawn action and a served byte stream cannot disagree.
+- **`?download=1` on the file route is a redirect, not a download.** It used to answer with its own `attachment` disposition, which made it a second ungated path — the one search results linked at. It now 307s into `/download` before any DB or storage work, and `/download` resolves a slug OR a book id so that stays a redirect rather than a second copy of the policy. A source scan in `app/api/books/[slug]/file/route.test.ts` fails if `attachment` reappears there.
+- **`book_files.file_url` must never reach a client.** `zimaFetch()` sends no credentials, so that string is a permanent, policy-free, unlogged download link. Four surfaces were emitting it (`mapRowToBook`, `/api/me/continue-reading`, the homepage shelf, `getSavedBooks`); all now emit `bookFileHref(id)`, and `lib/books/storage-url-exposure.test.ts` fails if a `pdfUrl` is assigned from `file_url` again.
+- **Only an explicit `false` restricts.** `undefined` (pre-migration row, or a select that did not ask) and `null` both read as allowed — the column's own default — so a partial select can never silently restrict a book. Every read of the columns has a fallback path; adding one without it takes down the surface it is on.
+- **Reading online is deliberately untouched, and this is not DRM.** The viewer still streams a restricted book. What the setting buys is that no route hands out the file *as a file*, no aggregator is told where it is, no permanent URL exists, and every refusal is audited. Don't describe it as more than that.
+
 ### Admin Panel
 
 Located at `/admin`, all sections under `(protected)/`, each gated by the permission system. Key sections: **catalogs** (books CRUD with bulk CSV import and physical copy management), **theses**, **posts**, **publications**, **announcements**, **book-requests**, **users**, **roles**, **team**, **upload**, **manage** (categories/departments), and **logs** (audit trail written via `app/actions/audit.ts`).

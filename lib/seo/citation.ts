@@ -67,21 +67,31 @@ export interface BookCitationRow {
    *  none of them, so this is null for the majority. */
   publisher?: string | null;
   tags?: string[] | null;
+  /** Library download policy (books.allow_download, migration 0131). Absent
+   *  reads as "allowed", the column's default. */
+  allow_download?: boolean | null;
 }
 
-/** citation_pdf_url points at /api/books/[id]/file, which is anonymously
- * readable (auth is only enforced for ?download=1) and serves
- * Content-Type: application/pdf directly — no presigned-URL redirect.
+/** citation_pdf_url points at /api/books/[id]/file, which serves
+ * Content-Type: application/pdf directly — no presigned-URL redirect — and is
+ * readable by a DNS-verified Google crawler without a session so Scholar can
+ * index the full text.
+ *
+ * It is OMITTED for a read-online-only book (0131). The tag exists to tell a
+ * crawler "here is the file, take it", and Scholar then hosts a cached copy of
+ * what it fetches — which is the one thing the setting says not to do. The
+ * landing page, and every other citation_* tag, stay exactly as they were, so
+ * the record remains fully indexed as metadata.
  *
  * citation_publisher is emitted ONLY when the record names a real publisher.
  * PTEC is the providing library, not the publisher of these third-party
  * textbooks — asserting citation_publisher=PTEC to Google Scholar would be a
  * factual misattribution. */
 export function bookScholarMeta(book: BookCitationRow, authors: string[]): ScholarMeta {
-  const tags: ScholarMeta = {
-    citation_title: book.title,
-    citation_pdf_url: `${SITE_URL}/api/books/${book.id}/file`,
-  };
+  const tags: ScholarMeta = { citation_title: book.title };
+  if (book.allow_download !== false) {
+    tags.citation_pdf_url = `${SITE_URL}/api/books/${book.id}/file`;
+  }
   const publisher = book.publisher?.trim();
   if (publisher) tags.citation_publisher = publisher;
   if (authors.length > 0) tags.citation_author = authors;

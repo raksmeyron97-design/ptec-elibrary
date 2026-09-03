@@ -31,6 +31,7 @@ import {
   LABEL_CLASS,
   TEXTAREA_CLASS,
   HINT_CLASS,
+  Switch,
 } from "@/components/admin/kit/form";
 import {
   uploadWithProgress,
@@ -152,6 +153,10 @@ export default function UploadForm({
   const [transferName, setTransferName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<PublishMode>("published");
+  // Library policy (migration 0131). Defaults to on: a new book is downloadable
+  // unless a librarian decides otherwise, which is what every existing book is.
+  const [allowDownload, setAllowDownload] = useState(true);
+  const [downloadReason, setDownloadReason] = useState("");
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverMeta, setCoverMeta] = useState<{ name: string; size: number } | null>(null);
   const [pdfMeta, setPdfMeta] = useState<{ name: string; size: number } | null>(null);
@@ -649,6 +654,8 @@ export default function UploadForm({
         // See migration 0128: recorded, never recomputed from the title.
         storageFolder: folder,
         status:     publishMode,
+        allowDownload,
+        downloadDisabledReason: allowDownload ? null : downloadReason.trim() || null,
         license:    (formData.get("license")    as string) ?? "",
         // Carried only when it matches the blocking match the form showed;
         // the server re-checks that it still does.
@@ -1221,6 +1228,53 @@ export default function UploadForm({
                 />
               </div>
             </fieldset>
+          </FormSection>
+
+          {/* ── Step 4 · Reader access ──────────────────────────────────
+              Asked here, next to the publication decision, rather than in a
+              settings screen: "may readers download this?" is only answerable
+              once you know which book it is, and the person attaching the PDF
+              is the person who knows the answer.
+
+              This is a LIBRARY POLICY switch, and it is enforced by
+              /api/books/[slug]/download — the server refuses the file, it is
+              not a hidden button. Reading online is unaffected either way. */}
+          <FormSection title={t("access")} description={t("accessSub")}>
+            <Switch
+              tone="success"
+              checked={allowDownload}
+              onChange={setAllowDownload}
+              label={t("downloadPermission")}
+              description={t("downloadPermissionHint")}
+              onDescription={
+                <ul className="space-y-1">
+                  <li>&#10003; {t("canReadOnline")}</li>
+                  <li>&#10003; {t("canDownload")}</li>
+                </ul>
+              }
+              offDescription={
+                <ul className="space-y-1">
+                  <li>&#10003; {t("canReadOnline")}</li>
+                  <li>&#10007; {t("cannotDownload")}</li>
+                </ul>
+              }
+            />
+
+            {/* Only asked for when it applies — a restriction message on a
+                downloadable book has nowhere to appear. */}
+            {!allowDownload && (
+              <Field label={t("field.downloadReason")} hint={t("field.downloadReasonHint")}>
+                {(p) => (
+                  <input
+                    {...p}
+                    value={downloadReason}
+                    onChange={(e) => setDownloadReason(e.target.value)}
+                    maxLength={200}
+                    placeholder={t("field.downloadReasonPlaceholder")}
+                  />
+                )}
+              </Field>
+            )}
           </FormSection>
 
           {error && (

@@ -4,6 +4,7 @@
 // app/actions/saved-books.ts
 import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { bookFileHref } from "@/lib/book-utils";
 
 // ── Toggle save/unsave ────────────────────────────────────────
 export async function toggleSaveBook(bookId: string, bookSlug: string) {
@@ -98,7 +99,9 @@ export async function getSavedBooks() {
       coverUrl:   b.cover_url ?? null,
       rating:     Number(b.rating) || 0,
       pages:      b.pages ?? 1,
-      pdfUrl:     pdfFile?.file_url ?? null,
+      // Proxy url, never the raw storage url — see bookFileHref(). This is
+      // a Server Action result: it is serialized straight to the client.
+      pdfUrl:     pdfFile?.file_url ? bookFileHref(b.id) : null,
       format:     "PDF",
       isbn:       "N/A",
       year:       new Date().getFullYear(),

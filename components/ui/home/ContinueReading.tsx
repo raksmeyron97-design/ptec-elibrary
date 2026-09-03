@@ -5,6 +5,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import BookCard from "@/components/ui/books/BookCard";
 import BookCarousel from "./BookCarousel";
 import { SectionTitle } from "@/components/ui/core/SectionTitle";
+import { bookFileHref } from "@/lib/book-utils";
 
 type ContinueBook = React.ComponentProps<typeof BookCard>["book"] & { lastReadAt?: string | null };
 
@@ -67,7 +68,8 @@ async function getContinueReading(): Promise<ContinueBook[]> {
         summary: b.description ?? "",
         cover: b.cover_color ?? "bg-brand",
         coverUrl: b.cover_url ?? null,
-        pdfUrl: pdfFile?.file_url ?? null,
+        // Proxy url, never the raw storage url — see bookFileHref().
+        pdfUrl: pdfFile?.file_url ? bookFileHref(b.id) : null,
         tags: [],
         progressPct: r.progress_pct,
         downloadCount: b.download_count ?? 0,

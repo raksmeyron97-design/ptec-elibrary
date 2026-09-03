@@ -16,10 +16,13 @@ export default async function EditBookPage({
 
   const supabase = createServiceClient();
 
-  // Fetch the book with its author + category names
-  const { data: book } = await supabase
-    .from("books")
-    .select(`
+  // Fetch the book with its author + category names.
+  //
+  // allow_download / download_disabled_reason (0131) are asked for separately
+  // from the rest: a database that has not received the migration answers the
+  // whole select with 42703, which would 404 the edit page for every book.
+  // Missing => the column default (downloadable), same reading as everywhere.
+  const BOOK_COLUMNS = `
       id, title, slug, description, language, published_at,
       department, isbn, publisher, pages, cover_url, tags, license, storage_folder,
       seo_title, seo_description, og_image,
@@ -27,10 +30,21 @@ export default async function EditBookPage({
       authors(name),
       categories(name),
       departments(name),
-      book_files(file_url, file_size_kb, format)
-    `)
+      book_files(file_url, file_size_kb, format)`;
+
+  let { data: book } = await supabase
+    .from("books")
+    .select(`${BOOK_COLUMNS}, allow_download, download_disabled_reason`)
     .eq("id", id)
-    .single();
+    .maybeSingle();
+
+  if (!book) {
+    ({ data: book } = await supabase
+      .from("books")
+      .select(BOOK_COLUMNS)
+      .eq("id", id)
+      .maybeSingle());
+  }
 
   if (!book) notFound();
 
@@ -91,6 +105,10 @@ export default async function EditBookPage({
     fileUrl:     (primaryFile?.file_url as string | null) ?? null,
     fileSizeKb:  (primaryFile?.file_size_kb as number | null) ?? null,
     fileFormat:  (primaryFile?.format as string | null) ?? null,
+    // Only an explicit false restricts — an absent column (pre-0131) is the
+    // column's default, which is "downloadable".
+    allowDownload: (book as any).allow_download !== false,
+    downloadDisabledReason: ((book as any).download_disabled_reason as string | null) ?? "",
     status:            (book.status as string | null) ?? "draft",
     verifiedAt:        (book.verified_at as string | null) ?? null,
     verifierName,

@@ -1,5 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// Inline PDF delivery for the in-app reader.
+//
+// PERFORMANCE SHAPE. pdf.js reads a book in byte ranges, so this handler is hit
+// many times for one book — it is a hot path, not a one-shot download. Two
+// things follow, and both are load-bearing:
+//
+//   * The book row is read through a tagged cache, not a query per chunk.
+//     It changes when an admin saves the book, and every book mutation already
+//     revalidates the `books` tag.
+//   * A ranged continuation of an already-authorized read is metered against
+//     `fileRange`, not `fileRead`. Counting each 512 KB of one open document as
+//     a fresh "file read" made a reader exceed their own limit, and get a 429,
+//     partway through opening a large book.
+//
+// What is NOT cached or relaxed: the session check. `auth.getUser()` runs on
+// every request, so revoking a session stops the next chunk.
+//
+// See docs/LARGE-PDF-PERFORMANCE-AUDIT.md for the measurements behind this.
 import { NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -30,6 +49,33 @@ function r2ObjectKey(fileUrl: string): string {
   }
 }
 
+/**
+ * The book's identity and file location, cached under the `books` tag.
+ *
+ * Only fields that decide *where the bytes are and whether they may be served*
+ * — nothing user-specific ever enters this cache.
+ */
+const getBookFileRecord = unstable_cache(
+  async (bookId: string) => {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase
+      .from("books")
+      .select(`title, book_files ( file_url, format )`)
+      .eq("id", bookId)
+      .eq("is_published", true)
+      .maybeSingle();
+    if (error || !data) return null;
+    const files = Array.isArray(data.book_files) ? data.book_files : [data.book_files];
+    const pdfFile = files.find((f: any) => f?.format === "pdf") ?? files[0];
+    return {
+      title: data.title as string,
+      fileUrl: (pdfFile?.file_url as string | undefined) ?? null,
+    };
+  },
+  ["book-file-record"],
+  { revalidate: 3600, tags: ["books"] },
+);
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
@@ -41,9 +87,33 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const download = searchParams.get("download") === "1";
 
+  // Any `?download=1` request is funnelled to the single authoritative gated
+  // route, which enforces the per-book download policy (0131), counts the
+  // download exactly once, and streams with `private, no-store`.
+  //
+  // This route used to answer `?download=1` itself with an `attachment`
+  // disposition. That made it a second, ungated download path — the one the
+  // search results linked at — so a book's download policy could be sidestepped
+  // by a query parameter. Redirecting rather than re-implementing is what keeps
+  // there being exactly one gate. The redirect happens BEFORE any database or
+  // storage work, so the bypass costs nothing to refuse.
+  if (download) {
+    return NextResponse.redirect(new URL(`/api/books/${slug}/download`, request.url), 307);
+  }
+
   const ip = clientIp(request.headers);
-  const { limit, windowMs } = ratePolicy("fileRead");
-  const rl = await rateLimit(`book-file:${ip}`, limit, windowMs);
+  const rangeHeader = request.headers.get("range");
+
+  // A ranged request continues a document the caller already opened; an
+  // unranged one opens it. Different events, different ceilings, different
+  // buckets — see ratePolicy("fileRange").
+  const isRangeRequest = !!rangeHeader;
+  const { limit, windowMs } = ratePolicy(isRangeRequest ? "fileRange" : "fileRead");
+  const rl = await rateLimit(
+    `${isRangeRequest ? "book-file-range" : "book-file"}:${ip}`,
+    limit,
+    windowMs,
+  );
   if (!rl.success) {
     logSecurityEvent({ type: "rate_limited", where: "/api/books/[slug]/file", ip });
     return NextResponse.json(
@@ -68,32 +138,19 @@ export async function GET(
     }
   }
 
-  const supabaseAdmin = createServiceClient();
-  const { data: book, error } = await supabaseAdmin
-    .from("books")
-    .select(`title, book_files ( file_url, format )`)
-    .eq("id", slug)
-    .eq("is_published", true)
-    .single();
-
-  if (error || !book) {
+  const book = await getBookFileRecord(slug);
+  if (!book) {
     return new NextResponse("Book not found", { status: 404 });
   }
-
-  const files = Array.isArray(book.book_files) ? book.book_files : [book.book_files];
-  const pdfFile = files.find((f: any) => f.format === "pdf") ?? files[0];
-
-  if (!pdfFile?.file_url) {
+  if (!book.fileUrl) {
     return new NextResponse("File not found", { status: 404 });
   }
 
-  const fileUrl = pdfFile.file_url as string;
+  const fileUrl = book.fileUrl;
   const safeTitle = encodeURIComponent(`${book.title}.pdf`);
-  const disposition = download
-    ? `attachment; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`
-    : `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
-
-  const rangeHeader = request.headers.get("range");
+  // Always inline. `attachment` is the gated /download route's business now;
+  // reinstating it here would recreate the bypass the redirect above closed.
+  const disposition = `inline; filename="${safeTitle}"; filename*=UTF-8''${safeTitle}`;
 
   // NOTE — there used to be a @vercel/blob branch here for records whose
   // file_url pointed at *.blob.vercel-storage.com. It is gone with the move to

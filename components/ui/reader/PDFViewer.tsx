@@ -116,6 +116,7 @@ type ReaderEventType =
   | "pdf_load_error"
   | "pdf_load_slow"
   | "pdf_render_error"
+  | "pdf_first_page"
   | "broken_file_report";
 
 type SelectionPopup = {
@@ -187,6 +188,44 @@ function safePdfPath(raw: string | null | undefined): string | null {
   }
 }
 
+/**
+ * What it actually cost to reach the first painted page.
+ *
+ * This is THE number the large-PDF work optimizes (see
+ * docs/LARGE-PDF-PERFORMANCE-AUDIT.md): not the size of the book, but how many
+ * round trips and bytes a reader waits through before anything appears. Read
+ * from the browser's own Resource Timing entries for the PDF URL, so it counts
+ * real requests — including the byte ranges pdf.js issues — rather than
+ * anything this component believes it asked for.
+ *
+ * Returns nulls rather than guessing when Resource Timing is unavailable or
+ * the entries have been evicted; a missing measurement must never be reported
+ * as a fast one.
+ */
+function measurePdfTransfer(pdfUrl: string | null | undefined): {
+  requests: number | undefined;
+  bytes: number | undefined;
+} {
+  try {
+    if (!pdfUrl || typeof performance?.getEntriesByType !== "function") {
+      return { requests: undefined, bytes: undefined };
+    }
+    const abs = new URL(pdfUrl, window.location.origin).href.split("?")[0];
+    const entries = performance
+      .getEntriesByType("resource")
+      .filter((e) => e.name.split("?")[0] === abs) as PerformanceResourceTiming[];
+    if (entries.length === 0) return { requests: undefined, bytes: undefined };
+    return {
+      requests: entries.length,
+      // transferSize is 0 for a cross-origin response without Timing-Allow-Origin
+      // and for a cache hit; same-origin (this proxy) reports it truthfully.
+      bytes: entries.reduce((sum, e) => sum + (e.transferSize || 0), 0),
+    };
+  } catch {
+    return { requests: undefined, bytes: undefined };
+  }
+}
+
 function sendReaderEvent(payload: {
   type: ReaderEventType;
   bookId: string;
@@ -194,6 +233,12 @@ function sendReaderEvent(payload: {
   page?: number;
   message?: string;
   durationMs?: number;
+  /** How many HTTP requests it took to paint the first page. */
+  requests?: number;
+  /** How many bytes crossed the network to paint it. */
+  bytes?: number;
+  /** "cache" when the book was already on the device, else "network". */
+  source?: string;
 }) {
   try {
     const body = JSON.stringify(payload);
@@ -306,6 +351,7 @@ const ScrollPage = memo(function ScrollPage({
   devicePixelRatio,
   customTextRenderer,
   onRenderError,
+  onRenderSuccess,
 }: {
   pageNumber: number;
   width?: number;
@@ -317,6 +363,8 @@ const ScrollPage = memo(function ScrollPage({
   devicePixelRatio: number;
   customTextRenderer?: (item: { str: string; itemIndex: number }) => string;
   onRenderError?: (error: Error) => void;
+  /** Fired when this page's canvas is actually painted. */
+  onRenderSuccess?: () => void;
 }) {
   return (
     <div
@@ -340,6 +388,7 @@ const ScrollPage = memo(function ScrollPage({
           renderAnnotationLayer
           customTextRenderer={customTextRenderer}
           onRenderError={onRenderError}
+          onRenderSuccess={onRenderSuccess}
           loading={
             <div
               style={{ height: estHeight, width: width ?? "min(100%, 720px)" }}
@@ -446,7 +495,25 @@ export default function PDFViewer({
       isEvalSupported: false,
       disableAutoFetch: true,
       disableStream: false,
-      rangeChunkSize: 65536,
+      // 512 KB, not pdf.js's 64 KB default.
+      //
+      // Every range request is a full round trip through
+      // /api/books/[id]/file, which authorizes the read before it proxies —
+      // so the cost of a chunk is dominated by that request, not by its size.
+      // Measured against the storage service (docs/LARGE-PDF-PERFORMANCE-AUDIT.md
+      // §3b): fetching the ~4 MB a large scanned book needs before its first
+      // page took 64 requests / 4.2 s at 64 KB, and 8 requests / 0.5 s at
+      // 512 KB, with a realistic 60 ms of per-request authorization overhead.
+      //
+      // 64 KB also made the reader exceed its OWN rate limit (30 file reads a
+      // minute) before finishing page one of a large book — a 429 mid-open,
+      // not merely a slow one.
+      //
+      // 1 MB measured slightly faster still, but 512 KB is the better default:
+      // `disableAutoFetch` means pdf.js fetches only what it renders, and a
+      // chunk is also the smallest thing a reader on a poor connection waits
+      // for before anything appears.
+      rangeChunkSize: 512 * 1024,
     }),
     [],
   );
@@ -567,7 +634,14 @@ export default function PDFViewer({
   const reportReaderEvent = useCallback(
     (
       type: ReaderEventType,
-      details: { message?: string; page?: number; durationMs?: number } = {},
+      details: {
+        message?: string;
+        page?: number;
+        durationMs?: number;
+        requests?: number;
+        bytes?: number;
+        source?: string;
+      } = {},
     ) => {
       if (offline) return; // nothing to send to, and nothing worth queueing
       sendReaderEvent({
@@ -577,10 +651,37 @@ export default function PDFViewer({
         page: details.page ?? currentPageRef.current,
         message: details.message?.slice(0, 240),
         durationMs: details.durationMs,
+        requests: details.requests,
+        bytes: details.bytes,
+        source: details.source,
       });
     },
     [bookId, pdfUrl, offline],
   );
+
+  /* ── Time to first painted page ──────────────────────────────
+     The measure the large-PDF work exists to improve. Emitted once per
+     document, from the first page that actually finishes rendering — not from
+     the document `load` event, which fires before anything is on screen.
+     Reported with the request count and byte total behind it, so a regression
+     shows WHICH of the two moved. */
+  const firstPageReportedRef = useRef(false);
+  useEffect(() => {
+    firstPageReportedRef.current = false;
+  }, [pdfUrl, docKey]);
+
+  const onFirstPagePainted = useCallback(() => {
+    if (firstPageReportedRef.current) return;
+    firstPageReportedRef.current = true;
+    const durationMs = Math.round(performance.now() - loadStartedAtRef.current);
+    const { requests, bytes } = measurePdfTransfer(pdfUrl);
+    reportReaderEvent("pdf_first_page", {
+      durationMs,
+      requests,
+      bytes,
+      source: fromCache ? "cache" : "network",
+    });
+  }, [pdfUrl, fromCache, reportReaderEvent]);
 
   /* ── Derived ────────────────────────────────────────────────── */
   const progressPct =
@@ -3013,6 +3114,7 @@ export default function PDFViewer({
                       placeholderClass={placeholderClass}
                       devicePixelRatio={renderPixelRatio}
                       onRenderError={(error) => onPageRenderError(p, error)}
+                      onRenderSuccess={onFirstPagePainted}
                       customTextRenderer={
                         matchesByPage.has(p) || annotations.some((a) => a.page_number === p)
                           ? (item) => highlight(item, p)
@@ -3048,6 +3150,7 @@ export default function PDFViewer({
                       devicePixelRatio={renderPixelRatio}
                       onLoadSuccess={arMeasuredRef.current ? undefined : onFirstPageLoad}
                       onRenderError={(error) => onPageRenderError(currentPage, error)}
+                      onRenderSuccess={onFirstPagePainted}
                       renderTextLayer
                       renderAnnotationLayer
                       customTextRenderer={

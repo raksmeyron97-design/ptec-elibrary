@@ -33,6 +33,7 @@ import {
   Download,
   Search,
   ShieldCheck,
+  Lock,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -43,6 +44,7 @@ import {
   ButtonBusy,
   UploadProgress,
   BTN_PRIMARY,
+  Switch,
   type FormTab,
 } from "@/components/admin/kit/form";
 import {
@@ -73,6 +75,9 @@ type Initial = {
   fileUrl: string | null;
   fileSizeKb: number | null;
   fileFormat: string | null;
+  /* Library policy (migration 0131). */
+  allowDownload: boolean;
+  downloadDisabledReason: string;
   /* Editorial state, for the Review & Verify tab. */
   status: string;
   verifiedAt: string | null;
@@ -214,6 +219,10 @@ export default function EditForm({
   const [transferName, setTransferName] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
   const [preview, setPreview]     = useState<string | null>(initial.coverUrl ?? null);
+  // Library policy (migration 0131). Both values are posted on every save, so
+  // the switch is authoritative — see updateBook()'s note on an absent key.
+  const [allowDownload, setAllowDownload] = useState(initial.allowDownload);
+  const [downloadReason, setDownloadReason] = useState(initial.downloadDisabledReason);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const fileInputRef              = useRef<HTMLInputElement>(null);
   const coverZoneRef              = useRef<HTMLDivElement>(null);
@@ -401,6 +410,8 @@ export default function EditForm({
       setPhase("saving");
       setTransfer(null);
       setTransferName(null);
+      formData.set("allowDownload", allowDownload ? "1" : "0");
+      formData.set("downloadDisabledReason", allowDownload ? "" : downloadReason.trim());
       await updateBook(initial.id, formData);
     } catch (err) {
       setPhase("idle");
@@ -674,6 +685,73 @@ export default function EditForm({
               >
                 Cancel PDF replacement
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Reader access card ──────────────────────────────────────
+            Sits with the file it governs. Changing it here is the same
+            decision the upload form offers, persisted through the same
+            column, and enforced by the same route — there is one setting,
+            reachable from both places, not two. */}
+        <div id="access" className="scroll-mt-24 overflow-hidden rounded-xl border border-divider">
+          <div className="flex items-center gap-3.5 border-b border-divider bg-paper/60 px-6 py-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-admin-accent-soft text-admin-accent" aria-hidden="true">
+              <Lock className="h-[18px] w-[18px]" />
+            </span>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-bold text-text-heading">Reader access</h2>
+              <p className="text-xs text-text-muted">
+                Who may take the PDF away. Online reading is unaffected by this setting.
+              </p>
+            </div>
+            {!allowDownload && (
+              <span className="shrink-0 rounded-lg border border-warning-line bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning-text">
+                Read online only
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-4 p-6">
+            <Switch
+              tone="success"
+              checked={allowDownload}
+              onChange={setAllowDownload}
+              disabled={saving}
+              label="Download permission"
+              description="Allow readers to download this book."
+              onDescription={
+                <ul className="space-y-1">
+                  <li>&#10003; Read online</li>
+                  <li>&#10003; Download PDF</li>
+                </ul>
+              }
+              offDescription={
+                <ul className="space-y-1">
+                  <li>&#10003; Read online</li>
+                  <li>&#10007; Download PDF &mdash; the server refuses the file, not just the button</li>
+                </ul>
+              }
+            />
+
+            {!allowDownload && (
+              <div className="space-y-1.5">
+                <label htmlFor="download-reason" className="block text-xs font-bold text-text-heading">
+                  Restriction message
+                </label>
+                <input
+                  id="download-reason"
+                  value={downloadReason}
+                  onChange={(e) => setDownloadReason(e.target.value)}
+                  disabled={saving}
+                  maxLength={200}
+                  placeholder="This book is available for online reading only."
+                  className={INPUT_CLASS}
+                />
+                <p className="text-[11px] leading-4 text-text-muted">
+                  Shown to readers in place of the download action. Leave blank for the standard wording.
+                </p>
+              </div>
             )}
           </div>
         </div>

@@ -37,8 +37,14 @@ export async function GET(
   const locked = lockdownResponse("downloads", "/api/publications/[slug]/file");
   if (locked) return locked;
   const ip = clientIp(request.headers);
-  const { limit, windowMs } = ratePolicy("fileRead");
-  const rl = await rateLimit(`publication-file:${ip}`, limit, windowMs);
+  // Ranged continuation vs opening the document — see ratePolicy("fileRange").
+  const isRangeRequest = !!request.headers.get("range");
+  const { limit, windowMs } = ratePolicy(isRangeRequest ? "fileRange" : "fileRead");
+  const rl = await rateLimit(
+    `${isRangeRequest ? "publication-file-range" : "publication-file"}:${ip}`,
+    limit,
+    windowMs,
+  );
   if (!rl.success) {
     logSecurityEvent({ type: "rate_limited", where: "/api/publications/[slug]/file", ip });
     return NextResponse.json(

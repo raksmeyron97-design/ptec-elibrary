@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
+import { bookFileHref } from "@/lib/book-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,9 @@ export async function GET() {
         summary: b.description ?? "",
         cover: b.cover_color ?? "bg-brand",
         coverUrl: b.cover_url ?? null,
-        pdfUrl: pdfFile?.file_url ?? null,
+        // Proxy url, never the raw storage url — see bookFileHref(). This
+        // response is JSON a browser reads.
+        pdfUrl: pdfFile?.file_url ? bookFileHref(b.id) : null,
         tags: [] as string[],
         progressPct: r.progress_pct,
         downloadCount: b.download_count ?? 0,

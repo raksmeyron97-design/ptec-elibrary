@@ -83,6 +83,16 @@ export interface BookInput {
   storageFolder?: string;
   /** "published" (default) goes live immediately; "pending_review" waits in /admin/review */
   status?: "published" | "pending_review";
+  /**
+   * Library policy (migration 0131): may readers take the file away?
+   *
+   * Undefined means "not specified by this client", which takes the column
+   * default (true) — an older form build, or the bulk importer, must never
+   * restrict a book by omission.
+   */
+  allowDownload?: boolean;
+  /** Optional librarian wording shown in place of the download action. */
+  downloadDisabledReason?: string | null;
   license?: string;
   /** Canonical author chosen in the picker. When present and real, the book
    *  attaches to that exact row instead of upserting one by name — which is
@@ -387,6 +397,18 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
       cover_color:  coverColor,
       cover_url:    coverUrl,
       storage_folder: input.storageFolder?.trim() || null,
+      // Only written when the client actually decided (migration 0131). An
+      // absent key takes the column default — true — so the bulk importer and
+      // any older form build keep producing downloadable books, and the insert
+      // still works on a database the migration has not reached.
+      ...(input.allowDownload === false
+        ? {
+            allow_download: false,
+            download_disabled_reason: input.downloadDisabledReason?.trim() || null,
+          }
+        : input.allowDownload === true
+          ? { allow_download: true, download_disabled_reason: null }
+          : {}),
       tags: tagsArr,
     })
     .select("id, slug")
@@ -414,6 +436,7 @@ export async function saveBookRecord(input: BookInput): Promise<{ error: string 
   await logAdminAction(user.id, "book.create", "books", book.id, {
     title,
     status: effectiveStatus,
+    ...(input.allowDownload === false ? { allowDownload: false } : {}),
     ...(overrodeBookId ? { duplicateOf: overrodeBookId } : {}),
   });
   if (effectiveStatus === "pending_review") {
@@ -511,6 +534,15 @@ export async function updateBook(bookId: string, formData: FormData) {
   const year  = validatedYear(formData.get("year"));
   const pages = Number(formData.get("pages")) || 1;
 
+  // Download policy (migration 0131). The form posts `allowDownload` as "1"/"0"
+  // on every submit; a payload without the key at all (an older build, or a
+  // caller that only means to change metadata) leaves the librarian's setting
+  // exactly as it found it rather than resetting it to "allowed".
+  const allowDownloadRaw = formData.get("allowDownload");
+  const allowDownload =
+    allowDownloadRaw === null ? null : allowDownloadRaw.toString() === "1";
+  const downloadReason = formData.get("downloadDisabledReason")?.toString().trim() || null;
+
   // SEO overrides (migration 0112): blank → null so the builder auto-generates.
   const seoTitle       = formData.get("seo_title")?.toString().trim() || null;
   const seoDescription = formData.get("seo_description")?.toString().trim() || null;
@@ -607,9 +639,21 @@ export async function updateBook(bookId: string, formData: FormData) {
     }
   }
 
-  const { data: book, error: bookError } = await supabase
-    .from("books")
-    .update({
+  // Previous value, for the audit trail below. `select("allow_download")` on a
+  // database without the column errors rather than returning undefined, so the
+  // read is tolerated and degrades to "unknown" (null) — which only costs the
+  // before/after detail in one audit row, never the update itself.
+  let previousAllowDownload: boolean | null = null;
+  if (allowDownload !== null) {
+    const { data: prev } = await supabase
+      .from("books")
+      .select("allow_download")
+      .eq("id", bookId)
+      .maybeSingle();
+    previousAllowDownload = (prev?.allow_download as boolean | undefined) ?? null;
+  }
+
+  const bookUpdate = {
       title,
       description:  summary,
       author_id:    editAuthorId,
@@ -626,14 +670,59 @@ export async function updateBook(bookId: string, formData: FormData) {
       seo_description: seoDescription,
       og_image: ogImage,
       ...(license ? { license } : {}),
+      ...(allowDownload === null
+        ? {}
+        : {
+            allow_download: allowDownload,
+            // The restriction message only exists while the restriction does.
+            download_disabled_reason: allowDownload ? null : downloadReason,
+          }),
       ...coverUpdate, // only included if cover changed/removed
-    })
-    .eq("id", bookId)
-    .select("id, slug")
-    .single();
+  };
+
+  const runUpdate = (payload: Record<string, unknown>) =>
+    supabase.from("books").update(payload).eq("id", bookId).select("id, slug").single();
+
+  let { data: book, error: bookError } = await runUpdate(bookUpdate);
+
+  // A database that has not received 0131 rejects the whole UPDATE. Retry
+  // without the two policy columns so ordinary metadata editing survives — but
+  // only tell the librarian it worked if they were not actually trying to
+  // restrict the book, because silently discarding that decision would leave
+  // them believing a download is blocked when it is not.
+  if (bookError && (bookError.code === "42703" || bookError.code === "PGRST204")) {
+    if (allowDownload === false) {
+      throw new Error(
+        "Download permission could not be saved: this database has not had migration 0131 applied yet. " +
+          "Nothing was changed — apply the migration and try again.",
+      );
+    }
+    const withoutPolicy: Record<string, unknown> = { ...bookUpdate };
+    delete withoutPolicy.allow_download;
+    delete withoutPolicy.download_disabled_reason;
+    ({ data: book, error: bookError } = await runUpdate(withoutPolicy));
+  }
   if (bookError) throw new Error(`Book update failed: ${bookError.message}`);
+  if (!book) throw new Error("Book update failed: the record no longer exists.");
 
   await logAdminAction(user.id, "book.update", "books", bookId, { title });
+
+  // A change to who may take the file away is a security-relevant decision, not
+  // a metadata edit, so it gets its own audit row with the before/after values.
+  // Written only when the value actually moved. `previousAllowDownload` is null
+  // only when the column could not be read at all (pre-0131), where there is no
+  // transition to report.
+  if (
+    allowDownload !== null &&
+    previousAllowDownload !== null &&
+    allowDownload !== previousAllowDownload
+  ) {
+    await logAdminAction(user.id, "book.download_permission", "books", bookId, {
+      title,
+      from: previousAllowDownload,
+      to: allowDownload,
+    });
+  }
 
   revalidateBook(book.slug, { affectsHome: true });
   revalidatePath("/admin");

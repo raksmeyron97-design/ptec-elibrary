@@ -9,6 +9,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { ratePolicy, isExpensiveSearchDisabled } from "@/lib/rate-limit-policy";
 import { logSecurityEvent } from "@/lib/security-log";
 import { classifySignatures } from "@/lib/security/model";
+import { bookDownloadAllowed } from "@/lib/books/access";
 import { resolveDownloadAccess } from "@/lib/publications/access";
 import {
   academicTextToPlainText,
@@ -497,31 +498,41 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
   const categoriesJoin = categoryIds.length ? "categories!inner(name)" : "categories(name)";
   const departmentsJoin = filters.dept || departmentIds.length ? "departments!inner(name)" : "departments(name)";
 
-  let query: any = db
-    .from("books")
-    .select(
-      `id, slug, title, cover_url, description, language, published_at, created_at, rating, download_count, view_count, department, isbn, publisher, tags, reviews(count), book_files(format, file_url), ${authorsJoin}, ${categoriesJoin}, ${departmentsJoin}`,
-      { count: "exact" },
-    )
-    .eq("is_published", true);
+  const BOOK_COLUMNS = `id, slug, title, cover_url, description, language, published_at, created_at, rating, download_count, view_count, department, isbn, publisher, tags, reviews(count), book_files(format, file_url), ${authorsJoin}, ${categoriesJoin}, ${departmentsJoin}`;
 
-  const orParts = [
-    orFilter(["title", "description", "isbn", "publisher"], tokens),
-    authorIds.length ? `author_id.in.(${authorIds.join(",")})` : "",
-    categoryIds.length ? `category_id.in.(${categoryIds.join(",")})` : "",
-    departmentIds.length ? `department_id.in.(${departmentIds.join(",")})` : "",
-  ].filter(Boolean);
-  if (orParts.length) query = query.or(orParts.join(","));
+  // The filter chain is rebuilt rather than mutated in place so the query can
+  // be re-issued with a narrower column list — see the retry below.
+  const buildQuery = (columns: string) => {
+    let query: any = db
+      .from("books")
+      .select(columns, { count: "exact" })
+      .eq("is_published", true);
 
-  if (filters.dept) query = query.eq("departments.name", filters.dept);
-  if (filters.author) query = query.ilike("authors.name", `%${filters.author}%`);
-  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
-  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-  if (fileBookIds) query = fileBookIds.length ? query.in("id", fileBookIds) : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    const orParts = [
+      orFilter(["title", "description", "isbn", "publisher"], tokens),
+      authorIds.length ? `author_id.in.(${authorIds.join(",")})` : "",
+      categoryIds.length ? `category_id.in.(${categoryIds.join(",")})` : "",
+      departmentIds.length ? `department_id.in.(${departmentIds.join(",")})` : "",
+    ].filter(Boolean);
+    if (orParts.length) query = query.or(orParts.join(","));
 
-  const { data, count, error } = await query
-    .order("download_count", { ascending: false, nullsFirst: false })
-    .limit(limit);
+    if (filters.dept) query = query.eq("departments.name", filters.dept);
+    if (filters.author) query = query.ilike("authors.name", `%${filters.author}%`);
+    if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
+    if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+    if (fileBookIds) query = fileBookIds.length ? query.in("id", fileBookIds) : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+    return query.order("download_count", { ascending: false, nullsFirst: false }).limit(limit);
+  };
+
+  // allow_download (0131) decides whether a result offers a download link.
+  // Asked for with a fallback: on a database without the column PostgREST
+  // fails the whole select, and an empty book section is a far worse outcome
+  // than a link that the gated route would refuse anyway.
+  let { data, count, error } = await buildQuery(`${BOOK_COLUMNS}, allow_download`);
+  if (error && (error.code === "42703" || error.code === "PGRST204")) {
+    ({ data, count, error } = await buildQuery(BOOK_COLUMNS));
+  }
 
   if (error) {
     console.error("[native-search/books]", error.message);
@@ -561,7 +572,15 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       actions: {
         view: `/books/${r.slug}`,
         read: pdf?.file_url ? `/books/${r.slug}/read` : undefined,
-        download: pdf?.file_url ? `/api/books/${r.id}/file?download=1` : undefined,
+        // Offered only when the server would actually serve it. A result that
+        // links at a read-online-only book's download hands the reader a 403;
+        // the same resolution the detail page and the download route use
+        // decides it here too. `allow_download` is absent from the select on a
+        // pre-0131 database, which reads as "allowed" — the column's default.
+        download:
+          pdf?.file_url && bookDownloadAllowed(r.allow_download)
+            ? `/api/books/${r.id}/download`
+            : undefined,
         cite: `/books/${r.slug}#cite`,
         save: `/books/${r.slug}#save`,
       },

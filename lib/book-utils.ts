@@ -40,6 +40,17 @@ export type Book = {
   createdAt?: string;   // ISO string from created_at column; used for NEW badge
   license?: string | null;
   verifiedAt?: string | null;
+  /**
+   * Library policy: may a reader take the file away? (books.allow_download,
+   * migration 0131.) Defaults to true wherever the source row does not carry
+   * the column, which is the column's own default — a partial select must
+   * never silently restrict a book.
+   *
+   * Presentation only. The server re-decides on every request in
+   * /api/books/[slug]/download; this is what stops the UI offering an action
+   * that would be refused.
+   */
+  allowDownload?: boolean;
 };
 
 
@@ -50,6 +61,24 @@ export type Book = {
  * insert/update payload (falls back to the DB default 'unknown') so the form
  * keeps working even before 0062 is applied.
  */
+/**
+ * The ONLY URL a book's PDF should ever be referred to by outside the server.
+ *
+ * `book_files.file_url` is a Zima CDN URL that `zimaFetch()` retrieves with no
+ * credentials — anyone holding it can fetch the PDF, forever, with no session,
+ * no rate limit, no download policy and no log entry. Handing that string to a
+ * browser (a JSON route, a Server Action result, a prop on a Client Component)
+ * therefore publishes the file, whatever the UI does with it afterwards.
+ *
+ * This route is the proxy in front of it: authenticated, rate-limited, and —
+ * via its `?download=1` redirect into /api/books/[slug]/download — subject to
+ * the book's download policy (migration 0131). Every client-facing `pdfUrl`
+ * goes through here.
+ */
+export function bookFileHref(bookId: string): string {
+  return `/api/books/${bookId}/file`;
+}
+
 export const LICENSE_OPTIONS: { value: string; label: string }[] = [
   { value: "",                    label: "Not specified" },
   { value: "public_domain",       label: "Public Domain" },
