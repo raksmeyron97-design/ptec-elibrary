@@ -8,8 +8,19 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { FacetCount, FacetDimension, SearchFacetCounts } from "@/lib/search/facets";
+import { AVAILABILITY_VALUES, isAvailability } from "@/lib/search/availability";
 
 const COLLAPSED_LIMIT = 6;
+
+/** Digital values first, then physical, in the vocabulary's own order;
+ *  anything else (an old link's value) trails, still uncheckable. */
+function orderAvailability(items: FacetCount[]): FacetCount[] {
+  const rank = (v: string) => {
+    const i = (AVAILABILITY_VALUES as readonly string[]).indexOf(v);
+    return i === -1 ? AVAILABILITY_VALUES.length : i;
+  };
+  return [...items].sort((a, b) => rank(a.value) - rank(b.value) || b.count - a.count);
+}
 
 const TYPE_VALUE_LABEL_KEY: Record<string, "tabBooks" | "tabTheses" | "tabPublications" | "tabCatalog" | "tabLearningPaths" | "tabPosts"> = {
   book: "tabBooks",
@@ -112,7 +123,11 @@ export default function SearchFacets({ facetCounts, showTypes, selectedCount, on
     { dim: "subjects", title: t("advFieldSubject") },
     { dim: "langs", title: t("advFieldLanguage") },
     { dim: "years", title: t("advFieldYear") },
-    { dim: "availability", title: t("advFieldAvailability") },
+    {
+      dim: "availability",
+      title: t("advFieldAvailability"),
+      labelOf: (value: string) => (isAvailability(value) ? t(`availabilityValue.${value}`) : value),
+    },
   ];
 
   const hasAnyValues = groups.some((g) => facetCounts[g.dim].length > 0);
@@ -144,7 +159,7 @@ export default function SearchFacets({ facetCounts, showTypes, selectedCount, on
           key={group.dim}
           dim={group.dim}
           title={group.title}
-          items={facetCounts[group.dim]}
+          items={group.dim === "availability" ? orderAvailability(facetCounts[group.dim]) : facetCounts[group.dim]}
           labelOf={group.labelOf}
           onToggle={onToggle}
         />

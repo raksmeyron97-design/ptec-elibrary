@@ -546,6 +546,11 @@
     "details": "ព័ត៌មានលម្អិត",
     "reviews": "ការវាយតម្លៃ",
     "relatedBooks": "សៀវភៅដែលពាក់ព័ន្ធ",
+    "relatedReason": {
+      "subject": "មុខវិជ្ជាដូចគ្នា",
+      "author": "អ្នកនិពន្ធដូចគ្នា",
+      "keywords": "ស្លាកដូចគ្នា"
+    },
     "continueReading": "បន្តអាន",
     "complete": "បានបញ្ចប់",
     "lastRead": "អានចុងក្រោយ",
@@ -1474,6 +1479,17 @@
     "availabilityDigital": "ឌីជីថល",
     "availabilityDownloadable": "អាចទាញយក",
     "availabilityAvailable": "មាននៅលើធ្នើ",
+    "availabilityPhysical": "សៀវភៅក្រដាស",
+    "availabilityValue": {
+      "downloadable": "អានអនឡាញ និងទាញយកបាន",
+      "read_online": "អានអនឡាញតែប៉ុណ្ណោះ",
+      "metadata_only": "មានតែកំណត់ត្រា គ្មានឯកសារ",
+      "physical_available": "មាននៅលើធ្នើឥឡូវនេះ",
+      "physical_unavailable": "ច្បាប់ទាំងអស់ត្រូវបានខ្ចី",
+      "physical_record": "កំណត់ត្រាសៀវភៅក្រដាស"
+    },
+    "copiesAvailable": "{available, plural, =0 {គ្មានច្បាប់ទំនេរ} other {មាន # ក្នុងចំណោម {total} ច្បាប់}}",
+    "shelf": "ធ្នើ {location}",
     "advFieldViews": "ការមើល",
     "advMinViews": "ចំនួនមើលអប្បបរមា",
     "advFieldDownloads": "ការទាញយក",

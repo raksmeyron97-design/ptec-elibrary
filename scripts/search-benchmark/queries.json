@@ -1,0 +1,1758 @@
+{
+  "version": 1,
+  "collection": "PTEC e-Library public collection, labelled 2026-09-04 (215 published books; no theses/publications/catalog rows yet)",
+  "notes": [
+    "Expectations are real published slugs. A query counts as found when any expected record appears.",
+    "mixed/subject queries accept every record the query legitimately names (a category or a title phrase).",
+    "pdf_text phrases were verified verbatim in book_pages; Khmer page text is not benchmarked because legacy-font OCR in those PDFs is not searchable text."
+  ],
+  "queries": [
+    {
+      "id": "title_en-001",
+      "category": "title_en",
+      "q": "Practical Research Methods",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "practical-research-methods"
+        }
+      ]
+    },
+    {
+      "id": "title_en-002",
+      "category": "title_en",
+      "q": "How to Write a Better Thesis",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "how-to-write-a-better-thesis"
+        }
+      ]
+    },
+    {
+      "id": "title_en-003",
+      "category": "title_en",
+      "q": "Academic Phrasebank",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "academic-phrasebank-2018-edition"
+        }
+      ]
+    },
+    {
+      "id": "title_en-004",
+      "category": "title_en",
+      "q": "Interviewing as Qualitative Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "interviewing-as-qualitative-research-3rd-edition"
+        }
+      ]
+    },
+    {
+      "id": "title_en-005",
+      "category": "title_en",
+      "q": "Effective School Management",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "effective-school-management-4th-edition"
+        }
+      ]
+    },
+    {
+      "id": "title_en-006",
+      "category": "title_en",
+      "q": "Elementary Survey Sampling",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "elementary-survey-sampling-7th-edition"
+        }
+      ]
+    },
+    {
+      "id": "title_en-007",
+      "category": "title_en",
+      "q": "Doing Action Research in English Language Teaching",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "doing-action-research-in-english-language-teaching"
+        }
+      ]
+    },
+    {
+      "id": "title_en-008",
+      "category": "title_en",
+      "q": "Education Research in the Public Interest",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "education-research-in-the-public-interest"
+        }
+      ]
+    },
+    {
+      "id": "title_en-009",
+      "category": "title_en",
+      "q": "English for Writing Research Papers",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers-2nd-edition"
+        }
+      ],
+      "note": "two editions; either is correct"
+    },
+    {
+      "id": "title_en-010",
+      "category": "title_en",
+      "q": "Data Analysis and Hypothesis Testing Using Python",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "data-analysis-and-hypothesis-testing-using-python"
+        }
+      ]
+    },
+    {
+      "id": "title_en-011",
+      "category": "title_en",
+      "q": "Combining Methods in Educational and Social Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "combining-methods-in-educational-and-social-research"
+        }
+      ]
+    },
+    {
+      "id": "title_en-012",
+      "category": "title_en",
+      "q": "Essentials of Research Design and Methodology",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "essentials-of-research-design-and-methodology"
+        }
+      ]
+    },
+    {
+      "id": "title_km-001",
+      "category": "title_km",
+      "q": "ការសិក្សាបែបសកម្ម",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការសិក្សាបែបសកម្ម-active-learning"
+        }
+      ]
+    },
+    {
+      "id": "title_km-002",
+      "category": "title_km",
+      "q": "ការបង្រៀនតាមវិធីសម្តែងតួ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការបង្រៀនតាមវិធីសម្តែងតួ"
+        }
+      ]
+    },
+    {
+      "id": "title_km-003",
+      "category": "title_km",
+      "q": "កំណត់ហេតុរបស់ជីវតាក្វាន់",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កំណត់ហេតុរបស់ជីវតាក្វាន់-3rd-edition"
+        }
+      ]
+    },
+    {
+      "id": "title_km-004",
+      "category": "title_km",
+      "q": "ការអប់រំបំណិនជីវិតស្តីពីបរិស្ថាន",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការអប់រំបំណិនជីវិតស្តីពីបរិស្ថាន"
+        }
+      ]
+    },
+    {
+      "id": "title_km-005",
+      "category": "title_km",
+      "q": "កិច្ចតែងការភាសាខ្មែរ ថ្នាក់ទី៩",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កិច្ចតែងការភាសាខ្មែរ-ថ្នាក់ទី៩"
+        }
+      ],
+      "note": "grade-numbered series; only grade 9 is correct"
+    },
+    {
+      "id": "title_km-006",
+      "category": "title_km",
+      "q": "សទ្ទានុក្រមវិទ្យាសាស្រ្ត និងបច្ចេកវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា"
+        }
+      ]
+    },
+    {
+      "id": "title_km-007",
+      "category": "title_km",
+      "q": "សេចក្តីផ្តើមនីតិភូមិបាល",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "សេចក្តីផ្តើមនីតិភូមិបាល"
+        }
+      ]
+    },
+    {
+      "id": "title_km-008",
+      "category": "title_km",
+      "q": "ការវិភាគទិន្នន័យតាម SPSS",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការវិភាគទិន្នន័យតាម-spss-16-0"
+        }
+      ]
+    },
+    {
+      "id": "title_km-009",
+      "category": "title_km",
+      "q": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ក្របខ័ណ្ឌកម្មវិធីអប់រំគ្រូបង្រៀនបឋមសិក្សា-១២-៤"
+        }
+      ]
+    },
+    {
+      "id": "title_km-010",
+      "category": "title_km",
+      "q": "ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ-leadership-development"
+        }
+      ]
+    },
+    {
+      "id": "title_km-011",
+      "category": "title_km",
+      "q": "ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន និងបង្រៀន",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការប្រើប្រាស់បច្ចេកវិទ្យាឌីជីថលជួយដល់ការរៀន-និងបង្រៀន"
+        }
+      ]
+    },
+    {
+      "id": "title_km-012",
+      "category": "title_km",
+      "q": "ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ និងវិក្រឹតការ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ-និងវិក្រឹតការ"
+        }
+      ]
+    },
+    {
+      "id": "mixed-001",
+      "category": "mixed",
+      "q": "SPSS ការវិភាគទិន្នន័យ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការវិភាគទិន្នន័យតាម-spss-16-0"
+        },
+        {
+          "type": "book",
+          "slug": "doing-data-analysis-with-spss-version-18-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "spss-explained"
+        },
+        {
+          "type": "book",
+          "slug": "spss-survival-manual-a-step-by-step-guide-to-data-analysis-using-ibm-spss"
+        }
+      ]
+    },
+    {
+      "id": "mixed-002",
+      "category": "mixed",
+      "q": "Active Learning ការសិក្សា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការសិក្សាបែបសកម្ម-active-learning"
+        }
+      ]
+    },
+    {
+      "id": "mixed-003",
+      "category": "mixed",
+      "q": "Leadership ការអភិវឌ្ឍ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការអភិវឌ្ឍភាពជាអ្នកដឹកនាំ-leadership-development"
+        }
+      ]
+    },
+    {
+      "id": "mixed-004",
+      "category": "mixed",
+      "q": "action research ស្រាវជ្រាវប្រតិបត្តិ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-themes-in-education"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-for-teacher-candidates"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-education-a-practical-guide"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-practice-partnerships-for-social-justice-in-education"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-teacher-development"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-teaching-and-learning"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-1"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-2"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-3"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-a-guide-for-the-teacher-researcher-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "becoming-a-teacher-through-action-research-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "doing-action-research-in-english-language-teaching"
+        },
+        {
+          "type": "book",
+          "slug": "integrating-teaching-learning-and-action-research"
+        },
+        {
+          "type": "book",
+          "slug": "quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-guidebook-cdpf-iii"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-guidebook-a-four-step-process"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-planner-doing-critical-participatory-action-research"
+        },
+        {
+          "type": "book",
+          "slug": "គុណភាពនៃការបង្រៀននិងរៀនឆ្លើយតបការអប់រំក្នុងសតវត្សទី២១-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី៣-ឆ្នាំសិក្សា២០២៤-២០២៥"
+        }
+      ]
+    },
+    {
+      "id": "mixed-005",
+      "category": "mixed",
+      "q": "statistics ស្ថិតិ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "fundamental-of-research-methodology-and-statistics"
+        },
+        {
+          "type": "book",
+          "slug": "methodology-of-educational-research-and-statistics"
+        },
+        {
+          "type": "book",
+          "slug": "research-methods-and-statistics-a-critical-thinking-approach-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "student-statistics-challenges-in-collection-and-validity"
+        },
+        {
+          "type": "book",
+          "slug": "data-analysis-and-hypothesis-testing-using-python"
+        },
+        {
+          "type": "book",
+          "slug": "data-analysis-with-microsoft-excel-updated-for-office-2007-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "doing-data-analysis-with-spss-version-18-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "elementary-survey-sampling-7th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "handbook-of-quantitative-methods-for-educational-research"
+        },
+        {
+          "type": "book",
+          "slug": "operations-research-an-introduction-10th-edition-global-edition"
+        },
+        {
+          "type": "book",
+          "slug": "quantitative-data-analysis-in-education"
+        },
+        {
+          "type": "book",
+          "slug": "quantitative-methods-in-educational-research"
+        },
+        {
+          "type": "book",
+          "slug": "spss-explained"
+        },
+        {
+          "type": "book",
+          "slug": "spss-survival-manual-a-step-by-step-guide-to-data-analysis-using-ibm-spss"
+        }
+      ]
+    },
+    {
+      "id": "mixed-006",
+      "category": "mixed",
+      "q": "qualitative ស្រាវជ្រាវបែបគុណភាព",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "educational-research-quantitative-qualitative-and-mixed-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "interviewing-as-qualitative-research-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "introduction-to-qualitative-research-methods-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-data-analysis-with-nvivo-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-data-analysis-a-methods-sourcebook"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-inquiry-and-research-design-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-and-evaluation-methods-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-from-start-to-finish"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-from-start-to-finish-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-methods-collecting-evidence"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-a-guide-to-design-and-implementation-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-an-introduction-to-methods-and-designs"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-quantitative-qualitative-and-arts-based-approaches"
+        },
+        {
+          "type": "book",
+          "slug": "social-research-methods-qualitative-and-quantitative-7th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "the-coding-manual-for-qualitative-researchers"
+        },
+        {
+          "type": "book",
+          "slug": "how-to-write-a-better-thesis"
+        }
+      ]
+    },
+    {
+      "id": "mixed-007",
+      "category": "mixed",
+      "q": "mathematics គណិតវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២"
+        },
+        {
+          "type": "book",
+          "slug": "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត"
+        },
+        {
+          "type": "book",
+          "slug": "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្តសង្គម"
+        },
+        {
+          "type": "book",
+          "slug": "គន្លឹះធរណីមាត្រ-ថ្នាក់ទី-១១"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅអនុគមន៍អិចស្ប៉ូណង់ស្យែល"
+        }
+      ]
+    },
+    {
+      "id": "mixed-008",
+      "category": "mixed",
+      "q": "chemistry គីមីវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ"
+        },
+        {
+          "type": "book",
+          "slug": "គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រសង្គម"
+        },
+        {
+          "type": "book",
+          "slug": "គុណភាពទឹក-សម្រាប់វិទ្យាសាស្ត្រគីមីវិទ្យា-និងបរិស្ថានវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២"
+        }
+      ]
+    },
+    {
+      "id": "mixed-009",
+      "category": "mixed",
+      "q": "physics រូបវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា-សៀវភៅសម្រាប់សិស្ស-ភាគ៣"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-សម្រាប់កម្មវិធីអប់រំគ្រូបង្រៀនអនុវិទ្យាល័យតាមប្រព័ន្ធ-បរិញ្ញាបត្រ-១-មុខវិជ្ជា-វិធីសាស្ត្រ១-ឯកទេស-រូបវិទ្យា"
+        }
+      ]
+    },
+    {
+      "id": "mixed-010",
+      "category": "mixed",
+      "q": "biology ជីវវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ជីវវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ-កម្រិតបឋម"
+        },
+        {
+          "type": "book",
+          "slug": "សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        }
+      ]
+    },
+    {
+      "id": "author-001",
+      "category": "author",
+      "q": "Catherine Dawson",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "100-activities-for-teaching-research-methods"
+        },
+        {
+          "type": "book",
+          "slug": "a-z-of-digital-research-methods"
+        },
+        {
+          "type": "book",
+          "slug": "introduction-to-research-methods-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "introduction-to-research-methods-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "practical-research-methods"
+        }
+      ]
+    },
+    {
+      "id": "author-002",
+      "category": "author",
+      "q": "John W. Creswell",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "educational-research-planning-conducting-and-evaluating-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-inquiry-and-research-design-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches"
+        }
+      ]
+    },
+    {
+      "id": "author-003",
+      "category": "author",
+      "q": "Creswell",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "educational-research-planning-conducting-and-evaluating-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-inquiry-and-research-design-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches"
+        }
+      ]
+    },
+    {
+      "id": "author-004",
+      "category": "author",
+      "q": "Ranjit Kumar",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "research-methodology-a-step-by-step-guide-for-beginners-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-methodology-a-step-by-step-guide-for-beginners-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-methodology-a-step-by-step-guide-for-beginners-5th-edition"
+        }
+      ]
+    },
+    {
+      "id": "author-005",
+      "category": "author",
+      "q": "Adrian Wallwork",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "english-for-academic-research-writing-exercises"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-research-usage-style-and-grammar"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers-2nd-edition"
+        }
+      ]
+    },
+    {
+      "id": "author-006",
+      "category": "author",
+      "q": "Louis Cohen",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "research-methods-in-education-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-methods-in-education-6th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-methods-in-education-8th-edition"
+        }
+      ]
+    },
+    {
+      "id": "author-007",
+      "category": "author",
+      "q": "Geoffrey Mills",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-a-guide-for-the-teacher-researcher-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "educational-research-competencies-for-analysis-10th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "educational-research-competencies-for-analysis-11th-global-edition"
+        },
+        {
+          "type": "book",
+          "slug": "educational-research-competencies-for-analysis-12th-edition"
+        }
+      ],
+      "note": "middle initial omitted in the query"
+    },
+    {
+      "id": "author-008",
+      "category": "author",
+      "q": "Lodico",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "methods-in-educational-research-from-theory-to-practice"
+        },
+        {
+          "type": "book",
+          "slug": "methods-in-educational-research-from-theory-to-practice-2nd-edition"
+        }
+      ]
+    },
+    {
+      "id": "author-009",
+      "category": "author",
+      "q": "ក្រុមប្រឹក្សាជាតិភាសាខ្មែរ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រម-ឈ្មោះប្រទេស-រាជធានី-និងរូបិយប័ណ្ណ"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមទស្សនវិជ្ជា"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមពាក្យច្បាប់-និងរដ្ឋបាល"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមភាសាវិទ្យា-និងអក្សរសិល្ប៍"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវប្បធម៌-និងវិចិត្រសិល្បៈ"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវិទ្យាសាស្ត្រសេដ្ឋកិច្ច"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវិទ្យាសាស្រ្ត-និងបច្ចេកវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវិទ្យាសាស្រ្តនយោបាយ-និងការទូត"
+        },
+        {
+          "type": "book",
+          "slug": "សទ្ទានុក្រមវេជ្ជសាស្រ្ត-និងកសិកម្ម"
+        }
+      ]
+    },
+    {
+      "id": "author-010",
+      "category": "author",
+      "q": "ជា សុទ្ធ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២"
+        }
+      ]
+    },
+    {
+      "id": "author-011",
+      "category": "author",
+      "q": "សិត សេង",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "គ្រប់គ្រងមន្ទីរពិសោធវិទ្យាសាស្ត្រ"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំស្ដីពីឧបករណ៍ពិសោធ-មន្ទីរពិសោធវិទ្យាសាស្ត្រ"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២"
+        }
+      ]
+    },
+    {
+      "id": "author-012",
+      "category": "author",
+      "q": "ម៉ៅ សុភា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-១"
+        },
+        {
+          "type": "book",
+          "slug": "បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-២"
+        },
+        {
+          "type": "book",
+          "slug": "បណ្ដុំសំណេរតែងសេចក្តី-ភាគ-៣"
+        }
+      ]
+    },
+    {
+      "id": "subject-001",
+      "category": "subject",
+      "q": "គណិតវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាចំណេះដឹងឯកទេសគណិតវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា១"
+        },
+        {
+          "type": "book",
+          "slug": "កម្មវិធីសិក្សាលម្អិត-មុខវិជ្ជាវិធីសាស្ត្របង្រៀនគណិតវិទ្យា២"
+        },
+        {
+          "type": "book",
+          "slug": "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្ត"
+        },
+        {
+          "type": "book",
+          "slug": "គណិតវិទ្យា-បណ្តុំវិទ្យាសាស្រ្តសង្គម"
+        },
+        {
+          "type": "book",
+          "slug": "គន្លឹះធរណីមាត្រ-ថ្នាក់ទី-១១"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គណិតវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅអនុគមន៍អិចស្ប៉ូណង់ស្យែល"
+        }
+      ]
+    },
+    {
+      "id": "subject-002",
+      "category": "subject",
+      "q": "គីមីវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ"
+        },
+        {
+          "type": "book",
+          "slug": "គីមីវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រសង្គម"
+        },
+        {
+          "type": "book",
+          "slug": "គុណភាពទឹក-សម្រាប់វិទ្យាសាស្ត្រគីមីវិទ្យា-និងបរិស្ថានវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-គីមីវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅពិសោធគីមីវិទ្យា-ភាគ២"
+        }
+      ]
+    },
+    {
+      "id": "subject-003",
+      "category": "subject",
+      "q": "ជីវវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ជីវវិទ្យា-បណ្តុំវិទ្យាសាស្ត្រ-កម្រិតបឋម"
+        },
+        {
+          "type": "book",
+          "slug": "សុខភាពនៅក្នុងដៃរបស់យើង-សម្រាប់វិទ្យាសាស្ត្រជីវវិទ្យា"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-ជីវវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        }
+      ]
+    },
+    {
+      "id": "subject-004",
+      "category": "subject",
+      "q": "រូបវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៧-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៨-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅណែនាំគ្រូបង្រៀន-រូបវិទ្យា-ថ្នាក់ទី៩-stepsam3"
+        },
+        {
+          "type": "book",
+          "slug": "អន្តរកម្មសម្រាប់វិទ្យាសាស្ត្ររូបវិទ្យា-សៀវភៅសម្រាប់សិស្ស-ភាគ៣"
+        }
+      ]
+    },
+    {
+      "id": "subject-005",
+      "category": "subject",
+      "q": "ប្រវត្តិសាស្ត្រ",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "កំណត់ហេតុរបស់ជីវតាក្វាន់-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិសាស្ត្រកម្ពុជា"
+        },
+        {
+          "type": "book",
+          "slug": "ប្រវត្តិសាស្ត្រកម្ពុជាប្រជាធិបតេយ្យ-2nd-edition"
+        }
+      ]
+    },
+    {
+      "id": "subject-006",
+      "category": "subject",
+      "q": "ច្បាប់",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "នីតិរដ្ឋបាលទូទៅ-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "នីតិអន្តរជាតិឯកជន"
+        },
+        {
+          "type": "book",
+          "slug": "រដ្ឋបាលសាធារណៈ"
+        }
+      ]
+    },
+    {
+      "id": "subject-007",
+      "category": "subject",
+      "q": "សុខភាព",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ការអប់រំសុខភាពសម្រាប់មជ្ឈមណ្ឌលគរុកោសល្យភូមិភាគ"
+        },
+        {
+          "type": "book",
+          "slug": "ការអប់រំសុខភាពសម្រាប់សាលាគរុកោសល្យ-និងវិក្រឹតការ"
+        },
+        {
+          "type": "book",
+          "slug": "វិធីសាស្ត្របង្រៀន-ការអប់រំសុខភាពសម្រាប់គ្រូឧទ្ទេស"
+        },
+        {
+          "type": "book",
+          "slug": "ឯកសារជំនួយ-ស្តីពី-ការអប់រំ-និងការលើកកម្ពស់សុខភាព"
+        }
+      ]
+    },
+    {
+      "id": "subject-008",
+      "category": "subject",
+      "q": "ទស្សនវិជ្ជា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "ព្រះពុទ្ធសាសនា-និង-បរិស្ថាន-1st-edition"
+        },
+        {
+          "type": "book",
+          "slug": "មនុស្សលោក-2nd-edition"
+        }
+      ]
+    },
+    {
+      "id": "subject-009",
+      "category": "subject",
+      "q": "បច្ចេកវិទ្យា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "moeys-capacity-development-platform"
+        },
+        {
+          "type": "book",
+          "slug": "ការវិភាគទិន្នន័យតាម-spss-16-0"
+        },
+        {
+          "type": "book",
+          "slug": "ថ្នាលអភិវឌ្ឍសមត្ថភាព-cdp"
+        },
+        {
+          "type": "book",
+          "slug": "សៀវភៅគ្រូ-អក្ខរកម្មឌីជីថល-កម្រិតមធ្យម"
+        }
+      ]
+    },
+    {
+      "id": "subject-010",
+      "category": "subject",
+      "q": "ភាសាអង់គ្លេសសិក្សា",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "academic-phrasebank-2018-edition"
+        },
+        {
+          "type": "book",
+          "slug": "competency-based-language-teaching-in-higher-education"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-academic-research-writing-exercises"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-research-usage-style-and-grammar"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "from-teacher-to-manager-managing-language-teaching-organizations"
+        },
+        {
+          "type": "book",
+          "slug": "introducing-english-for-research-publication-purposes"
+        },
+        {
+          "type": "book",
+          "slug": "phrasebook-for-writing-papers-and-research-in-english-4th-edition"
+        }
+      ]
+    },
+    {
+      "id": "subject-011",
+      "category": "subject",
+      "q": "action research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-themes-in-education"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-for-teacher-candidates"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-education-a-practical-guide"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-practice-partnerships-for-social-justice-in-education"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-teacher-development"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-in-teaching-and-learning"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-1"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-2"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-series-volume-3"
+        },
+        {
+          "type": "book",
+          "slug": "action-research-a-guide-for-the-teacher-researcher-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "becoming-a-teacher-through-action-research-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "doing-action-research-in-english-language-teaching"
+        },
+        {
+          "type": "book",
+          "slug": "integrating-teaching-learning-and-action-research"
+        },
+        {
+          "type": "book",
+          "slug": "quality-of-teaching-and-learning-in-response-to-21st-century-education-selected-action-research-reports-12-4-student-teachers-batch-3-academic-year-2024-2025"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-guidebook-cdpf-iii"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-guidebook-a-four-step-process"
+        },
+        {
+          "type": "book",
+          "slug": "the-action-research-planner-doing-critical-participatory-action-research"
+        },
+        {
+          "type": "book",
+          "slug": "គុណភាពនៃការបង្រៀននិងរៀនឆ្លើយតបការអប់រំក្នុងសតវត្សទី២១-របាយការណ៍ស្រាវជ្រាវប្រតិបត្តិជ្រើសរើស-គរុនិស្សិត១២-៤-ជំនាន់ទី៣-ឆ្នាំសិក្សា២០២៤-២០២៥"
+        }
+      ]
+    },
+    {
+      "id": "subject-012",
+      "category": "subject",
+      "q": "qualitative research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "educational-research-quantitative-qualitative-and-mixed-5th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "interviewing-as-qualitative-research-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "introduction-to-qualitative-research-methods-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-data-analysis-with-nvivo-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-data-analysis-a-methods-sourcebook"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-inquiry-and-research-design-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-and-evaluation-methods-4th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-from-start-to-finish"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-from-start-to-finish-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-methods-collecting-evidence"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-a-guide-to-design-and-implementation-2nd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "qualitative-research-an-introduction-to-methods-and-designs"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-quantitative-qualitative-and-arts-based-approaches"
+        },
+        {
+          "type": "book",
+          "slug": "social-research-methods-qualitative-and-quantitative-7th-edition"
+        },
+        {
+          "type": "book",
+          "slug": "the-coding-manual-for-qualitative-researchers"
+        },
+        {
+          "type": "book",
+          "slug": "how-to-write-a-better-thesis"
+        }
+      ]
+    },
+    {
+      "id": "typo-001",
+      "category": "typo",
+      "q": "Practicl Research Methods",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "practical-research-methods"
+        }
+      ]
+    },
+    {
+      "id": "typo-002",
+      "category": "typo",
+      "q": "Acadmic Phrasebank",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "academic-phrasebank-2018-edition"
+        }
+      ]
+    },
+    {
+      "id": "typo-003",
+      "category": "typo",
+      "q": "Interveiwing as Qualitative Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "interviewing-as-qualitative-research-3rd-edition"
+        }
+      ]
+    },
+    {
+      "id": "typo-004",
+      "category": "typo",
+      "q": "Effectiv School Management",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "effective-school-management-4th-edition"
+        }
+      ]
+    },
+    {
+      "id": "typo-005",
+      "category": "typo",
+      "q": "Elementry Survey Sampling",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "elementary-survey-sampling-7th-edition"
+        }
+      ]
+    },
+    {
+      "id": "typo-006",
+      "category": "typo",
+      "q": "How to Writ a Better Thesis",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "how-to-write-a-better-thesis"
+        }
+      ]
+    },
+    {
+      "id": "typo-007",
+      "category": "typo",
+      "q": "Actoin Research for Teacher Candidates",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-for-teacher-candidates"
+        }
+      ]
+    },
+    {
+      "id": "typo-008",
+      "category": "typo",
+      "q": "Essentails of Research Design",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "essentials-of-research-design-and-methodology"
+        }
+      ]
+    },
+    {
+      "id": "typo-009",
+      "category": "typo",
+      "q": "Competency-basd Language Teaching",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "competency-based-language-teaching-in-higher-education"
+        }
+      ]
+    },
+    {
+      "id": "typo-010",
+      "category": "typo",
+      "q": "Doing Action Reserch in English Language Teaching",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "doing-action-research-in-english-language-teaching"
+        }
+      ]
+    },
+    {
+      "id": "isbn-001",
+      "category": "isbn",
+      "q": "978-1-4739-4629-3",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "100-activities-for-teaching-research-methods"
+        }
+      ],
+      "note": "as stored (hyphenated)"
+    },
+    {
+      "id": "isbn-002",
+      "category": "isbn",
+      "q": "978-1-4625-0961-4",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-in-education-a-practical-guide"
+        }
+      ],
+      "note": "as stored (hyphenated)"
+    },
+    {
+      "id": "isbn-003",
+      "category": "isbn",
+      "q": "978-0-415-43794-3",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-in-teaching-and-learning"
+        }
+      ],
+      "note": "as stored (hyphenated)"
+    },
+    {
+      "id": "isbn-004",
+      "category": "isbn",
+      "q": "9781138486805",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "a-z-of-digital-research-methods"
+        }
+      ],
+      "note": "digits only"
+    },
+    {
+      "id": "isbn-005",
+      "category": "isbn",
+      "q": "9780335213078",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "combining-methods-in-educational-and-social-research"
+        }
+      ],
+      "note": "digits only"
+    },
+    {
+      "id": "isbn-006",
+      "category": "isbn",
+      "q": "9780415991452",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "doing-action-research-in-english-language-teaching"
+        }
+      ],
+      "note": "digits only"
+    },
+    {
+      "id": "isbn-007",
+      "category": "isbn",
+      "q": "1607096935",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-for-teacher-candidates"
+        }
+      ],
+      "note": "ISBN-10 form of a stored ISBN-13"
+    },
+    {
+      "id": "isbn-008",
+      "category": "isbn",
+      "q": "0132613174",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "educational-research-competencies-for-analysis-10th-edition"
+        }
+      ],
+      "note": "ISBN-10 form of a stored ISBN-13"
+    },
+    {
+      "id": "isbn-009",
+      "category": "isbn",
+      "q": "9780415171526",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-in-practice-partnerships-for-social-justice-in-education"
+        }
+      ],
+      "note": "ISBN-13 form of a stored ISBN-10"
+    },
+    {
+      "id": "isbn-010",
+      "category": "isbn",
+      "q": "0 415 17152 0",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-in-practice-partnerships-for-social-justice-in-education"
+        }
+      ],
+      "note": "spaces instead of hyphens"
+    },
+    {
+      "id": "pdf_text-001",
+      "category": "pdf_text",
+      "q": "Ebbs and Flows of Interviewing",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "interviewing-as-qualitative-research-3rd-edition"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-002",
+      "category": "pdf_text",
+      "q": "Telling the Story of Your Action Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "becoming-a-teacher-through-action-research-3rd-edition"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-003",
+      "category": "pdf_text",
+      "q": "extracts in this book taken from real papers",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers"
+        },
+        {
+          "type": "book",
+          "slug": "english-for-writing-research-papers-2nd-edition"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-004",
+      "category": "pdf_text",
+      "q": "What Should Count as Educational Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "education-research-in-the-public-interest"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-005",
+      "category": "pdf_text",
+      "q": "Literature Map of the Research",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-3rd-edition"
+        },
+        {
+          "type": "book",
+          "slug": "research-design-qualitative-quantitative-and-mixed-methods-approaches"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-006",
+      "category": "pdf_text",
+      "q": "valuable addition to teacher-education literature",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "action-research-for-teacher-candidates"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-007",
+      "category": "pdf_text",
+      "q": "Sophisticated Poll Watcher",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "elementary-survey-sampling-7th-edition"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-008",
+      "category": "pdf_text",
+      "q": "Overjustification Effect",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "how-to-design-and-evaluate-research-in-education-8th-edition"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-009",
+      "category": "pdf_text",
+      "q": "most common repair words",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "how-to-write-a-better-thesis"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-010",
+      "category": "pdf_text",
+      "q": "Coding and categorizing qualitative data",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "100-activities-for-teaching-research-methods"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-011",
+      "category": "pdf_text",
+      "q": "Salamanca Convention",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "competency-based-language-teaching-in-higher-education"
+        }
+      ]
+    },
+    {
+      "id": "pdf_text-012",
+      "category": "pdf_text",
+      "q": "Written report format",
+      "expect": [
+        {
+          "type": "book",
+          "slug": "practical-research-methods"
+        }
+      ]
+    }
+  ]
+}

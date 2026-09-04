@@ -11,6 +11,7 @@ import type { Suggestion } from "@/app/api/books/suggestions/route";
 import { useBookSuggestions } from "@/components/ui/search/useBookSuggestions";
 import SearchAdvancedModal from "@/components/ui/search/SearchAdvancedModal";
 import SearchFacets from "./SearchFacets";
+import { isAvailability } from "@/lib/search/availability";
 import {
   FACET_DIMENSIONS,
   FACET_PARAM_KEYS,
@@ -251,9 +252,19 @@ function ResultCard({ result, query }: { result: SearchResult; query: string }) 
             )}
             {result.availability && (
               <span className="rounded-full px-2 py-0.5 text-[10.5px] font-medium" style={{ background: "var(--ptec-bg-body)", color: "var(--ptec-text-muted)" }}>
-                {result.availability}
+                {isAvailability(result.availability) ? t(`availabilityValue.${result.availability}`) : result.availability}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Physical copies: only what the catalog record itself states. */}
+        {result.type === "catalog" && (result.copiesTotal != null || result.shelfLocation) && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] font-medium" style={{ color: "var(--ptec-text-muted)" }}>
+            {result.copiesTotal != null && (
+              <span>{t("copiesAvailable", { available: result.copiesAvailable ?? 0, total: result.copiesTotal })}</span>
+            )}
+            {result.shelfLocation && <span>· {t("shelf", { location: result.shelfLocation })}</span>}
           </div>
         )}
 

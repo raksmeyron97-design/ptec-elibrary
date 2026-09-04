@@ -207,3 +207,51 @@ describe("classifyIntent — robustness", () => {
     expect(["general_knowledge", "general_library_question", "book_search"]).toContain(r.intent);
   });
 });
+
+describe("author and subject discovery", () => {
+  it("routes a question naming a person to author_search, with the name extracted", () => {
+    const r = classifyIntent("Who wrote Research Design: Qualitative, Quantitative and Mixed Methods?");
+    expect(r.intent).toBe("author_search");
+    expect(r.query).toBe("Research Design: Qualitative, Quantitative and Mixed Methods");
+    expect(classifyIntent("Books by Catherine Dawson").query).toBe("Catherine Dawson");
+    expect(classifyIntent("do you have any works by John W. Creswell?").query).toBe("John W. Creswell");
+  });
+
+  it("routes Khmer author questions and keeps the name whole", () => {
+    const r = classifyIntent("តើមានសៀវភៅសរសេរដោយ ជា សុទ្ធ ទេ?");
+    expect(r.intent).toBe("author_search");
+    expect(r.query).toBe("ជា សុទ្ធ");
+    expect(r.locale).toBe("km");
+  });
+
+  it("routes subject questions, distinguishing the index from one subject", () => {
+    const overview = classifyIntent("What subjects do you have?");
+    expect(overview.intent).toBe("subject_search");
+    expect(overview.query).toBe("");
+
+    const one = classifyIntent("Which books are in the subject mathematics?");
+    expect(one.intent).toBe("subject_search");
+    expect(one.query).toBe("mathematics");
+
+    const km = classifyIntent("តើមានមុខវិជ្ជាអ្វីខ្លះ?");
+    expect(km.intent).toBe("subject_search");
+    expect(km.query).toBe("");
+  });
+
+  it("leaves topic searches alone — 'books about' is still a book search", () => {
+    expect(classifyIntent("books about classroom management").intent).toBe("book_search");
+    expect(classifyIntent("រកសៀវភៅអំពី psychology").intent).toBe("book_search");
+  });
+
+  it("wins over the thesis word inside a person question", () => {
+    expect(classifyIntent("action research by Geoffrey Mills").intent).toBe("author_search");
+  });
+
+  it("is zero-LLM and confident", () => {
+    for (const q of ["Books by Catherine Dawson", "What subjects do you have?"]) {
+      const r = classifyIntent(q);
+      expect(ZERO_LLM_INTENTS.has(r.intent)).toBe(true);
+      expect(r.confidence).toBeGreaterThanOrEqual(CONFIDENT);
+    }
+  });
+});

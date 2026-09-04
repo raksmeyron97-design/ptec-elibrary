@@ -541,6 +541,11 @@
     "details": "Details",
     "reviews": "Reviews",
     "relatedBooks": "Related books",
+    "relatedReason": {
+      "subject": "Same subject",
+      "author": "Same author",
+      "keywords": "Shared tags"
+    },
     "continueReading": "Continue reading",
     "complete": "complete",
     "lastRead": "Last read",
@@ -1469,6 +1474,17 @@
     "availabilityDigital": "Digital",
     "availabilityDownloadable": "Downloadable",
     "availabilityAvailable": "Available on shelf",
+    "availabilityPhysical": "Physical",
+    "availabilityValue": {
+      "downloadable": "Read online + download",
+      "read_online": "Read online only",
+      "metadata_only": "Record only, no file",
+      "physical_available": "On the shelf now",
+      "physical_unavailable": "All copies out",
+      "physical_record": "Physical record"
+    },
+    "copiesAvailable": "{available, plural, =0 {No copies available} one {# of {total} copies available} other {# of {total} copies available}}",
+    "shelf": "Shelf {location}",
     "advFieldViews": "Views",
     "advMinViews": "Minimum views",
     "advFieldDownloads": "Downloads",

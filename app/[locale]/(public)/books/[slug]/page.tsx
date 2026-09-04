@@ -521,6 +521,8 @@ export default async function BookDetailPage({ params }: BookDetailPageProps) {
             currentSlug={book.slug}
             department={book.department}
             category={book.category}
+            authors={bookAuthors}
+            language={book.language}
             tags={book.tags ?? []}
           />
         </Suspense>

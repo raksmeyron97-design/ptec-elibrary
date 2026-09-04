@@ -75,3 +75,7 @@ public/sw.js.map
 # Local agent workspace — skills, briefings and handoff notes.
 # Kept on disk, out of the repo.
 /.agents/
+
+# Search relevance benchmark runs (scripts/search-benchmark.ts). Only the
+# committed baseline is tracked; every other run is a local artifact.
+scripts/search-benchmark/results/20*.json

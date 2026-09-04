@@ -34,6 +34,8 @@ export interface RetrievalOutcome {
   passages: RetrievedPassage[];
   /** Library facts already resolved to display strings. */
   facts: string[];
+  /** The directory page a discovery intent resolved to (author or subject). */
+  hub?: { kind: "author" | "subject"; name: string; url: string; count: number };
   dbQueries: number;
   embeddingMs: number;
   retrievalMs: number;
@@ -111,6 +113,22 @@ export function deterministicAnswer(
 
     case "related_books":
       return T.relatedLead(retrieval.results.length, locale);
+
+    case "author_search":
+      // A resolved person is a complete answer: the hub sentence plus cards.
+      // No person matched → retrieval kept a work only when the question
+      // named its title ("who wrote X"), so a lone card is that work's byline.
+      if (retrieval.hub) return T.hubLead(retrieval.hub, retrieval.results.length, locale);
+      return retrieval.results[0]
+        ? T.writtenBy(retrieval.results[0], locale)
+        : T.noAuthor(intent.query, locale);
+
+    case "subject_search":
+      if (retrieval.hub) return T.hubLead(retrieval.hub, retrieval.results.length, locale);
+      if (facts[0]) return T.subjectOverview(facts[0], locale);
+      return retrieval.results.length
+        ? T.foundResults(retrieval.results, intent.query, locale)
+        : T.noSubject(intent.query, locale);
 
     case "pdf_question":
       // No evidence means no grounded answer is possible. Say so rather than

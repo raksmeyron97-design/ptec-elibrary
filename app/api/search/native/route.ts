@@ -35,7 +35,37 @@ import {
   pathModuleCount,
   pathStepCount,
 } from "@/lib/search/learning-paths";
+// Scoring, sorting and query normalization live in lib/search — the route
+// only builds candidates. See docs/search-ranking.md.
+import {
+  compareBySort,
+  pageHitKey,
+  parseSort,
+  prepareQuery,
+  searchScore,
+  type ActiveSearchType,
+  type Candidate,
+  type PreparedQuery,
+  type SearchResult,
+  type SearchResultType,
+  type SearchSort,
+} from "@/lib/search/ranking";
+import {
+  hasKhmer,
+  isbnSearchKeys,
+  normalizeIsbn,
+  normalizeSearchText,
+  tokenizeSearchQuery,
+} from "@/lib/search/normalize";
+import {
+  canonicalAvailabilitySelection,
+  canonicalLanguage,
+  digitalAvailability,
+  physicalAvailability,
+} from "@/lib/search/availability";
 import { clientIp } from "@/lib/client-ip";
+
+export type { ActiveSearchType, SearchResult, SearchResultType, SearchSort } from "@/lib/search/ranking";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,50 +74,15 @@ const PAGE_SIZE_ALL = 4;
 const PAGE_SIZE_TYPE = 10;
 const CANDIDATE_LIMIT_ALL = 80;
 const CANDIDATE_LIMIT_TYPE = 260;
+// The broad pool above is ordered by popularity before the scorer sees it,
+// so a query matching many descriptions ("research" matches most of the
+// collection) can push an unpopular EXACT title out of it. A second, small
+// pool of whole-query matches on the decisive fields rides alongside so a
+// phrase match always reaches the scorer.
+const PHRASE_POOL_LIMIT = 40;
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
 const CACHE_TTL_MS = 45_000;
 const CACHE_MAX = 80;
-
-export type SearchResultType = "book" | "research" | "publication" | "catalog" | "learning_path" | "post";
-export type ActiveSearchType = "all" | SearchResultType;
-export type SearchSort = "relevance" | "newest" | "oldest" | "title" | "views" | "downloads" | "rating";
-
-export type SearchResult = {
-  id: string;
-  ref: string;
-  type: SearchResultType;
-  title: string;
-  author: string;
-  coverUrl: string | null;
-  url: string;
-  year?: number | null;
-  department?: string | null;
-  language?: string | null;
-  category?: string | null;
-  subject?: string | null;
-  isbn?: string | null;
-  publisher?: string | null;
-  rating?: number | null;
-  views?: number;
-  downloadCount?: number;
-  excerpt?: string | null;
-  keywords?: string[];
-  format?: string | null;
-  availability?: string | null;
-  score?: number;
-  matchedFields?: string[];
-  /** Learning-path variant only: total steps, module count, and estimated minutes. */
-  pathSteps?: number;
-  pathModules?: number;
-  pathDurationMin?: number | null;
-  actions?: {
-    view?: string;
-    read?: string;
-    download?: string;
-    cite?: string;
-    save?: string;
-  };
-};
 
 export type SearchCounts = Record<SearchResultType, number> & { total: number };
 
@@ -147,17 +142,6 @@ type Filters = {
   minRating?: number;
 };
 
-type Candidate = SearchResult & {
-  searchableText: string;
-  titleText: string;
-  authorText: string;
-  subjectText: string;
-  keywordText: string;
-  bodyText: string;
-  dateValue: number;
-  popularityValue: number;
-};
-
 type PerTypeSearch = { data: SearchResult[]; count: number; allCandidates: SearchResult[] };
 
 const responseCache = new Map<string, { expires: number; body: NativeSearchResponse }>();
@@ -193,19 +177,6 @@ function sanitize(raw: string): string {
     .slice(0, 240);
 }
 
-function normalize(raw: string | null | undefined): string {
-  return (raw ?? "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function tokenize(q: string): string[] {
-  const words = q.split(/\s+/).filter((w) => w.length >= 2);
-  return Array.from(new Set([q, ...words])).slice(0, 8);
-}
-
 function orFilter(fields: string[], tokens: string[]): string {
   const clauses: string[] = [];
   for (const tok of tokens) {
@@ -214,6 +185,99 @@ function orFilter(fields: string[], tokens: string[]): string {
     for (const f of fields) clauses.push(`${f}.ilike.%${safe}%`);
   }
   return clauses.join(",");
+}
+
+/**
+ * An `ilike` pattern that finds a stored ISBN whatever separators it was
+ * typed with: a wildcard between every digit matches "978-1-4739-4629-3",
+ * "9781473946293" and "978 1 4739 4629 3" alike. It is deliberately loose —
+ * any row it returns is confirmed in memory with `normalizeIsbn`.
+ */
+function isbnLoosePattern(digits: string): string {
+  return `%${digits.split("").join("%")}%`;
+}
+
+function isbnClauses(raw: string | null | undefined): string[] {
+  const keys = isbnSearchKeys(raw);
+  return keys.map((key) => `isbn.ilike.${isbnLoosePattern(key)}`);
+}
+
+/** Whole-query clauses for the fields where a phrase match is decisive, plus
+ *  the rows the trigram pass nominated (`seedIds`) so a misspelt title still
+ *  reaches the scorer. */
+function phraseFilter(fields: string[], query: PreparedQuery, filters: Filters, withIsbn: boolean, seedIds: readonly string[] = []): string {
+  const safe = sanitize(query.raw);
+  const clauses = safe ? fields.map((f) => `${f}.ilike.%${safe}%`) : [];
+  if (withIsbn && query.isbn) clauses.push(...isbnClauses(query.raw));
+  if (withIsbn && filters.isbn) clauses.push(...isbnClauses(filters.isbn));
+  if (seedIds.length) clauses.push(`id.in.(${seedIds.join(",")})`);
+  return clauses.join(",");
+}
+
+// Titles the trigram index thinks the query resembles (`search_library_fuzzy`,
+// 0059/0110). One RPC per uncached request; the ids are folded into each
+// type's phrase pool so a typo ("Essentails of Research Design") is scored
+// by the same model as everything else instead of surfacing only when the
+// whole search came back empty.
+const FUZZY_SEED_LIMIT = 12;
+const FUZZY_SEED_MIN_QUERY = 4;
+
+async function fuzzyCandidateIds(db: DB, q: string): Promise<Record<SearchResultType, string[]>> {
+  const out: Record<SearchResultType, string[]> = { book: [], research: [], publication: [], catalog: [], learning_path: [], post: [] };
+  if (q.length < FUZZY_SEED_MIN_QUERY) return out;
+  try {
+    const { data, error } = await db.rpc("search_library_fuzzy", { query_text: q, match_count: FUZZY_SEED_LIMIT });
+    if (error) return out;
+    for (const r of (data ?? []) as any[]) {
+      const source = r.source as SearchResultType;
+      if (source in out && r.id && /^[0-9a-f-]{36}$/i.test(String(r.id))) out[source].push(String(r.id));
+    }
+  } catch {
+    // Seeds are an aid, never a dependency.
+  }
+  return out;
+}
+
+type PoolRows = { data: any[] | null; count: number | null; error: { message: string; code?: string } | null };
+
+/**
+ * The broad token pool and the phrase pool, fetched together and merged by
+ * id. The exact count stays the broad query's — the phrase rows are a subset
+ * of it except when an ISBN key found a row the raw text could not, which
+ * the caller reconciles against what it actually scored.
+ */
+async function fetchPools(
+  run: (or: string, limit: number) => PromiseLike<PoolRows>,
+  broadOr: string,
+  phraseOr: string,
+  limit: number,
+): Promise<PoolRows> {
+  const [broad, phrase] = await Promise.all([
+    run(broadOr, limit),
+    phraseOr ? run(phraseOr, PHRASE_POOL_LIMIT) : Promise.resolve<PoolRows>({ data: [], count: null, error: null }),
+  ]);
+  if (broad.error) return broad;
+  if (phrase.error || !phrase.data?.length) return broad;
+  const merged = [...(broad.data ?? [])];
+  const seen = new Set(merged.map((r) => r.id));
+  for (const row of phrase.data) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    merged.push(row);
+  }
+  return { data: merged, count: broad.count, error: null };
+}
+
+/** Score, order and reconcile the count with what actually survived. */
+function rankCandidates(candidates: Candidate[], query: PreparedQuery, pageHitIds: Set<string>, sort: SearchSort, count: number | null): PerTypeSearch {
+  let ranked = candidates.map((row) => searchScore(row, query, pageHitIds));
+  // An ISBN query is answered by identity, not by text: rows the loose
+  // pattern swept in that carry a different ISBN scored nothing and are not
+  // results.
+  if (query.isbn) ranked = ranked.filter((r) => (r.score ?? 0) > 0);
+  ranked.sort((a, b) => compareBySort(a, b, sort));
+  const total = query.isbn ? ranked.length : Math.max(count ?? 0, ranked.length);
+  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: total, allCandidates: ranked };
 }
 
 function yearOf(dateStr: string | null | undefined): number | null {
@@ -241,10 +305,6 @@ function cleanArray(value: unknown): string[] {
         return clean ? [clean] : [];
       })
     : [];
-}
-
-function hasKhmer(text: string): boolean {
-  return /[\u1780-\u17ff]/.test(text);
 }
 
 function getClientIP(req: Request): string {
@@ -344,85 +404,6 @@ function withCurated(curated: SearchResult[], results: SearchResult[]): SearchRe
   return [...curated, ...results.filter((r) => !pinned.has(r.url))];
 }
 
-function searchScore(row: Candidate, q: string, pageHitIds: Set<string>): SearchResult {
-  const query = normalize(q);
-  const tokens = tokenize(q).map(normalize).filter(Boolean);
-  const matched = new Set<string>();
-  let score = 0;
-
-  const title = normalize(row.titleText);
-  const author = normalize(row.authorText);
-  const subject = normalize(row.subjectText);
-  const keywords = normalize(row.keywordText);
-  const body = normalize(row.bodyText);
-  const all = normalize(row.searchableText);
-
-  const bump = (amount: number, field: string) => {
-    score += amount;
-    matched.add(field);
-  };
-
-  if (title === query) bump(260, "title");
-  else if (title.startsWith(query)) bump(190, "title");
-  else if (title.includes(query)) bump(145, "title");
-
-  if (author === query) bump(125, "author");
-  else if (author.includes(query)) bump(96, "author");
-
-  if (subject === query) bump(100, "subject");
-  else if (subject.includes(query)) bump(74, "subject");
-
-  if (keywords.includes(query)) bump(60, "keywords");
-  if (body.includes(query)) bump(30, "abstract");
-
-  for (const tok of tokens) {
-    if (tok === query) continue;
-    if (title.includes(tok)) bump(22, "title");
-    if (author.includes(tok)) bump(18, "author");
-    if (subject.includes(tok)) bump(14, "subject");
-    if (keywords.includes(tok)) bump(10, "keywords");
-    if (body.includes(tok)) bump(6, "abstract");
-  }
-
-  if (pageHitIds.has(`${row.type}:${row.id}`)) bump(42, "pdf");
-  if (score === 0 && all.includes(query)) bump(8, "text");
-
-  const popularityBoost =
-    Math.min(row.views ?? 0, 1200) / 1200 * 8 +
-    Math.min(row.downloadCount ?? 0, 800) / 800 * 10 +
-    Math.min(Number(row.rating ?? 0), 5) * 1.5;
-  score += popularityBoost;
-
-  if (row.year) {
-    const age = Math.max(0, new Date().getFullYear() - row.year);
-    score += Math.max(0, 5 - age * 0.35);
-  }
-
-  return {
-    ...row,
-    score: Math.round(score * 100) / 100,
-    matchedFields: Array.from(matched),
-    searchableText: undefined,
-    titleText: undefined,
-    authorText: undefined,
-    subjectText: undefined,
-    keywordText: undefined,
-    bodyText: undefined,
-    dateValue: undefined,
-    popularityValue: undefined,
-  } as SearchResult;
-}
-
-function compareBySort(a: SearchResult, b: SearchResult, sort: SearchSort): number {
-  if (sort === "newest") return (b.year ?? 0) - (a.year ?? 0) || (b.score ?? 0) - (a.score ?? 0);
-  if (sort === "oldest") return (a.year ?? 9999) - (b.year ?? 9999) || (b.score ?? 0) - (a.score ?? 0);
-  if (sort === "title") return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
-  if (sort === "views") return (b.views ?? 0) - (a.views ?? 0) || (b.score ?? 0) - (a.score ?? 0);
-  if (sort === "downloads") return (b.downloadCount ?? 0) - (a.downloadCount ?? 0) || (b.score ?? 0) - (a.score ?? 0);
-  if (sort === "rating") return (b.rating ?? 0) - (a.rating ?? 0) || (b.score ?? 0) - (a.score ?? 0);
-  return (b.score ?? 0) - (a.score ?? 0) || (b.views ?? 0) - (a.views ?? 0);
-}
-
 function countsOf(results: SearchResult[]): SearchCounts {
   const counts: SearchCounts = { book: 0, research: 0, publication: 0, catalog: 0, learning_path: 0, post: 0, total: results.length };
   for (const r of results) counts[r.type] += 1;
@@ -454,11 +435,23 @@ function facetsOf(results: SearchResult[]): SearchFacets {
   };
 }
 
+/** The advanced-search ISBN field: a whole ISBN in any form, or a partial one
+ *  as typed. The database pattern is loose; this is the decision. */
+function isbnFilterMatches(rowIsbn: string | null | undefined, filter: string): boolean {
+  const canonical = normalizeIsbn(filter);
+  if (canonical && normalizeIsbn(rowIsbn) === canonical) return true;
+  const rowDigits = (rowIsbn ?? "").replace(/[^0-9Xx]/g, "").toUpperCase();
+  const filterDigits = filter.replace(/[^0-9Xx]/g, "").toUpperCase();
+  if (filterDigits && rowDigits.includes(filterDigits)) return true;
+  return normalizeSearchText(rowIsbn).includes(normalizeSearchText(filter));
+}
+
 function filterCommon(row: Candidate, filters: Filters): boolean {
   if (filters.minViews != null && (row.views ?? 0) < filters.minViews) return false;
   if (filters.minDownloads != null && (row.downloadCount ?? 0) < filters.minDownloads) return false;
   if (filters.minRating != null && Number(row.rating ?? 0) < filters.minRating) return false;
-  if (filters.format && normalize(row.format) !== normalize(filters.format)) return false;
+  if (filters.format && normalizeSearchText(row.format) !== normalizeSearchText(filters.format)) return false;
+  if (filters.isbn && !isbnFilterMatches(row.isbn, filters.isbn)) return false;
   return true;
 }
 
@@ -484,9 +477,10 @@ async function matchingBookFileIds(db: DB, filters: Filters): Promise<string[] |
   return [...new Set((data ?? []).map((row: any) => row.book_id as string).filter(Boolean))];
 }
 
-async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
   const [authorIds, categoryIds, departmentIds, fileBookIds] = await Promise.all([
     lookupIds(db, "authors", "name", q),
     lookupIds(db, "categories", "name", q),
@@ -502,36 +496,38 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
 
   // The filter chain is rebuilt rather than mutated in place so the query can
   // be re-issued with a narrower column list — see the retry below.
-  const buildQuery = (columns: string) => {
+  const buildQuery = (columns: string, or: string, rowLimit: number) => {
     let query: any = db
       .from("books")
       .select(columns, { count: "exact" })
       .eq("is_published", true);
-
-    const orParts = [
-      orFilter(["title", "description", "isbn", "publisher"], tokens),
-      authorIds.length ? `author_id.in.(${authorIds.join(",")})` : "",
-      categoryIds.length ? `category_id.in.(${categoryIds.join(",")})` : "",
-      departmentIds.length ? `department_id.in.(${departmentIds.join(",")})` : "",
-    ].filter(Boolean);
-    if (orParts.length) query = query.or(orParts.join(","));
+    if (or) query = query.or(or);
 
     if (filters.dept) query = query.eq("departments.name", filters.dept);
     if (filters.author) query = query.ilike("authors.name", `%${filters.author}%`);
-    if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
+    if (filters.isbn) query = query.or([`isbn.ilike.%${sanitize(filters.isbn)}%`, ...isbnClauses(filters.isbn)].join(","));
     if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
     if (fileBookIds) query = fileBookIds.length ? query.in("id", fileBookIds) : query.in("id", ["00000000-0000-0000-0000-000000000000"]);
 
-    return query.order("download_count", { ascending: false, nullsFirst: false }).limit(limit);
+    return query.order("download_count", { ascending: false, nullsFirst: false }).limit(rowLimit);
   };
+
+  const relational = [
+    authorIds.length ? `author_id.in.(${authorIds.join(",")})` : "",
+    categoryIds.length ? `category_id.in.(${categoryIds.join(",")})` : "",
+    departmentIds.length ? `department_id.in.(${departmentIds.join(",")})` : "",
+  ].filter(Boolean);
+  const broadOr = [orFilter(["title", "description", "isbn", "publisher"], tokens), ...relational].filter(Boolean).join(",");
+  const phraseOr = [phraseFilter(["title"], prepared, filters, true, seedIds), ...relational].filter(Boolean).join(",");
+  const runPools = (columns: string) => fetchPools((or, rowLimit) => buildQuery(columns, or, rowLimit), broadOr, phraseOr, limit);
 
   // allow_download (0131) decides whether a result offers a download link.
   // Asked for with a fallback: on a database without the column PostgREST
   // fails the whole select, and an empty book section is a far worse outcome
   // than a link that the gated route would refuse anyway.
-  let { data, count, error } = await buildQuery(`${BOOK_COLUMNS}, allow_download`);
+  let { data, count, error } = await runPools(`${BOOK_COLUMNS}, allow_download`);
   if (error && (error.code === "42703" || error.code === "PGRST204")) {
-    ({ data, count, error } = await buildQuery(BOOK_COLUMNS));
+    ({ data, count, error } = await runPools(BOOK_COLUMNS));
   }
 
   if (error) {
@@ -547,6 +543,12 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     const dept = r.departments?.name ?? r.department ?? null;
     const keywords = cleanArray(r.tags);
     const year = yearOf(r.published_at);
+    // Offered only when the server would actually serve it. A result that
+    // links at a read-online-only book's download hands the reader a 403;
+    // the same resolution the detail page and the download route use
+    // decides it here too. `allow_download` is absent from the select on a
+    // pre-0131 database, which reads as "allowed" — the column's default.
+    const canDownload = Boolean(pdf?.file_url) && bookDownloadAllowed(r.allow_download);
     return {
       id: r.id,
       ref: r.slug,
@@ -557,7 +559,7 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       url: `/books/${r.slug}`,
       year,
       department: dept,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category,
       subject: category ?? dept,
       isbn: r.isbn ?? null,
@@ -568,19 +570,11 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       excerpt: makeExcerpt(r.description),
       keywords,
       format: pdf?.format ?? "PDF",
-      availability: pdf?.file_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(pdf?.file_url), canDownload }),
       actions: {
         view: `/books/${r.slug}`,
         read: pdf?.file_url ? `/books/${r.slug}/read` : undefined,
-        // Offered only when the server would actually serve it. A result that
-        // links at a read-online-only book's download hands the reader a 403;
-        // the same resolution the detail page and the download route use
-        // decides it here too. `allow_download` is absent from the select on a
-        // pre-0131 database, which reads as "allowed" — the column's default.
-        download:
-          pdf?.file_url && bookDownloadAllowed(r.allow_download)
-            ? `/api/books/${r.id}/download`
-            : undefined,
+        download: canDownload ? `/api/books/${r.id}/download` : undefined,
         cite: `/books/${r.slug}#cite`,
         save: `/books/${r.slug}#save`,
       },
@@ -595,29 +589,38 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
-async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
 
-  let query: any = db
-    .from("research_reports")
-    .select(
-      "id, slug, title, cover_url, abstract, author_names, advisor_name, co_advisor_name, program, cohort, academic_year, subject, faculty, keywords, language, thesis_type, view_count, download_count, published_at, created_at, file_url",
-      { count: "exact" },
-    )
-    .eq("is_published", true)
-    .or(orFilter(["title", "abstract", "author_names", "advisor_name", "subject"], tokens));
+  const build = (or: string, rowLimit: number) => {
+    let query: any = db
+      .from("research_reports")
+      .select(
+        "id, slug, title, cover_url, abstract, author_names, advisor_name, co_advisor_name, program, cohort, academic_year, subject, faculty, keywords, language, thesis_type, view_count, download_count, published_at, created_at, file_url",
+        { count: "exact" },
+      )
+      .eq("is_published", true);
+    if (or) query = query.or(or);
 
-  if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
-  if (filters.program) query = query.eq("program", filters.program);
-  if (filters.cohort) query = query.eq("cohort", filters.cohort);
-  if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
+    if (filters.program) query = query.eq("program", filters.program);
+    if (filters.cohort) query = query.eq("cohort", filters.cohort);
+    if (filters.format && normalizeSearchText(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
 
-  const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
+    return query.order("view_count", { ascending: false }).limit(rowLimit);
+  };
+
+  const { data, count, error } = await fetchPools(
+    build,
+    orFilter(["title", "abstract", "author_names", "advisor_name", "subject"], tokens),
+    phraseFilter(["title", "author_names", "subject"], prepared, filters, false, seedIds),
+    limit,
+  );
   if (error) {
     console.error("[native-search/research]", error.message);
     return { data: [], count: 0, allCandidates: [] };
@@ -638,7 +641,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
       coverUrl: coverUrlOf(r.cover_url),
       url: `/theses/${ref}`,
       year,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category: r.program ?? "Thesis",
       subject,
       rating: null,
@@ -647,7 +650,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
       excerpt: makeExcerpt(r.abstract),
       keywords,
       format: r.file_url ? "PDF" : null,
-      availability: r.file_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(r.file_url), canDownload: Boolean(r.file_url) }),
       actions: {
         view: `/theses/${ref}`,
         read: r.file_url ? `/theses/${ref}#fulltext` : undefined,
@@ -666,38 +669,48 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
     };
   }).filter((row: Candidate) => {
     if (filters.advisor) {
-      const haystack = normalize(row.authorText);
-      if (!haystack.includes(normalize(filters.advisor))) return false;
+      const haystack = normalizeSearchText(row.authorText);
+      if (!haystack.includes(normalizeSearchText(filters.advisor))) return false;
     }
     return filterCommon(row, filters);
   });
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
-async function searchPublications(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchPublications(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
-  let query: any = db
-    .from("publications_with_stats")
-    .select(
-      // `*` rather than a column list: the access resolution below needs
-      // allow_download / download_disabled_reason / fulltext_redistributable,
-      // and naming a column a pre-0125 database has not got would fail the
-      // whole publications leg of the search.
-      "*",
-      { count: "exact" },
-    )
-    .eq("is_published", true)
-    .or(orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn"], tokens));
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
 
-  if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
-  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
-  if (filters.format && normalize(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  const build = (or: string, rowLimit: number) => {
+    let query: any = db
+      .from("publications_with_stats")
+      .select(
+        // `*` rather than a column list: the access resolution below needs
+        // allow_download / download_disabled_reason / fulltext_redistributable,
+        // and naming a column a pre-0125 database has not got would fail the
+        // whole publications leg of the search.
+        "*",
+        { count: "exact" },
+      )
+      .eq("is_published", true);
+    if (or) query = query.or(or);
 
-  const { data, count, error } = await query.order("view_count", { ascending: false }).limit(limit);
+    if (filters.author) query = query.ilike("author_names", `%${filters.author}%`);
+    if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+    if (filters.isbn) query = query.or([`isbn.ilike.%${sanitize(filters.isbn)}%`, ...isbnClauses(filters.isbn)].join(","));
+    if (filters.format && normalizeSearchText(filters.format) !== "pdf") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+    return query.order("view_count", { ascending: false }).limit(rowLimit);
+  };
+
+  const { data, count, error } = await fetchPools(
+    build,
+    orFilter(["title", "title_km", "abstract", "abstract_km", "author_names", "journal_name", "publisher", "isbn"], tokens),
+    phraseFilter(["title", "title_km", "author_names"], prepared, filters, true, seedIds),
+    limit,
+  );
   if (error) {
     console.error("[native-search/publications]", error.message);
     return { data: [], count: 0, allCandidates: [] };
@@ -711,6 +724,19 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     const references = normalizePublicationReferences(p.references);
     const abstract = academicTextToPlainText(p.abstract, references);
     const abstractKm = academicTextToPlainText(p.abstract_km, references);
+    // Offered only when the server would actually serve it. A search result
+    // that links straight at ?download=1 for a read-online-only record hands
+    // the reader a 403 — the same resolution the detail page and the download
+    // route use decides it here too.
+    const canDownload = resolveDownloadAccess({
+      slug: p.slug,
+      title: p.title,
+      publisher: p.publisher ?? null,
+      license: p.license ?? null,
+      allow_download: p.allow_download,
+      fulltext_redistributable: p.fulltext_redistributable,
+      pdf_url: p.pdf_url,
+    }).canDownload;
     return {
       id: p.id,
       ref: p.slug,
@@ -720,7 +746,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       coverUrl: coverUrlOf(p.cover_url),
       url: `/publications/${p.slug}`,
       year,
-      language: p.language ?? null,
+      language: canonicalLanguage(p.language),
       category: p.article_type ?? "Publication",
       subject,
       isbn: p.isbn ?? null,
@@ -731,25 +757,11 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       excerpt: makeExcerpt(abstract || abstractKm),
       keywords: [...new Set([...keywords, ...subjects])],
       format: p.pdf_url ? "PDF" : null,
-      availability: p.pdf_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(p.pdf_url), canDownload }),
       actions: {
         view: `/publications/${p.slug}`,
         read: p.pdf_url ? `/publications/${p.slug}#fulltext` : undefined,
-        // Offered only when the server would actually serve it. A search
-        // result that links straight at ?download=1 for a read-online-only
-        // record hands the reader a 403 — the same resolution the detail page
-        // and the download route use decides it here too.
-        download: resolveDownloadAccess({
-          slug: p.slug,
-          title: p.title,
-          publisher: p.publisher ?? null,
-          license: p.license ?? null,
-          allow_download: p.allow_download,
-          fulltext_redistributable: p.fulltext_redistributable,
-          pdf_url: p.pdf_url,
-        }).canDownload
-          ? `/api/publications/${p.slug}/file?download=1`
-          : undefined,
+        download: canDownload ? `/api/publications/${p.slug}/file?download=1` : undefined,
         cite: `/publications/${p.slug}#cite-panel`,
         save: `/publications/${p.slug}#save`,
       },
@@ -764,25 +776,35 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
-async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
-  let query: any = db
-    .from("catalog_books")
-    .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, created_at", { count: "exact" })
-    .eq("is_active", true)
-    .or(orFilter(["title", "author", "description", "category", "department", "isbn", "publisher"], tokens));
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
 
-  if (filters.author) query = query.ilike("author", `%${filters.author}%`);
-  if (filters.isbn) query = query.ilike("isbn", `%${filters.isbn}%`);
-  if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
-  if (filters.format && normalize(filters.format) !== "print") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  const build = (or: string, rowLimit: number) => {
+    let query: any = db
+      .from("catalog_books")
+      .select("id, slug, title, cover_url, author, description, category, department, language, isbn, publisher, year, keywords, copies_available, copies_total, shelf_location, created_at", { count: "exact" })
+      .eq("is_active", true);
+    if (or) query = query.or(or);
 
-  const { data, count, error } = await query.order("title", { ascending: true }).limit(limit);
+    if (filters.author) query = query.ilike("author", `%${filters.author}%`);
+    if (filters.isbn) query = query.or([`isbn.ilike.%${sanitize(filters.isbn)}%`, ...isbnClauses(filters.isbn)].join(","));
+    if (filters.publisher) query = query.ilike("publisher", `%${filters.publisher}%`);
+    if (filters.format && normalizeSearchText(filters.format) !== "print") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+
+    return query.order("title", { ascending: true }).limit(rowLimit);
+  };
+
+  const { data, count, error } = await fetchPools(
+    build,
+    orFilter(["title", "author", "description", "category", "department", "isbn", "publisher"], tokens),
+    phraseFilter(["title", "author", "category"], prepared, filters, true, seedIds),
+    limit,
+  );
   if (error) {
     console.error("[native-search/catalog]", error.message);
     return { data: [], count: 0, allCandidates: [] };
@@ -790,7 +812,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
 
   const candidates: Candidate[] = (data ?? []).map((r: any) => {
     const keywords = cleanArray(r.keywords);
-    const availability = (r.copies_available ?? 0) > 0 ? "Available" : "On shelf record";
+    const hasCopyCounters = r.copies_total != null;
     return {
       id: r.id,
       ref: r.slug ?? r.id,
@@ -801,7 +823,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       url: `/catalogs/${r.slug ?? r.id}`,
       year: r.year ?? yearOf(r.created_at),
       department: r.department ?? null,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category: r.category ?? "Physical Book",
       subject: r.category ?? r.department ?? "Physical Book",
       isbn: r.isbn ?? null,
@@ -811,7 +833,10 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       excerpt: makeExcerpt(r.description),
       keywords,
       format: "Print",
-      availability,
+      availability: physicalAvailability({ copiesTotal: r.copies_total, copiesAvailable: r.copies_available }),
+      copiesAvailable: hasCopyCounters ? (r.copies_available ?? 0) : null,
+      copiesTotal: hasCopyCounters ? r.copies_total : null,
+      shelfLocation: r.shelf_location?.trim() || null,
       actions: { view: `/catalogs/${r.slug ?? r.id}` },
       searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: r.title,
@@ -824,22 +849,30 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
-async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
-  let query: any = db
-    .from("posts")
-    .select("id, slug, title, cover_url, excerpt, content, category, tags, views, created_at, updated_at", { count: "exact" })
-    .eq("is_published", true)
-    .or(orFilter(["title", "excerpt", "content", "category"], tokens));
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
 
-  if (filters.format && normalize(filters.format) !== "html") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+  const build = (or: string, rowLimit: number) => {
+    let query: any = db
+      .from("posts")
+      .select("id, slug, title, cover_url, excerpt, content, category, tags, views, created_at, updated_at", { count: "exact" })
+      .eq("is_published", true);
+    if (or) query = query.or(or);
+    if (filters.format && normalizeSearchText(filters.format) !== "html") query = query.in("id", ["00000000-0000-0000-0000-000000000000"]);
+    return query.order("created_at", { ascending: false }).limit(rowLimit);
+  };
 
-  const { data, count, error } = await query.order("created_at", { ascending: false }).limit(limit);
+  const { data, count, error } = await fetchPools(
+    build,
+    orFilter(["title", "excerpt", "content", "category"], tokens),
+    phraseFilter(["title"], prepared, filters, false, seedIds),
+    limit,
+  );
   if (error) {
     console.error("[native-search/posts]", error.message);
     return { data: [], count: 0, allCandidates: [] };
@@ -864,7 +897,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
       excerpt: makeExcerpt(p.excerpt ?? p.content),
       keywords,
       format: "HTML",
-      availability: "Digital",
+      availability: "read_online",
       actions: { view: `/posts/${p.slug}`, read: `/posts/${p.slug}` },
       searchableText: [p.title, p.category, p.excerpt, p.content, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: p.title,
@@ -877,8 +910,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
 /** Path ids whose module/step text matches the query, so a path found only by
@@ -897,7 +929,6 @@ async function matchingPathIdsFromSteps(db: DB, q: string): Promise<string[]> {
     return [
       ...new Set(
         (data ?? [])
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((r: any) => r.learning_path_modules?.path_id as string | undefined)
           .filter((id): id is string => Boolean(id)),
       ),
@@ -907,32 +938,37 @@ async function matchingPathIdsFromSteps(db: DB, q: string): Promise<string[]> {
   }
 }
 
-async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort): Promise<PerTypeSearch> {
+async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit: number, pageHitIds: Set<string>, sort: SearchSort, seedIds: string[] = []): Promise<PerTypeSearch> {
   // Learning paths have no format/print/pdf artifact — a format filter for any
   // other type excludes them entirely (mirrors posts/catalog self-exclusion).
-  if (filters.format && normalize(filters.format) !== "path") {
+  if (filters.format && normalizeSearchText(filters.format) !== "path") {
     return { data: [], count: 0, allCandidates: [] };
   }
 
   const q = sanitize(rawQ);
-  const tokens = tokenize(q);
+  const prepared = prepareQuery(q);
+  const tokens = tokenizeSearchQuery(q);
   const stepPathIds = await matchingPathIdsFromSteps(db, q);
+  const stepClause = stepPathIds.length ? `id.in.(${stepPathIds.join(",")})` : "";
 
-  let query: any = db
-    .from("learning_paths")
-    .select(
-      "id, slug, title, title_km, description, description_km, audience, cover_url, created_at, updated_at, learning_path_modules(title, title_km, learning_path_steps(resource_title, instruction, instruction_km, est_minutes))",
-      { count: "exact" },
-    )
-    .eq("is_published", true);
+  const build = (or: string, rowLimit: number) => {
+    let query: any = db
+      .from("learning_paths")
+      .select(
+        "id, slug, title, title_km, description, description_km, audience, cover_url, created_at, updated_at, learning_path_modules(title, title_km, learning_path_steps(resource_title, instruction, instruction_km, est_minutes))",
+        { count: "exact" },
+      )
+      .eq("is_published", true);
+    if (or) query = query.or(or);
+    return query.order("position", { ascending: true }).limit(rowLimit);
+  };
 
-  const orParts = [
-    orFilter(["title", "title_km", "description", "description_km", "audience"], tokens),
-    stepPathIds.length ? `id.in.(${stepPathIds.join(",")})` : "",
-  ].filter(Boolean);
-  if (orParts.length) query = query.or(orParts.join(","));
-
-  const { data, count, error } = await query.order("position", { ascending: true }).limit(limit);
+  const { data, count, error } = await fetchPools(
+    build,
+    [orFilter(["title", "title_km", "description", "description_km", "audience"], tokens), stepClause].filter(Boolean).join(","),
+    [phraseFilter(["title", "title_km"], prepared, filters, false, seedIds), stepClause].filter(Boolean).join(","),
+    limit,
+  );
   if (error) {
     console.error("[native-search/learning_paths]", error.message);
     return { data: [], count: 0, allCandidates: [] };
@@ -965,7 +1001,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
       excerpt: makeExcerpt(p.description ?? p.description_km),
       keywords: [],
       format: "Path",
-      availability: steps > 0 ? "Guided path" : "Learning Path",
+      availability: "read_online",
       pathSteps: steps,
       pathModules: moduleCount,
       pathDurationMin: durationMin,
@@ -981,8 +1017,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
     };
   }).filter((row: Candidate) => filterCommon(row, filters));
 
-  const ranked = candidates.map((row) => searchScore(row, q, pageHitIds)).sort((a, b) => compareBySort(a, b, sort));
-  return { data: ranked.slice(0, PAGE_SIZE_ALL), count: count ?? ranked.length, allCandidates: ranked };
+  return rankCandidates(candidates, prepared, pageHitIds, sort, count);
 }
 
 const FUZZY_URL: Record<SearchResultType, (ref: string) => string> = {
@@ -1151,16 +1186,6 @@ function mergePageHits(exact: PageHit[], semantic: PageHit[], cap = 6): PageHit[
   return merged.slice(0, cap);
 }
 
-function parseSort(value: string | null): SearchSort {
-  if (value === "newest" || value === "oldest" || value === "title" || value === "views" || value === "downloads" || value === "rating") {
-    return value;
-  }
-  if (value === "most_viewed") return "views";
-  if (value === "most_downloaded") return "downloads";
-  if (value === "top_rated") return "rating";
-  return "relevance";
-}
-
 function parseType(value: string | null): ActiveSearchType {
   return value === "book" || value === "research" || value === "publication" || value === "catalog" || value === "learning_path" || value === "post"
     ? value
@@ -1238,10 +1263,9 @@ export async function GET(req: Request) {
   };
 
   const selections: FacetSelections = parseFacetSelections((key) => searchParams.get(key));
-  // Legacy advanced-modal value: "downloadable" availability means a digital copy.
-  selections.availability = [
-    ...new Set(selections.availability.map((v) => (v.toLowerCase() === "downloadable" ? "Digital" : v))),
-  ];
+  // Old links and the advanced modal's umbrella "digital" map onto the
+  // canonical vocabulary (lib/search/availability.ts).
+  selections.availability = canonicalAvailabilitySelection(selections.availability);
   const hasFilters =
     Object.values(filters).some((value) => value !== undefined && value !== "") || hasAnySelection(selections);
 
@@ -1260,17 +1284,19 @@ export async function GET(req: Request) {
   const db = createServiceClient();
 
   try {
-    const pageHits = await searchPageContent(db, q);
-    const pageHitIds = new Set(pageHits.map((hit) => `${hit.recordType}:${hit.recordId}`));
+    const [pageHits, seeds] = await Promise.all([searchPageContent(db, q), fuzzyCandidateIds(db, q)]);
+    const pageHitIds = new Set(pageHits.map((hit) => pageHitKey(hit.recordType, hit.recordId)));
     const candidateLimit = type === "all" ? CANDIDATE_LIMIT_ALL : CANDIDATE_LIMIT_TYPE;
 
+    // Trigram seeds belong to the query as typed; a synonym re-run gets none.
+    const seedsFor = (t: SearchResultType, qx: string) => (qx === q ? seeds[t] : []);
     const run = {
-      book: (qx: string = q) => searchBooks(db, qx, filters, candidateLimit, pageHitIds, sort),
-      research: (qx: string = q) => searchResearch(db, qx, filters, candidateLimit, pageHitIds, sort),
-      publication: (qx: string = q) => searchPublications(db, qx, filters, candidateLimit, pageHitIds, sort),
-      catalog: (qx: string = q) => searchCatalog(db, qx, filters, candidateLimit, pageHitIds, sort),
-      learning_path: (qx: string = q) => searchLearningPaths(db, qx, filters, candidateLimit, pageHitIds, sort),
-      post: (qx: string = q) => searchPosts(db, qx, filters, candidateLimit, pageHitIds, sort),
+      book: (qx: string = q) => searchBooks(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("book", qx)),
+      research: (qx: string = q) => searchResearch(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("research", qx)),
+      publication: (qx: string = q) => searchPublications(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("publication", qx)),
+      catalog: (qx: string = q) => searchCatalog(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("catalog", qx)),
+      learning_path: (qx: string = q) => searchLearningPaths(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("learning_path", qx)),
+      post: (qx: string = q) => searchPosts(db, qx, filters, candidateLimit, pageHitIds, sort, seedsFor("post", qx)),
     } satisfies Record<SearchResultType, (qx?: string) => Promise<PerTypeSearch>>;
 
     let response: NativeSearchResponse;

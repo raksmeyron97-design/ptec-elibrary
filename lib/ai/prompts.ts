@@ -36,6 +36,10 @@ const MODE_RIDER: Partial<Record<AIIntent, string>> = {
     "The result cards are rendered by the interface. Summarise what the items cover in one sentence.",
   related_books:
     "Explain in one sentence what these titles have in common with the one the reader is viewing.",
+  author_search:
+    "The result cards are rendered by the interface. Say in one sentence what this author's listed works cover; do not invent biography, roles or affiliations.",
+  subject_search:
+    "The result cards are rendered by the interface. Say in one sentence what this subject's resources cover.",
   book_detail:
     "Describe the item from its metadata only. Do not speculate about contents you were not given.",
   general_knowledge:

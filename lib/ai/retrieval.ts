@@ -31,8 +31,19 @@ import type { AILocale, ResultKind, SearchResult } from "./response";
 import type { RetrievedPassage } from "./citations";
 import type { CompactWork } from "./context";
 import { EMPTY_RETRIEVAL, type RetrievalOutcome } from "./plan";
+import { getListedAuthors } from "@/lib/authors/directory";
+import { getAuthorProfile } from "@/lib/authors/profile";
+import type { AuthorWork } from "@/lib/authors/types";
+import { getIndexableSubjects, getSubjectDetail, type SubjectItem } from "@/lib/subjects";
+import { personNameKey } from "@/lib/books/duplicate-detection/normalize";
+import { normalizeSearchText } from "@/lib/search/normalize";
 
 const COVERS_URL = process.env.NEXT_PUBLIC_R2_COVERS_URL ?? "";
+
+/** Cards a resolved author/subject hub shows before pointing at its page. */
+const HUB_RESULT_LIMIT = 5;
+/** Subjects named in the "what subjects do you have" overview line. */
+const SUBJECT_OVERVIEW_LIMIT = 10;
 
 /** Semantic thresholds. Chunks are held to a higher bar than work metadata
  *  because a weak page match produces a confident-sounding wrong citation. */
@@ -531,6 +542,180 @@ export async function getRelatedBooks(slug: string, limit = 4): Promise<Retrieva
   const rows = ((data ?? []) as any[]).map(bookRow);
   out.results = rows.map((r) => r.result);
   out.works = rows.map((r) => r.work);
+  return out;
+}
+
+// ── Directory hubs (zero-LLM path) ────────────────────────────────────────────
+// Author and subject questions resolve against the same fetchers the public
+// /authors and /subjects pages use, so the assistant can only name a person or
+// subject that has a page, and can only count what that page counts.
+
+const HUB_KIND: Record<string, ResultKind> = {
+  publication: "publication",
+  thesis: "research",
+  ebook: "book",
+  book: "book",
+  catalog: "catalog",
+};
+
+function slugOfHref(href: string): string {
+  return href.split("?")[0].split("#")[0].split("/").filter(Boolean).pop() ?? href;
+}
+
+function authorWorkCard(w: AuthorWork, fallbackAuthor: string): { result: SearchResult; work: CompactWork } {
+  const author = w.byline ?? fallbackAuthor;
+  return {
+    result: { slug: slugOfHref(w.href), title: w.title, author, coverUrl: w.coverUrl, url: w.href, type: HUB_KIND[w.type] ?? "book" },
+    work: { title: w.title, author, kind: w.venue ?? undefined, summary: w.excerpt ?? undefined, year: w.year ?? undefined },
+  };
+}
+
+function subjectItemCard(item: SubjectItem, subject: string): { result: SearchResult; work: CompactWork } {
+  const author = item.author ?? "Unknown";
+  return {
+    result: { slug: slugOfHref(item.href), title: item.title, author, coverUrl: null, url: item.href, type: HUB_KIND[item.type] ?? "book" },
+    work: { title: item.title, author, kind: subject, summary: item.excerpt ?? undefined },
+  };
+}
+
+/**
+ * The published work whose title contains the phrase, punctuation aside.
+ * The database is asked with the phrase's words in order ("%research%design%
+ * qualitative%"), which tolerates a missing Oxford comma; the row is then
+ * confirmed on normalized text so "design" alone cannot claim a match.
+ */
+async function findWorkByTitle(
+  db: Db,
+  query: string,
+  normalized: string,
+): Promise<{ result: SearchResult; work: CompactWork; dbQueries: number } | null> {
+  const words = sanitizeFilterTerm(query).split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
+  if (!words.length) return null;
+  const pattern = `%${words.join("%")}%`;
+  const titled = (title: string) => normalizeSearchText(title).includes(normalized);
+
+  const { data: books } = await db
+    .from("books")
+    .select("slug, title, cover_url, description, department, published_at, authors(name), categories(name)")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .order("download_count", { ascending: false })
+    .limit(5);
+  const book = ((books ?? []) as { title: string }[]).find((b) => titled(b.title));
+  if (book) return { ...bookRow(book), dbQueries: 1 };
+
+  const { data: theses } = await db
+    .from("research_reports")
+    .select("id, slug, title, cover_url, abstract, author_names, program, subject, academic_year")
+    .eq("is_published", true)
+    .ilike("title", pattern)
+    .limit(5);
+  const thesis = ((theses ?? []) as { title: string }[]).find((r) => titled(r.title));
+  return thesis ? { ...thesisRow(thesis), dbQueries: 2 } : null;
+}
+
+/**
+ * The person a question names, resolved through the public author directory.
+ * Exact normalized name first (the same identity rule the upload gate uses),
+ * then a name that contains the query. No match → the catalogue is searched
+ * for the words instead, so a misread question still returns something real.
+ */
+export async function searchAuthors(rawQuery: string): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const query = rawQuery.trim();
+  if (!query) {
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const wanted = personNameKey(query);
+  const loose = normalizeSearchText(query);
+  const authors = await getListedAuthors();
+  out.dbQueries = 1;
+
+  const exact = authors.filter((a) => personNameKey(a.name) === wanted || (a.nameKm && personNameKey(a.nameKm) === wanted));
+  const partial = exact.length || loose.length < 3
+    ? []
+    : authors.filter((a) => {
+        const name = normalizeSearchText(a.name);
+        const nameKm = normalizeSearchText(a.nameKm);
+        return name.includes(loose) || (nameKm !== "" && nameKm.includes(loose)) || (name.includes(" ") && loose.includes(name));
+      });
+  const pick = [...exact, ...partial].sort((a, b) => b.workCount - a.workCount)[0];
+
+  if (!pick) {
+    // "Who wrote <title>?" names a work, not a person: answer with the work
+    // whose title contains the question, and its byline. Anything else is a
+    // name the directory does not hold, and the honest answer is that.
+    const titled = await findWorkByTitle(createServiceClient(), query, loose);
+    out.dbQueries += titled ? titled.dbQueries : 2;
+    if (titled) {
+      out.results = [titled.result];
+      out.works = [titled.work];
+    }
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const profile = await getAuthorProfile(pick.slug);
+  out.dbQueries = 2;
+  out.retrievalMs = Date.now() - started;
+  if (!profile) return out;
+
+  const cards = profile.works.slice(0, HUB_RESULT_LIMIT).map((w) => authorWorkCard(w, profile.name));
+  out.hub = { kind: "author", name: profile.name, url: `/authors/${profile.slug}`, count: profile.works.length };
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
+  return out;
+}
+
+/**
+ * A subject by name → its hub and first resources; no name → the subject
+ * index as one fact line; a name that is not a subject → a catalogue search.
+ */
+export async function searchSubjects(rawQuery: string): Promise<RetrievalOutcome> {
+  const started = Date.now();
+  const out = emptyOutcome();
+  const subjects = await getIndexableSubjects();
+  out.dbQueries = 1;
+
+  const q = normalizeSearchText(rawQuery);
+  if (!q) {
+    out.facts = [
+      [...subjects]
+        .sort((a, b) => b.counts.total - a.counts.total || a.name.localeCompare(b.name))
+        .slice(0, SUBJECT_OVERVIEW_LIMIT)
+        .map((s) => `${s.name} (${s.counts.total})`)
+        .join(" · "),
+    ].filter(Boolean);
+    out.retrievalMs = Date.now() - started;
+    return out;
+  }
+
+  const match =
+    subjects.find((s) => normalizeSearchText(s.name) === q) ??
+    subjects.find((s) => {
+      const name = normalizeSearchText(s.name);
+      return name.includes(q) || (name.length >= 3 && q.includes(name));
+    });
+
+  if (!match) {
+    const fallback = await searchWorks(rawQuery, { keywordOnly: true });
+    fallback.dbQueries += out.dbQueries;
+    fallback.retrievalMs = Date.now() - started;
+    return fallback;
+  }
+
+  const detail = await getSubjectDetail(match.slug);
+  out.dbQueries = 2;
+  out.retrievalMs = Date.now() - started;
+  if (!detail) return out;
+
+  const cards = detail.items.slice(0, HUB_RESULT_LIMIT).map((item) => subjectItemCard(item, detail.name));
+  out.hub = { kind: "subject", name: detail.name, url: `/subjects/${detail.slug}`, count: detail.counts.total };
+  out.results = cards.map((c) => c.result);
+  out.works = cards.map((c) => c.work);
   return out;
 }
 
