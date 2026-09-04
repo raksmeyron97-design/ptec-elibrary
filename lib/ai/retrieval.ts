@@ -36,6 +36,7 @@ import {
   diversify,
   fuseEvidence,
   lexicalScore,
+  minLexicalScore,
   queryTerms,
   spreadPages,
   type EvidenceRecordType,
@@ -831,9 +832,10 @@ async function lexicalPages(
       .limit(limit * 6);
     if (error || !data?.length) return [];
 
+    const floor = minLexicalScore(terms);
     const scored = (data as unknown as PageRow[])
       .map((row) => ({ row, score: lexicalScore(row.content ?? "", q, terms) }))
-      .filter((r) => r.score > 0)
+      .filter((r) => r.score >= floor)
       .sort((a, b) => b.score - a.score || a.row.page_no - b.row.page_no)
       .slice(0, limit);
     if (scored.length === 0) return [];

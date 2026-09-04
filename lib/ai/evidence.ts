@@ -59,15 +59,39 @@ const QUESTION_WORDS = new Set([
 export function queryTerms(query: string, max = 6): string[] {
   const normalized = normalizeSearchText(query);
   if (!normalized) return [];
-  if (hasKhmer(normalized)) return [normalized];
   const seen = new Set<string>();
   const terms: string[] = [];
   for (const word of normalized.split(" ")) {
-    if (word.length < 4 || QUESTION_WORDS.has(word) || seen.has(word)) continue;
+    if (seen.has(word)) continue;
+    // A Khmer run has no internal word boundaries, so it enters whole. It is
+    // kept alongside any Latin words in the SAME query: a mixed question
+    // ("តើសៀវភៅនេះនិយាយអ្វីអំពី research methods") used to collapse to one
+    // unsplittable blob, discarding the two English words that were the only
+    // searchable thing in it.
+    if (hasKhmer(word)) {
+      if (word.length < 2) continue;
+      seen.add(word);
+      terms.push(word);
+      continue;
+    }
+    if (word.length < 4 || QUESTION_WORDS.has(word)) continue;
     seen.add(word);
     terms.push(word);
   }
   return terms.sort((a, b) => b.length - a.length).slice(0, max);
+}
+
+/**
+ * How much lexical agreement makes a page evidence rather than a coincidence.
+ *
+ * One term out of four is not an answer: "zebrafish cardiac regeneration
+ * protocols" matched research-methods pages on the word "protocols" alone,
+ * and a page cited for that reason is exactly the raw material a confident
+ * wrong answer is written from. A question with several terms must see at
+ * least two of them, or the phrase itself.
+ */
+export function minLexicalScore(terms: readonly string[]): number {
+  return terms.length >= 3 ? 2 : 1;
 }
 
 /**

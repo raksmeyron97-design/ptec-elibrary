@@ -19,7 +19,8 @@
     "pwa:assets": "node scripts/generate-pwa-assets.mjs",
     "og:assets": "node scripts/generate-og-image.mjs",
     "ai:benchmark": "tsx scripts/ai-benchmark.ts",
-    "search:benchmark": "tsx scripts/search-benchmark.ts"
+    "search:benchmark": "tsx scripts/search-benchmark.ts",
+    "retrieval:benchmark": "tsx --tsconfig scripts/tsconfig.benchmark.json scripts/retrieval-benchmark.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.83",
