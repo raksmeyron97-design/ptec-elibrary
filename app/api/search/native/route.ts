@@ -57,6 +57,12 @@ import {
   normalizeSearchText,
   tokenizeSearchQuery,
 } from "@/lib/search/normalize";
+import {
+  canonicalAvailabilitySelection,
+  canonicalLanguage,
+  digitalAvailability,
+  physicalAvailability,
+} from "@/lib/search/availability";
 import { clientIp } from "@/lib/client-ip";
 
 export type { ActiveSearchType, SearchResult, SearchResultType, SearchSort } from "@/lib/search/ranking";
@@ -537,6 +543,12 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
     const dept = r.departments?.name ?? r.department ?? null;
     const keywords = cleanArray(r.tags);
     const year = yearOf(r.published_at);
+    // Offered only when the server would actually serve it. A result that
+    // links at a read-online-only book's download hands the reader a 403;
+    // the same resolution the detail page and the download route use
+    // decides it here too. `allow_download` is absent from the select on a
+    // pre-0131 database, which reads as "allowed" — the column's default.
+    const canDownload = Boolean(pdf?.file_url) && bookDownloadAllowed(r.allow_download);
     return {
       id: r.id,
       ref: r.slug,
@@ -547,7 +559,7 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       url: `/books/${r.slug}`,
       year,
       department: dept,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category,
       subject: category ?? dept,
       isbn: r.isbn ?? null,
@@ -558,19 +570,11 @@ async function searchBooks(db: DB, rawQ: string, filters: Filters, limit: number
       excerpt: makeExcerpt(r.description),
       keywords,
       format: pdf?.format ?? "PDF",
-      availability: pdf?.file_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(pdf?.file_url), canDownload }),
       actions: {
         view: `/books/${r.slug}`,
         read: pdf?.file_url ? `/books/${r.slug}/read` : undefined,
-        // Offered only when the server would actually serve it. A result that
-        // links at a read-online-only book's download hands the reader a 403;
-        // the same resolution the detail page and the download route use
-        // decides it here too. `allow_download` is absent from the select on a
-        // pre-0131 database, which reads as "allowed" — the column's default.
-        download:
-          pdf?.file_url && bookDownloadAllowed(r.allow_download)
-            ? `/api/books/${r.id}/download`
-            : undefined,
+        download: canDownload ? `/api/books/${r.id}/download` : undefined,
         cite: `/books/${r.slug}#cite`,
         save: `/books/${r.slug}#save`,
       },
@@ -637,7 +641,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
       coverUrl: coverUrlOf(r.cover_url),
       url: `/theses/${ref}`,
       year,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category: r.program ?? "Thesis",
       subject,
       rating: null,
@@ -646,7 +650,7 @@ async function searchResearch(db: DB, rawQ: string, filters: Filters, limit: num
       excerpt: makeExcerpt(r.abstract),
       keywords,
       format: r.file_url ? "PDF" : null,
-      availability: r.file_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(r.file_url), canDownload: Boolean(r.file_url) }),
       actions: {
         view: `/theses/${ref}`,
         read: r.file_url ? `/theses/${ref}#fulltext` : undefined,
@@ -720,6 +724,19 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
     const references = normalizePublicationReferences(p.references);
     const abstract = academicTextToPlainText(p.abstract, references);
     const abstractKm = academicTextToPlainText(p.abstract_km, references);
+    // Offered only when the server would actually serve it. A search result
+    // that links straight at ?download=1 for a read-online-only record hands
+    // the reader a 403 — the same resolution the detail page and the download
+    // route use decides it here too.
+    const canDownload = resolveDownloadAccess({
+      slug: p.slug,
+      title: p.title,
+      publisher: p.publisher ?? null,
+      license: p.license ?? null,
+      allow_download: p.allow_download,
+      fulltext_redistributable: p.fulltext_redistributable,
+      pdf_url: p.pdf_url,
+    }).canDownload;
     return {
       id: p.id,
       ref: p.slug,
@@ -729,7 +746,7 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       coverUrl: coverUrlOf(p.cover_url),
       url: `/publications/${p.slug}`,
       year,
-      language: p.language ?? null,
+      language: canonicalLanguage(p.language),
       category: p.article_type ?? "Publication",
       subject,
       isbn: p.isbn ?? null,
@@ -740,25 +757,11 @@ async function searchPublications(db: DB, rawQ: string, filters: Filters, limit:
       excerpt: makeExcerpt(abstract || abstractKm),
       keywords: [...new Set([...keywords, ...subjects])],
       format: p.pdf_url ? "PDF" : null,
-      availability: p.pdf_url ? "Digital" : "Metadata only",
+      availability: digitalAvailability({ hasFile: Boolean(p.pdf_url), canDownload }),
       actions: {
         view: `/publications/${p.slug}`,
         read: p.pdf_url ? `/publications/${p.slug}#fulltext` : undefined,
-        // Offered only when the server would actually serve it. A search
-        // result that links straight at ?download=1 for a read-online-only
-        // record hands the reader a 403 — the same resolution the detail page
-        // and the download route use decides it here too.
-        download: resolveDownloadAccess({
-          slug: p.slug,
-          title: p.title,
-          publisher: p.publisher ?? null,
-          license: p.license ?? null,
-          allow_download: p.allow_download,
-          fulltext_redistributable: p.fulltext_redistributable,
-          pdf_url: p.pdf_url,
-        }).canDownload
-          ? `/api/publications/${p.slug}/file?download=1`
-          : undefined,
+        download: canDownload ? `/api/publications/${p.slug}/file?download=1` : undefined,
         cite: `/publications/${p.slug}#cite-panel`,
         save: `/publications/${p.slug}#save`,
       },
@@ -809,7 +812,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
 
   const candidates: Candidate[] = (data ?? []).map((r: any) => {
     const keywords = cleanArray(r.keywords);
-    const availability = (r.copies_available ?? 0) > 0 ? "Available" : "On shelf record";
+    const hasCopyCounters = r.copies_total != null;
     return {
       id: r.id,
       ref: r.slug ?? r.id,
@@ -820,7 +823,7 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       url: `/catalogs/${r.slug ?? r.id}`,
       year: r.year ?? yearOf(r.created_at),
       department: r.department ?? null,
-      language: r.language ?? null,
+      language: canonicalLanguage(r.language),
       category: r.category ?? "Physical Book",
       subject: r.category ?? r.department ?? "Physical Book",
       isbn: r.isbn ?? null,
@@ -830,7 +833,10 @@ async function searchCatalog(db: DB, rawQ: string, filters: Filters, limit: numb
       excerpt: makeExcerpt(r.description),
       keywords,
       format: "Print",
-      availability,
+      availability: physicalAvailability({ copiesTotal: r.copies_total, copiesAvailable: r.copies_available }),
+      copiesAvailable: hasCopyCounters ? (r.copies_available ?? 0) : null,
+      copiesTotal: hasCopyCounters ? r.copies_total : null,
+      shelfLocation: r.shelf_location?.trim() || null,
       actions: { view: `/catalogs/${r.slug ?? r.id}` },
       searchableText: [r.title, r.author, r.category, r.department, r.description, r.isbn, r.publisher, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: r.title,
@@ -891,7 +897,7 @@ async function searchPosts(db: DB, rawQ: string, filters: Filters, limit: number
       excerpt: makeExcerpt(p.excerpt ?? p.content),
       keywords,
       format: "HTML",
-      availability: "Digital",
+      availability: "read_online",
       actions: { view: `/posts/${p.slug}`, read: `/posts/${p.slug}` },
       searchableText: [p.title, p.category, p.excerpt, p.content, keywords.join(" ")].filter(Boolean).join(" "),
       titleText: p.title,
@@ -995,7 +1001,7 @@ async function searchLearningPaths(db: DB, rawQ: string, filters: Filters, limit
       excerpt: makeExcerpt(p.description ?? p.description_km),
       keywords: [],
       format: "Path",
-      availability: steps > 0 ? "Guided path" : "Learning Path",
+      availability: "read_online",
       pathSteps: steps,
       pathModules: moduleCount,
       pathDurationMin: durationMin,
@@ -1257,10 +1263,9 @@ export async function GET(req: Request) {
   };
 
   const selections: FacetSelections = parseFacetSelections((key) => searchParams.get(key));
-  // Legacy advanced-modal value: "downloadable" availability means a digital copy.
-  selections.availability = [
-    ...new Set(selections.availability.map((v) => (v.toLowerCase() === "downloadable" ? "Digital" : v))),
-  ];
+  // Old links and the advanced modal's umbrella "digital" map onto the
+  // canonical vocabulary (lib/search/availability.ts).
+  selections.availability = canonicalAvailabilitySelection(selections.availability);
   const hasFilters =
     Object.values(filters).some((value) => value !== undefined && value !== "") || hasAnySelection(selections);
 

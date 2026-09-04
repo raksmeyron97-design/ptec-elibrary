@@ -69,7 +69,12 @@ export type SearchResult = {
   excerpt?: string | null;
   keywords?: string[];
   format?: string | null;
+  /** One of AVAILABILITY_VALUES (lib/search/availability.ts). */
   availability?: string | null;
+  /** Physical catalog only, from the record's own copy counters. */
+  copiesAvailable?: number | null;
+  copiesTotal?: number | null;
+  shelfLocation?: string | null;
   score?: number;
   matchedFields?: string[];
   /** Learning-path variant only: total steps, module count, and estimated minutes. */

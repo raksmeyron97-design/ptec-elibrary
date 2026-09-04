@@ -364,8 +364,9 @@ export default function SearchAdvancedModal({
                   <select value={draft.availability} onChange={(e) => updateDraft("availability", e.target.value)} className={selectClass}>
                     <option value="">{t("advAnyAvailability")}</option>
                     <option value="digital">{t("availabilityDigital")}</option>
-                    <option value="downloadable">{t("availabilityDownloadable")}</option>
-                    <option value="available">{t("availabilityAvailable")}</option>
+                    <option value="downloadable">{t("availabilityValue.downloadable")}</option>
+                    <option value="read_online">{t("availabilityValue.read_online")}</option>
+                    <option value="physical_available">{t("availabilityValue.physical_available")}</option>
                   </select>
                 </Field>
 
