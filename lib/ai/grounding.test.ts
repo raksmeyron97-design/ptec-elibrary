@@ -224,3 +224,95 @@ describe("inbound validation", () => {
     ).toBe(false);
   });
 });
+
+// ── Hallucination regression (§24) ───────────────────────────────────────────
+// One case per way a model can assert something retrieval never gave it. Each
+// asserts the FAILURE MODE, not just that grounding ran: the answer that
+// reaches the reader must not carry the claim.
+
+describe("hallucination defense", () => {
+  const scoped = buildSources([
+    {
+      title: "Interviewing as Qualitative Research",
+      author: "Irving Seidman",
+      url: "/books/interviewing-as-qualitative-research",
+      page: 29,
+      text: "In-depth interviewing…",
+      similarity: 0.8,
+      recordType: "book",
+      recordId: "rec-interviewing",
+    },
+  ]);
+
+  it("strips a page the document never showed, keeping the prose", () => {
+    const r = enforceGrounding(
+      "Seidman describes rapport (Interviewing as Qualitative Research, p. 29) and funding (Interviewing as Qualitative Research, p. 311).",
+      scoped,
+    );
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(1);
+    expect(r.answer).toContain("p. 29");
+    expect(r.answer).not.toContain("311");
+    expect(r.answer).toContain("funding");
+  });
+
+  it("strips a book that was never retrieved, even at a real page number", () => {
+    const r = enforceGrounding("Assessment is covered (Educational Psychology, p. 29).", scoped);
+    expect(r.hallucinated).toHaveLength(1);
+    expect(r.answer).not.toContain("Educational Psychology, p. 29");
+  });
+
+  it("refuses every citation when retrieval returned nothing", () => {
+    const r = enforceGrounding("It says so (Any Book, p. 12) and also (Another, p. 4).", []);
+    expect(r.grounded).toHaveLength(0);
+    expect(r.hallucinated).toHaveLength(2);
+    expect(r.answer).not.toContain("p. 12");
+  });
+
+  it("does not let a wrong resource borrow a scoped answer's page", () => {
+    // The reader is on one book; the model cites another at a page that is
+    // valid in the first. Title and page must be right TOGETHER.
+    const r = enforceGrounding("(Practical Research Methods, p. 29)", scoped);
+    expect(r.grounded).toHaveLength(0);
+  });
+
+  it("keeps an unsupported sentence but never lets it look sourced", () => {
+    // Grounding cannot fact-check prose. What it guarantees is that an
+    // unsupported claim carries no citation to lend it authority.
+    const r = enforceGrounding(
+      "The author was awarded a prize in 1998 (Interviewing as Qualitative Research, p. 400).",
+      scoped,
+    );
+    expect(r.answer).not.toMatch(/p\.\s*400/);
+    expect(r.grounded).toHaveLength(0);
+  });
+
+  it("carries the record identity a citation is verified against", () => {
+    expect(scoped[0].recordId).toBe("rec-interviewing");
+    expect(scoped[0].recordType).toBe("book");
+    expect(scoped[0].url).toBe("/books/interviewing-as-qualitative-research?page=29");
+  });
+
+  it("cannot be tricked by a title that merely contains a retrieved one", () => {
+    // "Interviewing" is a prefix of the retrieved title, so it is accepted —
+    // models shorten titles. A LONGER, different work must not be.
+    expect(enforceGrounding("(Interviewing, p. 29)", scoped).grounded).toHaveLength(1);
+    expect(
+      enforceGrounding("(A Critical Companion to Interviewing in Education, p. 29)", scoped).hallucinated,
+    ).toHaveLength(1);
+  });
+
+  it("holds in Khmer, where the digits differ", () => {
+    const r = enforceGrounding(
+      "(Interviewing as Qualitative Research, ទំព័រ ២៩) និង (Interviewing as Qualitative Research, ទំព័រ ៣០០)",
+      scoped,
+    );
+    expect(r.grounded).toHaveLength(1);
+    expect(r.hallucinated).toHaveLength(1);
+    expect(r.answer).not.toContain("៣០០");
+  });
+
+  it("never reports a source the answer did not actually use", () => {
+    expect(usedSources("A general statement with no citation.", scoped)).toHaveLength(0);
+  });
+});
