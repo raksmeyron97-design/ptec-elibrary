@@ -83,8 +83,9 @@ export async function getCitationSource(
     return { work, title: row.title, reference: apa(work), url: `/theses/${ref}` };
   }
 
+  // The view carries the computed author_names/stats mapRowToPublication reads.
   const { data } = await db
-    .from("publications")
+    .from("publications_with_stats")
     .select("*")
     .eq("id", recordId)
     .eq("is_published", true)

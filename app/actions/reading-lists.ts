@@ -150,7 +150,9 @@ export async function getMyReadingLists(): Promise<ReadingList[]> {
 const RESOURCE_TABLE: Record<ResourceRecordType, string> = {
   book: "books",
   research: "research_reports",
-  publication: "publications",
+  // The view, not the base table: `author_names` is computed there (0114) and
+  // selecting it from `publications` fails the whole query.
+  publication: "publications_with_stats",
 };
 
 const RESOURCE_ROUTE: Record<ResourceRecordType, string> = {

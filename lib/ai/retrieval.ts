@@ -518,7 +518,11 @@ export interface EvidenceScope {
 const RECORD_TABLE: Record<EvidenceRecordType, string> = {
   book: "books",
   research: "research_reports",
-  publication: "publications",
+  // `author_names` is computed by publications_with_stats (0114), not stored
+  // on the base table: selecting it from `publications` makes PostgREST reject
+  // the whole query, and a fetcher that swallows the error returns an empty
+  // list indistinguishable from "this record has no pages".
+  publication: "publications_with_stats",
 };
 
 export interface ResolvedRecord {
@@ -633,7 +637,7 @@ export async function resolveRecord(
   }
 
   const { data } = await db
-    .from("publications")
+    .from("publications_with_stats")
     .select("id, slug, title, author_names, publication_date")
     .eq("slug", clean)
     .eq("is_published", true)
@@ -716,7 +720,7 @@ export async function findRecordByTitle(rawTitle: string): Promise<ResolvedRecor
   }
 
   const { data: publications } = await db
-    .from("publications")
+    .from("publications_with_stats")
     .select("id, slug, title, author_names, publication_date")
     .eq("is_published", true)
     .ilike("title", pattern)
