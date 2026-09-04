@@ -2,6 +2,7 @@
 
 import { Download, FileSearch, Quote } from "lucide-react";
 import BookmarkButton from "@/components/ui/detail/BookmarkButton";
+import ReadingListButton from "@/components/ui/books/ReadingListButton";
 import ShareButton from "@/components/ui/books/ShareButton";
 import CopyLinkButton from "@/components/ui/detail/CopyLinkButton";
 import { activateThesisTab } from "@/lib/theses/tab-bus";
@@ -117,10 +118,13 @@ export default function ActionButtons({
       <div className="space-y-2">
         {downloadBtn}
         <div className="grid grid-cols-3 gap-2">
-          <BookmarkButton
-            id={id}
-            contentType={contentType}
-            label={{ saved: t.bookmarkSaved, unsaved: "Save" }}
+          {/* Bookmark is a device-local flag; a collection is the saved copy
+              that survives this browser and reaches the dashboard. Theses and
+              publications had only the former until reading_list_items (0136)
+              made a list able to hold them. */}
+          <ReadingListButton
+            recordId={id}
+            recordType={contentType === "thesis" ? "research" : "publication"}
             className={compactActionClass}
           />
           <ShareButton url={shareUrl} title={title} label={t.share} className={compactActionClass} />
@@ -158,6 +162,11 @@ export default function ActionButtons({
 
       {/* Tier 2 — utility actions, visually lighter than the row above */}
       <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap">
+        <ReadingListButton
+          recordId={id}
+          recordType={contentType === "thesis" ? "research" : "publication"}
+          className={utilityActionClass}
+        />
         <BookmarkButton
           id={id}
           contentType={contentType}

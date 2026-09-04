@@ -2,16 +2,30 @@
 
 import { useState, useEffect, useRef } from "react";
 import { BookMarked, Plus, Check, ChevronDown, X, Loader2 } from "lucide-react";
-import { getMyReadingLists, addBookToList, removeBookFromList, createReadingList } from "@/app/actions/reading-lists";
-import type { ReadingList } from "@/app/actions/reading-lists";
+import { getMyReadingLists, addItemToList, removeItemFromList, createReadingList } from "@/app/actions/reading-lists";
+import type { ReadingList, ResourceRecordType } from "@/app/actions/reading-lists";
+import { useSession } from "@/components/providers/SessionProvider";
 
 interface Props {
-  bookId: string;
-  isLoggedIn: boolean;
+  /** Any published resource — a collection holds all three types. */
+  recordId: string;
+  recordType?: ResourceRecordType;
+  /** Omit to read the viewer from context, which is what lets this mount on
+   *  pages that render anonymously and hydrate the session in afterwards. */
+  isLoggedIn?: boolean;
   initialListIds?: string[];
+  className?: string;
 }
 
-export default function ReadingListButton({ bookId, isLoggedIn, initialListIds = [] }: Props) {
+export default function ReadingListButton({
+  recordId,
+  recordType = "book",
+  isLoggedIn: isLoggedInProp,
+  initialListIds = [],
+  className,
+}: Props) {
+  const { user } = useSession();
+  const isLoggedIn = isLoggedInProp ?? !!user;
   const [open, setOpen]     = useState(false);
   const [lists, setLists]   = useState<ReadingList[]>([]);
   const [inLists, setInLists] = useState<Set<string>>(new Set(initialListIds));
@@ -44,10 +58,10 @@ export default function ReadingListButton({ bookId, isLoggedIn, initialListIds =
   async function toggle(listId: string) {
     setBusy(listId);
     if (inLists.has(listId)) {
-      await removeBookFromList(listId, bookId);
+      await removeItemFromList(listId, recordType, recordId);
       setInLists((s) => { const n = new Set(s); n.delete(listId); return n; });
     } else {
-      const res = await addBookToList(listId, bookId);
+      const res = await addItemToList(listId, recordType, recordId);
       if (!res.error) setInLists((s) => new Set([...s, listId]));
     }
     setBusy(null);
@@ -60,7 +74,7 @@ export default function ReadingListButton({ bookId, isLoggedIn, initialListIds =
     if (res.success && res.id) {
       const fresh = await getMyReadingLists();
       setLists(fresh);
-      await addBookToList(res.id, bookId);
+      await addItemToList(res.id, recordType, recordId);
       setInLists((s) => new Set([...s, res.id!]));
     }
     setNewName("");
@@ -75,11 +89,14 @@ export default function ReadingListButton({ bookId, isLoggedIn, initialListIds =
       <button
         type="button"
         onClick={handleOpen}
-        className={`inline-flex items-center gap-2 rounded-[14px] border px-4 py-3 text-[14px] font-semibold transition-all ${
-          inAny
-            ? "border-brand bg-brand/10 text-brand"
-            : "border-divider bg-paper text-text-body hover:border-brand/50 hover:text-brand"
-        }`}
+        className={
+          className ??
+          `inline-flex items-center gap-2 rounded-[14px] border px-4 py-3 text-[14px] font-semibold transition-all ${
+            inAny
+              ? "border-brand bg-brand/10 text-brand"
+              : "border-divider bg-paper text-text-body hover:border-brand/50 hover:text-brand"
+          }`
+        }
       >
         <BookMarked className="h-4 w-4" />
         {inAny ? `In ${inLists.size} list${inLists.size > 1 ? "s" : ""}` : "Add to List"}

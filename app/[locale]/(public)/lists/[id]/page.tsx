@@ -8,6 +8,13 @@ import BookCover from "@/components/ui/books/BookCover";
 
 export const dynamic = "force-dynamic";
 
+/** A collection holds all three resource types; the card says which it is. */
+const TYPE_LABEL: Record<"book" | "research" | "publication", string> = {
+  book: "E-Book",
+  research: "Thesis",
+  publication: "Publication",
+};
+
 type Props = { params: Promise<{ id: string }> };
 
 export default async function ReadingListPage({ params }: Props) {
@@ -15,7 +22,7 @@ export default async function ReadingListPage({ params }: Props) {
   const result = await getReadingList(id);
   if (!result) notFound();
 
-  const { list, books } = result;
+  const { list, items } = result;
 
   // Verify access: public lists are open; private lists require ownership
   const supabase = await createClient();
@@ -52,19 +59,22 @@ export default async function ReadingListPage({ params }: Props) {
               {list.description && (
                 <p className="mt-1.5 text-[14px] text-text-muted">{list.description}</p>
               )}
+              {list.topic && (
+                <p className="mt-1 text-[12.5px] font-medium text-brand">{list.topic}</p>
+              )}
               <p className="mt-2 text-[12px] text-text-muted">
-                {books.length} book{books.length !== 1 ? "s" : ""} ·{" "}
+                {items.length} item{items.length !== 1 ? "s" : ""} ·{" "}
                 Created {new Date(list.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Books grid */}
-        {books.length === 0 ? (
+        {/* Saved resources — books, theses and publications together. */}
+        {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-divider bg-bg-surface py-16 text-center">
             <BookMarked className="mb-3 h-10 w-10 text-text-muted/30" />
-            <p className="text-[14px] font-semibold text-text-muted">No books in this list yet</p>
+            <p className="text-[14px] font-semibold text-text-muted">Nothing saved here yet</p>
             <Link href="/books"
               className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand px-4 py-2 text-[13px] font-bold text-brand-contrast hover:bg-brand-hover">
               Browse Books
@@ -72,36 +82,44 @@ export default async function ReadingListPage({ params }: Props) {
           </div>
         ) : (
           <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {books.map((item) => {
-              const book = item.books;
-              if (!book) return null;
+            {items.map((item) => {
+              const resource = item.resource;
+              if (!resource) return null;
+              const href = item.page_number ? `${resource.url}?page=${item.page_number}` : resource.url;
               return (
-                <Link key={item.id} href={`/books/${book.slug}`}
+                <Link key={item.id} href={href}
                   className="group overflow-hidden rounded-[16px] border border-divider bg-bg-surface shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                   <div className="aspect-[3/4] w-full overflow-hidden">
-                    {book.cover_url ? (
+                    {resource.coverUrl ? (
                       <Image
-                        src={book.cover_url}
-                        alt={book.title}
+                        src={resource.coverUrl}
+                        alt={resource.title}
                         width={200}
                         height={267}
                         className="h-full w-full object-cover transition group-hover:scale-105"
                       />
                     ) : (
                       <BookCover
-                        title={book.title}
-                        label={book.categories?.name ?? ""}
-                        author={book.authors?.name ?? ""}
+                        title={resource.title}
+                        label={TYPE_LABEL[item.record_type]}
+                        author={resource.author}
                         variant="card"
                       />
                     )}
                   </div>
                   <div className="p-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                      {TYPE_LABEL[item.record_type]}
+                      {item.page_number ? ` · p. ${item.page_number}` : ""}
+                    </span>
                     <p className="line-clamp-2 text-[12.5px] font-semibold text-text-heading group-hover:text-brand transition-colors">
-                      {book.title}
+                      {resource.title}
                     </p>
-                    {book.authors?.name && (
-                      <p className="mt-0.5 truncate text-[11px] text-text-muted">{book.authors.name}</p>
+                    {resource.author && (
+                      <p className="mt-0.5 truncate text-[11px] text-text-muted">{resource.author}</p>
+                    )}
+                    {item.note && (
+                      <p className="mt-1 line-clamp-2 text-[11px] italic text-text-muted">{item.note}</p>
                     )}
                   </div>
                 </Link>

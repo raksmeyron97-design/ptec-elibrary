@@ -1,12 +1,26 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidateLocalizedPath as revalidatePath } from "@/lib/cache/revalidate";
+import {
+  revalidateLocalizedPath as revalidatePath,
+  revalidateUserWorkspace,
+} from "@/lib/cache/revalidate";
+
+/**
+ * A reading list is a research collection: it holds books, theses and
+ * publications together, because that is what one topic actually looks like.
+ * Items live in `reading_list_items` (migration 0136), polymorphic over
+ * `(record_type, record_id)`; the older books-only `reading_list_books` is
+ * still read by nothing here and is retired in a later migration.
+ */
+export type ResourceRecordType = "book" | "research" | "publication";
 
 export interface ReadingList {
   id: string;
   user_id: string;
   name: string;
+  /** What the collection is for. Free text, optional. */
+  topic: string | null;
   description: string | null;
   is_public: boolean;
   created_at: string;
@@ -14,24 +28,33 @@ export interface ReadingList {
   book_count?: number;
 }
 
-export interface ReadingListBook {
+/** One saved resource, optionally anchored to a page with a note. */
+export interface ReadingListItem {
   id: string;
   list_id: string;
-  book_id: string;
+  record_type: ResourceRecordType;
+  record_id: string;
+  page_number: number | null;
+  note: string | null;
   added_at: string;
-  books?: {
-    id: string;
+  /** Resolved for display; absent when the resource was unpublished. */
+  resource?: {
     title: string;
     slug: string;
-    cover_url: string | null;
-    cover_color: string | null;
-    authors: { name: string } | null;
-    categories: { name: string } | null;
+    author: string;
+    url: string;
+    coverUrl: string | null;
+    coverColor: string | null;
   };
 }
 
 // ── Create a new list ─────────────────────────────────────────
-export async function createReadingList(name: string, description?: string, isPublic = false) {
+export async function createReadingList(
+  name: string,
+  description?: string,
+  isPublic = false,
+  topic?: string,
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
@@ -39,14 +62,24 @@ export async function createReadingList(name: string, description?: string, isPu
   if (!name.trim()) return { error: "List name is required." };
   if (name.length > 80) return { error: "Name too long (max 80 characters)." };
 
-  const { data, error } = await supabase
-    .from("reading_lists")
-    .insert({ user_id: user.id, name: name.trim(), description: description?.trim() || null, is_public: isPublic })
-    .select("id")
-    .single();
+  const row: Record<string, unknown> = {
+    user_id: user.id,
+    name: name.trim(),
+    description: description?.trim() || null,
+    is_public: isPublic,
+  };
+  if (topic?.trim()) row.topic = topic.trim();
 
-  if (error) return { error: "Failed to create list." };
-  revalidatePath("/dashboard");
+  let { data, error } = await supabase.from("reading_lists").insert(row).select("id").single();
+  // A database without 0136 has no `topic` column; the list is still worth
+  // creating without it.
+  if (error && (error.code === "42703" || error.code === "PGRST204") && row.topic) {
+    delete row.topic;
+    ({ data, error } = await supabase.from("reading_lists").insert(row).select("id").single());
+  }
+
+  if (error || !data) return { error: "Failed to create list." };
+  revalidateUserWorkspace();
   return { success: true, id: data.id };
 }
 
@@ -99,9 +132,8 @@ export async function getMyReadingLists(): Promise<ReadingList[]> {
 
   if (!lists) return [];
 
-  // Attach book counts
   const { data: counts } = await supabase
-    .from("reading_list_books")
+    .from("reading_list_items")
     .select("list_id")
     .in("list_id", lists.map((l) => l.id));
 
@@ -110,11 +142,82 @@ export async function getMyReadingLists(): Promise<ReadingList[]> {
     countMap[row.list_id] = (countMap[row.list_id] ?? 0) + 1;
   }
 
-  return lists.map((l) => ({ ...l, book_count: countMap[l.id] ?? 0 })) as ReadingList[];
+  return lists.map((l) => ({ topic: null, ...l, book_count: countMap[l.id] ?? 0 })) as ReadingList[];
 }
 
-// ── Get a single list with books (public or owner) ────────────
-export async function getReadingList(id: string): Promise<{ list: ReadingList; books: ReadingListBook[] } | null> {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const RESOURCE_TABLE: Record<ResourceRecordType, string> = {
+  book: "books",
+  research: "research_reports",
+  publication: "publications",
+};
+
+const RESOURCE_ROUTE: Record<ResourceRecordType, string> = {
+  book: "/books",
+  research: "/theses",
+  publication: "/publications",
+};
+
+/**
+ * Resolve saved items to something renderable. One query per type, and an
+ * item whose resource is missing or unpublished simply carries no `resource`
+ * — the row stays, so a temporarily-unpublished book does not silently
+ * vanish from a student's collection.
+ */
+async function hydrateItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: any[],
+): Promise<ReadingListItem[]> {
+  const byType = new Map<ResourceRecordType, string[]>();
+  for (const r of rows) {
+    const type = r.record_type as ResourceRecordType;
+    if (!RESOURCE_TABLE[type]) continue;
+    byType.set(type, [...(byType.get(type) ?? []), r.record_id]);
+  }
+
+  const meta = new Map<string, ReadingListItem["resource"]>();
+  await Promise.all(
+    [...byType.entries()].map(async ([type, ids]) => {
+      const select =
+        type === "book"
+          ? "id, title, slug, cover_url, cover_color, authors ( name )"
+          : "id, title, slug, cover_url, author_names";
+      const { data } = await supabase
+        .from(RESOURCE_TABLE[type])
+        .select(select)
+        .in("id", [...new Set(ids)])
+        .eq("is_published", true);
+      for (const row of (data ?? []) as any[]) {
+        const ref = row.slug ?? row.id;
+        meta.set(`${type}:${row.id}`, {
+          title: row.title,
+          slug: ref,
+          author: row.authors?.name ?? row.author_names ?? "Unknown",
+          url: `${RESOURCE_ROUTE[type]}/${ref}`,
+          coverUrl: row.cover_url ?? null,
+          coverColor: row.cover_color ?? null,
+        });
+      }
+    }),
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    list_id: r.list_id,
+    record_type: r.record_type,
+    record_id: r.record_id,
+    page_number: r.page_number ?? null,
+    note: r.note ?? null,
+    added_at: r.added_at,
+    resource: meta.get(`${r.record_type}:${r.record_id}`),
+  }));
+}
+
+// ── Get a single list with its items (public or owner) ────────
+export async function getReadingList(
+  id: string,
+): Promise<{ list: ReadingList; items: ReadingListItem[] } | null> {
   const supabase = await createClient();
 
   const { data: list } = await supabase
@@ -125,66 +228,114 @@ export async function getReadingList(id: string): Promise<{ list: ReadingList; b
 
   if (!list) return null;
 
-  const { data: books } = await supabase
-    .from("reading_list_books")
-    .select(`
-      id, list_id, book_id, added_at,
-      books ( id, title, slug, cover_url, cover_color,
-        authors ( name ), categories ( name ) )
-    `)
+  const { data: rows } = await supabase
+    .from("reading_list_items")
+    .select("id, list_id, record_type, record_id, page_number, note, added_at")
     .eq("list_id", id)
     .order("added_at", { ascending: false });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { list: list as ReadingList, books: (books ?? []) as any as ReadingListBook[] };
+  const items = await hydrateItems(supabase, (rows ?? []) as any[]);
+  return { list: { topic: null, ...(list as any) } as ReadingList, items };
 }
 
-// ── Add book to a list ────────────────────────────────────────
-export async function addBookToList(listId: string, bookId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "Not authenticated" };
-
-  // Verify ownership
-  const { data: list } = await supabase
+/** Verify the caller owns the list before any write to its items. */
+async function ownedList(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  listId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
     .from("reading_lists")
     .select("id")
     .eq("id", listId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .maybeSingle();
-
-  if (!list) return { error: "List not found." };
-
-  const { error } = await supabase
-    .from("reading_list_books")
-    .insert({ list_id: listId, book_id: bookId });
-
-  if (error?.code === "23505") return { error: "already_in_list" };
-  if (error) return { error: "Failed to add book." };
-
-  revalidatePath("/dashboard");
-  return { success: true };
+  return Boolean(data);
 }
 
-// ── Remove book from a list ───────────────────────────────────
-export async function removeBookFromList(listId: string, bookId: string) {
+// ── Add any resource to a list ────────────────────────────────
+export async function addItemToList(
+  listId: string,
+  recordType: ResourceRecordType,
+  recordId: string,
+  options: { page?: number; note?: string } = {},
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+  if (!RESOURCE_TABLE[recordType]) return { error: "Unknown resource type." };
+  if (!(await ownedList(supabase, listId, user.id))) return { error: "List not found." };
 
-  await supabase
-    .from("reading_list_books")
-    .delete()
-    .eq("list_id", listId)
-    .eq("book_id", bookId);
+  const { error } = await supabase.from("reading_list_items").insert({
+    list_id: listId,
+    record_type: recordType,
+    record_id: recordId,
+    page_number: options.page ?? null,
+    note: options.note?.trim() || null,
+  });
 
-  revalidatePath("/dashboard");
-  revalidatePath(`/lists/${listId}`);
+  if (error?.code === "23505") return { error: "already_in_list" };
+  if (error) return { error: "Failed to save." };
+
+  revalidateUserWorkspace(listId);
   return { success: true };
 }
 
-// ── Check which lists contain a given book (for current user) ─
-export async function getListsContainingBook(bookId: string): Promise<string[]> {
+export async function removeItemFromList(
+  listId: string,
+  recordType: ResourceRecordType,
+  recordId: string,
+  page?: number,
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (!(await ownedList(supabase, listId, user.id))) return { error: "List not found." };
+
+  let query = supabase
+    .from("reading_list_items")
+    .delete()
+    .eq("list_id", listId)
+    .eq("record_type", recordType)
+    .eq("record_id", recordId);
+  query = page === undefined ? query.is("page_number", null) : query.eq("page_number", page);
+  await query;
+
+  revalidateUserWorkspace(listId);
+  return { success: true };
+}
+
+/** Edit the note on one saved item. */
+export async function updateItemNote(itemId: string, note: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (note.length > 5_000) return { error: "Note too long." };
+
+  const { data: item } = await supabase
+    .from("reading_list_items")
+    .select("list_id")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item || !(await ownedList(supabase, (item as any).list_id, user.id))) {
+    return { error: "Item not found." };
+  }
+
+  const { error } = await supabase
+    .from("reading_list_items")
+    .update({ note: note.trim() || null })
+    .eq("id", itemId);
+  if (error) return { error: "Failed to save note." };
+
+  revalidateUserWorkspace((item as any).list_id);
+  return { success: true };
+}
+
+/** Which of the caller's lists already hold this resource. */
+export async function getListsContainingItem(
+  recordType: ResourceRecordType,
+  recordId: string,
+): Promise<string[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -193,14 +344,62 @@ export async function getListsContainingBook(bookId: string): Promise<string[]> 
     .from("reading_lists")
     .select("id")
     .eq("user_id", user.id);
-
   if (!userLists?.length) return [];
 
   const { data } = await supabase
-    .from("reading_list_books")
+    .from("reading_list_items")
     .select("list_id")
-    .eq("book_id", bookId)
+    .eq("record_type", recordType)
+    .eq("record_id", recordId)
     .in("list_id", userLists.map((l) => l.id));
 
   return (data ?? []).map((r) => r.list_id);
+}
+
+// ── Book-shaped wrappers, so existing call sites keep working ─
+export async function addBookToList(listId: string, bookId: string) {
+  return addItemToList(listId, "book", bookId);
+}
+
+export async function removeBookFromList(listId: string, bookId: string) {
+  return removeItemFromList(listId, "book", bookId);
+}
+
+export async function getListsContainingBook(bookId: string): Promise<string[]> {
+  return getListsContainingItem("book", bookId);
+}
+
+/**
+ * Save a source straight from an answer, without making the reader pick a
+ * list first. The destination is their default collection, created on demand
+ * — a citation is worth keeping at the moment it is read, and a modal between
+ * the two is how it gets lost.
+ */
+export async function saveSourceToResearch(
+  recordType: ResourceRecordType,
+  recordId: string,
+  options: { page?: number; note?: string; listName?: string } = {},
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const name = options.listName?.trim() || "My research";
+  const { data: existing } = await supabase
+    .from("reading_lists")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("name", name)
+    .maybeSingle();
+
+  let listId = (existing as any)?.id as string | undefined;
+  if (!listId) {
+    const created = await createReadingList(name);
+    if (!created.success || !created.id) return { error: "Failed to create collection." };
+    listId = created.id;
+  }
+  if (!listId) return { error: "Failed to create collection." };
+
+  const result = await addItemToList(listId, recordType, recordId, options);
+  return result.error ? result : { success: true as const, listId };
 }

@@ -133,6 +133,8 @@
     "copyPageReference": "Copy page reference",
     "copyDoi": "Copy DOI",
     "copyCitation": "Copy citation",
+    "saveSource": "Save to research",
+    "sourceSaved": "Saved",
     "readerSettings": "Reader settings",
     "keyboardShortcuts": "Keyboard shortcuts",
     "reportProblem": "Report a problem",

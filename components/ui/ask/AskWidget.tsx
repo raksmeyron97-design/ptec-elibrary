@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { getRemainingAiQuota } from "@/app/actions/ai-usage";
+import { saveSourceToResearch } from "@/app/actions/reading-lists";
 import { useSession } from "@/components/providers/SessionProvider";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -56,6 +57,8 @@ interface AnswerSource {
 function SourceList({ sources, onNavigate }: { sources: AnswerSource[]; onNavigate: () => void }) {
   const t = useTranslations("ask");
   const [copied, setCopied] = useState<number | null>(null);
+  const [saved, setSaved] = useState<Set<number>>(new Set());
+  const [saving, setSaving] = useState<number | null>(null);
 
   const copy = async (index: number, reference: string) => {
     try {
@@ -65,6 +68,23 @@ function SourceList({ sources, onNavigate }: { sources: AnswerSource[]; onNaviga
     } catch {
       // Clipboard permission denied — the reference is still on screen.
     }
+  };
+
+  // A citation is worth keeping at the moment it is read. The destination is
+  // the reader's default collection, created on demand: a list picker between
+  // finding a source and keeping it is how sources get lost.
+  const save = async (index: number, source: AnswerSource) => {
+    if (!source.recordId || !source.recordType) return;
+    setSaving(index);
+    const res = await saveSourceToResearch(
+      source.recordType as "book" | "research" | "publication",
+      source.recordId,
+      { page: source.page },
+    );
+    if (!("error" in res) || !res.error || res.error === "already_in_list") {
+      setSaved((s) => new Set([...s, index]));
+    }
+    setSaving(null);
   };
 
   return (
@@ -91,15 +111,27 @@ function SourceList({ sources, onNavigate }: { sources: AnswerSource[]; onNaviga
             {s.snippet && (
               <p className="pl-6 text-[11.5px] leading-relaxed text-blue-200/60 line-clamp-2">“{s.snippet}”</p>
             )}
-            {s.reference && (
-              <button
-                type="button"
-                onClick={() => copy(i, s.reference!)}
-                className="ml-6 w-fit rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-blue-300/70 transition-colors hover:bg-white/[0.06] hover:text-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
-              >
-                {copied === i ? t("citationCopied") : t("copyCitation")}
-              </button>
-            )}
+            <div className="ml-6 flex flex-wrap items-center gap-1">
+              {s.reference && (
+                <button
+                  type="button"
+                  onClick={() => copy(i, s.reference!)}
+                  className="w-fit rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-blue-300/70 transition-colors hover:bg-white/[0.06] hover:text-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400"
+                >
+                  {copied === i ? t("citationCopied") : t("copyCitation")}
+                </button>
+              )}
+              {s.recordId && s.recordType && (
+                <button
+                  type="button"
+                  onClick={() => save(i, s)}
+                  disabled={saving === i || saved.has(i)}
+                  className="w-fit rounded-lg px-1.5 py-0.5 text-[11px] font-semibold text-blue-300/70 transition-colors hover:bg-white/[0.06] hover:text-gold-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gold-400 disabled:opacity-60"
+                >
+                  {saved.has(i) ? t("sourceSaved") : t("saveSource")}
+                </button>
+              )}
+            </div>
           </li>
         ))}
       </ol>

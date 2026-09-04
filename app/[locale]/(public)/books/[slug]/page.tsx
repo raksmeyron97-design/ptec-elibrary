@@ -651,7 +651,7 @@ async function ActionButtons({
       )}
       {book.dbId && (
         <ReadingListButton
-          bookId={book.dbId}
+          recordId={book.dbId}
           isLoggedIn={!!user}
           initialListIds={listIds}
         />
